@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { CheckCircle, Users, Award, Target } from "lucide-react";
 
 export const GuideSection = () => {

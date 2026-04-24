@@ -1,5 +1,6 @@
-import { Card, CardContent } from "@/components/ui/card";
+import Grid from "@mui/joy/Grid";
 import { Users, Clock, CreditCard, UserX } from "lucide-react";
+import { JoyStatCard } from "@/components/joy/JoyStatCard";
 
 interface AdminStatsProps {
   stats: {
@@ -16,65 +17,50 @@ export const AdminStats = ({ stats, onFilterClick }: AdminStatsProps) => {
     {
       title: "Total Tenants",
       value: stats.total_tenants,
-      icon: Users,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      icon: <Users size={20} />,
+      iconColor: "neutral",
       filter: null,
     },
     {
       title: "Active Trials",
       value: stats.active_trials,
-      icon: Clock,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-50",
+      icon: <Clock size={20} />,
+      iconColor: "warning",
       filter: "trialing",
     },
     {
       title: "Paid Active",
       value: stats.paid_active,
-      icon: CreditCard,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      icon: <CreditCard size={20} />,
+      iconColor: "success",
       filter: "active",
     },
     {
       title: "Inactive",
       value: stats.inactive_tenants,
-      icon: UserX,
-      color: "text-gray-600",
-      bgColor: "bg-gray-50",
+      icon: <UserX size={20} />,
+      iconColor: "neutral",
       filter: "canceled",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <Grid container spacing={2}>
       {statCards.map((stat) => {
-        const IconComponent = stat.icon;
         return (
-          <Card
-            key={stat.title}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              stat.filter ? 'hover:bg-muted/50' : ''
-            }`}
-            onClick={() => stat.filter && onFilterClick(stat.filter)}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {stat.title}
-                  </p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </div>
-                <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                  <IconComponent className={`h-6 w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Grid key={stat.title} xs={12} sm={6} xl={3}>
+            <JoyStatCard
+              icon={stat.icon}
+              iconColor={stat.iconColor}
+              label={stat.title}
+              value={stat.value}
+              onClick={
+                stat.filter ? () => onFilterClick(stat.filter) : undefined
+              }
+            />
+          </Grid>
         );
       })}
-    </div>
+    </Grid>
   );
 };

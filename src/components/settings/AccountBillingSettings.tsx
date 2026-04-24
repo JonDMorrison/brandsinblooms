@@ -1,59 +1,53 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BillingDashboard } from '@/components/billing/BillingDashboard';
-import { UsageAnalytics } from '@/components/billing/UsageAnalytics';
-import { DeleteAccountSection } from '@/components/account/DeleteAccountSection';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CreditCard, BarChart3, AlertTriangle } from 'lucide-react';
+import React from "react";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { CreditCard } from "lucide-react";
+import { DeleteAccountSection } from "@/components/account/DeleteAccountSection";
+import { AddOnSection } from "@/components/billing/AddOnSection";
+import { BillingHistory } from "@/components/billing/BillingHistory";
+import { PaymentMethods } from "@/components/billing/PaymentMethods";
+import { SubscriptionCard } from "@/components/billing/SubscriptionCard";
+import { UsageAnalytics } from "@/components/billing/UsageAnalytics";
+import { useSubscription as useBillingSubscription } from "@/hooks/useSubscription";
 
 export const AccountBillingSettings = () => {
+  const { loading } = useBillingSubscription();
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Account & Billing
-          </CardTitle>
-          <CardDescription>
-            Manage your subscription, view usage analytics, and handle account settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="billing" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="billing">Billing & Subscription</TabsTrigger>
-              <TabsTrigger value="usage">Usage Analytics</TabsTrigger>
-              <TabsTrigger value="danger">Account Management</TabsTrigger>
-            </TabsList>
+    <Stack spacing={3}>
+      <Stack spacing={0.75}>
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <CreditCard size={18} />
+          <Typography level="title-lg">Account & Billing</Typography>
+        </Stack>
+        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 760 }}>
+          Review plan details, billing history, usage limits, optional add-ons,
+          and account-level actions from one place.
+        </Typography>
+      </Stack>
 
-            <TabsContent value="billing" className="space-y-6">
-              <BillingDashboard />
-            </TabsContent>
-
-            <TabsContent value="usage" className="space-y-6">
-              <UsageAnalytics />
-            </TabsContent>
-
-            <TabsContent value="danger" className="space-y-6">
-              <Card className="border-destructive/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-5 w-5" />
-                    Danger Zone
-                  </CardTitle>
-                  <CardDescription>
-                    Irreversible actions that will permanently affect your account.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <DeleteAccountSection />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+      {loading ? (
+        <Stack spacing={2}>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              animation="wave"
+              variant="rectangular"
+              sx={{ height: 152, borderRadius: "24px" }}
+            />
+          ))}
+        </Stack>
+      ) : (
+        <>
+          <SubscriptionCard />
+          <PaymentMethods />
+          <BillingHistory />
+          <AddOnSection />
+          <UsageAnalytics />
+          <DeleteAccountSection />
+        </>
+      )}
+    </Stack>
   );
 };

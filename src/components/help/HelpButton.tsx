@@ -1,12 +1,12 @@
 import React from 'react';
 import { HelpCircle, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@/components/ui-legacy/tooltip';
 
 interface HelpButtonProps {
   topic: string;

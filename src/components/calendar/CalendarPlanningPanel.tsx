@@ -1,134 +1,179 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Lightbulb, Calendar, Filter } from 'lucide-react';
-import { CalendarPlanningFilters } from './CalendarPlanningFilters';
-import { CalendarHolidaysList } from './CalendarHolidaysList';
-import { MASTER_WEEKLY_THEMES } from '@/data/masterWeeklyThemes';
-import { getCurrentWeekNumber } from '@/utils/dateUtils';
+import React from "react";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Calendar, ExternalLink, Lightbulb, Megaphone } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyDrawer } from "@/components/joy/JoyDrawer";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { CalendarHolidaysList } from "./CalendarHolidaysList";
+import { MASTER_WEEKLY_THEMES } from "@/data/masterWeeklyThemes";
+import { getISOWeekNumber } from "@/utils/dateUtils";
 
 interface CalendarPlanningPanelProps {
-  filters: any;
-  onFiltersChange: (filters: any) => void;
-  filterOptions: {
-    types: string[];
-    platforms: string[];
-    statuses: string[];
-  };
+  open: boolean;
+  inline?: boolean;
+  currentDate: Date;
+  campaigns: any[];
+  holidays: any[];
+  holidayContentState: Record<
+    string,
+    { hasContent: boolean; contentCount: number; lastGenerated?: string }
+  >;
   onThemeSchedule: (theme: any, date: Date) => void;
-  onHolidayAction: (holiday: any, action: string) => void;
+  onHolidayAction: (holiday: any, action: "generate" | "review") => void;
+  onOpenThemesReference: () => void;
+  onClose: () => void;
 }
 
 export const CalendarPlanningPanel = ({
-  filters,
-  onFiltersChange,
-  filterOptions,
+  open,
+  inline = false,
+  currentDate,
+  campaigns,
+  holidays,
+  holidayContentState,
   onThemeSchedule,
-  onHolidayAction
+  onHolidayAction,
+  onOpenThemesReference,
+  onClose,
 }: CalendarPlanningPanelProps) => {
-  const [activeTab, setActiveTab] = useState('ideas');
+  const currentWeek = getISOWeekNumber(currentDate);
+  const currentTheme =
+    MASTER_WEEKLY_THEMES.find((theme) => theme.week_number === currentWeek) ??
+    MASTER_WEEKLY_THEMES[0];
+  const upcomingHolidays = holidays.slice(0, 6);
+  const activeCampaigns = campaigns
+    .filter((campaign) => campaign.start_date)
+    .sort(
+      (left, right) =>
+        new Date(left.start_date).getTime() -
+        new Date(right.start_date).getTime(),
+    )
+    .slice(0, 5);
 
-  // Get current week number and reorder themes to start from current week
-  const currentWeek = getCurrentWeekNumber();
-  const reorderedThemes = [
-    ...MASTER_WEEKLY_THEMES.slice(currentWeek - 1),
-    ...MASTER_WEEKLY_THEMES.slice(0, currentWeek - 1)
-  ];
+  if (!open) {
+    return null;
+  }
+
+  const content = (
+    <Stack spacing={1.5}>
+      <Sheet variant="soft" color="primary" sx={{ borderRadius: "xl", p: 1.5 }}>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Stack spacing={0.375}>
+              <Typography
+                level="body-xs"
+                textTransform="uppercase"
+                fontWeight="lg"
+              >
+                Current Week Theme
+              </Typography>
+              <Typography level="title-md">{currentTheme.title}</Typography>
+            </Stack>
+            <JoyChip color="primary" variant="solid">
+              Week {currentTheme.week_number}
+            </JoyChip>
+          </Stack>
+          <Typography level="body-sm">{currentTheme.seasonal_focus}</Typography>
+          <Typography level="body-xs" color="neutral">
+            {currentTheme.content_ideas}
+          </Typography>
+          <Stack direction="row" spacing={0.75}>
+            <JoyButton
+              startDecorator={<Lightbulb size={14} />}
+              onClick={() => onThemeSchedule(currentTheme, currentDate)}
+            >
+              Schedule Theme
+            </JoyButton>
+            <JoyButton
+              bloomVariant="outline"
+              color="neutral"
+              startDecorator={<ExternalLink size={14} />}
+              onClick={onOpenThemesReference}
+            >
+              Browse Themes
+            </JoyButton>
+          </Stack>
+        </Stack>
+      </Sheet>
+
+      <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Calendar size={16} />
+            <Typography level="title-sm">Upcoming Holidays</Typography>
+          </Stack>
+          <CalendarHolidaysList
+            holidays={upcomingHolidays}
+            holidayContentState={holidayContentState}
+            onHolidayAction={onHolidayAction}
+          />
+        </Stack>
+      </Sheet>
+
+      <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 1.5 }}>
+        <Stack spacing={1.25}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Megaphone size={16} />
+            <Typography level="title-sm">Active Campaigns</Typography>
+          </Stack>
+          {activeCampaigns.length > 0 ? (
+            <Stack spacing={1}>
+              {activeCampaigns.map((campaign) => (
+                <Sheet
+                  key={campaign.id}
+                  variant="soft"
+                  color="success"
+                  sx={{ borderRadius: "lg", p: 1.25 }}
+                >
+                  <Typography level="body-sm" fontWeight="lg">
+                    {campaign.title}
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    {campaign.start_date
+                      ? new Date(campaign.start_date).toLocaleDateString()
+                      : "No date"}
+                  </Typography>
+                </Sheet>
+              ))}
+            </Stack>
+          ) : (
+            <Typography level="body-sm" color="neutral">
+              No active campaigns yet.
+            </Typography>
+          )}
+        </Stack>
+      </Sheet>
+    </Stack>
+  );
+
+  if (inline) {
+    return (
+      <Box sx={{ width: 340, flexShrink: 0 }}>
+        <Sheet variant="plain" sx={{ position: "sticky", top: 88 }}>
+          {content}
+        </Sheet>
+      </Box>
+    );
+  }
 
   return (
-    <div className="w-80 bg-background border-l border-border">
-      <div className="h-full flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Planning Hub
-          </h2>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 mx-4 mt-4">
-            <TabsTrigger value="ideas" className="text-sm">
-              <Lightbulb className="w-4 h-4 mr-1" />
-              Ideas
-            </TabsTrigger>
-            <TabsTrigger value="holidays" className="text-sm">
-              <Calendar className="w-4 h-4 mr-1" />
-              Holidays
-            </TabsTrigger>
-            <TabsTrigger value="filters" className="text-sm">
-              <Filter className="w-4 h-4 mr-1" />
-              Filters
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="ideas" className="h-full m-0 p-4">
-              <ScrollArea className="h-full">
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm text-primary flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4" />
-                        Weekly Themes (52 Ideas)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {reorderedThemes.map((theme) => (
-                          <div 
-                            key={theme.week_number} 
-                            className="p-2 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors cursor-pointer"
-                            onClick={() => onThemeSchedule(theme, new Date())}
-                          >
-                            <div className="text-sm font-semibold text-slate-900">
-                              {theme.title}
-                            </div>
-                            <div className="text-xs text-slate-600 mt-1">
-                              {theme.seasonal_focus}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm">Quick Ideas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-2">
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>• Behind-the-scenes content</p>
-                        <p>• Customer testimonials</p>
-                        <p>• Product education posts</p>
-                        <p>• Seasonal tips & advice</p>
-                        <p>• Community highlights</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="holidays" className="h-full m-0 p-4">
-              <ScrollArea className="h-full">
-                <CalendarHolidaysList onHolidayAction={onHolidayAction} />
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="filters" className="h-full m-0 p-4">
-              <ScrollArea className="h-full">
-                <CalendarPlanningFilters
-                  filters={filters}
-                  onFiltersChange={onFiltersChange}
-                  filterOptions={filterOptions}
-                />
-              </ScrollArea>
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
-    </div>
+    <JoyDrawer
+      open={open}
+      onClose={() => onClose()}
+      anchor="right"
+      size="md"
+      title="Planning Hub"
+      description="Themes, holidays, and active campaigns"
+      startDecorator={<Calendar size={18} />}
+    >
+      {content}
+    </JoyDrawer>
   );
 };

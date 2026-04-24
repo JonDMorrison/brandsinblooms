@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { IPhoneMockup } from "./IPhoneMockup";
 import { MobileDashboardPreview } from "./MobileDashboardPreview";
 import { ArrowRight } from "lucide-react";

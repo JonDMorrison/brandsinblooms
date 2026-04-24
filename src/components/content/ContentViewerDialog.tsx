@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui-legacy/dialog";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 import { ContentTaskItem } from "./ContentTaskItem";
 import { FileText, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui-legacy/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 
 interface ContentViewerDialogProps {
   isOpen: boolean;

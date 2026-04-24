@@ -3,10 +3,22 @@ import {
   AlertTriangle,
   Clock3,
   Download,
-  Loader2,
   RefreshCw,
   ScrollText,
 } from "lucide-react";
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 
 import {
   DataTabEmptyState,
@@ -22,15 +34,6 @@ import {
   type MailchimpSyncLogsStatusFilter,
   useMailchimpSyncLogs,
 } from "@/hooks/useMailchimpSyncLogs";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { label: "All", value: "all" },
@@ -48,67 +51,40 @@ const DATE_PRESET_OPTIONS = [
   { label: "All time", value: "all" },
 ] satisfies Array<{ label: string; value: MailchimpSyncLogsDatePreset }>;
 
-function getStatusBadgeClass(status: MailchimpSyncLogEntry["status"]) {
-  if (status === "completed") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
+function getStatusChipColor(
+  status: MailchimpSyncLogEntry["status"],
+): "success" | "danger" | "warning" | "primary" | "neutral" {
+  if (status === "completed") return "success";
+  if (status === "failed") return "danger";
+  if (status === "paused") return "warning";
+  if (status === "running") return "primary";
+  return "neutral";
+}
 
-  if (status === "failed") {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-
-  if (status === "paused") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-
-  if (status === "running") {
-    return "border-sky-200 bg-sky-50 text-sky-700";
-  }
-
-  if (status === "cancelled") {
-    return "border-slate-200 bg-slate-100 text-slate-700";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-700";
+function getProgressColor(
+  status: MailchimpSyncLogEntry["status"],
+): "success" | "danger" | "warning" | "primary" | "neutral" {
+  if (status === "failed") return "danger";
+  if (status === "completed") return "success";
+  if (status === "pending" || status === "paused" || status === "cancelled") return "neutral";
+  return "primary";
 }
 
 function getStatusLabel(status: MailchimpSyncLogEntry["status"]) {
-  if (status === "running") {
-    return "In Progress";
-  }
-
-  if (status === "failed") {
-    return "Needs Attention";
-  }
-
+  if (status === "running") return "In Progress";
+  if (status === "failed") return "Needs Attention";
   return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function getProgressBarClass(status: MailchimpSyncLogEntry["status"]) {
-  if (status === "failed") {
-    return "bg-rose-500";
-  }
-
-  if (status === "completed") {
-    return "bg-emerald-500";
-  }
-
-  if (status === "pending" || status === "paused" || status === "cancelled") {
-    return "bg-slate-400";
-  }
-
-  return "bg-sky-500";
 }
 
 function formatDurationLabel(entry: MailchimpSyncLogEntry) {
   if (entry.status === "completed" || entry.status === "failed") {
     return (
       formatDuration(entry.createdAt, entry.completedAt ?? entry.updatedAt) ??
-      "—"
+      "\u2014"
     );
   }
 
-  return formatDuration(entry.createdAt, new Date().toISOString()) ?? "—";
+  return formatDuration(entry.createdAt, new Date().toISOString()) ?? "\u2014";
 }
 
 function downloadReport(entry: MailchimpSyncLogEntry) {
@@ -149,19 +125,22 @@ function SummaryMetric({
   tone?: "default" | "danger";
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+    <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", px: 1.5, py: 1 }}>
+      <Typography
+        level="body-xs"
+        fontWeight="lg"
+        sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary" }}
+      >
         {label}
-      </p>
-      <p
-        className={cn(
-          "mt-1 text-sm font-semibold",
-          tone === "danger" ? "text-rose-700" : "text-slate-900",
-        )}
+      </Typography>
+      <Typography
+        level="body-sm"
+        fontWeight="lg"
+        sx={{ mt: 0.5, color: tone === "danger" ? "danger.600" : "text.primary" }}
       >
         {value}
-      </p>
-    </div>
+      </Typography>
+    </Sheet>
   );
 }
 
@@ -175,13 +154,13 @@ function DetailSection({
   action?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+        <Typography level="title-sm">{title}</Typography>
         {action}
-      </div>
+      </Stack>
       {children}
-    </section>
+    </Sheet>
   );
 }
 
@@ -191,186 +170,209 @@ function TimelineDot({
   state: MailchimpSyncLogEntry["timeline"][number]["state"];
 }) {
   return (
-    <span
-      className={cn(
-        "mt-1.5 block h-2.5 w-2.5 rounded-full",
-        state === "complete" && "bg-emerald-500",
-        state === "current" && "bg-sky-500",
-        state === "failed" && "bg-rose-500",
-        state === "pending" && "bg-slate-300",
-      )}
+    <Box
+      sx={{
+        mt: 0.75,
+        width: 10,
+        height: 10,
+        borderRadius: "50%",
+        flexShrink: 0,
+        bgcolor:
+          state === "complete"
+            ? "success.500"
+            : state === "current"
+              ? "primary.500"
+              : state === "failed"
+                ? "danger.500"
+                : "neutral.300",
+      }}
     />
   );
 }
 
 function JobCard({
   entry,
-  isExpanded,
+  expanded,
+  onToggle,
 }: {
   entry: MailchimpSyncLogEntry;
-  isExpanded: boolean;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const progressValue = Math.max(0, Math.min(100, entry.progressPercentage));
 
   return (
-    <AccordionItem
-      value={entry.id}
-      className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-    >
-      <AccordionTrigger className="px-5 py-4 hover:no-underline">
-        <div className="flex w-full flex-col gap-4 text-left lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Badge className={getStatusBadgeClass(entry.status)}>
-                {getStatusLabel(entry.status)}
-              </Badge>
-              <Badge
-                variant="outline"
-                className="border-slate-200 text-slate-600"
+    <Accordion expanded={expanded} onChange={onToggle}>
+      <AccordionSummary sx={{ px: 2.5, py: 2 }}>
+        <Stack spacing={2} sx={{ width: "100%", textAlign: "left" }}>
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ lg: "flex-start" }}
+          >
+            <Stack spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                <Chip size="sm" variant="soft" color={getStatusChipColor(entry.status)}>
+                  {getStatusLabel(entry.status)}
+                </Chip>
+                <Chip size="sm" variant="outlined" color="neutral">
+                  {entry.scopeSummary}
+                </Chip>
+                {entry.status === "running" ? (
+                  <Typography level="body-xs" fontWeight="lg" sx={{ color: "primary.600", alignSelf: "center" }}>
+                    Live
+                  </Typography>
+                ) : null}
+                {entry.errorCount > 0 ? (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <AlertTriangle size={13} />
+                    <Typography level="body-xs" fontWeight="lg" sx={{ color: "danger.600" }}>
+                      {entry.errorCount} issue{entry.errorCount === 1 ? "" : "s"}
+                    </Typography>
+                  </Stack>
+                ) : null}
+              </Stack>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(4, 1fr)" },
+                  gap: 1,
+                }}
               >
-                {entry.scopeSummary}
-              </Badge>
-              {entry.status === "running" ? (
-                <span className="text-xs font-medium text-sky-700">Live</span>
-              ) : null}
-              {entry.errorCount > 0 ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-rose-700">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {entry.errorCount} issue{entry.errorCount === 1 ? "" : "s"}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <SummaryMetric
-                label="Started"
-                value={formatDateTimeValue(entry.createdAt)}
-              />
-              <SummaryMetric
-                label="Duration"
-                value={formatDurationLabel(entry)}
-              />
-              <SummaryMetric
-                label="Imported"
-                value={formatCount(entry.insertedRows)}
-              />
-              <SummaryMetric
-                label="Skipped / Failed"
-                value={`${formatCount(entry.skippedRows)} / ${formatCount(entry.failedRows)}`}
-                tone={entry.failedRows > 0 ? "danger" : "default"}
-              />
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
-                <span>{entry.currentStage}</span>
-                <span>{progressValue}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all duration-300",
-                    getProgressBarClass(entry.status),
-                  )}
-                  style={{ width: `${progressValue}%` }}
+                <SummaryMetric label="Started" value={formatDateTimeValue(entry.createdAt)} />
+                <SummaryMetric label="Duration" value={formatDurationLabel(entry)} />
+                <SummaryMetric label="Imported" value={formatCount(entry.insertedRows)} />
+                <SummaryMetric
+                  label="Skipped / Failed"
+                  value={`${formatCount(entry.skippedRows)} / ${formatCount(entry.failedRows)}`}
+                  tone={entry.failedRows > 0 ? "danger" : "default"}
                 />
-              </div>
-            </div>
-          </div>
+              </Box>
 
-          <div className="flex min-w-[12rem] shrink-0 flex-col items-start gap-1 text-xs text-slate-500 lg:items-end">
-            <span>Created {formatRelativeTimestamp(entry.createdAt)}</span>
-            <span>Updated {formatRelativeTimestamp(entry.updatedAt)}</span>
-            {entry.completedAt ? (
-              <span>Finished {formatRelativeTimestamp(entry.completedAt)}</span>
-            ) : null}
-            {isExpanded ? (
-              <span className="font-medium text-slate-700">Details open</span>
-            ) : null}
-          </div>
-        </div>
-      </AccordionTrigger>
+              <Stack spacing={0.75}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>{entry.currentStage}</Typography>
+                  <Typography level="body-xs" fontWeight="lg">{progressValue}%</Typography>
+                </Stack>
+                <LinearProgress
+                  determinate
+                  value={progressValue}
+                  color={getProgressColor(entry.status)}
+                  size="sm"
+                  sx={{ borderRadius: "xs" }}
+                />
+              </Stack>
+            </Stack>
 
-      <AccordionContent className="px-5 pb-5 pt-0">
-        <div className="space-y-4 border-t border-slate-100 pt-4">
+            <Stack spacing={0.5} alignItems={{ xs: "flex-start", lg: "flex-end" }} sx={{ flexShrink: 0, minWidth: 160 }}>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Created {formatRelativeTimestamp(entry.createdAt)}
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Updated {formatRelativeTimestamp(entry.updatedAt)}
+              </Typography>
+              {entry.completedAt ? (
+                <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                  Finished {formatRelativeTimestamp(entry.completedAt)}
+                </Typography>
+              ) : null}
+            </Stack>
+          </Stack>
+        </Stack>
+      </AccordionSummary>
+
+      <AccordionDetails sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
+        <Stack spacing={2} sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}>
           <DetailSection title="Selected audience">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Lists
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {entry.resolvedLists.length > 0 ? (
-                      entry.resolvedLists.map((list) => (
-                        <Badge
-                          key={`${entry.id}-${list.id}`}
-                          variant="outline"
-                          className="border-slate-200 bg-white text-slate-700"
-                        >
-                          {list.name}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-slate-500">
-                        No specific lists were saved for this import.
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+                gap: 1.5,
+              }}
+            >
+              <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", p: 1.5 }}>
+                <Typography
+                  level="body-xs"
+                  fontWeight="lg"
+                  sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary", mb: 1 }}
+                >
+                  Lists
+                </Typography>
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
+                  {entry.resolvedLists.length > 0 ? (
+                    entry.resolvedLists.map((list) => (
+                      <Chip
+                        key={`${entry.id}-${list.id}`}
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                      >
+                        {list.name}
+                      </Chip>
+                    ))
+                  ) : (
+                    <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                      No specific lists were saved for this import.
+                    </Typography>
+                  )}
+                </Stack>
+              </Sheet>
 
-              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Segments
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {entry.resolvedSegments.length > 0 ? (
-                      entry.resolvedSegments.map((segment) => (
-                        <Badge
-                          key={`${entry.id}-${segment.id}`}
-                          variant="outline"
-                          className="border-slate-200 bg-white text-slate-700"
-                        >
-                          {segment.name}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-sm text-slate-500">
-                        No specific segments were saved for this import.
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+              <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", p: 1.5 }}>
+                <Typography
+                  level="body-xs"
+                  fontWeight="lg"
+                  sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary", mb: 1 }}
+                >
+                  Segments
+                </Typography>
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
+                  {entry.resolvedSegments.length > 0 ? (
+                    entry.resolvedSegments.map((segment) => (
+                      <Chip
+                        key={`${entry.id}-${segment.id}`}
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                      >
+                        {segment.name}
+                      </Chip>
+                    ))
+                  ) : (
+                    <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                      No specific segments were saved for this import.
+                    </Typography>
+                  )}
+                </Stack>
+              </Sheet>
+            </Box>
           </DetailSection>
 
           <DetailSection title="Import activity">
-            <div className="space-y-3">
+            <Stack spacing={0}>
               {entry.timeline.map((item) => (
-                <div key={item.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
+                <Stack key={item.id} direction="row" spacing={1.5} sx={{ pb: 2 }}>
+                  <Stack alignItems="center" sx={{ flexShrink: 0 }}>
                     <TimelineDot state={item.state} />
-                    <span className="mt-1 h-full w-px bg-slate-200 last:hidden" />
-                  </div>
-                  <div className="pb-3">
-                    <p className="text-sm font-medium text-slate-900">
-                      {item.label}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <Box sx={{ flex: 1, width: "1px", bgcolor: "divider", mt: 0.5 }} />
+                  </Stack>
+                  <Box sx={{ pb: 0.5 }}>
+                    <Typography level="body-sm" fontWeight="lg">{item.label}</Typography>
+                    <Typography level="body-sm" sx={{ mt: 0.5, color: "text.secondary" }}>
                       {item.description}
-                    </p>
+                    </Typography>
                     {item.timestamp ? (
-                      <p className="mt-1 text-xs text-slate-500">
+                      <Typography level="body-xs" sx={{ mt: 0.5, color: "text.tertiary" }}>
                         {formatDateTimeValue(item.timestamp)}
-                      </p>
+                      </Typography>
                     ) : null}
-                  </div>
-                </div>
+                  </Box>
+                </Stack>
               ))}
-            </div>
+            </Stack>
           </DetailSection>
 
           <DetailSection
@@ -378,90 +380,80 @@ function JobCard({
             action={
               entry.report ? (
                 <Button
-                  type="button"
                   size="sm"
-                  variant="outline"
+                  variant="outlined"
+                  color="neutral"
+                  startDecorator={<Download size={14} />}
                   onClick={() => downloadReport(entry)}
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Import Report
+                  Download Report
                 </Button>
               ) : undefined
             }
           >
-            <div className="grid gap-3 md:grid-cols-3">
-              <SummaryMetric
-                label="Imported"
-                value={formatCount(entry.reportSummary.contactsImported)}
-              />
-              <SummaryMetric
-                label="Skipped"
-                value={formatCount(entry.reportSummary.contactsSkipped)}
-              />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)" },
+                gap: 1,
+                mb: 1.5,
+              }}
+            >
+              <SummaryMetric label="Imported" value={formatCount(entry.reportSummary.contactsImported)} />
+              <SummaryMetric label="Skipped" value={formatCount(entry.reportSummary.contactsSkipped)} />
               <SummaryMetric
                 label="Failed"
                 value={formatCount(entry.reportSummary.contactsFailed)}
-                tone={
-                  entry.reportSummary.contactsFailed > 0 ? "danger" : "default"
-                }
+                tone={entry.reportSummary.contactsFailed > 0 ? "danger" : "default"}
               />
-              <SummaryMetric
-                label="Segments created"
-                value={formatCount(entry.reportSummary.segmentsCreated)}
-              />
-              <SummaryMetric
-                label="Tags created"
-                value={formatCount(entry.reportSummary.tagsCreated)}
-              />
-              <SummaryMetric
-                label="Consents recorded"
-                value={formatCount(entry.reportSummary.consentsRecorded)}
-              />
-            </div>
-
+              <SummaryMetric label="Segments created" value={formatCount(entry.reportSummary.segmentsCreated)} />
+              <SummaryMetric label="Tags created" value={formatCount(entry.reportSummary.tagsCreated)} />
+              <SummaryMetric label="Consents recorded" value={formatCount(entry.reportSummary.consentsRecorded)} />
+            </Box>
             {entry.report ? (
-              <p className="text-sm text-slate-600">
-                A downloadable report is available for this import if you need
-                to review the final details outside this page.
-              </p>
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                A downloadable report is available for this import if you need to review the final details outside this page.
+              </Typography>
             ) : (
-              <p className="text-sm text-slate-500">
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
                 A final report has not been saved for this import yet.
-              </p>
+              </Typography>
             )}
           </DetailSection>
 
           {entry.status === "failed" || entry.errorCount > 0 ? (
             <DetailSection title="What needs attention">
-              <div className="space-y-3">
+              <Stack spacing={1}>
                 {entry.hasConnectionIssue ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  <Alert size="sm" color="warning" variant="soft">
                     Reconnect Mailchimp, then retry this import.
-                  </div>
+                  </Alert>
                 ) : null}
                 {entry.errorMessages.length > 0 ? (
-                  <ul className="space-y-2">
+                  <Stack spacing={1}>
                     {entry.errorMessages.map((message, index) => (
-                      <li
+                      <Alert
                         key={`${entry.id}-error-${index}`}
-                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+                        size="sm"
+                        color="danger"
+                        variant="soft"
+                        startDecorator={<AlertTriangle size={14} />}
                       >
                         {message}
-                      </li>
+                      </Alert>
                     ))}
-                  </ul>
+                  </Stack>
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    This import stopped before it could finish. Retry it when
-                    you are ready.
-                  </p>
+                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                    This import stopped before it could finish. Retry it when you are ready.
+                  </Typography>
                 )}
-              </div>
+              </Stack>
             </DetailSection>
           ) : null}
-        </div>
-      </AccordionContent>
-    </AccordionItem>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -527,42 +519,50 @@ export function SyncLogsTabView({
   }, [rows]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 px-5 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900">
-                Sync Logs
-              </h3>
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-              ) : null}
-            </div>
-            <p className="mt-1 text-sm text-slate-500">
-              Review recent Mailchimp imports and open any run for a cleaner
-              summary of what happened.
-            </p>
-          </div>
+    <Sheet variant="outlined" sx={{ borderRadius: "xl", overflow: "hidden" }}>
+      <Stack
+        spacing={2}
+        sx={{ px: 2.5, py: 2.5, borderBottom: "1px solid", borderColor: "divider" }}
+      >
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ lg: "flex-start" }}
+        >
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography level="title-sm">Sync Logs</Typography>
+              {loading ? <CircularProgress size="sm" /> : null}
+            </Stack>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              Review recent Mailchimp imports and open any run for a cleaner summary of what happened.
+            </Typography>
+          </Stack>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             <Button
-              type="button"
               size="sm"
-              variant="outline"
+              variant="outlined"
+              color="neutral"
+              startDecorator={<RefreshCw size={14} />}
               onClick={() => void refresh()}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
-            <Button type="button" size="sm" onClick={handlePrimaryAction}>
+            <Button size="sm" onClick={handlePrimaryAction}>
               {primaryActionLabel}
             </Button>
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
-        <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
+        <Stack
+          direction={{ xs: "column", xl: "row" }}
+          spacing={2}
+          alignItems={{ xl: "center" }}
+          justifyContent="space-between"
+        >
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             <StatusFilterPills
               options={STATUS_OPTIONS}
               value={statusFilter}
@@ -573,38 +573,49 @@ export function SyncLogsTabView({
               value={datePreset}
               onChange={setDatePreset}
             />
-          </div>
+          </Stack>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <Clock3 className="h-3.5 w-3.5" />
-              {totalCount.toLocaleString()} job{totalCount === 1 ? "" : "s"}
-            </span>
-            <span>{statusCounts.running} running</span>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap" }}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Clock3 size={13} />
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {totalCount.toLocaleString()} job{totalCount === 1 ? "" : "s"}
+              </Typography>
+            </Stack>
+            <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+              {statusCounts.running} running
+            </Typography>
             {statusCounts.paused > 0 ? (
-              <span>{statusCounts.paused} paused</span>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {statusCounts.paused} paused
+              </Typography>
             ) : null}
-            <span>{statusCounts.failed} failed</span>
-            <span>{statusCounts.completed} completed</span>
+            <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+              {statusCounts.failed} failed
+            </Typography>
+            <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+              {statusCounts.completed} completed
+            </Typography>
             {statusCounts.cancelled > 0 ? (
-              <span>{statusCounts.cancelled} cancelled</span>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {statusCounts.cancelled} cancelled
+              </Typography>
             ) : null}
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
         {focusedJobExcluded ? (
-          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            The selected job is hidden by the current filters. Clear or widen
-            the filters to view it.
-          </div>
+          <Alert size="sm" color="warning" variant="soft">
+            The selected job is hidden by the current filters. Clear or widen the filters to view it.
+          </Alert>
         ) : null}
 
         {error ? (
-          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          <Alert size="sm" color="danger" variant="soft">
             {error}
-          </div>
+          </Alert>
         ) : null}
-      </div>
+      </Stack>
 
       {!loading && rows.length === 0 ? (
         <DataTabEmptyState
@@ -612,7 +623,7 @@ export function SyncLogsTabView({
           title="No Mailchimp sync logs yet"
           description="Import activity will appear here after the first Mailchimp sync runs."
           action={
-            <Button type="button" onClick={handlePrimaryAction}>
+            <Button onClick={handlePrimaryAction}>
               {primaryActionLabel}
             </Button>
           }
@@ -620,51 +631,54 @@ export function SyncLogsTabView({
       ) : null}
 
       {rows.length > 0 ? (
-        <div className="space-y-4 px-5 py-5">
-          <Accordion
-            type="single"
-            collapsible
-            value={expandedJobId}
-            onValueChange={(value) => setExpandedJobId(value || undefined)}
-            className="space-y-4"
-          >
+        <Stack spacing={0}>
+          <AccordionGroup sx={{ "--AccordionGroup-separator": "1px solid", "--joy-palette-divider": "var(--joy-palette-neutral-outlinedBorder)" }}>
             {rows.map((entry) => (
               <JobCard
                 key={entry.id}
                 entry={entry}
-                isExpanded={expandedJobId === entry.id}
+                expanded={expandedJobId === entry.id}
+                onToggle={() =>
+                  setExpandedJobId(
+                    expandedJobId === entry.id ? undefined : entry.id,
+                  )
+                }
               />
             ))}
-          </Accordion>
+          </AccordionGroup>
 
-          <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <p className="text-xs text-slate-500">
-              Showing {rows.length.toLocaleString()} of{" "}
-              {totalCount.toLocaleString()} jobs
-            </p>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={2}
+            sx={{ px: 2.5, py: 2, borderTop: "1px solid", borderColor: "divider" }}
+          >
+            <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+              Showing {rows.length.toLocaleString()} of {totalCount.toLocaleString()} jobs
+            </Typography>
             {hasMore ? (
               <Button
-                type="button"
-                variant="outline"
+                size="sm"
+                variant="outlined"
+                color="neutral"
                 onClick={() => void loadMore()}
                 disabled={loadingMore}
+                startDecorator={loadingMore ? <CircularProgress size="sm" /> : null}
               >
-                {loadingMore ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
                 Load More
               </Button>
             ) : null}
-          </div>
-        </div>
+          </Stack>
+        </Stack>
       ) : null}
 
       {loading && rows.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 px-5 py-12 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading sync logs…
-        </div>
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 6 }}>
+          <CircularProgress size="sm" />
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>Loading sync logs\u2026</Typography>
+        </Stack>
       ) : null}
-    </div>
+    </Sheet>
   );
 }

@@ -1,17 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Smartphone, Send, AlertTriangle, Image, ChevronDown, ChevronUp, User, Search, Check, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { renderSmsPreview, sendTestSms, RenderPreviewResponse, SampleCustomer } from '@/lib/sms/smsPreviewService';
-import { SmsComplianceSandbox } from './SmsComplianceSandbox';
-import { supabase } from '@/integrations/supabase/client';
-import { useTenant } from '@/hooks/useTenant';
+import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import Input from "@mui/joy/Input";
+import Option from "@mui/joy/Option";
+import Select from "@mui/joy/Select";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { useQuery } from "@tanstack/react-query";
+import { Eye, Search, Send, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import {
+  renderSmsPreview,
+  sendTestSms,
+  type RenderPreviewResponse,
+  type SampleCustomer,
+} from "@/lib/sms/smsPreviewService";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
 
 interface SmsPreviewPanelProps {
   messageTemplate: string;
@@ -30,49 +41,80 @@ interface CustomerOption {
   email?: string;
 }
 
+type PreviewMode = "sample" | "customer";
+
+function getCustomerLabel(customer: CustomerOption) {
+  const name = [customer.first_name, customer.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return name || customer.phone || customer.email || "Unknown customer";
+}
+
 export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
   messageTemplate,
   mediaUrls = [],
   imageUrl,
-  campaignId,
-  segmentId,
   recipientCount = 0,
 }) => {
   const { tenant } = useTenant();
-  const [isOpen, setIsOpen] = useState(true);
-  const [previewTab, setPreviewTab] = useState<'sample' | 'customer'>('sample');
-  
-  // Sample customer form
-  const [sampleCustomer, setSampleCustomer] = useState<SampleCustomer>({
-    first_name: 'John',
-    last_name: 'Doe',
-    email: 'john@example.com',
-    phone: '+15551234567',
+  const [previewMode, setPreviewMode] = React.useState<PreviewMode>("sample");
+  const [sampleCustomer, setSampleCustomer] = React.useState<SampleCustomer>({
+    first_name: "John",
+    last_name: "Doe",
+    email: "john@example.com",
+    phone: "+15551234567",
   });
-  
-  // Real customer selection
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
-  
-  // Preview state
-  const [previewData, setPreviewData] = useState<RenderPreviewResponse | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-  
-  // Test SMS state
-  const [testPhone, setTestPhone] = useState('');
-  const [sendingTest, setSendingTest] = useState(false);
+  const [customerSearch, setCustomerSearch] = React.useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = React.useState<
+    string | null
+  >(null);
+  const [previewData, setPreviewData] =
+    React.useState<RenderPreviewResponse | null>(null);
+  const [loadingPreview, setLoadingPreview] = React.useState(false);
+  const [testPhone, setTestPhone] = React.useState("");
+  const [sendingTest, setSendingTest] = React.useState(false);
 
-  // Combine all media URLs
-  const allMediaUrls = imageUrl ? [imageUrl, ...mediaUrls] : mediaUrls;
-  
-  // Debounce timer ref
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const allMediaUrls = React.useMemo(
+    () => (imageUrl ? [imageUrl, ...mediaUrls] : mediaUrls),
+    [imageUrl, mediaUrls],
+  );
 
-  // Preview fetch function
-  const fetchPreview = useCallback(async (template: string, customerId?: string, sample?: SampleCustomer) => {
-    if (!template.trim()) {
+  const customerOptionsQuery = useQuery({
+    queryKey: ["sms-preview-customers", tenant?.id, customerSearch],
+    enabled: Boolean(tenant?.id) && previewMode === "customer",
+    staleTime: 15_000,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return [] as CustomerOption[];
+      }
+
+      let query = supabase
+        .from("crm_customers")
+        .select("id, first_name, last_name, phone, email")
+        .eq("tenant_id", tenant.id)
+        .eq("sms_opt_in", true)
+        .not("phone", "is", null)
+        .limit(20);
+
+      if (customerSearch.trim()) {
+        const safeQuery = customerSearch.replace(/[,.()"'\\]/g, "");
+        query = query.or(
+          `first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%,phone.ilike.%${safeQuery}%`,
+        );
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+
+  const fetchPreview = React.useCallback(async () => {
+    if (!messageTemplate.trim()) {
       setPreviewData(null);
       return;
     }
@@ -80,75 +122,39 @@ export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
     setLoadingPreview(true);
     try {
       const result = await renderSmsPreview({
-        messageTemplate: template,
+        messageTemplate,
         mediaUrls: allMediaUrls,
-        customerId: customerId || undefined,
-        sampleCustomer: customerId ? undefined : sample,
+        customerId:
+          previewMode === "customer"
+            ? selectedCustomerId || undefined
+            : undefined,
+        sampleCustomer: previewMode === "sample" ? sampleCustomer : undefined,
       });
       setPreviewData(result);
     } catch (error) {
-      console.error('Preview error:', error);
+      console.error("Failed to render preview", error);
     } finally {
       setLoadingPreview(false);
     }
-  }, [allMediaUrls]);
+  }, [
+    allMediaUrls,
+    messageTemplate,
+    previewMode,
+    sampleCustomer,
+    selectedCustomerId,
+  ]);
 
-  // Fetch preview when inputs change (debounced)
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      if (previewTab === 'customer' && selectedCustomerId) {
-        fetchPreview(messageTemplate, selectedCustomerId);
-      } else {
-        fetchPreview(messageTemplate, undefined, sampleCustomer);
-      }
-    }, 500);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [messageTemplate, previewTab, selectedCustomerId, sampleCustomer, fetchPreview]);
+  React.useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetchPreview();
+    }, 300);
 
-  // Search customers
-  const searchCustomers = useCallback(async (query: string) => {
-    if (!tenant?.id) return;
-    
-    setLoadingCustomers(true);
-    try {
-      let queryBuilder = supabase
-        .from('crm_customers')
-        .select('id, first_name, last_name, phone, email')
-        .eq('tenant_id', tenant.id)
-        .eq('sms_opt_in', true)
-        .not('phone', 'is', null)
-        .limit(20);
+    return () => window.clearTimeout(timeout);
+  }, [fetchPreview]);
 
-      if (query.trim()) {
-        // SECURITY: [PostgREST filter injection] - Sanitize user input before interpolation into .or() filter
-        const sanitizeForPostgrest = (input: string) => input.replace(/[,.()"'\\]/g, '');
-        const safeQuery = sanitizeForPostgrest(query);
-        queryBuilder = queryBuilder.or(`first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%,phone.ilike.%${safeQuery}%`);
-      }
-
-      const { data, error } = await queryBuilder;
-      
-      if (error) throw error;
-      setCustomerOptions(data || []);
-    } catch (error) {
-      console.error('Customer search error:', error);
-    } finally {
-      setLoadingCustomers(false);
-    }
-  }, [tenant?.id]);
-
-  // Initial customer load
-  useEffect(() => {
-    if (previewTab === 'customer') {
-      searchCustomers('');
-    }
-  }, [previewTab, searchCustomers]);
-
-  // Handle send test
-  const handleSendTest = async () => {
+  const handleSendTest = React.useCallback(async () => {
     if (!testPhone.trim()) {
-      toast.error('Please enter a phone number');
+      toast.error("Enter a phone number for the test send.");
       return;
     }
 
@@ -158,229 +164,284 @@ export const SmsPreviewPanel: React.FC<SmsPreviewPanelProps> = ({
         messageTemplate,
         mediaUrls: allMediaUrls,
         testToPhone: testPhone,
-        renderAsCustomerId: previewTab === 'customer' ? selectedCustomerId || undefined : undefined,
+        renderAsCustomerId:
+          previewMode === "customer"
+            ? selectedCustomerId || undefined
+            : undefined,
         bypassConsentForTest: true,
       });
 
-      if (result.success) {
-        toast.success(`Test SMS sent! SID: ${result.twilioSid?.slice(-8)}`);
-      } else {
-        toast.error(result.twilioError || result.error || 'Failed to send test SMS');
+      if (!result.success) {
+        throw new Error(
+          result.twilioError || result.error || "Failed to send test SMS",
+        );
       }
+
+      toast.success("Test SMS sent.");
     } catch (error) {
-      toast.error('Failed to send test SMS');
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send test SMS",
+      );
     } finally {
       setSendingTest(false);
     }
-  };
+  }, [
+    allMediaUrls,
+    messageTemplate,
+    previewMode,
+    selectedCustomerId,
+    testPhone,
+  ]);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-dashed">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <CardTitle className="flex items-center justify-between text-base">
-              <div className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4" />
-                Preview & Test
-              </div>
-              {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </CardTitle>
-          </CardHeader>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent>
-          <CardContent className="space-y-4">
-            {/* Preview Mode Tabs */}
-            <Tabs value={previewTab} onValueChange={(v) => setPreviewTab(v as 'sample' | 'customer')}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="sample">Sample Customer</TabsTrigger>
-                <TabsTrigger value="customer">Real Customer</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="sample" className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">First Name</Label>
-                    <Input
-                      value={sampleCustomer.first_name || ''}
-                      onChange={(e) => setSampleCustomer(prev => ({ ...prev, first_name: e.target.value }))}
-                      placeholder="John"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Last Name</Label>
-                    <Input
-                      value={sampleCustomer.last_name || ''}
-                      onChange={(e) => setSampleCustomer(prev => ({ ...prev, last_name: e.target.value }))}
-                      placeholder="Doe"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="customer" className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-2 top-2 h-4 w-4 text-muted-foreground" />
+    <Card
+      variant="outlined"
+      sx={{ borderRadius: "28px", borderColor: "neutral.200", p: 2.5 }}
+    >
+      <Stack spacing={2}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.25}
+          justifyContent="space-between"
+          alignItems={{ md: "center" }}
+        >
+          <Stack spacing={0.35}>
+            <Typography level="title-sm">Preview & Test</Typography>
+            <Typography level="body-sm" color="neutral">
+              Preview personalization and send a live test message before
+              launching to {recipientCount.toLocaleString()} recipients.
+            </Typography>
+          </Stack>
+          <Chip
+            size="sm"
+            variant="soft"
+            color="neutral"
+            startDecorator={<Eye size={14} />}
+          >
+            Live preview
+          </Chip>
+        </Stack>
+
+        <Stack direction="row" spacing={1}>
+          <Button
+            size="sm"
+            variant={previewMode === "sample" ? "solid" : "soft"}
+            color="primary"
+            onClick={() => setPreviewMode("sample")}
+            sx={{ borderRadius: "12px" }}
+          >
+            Sample customer
+          </Button>
+          <Button
+            size="sm"
+            variant={previewMode === "customer" ? "solid" : "soft"}
+            color="primary"
+            onClick={() => setPreviewMode("customer")}
+            sx={{ borderRadius: "12px" }}
+          >
+            Real customer
+          </Button>
+        </Stack>
+
+        <Stack
+          direction={{ xs: "column", xl: "row" }}
+          spacing={2.5}
+          alignItems="flex-start"
+        >
+          <Stack spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+            {previewMode === "sample" ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
+                <FormControl>
+                  <FormLabel>First name</FormLabel>
+                  <Input
+                    value={sampleCustomer.first_name || ""}
+                    onChange={(event) =>
+                      setSampleCustomer((current) => ({
+                        ...current,
+                        first_name: event.target.value,
+                      }))
+                    }
+                    sx={{ borderRadius: "12px" }}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Last name</FormLabel>
+                  <Input
+                    value={sampleCustomer.last_name || ""}
+                    onChange={(event) =>
+                      setSampleCustomer((current) => ({
+                        ...current,
+                        last_name: event.target.value,
+                      }))
+                    }
+                    sx={{ borderRadius: "12px" }}
+                  />
+                </FormControl>
+              </Stack>
+            ) : (
+              <Stack spacing={1.25}>
+                <FormControl>
+                  <FormLabel>Search recipients</FormLabel>
                   <Input
                     value={customerSearch}
-                    onChange={(e) => {
-                      setCustomerSearch(e.target.value);
-                      searchCustomers(e.target.value);
-                    }}
-                    placeholder="Search by name or phone..."
-                    className="pl-8 h-8 text-sm"
+                    onChange={(event) => setCustomerSearch(event.target.value)}
+                    placeholder="Search by name or phone"
+                    startDecorator={<Search size={14} />}
+                    sx={{ borderRadius: "12px" }}
                   />
-                </div>
-                
-                <div className="max-h-32 overflow-y-auto border rounded-md">
-                  {loadingCustomers ? (
-                    <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>
-                  ) : customerOptions.length === 0 ? (
-                    <div className="p-2 text-center text-sm text-muted-foreground">No customers found</div>
-                  ) : (
-                    customerOptions.map((customer) => (
-                      <button
-                        key={customer.id}
-                        onClick={() => setSelectedCustomerId(customer.id)}
-                        className={`w-full p-2 text-left text-sm hover:bg-muted flex items-center justify-between ${
-                          selectedCustomerId === customer.id ? 'bg-muted' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <User className="h-3 w-3 text-muted-foreground" />
-                          <span>{customer.first_name || ''} {customer.last_name || ''}</span>
-                          <span className="text-muted-foreground">{customer.phone}</span>
-                        </div>
-                        {selectedCustomerId === customer.id && (
-                          <Check className="h-3 w-3 text-primary" />
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Phone Preview */}
-            <div className="flex justify-center py-2">
-              <div className="w-56 bg-gray-900 rounded-2xl p-3 shadow-lg">
-                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-xl p-3 min-h-[120px]">
-                  <div className="text-center text-xs text-muted-foreground mb-2">SMS Preview</div>
-                  
-                  {loadingPreview ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    <>
-                      {/* MMS Media Thumbnails */}
-                      {previewData?.mms?.isMms && previewData.mms.mediaUrls.length > 0 && (
-                        <div className="flex gap-1 mb-2 flex-wrap">
-                          {previewData.mms.mediaUrls.map((url, idx) => (
-                            <div key={idx} className="relative w-12 h-12 rounded overflow-hidden bg-muted">
-                              <img 
-                                src={url} 
-                                alt={`Media ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                <Image className="h-3 w-3 text-white" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Message Bubble */}
-                      <div className="bg-primary text-primary-foreground rounded-xl rounded-bl-sm px-3 py-2 text-xs break-words">
-                        {previewData?.renderedText || messageTemplate || 'Enter a message to preview'}
-                      </div>
-                      
-                      <div className="text-right text-xs text-muted-foreground mt-1">
-                        Delivered
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Segment Info */}
-            {previewData?.segmentInfo && (
-              <div className="flex flex-wrap gap-2 justify-center">
-                <Badge variant="outline" className="text-xs">
-                  {previewData.segmentInfo.encoding}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
-                  {previewData.segmentInfo.length} chars
-                </Badge>
-                <Badge 
-                  variant={previewData.segmentInfo.segments > 1 ? "destructive" : "secondary"} 
-                  className="text-xs"
-                >
-                  {previewData.segmentInfo.segments} segment{previewData.segmentInfo.segments !== 1 ? 's' : ''}
-                </Badge>
-                {previewData.mms?.isMms && (
-                  <Badge variant="secondary" className="text-xs">MMS</Badge>
-                )}
-              </div>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Select customer</FormLabel>
+                  <Select
+                    value={selectedCustomerId}
+                    onChange={(_event, value) =>
+                      setSelectedCustomerId(value ?? null)
+                    }
+                    placeholder={
+                      customerOptionsQuery.isLoading
+                        ? "Loading customers…"
+                        : "Choose a customer"
+                    }
+                    sx={{ borderRadius: "12px" }}
+                  >
+                    {(customerOptionsQuery.data || []).map((customer) => (
+                      <Option key={customer.id} value={customer.id}>
+                        {getCustomerLabel(customer)}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
             )}
 
-            {/* Missing Tags Warning */}
-            {previewData?.mergeMeta?.missingTags && previewData.mergeMeta.missingTags.length > 0 && (
-              <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/20 rounded-md border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <p className="font-medium text-amber-800 dark:text-amber-200">Missing merge tags:</p>
-                  <p className="text-amber-700 dark:text-amber-300">
-                    {previewData.mergeMeta.missingTags.join(', ')}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Send Test */}
-            <div className="space-y-2 pt-2 border-t">
-              <Label className="text-sm font-medium">Send Test SMS</Label>
-              <div className="flex gap-2">
+            <Stack spacing={1}>
+              <FormControl>
+                <FormLabel>Test phone</FormLabel>
                 <Input
                   value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
+                  onChange={(event) => setTestPhone(event.target.value)}
                   placeholder="+1 555 123 4567"
-                  className="h-9"
+                  sx={{ borderRadius: "12px" }}
                 />
-                <Button 
-                  size="sm" 
-                  onClick={handleSendTest}
-                  disabled={sendingTest || !messageTemplate.trim()}
-                  className="shrink-0"
-                >
-                  {sendingTest ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      Send
-                    </>
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Test sends are free and don't count toward your quota
-              </p>
-            </div>
+              </FormControl>
+              <Button
+                variant="soft"
+                color="primary"
+                startDecorator={<Send size={14} />}
+                loading={sendingTest}
+                onClick={() => void handleSendTest()}
+                sx={{ alignSelf: "flex-start", borderRadius: "12px" }}
+              >
+                Send test SMS
+              </Button>
+            </Stack>
+          </Stack>
 
-            {/* Compliance Sandbox */}
-            <SmsComplianceSandbox />
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+          <Sheet
+            variant="outlined"
+            sx={{
+              width: { xs: "100%", xl: 340 },
+              borderRadius: "32px",
+              borderColor: "neutral.200",
+              p: 1.5,
+              backgroundColor: "background.level1",
+            }}
+          >
+            <BoxShell>
+              <Stack spacing={1.25}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Typography level="title-sm">Phone Preview</Typography>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    startDecorator={<Sparkles size={12} />}
+                  >
+                    Personalized
+                  </Chip>
+                </Stack>
+
+                {allMediaUrls.length > 0 ? (
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {allMediaUrls.map((url, index) => (
+                      <AspectRatio
+                        key={`${url}-${index}`}
+                        ratio="1"
+                        sx={{
+                          width: 72,
+                          borderRadius: "16px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`Preview media ${index + 1}`}
+                          style={{ objectFit: "cover" }}
+                        />
+                      </AspectRatio>
+                    ))}
+                  </Stack>
+                ) : null}
+
+                <Sheet
+                  variant="solid"
+                  color="primary"
+                  sx={{
+                    borderRadius: "22px 22px 8px 22px",
+                    p: 1.5,
+                    alignSelf: "flex-end",
+                    maxWidth: "88%",
+                  }}
+                >
+                  <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap" }}>
+                    {loadingPreview
+                      ? "Rendering preview…"
+                      : previewData?.renderedContent ||
+                        messageTemplate ||
+                        "Start typing to preview this SMS."}
+                  </Typography>
+                </Sheet>
+              </Stack>
+            </BoxShell>
+          </Sheet>
+        </Stack>
+
+        {previewData?.warnings?.length ? (
+          <Alert color="warning" variant="soft" sx={{ borderRadius: "18px" }}>
+            {previewData.warnings.join(" ")}
+          </Alert>
+        ) : null}
+      </Stack>
+    </Card>
   );
 };
+
+function BoxShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Sheet
+      sx={{
+        borderRadius: "28px",
+        minHeight: 420,
+        background:
+          "linear-gradient(180deg, rgba(17,24,39,1) 0%, rgba(31,41,55,1) 100%)",
+        p: 1.25,
+      }}
+    >
+      <Sheet
+        sx={{
+          height: "100%",
+          borderRadius: "24px",
+          background:
+            "linear-gradient(180deg, rgba(246,248,251,1) 0%, rgba(239,243,248,1) 100%)",
+          p: 1.5,
+        }}
+      >
+        {children}
+      </Sheet>
+    </Sheet>
+  );
+}

@@ -1,76 +1,112 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import {
-  BarChart3,
-  Clover,
-  Download,
-  ExternalLink,
-  Facebook,
-  Globe,
-  Hash,
-  Hexagon,
-  Info,
-  Instagram,
-  Mail,
-  MailPlus,
-  Plus,
-  Search,
-  Settings,
-  Share2,
-  ShoppingBag,
-  Square as SquareIcon,
-  X,
-  Webhook,
-  Zap,
-} from "lucide-react";
-
+  Link as RouterLink,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { ChevronLeft, Download, MailPlus, Search, X } from "lucide-react";
+import { FeaturedCard } from "@/components/integrations/FeaturedCard";
+import { IntegrationCard } from "@/components/integrations/IntegrationCard";
+import { IntegrationSection } from "@/components/integrations/IntegrationSection";
+import { IntegrationsSkeletonLoader } from "@/components/integrations/IntegrationsSkeletonLoader";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  ActionDropdown,
-  type ActionDropdownSection,
-} from "@/components/ui/action-dropdown";
-import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
-import { cn } from "@/lib/utils";
-import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
-import {
-  filterIntegrations,
-  getTabCounts,
   INTEGRATION_CATEGORIES,
-  type IntegrationDefinition,
   INTEGRATION_STATUS_ORDER,
-  type IntegrationStatus,
+  type IntegrationCategory,
+  type IntegrationDefinition,
   type IntegrationTabValue,
 } from "@/components/integrations/integrationsHubConfig";
-import { IntegrationsSkeletonLoader } from "@/components/integrations/IntegrationsSkeletonLoader";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { useIntegrationsHubData } from "@/hooks/useIntegrationsHubData";
 
 const REQUEST_INTEGRATION_MAILTO =
   "mailto:support@bloomsuite.app?subject=Request%20an%20Integration&body=Hi%20BloomSuite%20team%2C%0A%0AI'd%20like%20to%20request%20support%20for%20the%20following%20integration%3A%0A";
 
-function getStatusLabel(status: IntegrationStatus) {
-  if (status === "coming-soon") {
-    return "Upcoming";
-  }
+const FILTER_OPTIONS: Array<{
+  value: IntegrationTabValue;
+  label: string;
+}> = [
+  { value: "all", label: "All" },
+  { value: "pos-systems", label: "POS" },
+  { value: "marketing-import", label: "Marketing" },
+  { value: "social", label: "Social" },
+  { value: "analytics", label: "Analytics" },
+  { value: "infrastructure", label: "Infrastructure" },
+  { value: "automation", label: "Automation" },
+];
 
-  return status === "connected" ? "Connected" : "Available";
-}
+const CATEGORY_COPY: Record<
+  IntegrationCategory,
+  { title: string; description: string }
+> = {
+  "pos-systems": {
+    title: "Point of sale",
+    description:
+      "Commerce connections for orders, customers, and in-store revenue flows.",
+  },
+  "marketing-import": {
+    title: "Marketing",
+    description:
+      "Audience and campaign connectors for CRM, email, and customer growth programs.",
+  },
+  social: {
+    title: "Social",
+    description:
+      "Publishing and profile integrations for the channels your team manages every week.",
+  },
+  analytics: {
+    title: "Analytics",
+    description:
+      "Measurement, website, and reporting integrations for traffic and attribution visibility.",
+  },
+  infrastructure: {
+    title: "Infrastructure",
+    description:
+      "Operational services that keep forms, domains, and delivery flows working reliably.",
+  },
+  automation: {
+    title: "Automation",
+    description:
+      "Workflow, orchestration, and handoff integrations for operational follow-through.",
+  },
+};
+
+const CATEGORY_QUERY_ALIASES: Record<string, IntegrationCategory> = {
+  pos: "pos-systems",
+  "pos-systems": "pos-systems",
+  crm: "marketing-import",
+  marketing: "marketing-import",
+  "marketing-import": "marketing-import",
+  social: "social",
+  website: "analytics",
+  analytics: "analytics",
+  automation: "automation",
+  automations: "automation",
+  infrastructure: "infrastructure",
+};
+
+const FEATURED_INTEGRATION_SLUGS = new Set(["email-infrastructure", "shopify"]);
+
+type IntegrationsHubIndexProps = {
+  forcedCategory?: IntegrationCategory;
+  title?: string;
+  description?: string;
+};
 
 function exportIntegrationStatuses(items: IntegrationDefinition[]) {
   const rows = [
-    ["Name", "Category", "Status", "Meta", "Detail Path"],
+    ["Name", "Category", "Status", "Detail Path"],
     ...items.map((item) => [
       item.name,
       item.categoryLabel,
-      getStatusLabel(item.status),
-      item.metaLabel ?? "",
+      item.status,
       `/integrations/${item.slug}`,
     ]),
   ];
@@ -90,551 +126,440 @@ function exportIntegrationStatuses(items: IntegrationDefinition[]) {
   URL.revokeObjectURL(url);
 }
 
-const PROVIDER_DOMAIN_CONFIG: Record<
-  string,
-  { label: string; href: string } | null
-> = {
-  square: { label: "squareup.com", href: "https://squareup.com" },
-  clover: { label: "clover.com", href: "https://clover.com" },
-  lightspeed: {
-    label: "lightspeedhq.com",
-    href: "https://www.lightspeedhq.com",
-  },
-  meta: { label: "meta.com", href: "https://meta.com" },
-  "google-analytics": {
-    label: "analytics.google.com",
-    href: "https://analytics.google.com",
-  },
-  mailchimp: { label: "mailchimp.com", href: "https://mailchimp.com" },
-  klaviyo: { label: "klaviyo.com", href: "https://www.klaviyo.com" },
-  "constant-contact": {
-    label: "constantcontact.com",
-    href: "https://www.constantcontact.com",
-  },
-  shopify: { label: "shopify.com", href: "https://shopify.com" },
-  hubspot: { label: "hubspot.com", href: "https://www.hubspot.com" },
-  zapier: { label: "zapier.com", href: "https://zapier.com" },
-  slack: { label: "slack.com", href: "https://slack.com" },
-  "custom-webhooks": null,
-};
-
-const PROVIDER_ICON_CONFIG: Record<
-  string,
-  {
-    icon?: IntegrationDefinition["icon"];
-    iconClassName?: string;
-    logoSrc?: string;
-    logoClassName?: string;
-    tileClassName?: string;
+function resolveCategoryFromQuery(
+  value: string | null,
+): IntegrationCategory | null {
+  if (!value) {
+    return null;
   }
-> = {
-  square: {
-    icon: SquareIcon,
-    iconClassName: "h-6 w-6 text-black",
-    logoSrc: providerLogoAssets.square,
-  },
-  clover: {
-    icon: Clover,
-    iconClassName: "h-6 w-6 text-[#00A859]",
-    logoSrc: providerLogoAssets.clover,
-  },
-  lightspeed: {
-    icon: Zap,
-    iconClassName: "h-6 w-6 text-[#FF6B35]",
-    logoSrc: providerLogoAssets.lightspeed,
-  },
-  meta: {
-    icon: Share2,
-    iconClassName: "h-6 w-6 text-[#0082FB]",
-  },
-  "google-analytics": {
-    icon: BarChart3,
-    iconClassName: "h-6 w-6 text-[#E37400]",
-    logoSrc: providerLogoAssets["google-analytics"],
-  },
-  mailchimp: {
-    icon: Mail,
-    iconClassName: "h-6 w-6 text-[#FFE01B]",
-    logoSrc: providerLogoAssets.mailchimp,
-    logoClassName: "max-h-[80%] max-w-[80%] object-contain",
-  },
-  klaviyo: {
-    icon: Mail,
-    iconClassName: "h-6 w-6 text-[#1B1B1B]",
-    logoSrc: providerLogoAssets.klaviyo,
-  },
-  "constant-contact": {
-    icon: Mail,
-    iconClassName: "h-6 w-6 text-[#005594]",
-    logoSrc: providerLogoAssets["constant-contact"],
-  },
-  "email-infrastructure": {
-    icon: Globe,
-    iconClassName: "h-6 w-6 text-[#6B7280]",
-  },
-  shopify: {
-    icon: ShoppingBag,
-    iconClassName: "h-6 w-6 text-[#96BF48]",
-    logoSrc: providerLogoAssets.shopify,
-    logoClassName: "max-h-[70%] max-w-[70%] object-contain",
-  },
-  hubspot: {
-    icon: Hexagon,
-    iconClassName: "h-6 w-6 text-[#FF7A59]",
-    logoSrc: providerLogoAssets.hubspot,
-  },
-  zapier: {
-    icon: Zap,
-    iconClassName: "h-6 w-6 text-[#FF4A00]",
-    logoSrc: providerLogoAssets.zapier,
-    logoClassName: "max-h-full max-w-full object-cover",
-  },
-  slack: {
-    icon: Hash,
-    iconClassName: "h-6 w-6 text-[#4A154B]",
-    logoSrc: providerLogoAssets.slack,
-    logoClassName: "max-h-full max-w-full object-cover",
-  },
-  "custom-webhooks": {
-    icon: Webhook,
-    iconClassName: "h-6 w-6 text-[#6B7280]",
-  },
-};
 
-function getProviderLink(item: IntegrationDefinition) {
-  if (item.slug === "email-infrastructure") {
-    const domain = item.metaLabel?.trim();
+  return CATEGORY_QUERY_ALIASES[value.trim().toLowerCase()] ?? null;
+}
 
-    if (!domain) {
-      return null;
+function filterItems(
+  items: IntegrationDefinition[],
+  activeTab: IntegrationTabValue,
+  searchQuery: string,
+) {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  return items.filter((item) => {
+    if (activeTab !== "all" && item.category !== activeTab) {
+      return false;
     }
 
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    return item.name.toLowerCase().includes(normalizedQuery);
+  });
+}
+
+function sortItems(
+  items: IntegrationDefinition[],
+  sourceItems: IntegrationDefinition[],
+) {
+  const sourceOrder = new Map(
+    sourceItems.map((item, index) => [item.slug, index]),
+  );
+
+  return [...items].sort((left, right) => {
+    const statusDifference =
+      INTEGRATION_STATUS_ORDER.indexOf(left.status) -
+      INTEGRATION_STATUS_ORDER.indexOf(right.status);
+
+    if (statusDifference !== 0) {
+      return statusDifference;
+    }
+
+    return (
+      (sourceOrder.get(left.slug) ?? 0) - (sourceOrder.get(right.slug) ?? 0)
+    );
+  });
+}
+
+function getEmptyStateCopy(
+  activeTab: IntegrationTabValue,
+  searchQuery: string,
+) {
+  if (searchQuery.trim()) {
     return {
-      label: domain,
-      href: `https://${domain}`,
+      title: "No providers match that search",
+      description:
+        "Try a different provider name or clear the current search to browse the full catalog again.",
     };
   }
 
-  return PROVIDER_DOMAIN_CONFIG[item.slug] ?? null;
-}
-
-function getCardIconConfig(item: IntegrationDefinition) {
-  const config = PROVIDER_ICON_CONFIG[item.slug];
-
-  if (config) {
-    return config;
+  if (activeTab === "all") {
+    return {
+      title: "No integrations available",
+      description:
+        "This workspace does not have any integration definitions to display right now.",
+    };
   }
 
   return {
-    icon: item.icon,
-    iconClassName: "h-6 w-6 text-slate-700",
+    title: "No providers in this category",
+    description:
+      "Switch to another category or return to the full hub to explore other connection types.",
   };
 }
 
-function getFooterActionLabel(item: IntegrationDefinition) {
-  if (item.slug === "email-infrastructure") {
-    return "Manage settings";
-  }
+function getCategorySection(category: IntegrationCategory) {
+  const config = CATEGORY_COPY[category];
 
-  return item.status === "connected" ? "Manage" : "Connect";
+  return {
+    title: config.title,
+    description: config.description,
+  };
 }
 
-function getStatusSortOrder(status: IntegrationStatus) {
-  return INTEGRATION_STATUS_ORDER.indexOf(status);
-}
-
-function IntegrationCard({
-  item,
-  onPrimaryAction,
-}: {
-  item: IntegrationDefinition;
-  onPrimaryAction: (item: IntegrationDefinition) => void;
-}) {
-  const {
-    icon: Icon,
-    iconClassName,
-    logoSrc,
-    logoClassName,
-    tileClassName,
-  } = getCardIconConfig(item);
-  const isConnected = item.status === "connected";
-  const isComingSoon = item.status === "coming-soon";
-  const isInfrastructure = item.slug === "email-infrastructure";
-  const providerLink = getProviderLink(item);
-  const actionLabel = getFooterActionLabel(item);
-
-  return (
-    <article
-      className={cn(
-        "flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 transition-[border-color,box-shadow,opacity] duration-150 ease-out",
-        isComingSoon ? "cursor-default opacity-60" : "hover:shadow-sm",
-        !isComingSoon &&
-          (isConnected ? "hover:border-emerald-200" : "hover:border-gray-300"),
-      )}
-    >
-      <div className="mb-3 flex items-start justify-between gap-4">
-        <div
-          className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white",
-            tileClassName,
-          )}
-        >
-          {logoSrc ? (
-            <img
-              src={logoSrc}
-              alt=""
-              className={cn(
-                "max-h-[72%] max-w-[72%] object-contain",
-                logoClassName,
-              )}
-            />
-          ) : Icon ? (
-            <Icon className={iconClassName} />
-          ) : null}
-        </div>
-        {providerLink ? (
-          <a
-            href={providerLink.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-slate-900"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <span>{providerLink.label}</span>
-            <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : null}
-      </div>
-
-      <div className="flex flex-1 flex-col">
-        <h3 className="mb-1 text-[15px] font-semibold leading-5 text-foreground">
-          {item.name}
-        </h3>
-        <p className="mb-4 line-clamp-2 text-[13px] leading-[1.5] text-muted-foreground">
-          {item.description}
-        </p>
-
-        {item.children && item.children.length > 0 ? (
-          <div className="mb-3 flex flex-col gap-1">
-            <div className="space-y-1">
-              {item.children.map((child) => (
-                <div
-                  key={child.name}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {child.name === "Facebook" ? (
-                      <Facebook className="h-3.5 w-3.5 text-[#1877F2]" />
-                    ) : null}
-                    {child.name === "Instagram" ? (
-                      <Instagram className="h-3.5 w-3.5 text-[#E4405F]" />
-                    ) : null}
-                    {child.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-xs",
-                      child.status === "connected"
-                        ? "font-medium text-emerald-600"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {child.status === "connected"
-                      ? "Connected"
-                      : "Not connected"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-        <div className="min-h-9 flex items-center gap-1">
-          <Button
-            asChild
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-8 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
-          >
-            <Link
-              to={`/integrations/${item.slug}/documentation`}
-              aria-label="Documentation"
-              title="Documentation"
-            >
-              <Info className="h-4 w-4" />
-              <span>Read more</span>
-            </Link>
-          </Button>
-
-          {isComingSoon ? (
-            <span className="select-text text-xs text-muted-foreground">
-              Upcoming
-            </span>
-          ) : null}
-        </div>
-
-        <div className="ml-auto flex items-center gap-3">
-          {!isComingSoon ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              aria-label={
-                isInfrastructure || isConnected ? actionLabel : undefined
-              }
-              className={cn(
-                "h-8 text-sm font-medium",
-                isInfrastructure || isConnected
-                  ? cn(
-                      "rounded-lg text-muted-foreground hover:bg-gray-50 hover:text-slate-900",
-                      "w-8 px-0",
-                    )
-                  : "rounded-md border border-gray-300 bg-white px-2 text-slate-900 shadow-sm hover:border-gray-300 hover:bg-brand-teal hover:text-white",
-              )}
-              onClick={() => onPrimaryAction(item)}
-            >
-              {isInfrastructure || isConnected ? (
-                <Settings className="h-3.5 w-3.5" />
-              ) : (
-                <>
-                  <span>Add</span>
-                  <Plus className="h-3.5 w-3.5" />
-                </>
-              )}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-export function IntegrationsHubIndex() {
+export function IntegrationsHubIndex({
+  forcedCategory,
+  title,
+  description,
+}: IntegrationsHubIndexProps = {}) {
   const navigate = useNavigate();
-  const { items, canUseActions, isLoading } = useIntegrationsHubData();
-  const [activeTab, setActiveTab] = useState<IntegrationTabValue>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+  const { items, canUseActions, isLoading } = useIntegrationsHubData();
 
+  const queryCategory = forcedCategory
+    ? null
+    : resolveCategoryFromQuery(searchParams.get("category"));
+  const activeTab: IntegrationTabValue =
+    forcedCategory ?? queryCategory ?? "all";
   const filteredItems = useMemo(
-    () => filterIntegrations(items, activeTab, searchQuery),
+    () => filterItems(items, activeTab, searchQuery),
     [activeTab, items, searchQuery],
   );
-  const tabCounts = useMemo(
-    () => getTabCounts(items, searchQuery),
-    [items, searchQuery],
-  );
   const sortedItems = useMemo(
+    () => sortItems(filteredItems, items),
+    [filteredItems, items],
+  );
+  const groupedItems = useMemo(
     () =>
-      filteredItems
-        .map((item, index) => ({ item, index }))
-        .sort((left, right) => {
-          const statusDifference =
-            getStatusSortOrder(left.item.status) -
-            getStatusSortOrder(right.item.status);
-
-          if (statusDifference !== 0) {
-            return statusDifference;
-          }
-
-          return left.index - right.index;
-        })
-        .map(({ item }) => item),
-    [filteredItems],
+      INTEGRATION_CATEGORIES.reduce<
+        Record<IntegrationCategory, IntegrationDefinition[]>
+      >(
+        (groups, category) => {
+          groups[category.value] = sortedItems.filter(
+            (item) => item.category === category.value,
+          );
+          return groups;
+        },
+        {
+          "pos-systems": [],
+          social: [],
+          analytics: [],
+          "marketing-import": [],
+          automation: [],
+          infrastructure: [],
+        },
+      ),
+    [sortedItems],
   );
 
-  const headerActionSections: ActionDropdownSection[] = useMemo(
-    () => [
-      {
-        label: "Export",
-        items: [
-          {
-            label: "Export Integration Status",
-            description:
-              "Download the current filtered integration view as CSV.",
-            icon: Download,
-            onSelect: () => exportIntegrationStatuses(filteredItems),
-          },
-        ],
-      },
-      {
-        label: "Requests",
-        items: [
-          {
-            label: "Request an Integration",
-            description:
-              "Email the BloomSuite team with a new integration request.",
-            icon: MailPlus,
-            onSelect: () => {
-              window.location.href = REQUEST_INTEGRATION_MAILTO;
-            },
-          },
-        ],
-      },
-    ],
-    [filteredItems],
-  );
+  const currentCategoryCopy =
+    activeTab === "all" ? null : CATEGORY_COPY[activeTab];
+  const pageTitle = title ?? currentCategoryCopy?.title ?? "Integrations";
+  const pageDescription =
+    description ??
+    currentCategoryCopy?.description ??
+    "Connect BloomSuite to commerce, marketing, analytics, automation, and infrastructure tools without leaving the dashboard.";
+  const emptyState = getEmptyStateCopy(activeTab, searchQuery);
 
-  const handlePrimaryAction = (item: IntegrationDefinition) => {
+  const handleCardActivate = (item: IntegrationDefinition) => {
     navigate(`/integrations/${item.slug}`);
   };
 
-  const noSearchResults =
-    searchQuery.trim().length > 0 && filteredItems.length === 0;
-  const noCategoryResults =
-    searchQuery.trim().length === 0 && filteredItems.length === 0;
+  const handleFilterChange = (nextValue: IntegrationTabValue) => {
+    if (forcedCategory) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextValue === "all") {
+      nextParams.delete("category");
+    } else {
+      nextParams.set("category", nextValue);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
 
   if (isLoading) {
-    return <IntegrationsSkeletonLoader canUseActions={canUseActions} />;
+    return (
+      <IntegrationsSkeletonLoader
+        canUseActions={canUseActions}
+        showFilters={!forcedCategory}
+      />
+    );
   }
 
   return (
-    <div className="container mx-auto space-y-7 p-6">
-      <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-5 shadow-sm shadow-brand-navy/5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-4">
-            <Breadcrumb>
-              <BreadcrumbList className="flex-wrap gap-2 rounded-full border border-border/70 bg-white/90 px-4 py-2 text-sm shadow-sm shadow-brand-navy/5 backdrop-blur-sm">
-                <BreadcrumbItem>
-                  <BreadcrumbLink
-                    asChild
-                    className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
-                  >
-                    <Link to="/dashboard">Dashboard</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="text-muted-foreground/50" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="font-semibold text-brand-navy">
-                    Integrations
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+    <PageContainer
+      fullWidth
+      sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+    >
+      <Stack spacing={3}>
+        <Sheet
+          color="neutral"
+          variant="soft"
+          sx={{
+            borderRadius: "xl",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            p: { xs: 2.5, md: 3 },
+            bgcolor: "background.level1",
+          }}
+        >
+          <Stack spacing={1.25}>
+            {activeTab !== "all" ? (
+              <Button
+                color="neutral"
+                component={RouterLink}
+                size="sm"
+                startDecorator={<ChevronLeft size={16} />}
+                sx={{ alignSelf: "flex-start" }}
+                to="/integrations"
+                variant="plain"
+              >
+                All integrations
+              </Button>
+            ) : null}
 
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-slate-950">
-                Integrations
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Connect your tools to power BloomSuite&apos;s marketing and
-                operations.
-              </p>
-            </div>
-          </div>
-
-          {canUseActions ? (
-            <ActionDropdown
-              label="Actions"
-              variant="outline"
-              align="end"
-              triggerClassName="self-start border-border/80 bg-white/95 shadow-sm"
-              sections={headerActionSections}
-            />
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div
-            className="flex flex-wrap gap-2 border-b border-border/70 pb-2"
-            role="tablist"
-            aria-label="Integration categories"
-          >
-            {[
-              { value: "all" as const, label: "All" },
-              ...INTEGRATION_CATEGORIES.map((category) => ({
-                value: category.value,
-                label: category.label,
-              })),
-            ].map((tab) => {
-              const isActive = activeTab === tab.value;
-
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  className={cn(
-                    "inline-flex items-center gap-1 border-b-2 px-2 py-2 text-sm transition-colors",
-                    isActive
-                      ? "border-brand-teal text-slate-950"
-                      : "border-transparent text-muted-foreground hover:text-slate-900",
-                  )}
-                  onClick={() => setActiveTab(tab.value)}
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={2}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", lg: "center" }}
+            >
+              <Stack spacing={0.75} sx={{ maxWidth: 820 }}>
+                <Typography
+                  level="body-sm"
+                  sx={{ color: "text.tertiary", fontWeight: 600 }}
                 >
-                  <span>{tab.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {tabCounts[tab.value]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  {activeTab === "all"
+                    ? "Integration catalog"
+                    : "Category landing"}
+                </Typography>
+                <Typography level="h2">{pageTitle}</Typography>
+                <Typography
+                  level="body-sm"
+                  sx={{ color: "text.secondary", maxWidth: 720 }}
+                >
+                  {pageDescription}
+                </Typography>
+              </Stack>
 
-          <div className="relative min-w-0 flex-1 lg:max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              {canUseActions ? (
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                >
+                  <Button
+                    color="neutral"
+                    size="sm"
+                    startDecorator={<Download size={16} />}
+                    variant="outlined"
+                    onClick={() => exportIntegrationStatuses(sortedItems)}
+                  >
+                    Export status
+                  </Button>
+                  <Button
+                    color="neutral"
+                    component="a"
+                    href={REQUEST_INTEGRATION_MAILTO}
+                    size="sm"
+                    startDecorator={<MailPlus size={16} />}
+                    variant="solid"
+                  >
+                    Request integration
+                  </Button>
+                </Stack>
+              ) : null}
+            </Stack>
+          </Stack>
+        </Sheet>
+
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", xl: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", xl: "center" }}
+          >
             <Input
+              aria-label="Search integrations"
+              color="neutral"
+              endDecorator={
+                searchQuery ? (
+                  <IconButton
+                    aria-label="Clear search"
+                    color="neutral"
+                    size="sm"
+                    variant="plain"
+                    onClick={() => setSearchQuery("")}
+                  >
+                    <X size={16} />
+                  </IconButton>
+                ) : null
+              }
+              placeholder="Search by provider name"
+              startDecorator={<Search size={16} />}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-10 rounded-xl border-border bg-white pl-10 pr-10 shadow-sm focus-visible:ring-brand-teal"
-              placeholder="Search integrations by name, description, or category..."
-              aria-label="Search integrations"
+              sx={{ flex: 1, minWidth: { xs: "100%", xl: 320 } }}
             />
-            {searchQuery ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-slate-900"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </section>
 
-      <section className="space-y-6">
-        {noSearchResults ? (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/60 px-6 py-14 text-center shadow-sm">
-            <span className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-white text-muted-foreground shadow-sm">
-              <Search className="h-6 w-6" />
-            </span>
-            <h2 className="text-lg font-semibold text-brand-navy">
-              No integrations match your search
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Try a different term or clear the current search.
-            </p>
-            <button
-              type="button"
-              className="mt-4 text-sm font-medium text-brand-teal underline-offset-4 hover:underline"
-              onClick={() => setSearchQuery("")}
-            >
-              Clear search
-            </button>
-          </div>
-        ) : noCategoryResults ? (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-slate-50/60 px-6 py-10 text-center shadow-sm">
-            <p className="text-sm text-muted-foreground">
-              No integrations in this category yet.
-            </p>
-          </div>
+            {!forcedCategory ? (
+              <Box
+                role="tablist"
+                aria-label="Integration categories"
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  alignItems: "center",
+                }}
+              >
+                {FILTER_OPTIONS.map((option) => {
+                  const selected = activeTab === option.value;
+
+                  return (
+                    <Button
+                      key={option.value}
+                      aria-pressed={selected}
+                      color="neutral"
+                      size="sm"
+                      variant={selected ? "solid" : "outlined"}
+                      onClick={() => handleFilterChange(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  );
+                })}
+              </Box>
+            ) : null}
+          </Stack>
+        </Stack>
+
+        {sortedItems.length === 0 ? (
+          <Sheet
+            color="neutral"
+            variant="outlined"
+            sx={{
+              borderRadius: "xl",
+              borderStyle: "dashed",
+              p: { xs: 3, md: 4 },
+              textAlign: "center",
+            }}
+          >
+            <Stack spacing={1} alignItems="center">
+              <Box
+                sx={{
+                  display: "grid",
+                  placeItems: "center",
+                  width: 52,
+                  height: 52,
+                  borderRadius: "50%",
+                  bgcolor: "neutral.softBg",
+                  color: "text.secondary",
+                }}
+              >
+                <Search size={18} />
+              </Box>
+              <Typography level="title-lg">{emptyState.title}</Typography>
+              <Typography
+                level="body-sm"
+                sx={{ color: "text.secondary", maxWidth: 520 }}
+              >
+                {emptyState.description}
+              </Typography>
+              {searchQuery ? (
+                <Button
+                  color="neutral"
+                  size="sm"
+                  variant="plain"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Clear search
+                </Button>
+              ) : null}
+            </Stack>
+          </Sheet>
+        ) : activeTab === "all" ? (
+          <Stack spacing={3}>
+            {INTEGRATION_CATEGORIES.map((category) => {
+              const sectionItems = groupedItems[category.value];
+
+              if (sectionItems.length === 0) {
+                return null;
+              }
+
+              const section = getCategorySection(category.value);
+
+              return (
+                <IntegrationSection
+                  key={category.value}
+                  title={section.title}
+                  description={section.description}
+                  icon={section.icon}
+                >
+                  {sectionItems.map((item) =>
+                    FEATURED_INTEGRATION_SLUGS.has(item.slug) ||
+                    item.isManagedInfrastructure ? (
+                      <FeaturedCard
+                        key={item.slug}
+                        item={item}
+                        onActivate={handleCardActivate}
+                      />
+                    ) : (
+                      <IntegrationCard
+                        key={item.slug}
+                        item={item}
+                        onActivate={handleCardActivate}
+                      />
+                    ),
+                  )}
+                </IntegrationSection>
+              );
+            })}
+          </Stack>
         ) : (
-          <div className="grid animate-fade-in gap-4 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
-            {sortedItems.map((item) => (
-              <IntegrationCard
-                key={item.slug}
-                item={item}
-                onPrimaryAction={handlePrimaryAction}
-              />
-            ))}
-          </div>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+                xl: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: 2,
+            }}
+          >
+            {sortedItems.map((item) =>
+              FEATURED_INTEGRATION_SLUGS.has(item.slug) ||
+              item.isManagedInfrastructure ? (
+                <FeaturedCard
+                  key={item.slug}
+                  item={item}
+                  onActivate={handleCardActivate}
+                />
+              ) : (
+                <IntegrationCard
+                  key={item.slug}
+                  item={item}
+                  onActivate={handleCardActivate}
+                />
+              ),
+            )}
+          </Box>
         )}
-      </section>
-    </div>
+      </Stack>
+    </PageContainer>
   );
 }

@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { format, formatDistanceToNow } from "date-fns";
+import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
   Bell,
@@ -7,22 +8,41 @@ import {
   CheckCircle2,
   Copy,
   Info,
+  MoreHorizontal,
 } from "lucide-react";
-
+import Alert from "@mui/joy/Alert";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Breadcrumbs from "@mui/joy/Breadcrumbs";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import Dropdown from "@mui/joy/Dropdown";
+import IconButton from "@mui/joy/IconButton";
+import Link from "@mui/joy/Link";
+import ListDivider from "@mui/joy/ListDivider";
+import Menu from "@mui/joy/Menu";
+import MenuButton from "@mui/joy/MenuButton";
+import MenuItem from "@mui/joy/MenuItem";
+import Skeleton from "@mui/joy/Skeleton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
+import { PageContainer } from "@/components/joy/PageContainer";
+import type {
+  ActionDropdownItem,
+  ActionDropdownSection,
+} from "@/components/ui-legacy/action-dropdown";
 import type {
   IntegrationDetailRow,
   IntegrationDetailTimelineEntry,
   IntegrationDetailTone,
 } from "@/components/integrations/integrationDetailModel";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-
 import { getIntegrationToneClasses } from "./tokens";
 
 function formatRelativeTimestamp(timestamp?: string | null) {
@@ -75,7 +95,14 @@ function formatRelativePlusAbsolute(
 }
 
 function EmptyFieldValue() {
-  return <span className="text-sm italic text-muted-foreground">—</span>;
+  return (
+    <Typography
+      level="body-sm"
+      sx={{ color: "text.tertiary", fontStyle: "italic" }}
+    >
+      -
+    </Typography>
+  );
 }
 
 function renderFieldValue(value: ReactNode) {
@@ -84,6 +111,29 @@ function renderFieldValue(value: ReactNode) {
   }
 
   return value;
+}
+
+function StatusDot({ tone }: { tone: IntegrationDetailTone }) {
+  const classes = getIntegrationToneClasses(tone);
+
+  return (
+    <Box
+      sx={{
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        bgcolor: classes.dotColor,
+      }}
+    />
+  );
+}
+
+function getValueSx(valueClassName?: string) {
+  return {
+    ...(valueClassName?.includes("font-mono")
+      ? { fontFamily: "code", letterSpacing: "0.01em" }
+      : null),
+  };
 }
 
 export function DetailStatusBadge({
@@ -96,65 +146,37 @@ export function DetailStatusBadge({
   const classes = getIntegrationToneClasses(tone);
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]",
-        classes.badge,
-      )}
+    <Chip
+      color={classes.chipColor}
+      size="sm"
+      startDecorator={<StatusDot tone={tone} />}
+      variant={classes.chipVariant}
+      sx={{ fontWeight: 600 }}
     >
       {label}
-    </span>
+    </Chip>
   );
 }
 
 export function DetailHealthRows({ rows }: { rows: IntegrationDetailRow[] }) {
   return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const classes = getIntegrationToneClasses(row.tone ?? "neutral");
-        const timestampLabel = row.timestamp
-          ? formatRelativeTimestamp(row.timestamp)
-          : null;
-        const exactLabel = row.timestamp
-          ? formatExactTimestamp(row.timestamp)
-          : null;
-
-        return (
-          <div
-            key={`${row.label}-${row.value}-${row.timestamp ?? "none"}`}
-            className="flex items-start justify-between gap-4 rounded-2xl border border-border/70 bg-white/70 px-4 py-3"
-          >
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-foreground">
-                {row.label}
-              </div>
-              {row.tooltip ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="mt-1 cursor-help truncate text-xs text-muted-foreground">
-                      {row.tooltip}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-sm text-xs leading-5">
-                    {row.tooltip}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null}
-            </div>
-            <div className="min-w-0 text-right">
-              <div className={cn("text-sm font-semibold", classes.icon)}>
-                {timestampLabel ?? row.value}
-              </div>
-              {exactLabel ? (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {exactLabel}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+      {rows.map((row) => (
+        <HealthFieldRow
+          key={`${row.label}-${row.value}-${row.timestamp ?? "none"}`}
+          label={row.label}
+          value={
+            row.timestamp ? formatRelativeTimestamp(row.timestamp) : row.value
+          }
+          tone={row.tone ?? "neutral"}
+          description={
+            row.timestamp
+              ? (formatExactTimestamp(row.timestamp) ?? row.tooltip)
+              : row.tooltip
+          }
+        />
+      ))}
+    </Stack>
   );
 }
 
@@ -164,40 +186,56 @@ export function DetailTimeline({
   entries: IntegrationDetailTimelineEntry[];
 }) {
   return (
-    <div className="space-y-4">
+    <Stack spacing={0}>
       {entries.map((entry, index) => {
-        const classes = getIntegrationToneClasses(entry.tone);
         const exactTimestamp = formatExactTimestamp(entry.timestamp);
 
         return (
-          <div key={entry.key} className="flex gap-4">
-            <div className="flex w-5 flex-col items-center">
-              <span
-                className={cn("mt-1 h-2.5 w-2.5 rounded-full", classes.dot)}
-              />
+          <Stack
+            key={entry.key}
+            direction="row"
+            spacing={2}
+            sx={{
+              position: "relative",
+              pb: index < entries.length - 1 ? 2.5 : 0,
+            }}
+          >
+            <Stack alignItems="center" spacing={0.5} sx={{ minWidth: 28 }}>
+              <Avatar size="sm" variant="soft" color="neutral">
+                <StatusDot tone={entry.tone} />
+              </Avatar>
               {index < entries.length - 1 ? (
-                <span className="mt-2 h-full min-h-8 w-px bg-border/80" />
+                <Box
+                  sx={{
+                    width: 1,
+                    flex: 1,
+                    minHeight: 28,
+                    bgcolor: "divider",
+                  }}
+                />
               ) : null}
-            </div>
-            <div className="pb-4">
-              <div className="text-sm font-semibold text-foreground">
-                {entry.label}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
+            </Stack>
+
+            <Stack
+              spacing={0.5}
+              sx={{ pb: index < entries.length - 1 ? 0.5 : 0 }}
+            >
+              <Typography level="body-sm">{entry.label}</Typography>
+              <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                 {entry.timestamp
                   ? formatRelativeTimestamp(entry.timestamp)
                   : "Waiting for provider data"}
-              </div>
+              </Typography>
               {exactTimestamp ? (
-                <div className="mt-1 text-xs text-muted-foreground/80">
+                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
                   {exactTimestamp}
-                </div>
+                </Typography>
               ) : null}
-            </div>
-          </div>
+            </Stack>
+          </Stack>
         );
       })}
-    </div>
+    </Stack>
   );
 }
 
@@ -211,13 +249,26 @@ export function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[1.5rem] border border-border/70 bg-white/90 p-5 shadow-sm shadow-brand-navy/5">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-950">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
-      {children}
-    </section>
+    <Sheet
+      color="neutral"
+      variant="outlined"
+      sx={{
+        borderRadius: "lg",
+        borderColor: "neutral.200",
+        boxShadow: "sm",
+        p: 2.5,
+      }}
+    >
+      <Stack spacing={2}>
+        <Stack spacing={0.75}>
+          <Typography level="title-md">{title}</Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            {description}
+          </Typography>
+        </Stack>
+        {children}
+      </Stack>
+    </Sheet>
   );
 }
 
@@ -256,102 +307,126 @@ export function ComingSoonCard({
   };
 }) {
   return (
-    <div className="mx-auto mt-6 max-w-[600px]">
-      <div className="rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
+    <Sheet
+      color="neutral"
+      variant="outlined"
+      sx={{
+        maxWidth: 720,
+        mx: "auto",
+        borderRadius: "xl",
+        p: { xs: 2.5, md: 3.5 },
+        borderColor: "neutral.200",
+        boxShadow: "sm",
+      }}
+    >
+      <Stack spacing={3}>
         {callout ? (
-          <div
-            className={cn(
-              "mb-6 rounded-xl border px-4 py-3 text-sm",
-              callout.tone === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-900"
-                : "border-sky-200 bg-sky-50 text-sky-900",
-            )}
-          >
-            <div className="flex items-start gap-3">
-              {callout.tone === "warning" ? (
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <Alert
+            color={callout.tone === "warning" ? "warning" : "neutral"}
+            startDecorator={
+              callout.tone === "warning" ? (
+                <AlertTriangle size={16} />
               ) : (
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
-              )}
-              <div>
-                <div className="font-semibold">{callout.title}</div>
-                <p className="mt-1 leading-6 opacity-90">
-                  {callout.description}
-                </p>
-              </div>
-            </div>
-          </div>
+                <Info size={16} />
+              )
+            }
+            variant="soft"
+          >
+            <Stack spacing={0.5}>
+              <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                {callout.title}
+              </Typography>
+              <Typography level="body-sm">{callout.description}</Typography>
+            </Stack>
+          </Alert>
         ) : null}
 
-        <div className="mb-6">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">
-            What you'll be able to do
-          </h3>
-          <div className="space-y-3">
+        <Stack spacing={1.5}>
+          <Typography level="title-md">
+            What you&apos;ll be able to do
+          </Typography>
+          <Stack spacing={1.25}>
             {capabilities.map((capability) => (
-              <div key={capability} className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <span className="text-sm text-foreground">{capability}</span>
-              </div>
+              <Stack
+                key={capability}
+                direction="row"
+                spacing={1.25}
+                alignItems="flex-start"
+              >
+                <CheckCircle2 size={16} />
+                <Typography level="body-sm">{capability}</Typography>
+              </Stack>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Stack>
 
         {payloadPreview ? (
-          <details className="mt-4">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-              {payloadPreview.summary} ▾
-            </summary>
-            <pre className="mt-2 overflow-x-auto rounded-lg bg-gray-950 p-4 text-xs text-gray-100">
+          <Sheet
+            color="neutral"
+            variant="soft"
+            sx={{ borderRadius: "lg", p: 2 }}
+          >
+            <Typography level="body-sm" sx={{ fontWeight: 600, mb: 1 }}>
+              {payloadPreview.summary}
+            </Typography>
+            <Box
+              component="pre"
+              sx={{
+                m: 0,
+                overflowX: "auto",
+                borderRadius: "md",
+                bgcolor: "neutral.900",
+                color: "common.white",
+                p: 2,
+                fontSize: "0.75rem",
+              }}
+            >
               {payloadPreview.content}
-            </pre>
-          </details>
+            </Box>
+          </Sheet>
         ) : null}
 
-        <Separator className="mb-6 mt-6 border-gray-100 bg-gray-100" />
+        <Divider />
 
         {!isSubmitted ? (
-          <div>
-            <p className="mb-1 text-sm font-medium text-foreground">
-              Get notified when this launches
-            </p>
-            <p className="mb-4 text-xs text-muted-foreground">
-              We'll email {notifyEmail ?? "your signed-in account"} when{" "}
-              {integrationName} is available.
-            </p>
+          <Stack spacing={1.5}>
+            <Stack spacing={0.5}>
+              <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                Get notified when this launches
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                We&apos;ll email {notifyEmail ?? "your signed-in account"} when{" "}
+                {integrationName} is available.
+              </Typography>
+            </Stack>
             <Button
-              type="button"
-              onClick={onSubmit}
-              variant="outline"
-              size="sm"
+              color="neutral"
               disabled={!notifyEmail || isSubmitting}
+              size="sm"
+              startDecorator={<Bell size={14} />}
+              variant="outlined"
+              onClick={onSubmit}
             >
-              <Bell className="mr-1.5 h-3.5 w-3.5" />
               {isSubmitting ? "Saving request..." : notifyLabel}
             </Button>
-          </div>
+          </Stack>
         ) : (
-          <div className="flex items-center gap-2 text-sm text-emerald-700">
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-            <span>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CheckCircle2 size={16} />
+            <Typography level="body-sm">
               {notifyConfirmation.replace(
                 "We'll notify you",
                 `We'll notify you at ${notifyEmail ?? "your account email"}`,
               )}
-            </span>
-          </div>
+            </Typography>
+          </Stack>
         )}
 
-        <div className="mt-4 border-t border-gray-100 pt-4">
-          <a
-            href={requestPath}
-            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-          >
-            {requestLabel}
-          </a>
-        </div>
-      </div>
-    </div>
+        <Link href={requestPath} level="body-xs">
+          {requestLabel}
+        </Link>
+      </Stack>
+    </Sheet>
   );
 }
 
@@ -361,26 +436,39 @@ export function KeyValueGrid({
   entries: Array<{ label: string; value: string; description?: string }>;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" },
+        gap: 1.5,
+      }}
+    >
       {entries.map((entry) => (
-        <div
+        <Sheet
           key={`${entry.label}-${entry.value}`}
-          className="rounded-2xl border border-border/70 bg-slate-50/70 p-4"
+          color="neutral"
+          variant="soft"
+          sx={{ borderRadius: "lg", p: 2 }}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {entry.label}
-          </div>
-          <div className="mt-2 break-words text-sm font-semibold text-slate-950">
-            {entry.value}
-          </div>
-          {entry.description ? (
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              {entry.description}
-            </div>
-          ) : null}
-        </div>
+          <Stack spacing={0.75}>
+            <Typography
+              level="body-xs"
+              sx={{ color: "text.tertiary", fontWeight: 600 }}
+            >
+              {entry.label}
+            </Typography>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              {entry.value}
+            </Typography>
+            {entry.description ? (
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {entry.description}
+              </Typography>
+            ) : null}
+          </Stack>
+        </Sheet>
       ))}
-    </div>
+    </Box>
   );
 }
 
@@ -400,62 +488,21 @@ export function DetailFieldRows({
   onCopy?: (value: string | null | undefined, label: string) => void;
 }) {
   return (
-    <div className="space-y-3">
-      {rows.map((row) => {
-        const classes = row.tone ? getIntegrationToneClasses(row.tone) : null;
-
-        return (
-          <div
-            key={row.label}
-            className="rounded-2xl border border-border/70 bg-slate-50/70 p-4"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  {row.label}
-                </div>
-                <div className="mt-2 flex items-start gap-2">
-                  {classes ? (
-                    <span
-                      className={cn(
-                        "mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full",
-                        classes.dot,
-                      )}
-                    />
-                  ) : null}
-                  <div
-                    className={cn(
-                      "min-w-0 break-words text-sm font-semibold text-slate-950",
-                      classes?.icon,
-                      row.valueClassName,
-                    )}
-                  >
-                    {row.value}
-                  </div>
-                </div>
-                {row.description ? (
-                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {row.description}
-                  </div>
-                ) : null}
-              </div>
-              {row.copyValue && onCopy && row.copyLabel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onCopy(row.copyValue, row.copyLabel!)}
-                  className="shrink-0"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+      {rows.map((row) => (
+        <FieldRow
+          key={row.label}
+          label={row.label}
+          value={row.value}
+          description={row.description}
+          tone={row.tone}
+          valueClassName={row.valueClassName}
+          copyValue={row.copyValue}
+          copyLabel={row.copyLabel}
+          onCopy={onCopy}
+        />
+      ))}
+    </Stack>
   );
 }
 
@@ -476,30 +523,36 @@ export function OverviewPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {description ? (
-            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
-      </div>
-      {contextNote ? (
-        <div
-          className={cn(
-            "mb-4 rounded-lg border px-3 py-2.5 text-sm leading-6",
-            contextNote.tone === "warning"
-              ? "border-amber-200 bg-amber-50/80 text-amber-900"
-              : "border-sky-200 bg-sky-50/80 text-sky-900",
-          )}
-        >
-          {contextNote.content}
-        </div>
-      ) : null}
-      {children}
-    </section>
+    <Sheet
+      color="neutral"
+      variant="outlined"
+      sx={{ borderRadius: "lg", borderColor: "neutral.200", p: 2.5 }}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" justifyContent="space-between" spacing={2}>
+          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+            <Typography level="title-sm">{title}</Typography>
+            {description ? (
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                {description}
+              </Typography>
+            ) : null}
+          </Stack>
+          {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
+        </Stack>
+
+        {contextNote ? (
+          <Alert
+            color={contextNote.tone === "warning" ? "warning" : "neutral"}
+            variant="soft"
+          >
+            {contextNote.content}
+          </Alert>
+        ) : null}
+
+        {children}
+      </Stack>
+    </Sheet>
   );
 }
 
@@ -529,55 +582,83 @@ export function FieldRow({
   const isCopied = Boolean(copyLabel && copiedLabel === copyLabel);
 
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-50 py-2.5 last:border-b-0">
-      <span className="w-32 shrink-0 pt-0.5 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={{ xs: 0.75, sm: 2 }}
+      alignItems={{ xs: "stretch", sm: "flex-start" }}
+      justifyContent="space-between"
+      sx={{ py: 1.25 }}
+    >
+      <Typography
+        level="body-sm"
+        sx={{
+          width: { sm: 160 },
+          flexShrink: 0,
+          color: "text.tertiary",
+        }}
+      >
         {label}
-      </span>
-      <div className="flex min-w-0 flex-1 items-start justify-end gap-3">
-        <div className="min-w-0 text-right">
-          <div className="flex items-start justify-end gap-2">
-            {classes && hasValue ? (
-              <span
-                className={cn(
-                  "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                  classes.dot,
-                )}
-              />
-            ) : null}
-            <div
-              className={cn(
-                "min-w-0 break-words text-sm text-foreground",
-                hasValue ? classes?.icon : "text-muted-foreground italic",
-                valueClassName,
-              )}
-            >
-              {renderFieldValue(value)}
-            </div>
-          </div>
+      </Typography>
+
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="flex-start"
+        justifyContent="space-between"
+        sx={{ flex: 1, minWidth: 0 }}
+      >
+        <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            {classes && hasValue ? <StatusDot tone={tone!} /> : null}
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                level="body-sm"
+                className={valueClassName}
+                sx={{
+                  color: hasValue
+                    ? (classes?.textColor ?? "text.primary")
+                    : "text.tertiary",
+                  fontStyle: hasValue ? "normal" : "italic",
+                  wordBreak: "break-word",
+                  ...getValueSx(valueClassName),
+                }}
+              >
+                {renderFieldValue(value)}
+              </Typography>
+            </Box>
+          </Stack>
           {description ? (
-            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+            <Typography
+              level="body-xs"
+              sx={{
+                color: "text.secondary",
+                pl: classes && hasValue ? 2.25 : 0,
+              }}
+            >
               {description}
-            </div>
+            </Typography>
           ) : null}
-        </div>
+        </Stack>
+
         {copyValue && onCopy && copyLabel ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2 text-muted-foreground hover:bg-gray-50 hover:text-slate-900"
-            onClick={() => onCopy(copyValue, copyLabel)}
-            aria-label={isCopied ? `${copyLabel} copied` : `Copy ${copyLabel}`}
+          <Tooltip
+            title={isCopied ? `${copyLabel} copied` : `Copy ${copyLabel}`}
           >
-            {isCopied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-          </Button>
+            <IconButton
+              aria-label={
+                isCopied ? `${copyLabel} copied` : `Copy ${copyLabel}`
+              }
+              color="neutral"
+              size="sm"
+              variant="plain"
+              onClick={() => onCopy(copyValue, copyLabel)}
+            >
+              {isCopied ? <Check size={14} /> : <Copy size={14} />}
+            </IconButton>
+          </Tooltip>
         ) : null}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }
 
@@ -592,31 +673,29 @@ export function HealthFieldRow({
   tone: IntegrationDetailTone;
   description?: ReactNode;
 }) {
-  const classes = getIntegrationToneClasses(tone);
-  const hasValue = !(value === null || value === undefined || value === "");
-
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-50 py-3 last:border-b-0">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={cn("h-2 w-2 shrink-0 rounded-full", classes.dot)} />
-          <span className="text-sm font-medium text-foreground">{label}</span>
-        </div>
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={{ xs: 0.75, sm: 2 }}
+      justifyContent="space-between"
+      sx={{ py: 1.25 }}
+    >
+      <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+        <Typography level="body-sm">{label}</Typography>
         {description ? (
-          <div className="mt-1 pl-4 text-xs leading-5 text-muted-foreground">
+          <Typography level="body-xs" sx={{ color: "text.secondary" }}>
             {description}
-          </div>
+          </Typography>
         ) : null}
-      </div>
-      <div
-        className={cn(
-          "min-w-0 max-w-[11rem] text-right text-sm font-semibold",
-          hasValue ? classes.icon : "text-muted-foreground italic",
-        )}
-      >
-        {renderFieldValue(value)}
-      </div>
-    </div>
+      </Stack>
+
+      <Box sx={{ flexShrink: 0 }}>
+        <DetailStatusBadge
+          label={String(renderFieldValue(value))}
+          tone={tone}
+        />
+      </Box>
+    </Stack>
   );
 }
 
@@ -631,7 +710,7 @@ export function SyncTypeRow({
   syncedCount?: number | null;
   isSyncing: boolean;
 }) {
-  const relativeTimestamp = formatRelativePlusAbsolute(lastSyncedAt, "—");
+  const relativeTimestamp = formatRelativePlusAbsolute(lastSyncedAt, "-");
 
   return (
     <FieldRow
@@ -650,7 +729,7 @@ export function SyncTypeRow({
         .filter(Boolean)
         .join(" • ")}
       tone={isSyncing || lastSyncedAt ? "success" : "neutral"}
-      valueClassName={isSyncing ? "text-brand-teal" : undefined}
+      valueClassName={isSyncing ? "text-emerald-600" : undefined}
     />
   );
 }
@@ -666,74 +745,548 @@ export function DataFeedRow({
   tone: IntegrationDetailTone;
   description?: string;
 }) {
-  const classes = getIntegrationToneClasses(tone);
-
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-gray-50 py-3 last:border-b-0">
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-foreground">{label}</div>
-        {description ? (
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {description}
-          </div>
-        ) : null}
-      </div>
-      <div
-        className={cn(
-          "inline-flex items-center gap-2 text-sm font-semibold",
-          classes.icon,
-        )}
-      >
-        <span className={cn("h-2 w-2 rounded-full", classes.dot)} />
-        <span>{status}</span>
-      </div>
-    </div>
+    <HealthFieldRow
+      label={label}
+      value={status}
+      tone={tone}
+      description={description}
+    />
   );
 }
 
-export function LoadingShell() {
+export type IntegrationShellBanner = {
+  tone: "warning" | "danger" | "neutral";
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+export function IntegrationStatusBanner({
+  banner,
+}: {
+  banner: IntegrationShellBanner;
+}) {
+  const icon =
+    banner.tone === "danger" ? <AlertTriangle size={16} /> : <Info size={16} />;
+
   return (
-    <div
-      className="container mx-auto space-y-6 p-6"
-      data-testid="integration-detail-loading-shell"
+    <Alert
+      color={
+        banner.tone === "danger"
+          ? "danger"
+          : banner.tone === "warning"
+            ? "warning"
+            : "neutral"
+      }
+      startDecorator={icon}
+      endDecorator={
+        banner.actionLabel && banner.onAction ? (
+          <Button
+            color={
+              banner.tone === "danger"
+                ? "danger"
+                : banner.tone === "warning"
+                  ? "warning"
+                  : "neutral"
+            }
+            size="sm"
+            variant="solid"
+            onClick={banner.onAction}
+          >
+            {banner.actionLabel}
+          </Button>
+        ) : undefined
+      }
+      variant="soft"
+      sx={{ alignItems: "center", borderRadius: "lg" }}
     >
-      <div className="h-10 w-80 animate-pulse rounded-full bg-slate-100" />
-      <div className="rounded-[1.75rem] border border-border/70 bg-white/90 p-6 shadow-sm shadow-brand-navy/5">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-4">
-            <div className="h-6 w-24 animate-pulse rounded-full bg-slate-100" />
-            <div className="h-10 w-72 animate-pulse rounded-2xl bg-slate-100" />
-            <div className="h-5 w-96 animate-pulse rounded-xl bg-slate-100" />
-          </div>
-          <div className="h-10 w-36 animate-pulse rounded-xl bg-slate-100" />
-        </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-36 animate-pulse rounded-2xl bg-slate-100"
-            />
+      <Stack spacing={0.25}>
+        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+          {banner.title}
+        </Typography>
+        <Typography level="body-sm">{banner.description}</Typography>
+      </Stack>
+    </Alert>
+  );
+}
+
+type HeroAction = {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  variant?: "solid" | "outlined";
+  icon?: LucideIcon;
+};
+
+export function IntegrationActionMenu({
+  sections,
+}: {
+  sections: ActionDropdownSection[];
+}) {
+  if (sections.length === 0) {
+    return null;
+  }
+
+  return (
+    <Dropdown>
+      <MenuButton
+        slots={{ root: IconButton }}
+        slotProps={{
+          root: { color: "neutral", size: "sm", variant: "outlined" },
+        }}
+      >
+        <MoreHorizontal size={16} />
+      </MenuButton>
+      <Menu placement="bottom-end" size="sm">
+        {sections.map((section, sectionIndex) => (
+          <Box key={section.id ?? `section-${sectionIndex}`}>
+            {section.label ? (
+              <Typography
+                level="body-xs"
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  color: "text.tertiary",
+                  fontWeight: 600,
+                }}
+              >
+                {section.label}
+              </Typography>
+            ) : null}
+            {section.items.map((item) => {
+              const ItemIcon = item.icon;
+
+              return (
+                <MenuItem
+                  key={item.id ?? item.label}
+                  color={item.destructive ? "danger" : "neutral"}
+                  disabled={item.disabled}
+                  onClick={() => item.onSelect?.()}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="flex-start"
+                    sx={{ minWidth: 220 }}
+                  >
+                    {ItemIcon ? <ItemIcon size={15} /> : null}
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                      <Typography level="body-sm">{item.label}</Typography>
+                      {item.description ? (
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "text.tertiary" }}
+                        >
+                          {item.description}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  </Stack>
+                </MenuItem>
+              );
+            })}
+            {sectionIndex < sections.length - 1 ? <ListDivider /> : null}
+          </Box>
+        ))}
+      </Menu>
+    </Dropdown>
+  );
+}
+
+export function IntegrationDetailHero({
+  providerName,
+  hubPath,
+  logoSrc,
+  categoryLabel,
+  statusLabel,
+  statusTone,
+  summary,
+  metadata,
+  primaryAction,
+  actionSections,
+}: {
+  providerName: string;
+  hubPath: string;
+  logoSrc?: string | null;
+  categoryLabel: string;
+  statusLabel: string;
+  statusTone: IntegrationDetailTone;
+  summary?: ReactNode;
+  metadata?: ReactNode;
+  primaryAction?: HeroAction | null;
+  actionSections?: ActionDropdownSection[];
+}) {
+  const ActionIcon = primaryAction?.icon;
+
+  return (
+    <Sheet color="neutral" variant="plain" sx={{ pb: 2.5 }}>
+      <Stack spacing={2}>
+        <Breadcrumbs separator="/" size="sm">
+          <Link href={hubPath} underline="hover">
+            Integrations
+          </Link>
+          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+            {providerName}
+          </Typography>
+        </Breadcrumbs>
+
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", lg: "center" }}
+        >
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="flex-start"
+            sx={{ minWidth: 0 }}
+          >
+            <Avatar
+              color="neutral"
+              size="lg"
+              src={logoSrc ?? undefined}
+              variant="outlined"
+            >
+              {providerName.slice(0, 1).toUpperCase()}
+            </Avatar>
+
+            <Stack spacing={1} sx={{ minWidth: 0 }}>
+              <Stack spacing={0.75}>
+                <Typography level="h3">{providerName}</Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Chip color="neutral" size="sm" variant="soft">
+                    {categoryLabel}
+                  </Chip>
+                  <DetailStatusBadge label={statusLabel} tone={statusTone} />
+                </Stack>
+              </Stack>
+
+              {summary ? (
+                <Typography
+                  level="body-sm"
+                  sx={{ color: "text.secondary", maxWidth: 860 }}
+                >
+                  {summary}
+                </Typography>
+              ) : null}
+
+              {metadata ? metadata : null}
+            </Stack>
+          </Stack>
+
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ flexShrink: 0 }}
+          >
+            {primaryAction ? (
+              <Button
+                color="neutral"
+                disabled={primaryAction.disabled}
+                size="sm"
+                startDecorator={
+                  ActionIcon ? <ActionIcon size={16} /> : undefined
+                }
+                variant={primaryAction.variant ?? "solid"}
+                onClick={primaryAction.onClick}
+              >
+                {primaryAction.label}
+              </Button>
+            ) : null}
+            <IntegrationActionMenu sections={actionSections ?? []} />
+          </Stack>
+        </Stack>
+      </Stack>
+      <Divider sx={{ mt: 2.5 }} />
+    </Sheet>
+  );
+}
+
+export type IntegrationTabItem<T extends string = string> = {
+  value: T;
+  label: string;
+  count?: number;
+  isActive?: boolean;
+  disabled?: boolean;
+};
+
+export function IntegrationDetailTabs<T extends string>({
+  value,
+  onChange,
+  items,
+  children,
+}: {
+  value: T;
+  onChange: (nextValue: T) => void;
+  items: Array<IntegrationTabItem<T>>;
+  children: ReactNode;
+}) {
+  return (
+    <Tabs
+      value={value}
+      onChange={(_, nextValue) => {
+        if (typeof nextValue === "string") {
+          onChange(nextValue as T);
+        }
+      }}
+      sx={{
+        bgcolor: "transparent",
+        "--Tabs-gap": "0px",
+      }}
+    >
+      <TabList
+        sx={{
+          p: 0,
+          gap: 0.75,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          bgcolor: "transparent",
+          borderRadius: 0,
+        }}
+        variant="plain"
+      >
+        {items.map((item) => (
+          <Tab
+            key={item.value}
+            disableIndicator={false}
+            disabled={item.disabled}
+            indicatorInset
+            sx={{
+              px: 1.25,
+              py: 1.25,
+              borderRadius: 0,
+              bgcolor: "transparent",
+              color: "text.secondary",
+              fontWeight: 500,
+              "&[aria-selected='true']": {
+                color: "text.primary",
+                fontWeight: 700,
+              },
+            }}
+            value={item.value}
+          >
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Typography level="body-sm">{item.label}</Typography>
+              {typeof item.count === "number" ? (
+                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                  {item.count.toLocaleString()}
+                </Typography>
+              ) : null}
+              {item.isActive ? <StatusDot tone="success" /> : null}
+            </Stack>
+          </Tab>
+        ))}
+      </TabList>
+      <Box sx={{ pt: 2.5 }}>{children}</Box>
+    </Tabs>
+  );
+}
+
+export function IntegrationDetailTabPanel({
+  value,
+  children,
+}: {
+  value: string;
+  children: ReactNode;
+}) {
+  return (
+    <TabPanel sx={{ p: 0 }} value={value}>
+      {children}
+    </TabPanel>
+  );
+}
+
+export function DangerZone({
+  actions,
+}: {
+  actions: Array<{
+    label: string;
+    description: string;
+    buttonLabel: string;
+    disabled?: boolean;
+    loading?: boolean;
+    onClick: () => void;
+  }>;
+}) {
+  if (actions.length === 0) {
+    return null;
+  }
+
+  return (
+    <Sheet
+      color="danger"
+      variant="outlined"
+      sx={{ borderRadius: "lg", p: 2.5, borderColor: "danger.outlinedBorder" }}
+    >
+      <Stack spacing={2}>
+        <Stack spacing={0.5}>
+          <Typography level="title-md" sx={{ color: "danger.plainColor" }}>
+            Danger Zone
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Destructive actions immediately affect the active integration
+            connection.
+          </Typography>
+        </Stack>
+
+        <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+          {actions.map((action) => (
+            <Stack
+              key={action.label}
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              justifyContent="space-between"
+              sx={{ py: 1.25 }}
+            >
+              <Stack spacing={0.4} sx={{ minWidth: 0 }}>
+                <Typography level="body-sm">{action.label}</Typography>
+                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                  {action.description}
+                </Typography>
+              </Stack>
+              <Button
+                color="danger"
+                disabled={action.disabled || action.loading}
+                size="sm"
+                variant="outlined"
+                onClick={action.onClick}
+              >
+                {action.loading ? "Working..." : action.buttonLabel}
+              </Button>
+            </Stack>
           ))}
-        </div>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-        <div className="space-y-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
+        </Stack>
+      </Stack>
+    </Sheet>
+  );
+}
+
+export function LoadingShell({ rows = 3 }: { rows?: number }) {
+  return (
+    <PageContainer
+      fullWidth
+      data-testid="integration-detail-loading-shell"
+      sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+    >
+      <Stack spacing={3}>
+        <Stack spacing={2}>
+          <Skeleton
+            sx={{ width: 180, height: 16, borderRadius: 999 }}
+            variant="rectangular"
+          />
+
+          <Sheet
+            color="neutral"
+            variant="plain"
+            sx={{
+              borderRadius: "xl",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              pb: 2.5,
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={2}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", lg: "center" }}
+            >
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                <Skeleton
+                  sx={{ width: 48, height: 48, borderRadius: "50%" }}
+                  variant="circular"
+                />
+                <Stack spacing={1}>
+                  <Skeleton
+                    sx={{ width: 220, height: 36, borderRadius: "md" }}
+                    variant="rectangular"
+                  />
+                  <Skeleton
+                    sx={{ width: 360, height: 16, borderRadius: 999 }}
+                    variant="rectangular"
+                  />
+                  <Stack direction="row" spacing={1}>
+                    <Skeleton
+                      sx={{ width: 118, height: 28, borderRadius: 999 }}
+                      variant="rectangular"
+                    />
+                    <Skeleton
+                      sx={{ width: 124, height: 28, borderRadius: 999 }}
+                      variant="rectangular"
+                    />
+                  </Stack>
+                </Stack>
+              </Stack>
+
+              <Stack direction="row" spacing={1}>
+                <Skeleton
+                  sx={{ width: 152, height: 36, borderRadius: "md" }}
+                  variant="rectangular"
+                />
+                <Skeleton
+                  sx={{ width: 36, height: 36, borderRadius: "md" }}
+                  variant="rectangular"
+                />
+              </Stack>
+            </Stack>
+          </Sheet>
+
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton
+                key={index}
+                sx={{ width: 88 + index * 8, height: 18, borderRadius: 999 }}
+                variant="rectangular"
+              />
+            ))}
+          </Stack>
+        </Stack>
+
+        <Stack spacing={2.5}>
+          {Array.from({ length: rows }).map((_, index) => (
+            <Sheet
               key={index}
-              className="h-56 animate-pulse rounded-[1.5rem] bg-slate-100"
-            />
+              color="neutral"
+              variant="outlined"
+              sx={{ borderRadius: "lg", borderColor: "neutral.200", p: 2.5 }}
+            >
+              <Stack spacing={2}>
+                <Skeleton
+                  sx={{ width: 190, height: 18, borderRadius: 999 }}
+                  variant="rectangular"
+                />
+                <Skeleton
+                  sx={{ width: "74%", height: 14, borderRadius: 999 }}
+                  variant="rectangular"
+                />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(3, minmax(0, 1fr))",
+                    },
+                    gap: 1.5,
+                  }}
+                >
+                  {Array.from({ length: 3 }).map((__, cellIndex) => (
+                    <Skeleton
+                      key={cellIndex}
+                      sx={{ height: 96, borderRadius: "lg" }}
+                      variant="rectangular"
+                    />
+                  ))}
+                </Box>
+              </Stack>
+            </Sheet>
           ))}
-        </div>
-        <div className="space-y-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-48 animate-pulse rounded-[1.5rem] bg-slate-100"
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+        </Stack>
+      </Stack>
+    </PageContainer>
   );
 }

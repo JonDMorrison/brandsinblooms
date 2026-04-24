@@ -1,12 +1,18 @@
-
-import { Badge } from "@/components/ui/badge";
-import { GripVertical, Check, Clock, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Box from "@mui/joy/Box";
+import IconButton from "@mui/joy/IconButton";
+import Typography from "@mui/joy/Typography";
+import { GripVertical, Trash2 } from "lucide-react";
 import { useLongPress } from "@/hooks/useLongPress";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
+import { applyTenantUserScope } from "@/utils/tenantScope";
+import {
+  createCalendarPillSx,
+  getTaskTypeLabel,
+} from "@/components/calendar/calendarEventPresentation";
 
 interface Task {
   id: string;
@@ -38,60 +44,40 @@ export const EnhancedCalendarTaskItem = ({
   onLongPress,
   onDragStart,
   onDragEnd,
-  onDelete
+  onDelete,
+  highlighted = false,
 }: EnhancedCalendarTaskItemProps) => {
+  const { user } = useAuth();
+  const { tenant } = useTenant();
   const [isDragReady, setIsDragReady] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     if (isDeleting) return;
-    
+
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('content_tasks')
-        .delete()
-        .eq('id', task.id);
-      
+      let query = supabase.from("content_tasks").delete().eq("id", task.id);
+
+      query = applyTenantUserScope(query, {
+        tenantId: tenant?.id,
+        userId: user?.id,
+      });
+
+      const { error } = await query;
+
       if (error) throw error;
-      
-      toast.success('Task deleted');
+
+      toast.success("Task deleted");
       onDelete?.(task.id);
     } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error('Failed to delete task');
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const getPostTypeIcon = (type: string) => {
-    switch (type) {
-      case 'facebook': return '📘';
-      case 'instagram': return '📷';
-      case 'email': return '📧';
-      case 'newsletter': return '📰';
-      case 'video': return '🎥';
-      case 'sms': return '💬';
-      case 'blog': return '📝';
-      default: return '📝';
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'published':
-        return { text: 'Published', className: 'bg-purple-100 text-purple-700 border-purple-300' };
-      case 'completed':
-      case 'approved':
-        return { text: 'Approved', className: 'bg-green-100 text-green-700 border-green-300' };
-      case 'scheduled':
-        return { text: 'Scheduled', className: 'bg-blue-100 text-blue-700 border-blue-300' };
-      default:
-        return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-300' };
     }
   };
 
@@ -118,32 +104,51 @@ export const EnhancedCalendarTaskItem = ({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") {
+      return;
+    }
+
+    e.preventDefault();
+    if (!isDragReady) {
+      onTaskClick(task);
+    }
+  };
+
   const longPressResult = useLongPress({
     onLongPress: handleLongPressStart,
     onClick: handleClick,
-    longPressThreshold: 300
+    longPressThreshold: 300,
   });
 
   // Destructure event handlers and state separately
-  const { onMouseDown, onMouseUp, onMouseLeave, onTouchStart, onTouchEnd, isPressed, isLongPressActive } = longPressResult;
+  const {
+    onMouseDown,
+    onMouseUp,
+    onMouseLeave,
+    onTouchStart,
+    onTouchEnd,
+    isPressed,
+    isLongPressActive,
+  } = longPressResult;
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-    
+    e.dataTransfer.setData("text/plain", task.id);
+    e.dataTransfer.effectAllowed = "move";
+
     // Create custom drag image
     const dragElement = e.currentTarget.cloneNode(true) as HTMLElement;
-    dragElement.style.transform = 'rotate(2deg) scale(1.05)';
-    dragElement.style.opacity = '0.9';
-    dragElement.style.position = 'absolute';
-    dragElement.style.top = '-1000px';
-    dragElement.style.left = '-1000px';
-    dragElement.style.pointerEvents = 'none';
-    dragElement.style.zIndex = '9999';
-    
+    dragElement.style.transform = "rotate(2deg) scale(1.05)";
+    dragElement.style.opacity = "0.9";
+    dragElement.style.position = "absolute";
+    dragElement.style.top = "-1000px";
+    dragElement.style.left = "-1000px";
+    dragElement.style.pointerEvents = "none";
+    dragElement.style.zIndex = "9999";
+
     document.body.appendChild(dragElement);
     e.dataTransfer.setDragImage(dragElement, 50, 25);
-    
+
     setTimeout(() => {
       if (document.body.contains(dragElement)) {
         document.body.removeChild(dragElement);
@@ -158,11 +163,17 @@ export const EnhancedCalendarTaskItem = ({
     }
   };
 
-  const statusBadge = getStatusBadge(task.status);
+  const subtitle =
+    task.campaigns?.title ||
+    (task.ai_output ? String(task.ai_output).slice(0, 44) : "Content task");
 
   return (
-    <div
+    <Box
+      component="div"
+      role="button"
+      tabIndex={0}
       onClick={handleDirectClick}
+      onKeyDown={handleKeyDown}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
@@ -171,83 +182,97 @@ export const EnhancedCalendarTaskItem = ({
       draggable={isDragReady}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      className={cn(
-        "relative text-xs p-3 rounded-lg transition-all duration-200 group/task cursor-pointer select-none",
-        "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
-        !isDragReady && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
-        isDragReady && "cursor-move bg-blue-50 border-blue-300 shadow-lg scale-105 z-50",
-        isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
-        isPastDate && "opacity-75",
-        isPressed && "scale-95 bg-blue-100"
-      )}
+      sx={{
+        ...createCalendarPillSx("task", highlighted || isSelected),
+        appearance: "none",
+        px: 1,
+        py: 0.75,
+        opacity: isPastDate ? 0.75 : 1,
+        cursor: isDragReady ? "move" : "pointer",
+        transform: isPressed ? "scale(0.98)" : undefined,
+        position: "relative",
+        textAlign: "left",
+        "&:hover .calendar-task-delete": { opacity: 1 },
+      }}
     >
-      {/* Long press visual feedback */}
-      {isPressed && (
-        <div className="absolute inset-0 bg-blue-400 opacity-20 rounded-lg animate-pulse pointer-events-none" />
-      )}
-
-      {/* Selection indicator */}
-      {isSelected && (
-        <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm z-10">
-          <Check className="w-3 h-3" />
-        </div>
-      )}
-
-      {/* Delete button - shows on hover */}
-      {!isSelected && !isDragReady && (
-        <Button
-          variant="ghost"
+      {!isSelected && !isDragReady ? (
+        <IconButton
+          className="calendar-task-delete"
+          variant="plain"
+          color="danger"
           size="sm"
           onClick={handleDelete}
           disabled={isDeleting}
-          className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full bg-red-100 hover:bg-red-200 text-red-600 opacity-0 group-hover/task:opacity-100 transition-opacity z-10"
+          sx={{
+            position: "absolute",
+            right: 2,
+            top: 2,
+            width: 20,
+            height: 20,
+            minWidth: 20,
+            minHeight: 20,
+            opacity: 0,
+            transition: "opacity 0.16s ease",
+            "&:hover": {
+              backgroundColor:
+                "rgba(var(--joy-palette-danger-mainChannel) / 0.12)",
+            },
+          }}
           title="Delete this task"
         >
-          {isDeleting ? (
-            <div className="animate-spin rounded-full h-3 w-3 border-2 border-red-500 border-t-transparent"></div>
-          ) : (
-            <Trash2 className="w-3 h-3" />
-          )}
-        </Button>
-      )}
+          <Trash2 size={12} />
+        </IconButton>
+      ) : null}
 
-      <div className="flex items-start gap-2">
-        <div className="flex items-center gap-1">
-          {isDragReady && (
-            <GripVertical className="w-3 h-3 text-blue-500 animate-pulse" />
-          )}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1 mb-1 min-w-0">
-            <span className="flex-shrink-0">{getPostTypeIcon(task.post_type)}</span>
-            <span className="font-semibold text-green-800 capitalize truncate">
-              {task.post_type}
-            </span>
-            {isPastDate && (
-              <span className="text-xs text-orange-600 font-medium">Past</span>
-            )}
-            {isDragReady && (
-              <Clock className="w-3 h-3 text-blue-600 animate-spin ml-auto" />
-            )}
-          </div>
-          
-          <Badge className={`text-xs px-1 py-0.5 truncate ${statusBadge.className}`}>
-            {statusBadge.text}
-          </Badge>
-          
-          {task.campaigns && (
-            <div className="text-green-700 truncate mt-1 leading-tight">
-              {task.campaigns.title}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Hover overlay */}
-      {!isDragReady && (
-        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/task:opacity-100 transition-opacity duration-200 rounded-lg pointer-events-none" />
-      )}
-    </div>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 0.75,
+          minWidth: 0,
+          pl: 0.75,
+        }}
+      >
+        {isDragReady ? <GripVertical size={14} /> : null}
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            level="body-xs"
+            fontWeight="lg"
+            sx={{
+              color: "warning.800",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {getTaskTypeLabel(task.post_type)}
+          </Typography>
+          <Typography
+            level="body-xs"
+            sx={{
+              color: "warning.800",
+              opacity: 0.72,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subtitle}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
   );
 };
+
+interface EnhancedCalendarTaskItemProps {
+  task: Task;
+  isSelected: boolean;
+  isPastDate: boolean;
+  onTaskClick: (task: Task) => void;
+  onLongPress: (task: Task) => void;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
+  onDelete?: (taskId: string) => void;
+  highlighted?: boolean;
+}

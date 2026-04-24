@@ -1,18 +1,22 @@
-import React from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import FormControl from "@mui/joy/FormControl";
+import FormHelperText from "@mui/joy/FormHelperText";
+import FormLabel from "@mui/joy/FormLabel";
+import Stack from "@mui/joy/Stack";
+import Switch from "@mui/joy/Switch";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
 import { AlertTriangle, Info, Mail, MessageSquare, Shield } from "lucide-react";
-import { FormCompliance } from "@/types/formBuilder";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { DEFAULT_FORM_COMPLIANCE, FormCompliance } from "@/types/formBuilder";
 
 interface FormComplianceTabProps {
   compliance: FormCompliance;
@@ -21,195 +25,263 @@ interface FormComplianceTabProps {
   hasEmailField?: boolean;
 }
 
+function ConsentSection({
+  title,
+  description,
+  placeholder,
+  helperText,
+  icon,
+  required,
+  consentText,
+  onRequiredChange,
+  onTextChange,
+}: {
+  title: string;
+  description: string;
+  placeholder: string;
+  helperText: string;
+  icon: React.ReactNode;
+  required: boolean;
+  consentText: string;
+  onRequiredChange: (checked: boolean) => void;
+  onTextChange: (value: string) => void;
+}) {
+  return (
+    <JoyCard>
+      <JoyCardHeader
+        startDecorator={
+          <Avatar size="sm" variant="soft" color="neutral">
+            {icon}
+          </Avatar>
+        }
+        title={title}
+        description={description}
+      />
+      <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 2,
+            border: "1px solid",
+            borderColor: "neutral.200",
+            borderRadius: "lg",
+            p: 2,
+          }}
+        >
+          <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Require consent
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              {helperText}
+            </Typography>
+          </Stack>
+          <Switch
+            checked={required}
+            onChange={(event) => onRequiredChange(event.target.checked)}
+          />
+        </Box>
+
+        <FormControl>
+          <FormLabel>Consent copy</FormLabel>
+          <Textarea
+            minRows={3}
+            value={consentText}
+            placeholder={placeholder}
+            onChange={(event) => onTextChange(event.target.value)}
+            sx={{ borderRadius: "lg" }}
+          />
+          <FormHelperText>
+            This text is displayed beside the consent checkbox on the public
+            form.
+          </FormHelperText>
+        </FormControl>
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
+function ComplianceToggle({
+  title,
+  description,
+  note,
+  checked,
+  disabled = false,
+  badge,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  note?: string;
+  checked: boolean;
+  disabled?: boolean;
+  badge?: React.ReactNode;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 2,
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "lg",
+        p: 2,
+      }}
+    >
+      <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          flexWrap="wrap"
+          alignItems="center"
+        >
+          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+            {title}
+          </Typography>
+          {badge}
+        </Stack>
+        <Typography level="body-sm" color="neutral">
+          {description}
+        </Typography>
+        {note ? (
+          <Typography level="body-xs" color="neutral">
+            {note}
+          </Typography>
+        ) : null}
+      </Stack>
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+    </Box>
+  );
+}
+
 export function FormComplianceTab({
   compliance,
   onComplianceChange,
   hasPhoneField,
   hasEmailField = true,
 }: FormComplianceTabProps) {
+  const resolvedCompliance = React.useMemo(
+    () => ({ ...DEFAULT_FORM_COMPLIANCE, ...compliance }),
+    [compliance],
+  );
+
   return (
-    <div className="space-y-6">
-      {hasPhoneField && !compliance.sms_consent_required && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Your form collects phone numbers but SMS consent is not marked as
-            required. Under TCPA rules, explicit consent should be collected
-            before sending marketing texts.
-          </AlertDescription>
+    <Stack spacing={3}>
+      {hasPhoneField && !resolvedCompliance.sms_consent_required ? (
+        <Alert
+          color="warning"
+          variant="soft"
+          startDecorator={<AlertTriangle size={18} />}
+        >
+          This form collects phone numbers, but SMS consent is not marked as
+          required. If this form supports marketing texts, the compliance copy
+          should make that explicit.
         </Alert>
-      )}
+      ) : null}
 
-      {hasEmailField && !compliance.email_consent_required && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <Info className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
-            Enable required email consent if this form is intended to capture
-            marketing subscribers.
-          </AlertDescription>
+      {hasEmailField && !resolvedCompliance.email_consent_required ? (
+        <Alert
+          color="neutral"
+          variant="soft"
+          startDecorator={<Info size={18} />}
+        >
+          Enable required email consent when this form is intended to capture
+          marketing subscribers rather than operational replies.
         </Alert>
-      )}
+      ) : null}
 
       <ConsentSection
-        title="Email Consent"
+        title="Email consent"
         description="Configure the email marketing consent checkbox shown on the form."
-        icon={Mail}
-        required={compliance.email_consent_required}
-        consentText={compliance.email_consent_text}
         placeholder="I agree to receive marketing emails from BloomSuite."
-        helperText="When enabled, the email consent checkbox must be checked for submission to succeed."
-        onRequiredChange={(checked) =>
-          onComplianceChange({ ...compliance, email_consent_required: checked })
+        helperText="When enabled, the checkbox must be checked before the submission can succeed."
+        icon={<Mail size={18} />}
+        required={resolvedCompliance.email_consent_required}
+        consentText={resolvedCompliance.email_consent_text}
+        onRequiredChange={(email_consent_required) =>
+          onComplianceChange({
+            ...resolvedCompliance,
+            email_consent_required,
+          })
         }
-        onTextChange={(text) =>
-          onComplianceChange({ ...compliance, email_consent_text: text })
+        onTextChange={(email_consent_text) =>
+          onComplianceChange({
+            ...resolvedCompliance,
+            email_consent_text,
+          })
         }
       />
 
       <ConsentSection
-        title="SMS Consent"
-        description="Configure the SMS marketing consent checkbox shown on the form."
-        icon={MessageSquare}
-        required={compliance.sms_consent_required}
-        consentText={compliance.sms_consent_text}
+        title="SMS consent"
+        description="Configure the SMS consent checkbox shown on the form."
         placeholder="I agree to receive SMS messages. Msg & data rates may apply."
-        helperText="When enabled, the SMS consent checkbox must be checked for submission to succeed."
-        onRequiredChange={(checked) =>
-          onComplianceChange({ ...compliance, sms_consent_required: checked })
+        helperText="When enabled, the checkbox must be checked before the submission can succeed."
+        icon={<MessageSquare size={18} />}
+        required={resolvedCompliance.sms_consent_required}
+        consentText={resolvedCompliance.sms_consent_text}
+        onRequiredChange={(sms_consent_required) =>
+          onComplianceChange({
+            ...resolvedCompliance,
+            sms_consent_required,
+          })
         }
-        onTextChange={(text) =>
-          onComplianceChange({ ...compliance, sms_consent_text: text })
+        onTextChange={(sms_consent_text) =>
+          onComplianceChange({
+            ...resolvedCompliance,
+            sms_consent_text,
+          })
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Shield className="h-5 w-5" />
-            Compliance Options
-          </CardTitle>
-          <CardDescription>
-            Additional privacy and permission settings for this form.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <OptionRow
-            title="Double Opt-In"
-            description="Require email confirmation before activating consent."
-            checked={compliance.double_opt_in}
+      <JoyCard>
+        <JoyCardHeader
+          startDecorator={
+            <Avatar size="sm" variant="soft" color="primary">
+              <Shield size={18} />
+            </Avatar>
+          }
+          title="Operational flags"
+          description="These settings are stored with the form, but not every flag has live runtime enforcement yet."
+        />
+        <JoyCardContent sx={{ pt: 3, gap: 2 }}>
+          <ComplianceToggle
+            title="Double opt-in"
+            description="Confirmation-based consent is planned, but the activation workflow is not live yet."
+            note="This toggle is intentionally disabled until the backend confirmation flow exists."
+            checked={resolvedCompliance.double_opt_in}
             disabled
-            badge={<Badge variant="outline">Coming Soon</Badge>}
-            onCheckedChange={() => undefined}
-            note="This option is not yet implemented in the form submission pipeline."
+            badge={
+              <JoyChip size="sm" variant="outlined" color="warning">
+                Coming soon
+              </JoyChip>
+            }
+            onChange={() => undefined}
           />
 
-          <OptionRow
-            title="GDPR Compliant"
-            description="Enable GDPR-compliant data handling for this form."
-            checked={compliance.gdpr_compliant}
-            onCheckedChange={(checked) =>
-              onComplianceChange({ ...compliance, gdpr_compliant: checked })
+          <ComplianceToggle
+            title="Show GDPR-ready messaging"
+            description="Use this to mark the form as using GDPR-oriented language and presentation. It does not change server-side retention or deletion behavior on its own."
+            checked={resolvedCompliance.gdpr_compliant}
+            onChange={(gdpr_compliant) =>
+              onComplianceChange({
+                ...resolvedCompliance,
+                gdpr_compliant,
+              })
             }
           />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-interface ConsentSectionProps {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  required: boolean;
-  consentText: string;
-  placeholder: string;
-  helperText: string;
-  onRequiredChange: (checked: boolean) => void;
-  onTextChange: (text: string) => void;
-}
-
-function ConsentSection({
-  title,
-  description,
-  icon: Icon,
-  required,
-  consentText,
-  placeholder,
-  helperText,
-  onRequiredChange,
-  onTextChange,
-}: ConsentSectionProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className="h-5 w-5" />
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-start justify-between gap-4 rounded-xl border border-border px-4 py-4">
-          <div className="space-y-1">
-            <Label className="text-sm font-medium">Required</Label>
-            <p className="text-sm text-muted-foreground">{helperText}</p>
-          </div>
-          <Switch checked={required} onCheckedChange={onRequiredChange} />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Consent Text</Label>
-          <Textarea
-            value={consentText}
-            onChange={(event) => onTextChange(event.target.value)}
-            placeholder={placeholder}
-            rows={3}
-          />
-          <p className="text-xs text-muted-foreground">
-            This text is displayed beside the consent checkbox on the public
-            form.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface OptionRowProps {
-  title: string;
-  description: string;
-  checked: boolean;
-  disabled?: boolean;
-  badge?: React.ReactNode;
-  note?: string;
-  onCheckedChange: (checked: boolean) => void;
-}
-
-function OptionRow({
-  title,
-  description,
-  checked,
-  disabled = false,
-  badge,
-  note,
-  onCheckedChange,
-}: OptionRowProps) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-border px-4 py-4">
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">{title}</Label>
-          {badge}
-        </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        {note ? <p className="text-xs text-muted-foreground">{note}</p> : null}
-      </div>
-      <Switch
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
-    </div>
+        </JoyCardContent>
+      </JoyCard>
+    </Stack>
   );
 }

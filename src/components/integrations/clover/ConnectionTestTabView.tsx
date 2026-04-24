@@ -1,7 +1,7 @@
 import { FlaskConical } from "lucide-react";
+import { Chip, Typography } from "@mui/joy";
 
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
 import type {
   CloverConnectionTestHistoryRow,
   CloverConnectionTestReport,
@@ -10,22 +10,25 @@ import type {
 
 import {
   DataTabEmptyState,
+  DataTabLoadingState,
   DataTabPagination,
+  JoyDataTable,
   formatDateTimeValue,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 import { CloverTestReport } from "./CloverTestReport";
 
-function getStatusClasses(status: CloverConnectionTestReport["status"]) {
-  switch (status) {
-    case "success":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "partial":
-      return "bg-amber-50 text-amber-800 border-amber-200";
-    default:
-      return "bg-rose-50 text-rose-700 border-rose-200";
+function StatusChip({ status }: { status: CloverConnectionTestReport["status"] }) {
+  if (status === "success") {
+    return <Chip size="sm" color="success" variant="soft">Success</Chip>;
   }
+
+  if (status === "partial") {
+    return <Chip size="sm" color="warning" variant="soft">Partial</Chip>;
+  }
+
+  return <Chip size="sm" color="danger" variant="soft">Failed</Chip>;
 }
 
 export function ConnectionTestTabView({
@@ -59,8 +62,7 @@ export function ConnectionTestTabView({
             Clover connection diagnostics
           </div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Run the existing Clover diagnostics harness to verify merchant
-            access and endpoint coverage.
+            Run the existing Clover diagnostics harness to verify merchant access and endpoint coverage.
           </p>
         </div>
         <Button type="button" onClick={onRunTest} disabled={isRunning}>
@@ -88,38 +90,52 @@ export function ConnectionTestTabView({
 
         {hasRows ? (
           <>
-            <div className="divide-y divide-gray-50">
-              {rows.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={getStatusClasses(row.report.status)}>
-                        {row.report.status === "partial"
-                          ? "Partial"
-                          : row.report.status === "success"
-                            ? "Success"
-                            : "Failed"}
-                      </Badge>
-                      <span className="font-medium text-foreground">
-                        {row.report.summary}
-                      </span>
-                    </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      Merchant {row.merchant_id} • {row.report.errors.length}{" "}
-                      errors • {row.report.duration_ms}ms
-                    </div>
-                  </div>
-                  <div className="text-sm text-muted-foreground sm:text-right">
-                    <div>{formatRelativeTimestamp(row.created_at)}</div>
-                    <div className="mt-1 text-xs">
-                      {formatDateTimeValue(row.created_at)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <JoyDataTable>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Summary</th>
+                    <th>Merchant</th>
+                    <th>Errors</th>
+                    <th>Duration</th>
+                    <th>Tested</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <StatusChip status={row.report.status} />
+                      </td>
+                      <td>
+                        <Typography level="body-sm" sx={{ maxWidth: 360 }}>
+                          {row.report.summary}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm" sx={{ fontFamily: "var(--joy-fontFamily-code)" }}>
+                          {row.merchant_id}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm" color={row.report.errors.length > 0 ? "danger" : "neutral"}>
+                          {row.report.errors.length}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">{row.report.duration_ms}ms</Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">{formatRelativeTimestamp(row.created_at)}</Typography>
+                        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                          {formatDateTimeValue(row.created_at)}
+                        </Typography>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -128,11 +144,7 @@ export function ConnectionTestTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading Clover connection tests...
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {!isLoading && !isFetching && !hasRows ? (
           <DataTabEmptyState

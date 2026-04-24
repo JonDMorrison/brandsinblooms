@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { PersonaLibrary } from "./PersonaLibrary";
 import { PersonaTooltip } from "./PersonaTooltip";
 import { User, Edit3, HelpCircle } from "lucide-react";

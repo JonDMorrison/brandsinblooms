@@ -1,5 +1,5 @@
 
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader } from "@/components/ui-legacy/dialog";
 import { ContentGenerationTab } from "./upcoming-content/ContentGenerationTab";
 import { SocialMediaPostModal } from "@/components/SocialMediaPostModal";
 import { useUpcomingContentModal } from "./upcoming-content/useUpcomingContentModal";

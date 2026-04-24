@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 
 import { DocLogoTile } from "./DocLogoTile";
 import type { DocBranding } from "./types";

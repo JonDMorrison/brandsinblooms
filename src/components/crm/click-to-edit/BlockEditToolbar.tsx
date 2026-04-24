@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Edit, Image, Copy, Trash2, Sparkles } from "lucide-react";
 import { EditMode } from "@/hooks/useBlockEditMode";
 import { cn } from "@/lib/utils";

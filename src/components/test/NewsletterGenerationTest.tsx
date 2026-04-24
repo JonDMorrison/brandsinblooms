@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { generateStructuredNewsletter } from "@/components/homepage/StructuredNewsletterService";
 import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
 import { parseNewsletterYAML } from "@/utils/newsletterUtils";

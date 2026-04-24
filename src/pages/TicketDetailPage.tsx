@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Textarea } from '@/components/ui-legacy/textarea';
 import { ArrowLeft, Send, Edit } from 'lucide-react';
 import { useTicketDetail } from '@/hooks/helpdesk/useTicketDetail';
 import { useComments } from '@/hooks/helpdesk/useComments';

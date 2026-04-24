@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { CampaignContent } from "./current-campaign/CampaignContent";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import { WeeklyContentExplanation } from "./current-campaign/WeeklyContentExplanation";

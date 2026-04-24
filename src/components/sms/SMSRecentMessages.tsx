@@ -1,62 +1,83 @@
-import React from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Link from "@mui/joy/Link";
+import List from "@mui/joy/List";
+import ListDivider from "@mui/joy/ListDivider";
+import ListItem from "@mui/joy/ListItem";
+import ListItemContent from "@mui/joy/ListItemContent";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronRight, MessageSquare, Phone } from "lucide-react";
+  ArrowDownLeft,
+  ArrowRight,
+  ArrowUpRight,
+  MessageSquare,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import type { SMSStats } from "@/hooks/useSMSStats";
 
 interface SMSRecentMessagesProps {
   messages: SMSStats["recentMessages"];
+  loading?: boolean;
 }
 
 export const SMSRecentMessages: React.FC<SMSRecentMessagesProps> = ({
   messages,
+  loading = false,
 }) => {
   const navigate = useNavigate();
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "sent":
-        return (
-          <Badge className="bg-blue-50 text-blue-700 text-xs hover:bg-blue-50">
-            Sent
-          </Badge>
-        );
+  const getStatusTone = React.useCallback((status: string) => {
+    const normalized = status.trim().toLowerCase();
+
+    switch (normalized) {
       case "delivered":
-        return (
-          <Badge className="bg-emerald-50 text-emerald-700 text-xs hover:bg-emerald-50">
-            Delivered
-          </Badge>
-        );
+      case "completed":
+        return { color: "success" as const, label: "Delivered" };
+      case "sent":
+        return { color: "primary" as const, label: "Sent" };
       case "queued":
-        return (
-          <Badge className="bg-amber-50 text-amber-700 text-xs hover:bg-amber-50">
-            Queued
-          </Badge>
-        );
+      case "sending":
+      case "processing":
+        return { color: "warning" as const, label: "Queued" };
       case "failed":
-        return (
-          <Badge variant="destructive" className="text-xs">
-            Failed
-          </Badge>
-        );
+      case "error":
+        return { color: "danger" as const, label: "Failed" };
+      case "received":
+      case "inbound":
+        return { color: "success" as const, label: "Received" };
       default:
-        return (
-          <Badge variant="outline" className="text-xs">
-            {status}
-          </Badge>
-        );
+        return {
+          color: "neutral" as const,
+          label:
+            normalized.length > 0
+              ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+              : "Sent",
+        };
     }
-  };
+  }, []);
+
+  const getDirectionMeta = React.useCallback((status: string) => {
+    const normalized = status.trim().toLowerCase();
+
+    if (normalized === "received" || normalized === "inbound") {
+      return {
+        icon: ArrowDownLeft,
+        color: "success" as const,
+      };
+    }
+
+    return {
+      icon: ArrowUpRight,
+      color: "primary" as const,
+    };
+  }, []);
 
   const maskPhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, "");
@@ -72,70 +93,170 @@ export const SMSRecentMessages: React.FC<SMSRecentMessagesProps> = ({
   return (
     <Card
       id="messages"
-      className="rounded-[28px] border border-gray-100 bg-white shadow-sm"
+      variant="outlined"
+      sx={{
+        borderRadius: "24px",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        overflow: "hidden",
+      }}
     >
-      <CardHeader className="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <CardTitle className="text-xl font-semibold text-gray-900">
-            Recent Messages
-          </CardTitle>
-          <CardDescription className="text-sm text-gray-500">
-            A quick look at the latest SMS activity across your account.
-          </CardDescription>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 rounded-xl px-3 text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        spacing={2}
+        sx={{
+          px: 2.5,
+          py: 2.25,
+          borderBottom: "1px solid",
+          borderColor: "neutral.100",
+        }}
+      >
+        <Typography level="title-md" fontWeight="lg">
+          Recent Messages
+        </Typography>
+        <Link
+          component="button"
+          type="button"
+          level="body-sm"
+          color="neutral"
+          underline="none"
+          endDecorator={<ArrowRight size={14} />}
           onClick={() => navigate("/sms/messages")}
+          sx={{ fontWeight: "md" }}
         >
           View All
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="p-6">
-        {messages.length === 0 ? (
-          <div className="flex min-h-[112px] items-center justify-center rounded-[22px] border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            No recent messages
-          </div>
-        ) : (
-          <ScrollArea className="h-[320px] pr-4">
-            <div className="space-y-3">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className="rounded-[22px] border border-gray-100 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+        </Link>
+      </Stack>
+
+      {loading ? (
+        <List sx={{ px: 2.5, py: 1.25 }}>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <React.Fragment key={index}>
+              <ListItem sx={{ alignItems: "center", gap: 1.5, px: 0, py: 1.5 }}>
+                <ListItemDecorator>
+                  <Skeleton variant="circular" width={32} height={32} />
+                </ListItemDecorator>
+                <ListItemContent>
+                  <Stack spacing={0.75}>
+                    <Skeleton
+                      variant="text"
+                      sx={{ width: "42%", height: 16 }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      sx={{ width: "76%", height: 14 }}
+                    />
+                  </Stack>
+                </ListItemContent>
+                <Stack
+                  spacing={0.75}
+                  alignItems="flex-end"
+                  sx={{ minWidth: 88 }}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-500">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {maskPhone(message.phone)}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {formatDistanceToNow(new Date(message.created_at), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                      <p className="truncate text-sm text-gray-600">
-                        “{message.content}”
-                      </p>
-                      <div className="flex items-center justify-between gap-3">
-                        <div>{getStatusBadge(message.status)}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
+                  <Skeleton variant="text" sx={{ width: 54, height: 14 }} />
+                  <Skeleton
+                    variant="rectangular"
+                    sx={{ width: 66, height: 24, borderRadius: "999px" }}
+                  />
+                </Stack>
+              </ListItem>
+              {index < 4 ? <ListDivider inset="gutter" /> : null}
+            </React.Fragment>
+          ))}
+        </List>
+      ) : messages.length === 0 ? (
+        <Box
+          sx={{
+            minHeight: 260,
+            display: "grid",
+            placeItems: "center",
+            px: 3,
+            py: 8,
+            textAlign: "center",
+          }}
+        >
+          <Stack spacing={2} alignItems="center" sx={{ maxWidth: 360 }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "neutral.500",
+                opacity: 0.45,
+                "& > .lucide": {
+                  width: 52,
+                  height: 52,
+                },
+              }}
+            >
+              <MessageSquare />
+            </Box>
+            <Stack spacing={0.75}>
+              <Typography level="title-md">No recent messages</Typography>
+              <Typography level="body-sm" color="neutral">
+                SMS activity across your account will appear here.
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
+      ) : (
+        <List sx={{ px: 2.5, py: 1.25 }}>
+          {messages.slice(0, 6).map((message, index) => {
+            const direction = getDirectionMeta(message.status);
+            const statusTone = getStatusTone(message.status);
+            const DirectionIcon = direction.icon;
+
+            return (
+              <React.Fragment key={message.id}>
+                <ListItem
+                  sx={{ px: 0, py: 1.5, alignItems: "center", gap: 1.5 }}
+                >
+                  <ListItemDecorator>
+                    <Avatar size="sm" variant="soft" color={direction.color}>
+                      <DirectionIcon size={14} />
+                    </Avatar>
+                  </ListItemDecorator>
+                  <ListItemContent sx={{ minWidth: 0 }}>
+                    <Typography level="body-sm" fontWeight="md">
+                      {maskPhone(message.phone)}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      color="neutral"
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {message.content}
+                    </Typography>
+                  </ListItemContent>
+                  <Stack
+                    spacing={0.75}
+                    alignItems="flex-end"
+                    sx={{ minWidth: 92, flexShrink: 0 }}
+                  >
+                    <Typography level="body-xs" color="neutral">
+                      {formatDistanceToNow(new Date(message.created_at), {
+                        addSuffix: true,
+                      })}
+                    </Typography>
+                    <Chip size="sm" variant="soft" color={statusTone.color}>
+                      {statusTone.label}
+                    </Chip>
+                  </Stack>
+                </ListItem>
+                {index < Math.min(messages.length, 6) - 1 ? (
+                  <ListDivider inset="gutter" />
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </List>
+      )}
     </Card>
   );
 };

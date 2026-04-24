@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Badge } from "@/components/ui-legacy/badge";
+
 import type {
   LightspeedPagination,
   LightspeedSortDirection,
@@ -31,6 +25,13 @@ import {
   formatDateTimeValue,
   formatDateValue,
   parseSaleLineItems,
+  DataTabLoadingState,
+  JoyDataTable,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type OrdersSortValue =
@@ -241,7 +242,7 @@ export function OrdersTabView({
         {rows.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] border-collapse">
+              <JoyDataTable>
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -320,7 +321,7 @@ export function OrdersTabView({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -329,11 +330,7 @@ export function OrdersTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading orders...
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState

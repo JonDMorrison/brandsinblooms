@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { CheckCircle, Clock, Sparkles, FileText, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
-import { ApproveButton } from "@/components/ui/approve-button";
+import { ApproveButton } from "@/components/ui-legacy/approve-button";
 
 interface ContentTask {
   id: string;

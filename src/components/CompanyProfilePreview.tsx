@@ -1,6 +1,6 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Eye, Sparkles, Target, Heart, Calendar, Award, MapPin } from "lucide-react";
 
 interface CompanyProfilePreviewProps {

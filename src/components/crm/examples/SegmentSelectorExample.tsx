@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SegmentSelectorModal } from "../SegmentSelectorModal";
 import { SegmentSelectorButton } from "../SegmentSelectorButton";
 import { useSegmentSelector } from "@/hooks/useSegmentSelector";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 
 export const SegmentSelectorExample = () => {
   const {

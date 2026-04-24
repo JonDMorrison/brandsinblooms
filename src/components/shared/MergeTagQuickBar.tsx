@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import {
   getMergeTagByKey,
@@ -22,7 +22,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from '@/components/ui-legacy/tooltip';
 import { cn } from '@/lib/utils';
 
 interface MergeTagQuickBarProps {

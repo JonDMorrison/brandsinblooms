@@ -1,12 +1,12 @@
 import * as React from "react";
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent, AppleCardHeader } from "@/components/ui-legacy/apple-card";
 import {
   HeadlineLarge,
   BodyMedium,
   CaptionMedium,
-} from "@/components/ui/typography";
-import { ResponsiveGrid } from "@/components/ui/responsive-grid";
+} from "@/components/ui-legacy/typography";
+import { ResponsiveGrid } from "@/components/ui-legacy/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
 import { HolidayContentViewer } from "./HolidayContentViewer";
 import { CompanyProfileSetup } from "@/components/onboarding/CompanyProfileSetup";
@@ -24,12 +24,12 @@ import {
 } from "lucide-react";
 // Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 
 interface SeasonalHolidaysCardProps {
   onContentGenerated?: () => void;

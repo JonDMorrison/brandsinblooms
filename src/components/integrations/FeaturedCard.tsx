@@ -1,59 +1,70 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import type { ReactNode } from "react";
+import Chip from "@mui/joy/Chip";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  IntegrationCard,
+  type HubIntegrationCardProps,
+} from "@/components/integrations/IntegrationCard";
 
-interface FeaturedCardProps {
+type LegacyFeaturedCardProps = {
   title: string;
   description: string;
-  icon: React.ReactNode;
-  badge?: { label: string; className?: string };
+  icon: ReactNode;
+  badge?: {
+    label: string;
+    className?: string;
+  };
   features?: string[];
-  children?: React.ReactNode;
+  children?: ReactNode;
+  onClick?: () => void;
+};
+
+export type FeaturedCardProps =
+  | HubIntegrationCardProps
+  | LegacyFeaturedCardProps;
+
+function isHubProps(
+  props: FeaturedCardProps,
+): props is HubIntegrationCardProps {
+  return "item" in props;
 }
 
-export function FeaturedCard({ 
-  title, 
-  description, 
-  icon,
-  badge,
-  features,
-  children 
-}: FeaturedCardProps) {
+export function FeaturedCard(props: FeaturedCardProps) {
+  if (isHubProps(props)) {
+    return <IntegrationCard {...props} featured />;
+  }
+
   return (
-    <Card className="bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow h-full">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-4">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-              {icon}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <CardTitle className="text-lg">{title}</CardTitle>
-                {badge && (
-                  <Badge className={badge.className || "bg-primary"}>
-                    {badge.label}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">{description}</p>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {features && features.length > 0 && (
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            {features.map((feature, index) => (
-              <React.Fragment key={index}>
-                <span>{feature}</span>
-                {index < features.length - 1 && <span>•</span>}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-        {children}
-      </CardContent>
-    </Card>
+    <IntegrationCard
+      title={props.title}
+      description={props.description}
+      icon={props.icon}
+      badge={
+        props.badge ? (
+          <Chip color="neutral" size="sm" variant="soft">
+            {props.badge.label}
+          </Chip>
+        ) : undefined
+      }
+      featured
+      onClick={props.onClick}
+    >
+      {props.features?.length ? (
+        <Stack direction="row" flexWrap="wrap" gap={0.75} useFlexGap>
+          {props.features.map((feature) => (
+            <Chip key={feature} color="neutral" size="sm" variant="outlined">
+              {feature}
+            </Chip>
+          ))}
+        </Stack>
+      ) : null}
+
+      {props.children ? (
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          {props.children}
+        </Typography>
+      ) : null}
+    </IntegrationCard>
   );
 }

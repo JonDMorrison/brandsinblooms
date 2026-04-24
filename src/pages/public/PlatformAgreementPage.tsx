@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { PublicPageLayout } from "@/components/public/PublicPageLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Label } from "@/components/ui-legacy/label";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";

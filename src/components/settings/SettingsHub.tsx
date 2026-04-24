@@ -1,323 +1,401 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Building2, 
-  Link2, 
-  CreditCard, 
-  Shield, 
+import React, { useEffect, useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
+import Typography from "@mui/joy/Typography";
+import {
+  Bug,
+  CreditCard,
   HelpCircle,
-  Store,
-  Plug2,
-  CheckCircle2,
-  AlertCircle,
   Settings,
   Globe,
-  Bug
-} from 'lucide-react';
+  Link2,
+  Shield,
+  Store,
+} from "lucide-react";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { ConnectionsSettings } from "./ConnectionsSettings";
+import { AccountBillingSettings } from "./AccountBillingSettings";
+import { ComplianceSettings } from "./ComplianceSettings";
+import { SupportSettings } from "./SupportSettings";
+import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
+import { usePOSConnection } from "@/hooks/usePOSConnection";
+import { useConnectedAccounts } from "@/components/dashboard/ConnectedAccountChecker";
+import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
+import { useDomains } from "@/hooks/useDomains";
+import { SettingsInlineError } from "./SettingsSurface";
 
-// Import existing components
-import { ConnectionsSettings } from './ConnectionsSettings';
-import { AccountBillingSettings } from './AccountBillingSettings';
-import { ComplianceSettings } from './ComplianceSettings';
-import { SupportSettings } from './SupportSettings';
-import { POSSetupWizard } from '@/components/crm/pos/POSSetupWizard';
+type SettingsTabId = "connections" | "account" | "compliance" | "support";
 
-// Import hooks for status checking
-import { usePOSConnection } from '@/hooks/usePOSConnection';
-import { useConnectedAccounts } from '@/components/dashboard/ConnectedAccountChecker';
-import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
-import { useDomains } from '@/hooks/useDomains';
-import { Link, useSearchParams } from 'react-router-dom';
+const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
+  { id: "connections", label: "Connections" },
+  { id: "account", label: "Account & Billing" },
+  { id: "compliance", label: "Compliance & Privacy" },
+  { id: "support", label: "Support" },
+];
 
-export const SettingsHub = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('connections');
-  const [showPOSWizard, setShowPOSWizard] = useState(false);
-  
-  // Sync activeTab with URL parameters
-  useEffect(() => {
-    const tabFromUrl = searchParams.get('tab');
-    const validTabs = ['connections', 'account', 'compliance', 'debug', 'support'];
-    
-    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [searchParams]);
-  
-  // Update URL when tab changes
-  const handleTabChange = (newTab: string) => {
-    setActiveTab(newTab);
-    setSearchParams({ tab: newTab }, { replace: true });
-  };
-  
-  // Status hooks
+const validTabs = new Set<SettingsTabId>(
+  SETTINGS_TABS.map((tab) => tab.id),
+);
+
+const statusItemSx = {
+  width: "100%",
+  minHeight: 96,
+  p: 2,
+  borderRadius: "18px",
+  border: "1px solid",
+  borderColor: "neutral.200",
+  bgcolor: "background.level1",
+  textAlign: "left",
+  textDecoration: "none",
+  color: "inherit",
+  transition: "border-color 150ms ease, background-color 150ms ease, transform 150ms ease",
+  cursor: "pointer",
+  "&:hover": {
+    borderColor: "neutral.300",
+    bgcolor: "background.surface",
+    transform: "translateY(-1px)",
+  },
+};
+
+const toDisplayLabel = (value: string) =>
+  value
+    .split(/[_-]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const formatDomainStatusLabel = (status?: string | null) => {
+  if (!status) {
+    return "Setup required";
+  }
+
+  if (status === "active") {
+    return "Verified";
+  }
+
+  return toDisplayLabel(status);
+};
+
+const normalizeTab = (value: string | null): SettingsTabId => {
+  if (!value || !validTabs.has(value as SettingsTabId)) {
+    return "connections";
+  }
+
+  return value as SettingsTabId;
+};
+
+const StatusValue = ({
+  loading,
+  color,
+  label,
+}: {
+  loading: boolean;
+  color: "success" | "warning" | "danger" | "neutral";
+  label: string;
+}) => {
+  if (loading) {
+    return (
+      <Skeleton
+        animation="wave"
+        variant="rectangular"
+        sx={{ width: 96, height: 26, borderRadius: "999px" }}
+      />
+    );
+  }
+
+  return (
+    <Chip color={color} size="sm" variant="soft">
+      {label}
+    </Chip>
+  );
+};
+
+const StatusStripContent = ({
+  onOpenPosWizard,
+  onOpenConnections,
+}: {
+  onOpenPosWizard: () => void;
+  onOpenConnections: () => void;
+}) => {
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
-  const { data: socialConnections = [], isLoading: socialLoading } = useConnectedAccounts();
+  const {
+    data: socialConnections = [],
+    isLoading: socialLoading,
+    error: socialError,
+    refetch: refetchSocial,
+  } = useConnectedAccounts();
   const { senderConfig, loading: senderLoading } = useSenderConfiguration();
   const { domains, emailSenders, loading: domainsLoading } = useDomains();
 
-  // Calculate domain/email status
-  const activeDomains = domains.filter(d => d.status === 'active');
-  const verifiedSenders = emailSenders.filter(s => s.verified);
+  const activeDomains = useMemo(
+    () => domains.filter((domain) => domain.status === "active"),
+    [domains],
+  );
+  const verifiedSenders = useMemo(
+    () => emailSenders.filter((sender) => sender.verified),
+    [emailSenders],
+  );
+
+  const socialLabel = socialConnections.length
+    ? `${socialConnections.length} connected`
+    : "Not connected";
+  const socialColor = socialConnections.length ? "success" : "warning";
+
   const hasDomainSetup = activeDomains.length > 0 || verifiedSenders.length > 0;
+  const domainLabel = senderConfig?.isVerified
+    ? "Verified"
+    : hasDomainSetup
+      ? "Configured"
+      : formatDomainStatusLabel(senderConfig?.domainStatus);
+  const domainColor = senderConfig?.isVerified || hasDomainSetup
+    ? "success"
+    : senderConfig?.domainStatus
+      ? "warning"
+      : "warning";
 
-const settingsTabs = [
-    {
-      id: 'connections',
-      label: 'Connections',
-      icon: Link2,
-      description: 'POS systems, social media, and third-party integrations',
-      badge: getConnectionsStatusBadge()
-    },
-    {
-      id: 'account',
-      label: 'Account & Billing',
-      icon: CreditCard,
-      description: 'Subscription, usage, and billing information',
-    },
-    {
-      id: 'compliance',
-      label: 'Compliance & Privacy',
-      icon: Shield,
-      description: 'SMS settings, quiet hours, and data retention',
-    },
-    {
-      id: 'debug',
-      label: 'Debug',
-      icon: Bug,
-      description: 'Error monitoring and debugging tools',
-    },
-    {
-      id: 'support',
-      label: 'Support',
-      icon: HelpCircle,
-      description: 'Help center, documentation, and contact support',
-    },
-  ];
+  const legacyEmailLabel = senderConfig?.isVerified
+    ? "Domain verified"
+    : formatDomainStatusLabel(senderConfig?.domainStatus);
+  const legacyEmailColor = senderConfig?.isVerified ? "success" : "warning";
 
-  function getConnectionsStatusBadge() {
-    if (posLoading || socialLoading) return null;
-    
-    const totalConnections = (hasPOSConnection ? 1 : 0) + socialConnections.length;
-    
-    if (totalConnections === 0) {
-      return <Badge variant="secondary" className="ml-2">Setup Required</Badge>;
+  return (
+    <Stack spacing={1.5}>
+      <Sheet
+        variant="outlined"
+        sx={{
+          borderRadius: "24px",
+          borderColor: "neutral.200",
+          boxShadow: "none",
+          bgcolor: "background.surface",
+          p: 1,
+        }}
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              xl: "repeat(4, minmax(0, 1fr))",
+            },
+            gap: 1,
+          }}
+        >
+          <Box component="button" onClick={onOpenPosWizard} sx={statusItemSx} type="button">
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Store size={16} />
+                <Typography level="body-sm" fontWeight="lg">
+                  POS Connections
+                </Typography>
+              </Stack>
+              <StatusValue
+                color={hasPOSConnection ? "success" : "warning"}
+                label={hasPOSConnection ? "Connected" : "Setup required"}
+                loading={posLoading}
+              />
+            </Stack>
+          </Box>
+
+          <Box component="button" onClick={onOpenConnections} sx={statusItemSx} type="button">
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Link2 size={16} />
+                <Typography level="body-sm" fontWeight="lg">
+                  Social Accounts
+                </Typography>
+              </Stack>
+              <StatusValue
+                color={socialError ? "danger" : socialColor}
+                label={socialError ? "Unavailable" : socialLabel}
+                loading={socialLoading}
+              />
+            </Stack>
+          </Box>
+
+          <Box component={RouterLink} to="/domains" sx={statusItemSx}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Globe size={16} />
+                <Typography level="body-sm" fontWeight="lg">
+                  Domain Status
+                </Typography>
+              </Stack>
+              <StatusValue
+                color={domainColor}
+                label={domainLabel}
+                loading={domainsLoading || senderLoading}
+              />
+            </Stack>
+          </Box>
+
+          <Box component={RouterLink} to="/crm/settings/email-auth" sx={statusItemSx}>
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Bug size={16} />
+                <Typography level="body-sm" fontWeight="lg">
+                  Legacy Email
+                </Typography>
+              </Stack>
+              <StatusValue
+                color={legacyEmailColor}
+                label={legacyEmailLabel}
+                loading={senderLoading}
+              />
+            </Stack>
+          </Box>
+        </Box>
+      </Sheet>
+
+      {socialError ? (
+        <SettingsInlineError
+          message="Social account status could not be loaded."
+          onRetry={() => {
+            void refetchSocial();
+          }}
+        />
+      ) : null}
+    </Stack>
+  );
+};
+
+export const SettingsHub = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("connections");
+  const [showPOSWizard, setShowPOSWizard] = useState(false);
+  const tabParam = searchParams.get("tab");
+
+  useEffect(() => {
+    if (tabParam && !validTabs.has(tabParam as SettingsTabId)) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("tab", "connections");
+      setSearchParams(nextParams, { replace: true });
+      if (activeTab !== "connections") {
+        setActiveTab("connections");
+      }
+      return;
     }
-    
-    return <Badge variant="default" className="ml-2">{totalConnections} Connected</Badge>;
-  }
 
-  const handlePOSCardClick = () => {
-    if (!hasPOSConnection) {
-      setShowPOSWizard(true);
-    } else {
-      setActiveTab('connections');
+    const nextTab = normalizeTab(tabParam);
+    if (activeTab !== nextTab) {
+      setActiveTab(nextTab);
     }
+  }, [activeTab, searchParams, setSearchParams, tabParam]);
+
+  const handleTabChange = (newTab: SettingsTabId) => {
+    setActiveTab(newTab);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", newTab);
+    setSearchParams(nextParams, { replace: true });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="space-y-2 mb-8">
-          <div className="flex items-center gap-3">
-            <Settings className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          </div>
-          <p className="text-muted-foreground">
-            Manage your business profile, connections, account settings, and more
-          </p>
-        </div>
-
-        {/* Quick Status Overview */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              Setup Status
-            </CardTitle>
-            <CardDescription>
-              Quick overview of your account setup and connections
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {/* POS Connection Status */}
-              <div 
-                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={handlePOSCardClick}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handlePOSCardClick();
-                  }
-                }}
-                aria-label={hasPOSConnection ? "View POS connections" : "Set up POS connection"}
-              >
-                <div className="flex items-center gap-2">
-                  <Store className="h-4 w-4" />
-                  <span className="text-sm font-medium">POS System</span>
-                </div>
-                {posLoading ? (
-                  <Badge variant="outline">Checking...</Badge>
-                ) : hasPOSConnection ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Connected
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Setup Required
-                  </Badge>
-                )}
-              </div>
-
-              {/* Social Media Status */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Plug2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">Social Media</span>
-                </div>
-                {socialLoading ? (
-                  <Badge variant="outline">Checking...</Badge>
-                ) : socialConnections.length > 0 ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    {socialConnections.length} Connected
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Setup Required
-                  </Badge>
-                )}
-              </div>
-
-              {/* Domains & Email Status */}
-              <Link 
-                to="/domains"
-                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                role="button"
-                aria-label="Domains and email configuration"
-              >
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  <span className="text-sm font-medium">Domains & Email</span>
-                </div>
-                {domainsLoading ? (
-                  <Badge variant="outline">Checking...</Badge>
-                ) : hasDomainSetup ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Configured
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Setup Required
-                  </Badge>
-                )}
-              </Link>
-
-              {/* Legacy Email & Sender Status */}
-              <Link 
-                to="/crm/settings/email-auth"
-                className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                role="button"
-                aria-label="Legacy email and sender configuration"
-              >
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  <span className="text-sm font-medium">Legacy Email</span>
-                </div>
-                {senderLoading ? (
-                  <Badge variant="outline">Checking...</Badge>
-                ) : senderConfig?.isVerified ? (
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Domain Verified
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Setup Required
-                  </Badge>
-                )}
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Settings Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-5 h-auto p-2">
-            {settingsTabs.map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="flex flex-col items-center gap-2 p-4 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                <tab.icon className="h-5 w-5" />
-                <div className="text-center">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-medium">{tab.label}</span>
-                    {tab.badge}
-                  </div>
-                </div>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="connections" className="space-y-6">
-            <ConnectionsSettings />
-          </TabsContent>
-
-          <TabsContent value="account" className="space-y-6">
-            <AccountBillingSettings />
-          </TabsContent>
-
-          <TabsContent value="compliance" className="space-y-6">
-            <ComplianceSettings onUpdate={() => {}} />
-          </TabsContent>
-
-          <TabsContent value="debug" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Debug Tools</CardTitle>
-                <CardDescription>
-                  Debug tools have been removed. Check browser console for error logs.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Error monitoring has been disabled. Use browser developer tools to debug issues.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="support" className="space-y-6">
-            <SupportSettings />
-          </TabsContent>
-        </Tabs>
-
-        {/* POS Setup Wizard Modal */}
-        {showPOSWizard && (
-          <POSSetupWizard
-            platform="shopify"
-            onSuccess={() => {
-              setShowPOSWizard(false);
-              setActiveTab('connections');
+    <Stack spacing={3}>
+      <Stack spacing={0.75}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "16px",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: "background.level1",
+              color: "text.secondary",
             }}
-            onCancel={() => setShowPOSWizard(false)}
-          />
-        )}
-      </div>
-    </div>
+          >
+            <Settings size={20} />
+          </Box>
+          <Typography level="h2" sx={{ fontSize: { xs: "1.75rem", md: "2rem" } }}>
+            Settings
+          </Typography>
+        </Stack>
+
+        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 760 }}>
+          Manage connected systems, account billing, compliance defaults, and
+          support from one tenant-facing settings console.
+        </Typography>
+      </Stack>
+
+      <StatusStripContent
+        onOpenConnections={() => handleTabChange("connections")}
+        onOpenPosWizard={() => setShowPOSWizard(true)}
+      />
+
+      <Tabs
+        value={activeTab}
+        onChange={(_, value) => {
+          if (typeof value === "string" && validTabs.has(value as SettingsTabId)) {
+            handleTabChange(value as SettingsTabId);
+          }
+        }}
+        sx={{ bgcolor: "transparent" }}
+      >
+        <TabList
+          sx={{
+            p: 0.5,
+            gap: 0.5,
+            borderRadius: "24px",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            bgcolor: "background.level1",
+            flexWrap: "wrap",
+          }}
+          variant="plain"
+        >
+          {SETTINGS_TABS.map((tab) => (
+            <Tab
+              disableIndicator={false}
+              indicatorInset
+              key={tab.id}
+              sx={{
+                flex: 1,
+                minWidth: { xs: "calc(50% - 4px)", md: 0 },
+                borderRadius: "18px",
+                py: 1.25,
+                fontWeight: 600,
+              }}
+              value={tab.id}
+            >
+              {tab.label}
+            </Tab>
+          ))}
+        </TabList>
+
+        <TabPanel sx={{ px: 0, pt: 3 }} value="connections">
+          <ConnectionsSettings />
+        </TabPanel>
+
+        <TabPanel sx={{ px: 0, pt: 3 }} value="account">
+          <AccountBillingSettings />
+        </TabPanel>
+
+        <TabPanel sx={{ px: 0, pt: 3 }} value="compliance">
+          <ComplianceSettings onUpdate={() => undefined} />
+        </TabPanel>
+
+        <TabPanel sx={{ px: 0, pt: 3 }} value="support">
+          <SupportSettings />
+        </TabPanel>
+      </Tabs>
+
+      {showPOSWizard && (
+        <POSSetupWizard
+          platform="square"
+          onSuccess={() => {
+            setShowPOSWizard(false);
+            handleTabChange("connections");
+          }}
+          onCancel={() => setShowPOSWizard(false)}
+        />
+      )}
+    </Stack>
   );
 };

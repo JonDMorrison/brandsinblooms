@@ -1,13 +1,12 @@
-import React from 'react';
-import { OAuthDebugPanel } from '@/components/admin/OAuthDebugPanel';
+import React from "react";
+import { OAuthDebugPanel } from "@/components/admin/OAuthDebugPanel";
+import { PageContainer } from "@/components/joy/PageContainer";
 
 const OAuthDebugPage = () => {
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto">
-        <OAuthDebugPanel />
-      </div>
-    </div>
+    <PageContainer>
+      <OAuthDebugPanel />
+    </PageContainer>
   );
 };
 

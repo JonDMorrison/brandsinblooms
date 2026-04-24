@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Instagram, Facebook, Mail, BookOpen } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 

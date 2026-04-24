@@ -5,9 +5,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui-legacy/typography";
 import { Calendar } from "lucide-react";
 
 interface Holiday {

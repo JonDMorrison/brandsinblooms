@@ -1,5 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { format, formatDistanceToNow } from "date-fns";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import {
   Area,
   AreaChart,
@@ -13,31 +19,25 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertCircle,
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  ExternalLink,
   Globe2,
-  Minus,
   MousePointerClick,
-  Share2,
   ShieldAlert,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { format, formatDistanceToNow } from "date-fns";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { useFormAnalytics } from "@/hooks/useForms";
-import { cn } from "@/lib/utils";
-import { FormAnalyticsTrend } from "@/types/formBuilder";
+import type { FormAnalyticsTrend } from "@/types/formBuilder";
 
 const ANALYTICS_RANGE_PRESETS = [
   { days: 7, shortLabel: "7D", label: "Last 7 days" },
@@ -48,9 +48,9 @@ const ANALYTICS_RANGE_PRESETS = [
 ] as const;
 
 const REJECTION_SLICE_COLORS: Record<string, string> = {
-  invalid: "#EF4444",
-  rate_limited: "#F59E0B",
-  spam: "#8B5CF6",
+  invalid: "#ef4444",
+  rate_limited: "#f59e0b",
+  spam: "#0f172a",
 };
 
 interface FormAnalyticsTabProps {
@@ -60,57 +60,211 @@ interface FormAnalyticsTabProps {
   onOpenShare?: () => void;
 }
 
+function formatCompactNumber(value: number | null) {
+  if (value === null) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    notation: value >= 1000 ? "compact" : "standard",
+    maximumFractionDigits: value >= 1000 ? 1 : 0,
+  }).format(value);
+}
+
+function formatInteger(value: number | null) {
+  if (value === null) {
+    return "0";
+  }
+
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatPercent(value: number | null) {
+  if (value === null) {
+    return "-";
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
+}
+
+function TrendPill({ trend }: { trend: FormAnalyticsTrend | null }) {
+  if (!trend || !trend.hasTrend || trend.changePercentage === null) {
+    return (
+      <JoyChip size="sm" variant="soft" color="neutral">
+        No trend yet
+      </JoyChip>
+    );
+  }
+
+  const isPositive = trend.sentiment === "positive";
+  const Icon = isPositive ? TrendingUp : TrendingDown;
+
+  return (
+    <JoyChip
+      size="sm"
+      variant="soft"
+      color={isPositive ? "success" : "danger"}
+      startDecorator={<Icon size={14} />}
+    >
+      {Math.abs(trend.changePercentage).toFixed(1)}%
+    </JoyChip>
+  );
+}
+
+function MetricCard({
+  icon,
+  title,
+  value,
+  supportingText,
+  trend,
+  tone = "neutral",
+  placeholder = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  supportingText: string;
+  trend: FormAnalyticsTrend | null;
+  tone?: "neutral" | "success" | "danger" | "primary";
+  placeholder?: boolean;
+}) {
+  return (
+    <JoyCard>
+      <JoyCardHeader
+        startDecorator={
+          <Avatar
+            size="sm"
+            variant="soft"
+            color={tone === "neutral" ? "neutral" : tone}
+          >
+            {icon}
+          </Avatar>
+        }
+        title={title}
+        actions={
+          placeholder ? (
+            <JoyChip size="sm" variant="outlined" color="warning">
+              Coming soon
+            </JoyChip>
+          ) : (
+            <TrendPill trend={trend} />
+          )
+        }
+      />
+      <JoyCardContent sx={{ pt: 3, gap: 1 }}>
+        <Typography level="h2" sx={{ fontSize: "2rem" }}>
+          {value}
+        </Typography>
+        <Typography level="body-sm" color="neutral">
+          {supportingText}
+        </Typography>
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
+function AnalyticsSkeleton() {
+  return (
+    <Stack spacing={3}>
+      <Stack direction="row" spacing={1}>
+        {ANALYTICS_RANGE_PRESETS.map((preset) => (
+          <Skeleton
+            key={preset.days}
+            variant="rectangular"
+            width={64}
+            height={36}
+            animation="wave"
+          />
+        ))}
+      </Stack>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+            xl: "repeat(4, minmax(0, 1fr))",
+          },
+          gap: 2,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton
+            key={index}
+            variant="rectangular"
+            height={156}
+            animation="wave"
+            sx={{ borderRadius: "lg" }}
+          />
+        ))}
+      </Box>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            xl: "minmax(0, 1.7fr) minmax(320px, 0.8fr)",
+          },
+          gap: 2,
+        }}
+      >
+        <Skeleton
+          variant="rectangular"
+          height={380}
+          animation="wave"
+          sx={{ borderRadius: "lg" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          height={380}
+          animation="wave"
+          sx={{ borderRadius: "lg" }}
+        />
+      </Box>
+    </Stack>
+  );
+}
+
 export function FormAnalyticsTab({
   formId,
   tenantId,
   isPublished = false,
   onOpenShare,
 }: FormAnalyticsTabProps) {
-  const [selectedRangeDays, setSelectedRangeDays] = useState(30);
+  const [selectedRangeDays, setSelectedRangeDays] = React.useState(30);
   const {
     data: analytics,
     isLoading,
     error,
   } = useFormAnalytics(formId, tenantId, selectedRangeDays);
 
-  const selectedRange = useMemo(
+  const selectedRange = React.useMemo(
     () =>
       ANALYTICS_RANGE_PRESETS.find(
         (preset) => preset.days === selectedRangeDays,
-      ) || ANALYTICS_RANGE_PRESETS[1],
+      ) ?? ANALYTICS_RANGE_PRESETS[1],
     [selectedRangeDays],
   );
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-wrap gap-2">
-          {ANALYTICS_RANGE_PRESETS.map((preset) => (
-            <Skeleton key={preset.days} className="h-9 w-20 rounded-full" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[1, 2, 3, 4].map((value) => (
-            <Skeleton key={value} className="h-40 rounded-2xl" />
-          ))}
-        </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-          <Skeleton className="h-[360px] rounded-2xl" />
-          <Skeleton className="h-[360px] rounded-2xl" />
-        </div>
-        <Skeleton className="h-[360px] rounded-2xl" />
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <AlertTriangle className="mx-auto mb-2 h-8 w-8 text-destructive" />
-          <p className="text-muted-foreground">Failed to load analytics</p>
-        </CardContent>
-      </Card>
+      <JoyCard>
+        <JoyCardContent
+          sx={{ pt: 5, gap: 1.5, alignItems: "center", textAlign: "center" }}
+        >
+          <Avatar size="lg" variant="soft" color="danger">
+            <AlertTriangle size={24} />
+          </Avatar>
+          <Typography level="title-md">Unable to load analytics</Typography>
+          <Typography level="body-sm" color="neutral">
+            {error instanceof Error ? error.message : "Unknown error"}
+          </Typography>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
@@ -119,643 +273,487 @@ export function FormAnalyticsTab({
   }
 
   const current = analytics.summary.current;
-  const hasCurrentSubmissions = current.totalSubmissions > 0;
   const rejectionSlices = analytics.rejectionBreakdown.slices.filter(
     (slice) => slice.count > 0,
   );
+  const hasCurrentSubmissions = current.totalSubmissions > 0;
+
+  if (!hasCurrentSubmissions) {
+    return (
+      <JoyCard>
+        <JoyCardContent
+          sx={{ pt: 5, gap: 2, alignItems: "center", textAlign: "center" }}
+        >
+          <Avatar size="lg" variant="soft" color="neutral">
+            <BarChart3 size={24} />
+          </Avatar>
+          <Typography level="title-md">
+            {isPublished
+              ? "No submission data yet"
+              : "Publish to start collecting analytics"}
+          </Typography>
+          <Typography level="body-sm" color="neutral" sx={{ maxWidth: 480 }}>
+            {isPublished
+              ? "This form is live, but there are no accepted or rejected submissions in the selected range yet."
+              : "Analytics populate after the form is published and starts receiving traffic and submissions."}
+          </Typography>
+          {onOpenShare ? (
+            <Button
+              variant="solid"
+              color="primary"
+              startDecorator={<ExternalLink size={16} />}
+              onClick={onOpenShare}
+            >
+              Open publish tools
+            </Button>
+          ) : null}
+        </JoyCardContent>
+      </JoyCard>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Analytics</h2>
-          <p className="text-sm text-muted-foreground">
-            Server-computed form performance for{" "}
-            {selectedRange.label.toLowerCase()}.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span>
+    <Stack spacing={3}>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        spacing={2}
+        alignItems={{ xs: "stretch", lg: "center" }}
+        justifyContent="space-between"
+      >
+        <Stack spacing={0.75}>
+          <Typography level="h3">Analytics</Typography>
+          <Typography level="body-sm" color="neutral">
+            Server-computed performance for {selectedRange.label.toLowerCase()}.
+          </Typography>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <JoyChip size="sm" variant="soft" color="neutral">
               {analytics.range.isAllTime
                 ? "All-time view"
                 : analytics.range.comparisonLabel ||
                   "Compared with the previous equivalent period"}
-            </span>
-            {analytics.lastSubmission && (
-              <span>
-                Latest response{" "}
+            </JoyChip>
+            {analytics.lastSubmission ? (
+              <JoyChip size="sm" variant="soft" color="neutral">
+                Latest submission{" "}
                 {formatDistanceToNow(new Date(analytics.lastSubmission), {
                   addSuffix: true,
                 })}
-              </span>
-            )}
-          </div>
-        </div>
+              </JoyChip>
+            ) : null}
+          </Stack>
+        </Stack>
 
-        <div className="flex flex-wrap gap-2">
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           {ANALYTICS_RANGE_PRESETS.map((preset) => (
             <Button
               key={preset.days}
-              type="button"
               size="sm"
-              variant={
-                preset.days === selectedRangeDays ? "default" : "outline"
-              }
+              variant={preset.days === selectedRangeDays ? "solid" : "plain"}
+              color={preset.days === selectedRangeDays ? "primary" : "neutral"}
               onClick={() => setSelectedRangeDays(preset.days)}
-              className="rounded-full px-4"
             >
               {preset.shortLabel}
             </Button>
           ))}
-        </div>
-      </div>
+        </Stack>
+      </Stack>
 
-      {hasCurrentSubmissions ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              icon={BarChart3}
-              title="Total Submissions"
-              value={formatCompactNumber(
-                analytics.summary.metrics.totalSubmissions.value,
-              )}
-              supportingText={`${formatInteger(current.acceptedSubmissions)} accepted • ${formatInteger(current.rejectedSubmissions)} rejected`}
-              trend={analytics.summary.metrics.totalSubmissions.trend}
-              allTime={analytics.range.isAllTime}
-            />
-            <MetricCard
-              icon={CheckCircle2}
-              title="Accepted"
-              value={formatCompactNumber(
-                analytics.summary.metrics.acceptedSubmissions.value,
-              )}
-              supportingText={`${formatPercent(current.acceptanceRate)} acceptance rate`}
-              trend={analytics.summary.metrics.acceptedSubmissions.trend}
-              allTime={analytics.range.isAllTime}
-              accentClassName="text-emerald-700"
-            />
-            <MetricCard
-              icon={ShieldAlert}
-              title="Rejected"
-              value={formatCompactNumber(
-                analytics.summary.metrics.rejectedSubmissions.value,
-              )}
-              supportingText={`${formatInteger(current.invalidSubmissions)} invalid • ${formatInteger(current.rateLimitedSubmissions)} rate limited • ${formatInteger(current.spamSubmissions)} spam`}
-              trend={analytics.summary.metrics.rejectedSubmissions.trend}
-              allTime={analytics.range.isAllTime}
-              accentClassName="text-rose-700"
-            />
-            <MetricCard
-              icon={MousePointerClick}
-              title="Conversion Rate"
-              value={
-                analytics.conversion.available
-                  ? formatPercent(analytics.conversion.rate)
-                  : "Not available"
-              }
-              supportingText={
-                analytics.conversion.available
-                  ? `${formatInteger(analytics.conversion.accepted)} accepted from ${formatInteger(analytics.conversion.views)} tracked views`
-                  : analytics.conversion.note ||
-                    "Conversion tracking is not enabled."
-              }
-              trend={
-                analytics.conversion.available
-                  ? analytics.conversion.trend
-                  : null
-              }
-              allTime={analytics.range.isAllTime}
-              unavailable={!analytics.conversion.available}
-            />
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <Card className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle>Submissions Over Time</CardTitle>
-                <CardDescription>
-                  Accepted and rejected responses for the selected range.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[360px] pt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={analytics.daily}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="acceptedGradient"
-                        x1="0"
-                        x2="0"
-                        y1="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#10B981"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#10B981"
-                          stopOpacity={0.04}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="rejectedGradient"
-                        x1="0"
-                        x2="0"
-                        y1="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="0%"
-                          stopColor="#F97316"
-                          stopOpacity={0.24}
-                        />
-                        <stop
-                          offset="100%"
-                          stopColor="#F97316"
-                          stopOpacity={0.04}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      stroke="hsl(var(--border))"
-                      strokeDasharray="3 3"
-                      opacity={0.4}
-                    />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 12 }}
-                      stroke="hsl(var(--muted-foreground))"
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={formatChartDayLabel}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fontSize: 12 }}
-                      stroke="hsl(var(--muted-foreground))"
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--background))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "12px",
-                      }}
-                      formatter={(value: number, name: string) => [
-                        formatInteger(value),
-                        name === "accepted" ? "Accepted" : "Rejected",
-                      ]}
-                      labelFormatter={(label) =>
-                        format(new Date(`${label}T00:00:00`), "PPP")
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="accepted"
-                      name="accepted"
-                      stroke="#10B981"
-                      fill="url(#acceptedGradient)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="rejected"
-                      name="rejected"
-                      stroke="#F97316"
-                      fill="url(#rejectedGradient)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Rejection Breakdown</CardTitle>
-                <CardDescription>
-                  Server-classified rejection causes for this range.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {analytics.rejectionBreakdown.totalRejections > 0 &&
-                rejectionSlices.length > 0 ? (
-                  <div className="space-y-5">
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={rejectionSlices}
-                            dataKey="count"
-                            innerRadius={58}
-                            outerRadius={88}
-                            paddingAngle={2}
-                            stroke="none"
-                          >
-                            {rejectionSlices.map((slice) => (
-                              <Cell
-                                key={slice.key}
-                                fill={
-                                  REJECTION_SLICE_COLORS[slice.key] || "#94A3B8"
-                                }
-                              />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip
-                            contentStyle={{
-                              backgroundColor: "hsl(var(--background))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: "12px",
-                            }}
-                            formatter={(value: number, _name, details) => {
-                              const payload = details?.payload as
-                                | { percentage?: number; label?: string }
-                                | undefined;
-
-                              return [
-                                `${formatInteger(value)} (${formatPercent(payload?.percentage ?? null)})`,
-                                payload?.label || "Rejections",
-                              ];
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="space-y-3">
-                      {rejectionSlices.map((slice) => (
-                        <div
-                          key={slice.key}
-                          className="flex items-center justify-between gap-4 rounded-xl border bg-muted/20 px-4 py-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span
-                              className="h-3 w-3 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  REJECTION_SLICE_COLORS[slice.key] ||
-                                  "#94A3B8",
-                              }}
-                            />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {slice.label}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatPercent(slice.percentage)} of rejected
-                                submissions
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">
-                            {formatInteger(slice.count)}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <FriendlyEmptyState
-                    icon={CheckCircle2}
-                    title="No rejections in this period."
-                    description="Every recorded submission in the selected range was accepted."
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Top Referrers</CardTitle>
-                <CardDescription>
-                  Ranked by response volume for the current range.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {analytics.topReferrers.length > 0 ? (
-                  <div className="space-y-4">
-                    {analytics.topReferrers.map((referrer) => (
-                      <div
-                        key={`${referrer.rank}-${referrer.sourceLabel}`}
-                        className="space-y-2"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                #{referrer.rank}
-                              </span>
-                              <p className="truncate text-sm font-medium text-foreground">
-                                {referrer.displayDomain}
-                              </p>
-                            </div>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {referrer.sourceLabel}
-                            </p>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatInteger(referrer.count)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatPercent(referrer.sharePercentage)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${referrer.barPercentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <FriendlyEmptyState
-                    icon={Globe2}
-                    title="No referrer data yet"
-                    description="Referrer and source metadata will appear here once submissions include attribution context."
-                  />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Field Completion</CardTitle>
-                <CardDescription>
-                  Fill rate by visible field, ordered as the form is built.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                {analytics.fieldFillRates.length > 0 ? (
-                  <div className="space-y-4">
-                    {analytics.fieldFillRates.map((field) => (
-                      <div key={field.fieldId} className="space-y-2">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-medium text-foreground">
-                                {field.label}
-                              </p>
-                              {field.required && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] uppercase tracking-wide"
-                                >
-                                  Required
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {formatInteger(field.filledCount)} of{" "}
-                              {formatInteger(field.totalSubmissions)}{" "}
-                              submissions provided a value
-                            </p>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatPercent(field.fillRate)}
-                            </p>
-                            <p className="text-xs capitalize text-muted-foreground">
-                              {field.fieldType.replace(/_/g, " ")}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full rounded-full bg-emerald-500"
-                            style={{ width: `${field.fillRate}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <FriendlyEmptyState
-                    icon={BarChart3}
-                    title="No field analytics yet"
-                    description="Field completion rates will populate after the form records submissions for this range."
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      ) : (
-        <EmptyAnalyticsState
-          isPublished={isPublished}
-          onOpenShare={onOpenShare}
-          rangeLabel={selectedRange.label.toLowerCase()}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+            xl: "repeat(4, minmax(0, 1fr))",
+          },
+          gap: 2,
+        }}
+      >
+        <MetricCard
+          icon={<BarChart3 size={18} />}
+          title="Total submissions"
+          value={formatCompactNumber(
+            analytics.summary.metrics.totalSubmissions.value,
+          )}
+          supportingText={`${formatInteger(current.acceptedSubmissions)} accepted and ${formatInteger(current.rejectedSubmissions)} rejected`}
+          trend={analytics.summary.metrics.totalSubmissions.trend}
         />
-      )}
+        <MetricCard
+          icon={<CheckCircle2 size={18} />}
+          title="Accepted"
+          value={formatCompactNumber(
+            analytics.summary.metrics.acceptedSubmissions.value,
+          )}
+          supportingText={`${formatPercent(current.acceptanceRate)} acceptance rate`}
+          trend={analytics.summary.metrics.acceptedSubmissions.trend}
+          tone="success"
+        />
+        <MetricCard
+          icon={<ShieldAlert size={18} />}
+          title="Rejected"
+          value={formatCompactNumber(
+            analytics.summary.metrics.rejectedSubmissions.value,
+          )}
+          supportingText={`${formatInteger(current.invalidSubmissions)} invalid, ${formatInteger(current.rateLimitedSubmissions)} rate limited, ${formatInteger(current.spamSubmissions)} spam`}
+          trend={analytics.summary.metrics.rejectedSubmissions.trend}
+          tone="danger"
+        />
+        <MetricCard
+          icon={<MousePointerClick size={18} />}
+          title="Conversion tracking"
+          value={
+            analytics.conversion.available
+              ? formatPercent(analytics.conversion.rate)
+              : "Coming soon"
+          }
+          supportingText={
+            analytics.conversion.available
+              ? `${formatInteger(analytics.conversion.accepted)} accepted from ${formatInteger(analytics.conversion.views)} tracked views`
+              : analytics.conversion.note ||
+                "View-based conversion tracking is not connected for this form yet."
+          }
+          trend={
+            analytics.conversion.available ? analytics.conversion.trend : null
+          }
+          tone="primary"
+          placeholder={!analytics.conversion.available}
+        />
+      </Box>
 
-      {analytics.lastSubmission && hasCurrentSubmissions ? (
-        <p className="text-xs text-muted-foreground">
-          Last recorded submission:{" "}
-          {format(new Date(analytics.lastSubmission), "PPpp")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  title,
-  value,
-  supportingText,
-  trend,
-  allTime,
-  accentClassName,
-  unavailable = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  value: string;
-  supportingText: string;
-  trend: FormAnalyticsTrend | null;
-  allTime: boolean;
-  accentClassName?: string;
-  unavailable?: boolean;
-}) {
-  return (
-    <Card className="rounded-2xl border shadow-sm">
-      <CardContent className="space-y-4 p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Icon className="h-4 w-4" />
-              <span>{title}</span>
-            </div>
-            <div
-              className={cn(
-                "text-3xl font-semibold tracking-tight text-foreground",
-                accentClassName,
-              )}
-            >
-              {value}
-            </div>
-          </div>
-
-          <TrendBadge
-            trend={trend}
-            allTime={allTime}
-            unavailable={unavailable}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            xl: "minmax(0, 1.7fr) minmax(320px, 0.8fr)",
+          },
+          gap: 2,
+        }}
+      >
+        <JoyCard>
+          <JoyCardHeader
+            title="Submission volume"
+            description="Accepted and rejected responses over the selected period."
           />
-        </div>
+          <JoyCardContent sx={{ pt: 2 }}>
+            <Box sx={{ height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={analytics.daily}
+                  margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient
+                      id="acceptedGradient"
+                      x1="0"
+                      x2="0"
+                      y1="0"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#16a34a" stopOpacity={0.3} />
+                      <stop
+                        offset="100%"
+                        stopColor="#16a34a"
+                        stopOpacity={0.03}
+                      />
+                    </linearGradient>
+                    <linearGradient
+                      id="rejectedGradient"
+                      x1="0"
+                      x2="0"
+                      y1="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor="#f97316"
+                        stopOpacity={0.22}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="#f97316"
+                        stopOpacity={0.03}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    stroke="rgba(15, 23, 42, 0.08)"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 12, fill: "#64748b" }}
+                    tickFormatter={(label) =>
+                      format(
+                        new Date(`${label}T00:00:00`),
+                        selectedRangeDays <= 31 ? "MMM d" : "MMM",
+                      )
+                    }
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    allowDecimals={false}
+                    tick={{ fontSize: 12, fill: "#64748b" }}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: 16,
+                      border: "1px solid rgba(148, 163, 184, 0.2)",
+                      boxShadow: "0 12px 40px rgba(15, 23, 42, 0.08)",
+                    }}
+                    labelFormatter={(label) =>
+                      format(new Date(`${label}T00:00:00`), "PPP")
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="accepted"
+                    stroke="#16a34a"
+                    fill="url(#acceptedGradient)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="rejected"
+                    stroke="#f97316"
+                    fill="url(#rejectedGradient)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Box>
+          </JoyCardContent>
+        </JoyCard>
 
-        <p className="text-sm leading-6 text-muted-foreground">
-          {supportingText}
-        </p>
-      </CardContent>
-    </Card>
+        <JoyCard>
+          <JoyCardHeader
+            title="Rejection breakdown"
+            description="Why submissions were rejected in the selected range."
+          />
+          <JoyCardContent sx={{ pt: 2, gap: 2 }}>
+            {rejectionSlices.length > 0 ? (
+              <>
+                <Box sx={{ height: 220 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={rejectionSlices}
+                        dataKey="count"
+                        innerRadius={56}
+                        outerRadius={84}
+                        paddingAngle={2}
+                        stroke="none"
+                      >
+                        {rejectionSlices.map((slice) => (
+                          <Cell
+                            key={slice.key}
+                            fill={
+                              REJECTION_SLICE_COLORS[slice.key] || "#64748b"
+                            }
+                          />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value: number) => formatInteger(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+                <Stack spacing={1}>
+                  {rejectionSlices.map((slice) => (
+                    <Sheet
+                      key={slice.key}
+                      variant="soft"
+                      sx={{
+                        borderRadius: "lg",
+                        px: 1.5,
+                        py: 1.25,
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                        alignItems="center"
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Box
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: 999,
+                              backgroundColor:
+                                REJECTION_SLICE_COLORS[slice.key] || "#64748b",
+                            }}
+                          />
+                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                            {slice.label}
+                          </Typography>
+                        </Stack>
+                        <Typography level="body-sm" color="neutral">
+                          {formatInteger(slice.count)} (
+                          {formatPercent(slice.percentage)})
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                  ))}
+                </Stack>
+              </>
+            ) : (
+              <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
+                <Typography level="body-sm" color="neutral">
+                  No rejected submissions in this range.
+                </Typography>
+              </Sheet>
+            )}
+          </JoyCardContent>
+        </JoyCard>
+      </Box>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            xl: "minmax(0, 1fr) minmax(0, 1fr)",
+          },
+          gap: 2,
+        }}
+      >
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="neutral">
+                <Globe2 size={18} />
+              </Avatar>
+            }
+            title="Top referrers"
+            description="Where recent form traffic and submissions came from."
+          />
+          <JoyCardContent sx={{ pt: 2, gap: 1.25 }}>
+            {analytics.topReferrers.length > 0 ? (
+              analytics.topReferrers.slice(0, 6).map((referrer) => (
+                <Sheet
+                  key={`${referrer.rank}-${referrer.displayDomain}`}
+                  variant="soft"
+                  sx={{ borderRadius: "lg", px: 1.5, py: 1.25 }}
+                >
+                  <Stack spacing={0.75}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      spacing={2}
+                      alignItems="center"
+                    >
+                      <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                        {referrer.displayDomain}
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        {formatInteger(referrer.count)}
+                      </Typography>
+                    </Stack>
+                    <Box
+                      sx={{
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: "neutral.100",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: `${Math.max(referrer.barPercentage, 6)}%`,
+                          height: "100%",
+                          borderRadius: 999,
+                          backgroundColor: "primary.500",
+                        }}
+                      />
+                    </Box>
+                    <Typography level="body-xs" color="neutral">
+                      {referrer.sourceLabel} •{" "}
+                      {formatPercent(referrer.sharePercentage)} share
+                    </Typography>
+                  </Stack>
+                </Sheet>
+              ))
+            ) : (
+              <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
+                <Typography level="body-sm" color="neutral">
+                  Referrer data will appear once the form receives traffic with
+                  attribution context.
+                </Typography>
+              </Sheet>
+            )}
+          </JoyCardContent>
+        </JoyCard>
+
+        <JoyCard>
+          <JoyCardHeader
+            title="Field completion"
+            description="How often individual fields are filled when a submission is recorded."
+          />
+          <JoyCardContent sx={{ pt: 2, gap: 1.25 }}>
+            {analytics.fieldFillRates.length > 0 ? (
+              analytics.fieldFillRates.slice(0, 8).map((field) => (
+                <Stack key={field.fieldId} spacing={0.75}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    spacing={2}
+                    alignItems="center"
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                        {field.label}
+                      </Typography>
+                      {field.required ? (
+                        <JoyChip size="sm" variant="soft" color="warning">
+                          Required
+                        </JoyChip>
+                      ) : null}
+                    </Stack>
+                    <Typography level="body-sm" color="neutral">
+                      {formatPercent(field.fillRate)}
+                    </Typography>
+                  </Stack>
+                  <Box
+                    sx={{
+                      height: 8,
+                      borderRadius: 999,
+                      backgroundColor: "neutral.100",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: `${Math.max(field.fillRate, 4)}%`,
+                        height: "100%",
+                        borderRadius: 999,
+                        backgroundColor: "success.500",
+                      }}
+                    />
+                  </Box>
+                  <Typography level="body-xs" color="neutral">
+                    {formatInteger(field.filledCount)} of{" "}
+                    {formatInteger(field.totalSubmissions)} submissions included
+                    this field.
+                  </Typography>
+                </Stack>
+              ))
+            ) : (
+              <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
+                <Typography level="body-sm" color="neutral">
+                  Field completion rates appear after the form has enough
+                  submission volume to compare usage.
+                </Typography>
+              </Sheet>
+            )}
+          </JoyCardContent>
+        </JoyCard>
+      </Box>
+    </Stack>
   );
-}
-
-function TrendBadge({
-  trend,
-  allTime,
-  unavailable,
-}: {
-  trend: FormAnalyticsTrend | null;
-  allTime: boolean;
-  unavailable?: boolean;
-}) {
-  if (unavailable) {
-    return <Badge variant="outline">Tracking off</Badge>;
-  }
-
-  if (!trend || !trend.hasTrend) {
-    return <Badge variant="outline">{allTime ? "All time" : "No trend"}</Badge>;
-  }
-
-  const Icon =
-    trend.direction === "up"
-      ? TrendingUp
-      : trend.direction === "down"
-        ? TrendingDown
-        : Minus;
-  const badgeClassName =
-    trend.sentiment === "positive"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : trend.sentiment === "negative"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
-        : "border-slate-200 bg-slate-50 text-slate-700";
-
-  return (
-    <Badge variant="outline" className={badgeClassName}>
-      <Icon className="mr-1 h-3 w-3" />
-      {formatPercent(Math.abs(trend.changePercentage ?? 0))}
-    </Badge>
-  );
-}
-
-function FriendlyEmptyState({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-background text-muted-foreground shadow-sm">
-        <Icon className="h-6 w-6" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-base font-medium text-foreground">{title}</p>
-        <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-function EmptyAnalyticsState({
-  isPublished,
-  onOpenShare,
-  rangeLabel,
-}: {
-  isPublished: boolean;
-  onOpenShare?: () => void;
-  rangeLabel: string;
-}) {
-  return (
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <BarChart3 className="h-7 w-7" />
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-xl font-semibold text-foreground">
-            No submissions in this range yet
-          </h3>
-          <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
-            Analytics will appear here as soon as the form starts collecting
-            responses for {rangeLabel}.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {isPublished
-              ? "Share the published form to start driving traffic and responses."
-              : "Publish the form when you’re ready to start collecting responses."}
-          </p>
-        </div>
-
-        {isPublished && onOpenShare ? (
-          <Button onClick={onOpenShare}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Share
-          </Button>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function formatCompactNumber(value: number | null) {
-  if (value === null) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: value >= 1000 ? 1 : 0,
-  }).format(value);
-}
-
-function formatInteger(value: number | null) {
-  if (value === null) {
-    return "—";
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatPercent(value: number | null) {
-  if (value === null) {
-    return "—";
-  }
-
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}%`;
-}
-
-function formatChartDayLabel(day: string) {
-  return format(new Date(`${day}T00:00:00`), "MMM d");
 }

@@ -2,33 +2,41 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { cachedSupabaseFetch } from "./cachedFetch";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config";
 
-const SUPABASE_URL = "https://udldmkqwnxhdeztyqcau.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM";
+const AUTH_STORAGE_KEYS = [
+  "supabase.auth.token",
+  "sb-udldmkqwnxhdeztyqcau-auth-token",
+  "supabase.auth.refreshToken",
+  "supabase.auth.expiresAt",
+];
+
+const hasAuthStorageMatch = (key: string) =>
+  AUTH_STORAGE_KEYS.includes(key) ||
+  key.startsWith("supabase.auth.") ||
+  key.includes("sb-udld") ||
+  key.includes("sb-auth") ||
+  key.includes("-auth-token");
+
+export const hasPersistedAuthState = () => {
+  if (typeof localStorage === "undefined") {
+    return false;
+  }
+
+  return Object.keys(localStorage).some(hasAuthStorageMatch);
+};
 
 // Enhanced auth state cleanup utility
 export const cleanupAuthState = () => {
   try {
     // Remove all possible auth-related keys from localStorage
-    const keysToRemove = [
-      "supabase.auth.token",
-      "sb-udldmkqwnxhdeztyqcau-auth-token",
-      "supabase.auth.refreshToken",
-      "supabase.auth.expiresAt",
-    ];
-
-    keysToRemove.forEach((key) => {
+    AUTH_STORAGE_KEYS.forEach((key) => {
       localStorage.removeItem(key);
     });
 
     // Remove all Supabase auth keys with pattern matching
     Object.keys(localStorage).forEach((key) => {
-      if (
-        key.startsWith("supabase.auth.") ||
-        key.includes("sb-udld") ||
-        key.includes("sb-auth")
-      ) {
+      if (hasAuthStorageMatch(key)) {
         localStorage.removeItem(key);
       }
     });
@@ -36,11 +44,7 @@ export const cleanupAuthState = () => {
     // Remove from sessionStorage if in use
     if (typeof sessionStorage !== "undefined") {
       Object.keys(sessionStorage).forEach((key) => {
-        if (
-          key.startsWith("supabase.auth.") ||
-          key.includes("sb-udld") ||
-          key.includes("sb-auth")
-        ) {
+        if (hasAuthStorageMatch(key)) {
           sessionStorage.removeItem(key);
         }
       });

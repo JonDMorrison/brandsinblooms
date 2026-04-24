@@ -5,15 +5,15 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
-    "process.env.VITE_ENABLE_SENTINEL": JSON.stringify(process.env.VITE_ENABLE_SENTINEL || "false")
+    "process.env.VITE_ENABLE_SENTINEL": JSON.stringify(
+      process.env.VITE_ENABLE_SENTINEL || "false",
+    ),
   },
   server: {
     host: "::",
     port: 8080,
   },
-  plugins: [
-    react(),
-  ].filter(Boolean),
+  plugins: [react()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -22,24 +22,41 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-          supabase: ['@supabase/supabase-js'],
-          utils: ['date-fns', 'clsx', 'tailwind-merge']
-        }
-      }
+        manualChunks(id) {
+          if (
+            id.includes("/node_modules/@mui/") ||
+            id.includes("/node_modules/@emotion/")
+          ) {
+            return "vendor-joy";
+          }
+
+          if (id.includes("/node_modules/recharts/")) {
+            return "vendor-recharts";
+          }
+
+          if (id.includes("/node_modules/")) {
+            return "vendor";
+          }
+
+          return undefined;
+        },
+      },
     },
-    target: 'esnext',
-    minify: 'esbuild',
-    chunkSizeWarningLimit: 1000
+    target: "esnext",
+    minify: "esbuild",
+    chunkSizeWarningLimit: 1000,
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js']
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@supabase/supabase-js",
+    ],
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: "jsdom",
     setupFiles: [],
   },
 }));

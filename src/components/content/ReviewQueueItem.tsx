@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { CheckCircle2, Eye, Calendar, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ContentTask } from "@/types/content";
 import { useAuth } from "@/contexts/AuthContext";
-import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
+import { DevPreviewBadge } from "@/components/ui-legacy/dev-preview-badge";
 
 interface ReviewQueueItemProps {
   task: ContentTask;

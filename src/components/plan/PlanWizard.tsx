@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui-legacy/progress";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { PlanWizardProvider, usePlanWizard } from "./PlanWizardContext";

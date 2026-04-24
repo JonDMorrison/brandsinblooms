@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui-legacy/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui-legacy/popover';
+import { Calendar } from '@/components/ui-legacy/calendar';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
 import { Clock, Sparkles, Calendar as CalendarIcon, Brain, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAIScheduling } from '@/hooks/useAIScheduling';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui-legacy/badge';
 
 interface TimePopoverProps {
   isOpen: boolean;

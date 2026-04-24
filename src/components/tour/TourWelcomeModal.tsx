@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Rocket, MapPin, Send, X, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { useQuickTour } from '@/contexts/QuickTourContext';
 import { useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';

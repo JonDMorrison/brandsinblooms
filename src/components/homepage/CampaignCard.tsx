@@ -4,9 +4,9 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Calendar,
   Clock,
@@ -27,10 +27,10 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeDisplay } from "../calendar/ThemeDisplay";
-import { ApproveButton } from "@/components/ui/approve-button";
+import { ApproveButton } from "@/components/ui-legacy/approve-button";
 import { useAuth } from "@/contexts/AuthContext";
-import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { DevPreviewBadge } from "@/components/ui-legacy/dev-preview-badge";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 
 interface CampaignCardProps {
   campaign: any;

@@ -1,9 +1,9 @@
 // src/components/publish/PostCard.tsx
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ActionGroup } from '@/components/ui/action-group';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { ActionGroup } from '@/components/ui-legacy/action-group';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Facebook, Instagram, Clock, Send, Edit3, Trash2, Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';

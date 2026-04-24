@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 
 interface CollapsedBarProps {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 

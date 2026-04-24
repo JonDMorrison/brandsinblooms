@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
 import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
 import { normalizeTask } from "@/utils/normalizeTask";
 import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 
 interface TaskContentProps {
   task: any;

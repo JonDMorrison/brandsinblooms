@@ -1,646 +1,576 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Layers3, Plus, RefreshCw, Search, Shapes, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import type { PersonaRecord } from "@/config/systemPersonas";
+import { CatalogGridSkeleton } from "@/components/crm/catalog/CatalogCardSkeleton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  CatalogStatsStrip,
+  CatalogStatsStripSkeleton,
+} from "@/components/crm/catalog/CatalogStatsStrip";
 import {
-  Target,
-  Plus,
-  Search,
-  RefreshCw,
-  Users,
-  UserPlus,
-  X,
-  Loader2,
-} from "lucide-react";
-import { useCRMPersonas } from "@/hooks/useCRMPersonas";
-import { useCRMCustomers } from "@/hooks/useCRMCustomers";
+  CustomPersonaModal,
+  type PersonaFormInitialValue,
+} from "@/components/crm/personas/CustomPersonaModal";
 import { PersonaCard } from "@/components/crm/personas/PersonaCard";
-import { CustomPersonaModal } from "@/components/crm/personas/CustomPersonaModal";
-import { PersonaOverviewCard } from "@/components/crm/personas/PersonaOverviewCard";
-import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  PersonasFilterBar,
+  type PersonaSortOption,
+  type PersonaViewFilter,
+} from "@/components/crm/personas/PersonasFilterBar";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
+import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoyTooltip } from "@/components/joy/JoyTooltip";
+import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
-import { supabase } from "@/integrations/supabase/client";
 
-// Predefined personas data for garden center customers
-const predefinedPersonas = [
-  {
-    id: "plant-killer-pam",
-    name: "Plant-Killer Pam",
-    description:
-      "Customers who struggle with keeping plants alive and need low-maintenance options",
-    icon: "leaf" as const,
-  },
-  {
-    id: "pet-friendly-hannah",
-    name: "Pet-Friendly Hannah",
-    description:
-      "Pet owners looking for safe, non-toxic plants and garden solutions",
-    icon: "heart" as const,
-  },
-  {
-    id: "vegetable-garden-veronica",
-    name: "Vegetable Garden Veronica",
-    description:
-      "Customers focused on growing their own food and organic gardening",
-    icon: "apple" as const,
-  },
-  {
-    id: "sustainable-susie",
-    name: "Sustainable Susie",
-    description:
-      "Environmentally conscious gardeners seeking eco-friendly solutions",
-    icon: "recycle" as const,
-  },
-  {
-    id: "patio-gardener-gail",
-    name: "Patio Gardener Gail",
-    description:
-      "Urban gardeners with limited space focusing on container gardening",
-    icon: "home" as const,
-  },
-  {
-    id: "pollinator-paula",
-    name: "Pollinator Paula",
-    description:
-      "Customers interested in attracting bees, butterflies, and beneficial insects",
-    icon: "flower" as const,
-  },
-  {
-    id: "curb-appeal-ashley",
-    name: "Curb Appeal Ashley",
-    description:
-      "Homeowners focused on front yard landscaping and property aesthetics",
-    icon: "eye" as const,
-  },
-  {
-    id: "diy-dana",
-    name: "DIY Dana",
-    description:
-      "Hands-on gardeners who love projects and building garden features",
-    icon: "hammer" as const,
-  },
-  {
-    id: "wellness-whitney",
-    name: "Wellness Whitney",
-    description:
-      "Customers interested in therapeutic gardening and mental health benefits",
-    icon: "sun" as const,
-  },
-];
+type EditorState = {
+  mode: "create" | "edit";
+  title: string;
+  submitLabel: string;
+  persona?: PersonaRecord;
+  initialValue?: PersonaFormInitialValue | null;
+} | null;
 
-export const CRMPersonasPage: React.FC = () => {
+function toInitialValue(
+  persona?: PersonaRecord | null,
+): PersonaFormInitialValue | null {
+  if (!persona) {
+    return null;
+  }
+
+  return {
+    name: persona.persona_name,
+    description: persona.persona_description,
+    metadata: persona.metadata,
+  };
+}
+
+const PERSONA_GRID_COLUMNS = {
+  xs: "1fr",
+  md: "repeat(2, minmax(0, 1fr))",
+  xl: "repeat(3, minmax(0, 1fr))",
+} as const;
+
+function PersonaSectionHeading({ label }: { label: string }) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography
+        level="body-xs"
+        sx={{
+          color: "neutral.500",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        {label}
+      </Typography>
+      <Divider sx={{ borderColor: "neutral.200" }} />
+    </Stack>
+  );
+}
+
+function CreatePersonaCard({ onClick }: { onClick: () => void }) {
+  return (
+    <JoyCard
+      interactive
+      onClick={onClick}
+      sx={{
+        minHeight: 280,
+        display: "grid",
+        placeItems: "center",
+        borderStyle: "dashed",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        boxShadow: "none",
+        textAlign: "center",
+        transition: "border-color 160ms ease, box-shadow 160ms ease",
+        "&:hover": {
+          borderColor: "neutral.400",
+          boxShadow: "none",
+          backgroundColor: "background.surface",
+        },
+        "&:hover .create-persona-icon": {
+          color: "neutral.500",
+        },
+      }}
+    >
+      <JoyCardContent
+        sx={{
+          pt: 4,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          alignItems: "center",
+        }}
+      >
+        <Plus
+          size={24}
+          className="create-persona-icon"
+          style={{ color: "var(--joy-palette-neutral-300)" }}
+        />
+        <Typography
+          level="body-sm"
+          sx={{ color: "neutral.700", fontWeight: 500 }}
+        >
+          Create persona
+        </Typography>
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
+export const CRMPersonasPage = () => {
+  const navigate = useNavigate();
   const {
     personas,
-    loading,
-    searchTerm,
-    setSearchTerm,
-    fetchPersonas,
+    predefinedPersonas,
+    customPersonas,
     createPersona,
+    updatePersona,
+    fetchPersonas,
     deletePersona,
-  } = useCRMPersonas();
+    loading,
+  } = useAllPersonas();
   const {
-    customers,
-    loading: customersLoading,
-    assignPersonaToCustomer,
-    removePersonaFromCustomer,
-    getCustomersByPersona,
-    getUnassignedCustomers,
-  } = useCRMCustomers();
-  const {
-    counts: personaCounts,
-    loading: countsLoading,
-    refreshCounts,
+    statsByPersona,
+    summary,
+    loading: metricsLoading,
   } = usePersonaCustomerCounts();
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
-  const [selectedPersona, setSelectedPersona] = useState<any>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
-  const [assigningCustomer, setAssigningCustomer] = useState<string | null>(
+  const [query, setQuery] = React.useState("");
+  const [view, setView] = React.useState<PersonaViewFilter>("all");
+  const [sort, setSort] = React.useState<PersonaSortOption>("customers-desc");
+  const [editorState, setEditorState] = React.useState<EditorState>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<PersonaRecord | null>(
     null,
   );
-  const [unassigningCustomer, setUnassigningCustomer] = useState<string | null>(
-    null,
-  );
-  const isMobile = useIsMobile();
 
-  const handleCreatePersona = () => {
-    setShowCustomBuilder(true);
-  };
-
-  const handleSaveCustomPersona = async (personaData: {
-    name: string;
-    description?: string;
-  }): Promise<boolean> => {
-    const success = await createPersona(personaData);
-    if (success) {
-      setShowCustomBuilder(false);
-    }
-    return success;
-  };
-
-  const handleCreateCampaign = (personaId: string) => {
-    // Future: Navigate to campaign creation with pre-selected persona
-  };
-
-  const handleViewPersonaDetails = (personaId: string) => {
-    const persona = predefinedPersonas.find((p) => p.id === personaId);
-    if (persona) {
-      setSelectedPersona(persona);
-      setShowDetailsModal(true);
-    } else {
-    }
-  };
-
-  const handleAssignCustomer = async (customerId: string) => {
-    if (!selectedPersona || assigningCustomer) return;
-
-    setAssigningCustomer(customerId);
-    try {
-      // Use the persona name correctly - could be either persona_name or name depending on source
-      const personaName = selectedPersona.persona_name || selectedPersona.name;
-      const success = await assignPersonaToCustomer(customerId, personaName);
-      if (success) {
-        // Don't call refreshCounts() as it causes full re-render
-        // The counts will be updated when the customer data changes
-      } else {
-        console.error("❌ Failed to assign customer to persona");
-      }
-    } finally {
-      setAssigningCustomer(null);
-    }
-  };
-
-  const handleUnassignCustomer = async (customerId: string) => {
-    if (!selectedPersona || unassigningCustomer) return;
-
-    setUnassigningCustomer(customerId);
-    try {
-      // Determine if this is a custom or system persona
-      const personaName = selectedPersona.persona_name || selectedPersona.name;
-      const isCustomPersona =
-        selectedPersona.is_custom || selectedPersona.persona_name;
-
-      if (isCustomPersona && selectedPersona.id) {
-        // Remove from customer_personas table for custom personas
-        const { error } = await supabase
-          .from("customer_personas")
-          .delete()
-          .eq("customer_id", customerId)
-          .eq("persona_id", selectedPersona.id);
-
-        if (error) throw error;
-      } else {
-        // Remove from customer_personas table for system personas
-        const { error } = await supabase
-          .from("customer_personas")
-          .delete()
-          .eq("customer_id", customerId)
-          .eq("predefined_persona_id", personaName);
-
-        if (error) throw error;
-      }
-
-      // Refresh customer data and counts
-      const success = await removePersonaFromCustomer(customerId);
-      if (success) {
-        // Don't call refreshCounts() as it causes full re-render
-        // The counts will be updated when the customer data changes
-      }
-    } catch (error) {
-      console.error("❌ Failed to remove customer:", error);
-    } finally {
-      setUnassigningCustomer(null);
-    }
-  };
-
-  // Get customers for the selected persona and filter by search
-  const getFilteredPersonaCustomers = () => {
-    if (!selectedPersona) {
-      return [];
-    }
-
-    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')
-    const personaName = selectedPersona.persona_name || selectedPersona.name;
-    // Use the updated getCustomersByPersona function that handles both legacy and new assignments
-    const assignedCustomers = getCustomersByPersona(personaName);
-    if (!customerSearchTerm) return assignedCustomers;
-
-    return assignedCustomers.filter(
-      (customer) =>
-        customer.email
-          .toLowerCase()
-          .includes(customerSearchTerm.toLowerCase()) ||
-        customer.first_name
-          ?.toLowerCase()
-          .includes(customerSearchTerm.toLowerCase()) ||
-        customer.last_name
-          ?.toLowerCase()
-          .includes(customerSearchTerm.toLowerCase()),
-    );
-  };
-
-  // Get unassigned customers filtered by search
-  const getFilteredUnassignedCustomers = () => {
-    if (!selectedPersona) {
-      return [];
-    }
-
-    // Handle both predefined personas (with 'name') and custom personas (with 'persona_name')
-    const personaName = selectedPersona.persona_name || selectedPersona.name;
-    // Get customers not assigned to this specific persona, but might be assigned to others
-    const unassigned = customers.filter((customer) => {
-      // Check if customer is NOT assigned to this specific persona
-      const hasLegacyPersona = customer.persona === personaName;
-      const hasNewPersona = customer.assigned_personas?.some(
-        (assignment) =>
-          assignment.predefined_persona_id === personaName ||
-          assignment.personas?.persona_name === personaName,
-      );
-      const isAssignedToThisPersona = hasLegacyPersona || hasNewPersona;
-      return !isAssignedToThisPersona;
+  const openCreateEditor = React.useCallback(() => {
+    setEditorState({
+      mode: "create",
+      title: "Create custom persona",
+      submitLabel: "Save persona",
     });
-    if (!customerSearchTerm) return unassigned; // Show all unassigned customers
+  }, []);
 
-    return unassigned
-      .filter(
-        (customer) =>
-          customer.email
-            .toLowerCase()
-            .includes(customerSearchTerm.toLowerCase()) ||
-          customer.first_name
-            ?.toLowerCase()
-            .includes(customerSearchTerm.toLowerCase()) ||
-          customer.last_name
-            ?.toLowerCase()
-            .includes(customerSearchTerm.toLowerCase()),
-      )
-      .slice(0, 10);
-  };
+  const clearFilters = React.useCallback(() => {
+    setQuery("");
+    setView("all");
+    setSort("customers-desc");
+  }, []);
 
-  // Filter predefined personas based on search term
-  const filteredPredefinedPersonas = predefinedPersonas.filter(
-    (persona) =>
-      persona.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      persona.description.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredPersonas = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    const filtered = personas.filter((persona) => {
+      if (view === "system" && persona.is_custom) {
+        return false;
+      }
+
+      if (view === "custom" && !persona.is_custom) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const interestText = [
+        ...(persona.metadata?.communication?.interests ?? []),
+        ...(persona.metadata?.communication?.avoidTopics ?? []),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const haystack = [
+        persona.persona_name,
+        persona.persona_description,
+        persona.metadata?.behavior?.preferredChannel,
+        persona.metadata?.communication?.preferredTone,
+        interestText,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+
+    return filtered.sort((left, right) => {
+      const leftStats = statsByPersona[left.id];
+      const rightStats = statsByPersona[right.id];
+
+      switch (sort) {
+        case "customers-desc":
+          return (
+            (rightStats?.customerCount ?? 0) - (leftStats?.customerCount ?? 0)
+          );
+        case "value-desc":
+          return (rightStats?.totalValue ?? 0) - (leftStats?.totalValue ?? 0);
+        case "engagement-desc":
+          return (
+            (rightStats?.averageEngagement ?? 0) -
+            (leftStats?.averageEngagement ?? 0)
+          );
+        case "recent":
+          return (
+            new Date(right.updated_at ?? right.created_at ?? 0).getTime() -
+            new Date(left.updated_at ?? left.created_at ?? 0).getTime()
+          );
+        case "name-asc":
+        default:
+          return left.persona_name.localeCompare(right.persona_name);
+      }
+    });
+  }, [personas, query, sort, statsByPersona, view]);
+
+  const handleEditorSave = React.useCallback(
+    async (payload: {
+      name: string;
+      description?: string | null;
+      metadata?: PersonaRecord["metadata"];
+    }) => {
+      if (!editorState) {
+        return null;
+      }
+
+      const result =
+        editorState.mode === "edit" && editorState.persona
+          ? await updatePersona({
+              id: editorState.persona.id,
+              ...payload,
+            })
+          : await createPersona(payload);
+
+      if (result) {
+        setEditorState(null);
+      }
+
+      return result;
+    },
+    [createPersona, editorState, updatePersona],
+  );
+
+  const visibleSystemPersonas = React.useMemo(
+    () => filteredPersonas.filter((persona) => !persona.is_custom),
+    [filteredPersonas],
+  );
+
+  const visibleCustomPersonas = React.useMemo(
+    () => filteredPersonas.filter((persona) => persona.is_custom),
+    [filteredPersonas],
+  );
+
+  const showSearchEmptyState =
+    filteredPersonas.length === 0 && query.trim().length > 0;
+  const isCatalogLoading = loading || metricsLoading;
+  const personaStats = React.useMemo(
+    () => [
+      {
+        label: "Total personas",
+        value: personas.length.toLocaleString(),
+        icon: <Shapes size={18} />,
+        iconColor: "primary" as const,
+      },
+      {
+        label: "System personas",
+        value: predefinedPersonas.length.toLocaleString(),
+        icon: <Layers3 size={18} />,
+        iconColor: "neutral" as const,
+      },
+      {
+        label: "Custom personas",
+        value: customPersonas.length.toLocaleString(),
+        icon: <Plus size={18} />,
+        iconColor: "warning" as const,
+      },
+      {
+        label: "Assigned customers",
+        value: summary.assignedCustomers.toLocaleString(),
+        icon: <Users size={18} />,
+        iconColor: "success" as const,
+      },
+    ],
+    [
+      customPersonas.length,
+      personas.length,
+      predefinedPersonas.length,
+      summary.assignedCustomers,
+    ],
   );
 
   return (
-    <div
-      className={`${isMobile ? "mobile-section" : "p-6"} mobile-space-normal mobile-container`}
-    >
-      {/* Header */}
-      <div
-        className={`${isMobile ? "mobile-space-tight" : "flex justify-between items-center"} mb-6`}
-      >
-        <h1
-          className={`${isMobile ? "mobile-text-hero" : "text-3xl"} font-bold mb-4 md:mb-0`}
-        >
-          Customer Personas
-        </h1>
-        <div className={`flex ${isMobile ? "flex-col gap-2" : "gap-2"}`}>
-          <Button
-            variant="outline"
-            onClick={fetchPersonas}
-            disabled={loading}
-            className={`${isMobile ? "mobile-btn-secondary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
-            size={isMobile ? "default" : "sm"}
-          >
-            <RefreshCw
-              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh Data
-          </Button>
-          <Button
-            onClick={handleCreatePersona}
-            className={`${isMobile ? "mobile-btn-primary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
-            size={isMobile ? "default" : "sm"}
-          >
-            <Plus
-              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
-            />
-            Create Persona
-          </Button>
-        </div>
-      </div>
-
-      <div className={isMobile ? "mobile-space-normal" : "space-y-6"}>
-        {/* Search */}
-        <Card className="mobile-card-elevated">
-          <CardContent className={isMobile ? "p-4" : "pt-6"}>
-            <div className="relative">
-              <Search
-                className={`absolute left-3 top-3 ${isMobile ? "mobile-icon-sm" : "h-4 w-4"} text-muted-foreground`}
-              />
-              <Input
-                placeholder="Search all personas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 ${isMobile ? "mobile-touch-target" : ""} mobile-focus-ring`}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Predefined Personas */}
-        {filteredPredefinedPersonas.length > 0 && (
-          <Card className="mobile-card-elevated">
-            <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
-              <CardTitle
-                className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
-              >
-                <Target
-                  className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
-                />
-                System Personas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className={isMobile ? "p-4 pt-2" : ""}>
-              <div
-                className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
-              >
-                {filteredPredefinedPersonas.map((persona) => (
-                  <PersonaOverviewCard
-                    key={persona.id}
-                    name={persona.name}
-                    description={persona.description}
-                    customerCount={
-                      countsLoading || personaCounts[persona.name] === undefined
-                        ? undefined
-                        : personaCounts[persona.name] || 0
-                    }
-                    isLoadingCount={countsLoading}
-                    icon={persona.icon}
-                    isSystem={true}
-                    personaId={persona.id}
-                    onViewDetails={() => handleViewPersonaDetails(persona.id)}
+    <PageContainer>
+      <Stack spacing={3} sx={{ pb: 4 }}>
+        <JoyPageHeaderBand
+          title="Personas"
+          description="System and custom personas for targeting, campaign planning, and audience management."
+          actions={
+            <>
+              <JoyTooltip title="Refresh personas">
+                <IconButton
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                  onClick={() => void fetchPersonas()}
+                >
+                  <RefreshCw
+                    size={16}
+                    className={loading ? "animate-spin" : undefined}
                   />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </IconButton>
+              </JoyTooltip>
+              <JoyButton
+                size="sm"
+                onClick={openCreateEditor}
+                startDecorator={<Plus size={16} />}
+              >
+                Create persona
+              </JoyButton>
+            </>
+          }
+          sx={{
+            px: 0,
+            py: 0,
+            borderRadius: 0,
+            background: "transparent",
+          }}
+        />
+
+        {isCatalogLoading ? (
+          <CatalogStatsStripSkeleton />
+        ) : (
+          <CatalogStatsStrip items={personaStats} />
         )}
 
-        {/* Custom Personas */}
-        <Card className="mobile-card-elevated">
-          <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
-            <CardTitle
-              className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
-            >
-              <Target
-                className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
-              />
-              Custom Personas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-4 pt-2" : ""}>
-            {loading ? (
-              <div className="text-center py-8">
-                <div
-                  className={`animate-spin rounded-full ${isMobile ? "mobile-icon-lg" : "h-8 w-8"} border-b-2 border-primary mx-auto`}
-                ></div>
-                <p
-                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mt-2`}
-                >
-                  Loading custom personas...
-                </p>
-              </div>
-            ) : personas.length === 0 ? (
-              <div className="text-center py-8">
-                <Target
-                  className={`${isMobile ? "mobile-icon-xl" : "h-12 w-12"} text-muted-foreground mx-auto mb-4`}
-                />
-                <h3
-                  className={`${isMobile ? "mobile-text-subheading" : "text-lg"} font-semibold mb-2`}
-                >
-                  No custom personas found
-                </h3>
-                <p
-                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mb-4 mobile-text-balance`}
-                >
-                  {searchTerm
-                    ? "No custom personas match your search."
-                    : "Create your first custom persona to start personalizing customer experiences."}
-                </p>
-                {!searchTerm && (
-                  <Button
-                    onClick={handleCreatePersona}
-                    className={`${isMobile ? "mobile-btn-cta mobile-touch-feedback" : ""} mobile-focus-ring`}
-                  >
-                    <Plus
-                      className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
-                    />
-                    Create Your First Custom Persona
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div
-                className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
-              >
-                {personas.map((persona) => (
-                  <PersonaCard
-                    key={persona.id}
-                    persona={persona}
-                    customerCount={personaCounts[persona.id] || 0}
-                    onAssignmentChange={refreshCounts}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        <PersonasFilterBar
+          query={query}
+          onQueryChange={setQuery}
+          view={view}
+          onViewChange={setView}
+          sort={sort}
+          onSortChange={setSort}
+          resultCount={filteredPersonas.length}
+          totalCount={personas.length}
+          loading={isCatalogLoading}
+          hasActiveFilters={
+            query.trim().length > 0 ||
+            view !== "all" ||
+            sort !== "customers-desc"
+          }
+          onClearFilters={clearFilters}
+        />
 
-      <CustomPersonaModal
-        open={showCustomBuilder}
-        onSave={handleSaveCustomPersona}
-        onCancel={() => setShowCustomBuilder(false)}
-      />
-
-      {/* Persona Details Modal */}
-      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          {/* X Close Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowDetailsModal(false)}
-            className="absolute top-4 right-4 h-6 w-6 rounded-full z-50"
+        {isCatalogLoading ? (
+          <Stack spacing={4}>
+            <CatalogGridSkeleton
+              columns={PERSONA_GRID_COLUMNS}
+              headingWidth={132}
+            />
+            <CatalogGridSkeleton
+              columns={PERSONA_GRID_COLUMNS}
+              headingWidth={132}
+            />
+          </Stack>
+        ) : showSearchEmptyState ? (
+          <Stack
+            spacing={1.25}
+            alignItems="center"
+            sx={{ py: { xs: 6, md: 8 } }}
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <Search
+              size={32}
+              style={{ color: "var(--joy-palette-neutral-300)" }}
+            />
+            <Typography level="body-sm" color="neutral">
+              No personas match your search
+            </Typography>
+            <JoyButton
+              variant="plain"
+              color="primary"
+              size="sm"
+              sx={{ minHeight: "auto", px: 0 }}
+              onClick={clearFilters}
+            >
+              Clear search
+            </JoyButton>
+          </Stack>
+        ) : (
+          <Stack spacing={4}>
+            {view !== "custom" && visibleSystemPersonas.length > 0 ? (
+              <Stack spacing={1.5}>
+                <PersonaSectionHeading label="System Personas" />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: PERSONA_GRID_COLUMNS,
+                    gap: 2,
+                  }}
+                >
+                  {visibleSystemPersonas.map((persona) => (
+                    <PersonaCard
+                      key={persona.id}
+                      persona={persona}
+                      metrics={statsByPersona[persona.id]}
+                      detailHref={`/crm/personas/${encodeURIComponent(persona.id)}`}
+                      campaignHref={`/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}`}
+                      onView={() =>
+                        navigate(
+                          `/crm/personas/${encodeURIComponent(persona.id)}`,
+                        )
+                      }
+                      onCreateCampaign={() =>
+                        navigate(
+                          `/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}`,
+                        )
+                      }
+                      onGenerateContent={() =>
+                        navigate(
+                          `/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}&type=newsletter`,
+                        )
+                      }
+                    />
+                  ))}
+                </Box>
+              </Stack>
+            ) : null}
 
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 pr-8">
-              <Target className="h-5 w-5" />
-              {selectedPersona?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 pb-16">
-            {/* Basic Info */}
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
-                  Description
-                </h4>
-                <p className="text-sm">{selectedPersona?.description}</p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
-                  Customer Count
-                </h4>
-                <p className="text-sm">
-                  {personaCounts[selectedPersona?.name] || 0} matching customers
-                </p>
-              </div>
-            </div>
+            {view !== "system" ? (
+              <Stack spacing={1.5}>
+                <PersonaSectionHeading label="Custom Personas" />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: PERSONA_GRID_COLUMNS,
+                    gap: 2,
+                  }}
+                >
+                  <CreatePersonaCard onClick={openCreateEditor} />
+                  {visibleCustomPersonas.map((persona) => (
+                    <PersonaCard
+                      key={persona.id}
+                      persona={persona}
+                      metrics={statsByPersona[persona.id]}
+                      detailHref={`/crm/personas/${encodeURIComponent(persona.id)}`}
+                      campaignHref={`/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}`}
+                      onView={() =>
+                        navigate(
+                          `/crm/personas/${encodeURIComponent(persona.id)}`,
+                        )
+                      }
+                      onCreateCampaign={() =>
+                        navigate(
+                          `/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}`,
+                        )
+                      }
+                      onGenerateContent={() =>
+                        navigate(
+                          `/crm/campaigns/new?persona=${encodeURIComponent(persona.id)}&type=newsletter`,
+                        )
+                      }
+                      onEdit={() =>
+                        setEditorState({
+                          mode: "edit",
+                          title: `Edit ${persona.persona_name}`,
+                          submitLabel: "Update persona",
+                          persona,
+                          initialValue: toInitialValue(persona),
+                        })
+                      }
+                      onDuplicate={() =>
+                        setEditorState({
+                          mode: "create",
+                          title: `Duplicate ${persona.persona_name}`,
+                          submitLabel: "Create duplicate",
+                          initialValue: {
+                            name: `${persona.persona_name} Copy`,
+                            description: persona.persona_description,
+                            metadata: persona.metadata,
+                          },
+                        })
+                      }
+                      onDelete={() => setDeleteTarget(persona)}
+                    />
+                  ))}
+                </Box>
 
-            {/* Customer Management */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <h4 className="font-semibold">Customer Management</h4>
-              </div>
+                {visibleCustomPersonas.length === 0 &&
+                query.trim().length === 0 ? (
+                  <Sheet
+                    variant="outlined"
+                    sx={{
+                      borderStyle: "dashed",
+                      borderColor: "neutral.200",
+                      borderRadius: "lg",
+                      px: 3,
+                      py: 3.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    <Stack spacing={1.25} alignItems="center">
+                      <Typography level="title-sm">
+                        No custom personas yet
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        Create a custom persona for campaign planning beyond the
+                        built-in archetypes.
+                      </Typography>
+                      <JoyButton
+                        variant="plain"
+                        color="primary"
+                        size="sm"
+                        sx={{ minHeight: "auto", px: 0 }}
+                        onClick={openCreateEditor}
+                      >
+                        Create your first custom persona
+                      </JoyButton>
+                    </Stack>
+                  </Sheet>
+                ) : null}
+              </Stack>
+            ) : null}
+          </Stack>
+        )}
 
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search customers..."
-                  value={customerSearchTerm}
-                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <CustomPersonaModal
+          open={Boolean(editorState)}
+          onSave={handleEditorSave}
+          onCancel={() => setEditorState(null)}
+          title={editorState?.title}
+          submitLabel={editorState?.submitLabel}
+          initialValue={editorState?.initialValue}
+        />
 
-              {customersLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Current Persona Customers */}
-                  <div>
-                    <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
-                      Assigned Customers
-                      <Badge variant="secondary" className="text-xs">
-                        {getFilteredPersonaCustomers().length}
-                      </Badge>
-                    </h5>
-                    <ScrollArea className="h-48 border rounded-md p-2">
-                      <div className="space-y-2">
-                        {getFilteredPersonaCustomers().map((customer) => {
-                          return (
-                            <div
-                              key={customer.id}
-                              className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
-                            >
-                              <div>
-                                <p className="font-medium text-foreground">
-                                  {customer.first_name || "No First Name"}{" "}
-                                  {customer.last_name || "No Last Name"}
-                                </p>
-                                <p className="text-xs text-foreground/70">
-                                  {customer.email || "No Email"}
-                                </p>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  handleUnassignCustomer(customer.id)
-                                }
-                                disabled={unassigningCustomer === customer.id}
-                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                title="Remove from persona"
-                              >
-                                {unassigningCustomer === customer.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <X className="h-3 w-3" />
-                                )}
-                              </Button>
-                            </div>
-                          );
-                        })}
-                        {getFilteredPersonaCustomers().length === 0 && (
-                          <p className="text-xs text-muted-foreground text-center py-4">
-                            No customers assigned to this persona
-                          </p>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
+        <JoyAlertDialog
+          open={Boolean(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={async () => {
+            if (!deleteTarget) {
+              return;
+            }
 
-                  {/* Unassigned Customers */}
-                  <div>
-                    <h5 className="font-medium text-sm mb-2 flex items-center gap-1">
-                      Available to Assign
-                      <Badge variant="outline" className="text-xs">
-                        {getFilteredUnassignedCustomers().length}
-                      </Badge>
-                    </h5>
-                    <ScrollArea className="h-48 border rounded-md p-2">
-                      <div className="space-y-2">
-                        {getFilteredUnassignedCustomers().map((customer) => (
-                          <div
-                            key={customer.id}
-                            className="flex items-center justify-between p-2 bg-background border rounded text-sm"
-                          >
-                            <div>
-                              <p className="font-medium">
-                                {customer.first_name} {customer.last_name}
-                              </p>
-                              <p className="text-xs text-foreground/70">
-                                {customer.email}
-                              </p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleAssignCustomer(customer.id)}
-                              disabled={assigningCustomer === customer.id}
-                              className="h-7 w-7 p-0"
-                              title="Assign to persona"
-                            >
-                              {assigningCustomer === customer.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <UserPlus className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
-                        ))}
-                        {getFilteredUnassignedCustomers().length === 0 && (
-                          <p className="text-xs text-muted-foreground text-center py-4">
-                            No unassigned customers found
-                          </p>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Save & Close Button */}
-          <div className="absolute bottom-4 right-4">
-            <Button onClick={() => setShowDetailsModal(false)}>
-              Save & Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+            const success = await deletePersona(deleteTarget.id);
+            if (success) {
+              setDeleteTarget(null);
+            }
+          }}
+          title={`Delete ${deleteTarget?.persona_name ?? "persona"}?`}
+          description="This removes the custom persona from the catalog and clears its explicit customer assignments. Existing campaign history stays intact."
+          confirmLabel="Delete persona"
+          variant="danger"
+        />
+      </Stack>
+    </PageContainer>
   );
 };
+
+export default CRMPersonasPage;

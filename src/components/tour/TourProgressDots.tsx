@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { TourStep, useQuickTour } from '@/contexts/QuickTourContext';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui-legacy/tooltip';
 
 const TOUR_STEPS: { step: TourStep; label: string }[] = [
   { step: 'dashboard', label: 'Dashboard Overview' },

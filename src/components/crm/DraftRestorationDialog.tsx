@@ -8,7 +8,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/ui-legacy/alert-dialog';
 import { format } from 'date-fns';
 
 interface DraftRestorationDialogProps {

@@ -1,235 +1,184 @@
-import React, { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Zap, 
-  Settings, 
-  BookOpen, 
-  ArrowRight, 
-  Users, 
-  Mail, 
-  MessageSquare,
-  Clock,
-  Target,
-  Sparkles
-} from 'lucide-react';
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  ArrowLeft,
+  GitBranch,
+  LayoutTemplate,
+  WandSparkles,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { PageContainer } from "@/components/joy/PageContainer";
 
-export const AutomationWizardLandingPage: React.FC = () => {
+type CreationOptionCardProps = {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+};
+
+function CreationOptionCard({
+  icon,
+  title,
+  description,
+  onClick,
+}: CreationOptionCardProps) {
+  return (
+    <Sheet
+      variant="outlined"
+      onClick={onClick}
+      sx={{
+        borderRadius: "lg",
+        p: 3,
+        cursor: "pointer",
+        transition: "all 200ms ease",
+        textAlign: "center",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 1.5,
+        "&:hover": {
+          borderColor: "primary.300",
+          backgroundColor: "primary.50",
+          boxShadow: "md",
+          transform: "translateY(-2px)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: 56,
+          height: 56,
+          borderRadius: "14px",
+          backgroundColor: "neutral.100",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "neutral.600",
+        }}
+      >
+        {icon}
+      </Box>
+      <Typography level="title-sm" fontWeight="lg">
+        {title}
+      </Typography>
+      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+        {description}
+      </Typography>
+    </Sheet>
+  );
+}
+
+function CreationOptionSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 3, height: "100%" }}>
+      <Stack alignItems="center" spacing={1.5}>
+        <Skeleton variant="circular" width={56} height={56} animation="wave" />
+        <Skeleton variant="text" width="58%" height={20} animation="wave" />
+        <Stack spacing={0.5} sx={{ width: "100%", alignItems: "center" }}>
+          <Skeleton variant="text" width="90%" height={14} animation="wave" />
+          <Skeleton variant="text" width="72%" height={14} animation="wave" />
+        </Stack>
+      </Stack>
+    </Sheet>
+  );
+}
+
+export const AutomationWizardLandingPage = () => {
   const navigate = useNavigate();
+  const [ready, setReady] = React.useState(false);
 
-  useEffect(() => {
-    document.title = 'Create New Automation - Choose Your Approach';
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute('content', 'Choose from proven automation templates or build your own custom workflow from scratch.');
+  React.useEffect(() => {
+    document.title = "Create an Automation";
+
+    const frame = window.requestAnimationFrame(() => {
+      setReady(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
   }, []);
 
-  const automationTypes = [
-    {
-      id: 'presets',
-      title: 'Quick Start with Preset',
-      description: 'Choose from proven templates that work',
-      icon: <Zap className="h-8 w-8" />,
-      badge: 'Recommended',
-      badgeVariant: 'default' as const,
-      features: [
-        'Pre-built workflows that convert',
-        'Best practice messaging included',
-        'Ready to launch in minutes'
-      ],
-      cta: 'Browse Presets',
-      route: '/crm/automations/new/guide'
-    },
-    {
-      id: 'custom',
-      title: 'Custom Build',
-      description: 'Full control with drag-and-drop canvas',
-      icon: <Settings className="h-8 w-8" />,
-      features: [
-        'Complete creative freedom',
-        'Advanced branching logic',
-        'Custom trigger conditions'
-      ],
-      cta: 'Open Canvas',
-      route: '/crm/automations/new/canvas'
-    },
-    {
-      id: 'guided',
-      title: 'Guided Builder',
-      description: 'Step-by-step wizard for custom automations',
-      icon: <BookOpen className="h-8 w-8" />,
-      features: [
-        'AI-powered recommendations',
-        'Guided setup process',
-        'Smart template suggestions'
-      ],
-      cta: 'Start Guide',
-      route: '/crm/automations/new/guide?mode=guided'
-    }
-  ];
-
-  const presetPreviews = [
-    {
-      id: 'customer_loyalty_program',
-      title: 'Customer Loyalty Program',
-      subtitle: 'Ongoing Nurture Series',
-      description: '5-step nurture sequence over 30 days',
-      steps: [
-        { icon: <MessageSquare className="h-4 w-4" />, label: 'Welcome SMS', time: 'Immediate' },
-        { icon: <Mail className="h-4 w-4" />, label: 'Thank You Email', time: '24 hours' },
-        { icon: <Mail className="h-4 w-4" />, label: 'Seasonal Tip', time: '7 days' },
-        { icon: <MessageSquare className="h-4 w-4" />, label: 'Reminder SMS', time: '14 days' },
-        { icon: <Mail className="h-4 w-4" />, label: 'Mission Story', time: '30 days' }
-      ],
-      metrics: 'Increases retention by 40%',
-      audience: 'Loyalty Members'
-    },
-    {
-      id: 'welcome_new_customers',
-      title: 'Welcome New Customers',
-      subtitle: 'First Impression Series',
-      description: 'Simple 2-step welcome sequence',
-      steps: [
-        { icon: <Mail className="h-4 w-4" />, label: 'Welcome Email', time: 'Immediate' },
-        { icon: <MessageSquare className="h-4 w-4" />, label: 'Follow-up SMS', time: '2 days' }
-      ],
-      metrics: 'Converts 25% more first-time visitors',
-      audience: 'New Customers'
-    }
-  ];
-
   return (
-    <div className="min-h-[100dvh] flex flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-xl font-semibold text-foreground">Create New Automation</h1>
-          <Link to="/crm/automations" aria-label="Back to Automations">
-            <Button variant="outline">Back to Automations</Button>
-          </Link>
-        </div>
-      </header>
+    <PageContainer>
+      <Stack spacing={2.5} sx={{ pb: 4 }}>
+        <Typography
+          level="body-xs"
+          component={Link}
+          to="/crm/automations"
+          sx={{
+            color: "neutral.500",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
+            width: "fit-content",
+            "&:hover": {
+              color: "neutral.700",
+            },
+          }}
+        >
+          <ArrowLeft size={14} />
+          Back to automations
+        </Typography>
 
-      <main className="flex-1 overflow-y-auto">
-        <section className="max-w-6xl mx-auto p-4 md:p-6 space-y-8">
-          {/* Hero Section */}
-          <div className="text-center space-y-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-foreground">
-              Choose Your Automation Approach
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Start with proven templates for quick wins, or build completely custom workflows from scratch.
-            </p>
-          </div>
+        <Stack spacing={0.5}>
+          <Typography level="h3" fontWeight="bold">
+            Create an Automation
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Choose how you&apos;d like to build your workflow.
+          </Typography>
+        </Stack>
 
-          {/* Automation Type Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {automationTypes.map((type) => (
-              <Card key={type.id} className="relative group hover:shadow-lg transition-all duration-200 cursor-pointer border-2 hover:border-primary/20">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                        {type.icon}
-                      </div>
-                      {type.badge && (
-                        <Badge variant={type.badgeVariant} className="text-xs">
-                          {type.badge}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <CardTitle className="text-xl">{type.title}</CardTitle>
-                  <CardDescription className="text-base">{type.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
-                    {type.features.map((feature, index) => (
-                      <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <div className="w-1.5 h-1.5 bg-primary rounded-full flex-shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <Link to={type.route} className="block">
-                    <Button className="w-full group">
-                      {type.cta}
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Preview of Popular Presets */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h3 className="text-xl font-semibold">Popular Preset Templates</h3>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {presetPreviews.map((preset) => (
-                <Card key={preset.id} className="group hover:shadow-md transition-all duration-200">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{preset.title}</CardTitle>
-                        <CardDescription className="text-sm font-medium text-primary">
-                          {preset.subtitle}
-                        </CardDescription>
-                        <p className="text-sm text-muted-foreground mt-1">{preset.description}</p>
-                      </div>
-                      <Badge variant="secondary" className="flex-shrink-0">
-                        {preset.steps.length} steps
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Flow Preview */}
-                    <div className="space-y-2">
-                      {preset.steps.map((step, index) => (
-                        <div key={index} className="flex items-center gap-3 text-sm">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <div className="p-1 bg-muted rounded text-muted-foreground">
-                              {step.icon}
-                            </div>
-                            <span className="font-medium">{step.label}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
-                            <Clock className="h-3 w-3" />
-                            <span className="text-xs">{step.time}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Metrics & Audience */}
-                    <div className="pt-2 border-t space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Target className="h-4 w-4 text-green-600" />
-                        <span className="text-green-600 font-medium">{preset.metrics}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>Target: {preset.audience}</span>
-                      </div>
-                    </div>
-
-                    <Link to="/crm/automations/new/guide" className="block">
-                      <Button variant="outline" className="w-full group">
-                        Use This Template
-                        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(3, minmax(0, 1fr))",
+            },
+            gap: 2,
+            maxWidth: 900,
+          }}
+        >
+          {ready ? (
+            <>
+              <CreationOptionCard
+                icon={<WandSparkles size={28} />}
+                title="Guided Setup"
+                description="Answer a few questions and we'll build the workflow for you."
+                onClick={() =>
+                  navigate("/crm/automations/new/guide?mode=guided")
+                }
+              />
+              <CreationOptionCard
+                icon={<LayoutTemplate size={28} />}
+                title="Start from Template"
+                description="Choose from pre-built automation recipes for common workflows."
+                onClick={() => navigate("/crm/automations/new/guide")}
+              />
+              <CreationOptionCard
+                icon={<GitBranch size={28} />}
+                title="Build from Scratch"
+                description="Design your workflow visually on the flow canvas."
+                onClick={() => navigate("/crm/automations/new/canvas")}
+              />
+            </>
+          ) : (
+            <>
+              <CreationOptionSkeleton />
+              <CreationOptionSkeleton />
+              <CreationOptionSkeleton />
+            </>
+          )}
+        </Box>
+      </Stack>
+    </PageContainer>
   );
 };

@@ -1,6 +1,14 @@
-
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import Chip from "@mui/joy/Chip";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
 
 interface UserData {
   id: string;
@@ -17,53 +25,92 @@ interface UserManagementTableProps {
 }
 
 export const UserManagementTable = ({ users }: UserManagementTableProps) => {
-  const getPlanBadgeColor = (plan: string) => {
+  const getPlanChip = (plan: string) => {
     switch (plan) {
-      case 'bloom': return 'bg-purple-100 text-purple-800';
-      case 'sprout': return 'bg-green-100 text-green-800';
-      case 'free_trial': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "bloom":
+        return { color: "primary", label: "Bloom" };
+      case "sprout":
+        return { color: "success", label: "Sprout" };
+      case "free_trial":
+        return { color: "info", label: "Free Trial" };
+      default:
+        return {
+          color: "neutral",
+          label: plan.charAt(0).toUpperCase() + plan.slice(1),
+        };
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    return status === 'Active' 
-      ? 'bg-green-100 text-green-800' 
-      : 'bg-red-100 text-red-800';
+  const getStatusChip = (status: string) => {
+    return status === "Active"
+      ? { color: "success", label: status }
+      : { color: "danger", label: status };
   };
 
+  if (users.length === 0) {
+    return (
+      <Stack
+        spacing={0.75}
+        alignItems="center"
+        justifyContent="center"
+        sx={{ py: 6, color: "neutral.500" }}
+      >
+        <Typography level="title-sm">No users found</Typography>
+        <Typography level="body-sm" color="neutral" textAlign="center">
+          Adjust the current filters or refresh the data source.
+        </Typography>
+      </Stack>
+    );
+  }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Email</TableHead>
-          <TableHead>Plan</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Campaigns</TableHead>
-          <TableHead>Content Tasks</TableHead>
-          <TableHead>Joined</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <JoyTable containerSx={{ minWidth: 720 }}>
+      <JoyTableHead>
+        <JoyTableRow>
+          <JoyTableHeaderCell>Email</JoyTableHeaderCell>
+          <JoyTableHeaderCell>Plan</JoyTableHeaderCell>
+          <JoyTableHeaderCell>Status</JoyTableHeaderCell>
+          <JoyTableHeaderCell align="right">Campaigns</JoyTableHeaderCell>
+          <JoyTableHeaderCell align="right">Content Tasks</JoyTableHeaderCell>
+          <JoyTableHeaderCell>Joined</JoyTableHeaderCell>
+        </JoyTableRow>
+      </JoyTableHead>
+      <JoyTableBody>
         {users.map((user) => (
-          <TableRow key={user.id}>
-            <TableCell className="font-medium">{user.email}</TableCell>
-            <TableCell>
-              <Badge className={getPlanBadgeColor(user.plan)}>
-                {user.plan.charAt(0).toUpperCase() + user.plan.slice(1)}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <Badge className={getStatusBadgeColor(user.status)}>
-                {user.status}
-              </Badge>
-            </TableCell>
-            <TableCell>{user.campaignCount}</TableCell>
-            <TableCell>{user.taskCount}</TableCell>
-            <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-          </TableRow>
+          <JoyTableRow key={user.id}>
+            <JoyTableCell sx={{ fontWeight: "var(--joy-fontWeight-md)" }}>
+              {user.email}
+            </JoyTableCell>
+            <JoyTableCell>
+              <Chip
+                color={getPlanChip(user.plan).color}
+                size="sm"
+                variant="soft"
+              >
+                {getPlanChip(user.plan).label}
+              </Chip>
+            </JoyTableCell>
+            <JoyTableCell>
+              <Chip
+                color={getStatusChip(user.status).color}
+                size="sm"
+                variant="soft"
+              >
+                {getStatusChip(user.status).label}
+              </Chip>
+            </JoyTableCell>
+            <JoyTableCell sx={{ textAlign: "right" }}>
+              {user.campaignCount}
+            </JoyTableCell>
+            <JoyTableCell sx={{ textAlign: "right" }}>
+              {user.taskCount}
+            </JoyTableCell>
+            <JoyTableCell>
+              {new Date(user.created_at).toLocaleDateString()}
+            </JoyTableCell>
+          </JoyTableRow>
         ))}
-      </TableBody>
-    </Table>
+      </JoyTableBody>
+    </JoyTable>
   );
 };

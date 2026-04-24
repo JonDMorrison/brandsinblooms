@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui-legacy/button';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { Loader2, Users, Search } from 'lucide-react';
 import { PaginatedCustomer } from '@/hooks/usePaginatedCustomers';
 

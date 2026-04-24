@@ -1,8 +1,8 @@
 import React from 'react';
 import { ContentBlock, NewsletterTheme } from '@/types/emailBuilder';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { Clock, Palette, Target, Quote as QuoteIcon, ExternalLink } from 'lucide-react';
 
 interface EnhancedNewsletterRendererProps {

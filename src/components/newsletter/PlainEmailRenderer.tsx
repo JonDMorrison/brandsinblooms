@@ -1,5 +1,5 @@
 import React from 'react';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { NewsletterBlock, NewsletterMeta } from './MagazineNewsletterRenderer';
 
 interface PlainEmailRendererProps {

@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { useNavigate } from "react-router-dom";
 
 interface FinalCTAProps {

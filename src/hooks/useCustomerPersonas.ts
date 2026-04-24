@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -21,6 +21,7 @@ export const useCustomerPersonas = (customerId: string) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: customerInfo } = useQuery({
     queryKey: ["customer-basic", customerId],
@@ -138,6 +139,7 @@ export const useCustomerPersonas = (customerId: string) => {
         });
       }
       await refetch();
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
       return true;
     } catch (error) {
       console.error("❌ Error assigning persona:", error);
@@ -201,6 +203,7 @@ export const useCustomerPersonas = (customerId: string) => {
       }
 
       await refetch();
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
       return true;
     } catch (error) {
       console.error("Error unassigning persona:", error);

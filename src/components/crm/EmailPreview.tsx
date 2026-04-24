@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { LayoutRenderer } from './LayoutRenderer';
 import { Mail, Eye } from 'lucide-react';
 

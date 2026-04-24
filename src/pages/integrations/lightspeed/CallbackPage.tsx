@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { Box, CircularProgress, Stack, Typography } from "@mui/joy";
 
 const CallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -226,53 +227,105 @@ const CallbackPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-4 p-8 max-w-md">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.surface",
+        p: 4,
+      }}
+    >
+      <Stack
+        spacing={2}
+        alignItems="center"
+        sx={{ maxWidth: 400, textAlign: "center" }}
+      >
         {status === "loading" && (
           <>
-            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <h2 className="text-xl font-semibold">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
-            <div className="text-xs text-muted-foreground mt-4">
-              This window will close automatically...
-            </div>
+            <CircularProgress size="lg" color="neutral" />
+            <Typography level="title-md" fontWeight="xl">
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
+            <Typography level="body-xs" textColor="text.tertiary">
+              This window will close automatically…
+            </Typography>
           </>
         )}
-
         {status === "success" && (
           <>
-            <CheckCircle className="h-12 w-12 mx-auto text-green-500" />
-            <h2 className="text-xl font-semibold text-green-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
-            <div className="text-xs text-muted-foreground mt-4">
-              Closing in 2 seconds...
-            </div>
+            <CheckCircle
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-success-500)",
+              }}
+            />
+            <Typography
+              level="title-md"
+              fontWeight="xl"
+              textColor="success.600"
+            >
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
+            <Typography level="body-xs" textColor="text.tertiary">
+              Closing in 2 seconds…
+            </Typography>
           </>
         )}
-
         {status === "error" && (
           <>
-            <XCircle className="h-12 w-12 mx-auto text-red-500" />
-            <h2 className="text-xl font-semibold text-red-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
-            <div className="text-xs text-muted-foreground mt-4">
-              Closing in 3 seconds... You can try connecting again.
-            </div>
+            <XCircle
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-danger-500)",
+              }}
+            />
+            <Typography level="title-md" fontWeight="xl" textColor="danger.600">
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
+            <Typography level="body-xs" textColor="text.tertiary">
+              Closing in 3 seconds… You can try connecting again.
+            </Typography>
           </>
         )}
-
         {status === "timeout" && (
           <>
-            <Clock className="h-12 w-12 mx-auto text-yellow-500" />
-            <h2 className="text-xl font-semibold text-yellow-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
-            <div className="text-xs text-muted-foreground mt-4">
+            <Clock
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-warning-500)",
+              }}
+            />
+            <Typography
+              level="title-md"
+              fontWeight="xl"
+              textColor="warning.600"
+            >
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
+            <Typography level="body-xs" textColor="text.tertiary">
               The connection request took too long. Please try again.
-            </div>
+            </Typography>
           </>
         )}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   );
 };
 

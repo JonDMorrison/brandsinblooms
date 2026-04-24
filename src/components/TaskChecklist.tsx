@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import { Plus, CheckCircle, X, Trash2 } from "lucide-react";
 
 interface ChecklistTask {

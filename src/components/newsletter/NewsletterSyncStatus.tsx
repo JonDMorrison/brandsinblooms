@@ -1,7 +1,7 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui-legacy/badge';
 import { CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface NewsletterSyncStatusProps {
   isSynced: boolean;

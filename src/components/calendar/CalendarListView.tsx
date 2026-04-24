@@ -1,199 +1,248 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Checkbox } from '@/components/ui/checkbox';
-import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
-import { 
-  Calendar, 
-  Clock, 
-  Mail, 
-  Megaphone, 
-  FileText, 
-  Instagram, 
-  Facebook,
-  PartyPopper 
-} from 'lucide-react';
-import { format, isToday, isTomorrow, isYesterday } from 'date-fns';
+import React from "react";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Calendar } from "lucide-react";
+import { format, isToday, isTomorrow, isYesterday } from "date-fns";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
+import {
+  getCalendarEventConfig,
+  getCalendarEventDescription,
+  getCalendarEventTime,
+  getCalendarEventTitle,
+  sortCalendarEvents,
+} from "@/components/calendar/calendarEventPresentation";
+import type { UnifiedCalendarEvent } from "@/hooks/useUnifiedCalendarData";
 
 interface CalendarListViewProps {
   events: UnifiedCalendarEvent[];
   onEventClick: (event: UnifiedCalendarEvent) => void;
-  selectedEvents?: string[];
-  onToggleSelect?: (eventId: string) => void;
+  selectionMode?: boolean;
+  selectedTaskIds?: string[];
+  onToggleTaskSelection?: (eventId: string) => void;
 }
-
-const getEventIcon = (type: string) => {
-  switch (type) {
-    case 'task':
-      return FileText;
-    case 'scheduled_post':
-      return Instagram;
-    case 'newsletter':
-      return Mail;
-    case 'event':
-      return Megaphone;
-    case 'holiday':
-      return PartyPopper;
-    default:
-      return FileText;
-  }
-};
-
-const getEventColor = (type: string) => {
-  switch (type) {
-    case 'task':
-      return 'from-blue-500 to-cyan-600';
-    case 'scheduled_post':
-      return 'from-pink-500 to-purple-600';
-    case 'newsletter':
-      return 'from-green-500 to-teal-600';
-    case 'event':
-      return 'from-orange-500 to-red-600';
-    case 'holiday':
-      return 'from-yellow-500 to-orange-600';
-    default:
-      return 'from-gray-500 to-slate-600';
-  }
-};
 
 const getDateLabel = (date: Date) => {
   if (isToday(date)) {
-    return 'Today';
+    return "Today";
   } else if (isTomorrow(date)) {
-    return 'Tomorrow';
+    return "Tomorrow";
   } else if (isYesterday(date)) {
-    return 'Yesterday';
+    return "Yesterday";
   } else {
-    return format(date, 'EEEE, MMMM d');
+    return format(date, "EEEE, MMMM d");
   }
 };
 
-export const CalendarListView = ({ events, onEventClick, selectedEvents, onToggleSelect }: CalendarListViewProps) => {
-  // Group events by date
-  const eventsByDate = events.reduce((acc, event) => {
-    const dateKey = format(event.date, 'yyyy-MM-dd');
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
-    }
-    acc[dateKey].push(event);
-    return acc;
-  }, {} as Record<string, UnifiedCalendarEvent[]>);
+export const CalendarListView = ({
+  events,
+  onEventClick,
+  selectionMode = false,
+  selectedTaskIds = [],
+  onToggleTaskSelection,
+}: CalendarListViewProps) => {
+  const eventsByDate = events.reduce(
+    (acc, event) => {
+      const dateKey = format(event.date, "yyyy-MM-dd");
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(event);
+      return acc;
+    },
+    {} as Record<string, UnifiedCalendarEvent[]>,
+  );
 
   // Sort dates
   const sortedDates = Object.keys(eventsByDate).sort();
 
   if (events.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-lg font-medium text-muted-foreground">No events found</p>
-          <p className="text-sm text-muted-foreground">Try adjusting your filters or date range</p>
-        </div>
-      </div>
+      <Sheet
+        variant="soft"
+        sx={{ borderRadius: "xl", p: 4, textAlign: "center" }}
+      >
+        <Calendar size={32} style={{ margin: "0 auto 12px" }} />
+        <Typography level="title-md">No events found</Typography>
+        <Typography level="body-sm" color="neutral">
+          Try adjusting your filters or create a new item from the toolbar.
+        </Typography>
+      </Sheet>
     );
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="space-y-6 p-6">
-        {sortedDates.map(dateKey => {
-          const date = new Date(dateKey);
-          const dayEvents = eventsByDate[dateKey];
-          
-          return (
-            <div key={dateKey} className="space-y-3">
-              <div className="flex items-center gap-3 pb-2 border-b border-border">
-                <Calendar className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-foreground">
-                  {getDateLabel(date)}
-                </h3>
-                <Badge variant="secondary" className="ml-auto">
-                  {dayEvents.length} {dayEvents.length === 1 ? 'item' : 'items'}
-                </Badge>
-              </div>
-              
-              <div className="grid gap-3">
-                {dayEvents.map(event => {
-                  const IconComponent = getEventIcon(event.type);
-                  const colorClass = getEventColor(event.type);
-                  
-                  return (
-                    <Card 
-                      key={event.id}
-                      className={`cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-primary/20 ${
-                        selectedEvents?.includes(event.id) ? 'border-blue-500 bg-blue-50/50' : ''
-                      }`}
-                      onClick={() => onEventClick(event)}
+    <Stack spacing={2.5} sx={{ minWidth: 0, width: "100%", maxWidth: "100%" }}>
+      {sortedDates.map((dateKey) => {
+        const date = new Date(dateKey);
+        const dayEvents = sortCalendarEvents(eventsByDate[dateKey]);
+
+        return (
+          <Stack
+            key={dateKey}
+            spacing={1.25}
+            sx={{ minWidth: 0, width: "100%" }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              sx={{ minWidth: 0, width: "100%" }}
+            >
+              <Calendar size={16} />
+              <Typography level="title-sm">{getDateLabel(date)}</Typography>
+              <JoyChip
+                color="neutral"
+                variant="soft"
+                sx={{ ml: "auto", flexShrink: 0 }}
+              >
+                {dayEvents.length} {dayEvents.length === 1 ? "item" : "items"}
+              </JoyChip>
+            </Stack>
+
+            <Stack spacing={1} sx={{ minWidth: 0, width: "100%" }}>
+              {dayEvents.map((event) => {
+                const config = getCalendarEventConfig(event.type);
+                const IconComponent = config.icon;
+
+                return (
+                  <Sheet
+                    key={event.id}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: "xl",
+                      width: "100%",
+                      maxWidth: "100%",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      borderColor: selectedTaskIds.includes(event.id)
+                        ? "primary.400"
+                        : config.borderColor,
+                      backgroundColor: selectedTaskIds.includes(event.id)
+                        ? "rgba(var(--joy-palette-primary-mainChannel) / 0.08)"
+                        : "background.surface",
+                      cursor: "pointer",
+                      transition:
+                        "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
+                      "&:hover": {
+                        transform: "translateY(-1px)",
+                        boxShadow: "sm",
+                      },
+                    }}
+                    onClick={() => onEventClick(event)}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
+                      sx={{ minWidth: 0, width: "100%" }}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-4">
-                          {/* Checkbox for selection (only for tasks) */}
-                          {onToggleSelect && event.type === 'task' && (
-                            <Checkbox
-                              checked={selectedEvents?.includes(event.id) || false}
-                              onCheckedChange={(checked) => {
-                                onToggleSelect(event.id);
+                      <Box
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: "lg",
+                          backgroundColor: config.surfaceColor,
+                          color: config.textColor,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <IconComponent size={18} />
+                      </Box>
+
+                      <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                        <Stack
+                          direction={{ xs: "column", md: "row" }}
+                          spacing={0.75}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "flex-start", md: "center" }}
+                          sx={{ minWidth: 0, width: "100%" }}
+                        >
+                          <Typography
+                            level="title-sm"
+                            sx={{
+                              minWidth: 0,
+                              flex: 1,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {getCalendarEventTitle(event)}
+                          </Typography>
+                          {getCalendarEventTime(event) ? (
+                            <Typography
+                              level="body-xs"
+                              color="neutral"
+                              sx={{ flexShrink: 0 }}
+                            >
+                              {getCalendarEventTime(event)}
+                            </Typography>
+                          ) : null}
+                        </Stack>
+
+                        <Typography
+                          level="body-sm"
+                          color="neutral"
+                          sx={{
+                            overflowWrap: "anywhere",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {getCalendarEventDescription(event)}
+                        </Typography>
+
+                        <Stack
+                          direction="row"
+                          spacing={0.75}
+                          useFlexGap
+                          flexWrap="wrap"
+                        >
+                          <JoyChip color={config.chipColor} variant="soft">
+                            {config.label}
+                          </JoyChip>
+                          {event.platform ? (
+                            <JoyChip color="neutral" variant="soft">
+                              {event.platform}
+                            </JoyChip>
+                          ) : null}
+                          {event.status ? (
+                            <JoyStatusChip status={event.status} />
+                          ) : null}
+                          {selectionMode && event.type === "task" ? (
+                            <JoyButton
+                              bloomVariant="outline"
+                              color={
+                                selectedTaskIds.includes(event.id)
+                                  ? "primary"
+                                  : "neutral"
+                              }
+                              onClick={(clickEvent) => {
+                                clickEvent.stopPropagation();
+                                onToggleTaskSelection?.(event.id);
                               }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-1"
-                            />
-                          )}
-                          
-                          <div className={`p-2 bg-gradient-to-br ${colorClass} rounded-lg shadow-sm`}>
-                            <IconComponent className="w-5 h-5 text-white" />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-medium text-foreground truncate">
-                                  {event.title}
-                                </h4>
-                                <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                  <span className="capitalize">
-                                    {event.type.replace('_', ' ')}
-                                  </span>
-                                  {event.platform && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {event.platform}
-                                    </Badge>
-                                  )}
-                                  {event.status && (
-                                    <Badge 
-                                      variant={
-                                        event.status === 'completed' || event.status === 'PUBLISHED' || event.status === 'sent' 
-                                          ? 'default' 
-                                          : 'secondary'
-                                      }
-                                      className="text-xs"
-                                    >
-                                      {event.status}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              {event.time && (
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground whitespace-nowrap">
-                                  <Clock className="w-3 h-3" />
-                                  {event.time}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </ScrollArea>
+                            >
+                              {selectedTaskIds.includes(event.id)
+                                ? "Selected"
+                                : "Select"}
+                            </JoyButton>
+                          ) : null}
+                        </Stack>
+                      </Stack>
+                    </Stack>
+                  </Sheet>
+                );
+              })}
+            </Stack>
+          </Stack>
+        );
+      })}
+    </Stack>
   );
 };

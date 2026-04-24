@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 import { MousePointerClick, Link2, TrendingUp, ExternalLink } from 'lucide-react';
 import { useCampaignClickStats, type ClickStats } from '@/hooks/useClickStats';
 

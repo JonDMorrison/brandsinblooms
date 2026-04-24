@@ -1,158 +1,215 @@
-import React from 'react';
-import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Receipt, Download, ExternalLink, Calendar, CreditCard, FileText, Eye } from 'lucide-react';
-import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useState } from "react";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Calendar, Download, ExternalLink, Receipt } from "lucide-react";
+import { toast } from "sonner";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for billing history - in a real app, this would come from Stripe
 const mockBillingHistory = [
   {
-    id: '1',
-    date: '2024-01-15',
-    amount: '$29.00',
-    status: 'paid',
-    description: 'Sprout Plan - Monthly',
-    invoiceUrl: '#'
+    id: "1",
+    date: "2024-01-15",
+    amount: "$29.00",
+    status: "paid",
+    description: "Sprout Plan - Monthly",
+    invoiceUrl: "#",
   },
   {
-    id: '2',
-    date: '2023-12-15',
-    amount: '$29.00',
-    status: 'paid',
-    description: 'Sprout Plan - Monthly',
-    invoiceUrl: '#'
+    id: "2",
+    date: "2023-12-15",
+    amount: "$29.00",
+    status: "paid",
+    description: "Sprout Plan - Monthly",
+    invoiceUrl: "#",
   },
   {
-    id: '3',
-    date: '2023-11-15',
-    amount: '$29.00',
-    status: 'paid',
-    description: 'Sprout Plan - Monthly',
-    invoiceUrl: '#'
-  }
+    id: "3",
+    date: "2023-11-15",
+    amount: "$29.00",
+    status: "paid",
+    description: "Sprout Plan - Monthly",
+    invoiceUrl: "#",
+  },
 ];
 
+const surfaceStyles = {
+  borderRadius: "24px",
+  borderColor: "divider",
+  bgcolor: "background.surface",
+  boxShadow: "sm",
+  p: { xs: 2.5, sm: 3 },
+};
+
+const formatDate = (value: string) => {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
 export const BillingHistory = () => {
-  const { subscription } = useSubscription();
-  const isTrialOrExpired = !subscription || subscription.plan === 'free_trial' || subscription.plan === 'expired';
+  const { subscription, loading } = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const effectivePlan = subscription?.tier ?? subscription?.plan;
+  const isTrialOrExpired =
+    !subscription ||
+    effectivePlan === "free_trial" ||
+    effectivePlan === "expired";
+
+  const handleViewAll = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } =
+        await supabase.functions.invoke("customer-portal");
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No portal URL received");
+      }
+    } catch (error) {
+      console.error("Error accessing customer portal:", error);
+      toast.error("Failed to open billing history. Please try again.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Billing History</h2>
-          <p className="text-text-secondary mt-1">Download invoices and view payment history</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Receipt className="h-5 w-5 text-text-secondary" />
-          <span className="text-sm text-text-secondary">Tax documents available</span>
-        </div>
-      </div>
+    <Sheet variant="outlined" sx={surfaceStyles}>
+      <Stack spacing={2.5}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={2}
+        >
+          <Stack spacing={0.75}>
+            <Typography level="title-md">Billing History</Typography>
+            <Typography level="body-sm" textColor="text.secondary">
+              Review recent invoices and jump into the Stripe portal for the
+              full ledger.
+            </Typography>
+          </Stack>
+          {!isTrialOrExpired && !loading ? (
+            <Button
+              color="neutral"
+              endDecorator={<ExternalLink size={14} />}
+              loading={portalLoading}
+              onClick={handleViewAll}
+              size="sm"
+              variant="plain"
+            >
+              View All
+            </Button>
+          ) : null}
+        </Stack>
 
-      <EnhancedAppleCard variant="elevated" hoverEffect="subtle">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-                <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-text-primary">Recent Transactions</h3>
-                <p className="text-sm text-text-secondary">Invoices and payment records</p>
-              </div>
-            </div>
-            {!isTrialOrExpired && (
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export All
-              </Button>
-            )}
-          </div>
+        <Divider />
 
-          {isTrialOrExpired ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-surface-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                <Receipt className="h-8 w-8 text-text-secondary" />
-              </div>
-              <h4 className="font-medium text-text-primary mb-2">No billing history yet</h4>
-              <p className="text-sm text-text-secondary">
-                {subscription?.plan === 'free_trial' 
-                  ? "Your billing history will appear here after your first payment"
-                  : "Subscribe to a plan to see your billing history"
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {mockBillingHistory.map((invoice, index) => (
-                <EnhancedAppleCard 
-                  key={invoice.id} 
-                  variant="interactive" 
-                  surface="secondary" 
-                  hoverEffect="subtle"
-                  animated={true}
-                  staggerDelay={index * 100}
-                  className="group"
+        {loading ? (
+          <Stack spacing={1.25}>
+            <Skeleton variant="text" width={160} />
+            <Skeleton variant="rectangular" height={48} />
+            <Skeleton variant="rectangular" height={48} />
+            <Skeleton variant="rectangular" height={48} />
+          </Stack>
+        ) : isTrialOrExpired ? (
+          <Stack
+            spacing={1.5}
+            alignItems="center"
+            textAlign="center"
+            sx={{ py: 3 }}
+          >
+            <Receipt size={32} color="var(--joy-palette-neutral-400)" />
+            <Typography level="title-sm">No billing history yet.</Typography>
+            <Typography level="body-sm" textColor="text.secondary">
+              Invoices will appear here once you move to a paid subscription.
+            </Typography>
+          </Stack>
+        ) : (
+          <Stack spacing={1.25}>
+            {mockBillingHistory.map((invoice) => {
+              const downloadDisabled =
+                !invoice.invoiceUrl || invoice.invoiceUrl === "#";
+
+              return (
+                <Sheet
+                  key={invoice.id}
+                  variant="soft"
+                  sx={{
+                    borderRadius: "18px",
+                    p: 1.75,
+                  }}
                 >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-surface-tertiary rounded-lg group-hover:bg-primary/10 transition-colors">
-                          <CreditCard className="h-4 w-4 text-text-secondary group-hover:text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-text-primary">{invoice.description}</div>
-                          <div className="flex items-center text-sm text-text-secondary mt-1">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {new Date(invoice.date).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="font-bold text-lg text-text-primary">{invoice.amount}</div>
-                          <Badge 
-                            variant={invoice.status === 'paid' ? 'default' : 'secondary'} 
-                            className={`text-xs ${invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' : ''}`}
-                          >
-                            {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" className="hover:bg-primary/10">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="hover:bg-primary/10">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </EnhancedAppleCard>
-              ))}
-              
-              {mockBillingHistory.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-text-secondary">No invoices yet</p>
-                </div>
-              )}
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                      <Typography level="body-md" fontWeight={600}>
+                        {invoice.description}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <Calendar
+                          size={14}
+                          color="var(--joy-palette-neutral-500)"
+                        />
+                        <Typography level="body-xs" textColor="text.secondary">
+                          {formatDate(invoice.date)}
+                        </Typography>
+                      </Stack>
+                    </Stack>
 
-              {mockBillingHistory.length > 0 && (
-                <div className="pt-6 mt-6 border-t border-border-subtle">
-                  <Button variant="outline" className="w-full hover:bg-primary/5">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View All Transactions
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </EnhancedAppleCard>
-    </div>
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Chip color="success" size="sm" variant="soft">
+                        {invoice.status.charAt(0).toUpperCase() +
+                          invoice.status.slice(1)}
+                      </Chip>
+                      <Typography level="body-md" fontWeight={700}>
+                        {invoice.amount}
+                      </Typography>
+                      <IconButton
+                        color="neutral"
+                        disabled={downloadDisabled}
+                        onClick={() => {
+                          if (!downloadDisabled) {
+                            window.open(
+                              invoice.invoiceUrl,
+                              "_blank",
+                              "noopener,noreferrer",
+                            );
+                          }
+                        }}
+                        size="sm"
+                        variant="plain"
+                      >
+                        <Download size={16} />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Sheet>
+              );
+            })}
+          </Stack>
+        )}
+      </Stack>
+    </Sheet>
   );
 };

@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Plus, Bookmark, X, MoreVertical } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+} from '@/components/ui-legacy/dropdown-menu';
 import { SmartBlock, SMART_BLOCK_CATEGORIES } from '@/types/smartBlocks';
 import { SMART_BLOCK_TEMPLATES } from '@/data/smartBlockTemplates';
 import { EmailBlock } from '@/types/emailBuilder';

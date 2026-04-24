@@ -1,10 +1,15 @@
-import { test as base, expect } from '@playwright/test';
-import { TestDataFactory, TestDatabaseUtils, PageUtils } from '../utils/test-setup';
+import { test as base, expect } from "@playwright/test";
+import {
+  TestDataFactory,
+  TestDatabaseUtils,
+  PageUtils,
+} from "../utils/test-setup";
 
 type AuthFixtures = {
   authenticatedUser: {
     userData: ReturnType<typeof TestDataFactory.generateTestUser>;
     userId: string;
+    tenantId: string | null;
   };
   pageUtils: PageUtils;
   dbUtils: TestDatabaseUtils;
@@ -21,41 +26,39 @@ export const test = base.extend<AuthFixtures>({
     await use(pageUtils);
   },
 
-  authenticatedUser: async ({ page, dbUtils }, use) => {
-    const userData = TestDataFactory.generateTestUser();
-    
-    // Create test user
-    const authData = await dbUtils.createTestUser(userData);
-    
-    if (!authData.user) {
-      throw new Error('Failed to create test user');
-    }
+  authenticatedUser: [
+    async ({ page, dbUtils }, use) => {
+      const userData = TestDataFactory.generateTestUser();
+      let createdUserId: string | null = null;
 
-    // Login to the application
-    const pageUtils = new PageUtils(page);
-    await pageUtils.login(userData.email, userData.password);
+      try {
+        const authData = await dbUtils.createTestUser(userData);
 
-    // Complete basic onboarding
-    await page.goto('/app');
-    
-    // Check if onboarding is needed and complete it
-    const onboardingExists = await page.locator('[data-testid="onboarding-form"]').isVisible().catch(() => false);
-    
-    if (onboardingExists) {
-      await page.fill('[name="companyName"]', userData.companyName);
-      await page.fill('[name="companyOverview"]', 'Test company for E2E testing');
-      await page.click('button[type="submit"]');
-      await page.waitForSelector('[data-testid="dashboard"]', { timeout: 10000 });
-    }
+        if (!authData.user) {
+          throw new Error("Failed to create test user");
+        }
 
-    await use({
-      userData,
-      userId: authData.user.id,
-    });
+        createdUserId = authData.user.id;
+        const onboardingState = await dbUtils.completeOnboarding(userData);
 
-    // Cleanup after test
-    await dbUtils.cleanupTestData(userData.email);
-  },
+        const pageUtils = new PageUtils(page);
+        await pageUtils.login(userData.email, userData.password, {
+          userId: createdUserId,
+        });
+
+        await use({
+          userData,
+          userId: createdUserId,
+          tenantId: onboardingState.tenantId,
+        });
+      } finally {
+        if (createdUserId) {
+          await dbUtils.cleanupTestData(userData);
+        }
+      }
+    },
+    { auto: true },
+  ],
 });
 
 export { expect };

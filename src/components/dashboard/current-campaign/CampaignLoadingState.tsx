@@ -1,7 +1,7 @@
 
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 
 export const CampaignLoadingState = () => {
   return (

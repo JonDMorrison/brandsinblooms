@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,6 +56,7 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const hasResolvedInitialLoadRef = useRef(false);
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -67,9 +68,23 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
   }, [locationData]);
 
   const fetchLocationData = useCallback(async () => {
-    if (!user?.id) return;
+    const isInitialLoad = !hasResolvedInitialLoadRef.current;
 
-    setIsLoading(true);
+    if (!user?.id) {
+      setLocationData(null);
+
+      if (isInitialLoad) {
+        hasResolvedInitialLoadRef.current = true;
+        setIsLoading(false);
+      }
+
+      return;
+    }
+
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
+
     try {
       const { data, error } = await supabase
         .from('company_profiles')
@@ -90,6 +105,7 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
 
       if (error) {
         console.error('Error fetching location data:', error);
+        setLocationData(null);
         return;
       }
 
@@ -105,11 +121,17 @@ export const useLocationVerification = (): UseLocationVerificationReturn => {
           candidates: data.location_detection_candidates as any[] || [],
           needsConfirmation: data.location_needs_confirmation || false,
         });
+      } else {
+        setLocationData(null);
       }
     } catch (error) {
       console.error('Error in fetchLocationData:', error);
+      setLocationData(null);
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        hasResolvedInitialLoadRef.current = true;
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 

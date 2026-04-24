@@ -1,18 +1,17 @@
 import React, { useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
 import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
 import { Edit, Copy, Trash2, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { cn } from '@/lib/utils';
 import { ContextualToolbar } from '../contextual/ContextualToolbar';
 import { EditMode } from '@/hooks/useBlockEditMode';
 import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { SafeHtml } from '@/components/ui/safe-html';
-import { useBrandDefaults } from '@/hooks/useBrandDefaults';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 
 interface EmailSafeHeroBlockProps {
   block: ContentBlock;
@@ -36,11 +35,10 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
   isGenerating = false
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
-  const brand = useBrandDefaults();
 
-  // Use brand primary as default background, white text on brand color
-  const backgroundColor = block.backgroundColor || (brand.loaded ? brand.primaryColor : '#f5f5f7');
-  const textColor = block.textColor || (brand.loaded ? '#ffffff' : '#111111');
+  // Get background color with fallback - use light neutral and near-black for dark mode compatibility
+  const backgroundColor = block.backgroundColor || '#f5f5f7';
+  const textColor = block.textColor || '#111111';
 
   // Get alignment class
   const alignClass = block.textAlign === 'center' ? 'text-center' 

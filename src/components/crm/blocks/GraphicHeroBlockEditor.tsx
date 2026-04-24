@@ -1,8 +1,8 @@
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
 import { Eye, ImageIcon } from 'lucide-react';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 

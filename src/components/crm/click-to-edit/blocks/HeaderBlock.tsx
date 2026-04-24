@@ -1,10 +1,10 @@
 import React, { useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Slider } from "@/components/ui-legacy/slider";
 import {
   MediaSelectorImage,
   MediaSelectorImageHandle,
@@ -16,7 +16,7 @@ import { ContextualToolbar } from "../contextual/ContextualToolbar";
 import { EditMode } from "@/hooks/useBlockEditMode";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { useAutoBackgroundImage } from "@/hooks/useAutoBackgroundImage";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 import { ColorPickerWithSwatches } from "../shared/ColorPickerWithSwatches";
 import { AIImageLoadingOverlay } from "../AIImageLoadingOverlay";
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Users, Target, Mail, MessageSquare, Eye, MousePointerClick, Smartphone, Calendar } from 'lucide-react';
 
 interface HeroMetricsSectionProps {

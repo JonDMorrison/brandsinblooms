@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useSmartTime } from '@/hooks/useSmartTime';
 import { scheduleDraft } from '@/lib/dashboardAPI';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface TimePopoverModalProps {
   task: any | null;

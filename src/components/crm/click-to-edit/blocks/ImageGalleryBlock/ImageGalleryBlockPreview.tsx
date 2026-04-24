@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GalleryLayout } from "./GalleryLayoutSelector";

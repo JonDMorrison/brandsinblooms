@@ -1,3 +1,7 @@
+import Divider from "@mui/joy/Divider";
+import Grid from "@mui/joy/Grid";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 
 interface AdminMetrics {
   totalUsers: number;
@@ -13,59 +17,80 @@ interface PlatformAnalyticsProps {
 }
 
 export const PlatformAnalytics = ({ metrics }: PlatformAnalyticsProps) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Subscription Breakdown</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span>Active Subscriptions:</span>
-            <span className="font-medium text-green-600">{metrics.activeSubscriptions}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Free Trial Users:</span>
-            <span className="font-medium text-blue-600">{metrics.freeTrialUsers}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Paid Users:</span>
-            <span className="font-medium text-purple-600">{metrics.paidUsers}</span>
-          </div>
-          <div className="flex justify-between border-t pt-2">
-            <span className="font-semibold">Total Users:</span>
-            <span className="font-semibold">{metrics.totalUsers}</span>
-          </div>
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Conversion Rate:</span>
-            <span>
-              {metrics.totalUsers > 0 
-                ? Math.round((metrics.paidUsers / metrics.totalUsers) * 100) 
-                : 0}%
-            </span>
-          </div>
-        </div>
-      </div>
+  const conversionRate =
+    metrics.totalUsers > 0
+      ? Math.round((metrics.paidUsers / metrics.totalUsers) * 100)
+      : 0;
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Content Statistics</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between">
-            <span>Campaigns:</span>
-            <span className="font-medium">{metrics.totalCampaigns}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Content Tasks:</span>
-            <span className="font-medium">{metrics.totalTasks}</span>
-          </div>
-          <div className="flex justify-between border-t pt-2">
-            <span className="font-semibold">Avg Tasks/Campaign:</span>
-            <span className="font-semibold">
-              {metrics.totalCampaigns > 0 
-                ? Math.round(metrics.totalTasks / metrics.totalCampaigns) 
-                : 0}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+  return (
+    <Grid container spacing={3}>
+      <Grid xs={12} md={6}>
+        <Stack spacing={2}>
+          <Typography level="title-md">Subscription Breakdown</Typography>
+          <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-md">Active Subscriptions:</Typography>
+              <Typography level="body-md" color="success" fontWeight="lg">
+                {metrics.activeSubscriptions}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-md">Free Trial Users:</Typography>
+              <Typography level="body-md" color="primary" fontWeight="lg">
+                {metrics.freeTrialUsers}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-md">Paid Users:</Typography>
+              <Typography level="body-md" color="warning" fontWeight="lg">
+                {metrics.paidUsers}
+              </Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="title-sm">Total Users:</Typography>
+              <Typography level="title-sm">{metrics.totalUsers}</Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-sm" color="neutral">
+                Conversion Rate:
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                {conversionRate}%
+              </Typography>
+            </Stack>
+          </Stack>
+        </Stack>
+      </Grid>
+
+      <Grid xs={12} md={6}>
+        <Stack spacing={2}>
+          <Typography level="title-md">Content Statistics</Typography>
+          <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-md">Campaigns:</Typography>
+              <Typography level="body-md" fontWeight="lg">
+                {metrics.totalCampaigns}
+              </Typography>
+            </Stack>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="body-md">Content Tasks:</Typography>
+              <Typography level="body-md" fontWeight="lg">
+                {metrics.totalTasks}
+              </Typography>
+            </Stack>
+            <Divider />
+            <Stack direction="row" justifyContent="space-between">
+              <Typography level="title-sm">Avg Tasks/Campaign:</Typography>
+              <Typography level="title-sm">
+                {metrics.totalCampaigns > 0
+                  ? Math.round(metrics.totalTasks / metrics.totalCampaigns)
+                  : 0}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Stack>
+      </Grid>
+    </Grid>
   );
 };

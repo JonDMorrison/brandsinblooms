@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Plus, Trash2 } from 'lucide-react';
 import { processNewsletterContent } from '@/utils/newsletterContentProcessor';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { RichTextEditor } from '@/components/ui-legacy/rich-text-editor';
 
 interface NewsletterBlock {
   title: string;

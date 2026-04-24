@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
+import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { Box, CircularProgress, Stack, Typography } from "@mui/joy";
 
 const SHOPIFY_OAUTH_RESULT_KEY = "shopify_oauth_result";
 const SHOPIFY_OAUTH_CHANNEL = "shopify_oauth";
@@ -92,40 +93,92 @@ export default function ShopifyCallbackPage() {
   }, [searchParams]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md space-y-4 p-8 text-center">
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.surface",
+        p: 4,
+      }}
+    >
+      <Stack
+        spacing={2}
+        alignItems="center"
+        sx={{ maxWidth: 400, textAlign: "center" }}
+      >
         {status === "loading" ? (
           <>
-            <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-            <h2 className="text-xl font-semibold">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
+            <CircularProgress size="lg" color="neutral" />
+            <Typography level="title-md" fontWeight="xl">
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
           </>
         ) : null}
-
         {status === "success" ? (
           <>
-            <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-            <h2 className="text-xl font-semibold text-green-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
+            <CheckCircle
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-success-500)",
+              }}
+            />
+            <Typography
+              level="title-md"
+              fontWeight="xl"
+              textColor="success.600"
+            >
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
           </>
         ) : null}
-
         {status === "error" ? (
           <>
-            <XCircle className="mx-auto h-12 w-12 text-red-500" />
-            <h2 className="text-xl font-semibold text-red-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
+            <XCircle
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-danger-500)",
+              }}
+            />
+            <Typography level="title-md" fontWeight="xl" textColor="danger.600">
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
           </>
         ) : null}
-
         {status === "timeout" ? (
           <>
-            <Clock className="mx-auto h-12 w-12 text-yellow-500" />
-            <h2 className="text-xl font-semibold text-yellow-600">{message}</h2>
-            <p className="text-sm text-muted-foreground">{step}</p>
+            <Clock
+              style={{
+                width: 48,
+                height: 48,
+                color: "var(--joy-palette-warning-500)",
+              }}
+            />
+            <Typography
+              level="title-md"
+              fontWeight="xl"
+              textColor="warning.600"
+            >
+              {message}
+            </Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              {step}
+            </Typography>
           </>
         ) : null}
-      </div>
-    </div>
+      </Stack>
+    </Box>
   );
 }

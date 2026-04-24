@@ -1,11 +1,25 @@
-
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Sparkles, Loader2, CheckCircle, AlertTriangle, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Button } from "@/components/ui-legacy/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import {
+  Calendar,
+  Sparkles,
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { handleError } from "@/utils/errorHandling";
@@ -23,7 +37,7 @@ const generateFallbackThemes = () => {
       name: "Spring",
       themes: [
         "Spring Garden Awakening",
-        "Early Season Planting Excellence", 
+        "Early Season Planting Excellence",
         "Spring Flower Power",
         "Soil Preparation Mastery",
         "Container Garden Success",
@@ -34,11 +48,11 @@ const generateFallbackThemes = () => {
         "Spring Clean Garden Prep",
         "Cool Weather Crops",
         "Spring Fertilization",
-        "Garden Tool Preparation"
-      ]
+        "Garden Tool Preparation",
+      ],
     },
     {
-      name: "Summer", 
+      name: "Summer",
       themes: [
         "Summer Heat Solutions",
         "Peak Season Harvest",
@@ -52,14 +66,14 @@ const generateFallbackThemes = () => {
         "Summer Vegetables",
         "Shade Gardening",
         "Summer Composting",
-        "Hot Weather Success"
-      ]
+        "Hot Weather Success",
+      ],
     },
     {
       name: "Fall",
       themes: [
         "Autumn Garden Harvest",
-        "Fall Planting Opportunities", 
+        "Fall Planting Opportunities",
         "Winter Preparation",
         "Fall Color Displays",
         "Leaf Management",
@@ -70,8 +84,8 @@ const generateFallbackThemes = () => {
         "Fall Fertilization",
         "Autumn Composting",
         "Fall Tree Care",
-        "Winter Vegetable Prep"
-      ]
+        "Winter Vegetable Prep",
+      ],
     },
     {
       name: "Winter",
@@ -88,16 +102,16 @@ const generateFallbackThemes = () => {
         "Winter Bird Feeding",
         "Planning Next Season",
         "Winter Garden Dreams",
-        "Cold Frame Gardening"
-      ]
-    }
+        "Cold Frame Gardening",
+      ],
+    },
   ];
 
   for (let week = 1; week <= 52; week++) {
     const seasonIndex = Math.floor((week - 1) / 13);
     const season = seasons[seasonIndex];
     const themeIndex = ((week - 1) % 13) % season.themes.length;
-    
+
     themes.push({
       week: week,
       title: `${season.themes[themeIndex]} - Week ${week}`,
@@ -106,16 +120,20 @@ const generateFallbackThemes = () => {
         `${season.name} gardening tips and techniques`,
         `Seasonal plant care and maintenance`,
         `Customer education and workshops`,
-        `Product recommendations and displays`
-      ]
+        `Product recommendations and displays`,
+      ],
     });
   }
 
   return themes;
 };
 
-export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: BackfillCampaignsProps) => {
+export const BackfillCampaigns = ({
+  currentCampaignCount,
+  onBackfillComplete,
+}: BackfillCampaignsProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const { isOnline } = useNetworkStatus();
   const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -123,25 +141,26 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
   const [retryCount, setRetryCount] = useState(0);
 
   const saveCampaignsToDatabase = async (themes: any[]) => {
-    if (!user) throw new Error('User not authenticated');
+    if (!user) throw new Error("User not authenticated");
 
     const campaigns = themes.map((theme) => {
       const weekStartDate = getDateForWeek(theme.week);
-      
+
       return {
         week_number: theme.week,
         title: theme.title,
         theme: theme.title,
         description: theme.description,
-        start_date: weekStartDate.toISOString().split('T')[0],
-        prompt: theme.content_ideas.join(' • '),
+        start_date: weekStartDate.toISOString().split("T")[0],
+        prompt: theme.content_ideas.join(" • "),
         user_id: user.id,
-        source: 'backfill_52_weeks'
+        source: "backfill_52_weeks",
+        ...(tenant?.id ? { tenant_id: tenant.id } : {}),
       };
     });
 
     const { error: saveError } = await supabase
-      .from('campaigns')
+      .from("campaigns")
       .insert(campaigns);
 
     if (saveError) {
@@ -152,20 +171,23 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
   };
 
   const tryEdgeFunctionGeneration = async () => {
-    const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
-      body: { 
-        userId: user.id,
-        generateAll52Weeks: true,
-        startYear: new Date().getFullYear()
-      }
-    });
+    const { data, error } = await supabase.functions.invoke(
+      "generate-weekly-themes",
+      {
+        body: {
+          userId: user.id,
+          generateAll52Weeks: true,
+          startYear: new Date().getFullYear(),
+        },
+      },
+    );
 
     if (error) {
       throw error;
     }
 
     if (!data?.themes || !Array.isArray(data.themes)) {
-      throw new Error('Invalid response format from theme generator');
+      throw new Error("Invalid response format from theme generator");
     }
 
     return data.themes;
@@ -173,15 +195,13 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
 
   const handleBackfillCampaigns = async () => {
     if (!user) {
-      
       return;
     }
 
     setLoading(true);
     setError(null);
-    
+
     try {
-      
       let themes;
       let usingFallback = false;
 
@@ -190,8 +210,8 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
         try {
           themes = await tryEdgeFunctionGeneration();
         } catch (edgeError) {
-          const appError = handleError(edgeError, 'campaign generation');
-          
+          const appError = handleError(edgeError, "campaign generation");
+
           // No toast notifications for connection issues per new requirements
           themes = generateFallbackThemes();
           usingFallback = true;
@@ -203,26 +223,24 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
 
       // Save themes to database
       const savedCount = await saveCampaignsToDatabase(themes);
-      
+
       setCompleted(true);
-      
+
       // Call the completion callback after a short delay
       setTimeout(() => {
         onBackfillComplete();
       }, 2000);
-      
     } catch (error: any) {
-      console.error('Error in backfill process:', error);
-      const errorMessage = error.message || 'Failed to complete operation';
+      console.error("Error in backfill process:", error);
+      const errorMessage = error.message || "Failed to complete operation";
       setError(errorMessage);
-      
     } finally {
       setLoading(false);
     }
   };
 
   const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
+    setRetryCount((prev) => prev + 1);
     setError(null);
     handleBackfillCampaigns();
   };
@@ -236,8 +254,12 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
           <div className="flex items-center gap-3">
             <CheckCircle className="w-6 h-6 text-green-600" />
             <div>
-              <h3 className="font-semibold text-green-900">Backfill Complete!</h3>
-              <p className="text-sm text-green-700">Your full 52-week marketing calendar is now ready.</p>
+              <h3 className="font-semibold text-green-900">
+                Backfill Complete!
+              </h3>
+              <p className="text-sm text-green-700">
+                Your full 52-week marketing calendar is now ready.
+              </p>
             </div>
           </div>
         </CardContent>
@@ -252,16 +274,16 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-red-600" />
             <div>
-              <CardTitle className="text-lg text-red-900">Generation Failed</CardTitle>
-              <p className="text-sm text-red-700 mt-1">
-                {error}
-              </p>
+              <CardTitle className="text-lg text-red-900">
+                Generation Failed
+              </CardTitle>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex items-center gap-4">
-            <Button 
+            <Button
               onClick={handleRetry}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
@@ -274,7 +296,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
               ) : (
                 <WifiOff className="w-4 h-4" />
               )}
-              {isOnline ? 'Connected' : 'Offline - Will use built-in themes'}
+              {isOnline ? "Connected" : "Offline - Will use built-in themes"}
             </div>
           </div>
         </CardContent>
@@ -289,9 +311,12 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
           <div className="flex items-center gap-3">
             <Calendar className="w-6 h-6 text-orange-600" />
             <div>
-              <CardTitle className="text-lg text-orange-900">Complete Your Marketing Calendar</CardTitle>
+              <CardTitle className="text-lg text-orange-900">
+                Complete Your Marketing Calendar
+              </CardTitle>
               <p className="text-sm text-orange-700 mt-1">
-                Generate your missing {missingCampaigns} weekly campaigns to have a full year planned
+                Generate your missing {missingCampaigns} weekly campaigns to
+                have a full year planned
               </p>
             </div>
           </div>
@@ -302,7 +327,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex items-center gap-4">
-          <Button 
+          <Button
             onClick={handleBackfillCampaigns}
             disabled={loading}
             className="bg-orange-600 hover:bg-orange-700 text-white"
@@ -326,10 +351,9 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
               <WifiOff className="w-4 h-4" />
             )}
             <span>
-              {isOnline 
-                ? 'Will create seasonal garden center themes for the entire year'
-                : 'Offline mode - will use built-in seasonal themes'
-              }
+              {isOnline
+                ? "Will create seasonal garden center themes for the entire year"
+                : "Offline mode - will use built-in seasonal themes"}
             </span>
           </div>
         </div>

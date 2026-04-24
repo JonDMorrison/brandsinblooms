@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { EditableTheme } from "./EditableTheme";
 
 interface Campaign {

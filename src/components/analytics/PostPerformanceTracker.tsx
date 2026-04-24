@@ -1,12 +1,26 @@
+import { useCallback, useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Table from "@mui/joy/Table";
+import Typography from "@mui/joy/Typography";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, BarChart3 } from "lucide-react";
+import { toast } from "sonner";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { TrendingUp, Eye, Heart, MessageCircle, Share2, ExternalLink } from 'lucide-react';
-// Removed sonner import - using global toast replacement
+import { useAuth } from "@/contexts/AuthContext";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
+import {
+  formatCompactNumber,
+  formatPercentage,
+  formatRelativeTime,
+  getTrendInfo,
+  normalizePlatformLabel,
+} from "@/components/analytics/analyticsUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { getPlatformConfig } from "@/utils/platformConfig";
 
 interface PostPerformance {
   id: string;
@@ -26,34 +40,176 @@ interface PostPerformance {
   };
 }
 
+type SummaryMetric = {
+  label: string;
+  value: string;
+  trend: ReturnType<typeof getTrendInfo> | null;
+};
+
+const shimmerSx = {
+  position: "relative",
+  overflow: "hidden",
+  bgcolor: "background.surface",
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    inset: 0,
+    transform: "translateX(-100%)",
+    background:
+      "linear-gradient(90deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 0%, rgba(var(--joy-palette-neutral-mainChannel) / 0.12) 50%, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 100%)",
+    animation: "postPerformanceShimmer 1.35s ease-in-out infinite",
+  },
+  "@keyframes postPerformanceShimmer": {
+    to: {
+      transform: "translateX(100%)",
+    },
+  },
+} as const;
+
+const blockSx = {
+  borderRadius: "sm",
+  bgcolor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.08)",
+} as const;
+
+const SummarySkeleton = () => {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        ...shimmerSx,
+        flex: "1 1 220px",
+        minWidth: { xs: "100%", sm: 220 },
+        borderRadius: "sm",
+        p: 2,
+      }}
+    >
+      <Stack spacing={1.1}>
+        <Box sx={{ ...blockSx, width: "44%", height: 12 }} />
+        <Box sx={{ ...blockSx, width: "58%", height: 28 }} />
+        <Box sx={{ ...blockSx, width: "32%", height: 24, borderRadius: 999 }} />
+      </Stack>
+    </Sheet>
+  );
+};
+
+const TableSkeleton = () => {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        ...shimmerSx,
+        borderRadius: "md",
+        minHeight: 300,
+        p: 2,
+      }}
+    >
+      <Stack spacing={1.25}>
+        <Box sx={{ ...blockSx, width: "18%", height: 12 }} />
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Box
+            key={index}
+            sx={{ ...blockSx, width: "100%", height: 36, borderRadius: "md" }}
+          />
+        ))}
+      </Stack>
+    </Sheet>
+  );
+};
+
+const getEngagementColor = (engagementRate: number) => {
+  if (engagementRate > 3) {
+    return "success" as const;
+  }
+
+  if (engagementRate >= 1) {
+    return "neutral" as const;
+  }
+
+  return "warning" as const;
+};
+
+const formatPreview = (value?: string | null) => {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return "No content preview available.";
+  }
+
+  if (trimmed.length <= 60) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 60).trimEnd()}...`;
+};
+
+const SummaryMetricSheet = ({ metric }: { metric: SummaryMetric }) => {
+  const TrendIcon = metric.trend?.icon;
+
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        flex: "1 1 220px",
+        minWidth: { xs: "100%", sm: 220 },
+        borderRadius: "sm",
+        p: 2,
+        bgcolor: "background.surface",
+        boxShadow: "none",
+      }}
+    >
+      <Stack spacing={1}>
+        <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+          {metric.label}
+        </Typography>
+        <Typography level="title-lg">{metric.value}</Typography>
+        {metric.trend && TrendIcon ? (
+          <JoyChip
+            color={metric.trend.tone}
+            size="sm"
+            startDecorator={<TrendIcon size={12} />}
+            variant="soft"
+          >
+            {metric.trend.label}
+          </JoyChip>
+        ) : null}
+      </Stack>
+    </Sheet>
+  );
+};
+
 export const PostPerformanceTracker: React.FC = () => {
   const { user } = useAuth();
-  const [performances, setPerformances] = useState<PostPerformance[]>([]);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  const fetchPerformances = async () => {
-    if (!user) return;
+  const { data, isError, isLoading, refetch } = useQuery<PostPerformance[]>({
+    queryKey: ["analytics-post-performance", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      if (!user?.id) {
+        return [];
+      }
 
-    try {
       const { data, error } = await supabase
-        .from('post_performance')
-        .select(`
+        .from("post_performance")
+        .select(
+          `
           *,
           content_tasks!inner(
             post_type,
             ai_output,
             user_id
           )
-        `)
-        .eq('content_tasks.user_id', user.id)
-        .order('collected_at', { ascending: false })
+        `,
+        )
+        .eq("content_tasks.user_id", user.id)
+        .order("collected_at", { ascending: false })
         .limit(10);
 
-      if (error) throw error;
-      
-      // Transform the data to match our interface
-      const transformedData = (data || []).map(item => ({
+      if (error) {
+        throw error;
+      }
+
+      return (data || []).map((item) => ({
         id: item.id,
         content_task_id: item.content_task_id,
         platform: item.platform,
@@ -65,139 +221,353 @@ export const PostPerformanceTracker: React.FC = () => {
         reach: item.reach || 0,
         engagement_rate: Number(item.engagement_rate) || 0,
         collected_at: item.collected_at,
-        content_tasks: item.content_tasks
+        content_tasks: item.content_tasks,
       }));
-      
-      setPerformances(transformedData);
-    } catch (error) {
-      console.error('Error fetching post performances:', error);
-      toast.error('Failed to load post performance data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  const syncAnalytics = async () => {
-    setSyncing(true);
+  const performances = useMemo(() => data ?? [], [data]);
+
+  const syncAnalytics = useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
     try {
-      const { error } = await supabase.functions.invoke('sync-analytics');
-      if (error) throw error;
-      
-      toast.success('Analytics synced successfully');
-      fetchPerformances();
+      setSyncing(true);
+
+      const { error } = await supabase.functions.invoke("sync-analytics", {
+        body: { userId: user.id },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Analytics sync started.");
     } catch (error) {
-      console.error('Error syncing analytics:', error);
-      toast.error('Failed to sync analytics');
+      console.error("Error syncing analytics:", error);
+      toast.error("Unable to start analytics sync right now.");
     } finally {
       setSyncing(false);
     }
-  };
-
-  useEffect(() => {
-    fetchPerformances();
   }, [user]);
 
-  const getEngagementBadgeVariant = (rate: number) => {
-    if (rate >= 5) return 'default';
-    if (rate >= 2) return 'secondary';
-    return 'outline';
-  };
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}k`;
-    }
-    return num.toString();
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+  const summaryMetrics = useMemo<SummaryMetric[]>(() => {
+    const totalEngagement = performances.reduce(
+      (sum, performance) =>
+        sum +
+        performance.likes_count +
+        performance.comments_count +
+        performance.shares_count,
+      0,
     );
-  }
+    const averageReach =
+      performances.length > 0
+        ? performances.reduce(
+            (sum, performance) => sum + performance.reach,
+            0,
+          ) / performances.length
+        : 0;
+    const averageEngagementRate =
+      performances.length > 0
+        ? performances.reduce(
+            (sum, performance) => sum + performance.engagement_rate,
+            0,
+          ) / performances.length
+        : 0;
+    const totalImpressions = performances.reduce(
+      (sum, performance) => sum + performance.impressions,
+      0,
+    );
+
+    const latest = performances[0];
+    const previous = performances[1];
+    const latestEngagement = latest
+      ? latest.likes_count + latest.comments_count + latest.shares_count
+      : undefined;
+    const previousEngagement = previous
+      ? previous.likes_count + previous.comments_count + previous.shares_count
+      : undefined;
+    const canShowTrend = performances.length >= 2;
+
+    return [
+      {
+        label: "Total Engagement",
+        value: formatCompactNumber(totalEngagement),
+        trend: canShowTrend
+          ? getTrendInfo(latestEngagement, previousEngagement)
+          : null,
+      },
+      {
+        label: "Avg. Reach",
+        value: formatCompactNumber(Math.round(averageReach)),
+        trend: canShowTrend
+          ? getTrendInfo(latest?.reach, previous?.reach)
+          : null,
+      },
+      {
+        label: "Avg. Engagement Rate",
+        value: formatPercentage(averageEngagementRate),
+        trend: canShowTrend
+          ? getTrendInfo(latest?.engagement_rate, previous?.engagement_rate)
+          : null,
+      },
+      {
+        label: "Impressions",
+        value: formatCompactNumber(totalImpressions),
+        trend: canShowTrend
+          ? getTrendInfo(latest?.impressions, previous?.impressions)
+          : null,
+      },
+    ];
+  }, [performances]);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5" />
-          Post Performance
-        </CardTitle>
-        <Button 
-          onClick={syncAnalytics} 
-          disabled={syncing}
+    <Stack spacing={3}>
+      <Stack
+        direction={{ xs: "column", lg: "row" }}
+        spacing={2}
+        alignItems={{ xs: "flex-start", lg: "center" }}
+        justifyContent="space-between"
+      >
+        <Stack spacing={0.5}>
+          <Typography level="title-md">Post Performance</Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Engagement and reach metrics from your connected accounts.
+          </Typography>
+        </Stack>
+
+        <JoyButton
+          color="neutral"
+          loading={syncing}
+          loadingPosition="start"
           size="sm"
-          variant="outline"
+          startDecorator={<BarChart3 size={14} />}
+          variant="outlined"
+          onClick={() => {
+            void syncAnalytics();
+          }}
         >
-          {syncing ? 'Syncing...' : 'Sync Analytics'}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {performances.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>No performance data available yet</p>
-            <p className="text-sm">Post content to start tracking performance</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {performances.map((performance) => (
-              <div key={performance.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary" className="capitalize">
-                        {performance.platform}
-                      </Badge>
-                      <Badge 
-                        variant={getEngagementBadgeVariant(performance.engagement_rate)}
-                        className="flex items-center gap-1"
-                      >
-                        <TrendingUp className="w-3 h-3" />
-                        {performance.engagement_rate.toFixed(1)}%
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {performance.content_tasks.ai_output.substring(0, 100)}...
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div className="flex flex-col items-center">
-                    <Eye className="w-4 h-4 text-gray-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.impressions)}</span>
-                    <span className="text-xs text-gray-500">Impressions</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Heart className="w-4 h-4 text-red-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.likes_count)}</span>
-                    <span className="text-xs text-gray-500">Likes</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <MessageCircle className="w-4 h-4 text-blue-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.comments_count)}</span>
-                    <span className="text-xs text-gray-500">Comments</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <Share2 className="w-4 h-4 text-green-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.shares_count)}</span>
-                    <span className="text-xs text-gray-500">Shares</span>
-                  </div>
-                </div>
-              </div>
+          Sync Analytics
+        </JoyButton>
+      </Stack>
+
+      {isLoading ? (
+        <>
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <SummarySkeleton key={index} />
             ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </Box>
+          <TableSkeleton />
+        </>
+      ) : isError ? (
+        <Sheet color="warning" variant="soft" sx={{ borderRadius: "md", p: 3 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+              <Box
+                sx={{
+                  color: "text.secondary",
+                  display: "inline-flex",
+                  "& > .lucide": {
+                    width: 18,
+                    height: 18,
+                  },
+                }}
+              >
+                <AlertTriangle />
+              </Box>
+              <Stack spacing={0.5}>
+                <Typography level="title-sm">
+                  Unable to load performance data
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                  There was a problem fetching analytics. Try again.
+                </Typography>
+              </Stack>
+            </Stack>
+            <JoyButton
+              color="neutral"
+              size="sm"
+              startDecorator={<BarChart3 size={14} />}
+              variant="outlined"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </JoyButton>
+          </Stack>
+        </Sheet>
+      ) : performances.length === 0 ? (
+        <Sheet
+          variant="outlined"
+          sx={{ borderRadius: "md", bgcolor: "background.surface" }}
+        >
+          <JoyEmptyState
+            icon={
+              <Box
+                sx={{
+                  color: "text.tertiary",
+                  display: "inline-flex",
+                  "& > .lucide": {
+                    width: 32,
+                    height: 32,
+                  },
+                }}
+              >
+                <BarChart3 />
+              </Box>
+            }
+            title="No performance data yet"
+            description="Metrics will appear here after your connected accounts publish content."
+          />
+        </Sheet>
+      ) : (
+        <>
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+            {summaryMetrics.map((metric) => (
+              <SummaryMetricSheet key={metric.label} metric={metric} />
+            ))}
+          </Box>
+
+          <Sheet
+            variant="outlined"
+            sx={{
+              borderRadius: "md",
+              overflow: "auto",
+              bgcolor: "background.surface",
+            }}
+          >
+            <Table
+              hoverRow
+              stripe="odd"
+              sx={{
+                minWidth: 760,
+                "--TableCell-paddingX": "12px",
+                "--TableCell-paddingY": "12px",
+                "& thead th": {
+                  bgcolor: "transparent",
+                  fontWeight: "md",
+                  fontSize: "xs",
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+                "& tbody td": {
+                  verticalAlign: "middle",
+                },
+              }}
+            >
+              <thead>
+                <tr>
+                  <th>Post</th>
+                  <th>Likes</th>
+                  <th>Comments</th>
+                  <th>Shares</th>
+                  <th>Reach</th>
+                  <th>Engagement</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {performances.map((performance) => {
+                  const platformConfig = getPlatformConfig(
+                    performance.platform,
+                  );
+                  const platformLabel = normalizePlatformLabel(
+                    performance.platform,
+                  );
+                  const PlatformIcon = platformConfig.icon;
+
+                  return (
+                    <tr key={performance.id}>
+                      <td>
+                        <Stack
+                          direction="row"
+                          spacing={1.25}
+                          alignItems="center"
+                        >
+                          <Box
+                            sx={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: platformConfig.color,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <PlatformIcon size={16} strokeWidth={1.9} />
+                          </Box>
+                          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+                            <Typography
+                              level="body-sm"
+                              noWrap
+                              sx={{ maxWidth: 240 }}
+                            >
+                              {formatPreview(
+                                performance.content_tasks.ai_output,
+                              )}
+                            </Typography>
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "text.tertiary" }}
+                            >
+                              {platformLabel}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatCompactNumber(performance.likes_count)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatCompactNumber(performance.comments_count)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatCompactNumber(performance.shares_count)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatCompactNumber(performance.reach)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <JoyChip
+                          color={getEngagementColor(
+                            performance.engagement_rate,
+                          )}
+                          size="sm"
+                          variant="soft"
+                        >
+                          {formatPercentage(performance.engagement_rate)}
+                        </JoyChip>
+                      </td>
+                      <td>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "text.tertiary" }}
+                        >
+                          {formatRelativeTime(performance.collected_at)}
+                        </Typography>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </Sheet>
+        </>
+      )}
+    </Stack>
   );
 };
+
+export default PostPerformanceTracker;

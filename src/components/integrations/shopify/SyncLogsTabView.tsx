@@ -1,6 +1,8 @@
+import { Fragment, useState } from "react";
 import { ScrollText } from "lucide-react";
+import { Box, Button as JoyButton, LinearProgress, Typography } from "@mui/joy";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import type {
   LightspeedPagination,
   ShopifySyncLogRow,
@@ -8,7 +10,9 @@ import type {
 
 import {
   DataTabEmptyState,
+  DataTabLoadingState,
   DataTabPagination,
+  JoyDataTable,
   RawDataPre,
   StatusFilterPills,
   SyncStatusBadge,
@@ -49,9 +53,15 @@ export function SyncLogsTabView({
   onRefresh: () => void;
   trackedJobIds: string[];
 }) {
+  const [expandedFailures, setExpandedFailures] = useState<Record<string, boolean>>({});
+
   const hasVisibleUntrackedActiveJob = rows.some(
     (job) => job.status === "in_progress" && !trackedJobIds.includes(job.id),
   );
+
+  const toggleFailedRow = (id: string) => {
+    setExpandedFailures((current) => ({ ...current, [id]: !current[id] }));
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -79,124 +89,132 @@ export function SyncLogsTabView({
 
       {rows.length > 0 ? (
         <>
-          <div className="divide-y divide-gray-50">
-            {rows.map((job) => {
-              const showProgress =
-                (job.status === "in_progress" ||
-                  job.status === "completed" ||
-                  job.status === "failed") &&
-                typeof job.estimated_rows === "number" &&
-                job.estimated_rows > 0;
-              const progressPercent = showProgress
-                ? Math.min(
-                    100,
-                    Math.round(
-                      ((job.inserted_rows ?? 0) / job.estimated_rows) * 100,
-                    ),
-                  )
-                : job.progressPercent;
+          <div className="overflow-x-auto">
+            <JoyDataTable>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Message</th>
+                  <th>Started</th>
+                  <th>Duration</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((job) => {
+                  const showProgress =
+                    (job.status === "in_progress" ||
+                      job.status === "completed" ||
+                      job.status === "failed") &&
+                    typeof job.estimated_rows === "number" &&
+                    job.estimated_rows > 0;
+                  const progressPercent = showProgress
+                    ? Math.min(
+                        100,
+                        Math.round(((job.inserted_rows ?? 0) / job.estimated_rows) * 100),
+                      )
+                    : job.progressPercent;
+                  const isFailureOpen = Boolean(expandedFailures[job.id]);
 
-              return (
-                <div key={job.id} className="px-5 py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-2 flex items-center gap-2">
-                        <SyncTypeBadge job={job} />
-                        <SyncStatusBadge job={job} />
-                        {job.status === "in_progress" ? (
-                          <span className="animate-pulse text-xs text-muted-foreground">
-                            Live
-                          </span>
-                        ) : null}
-                      </div>
-
-                      {showProgress ? (
-                        <div className="mb-2">
-                          <div className="mb-1 flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">
-                              {(job.inserted_rows ?? 0).toLocaleString()} / ~
-                              {job.estimated_rows?.toLocaleString()} records
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {progressPercent}%
-                            </span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-                            <div
-                              className={
-                                job.status === "failed"
-                                  ? "h-full rounded-full bg-red-400 transition-all duration-500"
-                                  : "h-full rounded-full bg-emerald-500 transition-all duration-500"
-                              }
-                              style={{ width: `${progressPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <p
-                        className={
-                          job.status === "failed"
-                            ? "text-xs text-red-600"
-                            : "text-xs text-muted-foreground"
-                        }
-                      >
-                        {job.progress_message ?? "Queued"}
-                      </p>
-
-                      {job.last_error ? (
-                        <details className="mt-3">
-                          <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                            View job details
-                          </summary>
-                          <RawDataPre
-                            value={{
-                              last_error: job.last_error,
-                              metadata: job.metadata,
+                  return (
+                    <Fragment key={job.id}>
+                      <tr>
+                        <td>
+                          <SyncTypeBadge job={job} />
+                        </td>
+                        <td>
+                          <SyncStatusBadge job={job} />
+                        </td>
+                        <td>
+                          {showProgress ? (
+                            <Box sx={{ minWidth: 150 }}>
+                              <LinearProgress
+                                determinate
+                                size="sm"
+                                color={job.status === "failed" ? "danger" : "success"}
+                                value={progressPercent}
+                              />
+                              <Typography level="body-xs" sx={{ color: "text.tertiary", mt: 0.5 }}>
+                                {(job.inserted_rows ?? 0).toLocaleString()} / ~
+                                {job.estimated_rows?.toLocaleString()} ({progressPercent}%)
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                              —
+                            </Typography>
+                          )}
+                        </td>
+                        <td>
+                          <Typography
+                            level="body-sm"
+                            sx={{
+                              color: job.status === "failed" ? "danger.600" : "text.secondary",
+                              maxWidth: 320,
                             }}
-                          />
-                        </details>
+                          >
+                            {job.progress_message ?? "Queued"}
+                          </Typography>
+                        </td>
+                        <td>
+                          <Typography level="body-sm">{formatRelativeTimestamp(job.created_at)}</Typography>
+                        </td>
+                        <td>
+                          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+                            {formatDuration(job.created_at, job.completed_at) ?? "—"}
+                          </Typography>
+                        </td>
+                        <td className="text-right">
+                          <div className="flex justify-end gap-2">
+                            {job.status === "failed" && job.last_error ? (
+                              <JoyButton
+                                size="sm"
+                                variant="outlined"
+                                color="danger"
+                                onClick={() => toggleFailedRow(job.id)}
+                              >
+                                {isFailureOpen ? "Hide error" : "View error"}
+                              </JoyButton>
+                            ) : null}
+                            {job.status === "failed" ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => onRetrySync(job.normalizedSyncType)}
+                              >
+                                Retry
+                              </Button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                      {job.status === "failed" && job.last_error && isFailureOpen ? (
+                        <tr key={`${job.id}-error`}>
+                          <td colSpan={7}>
+                            <RawDataPre
+                              value={{
+                                last_error: job.last_error,
+                                metadata: job.metadata,
+                              }}
+                            />
+                          </td>
+                        </tr>
                       ) : null}
-                    </div>
-
-                    <div className="flex-shrink-0 text-right">
-                      <p className="text-xs text-muted-foreground">
-                        {formatRelativeTimestamp(job.created_at)}
-                      </p>
-                      {job.completed_at ? (
-                        <p className="text-xs text-muted-foreground">
-                          {formatDuration(job.created_at, job.completed_at)}
-                        </p>
-                      ) : null}
-                      {job.status === "failed" ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="mt-2 h-7 text-xs"
-                          onClick={() => onRetrySync(job.normalizedSyncType)}
-                        >
-                          Retry
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </JoyDataTable>
           </div>
-          <DataTabPagination
-            pagination={pagination}
-            onPageChange={onPageChange}
-          />
+          <DataTabPagination pagination={pagination} onPageChange={onPageChange} />
         </>
       ) : null}
 
-      {isLoading || isFetching ? (
-        <div className="px-5 py-10 text-sm text-muted-foreground">
-          Loading sync history...
-        </div>
-      ) : null}
+      {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState

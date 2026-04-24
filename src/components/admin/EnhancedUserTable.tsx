@@ -1,16 +1,29 @@
+import Chip from "@mui/joy/Chip";
+import Checkbox from "@mui/joy/Checkbox";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
+import { Avatar, AvatarFallback } from "@/components/ui-legacy/avatar";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
 import {
   MoreHorizontal,
   Mail,
@@ -20,23 +33,6 @@ import {
   AlertTriangle,
   Merge,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 // Removed sonner import - using global toast replacement
 import { isSuperAdmin } from "@/utils/adminUtils";
@@ -71,6 +67,8 @@ export const EnhancedUserTable = ({
   onDeleteUser,
 }: EnhancedUserTableProps) => {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [pendingDeleteUser, setPendingDeleteUser] =
+    useState<AdminUserData | null>(null);
   const { user: currentUser } = useAuth();
 
   const {
@@ -83,24 +81,31 @@ export const EnhancedUserTable = ({
     bulkDeleteUsers,
   } = useBulkUserOperations(onDeleteUser);
 
-  const getPlanBadgeColor = (plan: string) => {
+  const getPlanChip = (plan: string) => {
     switch (plan) {
       case "bloom":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return { color: "primary", label: "Bloom" };
       case "sprout":
-        return "bg-green-100 text-green-800 border-green-200";
+        return { color: "success", label: "Sprout" };
       case "free_trial":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return { color: "info", label: "Free Trial" };
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return {
+          color: "neutral",
+          label: plan
+            .replace("_", " ")
+            .replace(/\b\w/g, (char) => char.toUpperCase()),
+        };
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    return status === "active"
-      ? "bg-green-100 text-green-800 border-green-200"
-      : "bg-red-100 text-red-800 border-red-200";
-  };
+  const getStatusChip = (status: string) =>
+    status === "active"
+      ? { color: "success", label: "Active" }
+      : {
+          color: "danger",
+          label: status.replace(/\b\w/g, (char) => char.toUpperCase()),
+        };
 
   const getInitials = (email: string, companyName?: string) => {
     if (companyName && companyName !== "Not set") {
@@ -203,9 +208,11 @@ export const EnhancedUserTable = ({
     selectedNonAdminCount === selectableUsers.length;
   const isIndeterminate =
     selectedNonAdminCount > 0 && selectedNonAdminCount < selectableUsers.length;
+  const isPendingDeleteLoading =
+    pendingDeleteUser !== null && deletingUser === pendingDeleteUser.id;
 
   return (
-    <div className="space-y-4">
+    <Stack spacing={2}>
       <BulkActionsToolbar
         selectedUserIds={selectedUserIds}
         users={users}
@@ -215,288 +222,379 @@ export const EnhancedUserTable = ({
         progress={progress}
       />
 
-      <Card className="rounded-xl enhanced-user-table">
-        <CardHeader>
-          <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
-          <p className="text-sm text-gray-600">
+      <JoyCard>
+        <JoyCardHeader
+          title={`All Users (${users.length})`}
+          titleProps={{ level: "title-lg" }}
+        >
+          <Typography level="body-sm" color="neutral">
             Showing all accounts including duplicates. Users with multiple
             accounts are marked.
-            <span className="text-green-600 font-medium ml-2">
+            <Typography
+              component="span"
+              sx={{
+                ml: 1,
+                color: "success.700",
+                fontWeight: "var(--joy-fontWeight-semibold)",
+              }}
+            >
               Master Admin accounts (
               {isSuperAdmin.toString().split(",").join(", ")}) are protected
               from deletion.
-            </span>
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={isAllSelected}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all non-admin users"
-                    className={
-                      isIndeterminate ? "data-[state=checked]:bg-blue-600" : ""
-                    }
-                  />
-                </TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Plan & Status</TableHead>
-                <TableHead>Trial Info</TableHead>
-                <TableHead>Tokens</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user, index) => {
-                // Create a unique key using user.id and index to prevent duplicate key warnings
-                const uniqueKey = `${user.id}-${index}`;
-                const daysRemaining = getDaysRemaining(user.trial_end_date);
-                const isDeleting = deletingUser === user.id;
-                const isSelected = selectedUserIds.has(user.id);
-                const isAdmin = isSuperAdmin(user.email);
+            </Typography>
+          </Typography>
+        </JoyCardHeader>
+        <JoyCardContent>
+          {users.length === 0 ? (
+            <Stack spacing={0.75} alignItems="center" sx={{ py: 5 }}>
+              <Typography level="title-sm">No users found</Typography>
+              <Typography level="body-sm" color="neutral" textAlign="center">
+                Refresh the admin data source or adjust the current filters.
+              </Typography>
+            </Stack>
+          ) : (
+            <JoyTable containerSx={{ minWidth: 1120 }}>
+              <JoyTableHead>
+                <JoyTableRow>
+                  <JoyTableHeaderCell sx={{ width: 48 }}>
+                    <Checkbox
+                      checked={isAllSelected}
+                      indeterminate={isIndeterminate}
+                      onChange={(event) =>
+                        handleSelectAll(event.target.checked)
+                      }
+                      aria-label="Select all non-admin users"
+                      size="sm"
+                    />
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell>User</JoyTableHeaderCell>
+                  <JoyTableHeaderCell>Company</JoyTableHeaderCell>
+                  <JoyTableHeaderCell>Plan & Status</JoyTableHeaderCell>
+                  <JoyTableHeaderCell>Trial Info</JoyTableHeaderCell>
+                  <JoyTableHeaderCell>Tokens</JoyTableHeaderCell>
+                  <JoyTableHeaderCell>Last Login</JoyTableHeaderCell>
+                  <JoyTableHeaderCell align="right">Actions</JoyTableHeaderCell>
+                </JoyTableRow>
+              </JoyTableHead>
+              <JoyTableBody>
+                {users.map((user, index) => {
+                  // Create a unique key using user.id and index to prevent duplicate key warnings
+                  const uniqueKey = `${user.id}-${index}`;
+                  const daysRemaining = getDaysRemaining(user.trial_end_date);
+                  const isDeleting = deletingUser === user.id;
+                  const isSelected = selectedUserIds.has(user.id);
+                  const isAdmin = isSuperAdmin(user.email);
 
-                return (
-                  <TableRow
-                    key={uniqueKey}
-                    className={`
-                      ${user.is_duplicate ? "bg-gray-50" : ""}
-                      ${isSelected ? "bg-gray-50 border-gray-200" : ""}
-                      ${isAdmin ? "bg-green-50 border-green-200" : ""}
-                    `}
-                    style={{
-                      backgroundColor: isAdmin
-                        ? "#F0FDF4"
-                        : isSelected
-                          ? "#F9FAFB"
-                          : undefined,
-                      borderColor: isAdmin
-                        ? "#BBF7D0"
-                        : isSelected
-                          ? "#E5E7EB"
-                          : undefined,
-                      borderWidth: isSelected || isAdmin ? "1px" : undefined,
-                      borderStyle: isSelected || isAdmin ? "solid" : undefined,
-                    }}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleUserSelection(user.id)}
-                        aria-label={`Select ${user.email}`}
-                        disabled={isDeleting || isProcessing || isAdmin}
-                      />
-                    </TableCell>
+                  return (
+                    <JoyTableRow
+                      key={uniqueKey}
+                      sx={{
+                        "& > td": {
+                          backgroundColor: isAdmin
+                            ? "success.50"
+                            : isSelected || user.is_duplicate
+                              ? "neutral.50"
+                              : "#FFFFFF",
+                          borderColor: isAdmin
+                            ? "success.200"
+                            : isSelected
+                              ? "neutral.200"
+                              : "neutral.100",
+                        },
+                      }}
+                    >
+                      <JoyTableCell>
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => toggleUserSelection(user.id)}
+                          aria-label={`Select ${user.email}`}
+                          disabled={isDeleting || isProcessing || isAdmin}
+                          size="sm"
+                        />
+                      </JoyTableCell>
 
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback
-                            className={`text-xs ${isAdmin ? "bg-green-100 text-green-800" : ""}`}
-                          >
-                            {getInitials(user.email, user.company_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-medium">{user.email}</div>
-                            {isAdmin && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-green-100 text-green-800 border-green-300"
-                              >
-                                Master Admin
-                              </Badge>
-                            )}
-                            {user.is_duplicate && !isAdmin && (
-                              <div className="flex items-center gap-1">
-                                <AlertTriangle className="w-4 h-4 text-gray-500" />
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs bg-gray-100 text-gray-800"
-                                >
-                                  Account #{user.account_number}
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Joined {formatDate(user.created_at)}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {user.company_name || "Not set"}
-                        </div>
-                        <Badge variant="outline" className="mt-1">
-                          {user.onboarding_completed ? "Onboarded" : "Pending"}
-                        </Badge>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <Badge className={getPlanBadgeColor(user.plan)}>
-                          {user.plan.replace("_", " ").charAt(0).toUpperCase() +
-                            user.plan.slice(1)}
-                        </Badge>
-                        <Badge className={getStatusBadgeColor(user.status)}>
-                          {user.status}
-                        </Badge>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      {user.plan === "free_trial" && user.trial_end_date && (
-                        <div className="text-sm">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            Ends {formatDate(user.trial_end_date)}
-                          </div>
-                          {daysRemaining !== null && (
-                            <div
-                              className={`text-xs ${daysRemaining <= 3 ? "text-red-600" : "text-gray-600"}`}
-                            >
-                              {daysRemaining > 0
-                                ? `${daysRemaining} days left`
-                                : "Expired"}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Coins className="w-4 h-4 text-orange-600" />
-                        <span
-                          className={
-                            user.tokens_balance && user.tokens_balance < 0
-                              ? "text-red-600"
-                              : ""
-                          }
+                      <JoyTableCell>
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
                         >
-                          {user.tokens_balance || 0}
-                        </span>
-                      </div>
-                    </TableCell>
+                          <Avatar style={{ width: 32, height: 32 }}>
+                            <AvatarFallback
+                              style={{
+                                fontSize: 12,
+                                backgroundColor: isAdmin
+                                  ? "#DCFCE7"
+                                  : undefined,
+                                color: isAdmin ? "#166534" : undefined,
+                              }}
+                            >
+                              {getInitials(user.email, user.company_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <Stack spacing={0.5}>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                              useFlexGap
+                              flexWrap="wrap"
+                            >
+                              <Typography
+                                sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                              >
+                                {user.email}
+                              </Typography>
+                              {isAdmin && (
+                                <Chip color="success" size="sm" variant="soft">
+                                  Master Admin
+                                </Chip>
+                              )}
+                              {user.is_duplicate && !isAdmin && (
+                                <Stack
+                                  direction="row"
+                                  spacing={0.5}
+                                  alignItems="center"
+                                >
+                                  <AlertTriangle
+                                    className="w-4 h-4"
+                                    style={{
+                                      color: "var(--joy-palette-neutral-500)",
+                                    }}
+                                  />
+                                  <Chip
+                                    color="neutral"
+                                    size="sm"
+                                    variant="soft"
+                                  >
+                                    Account #{user.account_number}
+                                  </Chip>
+                                </Stack>
+                              )}
+                            </Stack>
+                            <Typography level="body-sm" color="neutral">
+                              Joined {formatDate(user.created_at)}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      </JoyTableCell>
 
-                    <TableCell>
-                      <div className="text-sm text-gray-600">
-                        {formatDate(user.last_login)}
-                      </div>
-                    </TableCell>
+                      <JoyTableCell>
+                        <Stack spacing={0.75}>
+                          <Typography
+                            sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                          >
+                            {user.company_name || "Not set"}
+                          </Typography>
+                          <Chip
+                            color={
+                              user.onboarding_completed ? "success" : "neutral"
+                            }
+                            size="sm"
+                            variant="soft"
+                          >
+                            {user.onboarding_completed
+                              ? "Onboarded"
+                              : "Pending"}
+                          </Chip>
+                        </Stack>
+                      </JoyTableCell>
 
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
+                      <JoyTableCell>
+                        <Stack spacing={0.75}>
+                          <Chip
+                            color={getPlanChip(user.plan).color}
+                            size="sm"
+                            variant="soft"
+                          >
+                            {getPlanChip(user.plan).label}
+                          </Chip>
+                          <Chip
+                            color={getStatusChip(user.status).color}
+                            size="sm"
+                            variant="soft"
+                          >
+                            {getStatusChip(user.status).label}
+                          </Chip>
+                        </Stack>
+                      </JoyTableCell>
+
+                      <JoyTableCell>
+                        {user.plan === "free_trial" && user.trial_end_date && (
+                          <Stack spacing={0.5}>
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              alignItems="center"
+                            >
+                              <Calendar
+                                className="w-3 h-3"
+                                style={{
+                                  color: "var(--joy-palette-neutral-500)",
+                                }}
+                              />
+                              <Typography level="body-sm">
+                                Ends {formatDate(user.trial_end_date)}
+                              </Typography>
+                            </Stack>
+                            {daysRemaining !== null && (
+                              <Typography
+                                level="body-xs"
+                                color={
+                                  daysRemaining <= 3 ? "danger" : "neutral"
+                                }
+                              >
+                                {daysRemaining > 0
+                                  ? `${daysRemaining} days left`
+                                  : "Expired"}
+                              </Typography>
+                            )}
+                          </Stack>
+                        )}
+                      </JoyTableCell>
+
+                      <JoyTableCell>
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          alignItems="center"
+                        >
+                          <Coins
+                            className="w-4 h-4"
+                            style={{ color: "var(--joy-palette-warning-600)" }}
+                          />
+                          <Typography
+                            level="body-sm"
+                            color={
+                              user.tokens_balance && user.tokens_balance < 0
+                                ? "danger"
+                                : "neutral"
+                            }
+                          >
+                            {user.tokens_balance || 0}
+                          </Typography>
+                        </Stack>
+                      </JoyTableCell>
+
+                      <JoyTableCell>
+                        <Typography level="body-sm" color="neutral">
+                          {formatDate(user.last_login)}
+                        </Typography>
+                      </JoyTableCell>
+
+                      <JoyTableCell sx={{ textAlign: "right" }}>
+                        <JoyDropdownMenu>
+                          <JoyDropdownMenuTrigger
+                            aria-label="Open user actions"
                             disabled={isDeleting || isProcessing}
+                            iconButtonSx={{ width: 32, height: 32, ml: "auto" }}
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Mail className="mr-2 h-4 w-4" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>View Profile</DropdownMenuItem>
-                          <DropdownMenuItem>Reset Password</DropdownMenuItem>
-                          {user.is_duplicate && (
-                            <DropdownMenuItem className="text-blue-600">
-                              <Merge className="mr-2 h-4 w-4" />
-                              Manage Duplicates
-                            </DropdownMenuItem>
-                          )}
-                          {!isAdmin && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  onSelect={(e) => e.preventDefault()}
-                                  disabled={isDeleting || isProcessing}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4 text-red-600" />
-                                  <span className="text-red-600">
-                                    {isDeleting ? "Deleting..." : "Delete User"}
-                                  </span>
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete User Account
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to permanently delete
-                                    the account for{" "}
-                                    <strong>{user.email}</strong>
-                                    {user.is_duplicate &&
-                                      ` (Account #${user.account_number})`}
-                                    ? This will delete all their data including
-                                    campaigns, content, and subscriptions. This
-                                    action cannot be undone.
-                                    {user.is_duplicate && (
-                                      <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
-                                        <strong>Note:</strong> This user has
-                                        multiple accounts. Consider using the
-                                        Duplicate Management section to merge
-                                        accounts instead of deleting.
-                                      </div>
-                                    )}
-                                    <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
-                                      <strong>Admin Check:</strong> Only super
-                                      administrators can delete users. Current
-                                      user:{" "}
-                                      {currentUser?.email || "Not logged in"}
-                                      {currentUser?.email &&
-                                      isSuperAdmin(currentUser.email)
-                                        ? " ✓ (Super Admin)"
-                                        : " ✗ (Not Super Admin)"}
-                                    </div>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel disabled={isDeleting}>
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      handleDeleteUser(user.id, user.email)
-                                    }
-                                    disabled={
-                                      isDeleting ||
-                                      !currentUser?.email ||
-                                      !isSuperAdmin(currentUser.email)
-                                    }
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    {isDeleting ? "Deleting..." : "Delete User"}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+                          </JoyDropdownMenuTrigger>
+                          <JoyDropdownMenuContent placement="bottom-end">
+                            <JoyDropdownMenuItem
+                              startDecorator={<Mail className="h-4 w-4" />}
+                            >
+                              Send Email
+                            </JoyDropdownMenuItem>
+                            <JoyDropdownMenuItem>
+                              View Profile
+                            </JoyDropdownMenuItem>
+                            <JoyDropdownMenuItem>
+                              Reset Password
+                            </JoyDropdownMenuItem>
+                            {user.is_duplicate && (
+                              <JoyDropdownMenuItem
+                                color="primary"
+                                startDecorator={<Merge className="h-4 w-4" />}
+                              >
+                                Manage Duplicates
+                              </JoyDropdownMenuItem>
+                            )}
+                            {!isAdmin && (
+                              <JoyDropdownMenuItem
+                                destructive
+                                startDecorator={<Trash2 className="h-4 w-4" />}
+                                disabled={isDeleting || isProcessing}
+                                onClick={() => setPendingDeleteUser(user)}
+                              >
+                                {isDeleting ? "Deleting..." : "Delete User"}
+                              </JoyDropdownMenuItem>
+                            )}
+                          </JoyDropdownMenuContent>
+                        </JoyDropdownMenu>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  );
+                })}
+              </JoyTableBody>
+            </JoyTable>
+          )}
+        </JoyCardContent>
+      </JoyCard>
+
+      <JoyAlertDialog
+        open={pendingDeleteUser !== null}
+        onClose={() => setPendingDeleteUser(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteUser) {
+            return;
+          }
+          await handleDeleteUser(pendingDeleteUser.id, pendingDeleteUser.email);
+          setPendingDeleteUser(null);
+        }}
+        title="Delete User Account"
+        description={
+          pendingDeleteUser ? (
+            <>
+              Permanently delete the account for{" "}
+              <strong>{pendingDeleteUser.email}</strong>
+              {pendingDeleteUser.is_duplicate
+                ? ` (Account #${pendingDeleteUser.account_number})`
+                : ""}
+              ? This deletes campaigns, content, subscriptions, and related user
+              data.
+            </>
+          ) : undefined
+        }
+        variant="danger"
+        confirmLabel={isPendingDeleteLoading ? "Deleting..." : "Delete User"}
+        confirmDisabled={
+          isPendingDeleteLoading ||
+          !currentUser?.email ||
+          !isSuperAdmin(currentUser.email)
+        }
+        cancelDisabled={isPendingDeleteLoading}
+        disableClose={isPendingDeleteLoading}
+        loading={isPendingDeleteLoading}
+      >
+        {pendingDeleteUser?.is_duplicate ? (
+          <Sheet
+            color="neutral"
+            variant="soft"
+            sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+          >
+            <Typography level="body-sm">
+              <strong>Note:</strong> This user has multiple accounts. Consider
+              merging accounts instead of deleting.
+            </Typography>
+          </Sheet>
+        ) : null}
+
+        <Sheet
+          color="primary"
+          variant="soft"
+          sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+        >
+          <Typography level="body-sm">
+            <strong>Admin Check:</strong> Only super administrators can delete
+            users. Current user: {currentUser?.email || "Not logged in"}
+            {currentUser?.email && isSuperAdmin(currentUser.email)
+              ? " ✓ (Super Admin)"
+              : " ✗ (Not Super Admin)"}
+          </Typography>
+        </Sheet>
+      </JoyAlertDialog>
+    </Stack>
   );
 };

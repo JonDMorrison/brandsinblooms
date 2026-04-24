@@ -1,160 +1,259 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { DashboardSection } from './DashboardSection';
-import { Sparkline } from '@/components/ui/sparkline';
-import { TimelineChart } from '@/components/charts/TimelineChart';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
-import { Activity, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Activity, Clock3, Gauge, MousePointerClick } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import type { EngagementMetrics } from "@/lib/customerDashboardTransformers";
+import { formatDaysLabel, getScoreColor } from "./customerDashboardUtils";
 
 interface EngagementHealthOverviewProps {
-  metrics: {
-    engagementScore?: number;
-    engagementTrend?: number[];
-    daysSinceLastEngagement?: number;
-    engagementVelocity?: number;
-    emailInteractions7d?: number;
-    emailInteractions30d?: number;
-    smsInteractions7d?: number;
-    smsInteractions30d?: number;
-  };
-  timelineData?: Array<{
+  metrics: EngagementMetrics;
+  timelineData: Array<{
     date: string;
-    engagement?: number;
-    email?: number;
-    sms?: number;
+    engagement: number;
+    emailEvents: number;
+    smsEvents: number;
   }>;
-  className?: string;
+  errorMessage?: string | null;
+  onRetry?: () => void;
 }
 
-const getEngagementColor = (score: number): string => {
-  if (score >= 70) return 'text-green-600';
-  if (score >= 40) return 'text-amber-600';
-  return 'text-red-600';
-};
+const summaryTiles = (metrics: EngagementMetrics) => [
+  {
+    label: "Engagement Score",
+    value: metrics.engagementScore,
+    helper: metrics.engagementTrend
+      ? "Based on timeline trend"
+      : "Trend data not yet available",
+    icon: Gauge,
+  },
+  {
+    label: "Days Since Last Engagement",
+    value: formatDaysLabel(metrics.daysSinceLastEngagement),
+    helper:
+      metrics.daysSinceLastEngagement !== null &&
+      metrics.daysSinceLastEngagement <= 7
+        ? "Healthy recency"
+        : "Watch recency closely",
+    icon: Clock3,
+  },
+  {
+    label: "Engagement Velocity",
+    value:
+      metrics.engagementVelocity === null
+        ? "Data not available"
+        : `${metrics.engagementVelocity.toFixed(1)}x`,
+    helper: "Relative momentum across recent windows",
+    icon: Activity,
+  },
+  {
+    label: "Recent Interactions",
+    value: metrics.emailInteractions7d + metrics.smsInteractions7d,
+    helper: `${metrics.emailInteractions7d} email · ${metrics.smsInteractions7d} SMS in 7d`,
+    icon: MousePointerClick,
+  },
+];
 
-const getEngagementLabel = (score: number): string => {
-  if (score >= 70) return 'Healthy';
-  if (score >= 40) return 'At Risk';
-  return 'Critical';
-};
-
-export const EngagementHealthOverview: React.FC<EngagementHealthOverviewProps> = ({
+export function EngagementHealthOverview({
   metrics,
-  timelineData = [],
-  className,
-}) => {
-  const velocityTrend = (metrics.engagementVelocity || 0) >= 0;
-  const hasTimelineData = timelineData.length > 0 && timelineData.some(d => (d.engagement || 0) > 0);
-
+  timelineData,
+  errorMessage,
+  onRetry,
+}: EngagementHealthOverviewProps) {
   return (
-    <DashboardSection
-      title="Engagement Health Overview"
-      icon={<Activity className="h-4 w-4" />}
-      tooltip="Track overall engagement patterns across all channels over time"
-      className={className}
-    >
-      {/* Main Chart */}
-      <div className="mb-6 relative">
-        {hasTimelineData ? (
-          <TimelineChart
-            data={timelineData.map(d => ({
-              date: d.date,
-              engagement: d.engagement,
-            }))}
-            height={180}
-            showOrders={false}
-            showRevenue={false}
-            showEngagement={true}
-          />
-        ) : (
-          <EmptyChartOverlay
-            message="No engagement timeline data available yet"
-            icon="line"
-            height={180}
-          />
-        )}
-      </div>
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="Engagement health"
+        description="How quickly this customer is responding and whether momentum is strengthening or fading."
+        actions={
+          errorMessage && onRetry ? (
+            <JoyButton
+              color="danger"
+              variant="plain"
+              size="sm"
+              onClick={onRetry}
+            >
+              Retry
+            </JoyButton>
+          ) : null
+        }
+      />
+      <JoyCardContent>
+        <Stack spacing={2.5}>
+          {errorMessage ? (
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="title-sm">
+                Failed to load engagement chart
+              </Typography>
+              <Typography level="body-sm" color="danger">
+                {errorMessage}
+              </Typography>
+            </Sheet>
+          ) : timelineData.length > 0 ? (
+            <Box sx={{ height: 280, width: "100%" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={timelineData}
+                  margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    stroke="var(--joy-palette-neutral-200)"
+                    strokeDasharray="3 3"
+                  />
+                  <XAxis
+                    dataKey="date"
+                    tick={{
+                      fill: "var(--joy-palette-neutral-500)",
+                      fontSize: 11,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{
+                      fill: "var(--joy-palette-neutral-500)",
+                      fontSize: 11,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{
+                      fill: "var(--joy-palette-neutral-500)",
+                      fontSize: 11,
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid var(--joy-palette-neutral-200)",
+                      backgroundColor: "var(--joy-palette-background-surface)",
+                    }}
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="emailEvents"
+                    fill="var(--joy-palette-primary-200)"
+                    radius={[6, 6, 0, 0]}
+                    barSize={16}
+                    name="Email events"
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="smsEvents"
+                    fill="var(--joy-palette-success-300)"
+                    radius={[6, 6, 0, 0]}
+                    barSize={16}
+                    name="SMS events"
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="engagement"
+                    stroke="var(--joy-palette-primary-600)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "var(--joy-palette-primary-600)" }}
+                    name="Engagement score"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Box>
+          ) : (
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "xl", p: 2.5 }}
+            >
+              <Typography level="title-sm">
+                Trend data not yet available
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                This customer does not have enough engagement history for the
+                timeline card yet.
+              </Typography>
+            </Sheet>
+          )}
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Engagement Score */}
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <div className={cn(
-              'text-2xl font-bold',
-              getEngagementColor(metrics.engagementScore || 0)
-            )}>
-              {metrics.engagementScore || 0}
-            </div>
-            {metrics.engagementTrend && metrics.engagementTrend.length > 1 && (
-              <Sparkline
-                data={metrics.engagementTrend}
-                width={48}
-                height={20}
-              />
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Score: <span className={getEngagementColor(metrics.engagementScore || 0)}>
-              {getEngagementLabel(metrics.engagementScore || 0)}
-            </span>
-          </p>
-        </div>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            {summaryTiles(metrics).map((tile) => {
+              const Icon = tile.icon;
+              const scoreColor =
+                tile.label === "Engagement Score"
+                  ? getScoreColor(metrics.engagementScore)
+                  : "neutral";
 
-        {/* Days Since Engagement */}
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className={cn(
-              'text-2xl font-bold',
-              (metrics.daysSinceLastEngagement || 0) > 14 ? 'text-amber-600' : 'text-foreground'
-            )}>
-              {metrics.daysSinceLastEngagement || 0}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">Days Since Engagement</p>
-        </div>
-
-        {/* Engagement Velocity */}
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            {velocityTrend ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            )}
-            <span className={cn(
-              'text-2xl font-bold',
-              velocityTrend ? 'text-green-600' : 'text-red-600'
-            )}>
-              {velocityTrend ? '+' : ''}{metrics.engagementVelocity || 0}%
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground">Velocity (vs. last period)</p>
-        </div>
-
-        {/* Channel Activity */}
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-center">
-              <div className="text-lg font-semibold text-foreground">
-                {metrics.emailInteractions7d || 0}
-              </div>
-              <div className="text-[10px] text-muted-foreground">Email</div>
-            </div>
-            <div className="h-8 w-px bg-border" />
-            <div className="text-center">
-              <div className="text-lg font-semibold text-foreground">
-                {metrics.smsInteractions7d || 0}
-              </div>
-              <div className="text-[10px] text-muted-foreground">SMS</div>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground text-center">7-Day Interactions</p>
-        </div>
-      </div>
-    </DashboardSection>
+              return (
+                <Sheet
+                  key={tile.label}
+                  variant="outlined"
+                  sx={{ borderRadius: "xl", p: 2, borderColor: "neutral.200" }}
+                >
+                  <Stack spacing={1.25}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Sheet
+                        variant="soft"
+                        color={scoreColor}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "lg",
+                          display: "grid",
+                          placeItems: "center",
+                        }}
+                      >
+                        <Icon size={16} />
+                      </Sheet>
+                      <Typography level="body-xs" color="neutral">
+                        {tile.label}
+                      </Typography>
+                    </Stack>
+                    <Typography level="h3">{tile.value}</Typography>
+                    <Typography level="body-xs" color="neutral">
+                      {tile.helper}
+                    </Typography>
+                  </Stack>
+                </Sheet>
+              );
+            })}
+          </Box>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}
 
 export default EngagementHealthOverview;

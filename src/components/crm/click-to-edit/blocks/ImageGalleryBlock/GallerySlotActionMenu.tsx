@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Image, RefreshCw, Sparkles, Settings, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

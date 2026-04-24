@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ContentBlock, BlockType, BlockLayout } from "@/types/emailBuilder";
-import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Button } from "@/components/ui-legacy/button";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import {
   mapModalLayoutToBlockLayout,

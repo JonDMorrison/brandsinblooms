@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { GripVertical, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 

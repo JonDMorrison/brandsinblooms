@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Facebook, Instagram, Send, Loader2, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 // Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';

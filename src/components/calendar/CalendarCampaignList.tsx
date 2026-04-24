@@ -1,8 +1,6 @@
-
-import { Badge } from "@/components/ui/badge";
-import { dateToWeekNumber } from "@/utils/dateUtils";
-import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Box from "@mui/joy/Box";
+import Typography from "@mui/joy/Typography";
+import { createCalendarPillSx } from "@/components/calendar/calendarEventPresentation";
 
 interface Campaign {
   id: number;
@@ -22,16 +20,12 @@ interface CalendarCampaignListProps {
 
 export const CalendarCampaignList = ({
   campaigns,
+  onCampaignClick,
   selectionMode = false,
   selectedCampaigns = [],
-  onCampaignClick,
+  highlightedId,
 }: CalendarCampaignListProps) => {
-  // Sort campaigns by ID descending to show newest first, then show only 1
   const sortedCampaigns = [...campaigns].sort((a, b) => b.id - a.id);
-
-  const isCampaignSelected = (campaign: Campaign) => {
-    return selectedCampaigns.some(c => c.id === campaign.id);
-  };
 
   const handleCampaignClick = (campaign: Campaign, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -40,44 +34,66 @@ export const CalendarCampaignList = ({
     }
   };
 
-  // Show only 1 campaign per day to avoid duplicates
   return (
     <>
       {sortedCampaigns.slice(0, 1).map((campaign) => {
-        const isSelected = isCampaignSelected(campaign);
-        
+        const isSelected = selectedCampaigns.some(
+          (selected) => selected.id === campaign.id,
+        );
+        const isHighlighted = highlightedId === String(campaign.id);
+
         return (
-          <div
+          <Box
+            component="button"
             key={campaign.id}
-            className={cn(
-              "relative p-3 rounded-lg cursor-pointer transition-all duration-300 border text-xs shadow-sm",
-              selectionMode && isSelected 
-                ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-300 shadow-md" 
-                : "bg-gradient-to-r from-white to-blue-50/30 border-blue-200/50 hover:border-blue-300 hover:from-blue-50/50 hover:to-blue-100/40 hover:shadow-md",
-              !selectionMode && "hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5"
-            )}
+            type="button"
+            sx={{
+              ...createCalendarPillSx("event", isHighlighted || isSelected),
+              appearance: "none",
+              px: 1,
+              py: 0.75,
+            }}
             onClick={(e) => handleCampaignClick(campaign, e)}
           >
-            {selectionMode && isSelected && (
-              <div className="absolute -top-1 -right-1 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
-                <Check className="w-3 h-3" />
-              </div>
-            )}
-            
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-gray-800 truncate">
+            <Box sx={{ pl: 0.75, minWidth: 0 }}>
+              <Typography
+                level="body-xs"
+                fontWeight="lg"
+                sx={{
+                  color: "success.700",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {campaign.title}
-              </h4>
-            </div>
-            
-            {campaign.theme && campaign.theme !== campaign.title && (
-              <p className="text-xs text-gray-600 truncate mt-1.5 leading-relaxed">
-                {campaign.theme}
-              </p>
-            )}
-          </div>
+              </Typography>
+              {campaign.theme && campaign.theme !== campaign.title && (
+                <Typography
+                  level="body-xs"
+                  sx={{
+                    color: "success.800",
+                    opacity: 0.72,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {campaign.theme}
+                </Typography>
+              )}
+            </Box>
+          </Box>
         );
       })}
     </>
   );
 };
+
+interface CalendarCampaignListProps {
+  campaigns: Campaign[];
+  selectionMode?: boolean;
+  selectedCampaigns?: Campaign[];
+  onCampaignClick?: (campaign: Campaign) => void;
+  highlightedId?: string | null;
+}

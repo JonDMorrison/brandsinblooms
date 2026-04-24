@@ -1,8 +1,8 @@
 
 import * as React from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { Button } from "@/components/ui-legacy/button";
+import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 import { Sparkles, Calendar } from "lucide-react";
 
 export const SmartThemeSelector = () => {

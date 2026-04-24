@@ -1,154 +1,261 @@
-import React, { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu'
+import * as React from "react";
+import Button from "@mui/joy/Button";
+import DialogActions from "@mui/joy/DialogActions";
+import DialogContent from "@mui/joy/DialogContent";
+import DialogTitle from "@mui/joy/DialogTitle";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { 
-  RefreshCwIcon, 
-  DownloadIcon, 
-  MoreVerticalIcon,
-  LoaderIcon,
-  AlertTriangleIcon
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { retryFailedMessages, downloadFailedMessages } from '@/lib/sms/smsRetryService'
+  Download,
+  LoaderCircle,
+  Pause,
+  Play,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  downloadFailedMessages,
+  retryFailedMessages,
+} from "@/lib/sms/smsRetryService";
 
 interface SmsCampaignActionsProps {
-  campaignId: string
-  failedCount: number
-  onRetryComplete?: () => void
+  campaignId: string;
+  campaignName?: string;
+  status: string;
+  failedCount: number;
+  resumeStatus?: string;
+  onRetryComplete?: () => void;
+  onStatusChange?: (nextStatus: string) => void;
+  onDeleteComplete?: () => void;
 }
 
-export function SmsCampaignActions({ campaignId, failedCount, onRetryComplete }: SmsCampaignActionsProps) {
-  const [isRetrying, setIsRetrying] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [showRetryDialog, setShowRetryDialog] = useState(false)
+const PAUSEABLE_STATUSES = new Set(["queued", "sending", "scheduled"]);
 
-  const handleRetry = async () => {
-    setShowRetryDialog(false)
-    setIsRetrying(true)
+export function SmsCampaignActions({
+  campaignId,
+  campaignName,
+  status,
+  failedCount,
+  resumeStatus = "queued",
+  onRetryComplete,
+  onStatusChange,
+  onDeleteComplete,
+}: SmsCampaignActionsProps) {
+  const [isRetrying, setIsRetrying] = React.useState(false);
+  const [isDownloading, setIsDownloading] = React.useState(false);
+  const [isTogglingStatus, setIsTogglingStatus] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
 
+  const canPause = PAUSEABLE_STATUSES.has(status);
+  const canResume = status === "paused";
+
+  const handleRetry = React.useCallback(async () => {
+    setIsRetrying(true);
     try {
-      const result = await retryFailedMessages(campaignId, 'all_failed')
-      
-      if (result.success) {
-        if (result.countReset > 0) {
-          toast.success(`Retrying ${result.countReset} messages`, {
-            description: result.countSkippedOptOut + result.countSkippedSuppressed > 0
-              ? `Skipped: ${result.countSkippedOptOut} opted-out, ${result.countSkippedSuppressed} suppressed`
-              : undefined
-          })
-          onRetryComplete?.()
-        } else {
-          toast.info('No messages to retry', {
-            description: 'All failed messages have opted-out or suppressed recipients'
-          })
-        }
-      } else {
-        toast.error('Failed to retry messages', {
-          description: result.error
-        })
+      const result = await retryFailedMessages(campaignId, "all_failed");
+
+      if (!result.success) {
+        throw new Error(
+          result.error || result.message || "Failed to retry messages",
+        );
       }
+
+      if (result.countReset > 0) {
+        toast.success(`Retrying ${result.countReset} failed messages`);
+        onRetryComplete?.();
+        return;
+      }
+
+      toast.info("No failed messages were eligible for retry.");
     } catch (error) {
-      toast.error('Failed to retry messages', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      })
+      toast.error(
+        error instanceof Error ? error.message : "Failed to retry messages",
+      );
     } finally {
-      setIsRetrying(false)
+      setIsRetrying(false);
     }
-  }
+  }, [campaignId, onRetryComplete]);
 
-  const handleDownload = async () => {
-    setIsDownloading(true)
-
+  const handleDownload = React.useCallback(async () => {
+    setIsDownloading(true);
     try {
-      await downloadFailedMessages(campaignId)
-      toast.success('Download started')
+      await downloadFailedMessages(campaignId);
+      toast.success("Failed message export started.");
     } catch (error) {
-      toast.error('Failed to download', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      })
+      toast.error(
+        error instanceof Error ? error.message : "Failed to export CSV",
+      );
     } finally {
-      setIsDownloading(false)
+      setIsDownloading(false);
     }
-  }
+  }, [campaignId]);
 
-  if (failedCount === 0) {
-    return null
-  }
+  const handleToggleStatus = React.useCallback(async () => {
+    const nextStatus = status === "paused" ? resumeStatus : "paused";
+    setIsTogglingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("crm_sms_campaigns")
+        .update({
+          status: nextStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success(
+        nextStatus === "paused" ? "Campaign paused" : "Campaign resumed",
+      );
+      onStatusChange?.(nextStatus);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update status",
+      );
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  }, [campaignId, onStatusChange, resumeStatus, status]);
+
+  const handleDelete = React.useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("crm_sms_campaigns")
+        .delete()
+        .eq("id", campaignId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Campaign deleted");
+      setShowDeleteDialog(false);
+      onDeleteComplete?.();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete campaign",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [campaignId, onDeleteComplete]);
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            <MoreVerticalIcon className="h-4 w-4 mr-1" />
-            Failed Actions
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+        {failedCount > 0 ? (
+          <Button
+            size="sm"
+            variant="soft"
+            color="warning"
+            startDecorator={
+              isRetrying ? (
+                <LoaderCircle size={14} className="spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )
+            }
+            loading={isRetrying}
+            onClick={() => void handleRetry()}
+            sx={{ borderRadius: "12px" }}
+          >
+            {`Retry failed (${failedCount})`}
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem 
-            onClick={() => setShowRetryDialog(true)}
-            disabled={isRetrying}
-          >
-            {isRetrying ? (
-              <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCwIcon className="h-4 w-4 mr-2" />
-            )}
-            Retry Failed ({failedCount})
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={handleDownload}
-            disabled={isDownloading}
-          >
-            {isDownloading ? (
-              <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <DownloadIcon className="h-4 w-4 mr-2" />
-            )}
-            Download Failed CSV
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        ) : null}
 
-      <AlertDialog open={showRetryDialog} onOpenChange={setShowRetryDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangleIcon className="h-5 w-5 text-amber-500" />
-              Retry Failed Messages
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will queue {failedCount} failed messages to be sent again. 
-              Messages to opted-out or suppressed customers will be skipped.
-              <br /><br />
-              <strong>Note:</strong> This may incur additional SMS charges for successfully sent messages.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRetry}>
-              Retry Messages
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {failedCount > 0 ? (
+          <Button
+            size="sm"
+            variant="soft"
+            color="neutral"
+            startDecorator={
+              isDownloading ? (
+                <LoaderCircle size={14} className="spin" />
+              ) : (
+                <Download size={14} />
+              )
+            }
+            loading={isDownloading}
+            onClick={() => void handleDownload()}
+            sx={{ borderRadius: "12px" }}
+          >
+            Export failed CSV
+          </Button>
+        ) : null}
+
+        {canPause || canResume ? (
+          <Button
+            size="sm"
+            variant="outlined"
+            color={canResume ? "success" : "warning"}
+            startDecorator={
+              canResume ? <Play size={14} /> : <Pause size={14} />
+            }
+            loading={isTogglingStatus}
+            onClick={() => void handleToggleStatus()}
+            sx={{ borderRadius: "12px" }}
+          >
+            {canResume ? "Resume" : "Pause"}
+          </Button>
+        ) : null}
+
+        <Button
+          size="sm"
+          variant="outlined"
+          color="danger"
+          startDecorator={<Trash2 size={14} />}
+          onClick={() => setShowDeleteDialog(true)}
+          sx={{ borderRadius: "12px" }}
+        >
+          Delete
+        </Button>
+      </Stack>
+
+      <Modal
+        open={showDeleteDialog}
+        onClose={() => !isDeleting && setShowDeleteDialog(false)}
+      >
+        <ModalDialog
+          variant="outlined"
+          role="alertdialog"
+          sx={{ borderRadius: "24px", maxWidth: 480 }}
+        >
+          <DialogTitle>Delete campaign</DialogTitle>
+          <DialogContent>
+            <Typography level="body-sm" color="neutral">
+              {campaignName
+                ? `Delete ${campaignName}? This removes the campaign record and cannot be undone.`
+                : "Delete this campaign? This removes the campaign record and cannot be undone."}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="plain"
+              color="neutral"
+              disabled={isDeleting}
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="solid"
+              color="danger"
+              loading={isDeleting}
+              onClick={() => void handleDelete()}
+            >
+              Delete campaign
+            </Button>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
     </>
-  )
+  );
 }

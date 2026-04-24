@@ -1,8 +1,8 @@
 // src/components/publish/preview/SocialPostPreviewModal.tsx
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { InstagramPreview } from './InstagramPreview';
 import { FacebookPreview } from './FacebookPreview';
 import { getAspectHint, getValidationFor } from './useAspectInfo';

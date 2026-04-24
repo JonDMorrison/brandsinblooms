@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
 import { Loader2, X } from 'lucide-react';
 
 interface UnsplashImage {

@@ -1,7 +1,10 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LucideIcon } from "lucide-react";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import type { ColorPaletteProp } from "@mui/joy/styles/types";
+import Typography from "@mui/joy/Typography";
+import { type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
 
 interface MetricCardProps {
   title: string;
@@ -17,49 +20,101 @@ interface MetricCardProps {
   prefix?: string;
 }
 
-export const MetricCard = ({ 
-  title, 
-  value, 
-  description, 
-  icon: Icon, 
-  color, 
-  borderColor, 
-  bgColor, 
+export const MetricCard = ({
+  title,
+  value,
+  description,
+  icon: Icon,
+  color,
+  borderColor,
+  bgColor,
   clickable = false,
   href,
   suffix = "",
-  prefix = ""
+  prefix = "",
 }: MetricCardProps) => {
+  const resolvePalette = (...tokens: string[]): ColorPaletteProp => {
+    const joined = tokens.join(" ").toLowerCase();
+
+    if (joined.includes("green") || joined.includes("emerald")) {
+      return "success";
+    }
+
+    if (
+      joined.includes("yellow") ||
+      joined.includes("orange") ||
+      joined.includes("amber")
+    ) {
+      return "warning";
+    }
+
+    if (joined.includes("red")) {
+      return "danger";
+    }
+
+    if (
+      joined.includes("blue") ||
+      joined.includes("purple") ||
+      joined.includes("indigo") ||
+      joined.includes("cyan")
+    ) {
+      return "primary";
+    }
+
+    return "neutral";
+  };
+
+  const palette = resolvePalette(color, borderColor, bgColor);
+  const displayValue =
+    value === 0 && !clickable ? "—" : `${prefix}${value}${suffix}`;
   const cardContent = (
-    <>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
-        <Icon className="h-5 w-5 text-gray-400" />
-      </CardHeader>
-      <CardContent>
-        <div className={`text-2xl font-bold ${color}`}>
-          {value === 0 && !clickable ? '—' : `${prefix}${value}${suffix}`}
-        </div>
-        <p className="text-sm text-gray-500 mt-1">{description}</p>
-      </CardContent>
-    </>
+    <JoyCard interactive={clickable}>
+      <JoyCardContent sx={{ pt: 3 }}>
+        <Stack spacing={1.5}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="flex-start"
+            justifyContent="space-between"
+          >
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Typography level="body-sm" color="neutral">
+                {title}
+              </Typography>
+              <Typography level="h3" color={palette}>
+                {displayValue}
+              </Typography>
+            </Stack>
+            <Sheet
+              variant="soft"
+              color={palette}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "999px",
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon className="h-5 w-5" />
+            </Sheet>
+          </Stack>
+          <Typography level="body-sm" color="neutral">
+            {description}
+          </Typography>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
 
   if (clickable && href) {
     return (
-      <Link to={href} className="block">
-        <Card 
-          className={`${borderColor} ${bgColor} rounded-xl transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105`}
-        >
-          {cardContent}
-        </Card>
+      <Link to={href} className="block no-underline">
+        {cardContent}
       </Link>
     );
   }
 
-  return (
-    <Card className={`${borderColor} ${bgColor} rounded-xl transition-all duration-200`}>
-      {cardContent}
-    </Card>
-  );
+  return cardContent;
 };

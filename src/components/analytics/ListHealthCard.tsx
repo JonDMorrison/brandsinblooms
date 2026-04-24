@@ -1,169 +1,301 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { AlertTriangle, CheckCircle, XCircle, Info, Shield } from 'lucide-react';
-import { useListHealth } from '@/hooks/analytics/useListHealth';
-import { Skeleton } from '@/components/ui/skeleton';
-import SuppressionBreakdown from './SuppressionBreakdown';
-import HealthSparkline from './HealthSparkline';
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import Grid from "@mui/joy/Grid";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { useQuery } from "@tanstack/react-query";
+import { ShieldAlert } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/useTenant";
+import { useListHealth } from "@/hooks/analytics/useListHealth";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
+import { JoyButton } from "@/components/joy/JoyButton";
+import HealthSparkline from "./HealthSparkline";
+import { clampPercentage } from "@/components/analytics/analyticsUtils";
+
+type SuppressionBreakdown = {
+  bounced: number;
+  complained: number;
+  unsubscribed: number;
+};
+
+const classifySuppressionReason = (
+  suppressionType: string | null,
+  reason: string | null,
+) => {
+  const normalized = `${suppressionType ?? ""} ${reason ?? ""}`.toLowerCase();
+
+  if (normalized.includes("complaint")) {
+    return "complained" as const;
+  }
+
+  if (normalized.includes("bounce")) {
+    return "bounced" as const;
+  }
+
+  return "unsubscribed" as const;
+};
 
 export const ListHealthCard: React.FC = () => {
   const health = useListHealth();
+  const { tenant } = useTenant();
+
+  const {
+    data: suppressionBreakdown,
+    error,
+    isLoading: suppressionLoading,
+    refetch,
+  } = useQuery<SuppressionBreakdown>({
+    queryKey: ["analytics-list-health-breakdown", tenant?.id],
+    enabled: Boolean(tenant?.id),
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return { bounced: 0, complained: 0, unsubscribed: 0 };
+      }
+
+      const { data, error } = await supabase
+        .from("suppression_list")
+        .select("suppression_type, reason")
+        .eq("tenant_id", tenant.id)
+        .eq("channel", "email");
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []).reduce(
+        (accumulator, item) => {
+          const bucket = classifySuppressionReason(
+            item.suppression_type,
+            item.reason,
+          );
+          accumulator[bucket] += 1;
+          return accumulator;
+        },
+        { bounced: 0, complained: 0, unsubscribed: 0 },
+      );
+    },
+  });
 
   if (health.loading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-24" />
-        </CardContent>
-      </Card>
+      <JoyCard variant="outlined">
+        <JoyCardHeader
+          title={<Skeleton variant="text" sx={{ width: 120 }} />}
+        />
+        <JoyCardContent sx={{ pt: 3 }}>
+          <Stack spacing={2} alignItems="center">
+            <Skeleton variant="circular" sx={{ width: 108, height: 108 }} />
+            <Skeleton variant="text" sx={{ width: 160 }} />
+            <Skeleton
+              variant="rectangular"
+              sx={{ width: "100%", height: 120, borderRadius: "lg" }}
+            />
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
-  const getStatusIcon = () => {
-    switch (health.healthStatus) {
-      case 'healthy':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
-      case 'critical':
-        return <XCircle className="h-5 w-5 text-red-600" />;
-    }
-  };
-
-  const getStatusBadge = () => {
-    const variants = {
-      healthy: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-      critical: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    };
-    return (
-      <Badge className={variants[health.healthStatus]}>
-        {health.healthStatus.charAt(0).toUpperCase() + health.healthStatus.slice(1)}
-      </Badge>
-    );
-  };
-
   // Calculate health score (inverse of problem rates)
-  const healthScore = Math.max(0, 100 - (health.bounceRate * 10) - (health.complaintRate * 100));
+  const healthScore = clampPercentage(
+    100 - health.bounceRate * 10 - health.complaintRate * 100,
+  );
+  const tone =
+    health.healthStatus === "healthy"
+      ? "success"
+      : health.healthStatus === "warning"
+        ? "warning"
+        : "danger";
+
+  if (error) {
+    return (
+      <JoyCard variant="soft" color="danger">
+        <JoyCardHeader title="List Health" />
+        <JoyCardContent sx={{ pt: 3 }}>
+          <Stack spacing={1.5}>
+            <Typography level="body-sm">
+              Failed to load suppression details.
+            </Typography>
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="danger"
+              onClick={() => void refetch()}
+            >
+              Retry
+            </JoyButton>
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
+    );
+  }
+
+  const suppressionRows = [
+    { label: "Unsubscribed", value: suppressionBreakdown?.unsubscribed ?? 0 },
+    { label: "Bounced", value: suppressionBreakdown?.bounced ?? 0 },
+    { label: "Complained", value: suppressionBreakdown?.complained ?? 0 },
+  ];
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            List Health
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            {getStatusIcon()}
-            {getStatusBadge()}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Health Score Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Health Score</span>
-            <span className="text-lg font-bold">{Math.round(healthScore)}%</span>
-          </div>
-          <Progress 
-            value={healthScore} 
-            className={`h-3 ${
-              health.healthStatus === 'critical' ? '[&>div]:bg-red-500' :
-              health.healthStatus === 'warning' ? '[&>div]:bg-yellow-500' :
-              '[&>div]:bg-green-500'
-            }`}
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="List Health"
+        description="Bounce risk, complaint pressure, and suppression drift across the last 30 days"
+        actions={
+          <JoyStatusChip
+            size="sm"
+            status={health.healthStatus}
+            tone={tone}
+            label={
+              health.healthStatus === "healthy"
+                ? "Healthy"
+                : health.healthStatus === "warning"
+                  ? "Warning"
+                  : "Critical"
+            }
           />
-        </div>
+        }
+        startDecorator={<ShieldAlert size={18} />}
+      />
+      <JoyCardContent sx={{ pt: 3 }}>
+        <Stack spacing={2.25}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+          >
+            <CircularProgress
+              determinate
+              value={healthScore}
+              color={tone}
+              size="lg"
+              sx={{
+                "--CircularProgress-size": "108px",
+                "--CircularProgress-thickness": "10px",
+              }}
+            >
+              <Typography level="title-lg" sx={{ fontWeight: 700 }}>
+                {Math.round(healthScore)}%
+              </Typography>
+            </CircularProgress>
+            <Stack spacing={1} sx={{ flex: 1 }}>
+              <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                Health Score
+              </Typography>
+              <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                Bounce rate and complaint rate are normalized against
+                deliverability thresholds to estimate overall list quality.
+              </Typography>
+            </Stack>
+          </Stack>
 
-        {/* Metrics Grid with Sparklines */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger className="text-left">
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <Grid container spacing={1.5}>
+            <Grid xs={12} sm={6}>
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ p: 1.5, borderRadius: "md" }}
+              >
+                <Stack spacing={0.6}>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     Bounce Rate
-                    <Info className="h-3 w-3" />
-                  </p>
-                  <p className={`text-xl font-bold ${
-                    health.bounceRate >= 5 ? 'text-red-600' :
-                    health.bounceRate >= 2 ? 'text-yellow-600' :
-                    'text-green-600'
-                  }`}>
+                  </Typography>
+                  <Typography
+                    level="title-md"
+                    sx={{
+                      color:
+                        health.bounceRate >= 5
+                          ? "danger.600"
+                          : health.bounceRate >= 2
+                            ? "warning.600"
+                            : "success.600",
+                      fontWeight: 700,
+                    }}
+                  >
                     {health.bounceRate}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-2">
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {health.bounceCount30d} bounces / {health.totalSent30d} sent
-                  </p>
-                  <HealthSparkline type="bounce" height={30} />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Keep below 2% to maintain good deliverability.</p>
-                <p>Above 5% may trigger ISP blocks.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger className="text-left">
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  </Typography>
+                  <HealthSparkline type="bounce" height={40} />
+                </Stack>
+              </Sheet>
+            </Grid>
+            <Grid xs={12} sm={6}>
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ p: 1.5, borderRadius: "md" }}
+              >
+                <Stack spacing={0.6}>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     Complaint Rate
-                    <Info className="h-3 w-3" />
-                  </p>
-                  <p className={`text-xl font-bold ${
-                    health.complaintRate >= 0.3 ? 'text-red-600' :
-                    health.complaintRate >= 0.1 ? 'text-yellow-600' :
-                    'text-green-600'
-                  }`}>
+                  </Typography>
+                  <Typography
+                    level="title-md"
+                    sx={{
+                      color:
+                        health.complaintRate >= 0.3
+                          ? "danger.600"
+                          : health.complaintRate >= 0.1
+                            ? "warning.600"
+                            : "success.600",
+                      fontWeight: 700,
+                    }}
+                  >
                     {health.complaintRate}%
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-2">
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {health.complaintCount30d} complaints
-                  </p>
-                  <HealthSparkline type="complaint" height={30} />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Keep below 0.1% to avoid reputation damage.</p>
-                <p>Above 0.3% may result in blacklisting.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+                  </Typography>
+                  <HealthSparkline type="complaint" height={40} />
+                </Stack>
+              </Sheet>
+            </Grid>
+          </Grid>
 
-        {/* Suppression Breakdown */}
-        <div>
-          <p className="text-sm font-medium mb-2">Suppressed by Reason</p>
-          <SuppressionBreakdown />
-        </div>
-
-        {/* Warning Messages */}
-        {health.healthStatus !== 'healthy' && (
-          <div className={`p-3 rounded-lg text-sm ${
-            health.healthStatus === 'critical' 
-              ? 'bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-              : 'bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
-          }`}>
-            {health.healthStatus === 'critical' ? (
-              <p>Your list health is critical. Clean your list and review your sending practices immediately.</p>
-            ) : (
-              <p>Your list health needs attention. Consider cleaning invalid addresses.</p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          <Sheet
+            variant="outlined"
+            sx={{ borderRadius: "md", overflow: "hidden" }}
+          >
+            <Stack divider={<Divider />}>
+              {suppressionRows.map((row) => (
+                <Stack
+                  key={row.label}
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  spacing={1.5}
+                  sx={{ px: 1.5, py: 1.1 }}
+                >
+                  <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                    {row.label}
+                  </Typography>
+                  {suppressionLoading ? (
+                    <Skeleton variant="text" sx={{ width: 32 }} />
+                  ) : (
+                    <Typography
+                      level="body-sm"
+                      sx={{ color: "neutral.900", fontWeight: 700 }}
+                    >
+                      {row.value.toLocaleString()}
+                    </Typography>
+                  )}
+                </Stack>
+              ))}
+            </Stack>
+          </Sheet>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
 };
 

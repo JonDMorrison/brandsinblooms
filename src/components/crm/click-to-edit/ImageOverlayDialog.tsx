@@ -5,11 +5,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui-legacy/dialog";
+import { Label } from "@/components/ui-legacy/label";
+import { Input } from "@/components/ui-legacy/input";
+import { Slider } from "@/components/ui-legacy/slider";
+import { Button } from "@/components/ui-legacy/button";
 
 interface ImageOverlayDialogProps {
   isOpen: boolean;

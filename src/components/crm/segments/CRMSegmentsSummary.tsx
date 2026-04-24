@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Users, Crown, UserPlus, Clock, ShoppingBag, Repeat } from 'lucide-react';
 import { useSegmentCounts } from '@/hooks/useSegmentCounts';
-import { Button } from '@/components/ui/button';
-import { NavLink } from '@/components/ui/link';
+import { Button } from '@/components/ui-legacy/button';
+import { NavLink } from '@/components/ui-legacy/link';
 
 const segmentConfig = [
   {

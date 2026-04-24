@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { Check, X, Lightbulb, Sparkles } from "lucide-react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { SmartThemeSelector } from "../theme-generation/SmartThemeSelector";
 import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { useState } from "react";
 import { useAutoThemeDescription } from "./useAutoThemeDescription";
 

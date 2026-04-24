@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { AlertCircle, CheckCircle, RefreshCw, Trash2, Play } from 'lucide-react';
 import { usePOSConnections } from '@/hooks/usePOSConnections';
 import { formatDistanceToNow } from 'date-fns';

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { ArrowRight, Leaf } from "lucide-react";
 
 export const FinalCTANew = () => {

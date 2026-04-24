@@ -1,6 +1,6 @@
 
 import { CreditCard, Crown, Clock, TrendingUp, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 
 interface SubscriptionHeaderProps {
   currentPlan: string;

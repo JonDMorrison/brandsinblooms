@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Users, Target, ChevronDown, Plus } from "lucide-react";
 import { AudienceSelector } from './AudienceSelector';
 

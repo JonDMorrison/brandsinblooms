@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
 import { Clock } from "lucide-react";
 
 export const ReviewQueueLoading = () => {

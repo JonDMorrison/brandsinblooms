@@ -1,299 +1,454 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyCard } from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
-import { useNavigate } from "react-router-dom";
-import { Mail, MessageSquare, AlertTriangle, CheckCircle2, TrendingUp, Sparkles, Leaf } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Link as RouterLink } from "react-router-dom";
+import {
+  AlertCircle,
+  BarChart3,
+  Infinity,
+  Mail,
+  MessageSquare,
+  TrendingUp,
+} from "lucide-react";
 
 const tierLabels: Record<string, string> = {
-  seed: 'Seed',
-  sprout: 'Sprout',
-  bloom: 'Bloom',
-  thrive: 'Thrive',
-  legacy: 'Legacy',
-  free_trial: 'Free Trial',
+  seed: "Seed",
+  sprout: "Sprout",
+  bloom: "Bloom",
+  thrive: "Thrive",
+  legacy: "Legacy",
+  free_trial: "Free Trial",
+  free: "Free",
 };
 
-const tierColors: Record<string, string> = {
-  seed: 'bg-amber-100 text-amber-800 border-amber-300',
-  sprout: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-  bloom: 'bg-green-100 text-green-800 border-green-300',
-  thrive: 'bg-primary/10 text-primary border-primary/30',
-  legacy: 'bg-muted text-muted-foreground border-border',
-  free_trial: 'bg-blue-100 text-blue-800 border-blue-300',
+const intervalLabels: Record<string, string> = {
+  monthly: "Monthly",
+  annual: "Annual",
+  yearly: "Annual",
 };
 
-export const UsageDashboard = () => {
-  const navigate = useNavigate();
-  const { usage, loading, getThresholds, getUpgradeRecommendation, formatNumber } = useUsageTracking();
+const usageCardSx = {
+  p: 3,
+  gap: 2.5,
+  boxShadow: "none",
+  bgcolor: "background.surface",
+};
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-1/4" />
-            <div className="h-8 bg-muted rounded w-1/2" />
-            <div className="h-4 bg-muted rounded w-full" />
-          </div>
-        </CardContent>
-      </Card>
-    );
+const softMetricSx = {
+  borderRadius: "18px",
+  p: 2,
+  bgcolor: "background.level1",
+};
+
+const countFormatter = new Intl.NumberFormat("en-US");
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3,
+});
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const formatCount = (value: number) => countFormatter.format(Math.max(0, value));
+
+const formatRate = (value: number | null | undefined, unit: string) => {
+  if (!value || value <= 0) {
+    return "N/A";
   }
 
-  if (!usage) {
+  return `${currencyFormatter.format(value)} / ${unit}`;
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return dateFormatter.format(date);
+};
+
+const getCurrentPeriodStart = (endDate: string | null | undefined, billingInterval: string) => {
+  if (!endDate) {
     return null;
   }
 
-  const thresholds = getThresholds();
-  const recommendation = getUpgradeRecommendation();
-  const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const currentPeriodEnd = new Date(endDate);
 
-  const getStatusColor = (percent: number, unlimited: boolean) => {
-    if (unlimited) return 'text-primary';
-    if (percent >= 100) return 'text-destructive';
-    if (percent >= 80) return 'text-amber-600';
-    return 'text-emerald-600';
-  };
+  if (Number.isNaN(currentPeriodEnd.getTime())) {
+    return null;
+  }
 
-  const getProgressColor = (percent: number, unlimited: boolean) => {
-    if (unlimited) return 'bg-primary';
-    if (percent >= 100) return 'bg-destructive';
-    if (percent >= 80) return 'bg-amber-500';
-    return 'bg-emerald-500';
-  };
+  const currentPeriodStart = new Date(currentPeriodEnd);
+
+  if (billingInterval === "annual" || billingInterval === "yearly") {
+    currentPeriodStart.setFullYear(currentPeriodStart.getFullYear() - 1);
+  } else {
+    currentPeriodStart.setMonth(currentPeriodStart.getMonth() - 1);
+  }
+
+  return currentPeriodStart.toISOString();
+};
+
+const getProgressColor = (percent: number) => {
+  if (percent >= 100) {
+    return "danger" as const;
+  }
+
+  if (percent >= 80) {
+    return "warning" as const;
+  }
+
+  if (percent >= 60) {
+    return "primary" as const;
+  }
+
+  return "neutral" as const;
+};
+
+const UsageLoadingState = () => {
+  return (
+    <Stack spacing={3}>
+      <JoyCard sx={{ ...usageCardSx, minHeight: 100 }} variant="outlined">
+        <Skeleton animation="wave" sx={{ height: 24, width: 180 }} variant="text" />
+        <Skeleton animation="wave" sx={{ height: 18, width: 260 }} variant="text" />
+      </JoyCard>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
+          gap: 3,
+        }}
+      >
+        {Array.from({ length: 2 }).map((_, index) => (
+          <JoyCard key={index} sx={{ ...usageCardSx, minHeight: 180 }} variant="outlined">
+            <Skeleton animation="wave" sx={{ height: 24, width: 120 }} variant="text" />
+            <Skeleton animation="wave" sx={{ height: 12, width: "100%", borderRadius: 999 }} variant="rectangular" />
+            <Skeleton animation="wave" sx={{ height: 18, width: "68%" }} variant="text" />
+            <Skeleton animation="wave" sx={{ height: 18, width: "52%" }} variant="text" />
+          </JoyCard>
+        ))}
+      </Box>
+
+      <JoyCard sx={{ ...usageCardSx, minHeight: 80 }} variant="outlined">
+        <Skeleton animation="wave" sx={{ height: 20, width: 140 }} variant="text" />
+        <Skeleton animation="wave" sx={{ height: 18, width: "100%" }} variant="text" />
+      </JoyCard>
+    </Stack>
+  );
+};
+
+const UsageErrorState = ({ onRetry }: { onRetry: () => void }) => {
+  return (
+    <JoyCard sx={{ ...usageCardSx, alignItems: "center", textAlign: "center" }} variant="outlined">
+      <Box
+        sx={{
+          width: 52,
+          height: 52,
+          borderRadius: "18px",
+          display: "grid",
+          placeItems: "center",
+          bgcolor: "background.level1",
+          color: "danger.500",
+        }}
+      >
+        <AlertCircle size={24} />
+      </Box>
+      <Stack spacing={0.75} alignItems="center">
+        <Typography level="title-md">Failed to load usage data</Typography>
+        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 420 }}>
+          Usage statistics could not be loaded right now. Retry to fetch the latest plan usage and limits.
+        </Typography>
+      </Stack>
+      <JoyButton color="neutral" onClick={onRetry} variant="outline">
+        Retry
+      </JoyButton>
+    </JoyCard>
+  );
+};
+
+const UsageEmptyState = () => {
+  return (
+    <JoyCard sx={{ ...usageCardSx, alignItems: "center", textAlign: "center", minHeight: 280 }} variant="outlined">
+      <Box
+        sx={{
+          width: 64,
+          height: 64,
+          borderRadius: "22px",
+          display: "grid",
+          placeItems: "center",
+          bgcolor: "background.level1",
+          color: "text.tertiary",
+        }}
+      >
+        <BarChart3 size={40} />
+      </Box>
+      <Stack spacing={0.75} alignItems="center">
+        <Typography level="title-md">No usage data yet</Typography>
+        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 420 }}>
+          Usage statistics will appear here once you start sending emails and SMS.
+        </Typography>
+      </Stack>
+    </JoyCard>
+  );
+};
+
+const UsageMetricCard = ({
+  title,
+  icon,
+  used,
+  limit,
+  remaining,
+  percent,
+  unlimited,
+  overageThisMonth,
+  overageRate,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  used: number;
+  limit: number;
+  remaining: number;
+  percent: number;
+  unlimited: boolean;
+  overageThisMonth: number;
+  overageRate: number;
+}) => {
+  const overageCost = overageThisMonth > 0 && overageRate > 0
+    ? currencyFormatter.format(overageThisMonth * overageRate)
+    : "None";
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Usage Overview</h2>
-          <p className="text-muted-foreground">{currentMonth}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className={cn("border", tierColors[usage.tier] || tierColors.legacy)}>
-            <Leaf className="h-3 w-3 mr-1" />
-            {tierLabels[usage.tier] || 'Unknown'}
-          </Badge>
-          {usage.isFoundingCustomer && (
-            <Badge variant="secondary" className="bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border-amber-300">
-              <Sparkles className="h-3 w-3 mr-1" />
-              Founding Member
-            </Badge>
-          )}
-        </div>
-      </div>
+    <JoyCard sx={usageCardSx} variant="outlined">
+      <Stack direction="row" justifyContent="space-between" spacing={2} alignItems="center">
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "14px",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: "background.level1",
+              color: "text.secondary",
+            }}
+          >
+            {icon}
+          </Box>
+          <Typography level="title-sm">{title}</Typography>
+        </Stack>
 
-      {/* Upgrade Recommendation */}
-      {recommendation.shouldUpgrade && (
-        <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-full">
-                  <TrendingUp className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-amber-900">{recommendation.reason}</p>
-                  {recommendation.suggestedTier && (
-                    <p className="text-sm text-amber-700">
-                      Upgrade to {tierLabels[recommendation.suggestedTier]} for more capacity
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Button 
-                onClick={() => navigate('/pricing')}
-                className="bg-amber-600 hover:bg-amber-700"
-              >
-                Upgrade Now
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          {formatCount(used)} / {unlimited ? "Unlimited" : formatCount(limit)}
+        </Typography>
+      </Stack>
+
+      {unlimited ? (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ color: "success.plainColor" }}>
+          <Infinity size={18} />
+          <Typography level="body-sm" sx={{ color: "success.plainColor" }}>
+            Unlimited
+          </Typography>
+        </Stack>
+      ) : (
+        <LinearProgress
+          color={getProgressColor(percent)}
+          determinate
+          thickness={8}
+          value={Math.min(percent, 100)}
+          sx={{ borderRadius: 4 }}
+        />
       )}
 
-      {/* Usage Cards */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Email Usage */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">Email Usage</CardTitle>
-              </div>
-              {usage.email.unlimited ? (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Unlimited
-                </Badge>
-              ) : thresholds.emailAt100 ? (
-                <Badge variant="destructive">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Limit Reached
-                </Badge>
-              ) : thresholds.emailAt80 ? (
-                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Almost Full
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Good
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {formatNumber(usage.email.used)} of {usage.email.unlimited ? '∞' : formatNumber(usage.email.limit)} sent
-                </span>
-                <span className={cn("font-medium", getStatusColor(usage.email.percent, usage.email.unlimited))}>
-                  {usage.email.unlimited ? 'Unlimited' : `${Math.round(usage.email.percent)}%`}
-                </span>
-              </div>
-              <Progress 
-                value={usage.email.unlimited ? 0 : Math.min(usage.email.percent, 100)} 
-                className="h-2"
-              />
-            </div>
-            
-            {!usage.email.unlimited && (
-              <p className="text-sm text-muted-foreground">
-                {usage.email.remaining > 0 
-                  ? `${formatNumber(usage.email.remaining)} emails remaining this month`
-                  : 'No emails remaining this month'
-                }
-              </p>
-            )}
+      <Stack direction="row" justifyContent="space-between" spacing={2}>
+        <Stack spacing={0.5}>
+          <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+            Remaining
+          </Typography>
+          <Typography level="body-sm">
+            {unlimited ? "Unlimited" : formatCount(remaining)}
+          </Typography>
+        </Stack>
+        <Stack spacing={0.5} sx={{ textAlign: "right" }}>
+          <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+            Overage this month
+          </Typography>
+          <Typography level="body-sm">{overageCost}</Typography>
+        </Stack>
+      </Stack>
+    </JoyCard>
+  );
+};
 
-            {usage.email.overageThisMonth > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Overage: {formatNumber(usage.email.overageThisMonth)} emails × ${usage.email.overageRate} = 
-                  <span className="font-medium text-foreground ml-1">
-                    ${(usage.email.overageThisMonth * usage.email.overageRate).toFixed(2)}
-                  </span>
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+export const UsageDashboard = () => {
+  const {
+    usage,
+    loading: usageLoading,
+    error,
+    refetch,
+    getUpgradeRecommendation,
+  } = useUsageTracking();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
 
-        {/* SMS Usage */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">SMS Usage</CardTitle>
-              </div>
-              {usage.sms.unlimited ? (
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Fair Use
-                </Badge>
-              ) : thresholds.smsAt100 ? (
-                <Badge variant="destructive">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Limit Reached
-                </Badge>
-              ) : thresholds.smsAt80 ? (
-                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Almost Full
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Good
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {formatNumber(usage.sms.used)} of {usage.sms.unlimited ? '50K fair use' : formatNumber(usage.sms.limit)} sent
-                </span>
-                <span className={cn("font-medium", getStatusColor(usage.sms.percent, usage.sms.unlimited))}>
-                  {usage.sms.unlimited ? 'Fair Use' : `${Math.round(usage.sms.percent)}%`}
-                </span>
-              </div>
-              <Progress 
-                value={usage.sms.unlimited ? 0 : Math.min(usage.sms.percent, 100)} 
-                className="h-2"
-              />
-            </div>
-            
-            {!usage.sms.unlimited && (
-              <p className="text-sm text-muted-foreground">
-                {usage.sms.remaining > 0 
-                  ? `${formatNumber(usage.sms.remaining)} SMS remaining this month`
-                  : 'No SMS remaining this month'
-                }
-              </p>
-            )}
+  if (usageLoading || subscriptionLoading) {
+    return <UsageLoadingState />;
+  }
 
-            {usage.sms.overageThisMonth > 0 && (
-              <div className="pt-2 border-t">
-                <p className="text-sm text-muted-foreground">
-                  Overage: {formatNumber(usage.sms.overageThisMonth)} SMS × ${usage.sms.overageRate} = 
-                  <span className="font-medium text-foreground ml-1">
-                    ${(usage.sms.overageThisMonth * usage.sms.overageRate).toFixed(2)}
-                  </span>
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+  if (error && !usage) {
+    return <UsageErrorState onRetry={() => void refetch()} />;
+  }
 
-      {/* Plan Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Plan Details</CardTitle>
-          <CardDescription>Your current subscription information</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Plan</p>
-              <p className="font-medium">{tierLabels[usage.tier] || 'Unknown'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Billing Cycle</p>
-              <p className="font-medium capitalize">{usage.billingInterval}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Next Renewal</p>
-              <p className="font-medium">
-                {usage.endDate ? new Date(usage.endDate).toLocaleDateString() : 'N/A'}
-              </p>
-            </div>
-          </div>
-          
-          <Separator className="my-4" />
-          
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Want more capacity? Upgrade your plan to unlock higher limits.
-            </p>
-            <Button variant="outline" onClick={() => navigate('/pricing')}>
+  if (!usage) {
+    return <UsageEmptyState />;
+  }
+
+  const recommendation = getUpgradeRecommendation();
+  const planLabel = tierLabels[usage.tier] ?? tierLabels[usage.plan] ?? usage.plan;
+  const billingInterval = intervalLabels[usage.billingInterval] ?? usage.billingInterval;
+  const renewalDate = usage.endDate || subscription?.end_date;
+  const currentPeriodStart = getCurrentPeriodStart(renewalDate, usage.billingInterval);
+  const emailOverageRate = usage.email.overageRate || subscription?.email_overage_price || 0;
+  const smsOverageRate = usage.sms.overageRate || subscription?.sms_overage_price || 0;
+
+  return (
+    <Stack spacing={3}>
+      <JoyCard sx={usageCardSx} variant="outlined">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            <JoyChip color="primary" size="md" variant="soft">
+              {planLabel}
+            </JoyChip>
+            <JoyChip color="neutral" size="sm" variant="outlined">
+              {billingInterval}
+            </JoyChip>
+            {usage.isFoundingCustomer ? (
+              <JoyChip color="success" size="sm" variant="soft">
+                Founding Member
+              </JoyChip>
+            ) : null}
+          </Stack>
+
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Renews {formatDate(renewalDate)}
+          </Typography>
+        </Stack>
+      </JoyCard>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
+          gap: 3,
+        }}
+      >
+        <UsageMetricCard
+          icon={<Mail size={18} />}
+          limit={usage.email.limit}
+          overageRate={emailOverageRate}
+          overageThisMonth={usage.email.overageThisMonth}
+          percent={usage.email.percent}
+          remaining={usage.email.remaining}
+          title="Email"
+          unlimited={usage.email.unlimited}
+          used={usage.email.used}
+        />
+        <UsageMetricCard
+          icon={<MessageSquare size={18} />}
+          limit={usage.sms.limit}
+          overageRate={smsOverageRate}
+          overageThisMonth={usage.sms.overageThisMonth}
+          percent={usage.sms.percent}
+          remaining={usage.sms.remaining}
+          title="SMS"
+          unlimited={usage.sms.unlimited}
+          used={usage.sms.used}
+        />
+      </Box>
+
+      <JoyCard sx={usageCardSx} variant="outlined">
+        <Typography level="title-sm">Billing Cycle</Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 1.5,
+          }}
+        >
+          <Sheet sx={softMetricSx} variant="soft">
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              Billing interval
+            </Typography>
+            <Typography level="body-sm">{billingInterval}</Typography>
+          </Sheet>
+          <Sheet sx={softMetricSx} variant="soft">
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              Current period
+            </Typography>
+            <Typography level="body-sm">
+              {formatDate(currentPeriodStart)}  {formatDate(renewalDate)}
+            </Typography>
+          </Sheet>
+          <Sheet sx={softMetricSx} variant="soft">
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              Overage rate (email)
+            </Typography>
+            <Typography level="body-sm">{formatRate(emailOverageRate, "email")}</Typography>
+          </Sheet>
+          <Sheet sx={softMetricSx} variant="soft">
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              Overage rate (SMS)
+            </Typography>
+            <Typography level="body-sm">{formatRate(smsOverageRate, "SMS")}</Typography>
+          </Sheet>
+        </Box>
+      </JoyCard>
+
+      {recommendation.shouldUpgrade && (
+        <Alert
+          color="neutral"
+          startDecorator={<TrendingUp size={20} />}
+          endDecorator={
+            <JoyButton component={RouterLink} size="sm" to="/pricing" variant="outline">
               View Plans
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            </JoyButton>
+          }
+          sx={{ borderRadius: "20px", bgcolor: "background.surface" }}
+          variant="outlined"
+        >
+          <Stack spacing={0.5}>
+            <Typography level="body-sm">{recommendation.reason}</Typography>
+            {recommendation.savings ? (
+              <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                {recommendation.savings}
+              </Typography>
+            ) : null}
+          </Stack>
+        </Alert>
+      )}
+    </Stack>
   );
 };

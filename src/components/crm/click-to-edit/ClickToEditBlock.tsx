@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { cn } from "@/lib/utils";
 import { GripVertical, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";

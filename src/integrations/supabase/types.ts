@@ -15,6 +15,7 @@ export type Database = {
   public: {
     Tables: {
       admin_audit_log: {
+        deleted_at: string | null;
         Row: {
           action_details: Json | null;
           action_type: string;
@@ -22,6 +23,7 @@ export type Database = {
           created_at: string | null;
           id: string;
           ip_address: string | null;
+          status: string;
           target_tenant_id: string | null;
           target_user_id: string | null;
         };
@@ -31,6 +33,7 @@ export type Database = {
           admin_user_id: string;
           created_at?: string | null;
           id?: string;
+          deleted_at?: string | null;
           ip_address?: string | null;
           target_tenant_id?: string | null;
           target_user_id?: string | null;
@@ -38,6 +41,7 @@ export type Database = {
         Update: {
           action_details?: Json | null;
           action_type?: string;
+          status?: string;
           admin_user_id?: string;
           created_at?: string | null;
           id?: string;
@@ -47,6 +51,7 @@ export type Database = {
         };
         Relationships: [
           {
+            deleted_at?: string | null;
             foreignKeyName: "admin_audit_log_target_tenant_id_fkey";
             columns: ["target_tenant_id"];
             isOneToOne: false;
@@ -54,6 +59,7 @@ export type Database = {
             referencedColumns: ["tenant_id"];
           },
           {
+            status?: string;
             foreignKeyName: "admin_audit_log_target_tenant_id_fkey";
             columns: ["target_tenant_id"];
             isOneToOne: false;
@@ -3535,6 +3541,7 @@ export type Database = {
           created_at: string;
           id: string;
           is_custom: boolean;
+          metadata: Json;
           persona_description: string | null;
           persona_name: string;
           tenant_id: string;
@@ -3545,6 +3552,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_custom?: boolean;
+          metadata?: Json;
           persona_description?: string | null;
           persona_name: string;
           tenant_id: string;
@@ -3555,6 +3563,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_custom?: boolean;
+          metadata?: Json;
           persona_description?: string | null;
           persona_name?: string;
           tenant_id?: string;
@@ -3569,6 +3578,7 @@ export type Database = {
           conditions: Json | null;
           created_at: string | null;
           customer_count: number | null;
+          deleted_at: string | null;
           description: string | null;
           id: string;
           is_system_segment: boolean;
@@ -3576,6 +3586,7 @@ export type Database = {
           persona_id: string | null;
           source: string | null;
           source_id: string | null;
+          status: string;
           tenant_id: string | null;
           updated_at: string | null;
           user_id: string | null;
@@ -3585,6 +3596,7 @@ export type Database = {
           conditions?: Json | null;
           created_at?: string | null;
           customer_count?: number | null;
+          deleted_at?: string | null;
           description?: string | null;
           id?: string;
           is_system_segment?: boolean;
@@ -3592,6 +3604,7 @@ export type Database = {
           persona_id?: string | null;
           source?: string | null;
           source_id?: string | null;
+          status?: string;
           tenant_id?: string | null;
           updated_at?: string | null;
           user_id?: string | null;
@@ -3601,6 +3614,7 @@ export type Database = {
           conditions?: Json | null;
           created_at?: string | null;
           customer_count?: number | null;
+          deleted_at?: string | null;
           description?: string | null;
           id?: string;
           is_system_segment?: boolean;
@@ -3608,6 +3622,7 @@ export type Database = {
           persona_id?: string | null;
           source?: string | null;
           source_id?: string | null;
+          status?: string;
           tenant_id?: string | null;
           updated_at?: string | null;
           user_id?: string | null;

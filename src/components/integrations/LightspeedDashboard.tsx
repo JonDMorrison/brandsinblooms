@@ -1,8 +1,9 @@
-import { Card } from "@/components/ui/card";
+/** @deprecated — No longer route-connected. Superseded by the IntegrationDetailPage and detailPrimitives-based surfaces (INT-UI-006). */
+import { Card } from "@/components/ui-legacy/card";
 import { Users, ShoppingBag, Package, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { formatDistanceToNow } from "date-fns";
 
 export const LightspeedDashboard = () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Facebook, Instagram, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface ConnectMetaPanelProps {
   connections?: {

@@ -1,9 +1,16 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { Navigate, useNavigate } from "react-router-dom";
-import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { UserMenu } from "@/components/UserMenu";
-import { Shield, RefreshCw, FileText } from "lucide-react";
+import {
+  AlertTriangle,
+  ClipboardList,
+  FileText,
+  RefreshCw,
+  Shield,
+} from "lucide-react";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { AdminStats } from "@/components/admin/AdminStats";
@@ -12,23 +19,16 @@ import { TenantTable, type AdminTenant } from "@/components/admin/TenantTable";
 import { TenantDrawer } from "@/components/admin/TenantDrawer";
 import { ChangePlanModal } from "@/components/admin/ChangePlanModal";
 import { TenantOutreachModal } from "@/components/admin/TenantOutreachModal";
-import { DeleteTenantModal } from "@/components/admin/DeleteTenantModal";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoyTablePagination } from "@/components/joy/JoyTable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Button } from "@/components/ui/button";
+import { JoyButton } from "@/components/joy/JoyButton";
 import { removeAllInertAttributes } from "@/utils/emergency-cleanup";
 
 const AdminPage = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { data: isSuperAdmin, isLoading: isAdminLoading } = useIsSuperAdmin();
   const [selectedTenant, setSelectedTenant] = useState<AdminTenant | null>(
@@ -37,9 +37,12 @@ const AdminPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [currentSearch, setCurrentSearch] = useState("");
   const [currentStatus, setCurrentStatus] = useState("");
-  const [changePlanTenant, setChangePlanTenant] = useState<AdminTenant | null>(null);
-  const [outreachTenant, setOutreachTenant] = useState<AdminTenant | null>(null);
-  const [deletingTenant, setDeletingTenant] = useState<AdminTenant | null>(null);
+  const [changePlanTenant, setChangePlanTenant] = useState<AdminTenant | null>(
+    null,
+  );
+  const [outreachTenant, setOutreachTenant] = useState<AdminTenant | null>(
+    null,
+  );
 
   const {
     tenants,
@@ -51,38 +54,53 @@ const AdminPage = () => {
     totalCount,
     totalPages,
     fetchTenants,
+    fetchStats,
     toggleTenantActive,
     extendTrial,
     goToPage,
     changePageSize,
-    refetch,
   } = useAdminTenants();
+
+  const hasActiveFilters = Boolean(currentSearch || currentStatus);
+  const statusFilterLabel =
+    currentStatus === "active"
+      ? "Active"
+      : currentStatus === "trialing"
+        ? "Trialing"
+        : currentStatus === "canceled"
+          ? "Suspended / Inactive"
+          : null;
+
+  const handleRefresh = () => {
+    void fetchTenants(currentSearch, currentStatus, currentPage, pageSize);
+    void fetchStats();
+  };
 
   // Emergency cleanup on mount to prevent unclickable elements
   useEffect(() => {
     removeAllInertAttributes();
   }, []);
-  // Only allow access to super admins - redirect to root instead of /app
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
 
   if (isAdminLoading) {
     return (
-      <ProtectedPageWrapper>
-        <div className="min-h-screen bg-background p-6">
-          <div className="max-w-7xl mx-auto">
-            <p className="text-sm text-muted-foreground">
-              Checking admin access
-            </p>
-          </div>
-        </div>
-      </ProtectedPageWrapper>
+      <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
+        <Stack
+          minHeight="40vh"
+          alignItems="center"
+          justifyContent="center"
+          spacing={2}
+        >
+          <CircularProgress size="md" />
+          <Typography level="body-sm" color="neutral">
+            Checking admin access...
+          </Typography>
+        </Stack>
+      </PageContainer>
     );
   }
 
   if (!isSuperAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleFilterChange = (search: string, status: string) => {
@@ -142,188 +160,246 @@ const AdminPage = () => {
   };
 
   return (
-    <ProtectedPageWrapper>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="border-b bg-card">
-          <div className="max-w-7xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-destructive" />
-                <div>
-                  <h1 className="text-3xl font-bold">Admin Console</h1>
-                  <p className="text-muted-foreground">
-                    Tenant management and administration
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  onClick={() => (window.location.href = "/admin/reports")}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Reports
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={refetch}
-                  disabled={loading}
-                  size="sm"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-                  />
-                  Refresh
-                </Button>
-                <UserMenu />
-              </div>
-            </div>
-          </div>
-        </div>
+    <>
+      <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
+        <Stack spacing={3}>
+          <JoyCard
+            sx={{
+              borderColor: "primary.200",
+              background:
+                "linear-gradient(135deg, rgba(var(--joy-palette-primary-mainChannel) / 0.12) 0%, #FFFFFF 54%, rgba(var(--joy-palette-warning-mainChannel) / 0.12) 100%)",
+            }}
+          >
+            <JoyCardContent sx={{ pt: 3 }}>
+              <Stack
+                direction={{ xs: "column", lg: "row" }}
+                spacing={2}
+                alignItems={{ xs: "flex-start", lg: "center" }}
+                justifyContent="space-between"
+              >
+                <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                  <Sheet
+                    variant="soft"
+                    color="primary"
+                    sx={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 999,
+                      display: "grid",
+                      placeItems: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Shield className="h-6 w-6" />
+                  </Sheet>
+                  <Stack spacing={0.75}>
+                    <Typography level="h2">Tenant Operations</Typography>
+                    <Typography level="body-sm" color="neutral">
+                      Review the full tenant roster, manage trial and plan
+                      states, and open detailed admin workflows without leaving
+                      the Joy shell.
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      useFlexGap
+                      flexWrap="wrap"
+                    >
+                      <JoyStatusChip
+                        status={hasActiveFilters ? "filtered" : "all"}
+                        tone={hasActiveFilters ? "info" : "neutral"}
+                        label={
+                          hasActiveFilters ? "Filtered roster" : "All tenants"
+                        }
+                      />
+                      <JoyStatusChip
+                        status="page"
+                        tone="neutral"
+                        label={`Page ${currentPage}${totalPages ? ` of ${totalPages}` : ""}`}
+                      />
+                      <JoyStatusChip
+                        status="results"
+                        tone="primary"
+                        label={`${tenants.length} tenants on this page`}
+                      />
+                    </Stack>
+                  </Stack>
+                </Stack>
 
-        {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
-          {error && (
-            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <p className="text-destructive">Error: {error}</p>
-            </div>
-          )}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  flexWrap="wrap"
+                  alignItems="center"
+                >
+                  <JoyButton
+                    bloomVariant="outline"
+                    onClick={() => navigate("/admin/audit-logs")}
+                    startDecorator={<ClipboardList className="h-4 w-4" />}
+                  >
+                    Audit Logs
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="outline"
+                    onClick={() => navigate("/admin/reports")}
+                    startDecorator={<FileText className="h-4 w-4" />}
+                  >
+                    Reports
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="outline"
+                    onClick={handleRefresh}
+                    disabled={loading}
+                    loading={loading}
+                    loadingPosition="start"
+                    size="sm"
+                    startDecorator={<RefreshCw className="h-4 w-4" />}
+                  >
+                    Refresh
+                  </JoyButton>
+                </Stack>
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
 
-          {/* Stats */}
+          {error ? (
+            <JoyCard variant="soft" color="danger">
+              <JoyCardContent sx={{ pt: 3 }}>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={2}
+                  alignItems={{ xs: "flex-start", md: "center" }}
+                  justifyContent="space-between"
+                >
+                  <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                    <AlertTriangle className="h-5 w-5" />
+                    <Stack spacing={0.35}>
+                      <Typography level="title-sm" color="danger">
+                        Tenant data failed to load
+                      </Typography>
+                      <Typography level="body-sm" color="danger">
+                        {error}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                  <JoyButton
+                    bloomVariant="outline"
+                    color="danger"
+                    onClick={handleRefresh}
+                  >
+                    Retry
+                  </JoyButton>
+                </Stack>
+              </JoyCardContent>
+            </JoyCard>
+          ) : null}
+
           <AdminStats stats={stats} onFilterClick={handleStatFilterClick} />
 
-          {/* Filters */}
           <AdminFilters onFilterChange={handleFilterChange} loading={loading} />
 
-          {/* Tenant Table */}
-          <TenantTable
-            tenants={tenants}
-            loading={loading}
-            onViewTenant={handleViewTenant}
-            onExtendTrial={extendTrial}
-            onToggleActive={toggleTenantActive}
-            onEmailManagement={handleEmailManagement}
-            onChangePlan={setChangePlanTenant}
-            onOutreach={setOutreachTenant}
-            onImpersonate={handleImpersonate}
-            onDelete={setDeletingTenant}
-          />
-
-          {/* Pagination Controls */}
-          {!loading && tenants.length > 0 && (
-            <div className="flex items-center justify-between px-4 py-4 bg-card rounded-lg border mt-6">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Rows per page:
-                  </span>
-                  <NativeSelect
-                    value={pageSize.toString()}
-                    onChange={(e) => {
-                      const newSize = parseInt(e.target.value);
-                      changePageSize(newSize);
-                      fetchTenants(currentSearch, currentStatus, 1, newSize);
-                    }}
-                    className="w-16"
-                    options={[
-                      { value: "10", label: "10" },
-                      { value: "25", label: "25" },
-                      { value: "50", label: "50" },
-                      { value: "100", label: "100" },
-                    ]}
+          <Stack spacing={1.5}>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={1.5}
+              alignItems={{ xs: "flex-start", lg: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack spacing={0.25}>
+                <Typography level="title-md">Tenant Roster</Typography>
+                <Typography level="body-sm" color="neutral">
+                  {loading
+                    ? "Refreshing tenant data for the current page."
+                    : hasActiveFilters
+                      ? "Filters are active. Clear them to return to the full tenant roster."
+                      : "Open any tenant to review subscription, contact, and governance details."}
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                {statusFilterLabel ? (
+                  <JoyStatusChip
+                    status="status-filter"
+                    tone="warning"
+                    label={`Status: ${statusFilterLabel}`}
                   />
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  Showing{" "}
-                  {Math.min((currentPage - 1) * pageSize + 1, totalCount)}-
-                  {Math.min(currentPage * pageSize, totalCount)} of {totalCount}{" "}
-                  tenants
-                </span>
-              </div>
+                ) : null}
+                {currentSearch ? (
+                  <JoyStatusChip
+                    status="search"
+                    tone="info"
+                    label={`Search: ${currentSearch}`}
+                  />
+                ) : null}
+              </Stack>
+            </Stack>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (currentPage > 1) {
-                      const newPage = currentPage - 1;
-                      goToPage(newPage);
-                      fetchTenants(currentSearch, currentStatus, newPage);
-                    }
-                  }}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
+            <TenantTable
+              tenants={tenants}
+              loading={loading}
+              pageSize={pageSize}
+              onViewTenant={handleViewTenant}
+              onExtendTrial={extendTrial}
+              onToggleActive={toggleTenantActive}
+              onEmailManagement={handleEmailManagement}
+              onChangePlan={setChangePlanTenant}
+              onOutreach={setOutreachTenant}
+              onImpersonate={handleImpersonate}
+            />
 
-                <span className="text-sm text-muted-foreground px-2">
-                  Page {currentPage} of {totalPages} (Total: {totalCount})
-                </span>
+            {!loading && tenants.length > 0 ? (
+              <JoyTablePagination
+                page={currentPage}
+                pageSize={pageSize}
+                totalCount={totalCount}
+                disabled={loading}
+                onPageChange={(nextPage) => {
+                  goToPage(nextPage);
+                  fetchTenants(currentSearch, currentStatus, nextPage);
+                }}
+                onPageSizeChange={(nextPageSize) => {
+                  changePageSize(nextPageSize);
+                  fetchTenants(currentSearch, currentStatus, 1, nextPageSize);
+                }}
+              />
+            ) : null}
+          </Stack>
+        </Stack>
+      </PageContainer>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (currentPage < totalPages) {
-                      const newPage = currentPage + 1;
-                      goToPage(newPage);
-                      fetchTenants(currentSearch, currentStatus, newPage);
-                    }
-                  }}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+      <TenantDrawer
+        tenant={selectedTenant}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
+        onExtendTrial={extendTrial}
+        onToggleActive={toggleTenantActive}
+        onChangePlan={setChangePlanTenant}
+      />
 
-        {/* Tenant Details Drawer */}
-        <TenantDrawer
-          tenant={selectedTenant}
-          open={drawerOpen}
-          onClose={handleCloseDrawer}
-          onExtendTrial={extendTrial}
-          onToggleActive={toggleTenantActive}
-          onChangePlan={setChangePlanTenant}
+      {changePlanTenant && (
+        <ChangePlanModal
+          open={!!changePlanTenant}
+          onClose={() => setChangePlanTenant(null)}
+          tenantId={changePlanTenant.tenant_id}
+          tenantName={changePlanTenant.company_name || "Unnamed Company"}
+          contactEmail={changePlanTenant.primary_contact_email}
+          currentPlan={changePlanTenant.plan}
+          onSuccess={handleRefresh}
         />
+      )}
 
-        {changePlanTenant && (
-          <ChangePlanModal
-            open={!!changePlanTenant}
-            onClose={() => setChangePlanTenant(null)}
-            tenantId={changePlanTenant.tenant_id}
-            tenantName={changePlanTenant.company_name || "Unnamed Company"}
-            contactEmail={changePlanTenant.primary_contact_email}
-            currentPlan={changePlanTenant.plan}
-            onSuccess={refetch}
-          />
-        )}
-
-        {outreachTenant && (
-          <TenantOutreachModal
-            open={!!outreachTenant}
-            onClose={() => setOutreachTenant(null)}
-            tenantId={outreachTenant.tenant_id}
-            companyName={outreachTenant.company_name || "Unnamed Company"}
-            contactEmail={outreachTenant.primary_contact_email}
-            contactFirstName={outreachTenant.primary_contact_name?.split(" ")[0] || ""}
-          />
-        )}
-
-        {deletingTenant && (
-          <DeleteTenantModal
-            open={!!deletingTenant}
-            onClose={() => setDeletingTenant(null)}
-            tenant={deletingTenant}
-            onSuccess={refetch}
-          />
-        )}
-      </div>
-    </ProtectedPageWrapper>
+      {outreachTenant && (
+        <TenantOutreachModal
+          open={!!outreachTenant}
+          onClose={() => setOutreachTenant(null)}
+          tenantId={outreachTenant.tenant_id}
+          companyName={outreachTenant.company_name || "Unnamed Company"}
+          contactEmail={outreachTenant.primary_contact_email}
+          contactFirstName={
+            outreachTenant.primary_contact_name?.split(" ")[0] || ""
+          }
+        />
+      )}
+    </>
   );
 };
 

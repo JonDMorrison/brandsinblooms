@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCampaignBounces } from '@/hooks/useCampaignBounces';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui-legacy/badge';
+import { ScrollArea } from '@/components/ui-legacy/scroll-area';
 import { AlertTriangle, CheckCircle, Mail, Loader2 } from 'lucide-react';
 
 interface BouncedEmailsListProps {

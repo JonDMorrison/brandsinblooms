@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { ArrowRight, Sparkles, Users, TrendingUp } from "lucide-react";
 
 interface FinalCTASectionProps {

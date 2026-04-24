@@ -1,31 +1,74 @@
-import React, { useState, useEffect } from 'react';
-import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { BarChart3, TrendingUp, Zap, Users, Activity, Calendar, FileText } from 'lucide-react';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useState } from "react";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  Activity,
+  BarChart3,
+  FileText,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useSubscription as useLegacySubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UsageData {
   postsCreated: number;
   maxPosts: number;
   connectionsUsed: number;
   maxConnections: number;
-  tokensUsed: number;
+  tokensRemaining: number;
   maxTokens: number;
 }
 
+const surfaceStyles = {
+  borderRadius: "24px",
+  borderColor: "divider",
+  bgcolor: "background.surface",
+  boxShadow: "sm",
+  p: { xs: 2.5, sm: 3 },
+};
+
+const getUsagePercentage = (used: number, max: number) => {
+  if (max <= 0 || max === -1) {
+    return 0;
+  }
+
+  return Math.min((used / max) * 100, 100);
+};
+
+const getUsageStatus = (percentage: number, unlimited: boolean) => {
+  if (unlimited) {
+    return { label: "Unlimited", color: "neutral" as const };
+  }
+
+  if (percentage > 80) {
+    return { label: "Near Limit", color: "warning" as const };
+  }
+
+  return { label: "Normal", color: "neutral" as const };
+};
+
 export const UsageAnalytics = () => {
   const { subscription, loading } = useSubscription();
+  const { subscription: subscriptionLimits, loading: limitsLoading } =
+    useLegacySubscription();
   const { user } = useAuth();
   const [usageData, setUsageData] = useState<UsageData>({
     postsCreated: 0,
     maxPosts: 0,
     connectionsUsed: 0,
     maxConnections: 0,
-    tokensUsed: 0,
-    maxTokens: 100,
+    tokensRemaining: 0,
+    maxTokens: 0,
   });
   const [usageLoading, setUsageLoading] = useState(true);
 
@@ -37,254 +80,279 @@ export const UsageAnalytics = () => {
       }
 
       try {
-        // Get current month's content tasks count
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
         const { count: postsCount } = await supabase
-          .from('content_tasks')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .gte('created_at', startOfMonth.toISOString());
+          .from("content_tasks")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("created_at", startOfMonth.toISOString());
 
-        // Get social connections count
         const { count: connectionsCount } = await supabase
-          .from('social_connections')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+          .from("social_connections")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_active", true);
 
-        // Get company profile for token balance
         const { data: profile } = await supabase
-          .from('company_profiles')
-          .select('tokens_balance')
-          .eq('user_id', user.id)
+          .from("company_profiles")
+          .select("tokens_balance")
+          .eq("user_id", user.id)
           .single();
 
-        // Set limits based on subscription plan
-        const limits = {
-          'free_trial': { posts: 200, connections: 4, tokens: 100 },
-          'sprout': { posts: 1000, connections: 10, tokens: 500 },
-          'bloom': { posts: -1, connections: 25, tokens: 1000 }, // -1 means unlimited
-          'expired': { posts: 0, connections: 0, tokens: 0 },
-        };
-
-        const planLimits = limits[subscription.plan as keyof typeof limits] || limits.expired;
-        const tokensUsed = Math.max(0, (profile?.tokens_balance || 100) - planLimits.tokens);
+        const isExpiredPlan =
+          (subscription.tier ?? subscription.plan) === "expired";
+        const fallbackPosts = isExpiredPlan ? 0 : 200;
+        const fallbackConnections = isExpiredPlan ? 0 : 4;
+        const fallbackTokens = isExpiredPlan ? 0 : 200;
+        const maxPosts =
+          subscriptionLimits?.max_posts_per_month ?? fallbackPosts;
+        const maxConnections =
+          subscriptionLimits?.max_connections ?? fallbackConnections;
+        const maxTokens =
+          subscriptionLimits?.max_posts_per_month ?? fallbackTokens;
 
         setUsageData({
           postsCreated: postsCount || 0,
-          maxPosts: planLimits.posts,
+          maxPosts,
           connectionsUsed: connectionsCount || 0,
-          maxConnections: planLimits.connections,
-          tokensUsed,
-          maxTokens: planLimits.tokens,
+          maxConnections,
+          tokensRemaining: Math.max(0, profile?.tokens_balance || 0),
+          maxTokens,
         });
       } catch (error) {
-        console.error('Error fetching usage data:', error);
+        console.error("Error fetching usage data:", error);
       } finally {
         setUsageLoading(false);
       }
     };
 
     fetchUsageData();
-  }, [user, subscription]);
+  }, [user, subscription, subscriptionLimits]);
 
-  if (loading || usageLoading) {
+  if (loading || limitsLoading || usageLoading) {
     return (
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-text-primary">Usage Analytics</h2>
-            <p className="text-text-secondary mt-1">Monitor your current usage and performance metrics</p>
-          </div>
-          <div className="animate-pulse h-5 w-20 bg-surface-secondary rounded"></div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <EnhancedAppleCard key={i} variant="elevated" className="animate-pulse">
-              <div className="p-6 space-y-4">
-                <div className="h-6 bg-surface-secondary rounded w-2/3"></div>
-                <div className="h-8 bg-surface-secondary rounded w-1/3"></div>
-                <div className="h-2 bg-surface-secondary rounded"></div>
-                <div className="h-4 bg-surface-secondary rounded w-1/2"></div>
-              </div>
-            </EnhancedAppleCard>
+      <Stack spacing={3}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={2}
+        >
+          <Stack spacing={0.75}>
+            <Skeleton variant="text" width={180} level="h2" />
+            <Skeleton variant="text" width={240} />
+          </Stack>
+          <Skeleton variant="rectangular" width={124} height={32} />
+        </Stack>
+
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+          }}
+        >
+          {[1, 2, 3].map((metricIndex) => (
+            <Sheet
+              key={metricIndex}
+              variant="soft"
+              sx={{ ...surfaceStyles, p: 2.5 }}
+            >
+              <Stack spacing={1.5}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  spacing={1.5}
+                >
+                  <Skeleton variant="text" width={120} />
+                  <Skeleton variant="rectangular" width={82} height={24} />
+                </Stack>
+                <Skeleton variant="text" width={90} level="h1" />
+                <Skeleton variant="text" width={150} />
+                <Skeleton variant="rectangular" height={8} />
+              </Stack>
+            </Sheet>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Stack>
     );
   }
 
-  const getUsagePercentage = (used: number, max: number) => {
-    if (max === -1) return 0; // Unlimited
-    return Math.min((used / max) * 100, 100);
-  };
-
-  const getUsageStatus = (used: number, max: number) => {
-    const percentage = getUsagePercentage(used, max);
-    if (max === -1) return 'unlimited';
-    if (percentage >= 90) return 'critical';
-    if (percentage >= 75) return 'warning';
-    return 'normal';
-  };
+  const postsPercentage = getUsagePercentage(
+    usageData.postsCreated,
+    usageData.maxPosts,
+  );
+  const connectionsPercentage = getUsagePercentage(
+    usageData.connectionsUsed,
+    usageData.maxConnections,
+  );
+  const tokensConsumed =
+    usageData.maxTokens <= 0 || usageData.maxTokens === -1
+      ? 0
+      : Math.max(0, usageData.maxTokens - usageData.tokensRemaining);
+  const tokensPercentage = getUsagePercentage(
+    tokensConsumed,
+    usageData.maxTokens,
+  );
 
   const usageMetrics = [
     {
-      label: 'Posts This Month',
-      used: usageData.postsCreated,
-      max: usageData.maxPosts,
-      icon: TrendingUp,
-      color: 'text-blue-600',
+      label: "Posts This Month",
+      icon: FileText,
+      value: usageData.postsCreated.toLocaleString(),
+      subtext:
+        usageData.maxPosts === -1
+          ? "No monthly post cap on this plan."
+          : `${Math.max(usageData.maxPosts - usageData.postsCreated, 0).toLocaleString()} remaining of ${usageData.maxPosts.toLocaleString()}`,
+      percentage: postsPercentage,
+      finite: usageData.maxPosts !== -1,
+      status: getUsageStatus(postsPercentage, usageData.maxPosts === -1),
     },
     {
-      label: 'Social Connections',
-      used: usageData.connectionsUsed,
-      max: usageData.maxConnections,
+      label: "Active Connections",
       icon: Users,
-      color: 'text-green-600',
+      value: usageData.connectionsUsed.toLocaleString(),
+      subtext:
+        usageData.maxConnections === -1
+          ? "No active connection cap on this plan."
+          : `${Math.max(usageData.maxConnections - usageData.connectionsUsed, 0).toLocaleString()} remaining of ${usageData.maxConnections.toLocaleString()}`,
+      percentage: connectionsPercentage,
+      finite: usageData.maxConnections !== -1,
+      status: getUsageStatus(
+        connectionsPercentage,
+        usageData.maxConnections === -1,
+      ),
     },
     {
-      label: 'AI Tokens Used',
-      used: usageData.tokensUsed,
-      max: usageData.maxTokens,
+      label: "Tokens Remaining",
       icon: Zap,
-      color: 'text-purple-600',
+      value: usageData.tokensRemaining.toLocaleString(),
+      subtext:
+        usageData.maxTokens === -1
+          ? "Your token balance is not capped on this plan."
+          : `Used ${tokensConsumed.toLocaleString()} of ${usageData.maxTokens.toLocaleString()} this cycle`,
+      percentage: tokensPercentage,
+      finite: usageData.maxTokens !== -1,
+      status: getUsageStatus(tokensPercentage, usageData.maxTokens === -1),
     },
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Usage Analytics</h2>
-          <p className="text-text-secondary mt-1">Monitor your current usage and performance metrics</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Activity className="h-5 w-5 text-green-500" />
-          <span className="text-sm font-medium text-text-primary">Live Tracking</span>
-        </div>
-      </div>
+    <Stack spacing={3}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        spacing={2}
+      >
+        <Stack spacing={0.75}>
+          <Typography level="title-lg">Usage Analytics</Typography>
+          <Typography level="body-sm" textColor="text.secondary">
+            Monitor publishing activity, connected channels, and remaining token
+            balance.
+          </Typography>
+        </Stack>
+        <Chip
+          color="neutral"
+          size="sm"
+          startDecorator={<Activity size={14} />}
+          variant="soft"
+        >
+          Live Tracking
+        </Chip>
+      </Stack>
 
-      {/* Main Usage Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {usageMetrics.map((metric, index) => {
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+        }}
+      >
+        {usageMetrics.map((metric) => {
           const Icon = metric.icon;
-          const percentage = getUsagePercentage(metric.used, metric.max);
-          const status = getUsageStatus(metric.used, metric.max);
 
           return (
-            <EnhancedAppleCard 
-              key={index} 
-              variant="elevated" 
-              hoverEffect="subtle" 
-              animated={true}
-              staggerDelay={index * 100}
-              className="group"
+            <Sheet
+              key={metric.label}
+              variant="soft"
+              sx={{ ...surfaceStyles, p: 2.5 }}
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 ${index === 0 ? 'bg-blue-100 dark:bg-blue-900/20' : index === 1 ? 'bg-green-100 dark:bg-green-900/20' : 'bg-purple-100 dark:bg-purple-900/20'} rounded-lg`}>
-                      <Icon className={`h-5 w-5 ${index === 0 ? 'text-blue-600 dark:text-blue-400' : index === 1 ? 'text-green-600 dark:text-green-400' : 'text-purple-600 dark:text-purple-400'}`} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-text-primary">{metric.label}</h3>
-                      <p className="text-xs text-text-secondary">Current period</p>
-                    </div>
-                  </div>
-                  <Badge 
-                    variant={status === 'critical' ? 'destructive' : status === 'warning' ? 'outline' : 'secondary'} 
-                    className="text-xs"
-                  >
-                    {status === 'unlimited' ? 'Unlimited' : status === 'critical' ? 'Limit Reached' : status === 'warning' ? 'Near Limit' : Math.round(percentage) + '%'}
-                  </Badge>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="flex items-baseline space-x-2">
-                    <span className="text-3xl font-bold text-text-primary">{metric.used.toLocaleString()}</span>
-                    <span className="text-sm text-text-secondary">
-                      {metric.max === -1 ? 'used' : `of ${metric.max.toLocaleString()}`}
-                    </span>
-                  </div>
-                  
-                  {metric.max !== -1 && (
-                    <div className="space-y-2">
-                      <Progress value={percentage} className="h-2" />
-                      <div className="flex justify-between text-xs">
-                        <span className="text-text-secondary">
-                          {metric.max - metric.used} remaining
-                        </span>
-                        <span className={`font-medium ${status === 'critical' ? 'text-red-600' : status === 'warning' ? 'text-amber-600' : 'text-green-600'}`}>
-                          {status === 'unlimited' ? 'Unlimited' : `${Math.round(percentage)}%`}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </EnhancedAppleCard>
+              <Stack spacing={1.75}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                  spacing={1.5}
+                >
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Icon size={18} color="var(--joy-palette-neutral-500)" />
+                    <Typography level="title-sm">{metric.label}</Typography>
+                  </Stack>
+                  <Chip color={metric.status.color} size="sm" variant="soft">
+                    {metric.status.label}
+                  </Chip>
+                </Stack>
+
+                <Typography level="h2">{metric.value}</Typography>
+                <Typography level="body-sm" textColor="text.secondary">
+                  {metric.subtext}
+                </Typography>
+
+                {metric.finite ? (
+                  <LinearProgress
+                    color={metric.percentage > 80 ? "warning" : "neutral"}
+                    determinate
+                    size="sm"
+                    value={metric.percentage}
+                    variant="soft"
+                  />
+                ) : null}
+              </Stack>
+            </Sheet>
           );
         })}
-      </div>
+      </Box>
 
-      {/* Usage Insights */}
-      <EnhancedAppleCard variant="interactive" surface="secondary" className="group">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <BarChart3 className="h-6 w-6 text-text-primary" />
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">Usage Insights</h3>
-                <p className="text-sm text-text-secondary">Monthly overview and recommendations</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-text-secondary">
-              <Calendar className="h-4 w-4" />
-              <span>Updated: Today</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="text-center p-4 bg-surface-primary rounded-lg">
-              <div className="text-2xl font-bold text-blue-600 mb-1">{usageData.postsCreated}</div>
-              <div className="text-sm text-text-secondary">Posts Created</div>
-            </div>
-            <div className="text-center p-4 bg-surface-primary rounded-lg">
-              <div className="text-2xl font-bold text-green-600 mb-1">{usageData.connectionsUsed}</div>
-              <div className="text-sm text-text-secondary">Active Connections</div>
-            </div>
-            <div className="text-center p-4 bg-surface-primary rounded-lg">
-              <div className="text-2xl font-bold text-purple-600 mb-1">{Math.round((usageData.tokensUsed / usageData.maxTokens) * 100)}%</div>
-              <div className="text-sm text-text-secondary">Token Usage</div>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            {usageData.postsCreated > 0 && (
-              <div className="flex items-center text-text-secondary">
-                <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                You've created {usageData.postsCreated} posts this month
-              </div>
-            )}
-            {usageData.connectionsUsed > 0 && (
-              <div className="flex items-center text-text-secondary">
-                <Users className="h-4 w-4 mr-2 text-green-500" />
-                {usageData.connectionsUsed} social accounts connected
-              </div>
-            )}
-            {subscription?.plan === 'free_trial' && (
-              <div className="flex items-center text-text-secondary">
-                <TrendingUp className="h-4 w-4 mr-2 text-purple-500" />
-                Upgrade to unlock higher limits and premium features
-              </div>
-            )}
-          </div>
-        </div>
-      </EnhancedAppleCard>
-    </div>
+      <Sheet variant="outlined" sx={surfaceStyles}>
+        <Stack spacing={2}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <BarChart3 size={18} color="var(--joy-palette-neutral-500)" />
+            <Typography level="title-md">Usage Insights</Typography>
+          </Stack>
+          <Divider />
+          <Stack spacing={1.25}>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <FileText size={16} color="var(--joy-palette-neutral-500)" />
+              <Typography level="body-sm" textColor="text.secondary">
+                {usageData.postsCreated > 0
+                  ? `You created ${usageData.postsCreated.toLocaleString()} posts this month.`
+                  : "No posts have been created yet this month."}
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <Users size={16} color="var(--joy-palette-neutral-500)" />
+              <Typography level="body-sm" textColor="text.secondary">
+                {usageData.connectionsUsed > 0
+                  ? `${usageData.connectionsUsed.toLocaleString()} social connections are currently active.`
+                  : "No active social connections are linked right now."}
+              </Typography>
+            </Stack>
+            {(subscription.tier ?? subscription.plan) === "free_trial" ? (
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Sparkles size={16} color="var(--joy-palette-neutral-500)" />
+                <Typography level="body-sm" textColor="text.secondary">
+                  Upgrade from trial to raise your account limits and keep
+                  billing features active.
+                </Typography>
+              </Stack>
+            ) : null}
+          </Stack>
+        </Stack>
+      </Sheet>
+    </Stack>
   );
 };

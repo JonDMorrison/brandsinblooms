@@ -1,6 +1,6 @@
 import { Package } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import type {
   CloverProductTableRow,
   LightspeedPagination,
@@ -19,6 +19,8 @@ import {
   ToolbarSelect,
   formatCurrency,
   formatRelativeTimestamp,
+  DataTabLoadingState,
+  JoyDataTable,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type ProductsSortValue =
@@ -125,7 +127,7 @@ export function ProductsTabView({
       {rows.length > 0 ? (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] border-collapse">
+            <JoyDataTable>
               <thead>
                 <tr className="border-b border-gray-100">
                   <th
@@ -208,7 +210,7 @@ export function ProductsTabView({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </JoyDataTable>
           </div>
           <DataTabPagination
             pagination={pagination}
@@ -217,11 +219,7 @@ export function ProductsTabView({
         </>
       ) : null}
 
-      {isLoading || isFetching ? (
-        <div className="px-5 py-10 text-sm text-muted-foreground">
-          Loading Clover products...
-        </div>
-      ) : null}
+      {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState

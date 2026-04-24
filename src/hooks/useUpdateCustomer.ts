@@ -75,6 +75,7 @@ export const useUpdateCustomer = () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["crm-customers"] });
       queryClient.invalidateQueries({ queryKey: ["customer-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
       queryClient.invalidateQueries({
         queryKey: ["customer-360", variables.customerId],
       });

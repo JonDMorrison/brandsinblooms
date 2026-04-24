@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 
 interface ImageGalleryHeaderProps {

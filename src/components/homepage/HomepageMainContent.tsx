@@ -1,5 +1,5 @@
-import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { AppleCard, AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 import { CampaignCard } from "./CampaignCard";
 import { WhatsComingNextCard } from "./WhatsComingNextCard";
 import { getSeasonalContent } from "./SeasonalContent";

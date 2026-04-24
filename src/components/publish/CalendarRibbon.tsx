@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';

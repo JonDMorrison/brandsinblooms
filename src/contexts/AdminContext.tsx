@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./AuthContext";
 
 interface AdminContextType {
   isMasterAdmin: boolean;
   isLoading: boolean;
   activeTenantId: string | null;
+  hasHydratedTenantContext: boolean;
   setActiveTenantId: (tenantId: string | null) => void;
   availableTenants: any[];
   refreshTenants: () => Promise<void>;
@@ -13,11 +14,15 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const { user } = useAuth();
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
+  const [hasHydratedTenantContext, setHasHydratedTenantContext] =
+    useState(false);
   const [availableTenants, setAvailableTenants] = useState<any[]>([]);
 
   // Check if user is master admin
@@ -31,19 +36,19 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const { data, error } = await supabase
-          .from('app_admin_emails')
-          .select('email')
-          .eq('email', user.email)
+          .from("app_admin_emails")
+          .select("email")
+          .eq("email", user.email)
           .maybeSingle();
-        
+
         if (error) {
-          console.error('Error checking admin status:', error);
+          console.error("Error checking admin status:", error);
           setIsMasterAdmin(false);
         } else {
           setIsMasterAdmin(!!data);
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error("Error checking admin status:", error);
         setIsMasterAdmin(false);
       } finally {
         setIsLoading(false);
@@ -55,6 +60,39 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load available tenants for master admins
   useEffect(() => {
+    async function loadActiveTenantContext() {
+      if (!user || !isMasterAdmin) {
+        setActiveTenantId(null);
+        setHasHydratedTenantContext(true);
+        return;
+      }
+
+      try {
+        setHasHydratedTenantContext(false);
+
+        const { data, error } = await supabase
+          .from("admin_session_context")
+          .select("active_tenant_id")
+          .eq("admin_user_id", user.id)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        setActiveTenantId(data?.active_tenant_id ?? null);
+      } catch (error) {
+        console.error("Error loading admin context:", error);
+        setActiveTenantId(null);
+      } finally {
+        setHasHydratedTenantContext(true);
+      }
+    }
+
+    loadActiveTenantContext();
+  }, [isMasterAdmin, user]);
+
+  useEffect(() => {
     async function loadTenants() {
       if (!isMasterAdmin) {
         setAvailableTenants([]);
@@ -63,14 +101,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const { data, error } = await supabase
-          .from('tenants')
-          .select('id, name, created_at')
-          .order('name');
+          .from("tenants")
+          .select("id, name, created_at")
+          .order("name");
 
         if (error) throw error;
         setAvailableTenants(data || []);
       } catch (error) {
-        console.error('Error loading tenants:', error);
+        console.error("Error loading tenants:", error);
       }
     }
 
@@ -80,39 +118,44 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Save/restore active tenant context
   useEffect(() => {
     async function saveContext() {
-      if (!user || !isMasterAdmin) return;
+      if (!user || !isMasterAdmin || !hasHydratedTenantContext) return;
 
       try {
-        if (activeTenantId) {
-          await supabase
-            .from('admin_session_context')
-            .upsert({
-              admin_user_id: user.id,
-              active_tenant_id: activeTenantId,
-              updated_at: new Date().toISOString()
-            });
+        const { error } = await supabase.from("admin_session_context").upsert(
+          {
+            admin_user_id: user.id,
+            active_tenant_id: activeTenantId,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "admin_user_id",
+          },
+        );
+
+        if (error) {
+          throw error;
         }
       } catch (error) {
-        console.error('Error saving admin context:', error);
+        console.error("Error saving admin context:", error);
       }
     }
 
     saveContext();
-  }, [activeTenantId, user, isMasterAdmin]);
+  }, [activeTenantId, hasHydratedTenantContext, user, isMasterAdmin]);
 
   const refreshTenants = async () => {
     if (!isMasterAdmin) return;
 
     try {
       const { data, error } = await supabase
-        .from('tenants')
-        .select('id, name, created_at')
-        .order('name');
+        .from("tenants")
+        .select("id, name, created_at")
+        .order("name");
 
       if (error) throw error;
       setAvailableTenants(data || []);
     } catch (error) {
-      console.error('Error refreshing tenants:', error);
+      console.error("Error refreshing tenants:", error);
     }
   };
 
@@ -122,9 +165,10 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isMasterAdmin,
         isLoading,
         activeTenantId,
+        hasHydratedTenantContext,
         setActiveTenantId,
         availableTenants,
-        refreshTenants
+        refreshTenants,
       }}
     >
       {children}
@@ -135,7 +179,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export const useAdmin = () => {
   const context = useContext(AdminContext);
   if (context === undefined) {
-    throw new Error('useAdmin must be used within an AdminProvider');
+    throw new Error("useAdmin must be used within an AdminProvider");
   }
   return context;
 };

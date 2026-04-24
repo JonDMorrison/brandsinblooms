@@ -1,6 +1,6 @@
 
-import { Badge } from "@/components/ui/badge";
-import { DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui-legacy/badge";
+import { DialogTitle } from "@/components/ui-legacy/dialog";
 
 interface UpcomingContentModalHeaderProps {
   week: any;

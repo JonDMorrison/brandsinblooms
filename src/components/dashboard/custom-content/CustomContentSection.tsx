@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 import { CustomContentItem } from "./CustomContentItem";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,14 +7,14 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 // Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-} from "@/components/ui/collapsible";
+} from "@/components/ui-legacy/collapsible";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 
 interface CustomContentSectionProps {

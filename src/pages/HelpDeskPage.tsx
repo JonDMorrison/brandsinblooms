@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
 import { Ticket, Plus, List, BarChart3 } from 'lucide-react';
 import { useTickets } from '@/hooks/helpdesk/useTickets';
 import { useIsSuperAdmin } from '@/hooks/useIsSuperAdmin';

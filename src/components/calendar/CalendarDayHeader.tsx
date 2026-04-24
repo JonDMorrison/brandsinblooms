@@ -1,43 +1,68 @@
-
+import Box from "@mui/joy/Box";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { CalendarEventDot } from "@/components/calendar/calendarEventPresentation";
+import type { UnifiedCalendarEvent } from "@/hooks/useUnifiedCalendarData";
 
 interface CalendarDayHeaderProps {
   date: Date;
   isCurrentMonth: boolean;
   isToday: boolean;
+  eventTypes?: UnifiedCalendarEvent["type"][];
+  compact?: boolean;
 }
 
 export const CalendarDayHeader = ({
   date,
   isCurrentMonth,
   isToday,
+  eventTypes = [],
+  compact = false,
 }: CalendarDayHeaderProps) => {
-  const dayNumber = format(date, 'd');
+  const dayNumber = format(date, "d");
 
   return (
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "text-sm font-semibold flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200",
-            isToday && "bg-blue-500 text-white",
-            !isToday && isCurrentMonth && "text-slate-700 hover:bg-green-100 hover:text-green-700",
-            !isCurrentMonth && "text-slate-400"
-          )}
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      sx={{ mb: compact ? 1 : 1.25 }}
+    >
+      <Stack direction="row" spacing={0.75} alignItems="center">
+        <Box
+          sx={{
+            width: compact ? 24 : 28,
+            height: compact ? 24 : 28,
+            borderRadius: "999px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: isToday ? "primary.500" : "transparent",
+            color: isToday
+              ? "common.white"
+              : isCurrentMonth
+                ? "text.primary"
+                : "neutral.500",
+          }}
         >
-          {dayNumber}
-        </span>
-        {isToday && (
-          <Badge 
-            variant="secondary" 
-            className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 border-blue-200"
-          >
-            Today
-          </Badge>
-        )}
-      </div>
-    </div>
+          <Typography level="body-xs" fontWeight="lg">
+            {dayNumber}
+          </Typography>
+        </Box>
+
+        {!compact ? (
+          <Typography level="body-xs" color="neutral">
+            {isToday ? "Today" : ""}
+          </Typography>
+        ) : null}
+      </Stack>
+
+      <Stack direction="row" spacing={0.5} alignItems="center">
+        {eventTypes.slice(0, 5).map((type, index) => (
+          <CalendarEventDot key={`${type}:${index}`} type={type} />
+        ))}
+      </Stack>
+    </Stack>
   );
 };

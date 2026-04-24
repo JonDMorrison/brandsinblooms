@@ -1,6 +1,6 @@
 import React from "react";
 import { BarChart3, Users, Target, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { useCRMRealStats } from "@/hooks/useCRMRealStats";
 import { MetricCard } from "@/components/crm/analytics/MetricCard";
 import { CRMStatsCards } from "@/components/crm/CRMStatsCards";

@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { InlineImageEditor } from '../../inline/InlineImageEditor';
-import { CTAButton } from '@/components/ui/CTAButton';
+import { CTAButton } from '@/components/ui-legacy/CTAButton';
 import { cn } from '@/lib/utils';
 import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
-import { AIImageLoadingOverlay } from '@/components/ui/AIImageLoadingOverlay';
+import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
 import { ImageSourcePicker } from './ImageSourcePicker';
 import { AIPersonalizationDialog } from '@/components/crm/AIPersonalizationDialog';
 import { OPACITY_DEFAULTS, normalizeOpacityToDecimal } from '@/utils/opacityUtils';

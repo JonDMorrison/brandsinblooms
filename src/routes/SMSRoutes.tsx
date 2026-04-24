@@ -1,16 +1,21 @@
 import { Routes, Route } from "react-router-dom";
-import { lazy, Suspense } from "react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Suspense } from "react";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
+import { lazyRetry } from "@/utils/lazyRetry";
 
 // Lazy load SMS components
-const SMSDashboard = lazy(() => import("@/pages/sms/SMSDashboard"));
-const SMSCampaignWizard = lazy(() => import("@/pages/sms/SMSCampaignWizard"));
-const SMSCampaignDetail = lazy(() => import("@/pages/sms/SMSCampaignDetail"));
-const SMSMessagesPage = lazy(() => import("@/pages/sms/SMSMessagesPage"));
-const SMSAutomationDashboard = lazy(
+const SMSDashboard = lazyRetry(() => import("@/pages/sms/SMSDashboard"));
+const SMSCampaignWizard = lazyRetry(
+  () => import("@/pages/sms/SMSCampaignWizard"),
+);
+const SMSCampaignDetail = lazyRetry(
+  () => import("@/pages/sms/SMSCampaignDetail"),
+);
+const SMSMessagesPage = lazyRetry(() => import("@/pages/sms/SMSMessagesPage"));
+const SMSAutomationDashboard = lazyRetry(
   () => import("@/pages/sms/SMSAutomationDashboard"),
 );
-const SMSAutomationWizard = lazy(
+const SMSAutomationWizard = lazyRetry(
   () => import("@/pages/sms/SMSAutomationWizard"),
 );
 

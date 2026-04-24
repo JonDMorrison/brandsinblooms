@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui-legacy/button";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Calendar } from "@/components/ui-legacy/calendar";
 import { Clock, Calendar as CalendarIcon, ChevronDown, X } from "lucide-react";
 import { addMinutes, format, startOfDay } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
-import { CustomDropdown } from "@/components/ui/custom-dropdown";
+import { CustomDropdown } from "@/components/ui-legacy/custom-dropdown";
 
 export interface ScheduleOption {
   type: "now" | "scheduled";

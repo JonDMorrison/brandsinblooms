@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, ArrowRight, ArrowLeft, SkipForward, Play, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import * as Popover from '@radix-ui/react-popover';
 import { cn } from '@/lib/utils';
 import { useQuickTour, TourStep } from '@/contexts/QuickTourContext';

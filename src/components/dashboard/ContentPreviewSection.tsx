@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui-legacy/apple-card";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui-legacy/typography";
 import { Eye, Sparkles, Leaf, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ContentViewer } from "@/components/content/ContentViewer";

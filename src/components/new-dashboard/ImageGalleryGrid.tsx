@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Loader2, ImageIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { ImageThumbnail } from './ImageThumbnail';
 import styles from './ImageGallery.module.css';
 

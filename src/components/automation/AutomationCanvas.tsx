@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { AIAssistant } from './flow/AIAssistant';
 import { 
   ReactFlow, 

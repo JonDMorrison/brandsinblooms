@@ -1,13 +1,7 @@
 import { Receipt } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  SheetDescription,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Button } from "@/components/ui-legacy/button";
+
 import type {
   LightspeedPagination,
   LightspeedSaleRow,
@@ -31,6 +25,13 @@ import {
   formatDateTimeValue,
   formatDateValue,
   parseSaleLineItems,
+  DataTabLoadingState,
+  JoyDataTable,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type SalesSortValue = "sale_date:desc" | "total_amount:desc" | "status:asc";
@@ -227,7 +228,7 @@ export function SalesTabView({
         {rows.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1040px] border-collapse">
+              <JoyDataTable>
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th
@@ -322,7 +323,7 @@ export function SalesTabView({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -331,11 +332,7 @@ export function SalesTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading sales…
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState

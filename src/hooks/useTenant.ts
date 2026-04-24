@@ -1,7 +1,8 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/contexts/AdminContext";
+import { getUserAssignedTenantId } from "@/utils/getUserAssignedTenantId";
 
 interface Tenant {
   id: string;
@@ -23,6 +24,8 @@ export const useTenant = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { isMasterAdmin, activeTenantId, hasHydratedTenantContext } =
+    useAdmin();
 
   const fetchTenant = useCallback(async () => {
     if (!user) {
@@ -32,41 +35,51 @@ export const useTenant = () => {
       return;
     }
 
+    if (isMasterAdmin && !hasHydratedTenantContext) {
+      setLoading(true);
+      return;
+    }
+
     try {
       setError(null);
       setLoading(true);
 
-      // First get the user's tenant_id
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .maybeSingle();
+      let effectiveTenantId: string | null = null;
 
-      if (userError) throw userError;
+      if (isMasterAdmin) {
+        effectiveTenantId = activeTenantId;
+      }
 
-      if (userData?.tenant_id) {
+      if (!effectiveTenantId) {
+        effectiveTenantId = await getUserAssignedTenantId(user.id);
+      }
+
+      if (effectiveTenantId) {
         // Fetch the tenant details
         const { data: tenantData, error: tenantError } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', userData.tenant_id)
+          .from("tenants")
+          .select("*")
+          .eq("id", effectiveTenantId)
           .maybeSingle();
 
         if (tenantError) throw tenantError;
         setTenant(tenantData as unknown as Tenant);
       } else {
         setTenant(null);
-        setError('You are not assigned to a tenant. Please contact support or create an organization to continue.');
+        setError(
+          isMasterAdmin
+            ? "Select a tenant in Master Admin mode or assign a tenant to your user account to continue."
+            : "You are not assigned to a tenant. Please contact support or create an organization to continue.",
+        );
       }
     } catch (error) {
-      console.error('Error fetching tenant:', error);
+      console.error("Error fetching tenant:", error);
       setTenant(null);
-      setError('Unable to load organization information. Please try again.');
+      setError("Unable to load organization information. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [activeTenantId, hasHydratedTenantContext, isMasterAdmin, user]);
 
   useEffect(() => {
     void fetchTenant();
@@ -76,6 +89,11 @@ export const useTenant = () => {
     tenant,
     loading,
     error,
+    requiresTenantSelection:
+      isMasterAdmin &&
+      hasHydratedTenantContext &&
+      !activeTenantId &&
+      !tenant?.id,
     refetch: fetchTenant,
   };
 };

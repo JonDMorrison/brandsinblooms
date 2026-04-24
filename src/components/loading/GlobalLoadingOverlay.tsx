@@ -1,6 +1,6 @@
 import React from "react";
 import { useLoading } from "@/contexts/LoadingContext";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
 
 export const GlobalLoadingOverlay = () => {
   const { currentLoading } = useLoading();

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, ExternalLink, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";

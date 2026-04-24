@@ -1,24 +1,26 @@
-import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Clock, Play, AlertCircle } from "lucide-react";
+import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { AlertCircle, Clock3, Play, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SMSQueueStatusProps {
   queuedMessages: number;
+  loading?: boolean;
   onRefresh: () => void;
 }
 
 export const SMSQueueStatus: React.FC<SMSQueueStatusProps> = ({
   queuedMessages,
+  loading = false,
   onRefresh,
 }) => {
   const [processing, setProcessing] = React.useState(false);
@@ -45,67 +47,202 @@ export const SMSQueueStatus: React.FC<SMSQueueStatusProps> = ({
   return (
     <Card
       id="queue"
-      className="rounded-[24px] border border-gray-100 bg-white shadow-sm"
+      variant="outlined"
+      sx={{
+        borderRadius: "24px",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        p: 2.25,
+      }}
     >
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${queuedMessages > 0 ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}
-            >
-              <Clock className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle className="text-base font-semibold text-gray-900">
-                  Message Queue
-                </CardTitle>
-                {queuedMessages > 0 ? (
-                  <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">
-                    Pending
-                  </Badge>
-                ) : (
-                  <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
-                    Clear
-                  </Badge>
-                )}
-              </div>
-              <CardDescription className="mt-1 text-sm text-gray-500">
-                {queuedMessages > 0
-                  ? `${queuedMessages} messages waiting to be processed`
-                  : "0 messages in queue"}
-              </CardDescription>
-            </div>
-          </div>
+      {loading ? (
+        <Stack spacing={2}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Stack spacing={0.75}>
+              <Skeleton variant="text" sx={{ width: 112, height: 18 }} />
+              <Skeleton variant="text" sx={{ width: 188, height: 14 }} />
+            </Stack>
+            <Skeleton
+              variant="rectangular"
+              sx={{ width: 84, height: 28, borderRadius: "999px" }}
+            />
+          </Stack>
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "100%", height: 96, borderRadius: "18px" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "100%", height: 12, borderRadius: "999px" }}
+          />
+        </Stack>
+      ) : queuedMessages === 0 ? (
+        <Stack spacing={2.25}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={2}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-md" fontWeight="lg">
+                Message Queue
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                No messages are currently waiting to send.
+              </Typography>
+            </Stack>
+            <Chip size="sm" variant="soft" color="success">
+              Clear
+            </Chip>
+          </Stack>
 
-          <div className="flex items-center gap-3 self-start sm:self-auto">
-            <span className="text-2xl font-bold tracking-tight text-gray-900">
-              {queuedMessages}
-            </span>
-            {queuedMessages > 0 ? (
-              <Button
-                onClick={handleProcessQueue}
-                disabled={processing}
-                size="sm"
-                className="h-10 rounded-xl bg-emerald-600 px-4 font-semibold text-white hover:bg-emerald-700"
+          <Box
+            sx={{
+              minHeight: 180,
+              borderRadius: "18px",
+              border: "1px dashed",
+              borderColor: "neutral.300",
+              backgroundColor: "background.level1",
+              display: "grid",
+              placeItems: "center",
+              px: 3,
+              py: 5,
+              textAlign: "center",
+            }}
+          >
+            <Stack spacing={1.5} alignItems="center" sx={{ maxWidth: 320 }}>
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "16px",
+                  display: "grid",
+                  placeItems: "center",
+                  backgroundColor:
+                    "rgba(var(--joy-palette-success-mainChannel) / 0.08)",
+                  color: "success.600",
+                }}
               >
-                <Play className="h-4 w-4 mr-2" />
-                {processing ? "Processing..." : "Process Now"}
-              </Button>
-            ) : null}
-          </div>
-        </div>
+                <Clock3 size={20} />
+              </Box>
+              <Stack spacing={0.75}>
+                <Typography level="title-md">Queue is clear</Typography>
+                <Typography level="body-sm" color="neutral">
+                  New scheduled or batched sends will appear here when they are
+                  waiting for the worker.
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        </Stack>
+      ) : (
+        <Stack spacing={2}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-start"
+            spacing={2}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-md" fontWeight="lg">
+                Message Queue
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                {queuedMessages} messages are waiting for the worker to process.
+              </Typography>
+            </Stack>
+            <Chip size="sm" variant="soft" color="warning">
+              Pending
+            </Chip>
+          </Stack>
 
-        {queuedMessages > 0 && (
-          <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
-            <div className="flex flex-wrap items-center gap-2">
-              {queuedMessages > 10 ? <AlertCircle className="h-4 w-4" /> : null}
-              Messages are processed automatically every 5 minutes. You can also
-              run them manually from here.
-            </div>
-          </div>
-        )}
-      </CardContent>
+          <Box
+            sx={{
+              borderRadius: "18px",
+              border: "1px solid",
+              borderColor: "warning.200",
+              backgroundColor:
+                "rgba(var(--joy-palette-warning-mainChannel) / 0.08)",
+              px: 2,
+              py: 2,
+            }}
+          >
+            <Stack spacing={1.5}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                spacing={2}
+              >
+                <Box>
+                  <Typography
+                    level="h2"
+                    sx={{
+                      fontWeight: 700,
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {queuedMessages}
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    queued messages
+                  </Typography>
+                </Box>
+                <Button
+                  onClick={handleProcessQueue}
+                  disabled={processing}
+                  size="sm"
+                  startDecorator={
+                    processing ? (
+                      <RefreshCw size={15} className="animate-spin" />
+                    ) : (
+                      <Play size={15} />
+                    )
+                  }
+                  sx={{ borderRadius: "12px" }}
+                >
+                  {processing ? "Processing..." : "Process Now"}
+                </Button>
+              </Stack>
+
+              <LinearProgress
+                determinate={false}
+                color={processing ? "success" : "warning"}
+                sx={{ borderRadius: "999px", height: 10 }}
+              />
+            </Stack>
+          </Box>
+
+          <Alert
+            variant="soft"
+            color={queuedMessages > 10 ? "warning" : "neutral"}
+            startDecorator={
+              queuedMessages > 10 ? (
+                <AlertCircle size={16} />
+              ) : (
+                <Clock3 size={16} />
+              )
+            }
+            sx={{ alignItems: "flex-start", borderRadius: "16px" }}
+          >
+            <Box>
+              <Typography level="body-sm" fontWeight="md">
+                Messages are processed automatically every 5 minutes.
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                You can also run the worker manually from here whenever you need
+                to clear the backlog sooner.
+              </Typography>
+            </Box>
+          </Alert>
+        </Stack>
+      )}
     </Card>
   );
 };

@@ -1,10 +1,10 @@
 
 import * as React from "react";
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
-import { SeasonalIndicator } from "@/components/ui/premium-icons";
-import { CelebrationEffect } from "@/components/ui/celebration-effect";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
+import { SeasonalIndicator } from "@/components/ui-legacy/premium-icons";
+import { CelebrationEffect } from "@/components/ui-legacy/celebration-effect";
 import { cn } from "@/lib/utils";
 
 interface EnhancedWelcomeSectionProps {

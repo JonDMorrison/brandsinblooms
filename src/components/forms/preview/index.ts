@@ -1,2 +1,2 @@
-export { FormPreviewRenderer } from './FormPreviewRenderer';
-export { PreviewPanel } from './PreviewPanel';
+export { FormPreviewDialog } from "./FormPreviewDialog";
+export { FormPreviewRenderer } from "./FormPreviewRenderer";

@@ -1,6 +1,6 @@
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { PlusCircle, Calendar, Loader2 } from "lucide-react";
 
 interface NoCampaignStateProps {

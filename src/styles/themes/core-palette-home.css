@@ -2,13 +2,19 @@
 
 .theme-core-home {
   /* Core Palette CSS Variables */
-  --core-dark-teal: 193 81% 20%;      /* #06495d */
-  --core-bright-teal: 184 55% 41%;    /* #2c9da3 */  
-  --core-deep-indigo: 225 42% 32%;    /* #2f3a75 */
-  --core-offwhite: 120 25% 98%;       /* #fbfdfa */
-  --core-cool-gray: 180 3% 66%;       /* #a3aaaa */
-  --core-warm-coral: 20 77% 58%;      /* #e67e48 */
-  
+  --core-dark-teal: 193 81% 20%;
+  /* #06495d */
+  --core-bright-teal: 184 55% 41%;
+  /* #2c9da3 */
+  --core-deep-indigo: 225 42% 32%;
+  /* #2f3a75 */
+  --core-offwhite: 120 25% 98%;
+  /* #fbfdfa */
+  --core-cool-gray: 180 3% 66%;
+  /* #a3aaaa */
+  --core-warm-coral: 20 77% 58%;
+  /* #e67e48 */
+
   /* Override semantic tokens for homepage */
   --primary: var(--core-dark-teal);
   --secondary: var(--core-bright-teal);
@@ -24,126 +30,204 @@
 /* Garden Green Classes - Map to Dark Teal */
 .theme-core-home .bg-garden-green,
 .theme-core-home .bg-garden-green-dark {
-  background-color: hsl(var(--core-dark-teal)) !important;
+  background-color: hsl(var(--core-dark-teal));
 }
 
 .theme-core-home .text-garden-green,
 .theme-core-home .text-garden-green-dark {
-  color: hsl(var(--core-dark-teal)) !important;
+  color: hsl(var(--core-dark-teal));
 }
 
 .theme-core-home .border-garden-green,
 .theme-core-home .border-garden-green-dark {
-  border-color: hsl(var(--core-dark-teal)) !important;
+  border-color: hsl(var(--core-dark-teal));
 }
 
 .theme-core-home .hover\:bg-garden-green:hover,
 .theme-core-home .hover\:bg-garden-green-dark:hover {
-  background-color: hsl(var(--core-dark-teal) / 0.9) !important;
+  background-color: hsl(var(--core-dark-teal) / 0.9);
 }
 
 /* Generic Green Classes - Map to Bright Teal */
-.theme-core-home .bg-green-50 { background-color: hsl(var(--core-offwhite)) !important; }
-.theme-core-home .bg-green-100 { background-color: hsl(var(--core-bright-teal) / 0.1) !important; }
-.theme-core-home .bg-green-200 { background-color: hsl(var(--core-bright-teal) / 0.2) !important; }
-.theme-core-home .bg-green-500 { background-color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .bg-green-600 { background-color: hsl(var(--core-dark-teal)) !important; }
-.theme-core-home .bg-green-700 { background-color: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .bg-green-50 {
+  background-color: hsl(var(--core-offwhite));
+}
 
-.theme-core-home .text-green-500 { color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .text-green-600 { color: hsl(var(--core-dark-teal)) !important; }
-.theme-core-home .text-green-700 { color: hsl(var(--core-deep-indigo)) !important; }
-.theme-core-home .text-green-800 { color: hsl(var(--core-deep-indigo)) !important; }
+.theme-core-home .bg-green-100 {
+  background-color: hsl(var(--core-bright-teal) / 0.1);
+}
 
-.theme-core-home .border-green-200 { border-color: hsl(var(--core-bright-teal) / 0.3) !important; }
-.theme-core-home .border-green-300 { border-color: hsl(var(--core-bright-teal) / 0.4) !important; }
+.theme-core-home .bg-green-200 {
+  background-color: hsl(var(--core-bright-teal) / 0.2);
+}
+
+.theme-core-home .bg-green-500 {
+  background-color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .bg-green-600 {
+  background-color: hsl(var(--core-dark-teal));
+}
+
+.theme-core-home .bg-green-700 {
+  background-color: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .text-green-500 {
+  color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .text-green-600 {
+  color: hsl(var(--core-dark-teal));
+}
+
+.theme-core-home .text-green-700 {
+  color: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .text-green-800 {
+  color: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .border-green-200 {
+  border-color: hsl(var(--core-bright-teal) / 0.3);
+}
+
+.theme-core-home .border-green-300 {
+  border-color: hsl(var(--core-bright-teal) / 0.4);
+}
 
 /* Emerald Classes - Map to Bright Teal */
-.theme-core-home .bg-emerald-500 { background-color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .text-emerald-600 { color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .from-emerald-500 { --tw-gradient-from: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .to-emerald-500 { --tw-gradient-to: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .bg-emerald-500 {
+  background-color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .text-emerald-600 {
+  color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .from-emerald-500 {
+  --tw-gradient-from: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .to-emerald-500 {
+  --tw-gradient-to: hsl(var(--core-bright-teal));
+}
 
 /* Teal Classes - Use Bright Teal */
-.theme-core-home .bg-teal-500 { background-color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .to-teal-600 { --tw-gradient-to: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .bg-teal-500 {
+  background-color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .to-teal-600 {
+  --tw-gradient-to: hsl(var(--core-bright-teal));
+}
 
 /* Primary/Secondary Semantic Classes */
-.theme-core-home .bg-primary { background-color: hsl(var(--core-dark-teal)) !important; }
-.theme-core-home .text-primary { color: hsl(var(--core-dark-teal)) !important; }
-.theme-core-home .border-primary { border-color: hsl(var(--core-dark-teal)) !important; }
+.theme-core-home .bg-primary {
+  background-color: hsl(var(--core-dark-teal));
+}
 
-.theme-core-home .bg-secondary { background-color: hsl(var(--core-bright-teal)) !important; }
-.theme-core-home .text-secondary { color: hsl(var(--core-bright-teal)) !important; }
+.theme-core-home .text-primary {
+  color: hsl(var(--core-dark-teal));
+}
+
+.theme-core-home .border-primary {
+  border-color: hsl(var(--core-dark-teal));
+}
+
+.theme-core-home .bg-secondary {
+  background-color: hsl(var(--core-bright-teal));
+}
+
+.theme-core-home .text-secondary {
+  color: hsl(var(--core-bright-teal));
+}
 
 /* Card and Background Overrides */
-.theme-core-home .bg-card { background-color: hsl(var(--core-offwhite)) !important; }
+.theme-core-home .bg-card {
+  background-color: hsl(var(--core-offwhite));
+}
 
 /* Button Overrides */
 .theme-core-home .cta-button,
 .theme-core-home .btn-cta {
-  background: hsl(var(--core-bright-teal)) !important;
-  color: white !important;
-  border: none !important;
+  background: hsl(var(--core-bright-teal));
+  color: white;
+  border: none;
 }
 
 .theme-core-home .cta-button:hover,
 .theme-core-home .btn-cta:hover {
-  background: hsl(var(--core-bright-teal) / 0.9) !important;
+  background: hsl(var(--core-bright-teal) / 0.9);
 }
 
 /* Focus and Accent States */
 .theme-core-home .accent-element,
-.theme-core-home .focus-ring,
-.theme-core-home *:focus-visible {
-  border-color: hsl(var(--core-deep-indigo)) !important;
-  outline-color: hsl(var(--core-deep-indigo)) !important;
+.theme-core-home .focus-ring {
+  border-color: hsl(var(--core-deep-indigo));
+  outline-color: hsl(var(--core-deep-indigo));
 }
 
 /* Text Colors */
-.theme-core-home .text-slate-900 { color: hsl(var(--core-deep-indigo)) !important; }
-.theme-core-home .text-slate-800 { color: hsl(var(--core-deep-indigo)) !important; }
-.theme-core-home .text-slate-600 { color: hsl(var(--core-cool-gray)) !important; }
+.theme-core-home .text-slate-900 {
+  color: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .text-slate-800 {
+  color: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .text-slate-600 {
+  color: hsl(var(--core-cool-gray));
+}
 
 /* Black Text Override */
-.theme-core-home .text-black { color: #000000 !important; }
+.theme-core-home .text-black {
+  color: #000000;
+}
 
 /* Gradients with Core Colors */
-.theme-core-home .from-slate-800 { --tw-gradient-from: hsl(var(--core-deep-indigo)) !important; }
-.theme-core-home .to-slate-600 { --tw-gradient-to: hsl(var(--core-cool-gray)) !important; }
+.theme-core-home .from-slate-800 {
+  --tw-gradient-from: hsl(var(--core-deep-indigo));
+}
+
+.theme-core-home .to-slate-600 {
+  --tw-gradient-to: hsl(var(--core-cool-gray));
+}
 
 /* Additional Button and Hover States */
 .theme-core-home .hover\:bg-green-600:hover,
 .theme-core-home .hover\:bg-green-700:hover {
-  background-color: hsl(var(--core-dark-teal) / 0.9) !important;
+  background-color: hsl(var(--core-dark-teal) / 0.9);
 }
 
 .theme-core-home .hover\:bg-green-50:hover {
-  background-color: hsl(var(--core-offwhite)) !important;
+  background-color: hsl(var(--core-offwhite));
 }
 
 /* Badge and Chip Overrides */
 .theme-core-home .bg-green-100.text-green-800 {
-  background-color: hsl(var(--core-bright-teal) / 0.1) !important;
-  color: hsl(var(--core-dark-teal)) !important;
+  background-color: hsl(var(--core-bright-teal) / 0.1);
+  color: hsl(var(--core-dark-teal));
 }
 
 .theme-core-home .border-green-200,
 .theme-core-home .border-green-300 {
-  border-color: hsl(var(--core-bright-teal) / 0.3) !important;
+  border-color: hsl(var(--core-bright-teal) / 0.3);
 }
 
 /* Icon Colors */
 .theme-core-home .text-green-500,
 .theme-core-home .text-green-600 {
-  color: hsl(var(--core-dark-teal)) !important;
+  color: hsl(var(--core-dark-teal));
 }
 
 /* Specific Overrides for Common Components */
 .theme-core-home .bg-gradient-to-br.from-emerald-500 {
-  background: linear-gradient(to bottom right, hsl(var(--core-bright-teal)), hsl(var(--core-dark-teal))) !important;
+  background: linear-gradient(to bottom right, hsl(var(--core-bright-teal)), hsl(var(--core-dark-teal)));
 }
 
 .theme-core-home .bg-gradient-to-br.from-white {
-  background: hsl(var(--core-offwhite)) !important;
+  background: hsl(var(--core-offwhite));
 }

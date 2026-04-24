@@ -1,21 +1,66 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "./fixtures/auth.fixture";
 
-test.describe('Dashboard Navigation', () => {
-  test('should navigate to automation wizard when clicking Build Campaign', async ({ page }) => {
-    // Navigate to dashboard (will redirect to auth if not logged in)
-    await page.goto('/dashboard');
-    
-    // For now, we'll just test that the button exists and has the right data attribute
-    // In a real scenario, we'd need to handle authentication first
-    const buildCampaignButton = page.locator('[data-card-id*="campaign"], button:has-text("Build")');
-    
-    if (await buildCampaignButton.count() > 0) {
-      // If the button exists, check it has the right attributes
-      await expect(buildCampaignButton.first()).toHaveAttribute('type', 'button');
-      await expect(buildCampaignButton.first()).toHaveAttribute('data-card-id');
+test.describe("Dashboard topbar interactions", () => {
+  test("search, user menu, and report problem dialog match the current shell", async ({
+    page,
+    pageUtils,
+  }) => {
+    await pageUtils.navigateTo("/integrations");
+
+    const isMobile = (page.viewportSize()?.width ?? 0) < 768;
+
+    if (isMobile) {
+      await page.getByLabel("Open search").click();
+      const mobileSearch = page.getByRole("textbox", {
+        name: "Search something...",
+      });
+
+      await expect(mobileSearch).toBeVisible();
+      await mobileSearch.fill("lightspeed");
+      await page.getByLabel("Close search").click();
+      await expect(mobileSearch).toBeHidden();
     } else {
-      // If button doesn't exist, just ensure we're on a valid page
-      await expect(page.locator('body')).toBeVisible();
+      const desktopSearch = page.getByRole("textbox", {
+        name: "Search something...",
+      });
+
+      await expect(desktopSearch).toBeVisible();
+      await desktopSearch.fill("lightspeed");
     }
+
+    await page.getByLabel("Open user menu").click();
+    await page.getByRole("menuitem", { name: "Report a Problem" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Report a Problem" });
+
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("#title")).toBeVisible();
+    await expect(page.locator("#description")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+
+  test("authenticated users can move between the current tenant entry routes", async ({
+    page,
+    pageUtils,
+  }) => {
+    await pageUtils.navigateTo("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    await pageUtils.navigateTo("/integrations");
+    await expect(
+      page.locator('[data-testid="dashboard-shell-root"]'),
+    ).toBeVisible();
+
+    if ((page.viewportSize()?.width ?? 0) >= 768) {
+      await expect(
+        page.locator('[data-testid="dashboard-shell-topbar"]'),
+      ).toContainText("Integrations");
+    }
+
+    await pageUtils.navigateTo("/settings");
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.locator("body")).toBeVisible();
   });
 });

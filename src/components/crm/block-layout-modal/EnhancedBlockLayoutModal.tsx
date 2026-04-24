@@ -4,8 +4,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui-legacy/dialog";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Plus,
   Grid,

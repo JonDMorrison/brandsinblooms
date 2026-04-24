@@ -1,7 +1,7 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Sparkles, Loader2, Coins } from "lucide-react";
 import { useTokens } from "@/hooks/useTokens";
 import { useAuth } from "@/contexts/AuthContext";

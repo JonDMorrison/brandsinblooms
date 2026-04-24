@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { cn } from '@/lib/utils';
 
 type TimeFilter = '7d' | '30d' | 'all';

@@ -4,14 +4,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/NativeSelect";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
 import { Calendar, Send, Clock, Loader2, Image } from "lucide-react";
-import { StatusIndicator } from "@/components/ui/status-indicator";
+import { StatusIndicator } from "@/components/ui-legacy/status-indicator";
 import { TASK_STATUS } from "@/constants/taskStatus";
 import { format, addHours, addDays } from "date-fns";
 import { ImageSelectButton } from "@/components/image";

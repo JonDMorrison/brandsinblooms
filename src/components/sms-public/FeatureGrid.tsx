@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Gift, CalendarClock, Lightbulb } from 'lucide-react';
 
 const features = [

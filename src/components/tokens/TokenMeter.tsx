@@ -1,5 +1,5 @@
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Coins, AlertTriangle } from "lucide-react";
 import { useTokens } from "@/hooks/useTokens";
 import { TOKEN_CONSTANTS } from "@/constants/tokens";

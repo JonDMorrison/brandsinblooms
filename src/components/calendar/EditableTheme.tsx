@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { Card, CardContent } from "@/components/ui-legacy/card";
 import { Edit2, Save, X, Lightbulb, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement

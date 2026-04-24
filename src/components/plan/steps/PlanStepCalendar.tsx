@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { SafeHtml } from "@/components/ui/safe-html";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Badge } from "@/components/ui-legacy/badge";
+import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 import { renderMarkdownToMagazineHtml } from "@/utils/renderMarkdown";
 import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import {
@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui-legacy/dropdown-menu";
 import {
   Calendar,
   Mail,
@@ -44,7 +44,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLoading } from "@/contexts/LoadingContext";
 import { ProgressiveLoadingCard } from "@/components/dashboard/ProgressiveLoadingCard";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
 import { Eye } from "lucide-react";
 import { MergeTagsPreviewDialog } from "@/components/crm/MergeTagsPreviewDialog";

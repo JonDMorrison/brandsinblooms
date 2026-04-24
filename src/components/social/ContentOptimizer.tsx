@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Textarea } from '@/components/ui-legacy/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles, TrendingUp, Hash, Image, Target } from 'lucide-react';
 // Removed sonner import - using global toast replacement

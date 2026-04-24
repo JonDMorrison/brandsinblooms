@@ -4,12 +4,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/native-select";
+import { Textarea } from "@/components/ui-legacy/textarea";
 import { Loader2, Sparkles } from "lucide-react";
 import { usePersonaAwareGeneration } from "@/hooks/usePersonaAwareGeneration";
 import { generateNewsletterBlocks } from "@/services/newsletterBlockGenerator";

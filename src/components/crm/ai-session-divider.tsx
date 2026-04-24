@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui-legacy/card';
 import { Calendar, MessageSquare, Image } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 

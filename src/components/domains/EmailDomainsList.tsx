@@ -1,19 +1,22 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
 import {
   Globe,
   Plus,
   Settings,
   CheckCircle,
-  Clock,
-  Mail,
+  XCircle,
   RefreshCw,
-  RotateCcw,
   AlertTriangle,
   Wrench,
-  Link2Off,
 } from "lucide-react";
 import { DomainConnectWizard } from "@/components/crm/settings/DomainConnectWizard";
 import { EmailDomainDetails } from "./EmailDomainDetails";
@@ -47,32 +50,41 @@ interface ReadinessDisplay {
   showForceCheck: boolean;
 }
 
-// =========================================================
-// Readiness Badge Component (strict color system)
-// =========================================================
+interface EmailDomainsListProps {
+  addDomainOpen: boolean;
+  onAddDomainOpenChange: (open: boolean) => void;
+}
 
-const ReadinessBadge = ({
-  variant,
-  children,
-}: {
-  variant: "green" | "amber" | "red" | "gray";
-  children: React.ReactNode;
-}) => {
-  const styles = {
-    green: "bg-green-100 text-green-800 border-green-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    red: "bg-red-100 text-red-800 border-red-200",
-    gray: "bg-gray-100 text-gray-600 border-gray-200",
-  };
+const SPIN_SX = {
+  animation: "domains-refresh-spin 1s linear infinite",
+  "@keyframes domains-refresh-spin": {
+    to: { transform: "rotate(360deg)" },
+  },
+} as const;
 
-  return <Badge className={styles[variant]}>{children}</Badge>;
+const badgeToneMap = {
+  green: "success",
+  amber: "warning",
+  red: "danger",
+  gray: "neutral",
+} as const;
+
+const formatCooldown = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return minutes > 0
+    ? `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`
+    : `${remainingSeconds}s`;
 };
 
 // =========================================================
 // Main Component
 // =========================================================
 
-export const EmailDomainsList = () => {
+export const EmailDomainsList = ({
+  addDomainOpen,
+  onAddDomainOpenChange,
+}: EmailDomainsListProps) => {
   const {
     emailDomains,
     loading,
@@ -87,7 +99,6 @@ export const EmailDomainsList = () => {
     isLoading: entriLoading,
   } = useEntriConnect();
   const { tenant, refetch: refetchTenant } = useTenant();
-  const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
   const [verifyingDomains, setVerifyingDomains] = useState<Set<string>>(
     new Set(),
@@ -96,6 +107,7 @@ export const EmailDomainsList = () => {
     new Set(),
   );
   const [savingDefaultDomain, setSavingDefaultDomain] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Rate limiting: track last check time per domain
   const [lastCheckTimes, setLastCheckTimes] = useState<Record<string, number>>(
@@ -459,18 +471,51 @@ export const EmailDomainsList = () => {
     }
   };
 
-  const getStatusIcon = (display: ReadinessDisplay) => {
-    switch (display.badge.variant) {
-      case "green":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "amber":
-        return <Clock className="w-4 h-4 text-amber-600" />;
-      case "red":
-        return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case "gray":
-        return <Link2Off className="w-4 h-4 text-gray-500" />;
+  const getIndicatorConfig = (
+    domain: EmailDomain,
+    display: ReadinessDisplay,
+  ) => {
+    if (domain.status === "failed" || domain.status === "error") {
+      return {
+        color: "danger" as const,
+        icon: XCircle,
+      };
+    }
+
+    switch (display.status) {
+      case "CONNECTED_READY":
+      case "READY_TO_SEND":
+      case "READY_AWAITING_PROVIDER":
+        return {
+          color: "success" as const,
+          icon: CheckCircle,
+        };
+      case "ACTION_REQUIRED_DNS_MISSING":
+        return {
+          color: "warning" as const,
+          icon: AlertTriangle,
+        };
+      case "ACTION_REQUIRED_DNS_CONFLICT":
+        return {
+          color: "danger" as const,
+          icon: AlertTriangle,
+        };
+      case "DOMAIN_NOT_CONNECTED":
       default:
-        return <Clock className="w-4 h-4 text-amber-600" />;
+        return {
+          color: "neutral" as const,
+          icon: Globe,
+        };
+    }
+  };
+
+  const handleRetryLoad = async () => {
+    setLoadError(null);
+
+    try {
+      await refetch();
+    } catch (error: any) {
+      setLoadError(error?.message || "Failed to load domains.");
     }
   };
 
@@ -480,243 +525,353 @@ export const EmailDomainsList = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center py-8">
-            <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
+      <Stack spacing={1.5}>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Sheet
+            key={index}
+            variant="outlined"
+            sx={{
+              bgcolor: "background.surface",
+              borderRadius: "sm",
+              p: 2,
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "32px minmax(0, 1fr) 72px",
+                },
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <Skeleton
+                animation="wave"
+                variant="circular"
+                sx={{ height: 32, width: 32 }}
+              />
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Skeleton animation="wave" sx={{ height: 16, width: "35%" }} />
+                <Skeleton animation="wave" sx={{ height: 14, width: "55%" }} />
+              </Stack>
+              <Skeleton
+                animation="wave"
+                sx={{
+                  height: 32,
+                  width: 72,
+                  justifySelf: { xs: "flex-start", sm: "flex-end" },
+                }}
+              />
+            </Box>
+          </Sheet>
+        ))}
+      </Stack>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Sheet
+        color="danger"
+        variant="soft"
+        sx={{
+          bgcolor: "background.surface",
+          borderRadius: "sm",
+          p: 3,
+        }}
+      >
+        <Stack spacing={1.5} alignItems="center" textAlign="center">
+          <AlertTriangle size={20} />
+          <Typography level="title-sm">Unable to load domains</Typography>
+          <Typography level="body-sm" color="neutral">
+            {loadError}
+          </Typography>
+          <Button
+            color="danger"
+            size="sm"
+            variant="outlined"
+            onClick={handleRetryLoad}
+          >
+            Retry
+          </Button>
+        </Stack>
+      </Sheet>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle className="text-xl">Email Domains</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure domains for sending emails with your brand
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {defaultDomainId ? (
-              <Button
-                variant="outline"
-                onClick={() => setDefaultSendingDomain(null)}
-                disabled={savingDefaultDomain}
-              >
-                Clear default
-              </Button>
-            ) : null}
+      {emailDomains.length === 0 ? (
+        <Sheet
+          variant="outlined"
+          sx={{
+            bgcolor: "background.surface",
+            borderRadius: "md",
+            borderStyle: "dashed",
+            py: 6,
+            px: 4,
+          }}
+        >
+          <Stack spacing={2} alignItems="center" textAlign="center">
+            <Globe
+              size={40}
+              style={{ color: "var(--joy-palette-neutral-400)" }}
+            />
+            <Typography level="title-md" sx={{ fontWeight: 600 }}>
+              No domains configured
+            </Typography>
+            <Typography level="body-sm" color="neutral" sx={{ maxWidth: 420 }}>
+              Adding a custom sending domain improves inbox placement and keeps
+              your brand visible in every campaign.
+            </Typography>
             <Button
-              onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2"
+              color="neutral"
+              size="sm"
+              startDecorator={<Plus size={16} />}
+              variant="outlined"
+              onClick={() => onAddDomainOpenChange(true)}
             >
-              <Plus className="w-4 h-4" />
               Add Domain
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {emailDomains.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed rounded-lg">
-              <Globe className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <h3 className="text-base font-medium mb-1">
-                No domains configured yet
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Add your domain to send emails from your own address and improve
-                deliverability.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {emailDomains.map((domain) => {
-                const display = getReadinessDisplay(domain);
-                const lastChecked = getLastCheckedText(domain);
-                const isVerifying = verifyingDomains.has(domain.id);
-                const isRepairing = repairingDomains.has(domain.id);
-                const isFailed = domain.status === "failed";
-                const canCheck = canForceCheck(domain.id);
-                const isOperational =
-                  domain.status === "active" || domain.status === "warming_up";
-                const isDefault =
-                  !!defaultDomainId && domain.id === defaultDomainId;
+          </Stack>
+        </Sheet>
+      ) : (
+        <Stack spacing={1.5}>
+          {emailDomains.map((domain) => {
+            const display = getReadinessDisplay(domain);
+            const indicator = getIndicatorConfig(domain, display);
+            const lastChecked = getLastCheckedText(domain);
+            const isVerifying = verifyingDomains.has(domain.id);
+            const isRepairing = repairingDomains.has(domain.id);
+            const isFailed =
+              domain.status === "failed" || domain.status === "error";
+            const canCheck = canForceCheck(domain.id);
+            const cooldownSeconds = getTimeUntilNextCheck(domain.id);
+            const isOperational =
+              domain.status === "active" || domain.status === "warming_up";
+            const isDefault =
+              !!defaultDomainId && domain.id === defaultDomainId;
+            const IndicatorIcon = indicator.icon;
 
-                return (
-                  <div
-                    key={domain.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+            return (
+              <Sheet
+                key={domain.id}
+                variant="outlined"
+                sx={{
+                  bgcolor: "background.surface",
+                  borderRadius: "sm",
+                  p: 2,
+                  transition: "border-color 160ms ease",
+                  "&:hover": {
+                    borderColor: "neutral.outlinedHoverBorder",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      lg: "minmax(0, 1.8fr) auto auto",
+                    },
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="center"
+                    sx={{ minWidth: 0 }}
                   >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {/* Status Icon */}
-                      <div
-                        className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                          display.badge.variant === "green"
-                            ? "bg-green-100"
-                            : display.badge.variant === "red"
-                              ? "bg-red-100"
-                              : display.badge.variant === "gray"
-                                ? "bg-gray-100"
-                                : "bg-amber-100"
-                        }`}
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "999px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: `${indicator.color}.softBg`,
+                        color: `${indicator.color}.plainColor`,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <IndicatorIcon size={16} />
+                    </Box>
+
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                      <Typography
+                        level="title-sm"
+                        sx={{ fontFamily: "code", fontWeight: 600 }}
                       >
-                        {getStatusIcon(display)}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        {/* Domain name + Single Badge */}
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="text-sm font-medium truncate">
-                            {domain.domain}
-                          </p>
-                          <ReadinessBadge variant={display.badge.variant}>
-                            {display.badge.text}
-                          </ReadinessBadge>
-                          {isDefault && (
-                            <Badge variant="secondary" className="text-xs">
-                              Default
-                            </Badge>
-                          )}
-                          {domain.is_sandbox && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-purple-100 text-purple-800"
-                            >
-                              Sandbox
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Single Message */}
-                        <p className="text-sm text-muted-foreground">
-                          {display.message}
-                        </p>
-
-                        {/* Sub-message (if any) */}
-                        {display.subMessage && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {display.subMessage}
-                          </p>
-                        )}
-
-                        {/* Last checked timestamp */}
-                        {lastChecked && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {lastChecked}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions - Single CTA pattern */}
-                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                      {/* Default domain selector */}
-                      {isOperational ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDefaultSendingDomain(domain.id)}
-                          disabled={savingDefaultDomain || isDefault}
-                        >
-                          {isDefault ? "Default" : "Set default"}
-                        </Button>
+                        {domain.domain}
+                      </Typography>
+                      <Typography level="body-xs" color="neutral">
+                        {display.message}
+                      </Typography>
+                      {display.subMessage ? (
+                        <Typography level="body-xs" color="neutral">
+                          {display.subMessage}
+                        </Typography>
                       ) : null}
+                    </Stack>
+                  </Stack>
 
-                      {/* Primary CTA Button (red actions) */}
-                      {display.ctaAction && domain.is_entri_managed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (
-                              display.ctaAction === "repair" ||
-                              display.ctaAction === "fix_conflict"
-                            ) {
-                              handleRepairDomain(domain);
-                            }
-                          }}
-                          disabled={isRepairing || entriLoading}
-                          className={`flex items-center gap-2 ${
-                            display.badge.variant === "red"
-                              ? "border-red-400 text-red-700 hover:bg-red-50"
-                              : ""
-                          }`}
-                        >
-                          {isRepairing ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Wrench className="w-4 h-4" />
-                          )}
-                          {isRepairing ? "Fixing..." : display.ctaLabel}
-                        </Button>
-                      )}
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    useFlexGap
+                    flexWrap="wrap"
+                    alignItems="center"
+                  >
+                    <Chip
+                      color={badgeToneMap[display.badge.variant]}
+                      size="sm"
+                      variant="soft"
+                    >
+                      {display.badge.text}
+                    </Chip>
+                    {isDefault ? (
+                      <Chip color="primary" size="sm" variant="soft">
+                        Default
+                      </Chip>
+                    ) : null}
+                    {domain.is_sandbox ? (
+                      <Chip color="neutral" size="sm" variant="outlined">
+                        Sandbox
+                      </Chip>
+                    ) : null}
+                  </Stack>
 
-                      {/* Retry button for failed domains */}
-                      {isFailed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleVerifyDomain(domain.id, true)}
-                          disabled={isVerifying}
-                          className="flex items-center gap-2"
-                        >
-                          {isVerifying ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RotateCcw className="w-4 h-4" />
-                          )}
-                          {isVerifying ? "Retrying..." : "Retry"}
-                        </Button>
-                      )}
-
-                      {/* Check Status button (for awaiting provider) */}
-                      {display.showForceCheck && !isFailed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleVerifyDomain(domain.id)}
-                          disabled={isVerifying || !canCheck}
-                          className="flex items-center gap-2"
-                        >
-                          {isVerifying ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="w-4 h-4" />
-                          )}
-                          {isVerifying
-                            ? "Checking..."
-                            : canCheck
-                              ? "Check Status"
-                              : "Checked"}
-                        </Button>
-                      )}
-
-                      {/* Details button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedDomain(domain.id)}
-                        className="flex items-center gap-2"
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    alignItems="center"
+                    justifyContent={{ xs: "flex-start", lg: "flex-end" }}
+                    flexWrap="wrap"
+                  >
+                    {lastChecked ? (
+                      <Typography
+                        level="body-xs"
+                        color="neutral"
+                        sx={{ whiteSpace: "nowrap" }}
                       >
-                        <Settings className="w-4 h-4" />
-                        Details
+                        {lastChecked}
+                      </Typography>
+                    ) : null}
+
+                    <Tooltip title="Domain details">
+                      <IconButton
+                        color="neutral"
+                        size="sm"
+                        variant="plain"
+                        onClick={() => setSelectedDomain(domain.id)}
+                      >
+                        <Settings size={16} />
+                      </IconButton>
+                    </Tooltip>
+
+                    {display.showForceCheck && !isFailed ? (
+                      <Tooltip
+                        title={
+                          canCheck || isVerifying
+                            ? "Check DNS Status"
+                            : `Available in ${formatCooldown(cooldownSeconds)}`
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            color="neutral"
+                            disabled={isVerifying || !canCheck}
+                            size="sm"
+                            variant="plain"
+                            onClick={() => handleVerifyDomain(domain.id)}
+                          >
+                            <Box
+                              component="span"
+                              sx={isVerifying ? SPIN_SX : undefined}
+                            >
+                              <RefreshCw size={16} />
+                            </Box>
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    ) : null}
+
+                    {isOperational ? (
+                      <Button
+                        color="neutral"
+                        disabled={savingDefaultDomain}
+                        size="sm"
+                        variant="plain"
+                        onClick={() =>
+                          setDefaultSendingDomain(isDefault ? null : domain.id)
+                        }
+                      >
+                        {isDefault ? "Clear default" : "Set default"}
                       </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    ) : null}
+
+                    {isFailed ? (
+                      <Button
+                        color="warning"
+                        disabled={isVerifying}
+                        size="sm"
+                        variant="soft"
+                        onClick={() => handleVerifyDomain(domain.id, true)}
+                      >
+                        Retry
+                      </Button>
+                    ) : null}
+
+                    {display.ctaAction && domain.is_entri_managed ? (
+                      <Button
+                        color="warning"
+                        disabled={isRepairing || entriLoading}
+                        size="sm"
+                        startDecorator={
+                          isRepairing ? (
+                            <Box component="span" sx={SPIN_SX}>
+                              <RefreshCw size={16} />
+                            </Box>
+                          ) : (
+                            <Wrench size={16} />
+                          )
+                        }
+                        variant="soft"
+                        onClick={() => {
+                          if (
+                            display.ctaAction === "repair" ||
+                            display.ctaAction === "fix_conflict"
+                          ) {
+                            handleRepairDomain(domain);
+                          }
+                        }}
+                      >
+                        {isRepairing
+                          ? "Fixing..."
+                          : display.ctaAction === "fix_conflict"
+                            ? "Fix DNS"
+                            : display.ctaLabel}
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </Box>
+              </Sheet>
+            );
+          })}
+        </Stack>
+      )}
 
       <DomainConnectWizard
-        open={showWizard}
+        open={addDomainOpen}
         onClose={() => {
-          setShowWizard(false);
+          onAddDomainOpenChange(false);
+          setLoadError(null);
           refetch();
         }}
       />

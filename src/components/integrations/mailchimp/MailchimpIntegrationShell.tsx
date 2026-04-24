@@ -1,28 +1,49 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
-  CheckCircle2,
   AlertTriangle,
   Clock3,
   Database,
   Download,
   KeyRound,
-  Loader2,
   Mail,
   Pause,
   Play,
   ShieldAlert,
   Trash2,
   Users,
-  XCircle,
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
+
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Breadcrumbs from "@mui/joy/Breadcrumbs";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import DialogActions from "@mui/joy/DialogActions";
+import DialogContent from "@mui/joy/DialogContent";
+import DialogTitle from "@mui/joy/DialogTitle";
+import Divider from "@mui/joy/Divider";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Link from "@mui/joy/Link";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
 
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-import {
-  DetailStatusBadge,
-  SectionCard,
-} from "@/components/integrations/shared/detailPrimitives";
+import { SectionCard } from "@/components/integrations/shared/detailPrimitives";
 import type { IntegrationDefinition } from "@/components/integrations/integrationsHubConfig";
 import type { MarketingImportDetailData } from "@/hooks/useIntegrationDetailData";
 import type { MailchimpImportProgressState } from "@/hooks/useMailchimpImportProgress";
@@ -32,41 +53,6 @@ import {
   formatMailchimpErrorMessages,
   formatMailchimpStageLabel,
 } from "@/lib/mailchimpPresentation";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  AlertDialogAction,
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { SyncLogsTabView } from "@/components/integrations/mailchimp/SyncLogsTabView";
 import { ImportedDataTabView } from "@/components/integrations/mailchimp/ImportedDataTabView";
 
@@ -224,12 +210,24 @@ function downloadImportReport(progress: MailchimpImportProgressState) {
 
 function ImportSummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-white/80 px-4 py-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
+    >
+      <Typography
+        level="body-xs"
+        sx={{
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: "text.tertiary",
+          mb: 0.5,
+        }}
+      >
         {label}
-      </div>
-      <div className="mt-2 text-lg font-semibold text-slate-950">{value}</div>
-    </div>
+      </Typography>
+      <Typography level="title-md">{value}</Typography>
+    </Sheet>
   );
 }
 
@@ -249,20 +247,44 @@ function MetricCard({
   subtitle: string;
 }) {
   return (
-    <Card className="rounded-[1.5rem] border border-border/70 bg-white/90 p-5 shadow-sm shadow-brand-navy/5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <Sheet variant="soft" color="neutral" sx={{ borderRadius: "xl", p: 2.5 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        spacing={2}
+      >
+        <Box>
+          <Typography
+            level="body-xs"
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "text.tertiary",
+            }}
+          >
             {label}
-          </p>
-          <p className="mt-3 text-3xl font-semibold text-slate-950">{value}</p>
-          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
-        </div>
-        <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </Card>
+          </Typography>
+          <Typography level="h4" sx={{ mt: 1 }}>
+            {value}
+          </Typography>
+          <Typography level="body-xs" sx={{ color: "text.secondary", mt: 0.5 }}>
+            {subtitle}
+          </Typography>
+        </Box>
+        <Sheet
+          variant="plain"
+          sx={{
+            borderRadius: "lg",
+            p: 1,
+            background: "transparent",
+            color: "text.secondary",
+          }}
+        >
+          <Icon size={20} />
+        </Sheet>
+      </Stack>
+    </Sheet>
   );
 }
 
@@ -539,95 +561,153 @@ export function MailchimpIntegrationShell({
 
   return (
     <>
-      <div className="space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/integrations">Integrations</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Mailchimp</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+      <Stack spacing={3}>
+        <Breadcrumbs aria-label="breadcrumbs" size="sm" sx={{ px: 0 }}>
+          <Link component={RouterLink} to="/integrations" level="body-sm">
+            Integrations
+          </Link>
+          <Typography level="body-sm">Mailchimp</Typography>
+        </Breadcrumbs>
 
-        <div className="flex flex-col gap-4 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="rounded-[1.25rem] bg-amber-50 p-3 text-amber-700">
-              <Icon className="h-7 w-7" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-3xl font-semibold text-slate-950">
-                Mailchimp
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+        <Sheet
+          variant="outlined"
+          sx={{
+            borderRadius: "xl",
+            p: { xs: 2.5, md: 3 },
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: { md: "flex-start" },
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            <Sheet
+              variant="soft"
+              color="warning"
+              sx={{
+                borderRadius: "lg",
+                p: 1.25,
+                display: "inline-flex",
+                flexShrink: 0,
+              }}
+            >
+              <Icon style={{ width: 28, height: 28 }} />
+            </Sheet>
+            <Box>
+              <Typography level="h4">Mailchimp</Typography>
+              <Typography
+                level="body-sm"
+                sx={{ color: "text.secondary", mt: 0.5, maxWidth: 480 }}
+              >
                 Connect Mailchimp, review import progress, and manage the
                 contacts you have already brought into BloomSuite.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <DetailStatusBadge
-                  label={marketingImportDetail.connectionState.label}
-                  tone={marketingImportDetail.connectionState.tone}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground lg:text-right">
-            <div>{marketingImportDetail.providerDescription}</div>
-            <div className="mt-2 font-medium text-slate-700">
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ mt: 1.5, flexWrap: "wrap" }}
+              >
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color={
+                    marketingImportDetail.connectionState.tone === "success"
+                      ? "success"
+                      : marketingImportDetail.connectionState.tone === "danger"
+                        ? "danger"
+                        : marketingImportDetail.connectionState.tone ===
+                            "warning"
+                          ? "warning"
+                          : "neutral"
+                  }
+                >
+                  {marketingImportDetail.connectionState.label}
+                </Chip>
+              </Stack>
+            </Box>
+          </Stack>
+          <Box sx={{ textAlign: { md: "right" } }}>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              {marketingImportDetail.providerDescription}
+            </Typography>
+            <Typography
+              level="body-sm"
+              fontWeight="lg"
+              sx={{ color: "text.primary", mt: 0.5 }}
+            >
               {marketingImportDetail.accountName ??
                 "No Mailchimp account connected yet"}
-            </div>
-          </div>
-        </div>
+            </Typography>
+          </Box>
+        </Sheet>
 
-        <Tabs value={currentTab} onValueChange={setTab} className="space-y-6">
-          <TabsList className="grid h-auto w-full max-w-xl grid-cols-3 rounded-[1.25rem] border border-border/70 bg-white p-1.5 shadow-sm shadow-brand-navy/5">
-            <TabsTrigger value="overview" className="rounded-xl">
+        <Tabs
+          value={currentTab}
+          onChange={(_, val) => val && setTab(val as string)}
+          sx={{ background: "transparent" }}
+        >
+          <TabList
+            sx={{
+              maxWidth: "max-content",
+              background: "var(--joy-palette-background-surface)",
+              borderRadius: "xl",
+              border: "1px solid",
+              borderColor: "divider",
+              p: 0.5,
+              gap: 0.5,
+            }}
+          >
+            <Tab value="overview" sx={{ borderRadius: "lg" }}>
               Overview
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="rounded-xl">
+            </Tab>
+            <Tab value="logs" sx={{ borderRadius: "lg" }}>
               Sync Logs
-            </TabsTrigger>
-            <TabsTrigger value="data" className="rounded-xl">
+            </Tab>
+            <Tab value="data" sx={{ borderRadius: "lg" }}>
               Imported Data
-            </TabsTrigger>
-          </TabsList>
+            </Tab>
+          </TabList>
 
-          <TabsContent value="overview" className="space-y-6">
-            {shouldShowImportStatusCard ? (
-              <Card className="rounded-[1.5rem] border border-border/70 bg-white/95 p-5 shadow-sm shadow-brand-navy/5">
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {importProgress.isCompleted ? (
-                          <Badge className="gap-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Import Complete
-                          </Badge>
-                        ) : importProgress.isPaused ? (
-                          <Badge className="gap-1.5 bg-slate-200 text-slate-800 hover:bg-slate-200">
-                            <Pause className="h-3.5 w-3.5" />
-                            Import Paused
-                          </Badge>
-                        ) : importProgress.isFailed ? (
-                          <Badge className="gap-1.5 bg-rose-100 text-rose-800 hover:bg-rose-100">
-                            <XCircle className="h-3.5 w-3.5" />
-                            Import Failed
-                          </Badge>
-                        ) : (
-                          <Badge className="gap-1.5 bg-sky-100 text-sky-800 hover:bg-sky-100">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Import Running
-                          </Badge>
-                        )}
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold text-slate-950">
+          <TabPanel value="overview" sx={{ px: 0, pt: 2 }}>
+            <Stack spacing={3}>
+              {shouldShowImportStatusCard ? (
+                <Sheet
+                  variant="outlined"
+                  sx={{ borderRadius: "xl", p: { xs: 2, md: 2.5 } }}
+                >
+                  <Stack spacing={2.5}>
+                    <Stack
+                      direction={{ xs: "column", md: "row" }}
+                      spacing={2}
+                      justifyContent="space-between"
+                      alignItems={{ md: "flex-start" }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ flexWrap: "wrap" }}
+                        >
+                          {importProgress.isCompleted ? (
+                            <Chip size="sm" variant="soft" color="success">
+                              Import Complete
+                            </Chip>
+                          ) : importProgress.isPaused ? (
+                            <Chip size="sm" variant="soft" color="neutral">
+                              Import Paused
+                            </Chip>
+                          ) : importProgress.isFailed ? (
+                            <Chip size="sm" variant="soft" color="danger">
+                              Import Failed
+                            </Chip>
+                          ) : (
+                            <Chip size="sm" variant="soft" color="primary">
+                              Import Running
+                            </Chip>
+                          )}
+                        </Stack>
+                        <Typography level="title-lg">
                           {importProgress.isCompleted
                             ? "Mailchimp import finished"
                             : importProgress.isPaused
@@ -635,8 +715,11 @@ export function MailchimpIntegrationShell({
                               : importProgress.isFailed
                                 ? "Mailchimp import needs attention"
                                 : "Mailchimp import in progress"}
-                        </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "text.secondary" }}
+                        >
                           {importProgress.isCompleted
                             ? "The latest Mailchimp import has completed and the final report is ready."
                             : importProgress.isPaused
@@ -646,502 +729,698 @@ export function MailchimpIntegrationShell({
                                 : formatMailchimpStageLabel(
                                     importProgress.currentStage,
                                   )}
-                        </p>
-                      </div>
-                    </div>
+                        </Typography>
+                      </Stack>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                          handleViewSyncLogs(importProgress.jobId!)
-                        }
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ flexWrap: "wrap" }}
                       >
-                        View Sync Logs
-                      </Button>
-                      {importProgress.isPaused ? (
                         <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void handleResumeImport()}
-                          disabled={isControllingImport}
+                          size="sm"
+                          variant="outlined"
+                          color="neutral"
+                          onClick={() =>
+                            handleViewSyncLogs(importProgress.jobId!)
+                          }
                         >
-                          {isControllingImport ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Play className="mr-2 h-4 w-4" />
-                          )}
-                          Resume Import
+                          View Sync Logs
                         </Button>
-                      ) : null}
-                      {importProgress.isRunning ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void handlePauseImport()}
-                          disabled={isControllingImport}
-                        >
-                          {isControllingImport ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Pause className="mr-2 h-4 w-4" />
-                          )}
-                          Pause Import
-                        </Button>
-                      ) : null}
-                      {importProgress.isRunning || importProgress.isPaused ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setCancelImportOpen(true)}
-                          disabled={isControllingImport}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Cancel Import
-                        </Button>
-                      ) : null}
-                      {(importProgress.isCompleted ||
-                        importProgress.isFailed) &&
-                      importProgress.report ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleDownloadReport}
-                        >
-                          Download Import Report
-                          <Download className="ml-2 h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {importProgress.isCompleted || importProgress.isFailed ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={handleDismissImportCard}
-                        >
-                          Dismiss
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {!importProgress.isCompleted &&
-                  !importProgress.isFailed &&
-                  !importProgress.isPaused ? (
-                    <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-                      <div className="flex items-center justify-between gap-4 text-sm">
-                        <span className="font-medium text-slate-950">
-                          {formatMailchimpStageLabel(
-                            importProgress.currentStage,
-                          )}
-                        </span>
-                        <span className="font-semibold text-sky-900">
-                          {Math.round(importProgress.progressPercentage)}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={importProgress.progressPercentage}
-                        className="h-2.5"
-                      />
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                        <span>
-                          Last update{" "}
-                          {formatRelativeTimestamp(
-                            importProgress.lastUpdatedAt,
-                          )}
-                        </span>
-                        {importProgress.estimatedCompletionAt ? (
-                          <span>
-                            ETA{" "}
-                            {formatExactTimestamp(
-                              importProgress.estimatedCompletionAt,
-                            )}
-                          </span>
+                        {importProgress.isPaused ? (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={() => void handleResumeImport()}
+                            disabled={isControllingImport}
+                            startDecorator={
+                              isControllingImport ? (
+                                <CircularProgress size="sm" />
+                              ) : (
+                                <Play size={14} />
+                              )
+                            }
+                          >
+                            Resume Import
+                          </Button>
                         ) : null}
-                      </div>
-                      {importProgress.isStale ? (
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                          <div className="flex items-start gap-2">
-                            <AlertTriangle className="mt-0.5 h-4 w-4" />
-                            <div>
-                              <p className="font-medium">
-                                Progress updates look stale
-                              </p>
-                              <p>
-                                The import is still marked as running, but no
-                                update has arrived for over 60 seconds.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                        {importProgress.isRunning ? (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={() => void handlePauseImport()}
+                            disabled={isControllingImport}
+                            startDecorator={
+                              isControllingImport ? (
+                                <CircularProgress size="sm" />
+                              ) : (
+                                <Pause size={14} />
+                              )
+                            }
+                          >
+                            Pause Import
+                          </Button>
+                        ) : null}
+                        {importProgress.isRunning || importProgress.isPaused ? (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={() => setCancelImportOpen(true)}
+                            disabled={isControllingImport}
+                            startDecorator={<Trash2 size={14} />}
+                          >
+                            Cancel Import
+                          </Button>
+                        ) : null}
+                        {(importProgress.isCompleted ||
+                          importProgress.isFailed) &&
+                        importProgress.report ? (
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            color="neutral"
+                            onClick={handleDownloadReport}
+                            endDecorator={<Download size={14} />}
+                          >
+                            Download Report
+                          </Button>
+                        ) : null}
+                        {importProgress.isCompleted ||
+                        importProgress.isFailed ? (
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            onClick={handleDismissImportCard}
+                          >
+                            Dismiss
+                          </Button>
+                        ) : null}
+                      </Stack>
+                    </Stack>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <ImportSummaryStat
-                      label="Fetched"
-                      value={formatCount(importProgress.fetchedRows)}
-                    />
-                    <ImportSummaryStat
-                      label="Imported"
-                      value={formatCount(
-                        importProgress.isCompleted || importProgress.isFailed
-                          ? importReportSummary.contactsImported ||
-                              importProgress.insertedRows
-                          : importProgress.insertedRows,
-                      )}
-                    />
-                    <ImportSummaryStat
-                      label="Skipped"
-                      value={formatCount(
-                        importProgress.isCompleted || importProgress.isFailed
-                          ? importReportSummary.contactsSkipped ||
-                              importProgress.skippedRows
-                          : importProgress.skippedRows,
-                      )}
-                    />
-                    <ImportSummaryStat
-                      label="Failed"
-                      value={formatCount(
-                        importProgress.isCompleted || importProgress.isFailed
-                          ? importReportSummary.contactsFailed ||
-                              importProgress.failedRows
-                          : importProgress.failedRows,
-                      )}
-                    />
-                  </div>
-
-                  {importProgress.isCompleted ? (
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      <ImportSummaryStat
-                        label="Segments Created"
-                        value={formatCount(importReportSummary.segmentsCreated)}
-                      />
-                      <ImportSummaryStat
-                        label="Tags Created"
-                        value={formatCount(importReportSummary.tagsCreated)}
-                      />
-                      <ImportSummaryStat
-                        label="Consents Recorded"
-                        value={formatCount(
-                          importReportSummary.consentsRecorded,
-                        )}
-                      />
-                      <ImportSummaryStat
-                        label="Batches Processed"
-                        value={formatCount(
-                          importReportSummary.batchesProcessed,
-                        )}
-                      />
-                    </div>
-                  ) : null}
-
-                  {importErrors.length > 0 ? (
-                    <Accordion type="single" collapsible>
-                      <AccordionItem
-                        value="mailchimp-import-errors"
-                        className="rounded-2xl border border-border/70 px-4"
+                    {!importProgress.isCompleted &&
+                    !importProgress.isFailed &&
+                    !importProgress.isPaused ? (
+                      <Sheet
+                        variant="soft"
+                        color="primary"
+                        sx={{ borderRadius: "lg", p: 2 }}
                       >
-                        <AccordionTrigger className="text-sm font-medium text-slate-950">
-                          Review import issues ({importErrors.length})
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-2 pb-2 text-sm text-muted-foreground">
-                            {importErrors.map((error) => (
-                              <div
-                                key={error}
-                                className="rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-rose-900"
+                        <Stack spacing={1.5}>
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <Typography level="body-sm" fontWeight="lg">
+                              {formatMailchimpStageLabel(
+                                importProgress.currentStage,
+                              )}
+                            </Typography>
+                            <Typography level="body-sm" fontWeight="lg">
+                              {Math.round(importProgress.progressPercentage)}%
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            determinate
+                            value={importProgress.progressPercentage}
+                            size="lg"
+                            sx={{ borderRadius: "sm" }}
+                          />
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            sx={{ flexWrap: "wrap" }}
+                          >
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "text.secondary" }}
+                            >
+                              Updated{" "}
+                              {formatRelativeTimestamp(
+                                importProgress.lastUpdatedAt,
+                              )}
+                            </Typography>
+                            {importProgress.estimatedCompletionAt ? (
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "text.secondary" }}
                               >
-                                {error}
-                              </div>
-                            ))}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-                  ) : null}
-                </div>
-              </Card>
-            ) : null}
+                                ETA{" "}
+                                {formatExactTimestamp(
+                                  importProgress.estimatedCompletionAt,
+                                )}
+                              </Typography>
+                            ) : null}
+                          </Stack>
+                          {importProgress.isStale ? (
+                            <Alert
+                              size="sm"
+                              color="warning"
+                              variant="soft"
+                              startDecorator={<AlertTriangle size={16} />}
+                            >
+                              Progress updates look stale — the import is still
+                              marked as running but no update has arrived for
+                              over 60 seconds.
+                            </Alert>
+                          ) : null}
+                        </Stack>
+                      </Sheet>
+                    ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-4">
-              <MetricCard
-                icon={Database}
-                label="Lists Available"
-                value={formatCount(marketingImportDetail.listCount)}
-                subtitle={
-                  marketingImportDetail.segmentCount > 0
-                    ? `${formatCount(marketingImportDetail.segmentCount)} audience segments available`
-                    : "Preview lists to refresh available Mailchimp audiences"
-                }
-              />
-              <MetricCard
-                icon={Users}
-                label="Contacts Imported"
-                value={formatCount(
-                  marketingImportDetail.contactsImportedAllTime,
-                )}
-                subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
-              />
-              <MetricCard
-                icon={Clock3}
-                label="Last Import"
-                value={lastImportValue}
-                subtitle={lastImportSubtitle}
-              />
-              <MetricCard
-                icon={KeyRound}
-                label="Connection"
-                value={marketingImportDetail.connectionState.label}
-                subtitle={marketingImportDetail.connectionState.subtitle}
-              />
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-              <SectionCard
-                title="Connection"
-                description="Current Mailchimp connection status for this workspace."
-              >
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-medium text-slate-950">
-                        Status
-                      </span>
-                      <DetailStatusBadge
-                        label={marketingImportDetail.connectionState.label}
-                        tone={marketingImportDetail.connectionState.tone}
-                      />
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      {marketingImportDetail.connectionState.subtitle}
-                    </p>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {connectionDetails.map((row) => (
-                      <div
-                        key={row.label}
-                        className="rounded-2xl border border-border/70 bg-white/70 px-4 py-3"
-                      >
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                          {row.label}
-                        </div>
-                        <div className="mt-2 text-sm font-medium text-slate-950">
-                          {row.value}
-                        </div>
-                        {row.description ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {row.description}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard
-                title="Quick Actions"
-                description="Mailchimp connection and import actions stay on this page. Use these controls to review cached audiences or start a one-time import without leaving the Mailchimp detail page."
-              >
-                <div className="space-y-3 rounded-2xl border border-border/70 bg-slate-50/70 p-4">
-                  {!isConnected ? (
-                    <Button
-                      type="button"
-                      className="w-full justify-between"
-                      onClick={onOpenConnectDialog}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr 1fr",
+                          md: "repeat(4, 1fr)",
+                        },
+                        gap: 1.5,
+                      }}
                     >
-                      Connect
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <>
-                      {marketingImportDetail.hasRunningImport ? (
-                        <TooltipProvider delayDuration={0}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="block">
+                      <ImportSummaryStat
+                        label="Fetched"
+                        value={formatCount(importProgress.fetchedRows)}
+                      />
+                      <ImportSummaryStat
+                        label="Imported"
+                        value={formatCount(
+                          importProgress.isCompleted || importProgress.isFailed
+                            ? importReportSummary.contactsImported ||
+                                importProgress.insertedRows
+                            : importProgress.insertedRows,
+                        )}
+                      />
+                      <ImportSummaryStat
+                        label="Skipped"
+                        value={formatCount(
+                          importProgress.isCompleted || importProgress.isFailed
+                            ? importReportSummary.contactsSkipped ||
+                                importProgress.skippedRows
+                            : importProgress.skippedRows,
+                        )}
+                      />
+                      <ImportSummaryStat
+                        label="Failed"
+                        value={formatCount(
+                          importProgress.isCompleted || importProgress.isFailed
+                            ? importReportSummary.contactsFailed ||
+                                importProgress.failedRows
+                            : importProgress.failedRows,
+                        )}
+                      />
+                    </Box>
+
+                    {importProgress.isCompleted ? (
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr 1fr",
+                            md: "repeat(4, 1fr)",
+                          },
+                          gap: 1.5,
+                        }}
+                      >
+                        <ImportSummaryStat
+                          label="Segments Created"
+                          value={formatCount(
+                            importReportSummary.segmentsCreated,
+                          )}
+                        />
+                        <ImportSummaryStat
+                          label="Tags Created"
+                          value={formatCount(importReportSummary.tagsCreated)}
+                        />
+                        <ImportSummaryStat
+                          label="Consents Recorded"
+                          value={formatCount(
+                            importReportSummary.consentsRecorded,
+                          )}
+                        />
+                        <ImportSummaryStat
+                          label="Batches Processed"
+                          value={formatCount(
+                            importReportSummary.batchesProcessed,
+                          )}
+                        />
+                      </Box>
+                    ) : null}
+
+                    {importErrors.length > 0 ? (
+                      <AccordionGroup>
+                        <Accordion>
+                          <AccordionSummary>
+                            <Typography level="body-sm" fontWeight="lg">
+                              Review import issues ({importErrors.length})
+                            </Typography>
+                          </AccordionSummary>
+                          <AccordionDetails>
+                            <Stack spacing={1} sx={{ pt: 1 }}>
+                              {importErrors.map((error) => (
+                                <Alert
+                                  key={error}
+                                  size="sm"
+                                  color="danger"
+                                  variant="soft"
+                                >
+                                  {error}
+                                </Alert>
+                              ))}
+                            </Stack>
+                          </AccordionDetails>
+                        </Accordion>
+                      </AccordionGroup>
+                    ) : null}
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+                  gap: 2,
+                }}
+              >
+                <MetricCard
+                  icon={Database}
+                  label="Lists Available"
+                  value={formatCount(marketingImportDetail.listCount)}
+                  subtitle={
+                    marketingImportDetail.segmentCount > 0
+                      ? `${formatCount(marketingImportDetail.segmentCount)} audience segments available`
+                      : "Preview lists to refresh available Mailchimp audiences"
+                  }
+                />
+                <MetricCard
+                  icon={Users}
+                  label="Contacts Imported"
+                  value={formatCount(
+                    marketingImportDetail.contactsImportedAllTime,
+                  )}
+                  subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
+                />
+                <MetricCard
+                  icon={Clock3}
+                  label="Last Import"
+                  value={lastImportValue}
+                  subtitle={lastImportSubtitle}
+                />
+                <MetricCard
+                  icon={KeyRound}
+                  label="Connection"
+                  value={marketingImportDetail.connectionState.label}
+                  subtitle={marketingImportDetail.connectionState.subtitle}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    xl: "minmax(0,1.1fr) minmax(320px,0.9fr)",
+                  },
+                  gap: 3,
+                }}
+              >
+                <SectionCard
+                  title="Connection"
+                  description="Current Mailchimp connection status for this workspace."
+                >
+                  <Stack spacing={2}>
+                    <Sheet
+                      variant="soft"
+                      color="neutral"
+                      sx={{ borderRadius: "lg", p: 2 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        sx={{ flexWrap: "wrap" }}
+                      >
+                        <Typography level="body-sm" fontWeight="lg">
+                          Status
+                        </Typography>
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={
+                            marketingImportDetail.connectionState.tone ===
+                            "success"
+                              ? "success"
+                              : marketingImportDetail.connectionState.tone ===
+                                  "danger"
+                                ? "danger"
+                                : marketingImportDetail.connectionState.tone ===
+                                    "warning"
+                                  ? "warning"
+                                  : "neutral"
+                          }
+                        >
+                          {marketingImportDetail.connectionState.label}
+                        </Chip>
+                      </Stack>
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "text.secondary", mt: 1 }}
+                      >
+                        {marketingImportDetail.connectionState.subtitle}
+                      </Typography>
+                    </Sheet>
+
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                        gap: 1.5,
+                      }}
+                    >
+                      {connectionDetails.map((row) => (
+                        <Sheet
+                          key={row.label}
+                          variant="outlined"
+                          sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
+                        >
+                          <Typography
+                            level="body-xs"
+                            fontWeight="lg"
+                            sx={{
+                              textTransform: "uppercase",
+                              letterSpacing: "0.12em",
+                              color: "text.tertiary",
+                            }}
+                          >
+                            {row.label}
+                          </Typography>
+                          <Typography
+                            level="body-sm"
+                            fontWeight="lg"
+                            sx={{ mt: 0.5, color: "text.primary" }}
+                          >
+                            {row.value}
+                          </Typography>
+                          {row.description ? (
+                            <Typography
+                              level="body-xs"
+                              sx={{ mt: 0.5, color: "text.secondary" }}
+                            >
+                              {row.description}
+                            </Typography>
+                          ) : null}
+                        </Sheet>
+                      ))}
+                    </Box>
+                  </Stack>
+                </SectionCard>
+
+                <SectionCard
+                  title="Quick Actions"
+                  description="Mailchimp connection and import actions stay on this page. Use these controls to review cached audiences or start a one-time import without leaving the Mailchimp detail page."
+                >
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ borderRadius: "lg", p: 2 }}
+                  >
+                    <Stack spacing={1}>
+                      {!isConnected ? (
+                        <Button
+                          fullWidth
+                          onClick={onOpenConnectDialog}
+                          endDecorator={<Mail size={16} />}
+                        >
+                          Connect
+                        </Button>
+                      ) : (
+                        <>
+                          {marketingImportDetail.hasRunningImport ? (
+                            <Tooltip title="An import is already in progress">
+                              <span style={{ display: "block" }}>
                                 <Button
-                                  type="button"
-                                  className="w-full justify-between"
+                                  fullWidth
                                   disabled
+                                  endDecorator={<CircularProgress size="sm" />}
                                 >
                                   Import Running
-                                  <Loader2 className="h-4 w-4 animate-spin" />
                                 </Button>
                               </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              An import is already in progress
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        <Button
-                          type="button"
-                          className="w-full justify-between"
-                          onClick={onOpenImportDialog}
-                        >
-                          Start Import
-                          <Users className="h-4 w-4" />
-                        </Button>
+                            </Tooltip>
+                          ) : (
+                            <Button
+                              fullWidth
+                              onClick={onOpenImportDialog}
+                              endDecorator={<Users size={16} />}
+                            >
+                              Start Import
+                            </Button>
+                          )}
+                          <Button
+                            fullWidth
+                            variant="outlined"
+                            color="neutral"
+                            onClick={onOpenPreviewDialog}
+                            endDecorator={<Database size={16} />}
+                          >
+                            Preview Lists
+                          </Button>
+                        </>
                       )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full justify-between"
-                        onClick={onOpenPreviewDialog}
-                      >
-                        Preview Lists
-                        <Database className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </SectionCard>
-            </div>
+                    </Stack>
+                  </Sheet>
+                </SectionCard>
+              </Box>
 
-            <SectionCard
-              title="Recent Import"
-              description="Summary of the most recent completed Mailchimp import."
-            >
-              {recentImportSummary ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-border/70 bg-slate-50/70 p-4 text-sm text-slate-950">
-                  <div className="mt-0.5 rounded-full bg-emerald-100 p-2 text-emerald-700">
-                    <Users className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">
-                      {recentImportSummary.contactsImported.toLocaleString()}{" "}
-                      contacts imported
-                    </p>
-                    <p className="mt-1 text-muted-foreground">
-                      {formatRelativeTimestamp(recentImportSummary.completedAt)}
-                      {recentImportSummary.durationSeconds
-                        ? ` · ${formatDurationLabel(recentImportSummary.durationSeconds)}`
-                        : ""}
-                      {recentImportSummary.segmentsCreated > 0
-                        ? ` · ${recentImportSummary.segmentsCreated} segments created`
-                        : ""}
-                      {recentImportSummary.errorCount > 0
-                        ? ` · ${recentImportSummary.errorCount} error${recentImportSummary.errorCount === 1 ? "" : "s"}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm italic text-muted-foreground">
-                  No imports yet
-                </p>
-              )}
-            </SectionCard>
-
-            <SectionCard
-              title="Danger Zone"
-              description={marketingImportDetail.dangerZone.description}
-            >
-              <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-rose-900">
-                      <ShieldAlert className="h-4 w-4" />
-                      {marketingImportDetail.dangerZone.title}
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-rose-800/80">
-                      {marketingImportDetail.dangerZone.confirmDescription}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={
-                      !marketingImportDetail.connectionId ||
-                      !canDisconnect ||
-                      isDisconnecting
-                    }
-                    onClick={() => setDisconnectOpen(true)}
+              <SectionCard
+                title="Recent Import"
+                description="Summary of the most recent completed Mailchimp import."
+              >
+                {recentImportSummary ? (
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ borderRadius: "lg", p: 2 }}
                   >
-                    {isDisconnecting
-                      ? "Disconnecting..."
-                      : marketingImportDetail.dangerZone.title}
-                  </Button>
-                </div>
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
+                    >
+                      <Sheet
+                        variant="soft"
+                        color="success"
+                        sx={{
+                          borderRadius: "50%",
+                          p: 1,
+                          display: "inline-flex",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Users size={16} />
+                      </Sheet>
+                      <Box>
+                        <Typography level="body-sm" fontWeight="lg">
+                          {recentImportSummary.contactsImported.toLocaleString()}{" "}
+                          contacts imported
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "text.secondary", mt: 0.5 }}
+                        >
+                          {formatRelativeTimestamp(
+                            recentImportSummary.completedAt,
+                          )}
+                          {recentImportSummary.durationSeconds
+                            ? ` · ${formatDurationLabel(recentImportSummary.durationSeconds)}`
+                            : ""}
+                          {recentImportSummary.segmentsCreated > 0
+                            ? ` · ${recentImportSummary.segmentsCreated} segments created`
+                            : ""}
+                          {recentImportSummary.errorCount > 0
+                            ? ` · ${recentImportSummary.errorCount} error${recentImportSummary.errorCount === 1 ? "" : "s"}`
+                            : ""}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Sheet>
+                ) : (
+                  <Typography
+                    level="body-sm"
+                    sx={{ fontStyle: "italic", color: "text.secondary" }}
+                  >
+                    No imports yet
+                  </Typography>
+                )}
+              </SectionCard>
 
-                <ul className="mt-4 space-y-2 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
-                  {marketingImportDetail.dangerZone.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-3">
-                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                      </span>
-                      <span>{bullet}</span>
-                    </li>
-                  ))}
-                </ul>
+              <SectionCard
+                title="Danger Zone"
+                description={marketingImportDetail.dangerZone.description}
+              >
+                <Alert
+                  color="danger"
+                  variant="soft"
+                  sx={{
+                    borderRadius: "lg",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 2,
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={2}
+                    justifyContent="space-between"
+                    alignItems={{ md: "flex-start" }}
+                    sx={{ width: "100%" }}
+                  >
+                    <Box>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ShieldAlert size={16} />
+                        <Typography
+                          level="body-sm"
+                          fontWeight="lg"
+                          color="danger"
+                        >
+                          {marketingImportDetail.dangerZone.title}
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        level="body-sm"
+                        sx={{ mt: 1, color: "danger.700" }}
+                      >
+                        {marketingImportDetail.dangerZone.confirmDescription}
+                      </Typography>
+                    </Box>
+                    <Button
+                      color="danger"
+                      variant="outlined"
+                      size="sm"
+                      disabled={
+                        !marketingImportDetail.connectionId ||
+                        !canDisconnect ||
+                        isDisconnecting
+                      }
+                      onClick={() => setDisconnectOpen(true)}
+                    >
+                      {isDisconnecting
+                        ? "Disconnecting..."
+                        : marketingImportDetail.dangerZone.title}
+                    </Button>
+                  </Stack>
 
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  {marketingImportDetail.dangerZone.safetyNote}
-                </p>
-              </div>
-            </SectionCard>
-          </TabsContent>
+                  <Stack
+                    component="ul"
+                    spacing={1}
+                    sx={{ m: 0, pl: 0, listStyle: "none", width: "100%" }}
+                  >
+                    {marketingImportDetail.dangerZone.bullets.map((bullet) => (
+                      <Stack
+                        component="li"
+                        key={bullet}
+                        direction="row"
+                        spacing={1}
+                        alignItems="flex-start"
+                      >
+                        <AlertTriangle
+                          size={14}
+                          style={{ marginTop: 3, flexShrink: 0 }}
+                        />
+                        <Typography level="body-xs">{bullet}</Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
 
-          <TabsContent value="logs">
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                    {marketingImportDetail.dangerZone.safetyNote}
+                  </Typography>
+                </Alert>
+              </SectionCard>
+            </Stack>
+          </TabPanel>
+
+          <TabPanel value="logs" sx={{ px: 0, pt: 2 }}>
             <SyncLogsTabView
               focusedJobId={focusedJobId}
               isConnected={isConnected}
               onOpenConnectDialog={onOpenConnectDialog}
               onOpenImportDialog={onOpenImportDialog}
             />
-          </TabsContent>
+          </TabPanel>
 
-          <TabsContent value="data">
+          <TabPanel value="data" sx={{ px: 0, pt: 2 }}>
             <ImportedDataTabView
               isConnected={isConnected}
               onOpenConnectDialog={onOpenConnectDialog}
               onOpenImportDialog={onOpenImportDialog}
             />
-          </TabsContent>
+          </TabPanel>
         </Tabs>
-      </div>
+      </Stack>
 
-      <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Disconnect {marketingImportDetail.providerLabel}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {marketingImportDetail.dangerZone.confirmDescription}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="space-y-4">
-            <ul className="space-y-3 rounded-xl border border-red-100 bg-red-50/40 p-4 text-sm text-slate-900">
-              {marketingImportDetail.dangerZone.bullets.map((bullet) => (
-                <li key={bullet} className="flex items-start gap-3">
-                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                  </span>
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {marketingImportDetail.dangerZone.safetyNote}
-            </p>
-            {disconnectError ? (
-              <p className="text-sm text-destructive">{disconnectError}</p>
-            ) : null}
-          </div>
-          <AlertDialogFooter className="gap-2 sm:justify-between">
-            <AlertDialogCancel disabled={isDisconnecting}>
-              Cancel
-            </AlertDialogCancel>
+      <Modal open={disconnectOpen} onClose={() => setDisconnectOpen(false)}>
+        <ModalDialog
+          variant="outlined"
+          role="alertdialog"
+          sx={{ maxWidth: 480 }}
+        >
+          <DialogTitle>
+            Disconnect {marketingImportDetail.providerLabel}?
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={2}>
+              <Typography level="body-sm">
+                {marketingImportDetail.dangerZone.confirmDescription}
+              </Typography>
+              <Stack
+                component="ul"
+                spacing={1}
+                sx={{ m: 0, pl: 0, listStyle: "none" }}
+              >
+                {marketingImportDetail.dangerZone.bullets.map((bullet) => (
+                  <Stack
+                    component="li"
+                    key={bullet}
+                    direction="row"
+                    spacing={1}
+                    alignItems="flex-start"
+                  >
+                    <AlertTriangle
+                      size={14}
+                      style={{ marginTop: 3, flexShrink: 0 }}
+                    />
+                    <Typography level="body-xs">{bullet}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {marketingImportDetail.dangerZone.safetyNote}
+              </Typography>
+              {disconnectError ? (
+                <Alert size="sm" color="danger" variant="soft">
+                  {disconnectError}
+                </Alert>
+              ) : null}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
             <Button
-              type="button"
-              variant="destructive"
-              className="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500"
+              variant="outlined"
+              color="neutral"
+              disabled={isDisconnecting}
+              onClick={() => setDisconnectOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="danger"
               disabled={
                 isDisconnecting ||
                 !marketingImportDetail.connectionId ||
@@ -1155,35 +1434,46 @@ export function MailchimpIntegrationShell({
                   ? "Retry"
                   : marketingImportDetail.dangerZone.title}
             </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={cancelImportOpen} onOpenChange={setCancelImportOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Mailchimp import?</AlertDialogTitle>
-            <AlertDialogDescription>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
+
+      <Modal open={cancelImportOpen} onClose={() => setCancelImportOpen(false)}>
+        <ModalDialog
+          variant="outlined"
+          role="alertdialog"
+          sx={{ maxWidth: 440 }}
+        >
+          <DialogTitle>Cancel Mailchimp import?</DialogTitle>
+          <DialogContent>
+            <Typography level="body-sm">
               This stops the current Mailchimp import and clears it from the
               active progress card. Completed rows stay imported; unfinished
               batches will not continue.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isControllingImport}>
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="outlined"
+              color="neutral"
+              disabled={isControllingImport}
+              onClick={() => setCancelImportOpen(false)}
+            >
               Keep Import
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </Button>
+            <Button
+              color="danger"
+              disabled={isControllingImport}
               onClick={(event) => {
                 event.preventDefault();
                 void handleCancelImport();
               }}
-              disabled={isControllingImport}
             >
               {isControllingImport ? "Cancelling..." : "Cancel Import"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
     </>
   );
 }

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui-legacy/button";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Input } from "@/components/ui-legacy/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Label } from "@/components/ui-legacy/label";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
 import { Users, X, Loader2 } from "lucide-react";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useAllSegments } from "@/hooks/useAllSegments";

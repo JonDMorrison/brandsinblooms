@@ -2,9 +2,9 @@
 import React from 'react';
 import { useNewsletterRenderer } from '@/hooks/useNewsletterRenderer';
 import { MagazineNewsletterRenderer } from '@/components/newsletter/MagazineNewsletterRenderer';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LoadingSpinner } from '@/components/ui-legacy/loading-spinner';
 import { TopicValidationIndicator } from '@/components/debug/TopicValidationIndicator';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 
 interface MagazineNewsletterDisplayProps {
   content: string;

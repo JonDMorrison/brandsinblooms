@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Label } from '@/components/ui-legacy/label';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Badge } from '@/components/ui-legacy/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { useCampaignTemplates, CampaignTemplate, SaveTemplateData } from '@/hooks/useCampaignTemplates';
 import { ContentBlock } from '@/types/emailBuilder';
 import { 

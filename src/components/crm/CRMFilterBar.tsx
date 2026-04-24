@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Calendar, Filter, Users, Mail } from 'lucide-react';
 import { TimeFilterToggle } from '@/components/crm/analytics/TimeFilterToggle';
 

@@ -1,12 +1,12 @@
 import React from 'react';
 import { ContentBlock, CTABlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { Input } from '@/components/ui-legacy/input';
+import { Textarea } from '@/components/ui-legacy/textarea';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Button } from '@/components/ui-legacy/button';
+import { Card } from '@/components/ui-legacy/card';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { ExternalLink } from 'lucide-react';
 
 interface CTABlockEditorProps {

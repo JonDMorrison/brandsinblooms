@@ -1,144 +1,213 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Users } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
-import { PersonaDetailsDialog } from "./PersonaDetailsDialog";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Divider from "@mui/joy/Divider";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { MoreHorizontal } from "lucide-react";
+import { Link as RouterLink } from "react-router-dom";
+import { getPersonaIcon } from "@/components/icons/personas";
+import type { PersonaRecord } from "@/config/systemPersonas";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip } from "@/components/joy/JoyChip";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import type { PersonaRollup } from "@/hooks/usePersonaCustomerCounts";
 
 interface PersonaCardProps {
-  persona: {
-    id: string;
-    persona_name: string;
-    persona_description?: string;
-    is_custom: boolean;
-    created_at: string;
-  };
-  customerCount?: number;
-  onViewDetails?: () => void;
-  onCreateCampaign?: () => void;
-  onAssignmentChange?: () => void;
+  persona: PersonaRecord;
+  metrics?: PersonaRollup;
+  detailHref: string;
+  campaignHref: string;
+  onView: () => void;
+  onCreateCampaign: () => void;
+  onGenerateContent?: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }
 
-export const PersonaCard: React.FC<PersonaCardProps> = ({
-  persona,
-  customerCount = 0,
-  onViewDetails,
-  onCreateCampaign,
-  onAssignmentChange,
-}) => {
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-  const isMobile = useIsMobile();
-  const navigate = useNavigate();
+const stopPropagation = (event: React.MouseEvent<HTMLElement>) => {
+  event.stopPropagation();
+};
 
-  const handleViewDetails = () => {
-    if (onViewDetails) {
-      onViewDetails();
-    } else {
-      setShowDetailsDialog(true);
-    }
-  };
+export function PersonaCard({
+  persona,
+  metrics,
+  detailHref,
+  campaignHref,
+  onView,
+  onCreateCampaign,
+  onGenerateContent,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: PersonaCardProps) {
+  const PersonaIcon = getPersonaIcon(
+    persona.id,
+    persona.persona_name,
+    !persona.is_custom,
+  );
 
   return (
-    <>
-      <Card className="h-full mobile-hover-lift mobile-card flex flex-col">
-        <CardHeader
-          className={`${isMobile ? "p-4 pb-2" : "pb-3"} flex flex-row items-start justify-between space-y-0`}
-        >
-          <div className="flex-1 min-w-0">
-            <CardTitle
-              className={`${isMobile ? "mobile-text-subheading" : "text-base"} mb-1 mobile-prevent-overflow`}
-            >
-              {persona.persona_name}
-            </CardTitle>
-            <div className="flex gap-2 flex-wrap">
-              <Badge
-                variant={persona.is_custom ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {persona.is_custom ? "Custom" : "System"}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                Customers: {customerCount}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent
-          className={`${isMobile ? "p-4 pt-2" : "pt-0"} flex-1 flex flex-col`}
-        >
-          <div className="flex-1">
-            {persona.persona_description && (
-              <p
-                className={`${isMobile ? "mobile-text-body" : "text-sm"} text-muted-foreground mb-4 line-clamp-3 mobile-text-balance`}
-              >
-                {persona.persona_description}
-              </p>
-            )}
-
-            <div className="flex items-center gap-2 text-muted-foreground mb-4">
-              <Users className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"}`} />
-              <span
-                className={`${isMobile ? "mobile-text-caption" : "text-sm"}`}
-              >
-                Created {new Date(persona.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-
-          {/* Action buttons - always at bottom */}
-          <div
-            className={`flex ${isMobile ? "flex-col gap-2 w-full" : "flex-col sm:flex-row gap-2"} mt-auto`}
+    <JoyCard
+      interactive
+      onClick={onView}
+      sx={{
+        minHeight: 280,
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        boxShadow: "var(--joy-shadow-xs)",
+        transition: "border-color 160ms ease, box-shadow 160ms ease",
+        "&:hover": {
+          borderColor: "neutral.300",
+          boxShadow: "var(--joy-shadow-sm)",
+          backgroundColor: "background.surface",
+        },
+      }}
+    >
+      <JoyCardHeader
+        title={persona.persona_name}
+        description={persona.persona_description}
+        startDecorator={
+          <Avatar
+            variant="soft"
+            color={persona.is_custom ? "primary" : "neutral"}
+            sx={{
+              "--Avatar-size": "40px",
+              flexShrink: 0,
+              "& svg": {
+                display: "block",
+              },
+            }}
           >
-            <Button
-              variant="outline"
-              size={isMobile ? "default" : "sm"}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleViewDetails();
-              }}
-              className={`${isMobile ? "w-full min-h-[44px]" : "flex-1 min-w-0"}`}
-            >
-              View Details
-            </Button>
-            <Button
-              size={isMobile ? "default" : "sm"}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (onCreateCampaign) {
-                  onCreateCampaign();
-                } else {
-                  // Navigate to CRM campaign creator with persona pre-selected
-                  const personaData = {
-                    id: persona.id,
-                    persona_name: persona.persona_name,
-                    persona_description: persona.persona_description,
-                    is_custom: persona.is_custom,
-                  };
-                  const personaParam = encodeURIComponent(
-                    JSON.stringify(personaData),
-                  );
-                  const targetUrl = `/crm/campaigns/new?persona=${personaParam}`;
-                  navigate(targetUrl);
-                }
-              }}
-              className={`${isMobile ? "w-full min-h-[44px]" : "flex-1 min-w-0"}`}
-            >
-              Create Campaign
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <PersonaDetailsDialog
-        open={showDetailsDialog}
-        onOpenChange={setShowDetailsDialog}
-        persona={persona}
-        onAssignmentChange={onAssignmentChange}
+            <PersonaIcon size={22} />
+          </Avatar>
+        }
+        actions={
+          <JoyDropdownMenu>
+            <JoyDropdownMenuTrigger>
+              <MoreHorizontal size={16} />
+            </JoyDropdownMenuTrigger>
+            <JoyDropdownMenuContent>
+              <JoyDropdownMenuItem onClick={onView}>
+                View details
+              </JoyDropdownMenuItem>
+              <JoyDropdownMenuItem onClick={onCreateCampaign}>
+                Create campaign
+              </JoyDropdownMenuItem>
+              {onGenerateContent ? (
+                <JoyDropdownMenuItem onClick={onGenerateContent}>
+                  Generate AI content
+                </JoyDropdownMenuItem>
+              ) : null}
+              {persona.is_custom && onEdit ? (
+                <JoyDropdownMenuItem onClick={onEdit}>
+                  Edit persona
+                </JoyDropdownMenuItem>
+              ) : null}
+              {persona.is_custom && onDuplicate ? (
+                <JoyDropdownMenuItem onClick={onDuplicate}>
+                  Duplicate persona
+                </JoyDropdownMenuItem>
+              ) : null}
+              {persona.is_custom && onDelete ? (
+                <>
+                  <Divider sx={{ my: 0.5 }} />
+                  <JoyDropdownMenuItem destructive onClick={onDelete}>
+                    Delete persona
+                  </JoyDropdownMenuItem>
+                </>
+              ) : null}
+            </JoyDropdownMenuContent>
+          </JoyDropdownMenu>
+        }
       />
-    </>
+
+      <JoyCardContent
+        sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 1.75 }}
+      >
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <JoyChip size="sm" variant="outlined" color="neutral">
+            {persona.is_custom ? "Custom" : "System"}
+          </JoyChip>
+        </Stack>
+
+        <Stack spacing={1.25}>
+          <Stack spacing={0.35}>
+            <Typography level="body-xs" color="neutral">
+              Customers
+            </Typography>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              {(metrics?.customerCount ?? 0).toLocaleString()} customers
+            </Typography>
+          </Stack>
+
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
+            <Stack spacing={0.35} sx={{ minWidth: 110 }}>
+              <Typography level="body-xs" color="neutral">
+                Average value
+              </Typography>
+              <Typography level="body-sm" sx={{ fontWeight: 500 }}>
+                ${metrics?.averageValue?.toLocaleString() ?? "0"}
+              </Typography>
+            </Stack>
+            <Stack spacing={0.35} sx={{ minWidth: 110 }}>
+              <Typography level="body-xs" color="neutral">
+                Total value
+              </Typography>
+              <Typography level="body-sm" sx={{ fontWeight: 500 }}>
+                ${metrics?.totalValue?.toLocaleString() ?? "0"}
+              </Typography>
+            </Stack>
+          </Stack>
+
+          {metrics?.topChannel ? (
+            <Typography level="body-xs" color="neutral">
+              Top channel: {metrics.topChannel}
+            </Typography>
+          ) : null}
+        </Stack>
+
+        <Divider />
+
+        <Stack
+          direction="row"
+          justifyContent="flex-end"
+          alignItems="center"
+          spacing={1}
+          mt="auto"
+        >
+          <JoyButton
+            size="sm"
+            variant="soft"
+            color="neutral"
+            component={RouterLink}
+            to={detailHref}
+            onClick={stopPropagation}
+          >
+            View details
+          </JoyButton>
+          <JoyButton
+            size="sm"
+            variant="solid"
+            color="primary"
+            component={RouterLink}
+            to={campaignHref}
+            onClick={stopPropagation}
+          >
+            Create campaign
+          </JoyButton>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}

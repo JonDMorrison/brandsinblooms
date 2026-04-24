@@ -1,6 +1,6 @@
 
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui-legacy/switch";
+import { Badge } from "@/components/ui-legacy/badge";
 
 interface PricingToggleProps {
   isAnnual: boolean;

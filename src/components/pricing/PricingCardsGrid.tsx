@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
 import { Check, Mail, MessageSquare, Globe, ArrowRight } from "lucide-react";
 import { pricingTiers } from "./pricingConfig";
 import { cn } from "@/lib/utils";

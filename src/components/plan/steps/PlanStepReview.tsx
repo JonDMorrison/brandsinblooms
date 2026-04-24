@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Badge } from '@/components/ui-legacy/badge';
 import { CheckCircle, Clock, Mail, MessageSquare, Facebook, Instagram, AlertTriangle, Rocket, ChevronDown, ChevronUp, Settings, ExternalLink, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePlanWizard } from '../PlanWizardContext';
@@ -11,7 +11,7 @@ import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { useNavigate } from 'react-router-dom';
 import { AudienceTargetingSection } from '../AudienceTargetingSection';
 import { BlogContentViewer } from '../BlogContentViewer';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui-legacy/dialog';
 
 interface PlanStepReviewProps {
   onBack: () => void;

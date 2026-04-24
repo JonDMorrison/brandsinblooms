@@ -8,6 +8,14 @@ import {
   Tags,
   Users,
 } from "lucide-react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Table from "@mui/joy/Table";
+import Typography from "@mui/joy/Typography";
+import Alert from "@mui/joy/Alert";
 
 import { SectionCard } from "@/components/integrations/shared/detailPrimitives";
 import {
@@ -19,9 +27,6 @@ import {
   formatDateTimeValue,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   type MailchimpImportedSection,
   useMailchimpCompliancePage,
@@ -51,7 +56,7 @@ const HAS_FILTER_OPTIONS = [
 
 function formatPhoneNumber(phone?: string | null) {
   if (!phone) {
-    return "—";
+    return "\u2014";
   }
 
   const digits = phone.replace(/\D/g, "");
@@ -66,53 +71,65 @@ function formatPhoneNumber(phone?: string | null) {
   return phone;
 }
 
-function renderNameList(values: string[], emptyLabel = "—") {
+function renderNameList(values: string[], emptyLabel = "\u2014") {
   if (values.length === 0) {
-    return <span className="text-sm text-muted-foreground">{emptyLabel}</span>;
+    return (
+      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+        {emptyLabel}
+      </Typography>
+    );
   }
 
   const visible = values.slice(0, 2);
   const overflow = values.length - visible.length;
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
       {visible.map((value) => (
-        <Badge
-          key={value}
-          variant="secondary"
-          className="bg-slate-100 text-slate-700"
-        >
+        <Chip key={value} size="sm" variant="soft" color="neutral">
           {value}
-        </Badge>
+        </Chip>
       ))}
       {overflow > 0 ? (
-        <span className="text-xs text-muted-foreground">+{overflow} more</span>
+        <Typography level="body-xs" sx={{ color: "text.secondary", alignSelf: "center" }}>
+          +{overflow} more
+        </Typography>
       ) : null}
-    </div>
+    </Stack>
   );
 }
 
 function SummaryStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-white/85 px-4 py-4 shadow-sm shadow-brand-navy/5">
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", px: 2, py: 1.5 }}>
+      <Typography
+        level="body-xs"
+        fontWeight="lg"
+        sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+      >
         {label}
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-950">
+      </Typography>
+      <Typography level="h4" sx={{ mt: 0.75 }}>
         {value.toLocaleString()}
-      </div>
-    </div>
+      </Typography>
+    </Sheet>
   );
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <Box>
+      <Typography
+        level="body-xs"
+        fontWeight="lg"
+        sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+      >
         {label}
-      </div>
-      <div className="mt-1 text-sm text-slate-900">{value}</div>
-    </div>
+      </Typography>
+      <Typography level="body-sm" sx={{ mt: 0.5, color: "text.primary" }}>
+        {value}
+      </Typography>
+    </Box>
   );
 }
 
@@ -123,26 +140,34 @@ function SegmentMembersPreview({ segmentId }: { segmentId: string }) {
 
   if (membersQuery.isLoading) {
     return (
-      <p className="text-sm text-muted-foreground">Loading member preview…</p>
+      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+        Loading member preview\u2026
+      </Typography>
     );
   }
 
   if ((membersQuery.data ?? []).length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
         No member emails available.
-      </p>
+      </Typography>
     );
   }
 
   return (
-    <ul className="space-y-2 text-sm text-slate-900">
+    <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 0, listStyle: "none" }}>
       {(membersQuery.data ?? []).map((email) => (
-        <li key={email} className="rounded-lg bg-slate-50 px-3 py-2">
-          {email}
-        </li>
+        <Sheet
+          component="li"
+          key={email}
+          variant="soft"
+          color="neutral"
+          sx={{ borderRadius: "sm", px: 1.5, py: 0.75 }}
+        >
+          <Typography level="body-xs">{email}</Typography>
+        </Sheet>
       ))}
-    </ul>
+    </Stack>
   );
 }
 
@@ -227,13 +252,19 @@ export function ImportedDataTabView({
   };
 
   return (
-    <div className="space-y-6">
+    <Stack spacing={3}>
       <SectionCard
         title="Imported Data"
         description="Browse the CRM records Mailchimp has already written into BloomSuite."
       >
-        <div className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Stack spacing={2.5}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)", xl: "repeat(5, 1fr)" },
+              gap: 1.5,
+            }}
+          >
             <SummaryStat
               label="Mailchimp Customers"
               value={summaryQuery.data.totalCustomers}
@@ -254,32 +285,29 @@ export function ImportedDataTabView({
               label="Active Suppressions"
               value={summaryQuery.data.activeSuppressions}
             />
-          </div>
+          </Box>
 
-          <div className="flex flex-wrap gap-2">
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             {SECTION_OPTIONS.map((option) => {
               const Icon = option.icon;
               const isActive = option.value === section;
 
               return (
-                <button
+                <Button
                   key={option.value}
-                  type="button"
+                  size="sm"
+                  variant={isActive ? "solid" : "outlined"}
+                  color={isActive ? "neutral" : "neutral"}
                   onClick={() => setSection(option.value)}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-border bg-white text-slate-700 hover:bg-slate-50",
-                  )}
+                  startDecorator={<Icon size={14} />}
+                  sx={isActive ? { bgcolor: "neutral.900", color: "common.white", "&:hover": { bgcolor: "neutral.800" } } : {}}
                 >
-                  <Icon className="h-4 w-4" />
                   {option.label}
-                </button>
+                </Button>
               );
             })}
-          </div>
-        </div>
+          </Stack>
+        </Stack>
       </SectionCard>
 
       {!hasImportedCustomers && !summaryQuery.loading ? (
@@ -293,8 +321,8 @@ export function ImportedDataTabView({
             description="No imported data yet. Connect Mailchimp and run your first import to see your data here."
             action={
               <Button
-                type="button"
-                variant="outline"
+                variant="outlined"
+                color="neutral"
                 onClick={handlePrimaryAction}
               >
                 {primaryActionLabel}
@@ -305,9 +333,9 @@ export function ImportedDataTabView({
       ) : null}
 
       {summaryQuery.error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+        <Alert color="danger" variant="soft">
           Imported Mailchimp data could not be loaded right now.
-        </div>
+        </Alert>
       ) : null}
 
       {hasImportedCustomers ? (
@@ -317,11 +345,17 @@ export function ImportedDataTabView({
               title="Customers"
               description="Search Mailchimp-sourced CRM customers, then expand a row to inspect the linked CRM details."
             >
-              <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex flex-wrap items-center gap-3">
+              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                <Stack
+                  direction={{ xs: "column", lg: "row" }}
+                  spacing={1.5}
+                  alignItems={{ lg: "center" }}
+                  justifyContent="space-between"
+                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                >
+                  <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
                     <TableSearchInput
-                      placeholder="Search by email, first name, or last name…"
+                      placeholder="Search by email, first name, or last name\u2026"
                       value={customerSearch}
                       onChange={(value) => {
                         setCustomerSearch(value);
@@ -356,83 +390,64 @@ export function ImportedDataTabView({
                         }>
                       }
                     />
-                  </div>
-                  <div className="text-xs tabular-nums text-muted-foreground">
-                    {(
-                      customerQuery.data?.pagination.totalCount ?? 0
-                    ).toLocaleString()}{" "}
-                    records
-                  </div>
-                </div>
+                  </Stack>
+                  <Typography level="body-xs" sx={{ color: "text.secondary", whiteSpace: "nowrap" }}>
+                    {(customerQuery.data?.pagination.totalCount ?? 0).toLocaleString()} records
+                  </Typography>
+                </Stack>
 
                 {customerSegmentFilter || customerTagFilter ? (
-                  <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3">
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{ flexWrap: "wrap", px: 2.5, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                  >
                     {customerSegmentFilter ? (
-                      <Badge
-                        variant="secondary"
-                        className="gap-2 bg-sky-50 text-sky-700"
-                      >
+                      <Chip size="sm" variant="soft" color="primary">
                         Segment: {customerSegmentFilter.name}
-                      </Badge>
+                      </Chip>
                     ) : null}
                     {customerTagFilter ? (
-                      <Badge
-                        variant="secondary"
-                        className="gap-2 bg-emerald-50 text-emerald-700"
-                      >
+                      <Chip size="sm" variant="soft" color="success">
                         Tag: {customerTagFilter.name}
-                      </Badge>
+                      </Chip>
                     ) : null}
                     <Button
-                      type="button"
-                      variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs"
+                      variant="plain"
+                      color="neutral"
+                      startDecorator={<FilterX size={13} />}
                       onClick={() => {
                         setCustomerSegmentFilter(null);
                         setCustomerTagFilter(null);
                         resetCustomerPage();
                       }}
                     >
-                      <FilterX className="mr-1.5 h-3.5 w-3.5" />
                       Clear linked filter
                     </Button>
-                  </div>
+                  </Stack>
                 ) : null}
 
                 {customerQuery.isLoading ? (
-                  <div className="px-5 py-10 text-sm text-muted-foreground">
-                    Loading imported customers…
-                  </div>
+                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
+                    Loading imported customers\u2026
+                  </Typography>
                 ) : null}
 
                 {(customerQuery.data?.rows.length ?? 0) > 0 ? (
                   <>
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[1060px] border-collapse">
+                    <Box sx={{ overflowX: "auto" }}>
+                      <Table sx={{ minWidth: 1060 }}>
                         <thead>
-                          <tr className="border-b border-gray-100">
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Email
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              First Name
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Last Name
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Phone
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Imported At
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Segments
-                            </th>
-                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                              Tags
-                            </th>
+                          <tr>
+                            <th>Email</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Phone</th>
+                            <th>Imported At</th>
+                            <th>Segments</th>
+                            <th>Tags</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -442,114 +457,130 @@ export function ImportedDataTabView({
                             return (
                               <Fragment key={row.id}>
                                 <tr
-                                  className="cursor-pointer border-b border-gray-50 transition-colors hover:bg-gray-50"
+                                  style={{ cursor: "pointer" }}
                                   onClick={() =>
                                     setExpandedCustomerId(
                                       isExpanded ? null : row.id,
                                     )
                                   }
                                 >
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    <div className="flex items-center gap-2">
+                                  <td>
+                                    <Stack direction="row" spacing={0.75} alignItems="center">
                                       {isExpanded ? (
-                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronDown size={14} />
                                       ) : (
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronRight size={14} />
                                       )}
                                       <span>{row.email}</span>
-                                    </div>
+                                    </Stack>
                                   </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.firstName || "—"}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.lastName || "—"}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {formatPhoneNumber(row.phone)}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-muted-foreground">
-                                    {formatRelativeTimestamp(row.importedAt)}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
+                                  <td>{row.firstName || "\u2014"}</td>
+                                  <td>{row.lastName || "\u2014"}</td>
+                                  <td>{formatPhoneNumber(row.phone)}</td>
+                                  <td>{formatRelativeTimestamp(row.importedAt)}</td>
+                                  <td>
                                     {renderNameList(
                                       row.segments.map(
                                         (segment) => segment.name,
                                       ),
                                     )}
                                   </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
+                                  <td>
                                     {renderNameList(
                                       row.tags.map((tag) => tag.name),
                                     )}
                                   </td>
                                 </tr>
                                 {isExpanded ? (
-                                  <tr className="border-b border-gray-100 bg-slate-50/70">
-                                    <td colSpan={7} className="px-5 py-5">
-                                      <div className="grid gap-5 lg:grid-cols-2">
-                                        <div className="space-y-4 rounded-2xl border border-border/70 bg-white p-4">
-                                          <h4 className="text-sm font-semibold text-slate-950">
+                                  <tr>
+                                    <td colSpan={7} style={{ padding: 0 }}>
+                                      <Box
+                                        sx={{
+                                          display: "grid",
+                                          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+                                          gap: 2.5,
+                                          p: 2.5,
+                                          bgcolor: "background.level1",
+                                        }}
+                                      >
+                                        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+                                          <Typography level="title-sm" sx={{ mb: 1.5 }}>
                                             Customer Details
-                                          </h4>
-                                          <div className="grid gap-4 sm:grid-cols-2">
+                                          </Typography>
+                                          <Box
+                                            sx={{
+                                              display: "grid",
+                                              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                              gap: 2,
+                                            }}
+                                          >
                                             <DetailField
                                               label="Email"
                                               value={row.email}
                                             />
                                             <DetailField
                                               label="Phone"
-                                              value={formatPhoneNumber(
-                                                row.phone,
-                                              )}
+                                              value={formatPhoneNumber(row.phone)}
                                             />
                                             <DetailField
                                               label="Imported At"
-                                              value={formatDateTimeValue(
-                                                row.importedAt,
-                                              )}
+                                              value={formatDateTimeValue(row.importedAt)}
                                             />
                                             <DetailField
                                               label="Mailchimp Source ID"
-                                              value={row.sourceId ?? "—"}
+                                              value={row.sourceId ?? "\u2014"}
                                             />
-                                          </div>
-                                          <div>
-                                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                          </Box>
+                                          <Box sx={{ mt: 2 }}>
+                                            <Typography
+                                              level="body-xs"
+                                              fontWeight="lg"
+                                              sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                            >
                                               Linked Segments
-                                            </div>
-                                            <div className="mt-2">
+                                            </Typography>
+                                            <Box sx={{ mt: 1 }}>
                                               {renderNameList(
                                                 row.segments.map(
                                                   (segment) => segment.name,
                                                 ),
                                                 "No linked segments",
                                               )}
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            </Box>
+                                          </Box>
+                                          <Box sx={{ mt: 2 }}>
+                                            <Typography
+                                              level="body-xs"
+                                              fontWeight="lg"
+                                              sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                            >
                                               Linked Tags
-                                            </div>
-                                            <div className="mt-2">
+                                            </Typography>
+                                            <Box sx={{ mt: 1 }}>
                                               {renderNameList(
                                                 row.tags.map((tag) => tag.name),
                                                 "No linked tags",
                                               )}
-                                            </div>
-                                          </div>
-                                        </div>
+                                            </Box>
+                                          </Box>
+                                        </Sheet>
 
-                                        <div className="space-y-4 rounded-2xl border border-border/70 bg-white p-4">
-                                          <h4 className="text-sm font-semibold text-slate-950">
+                                        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+                                          <Typography level="title-sm" sx={{ mb: 1.5 }}>
                                             Compliance Snapshot
-                                          </h4>
-                                          <div className="grid gap-4 sm:grid-cols-2">
+                                          </Typography>
+                                          <Box
+                                            sx={{
+                                              display: "grid",
+                                              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                              gap: 2,
+                                            }}
+                                          >
                                             <DetailField
                                               label="Latest Consent"
                                               value={
                                                 row.latestConsent
-                                                  ? `${row.latestConsent.statusLabel} · ${row.latestConsent.channel}`
+                                                  ? `${row.latestConsent.statusLabel} \u00b7 ${row.latestConsent.channel}`
                                                   : "No consent record"
                                               }
                                             />
@@ -561,7 +592,7 @@ export function ImportedDataTabView({
                                                       row.latestConsent
                                                         .recordedAt,
                                                     )
-                                                  : "—"
+                                                  : "\u2014"
                                               }
                                             />
                                             <DetailField
@@ -576,32 +607,37 @@ export function ImportedDataTabView({
                                               label="Suppression Reason"
                                               value={
                                                 row.activeSuppression?.reason ??
-                                                "—"
+                                                "\u2014"
                                               }
                                             />
-                                          </div>
+                                          </Box>
                                           {row.allSuppressions.length > 0 ? (
-                                            <div>
-                                              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                            <Box sx={{ mt: 2 }}>
+                                              <Typography
+                                                level="body-xs"
+                                                fontWeight="lg"
+                                                sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                              >
                                                 Active Suppressions
-                                              </div>
-                                              <div className="mt-2 flex flex-wrap gap-2">
+                                              </Typography>
+                                              <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap" }}>
                                                 {row.allSuppressions.map(
                                                   (suppression) => (
-                                                    <Badge
+                                                    <Chip
                                                       key={suppression.id}
-                                                      variant="outline"
+                                                      size="sm"
+                                                      variant="outlined"
+                                                      color="neutral"
                                                     >
-                                                      {suppression.channel}:{" "}
-                                                      {suppression.reason}
-                                                    </Badge>
+                                                      {suppression.channel}: {suppression.reason}
+                                                    </Chip>
                                                   ),
                                                 )}
-                                              </div>
-                                            </div>
+                                              </Stack>
+                                            </Box>
                                           ) : null}
-                                        </div>
-                                      </div>
+                                        </Sheet>
+                                      </Box>
                                     </td>
                                   </tr>
                                 ) : null}
@@ -609,8 +645,8 @@ export function ImportedDataTabView({
                             );
                           })}
                         </tbody>
-                      </table>
-                    </div>
+                      </Table>
+                    </Box>
 
                     <DataTabPagination
                       pagination={
@@ -637,7 +673,7 @@ export function ImportedDataTabView({
                     description="Adjust the search or customer filters to see a different slice of imported Mailchimp data."
                   />
                 ) : null}
-              </div>
+              </Sheet>
             </SectionCard>
           ) : null}
 
@@ -646,39 +682,34 @@ export function ImportedDataTabView({
               title="Segments"
               description="Review the Mailchimp-backed CRM segments created by imports and jump into the linked customers."
             >
-              <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                  <span className="text-sm font-medium text-slate-950">
-                    Mailchimp segments
-                  </span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                >
+                  <Typography level="body-sm" fontWeight="lg">Mailchimp segments</Typography>
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                     {(segmentsQuery.data?.length ?? 0).toLocaleString()} records
-                  </span>
-                </div>
+                  </Typography>
+                </Stack>
 
                 {segmentsQuery.isLoading ? (
-                  <div className="px-5 py-10 text-sm text-muted-foreground">
-                    Loading imported segments…
-                  </div>
+                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
+                    Loading imported segments\u2026
+                  </Typography>
                 ) : null}
 
                 {(segmentsQuery.data?.length ?? 0) > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[920px] border-collapse">
+                  <Box sx={{ overflowX: "auto" }}>
+                    <Table sx={{ minWidth: 920 }}>
                       <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Segment Name
-                          </th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Source ID
-                          </th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Members
-                          </th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Created At
-                          </th>
+                        <tr>
+                          <th>Segment Name</th>
+                          <th>Source ID</th>
+                          <th>Members</th>
+                          <th>Created At</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -688,54 +719,61 @@ export function ImportedDataTabView({
                           return (
                             <Fragment key={segment.id}>
                               <tr
-                                className="cursor-pointer border-b border-gray-50 transition-colors hover:bg-gray-50"
+                                style={{ cursor: "pointer" }}
                                 onClick={() =>
                                   setExpandedSegmentId(
                                     isExpanded ? null : segment.id,
                                   )
                                 }
                               >
-                                <td className="px-5 py-3 text-sm text-slate-900">
-                                  <div className="flex items-center gap-2">
+                                <td>
+                                  <Stack direction="row" spacing={0.75} alignItems="center">
                                     {isExpanded ? (
-                                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      <ChevronDown size={14} />
                                     ) : (
-                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      <ChevronRight size={14} />
                                     )}
                                     <span>{segment.name}</span>
-                                  </div>
+                                  </Stack>
                                 </td>
-                                <td className="px-5 py-3 text-sm text-slate-900">
-                                  {segment.sourceId ?? "—"}
-                                </td>
-                                <td className="px-5 py-3 text-sm text-slate-900">
-                                  {segment.memberCount.toLocaleString()}
-                                </td>
-                                <td className="px-5 py-3 text-sm text-muted-foreground">
-                                  {formatDateTimeValue(segment.createdAt)}
-                                </td>
+                                <td>{segment.sourceId ?? "\u2014"}</td>
+                                <td>{segment.memberCount.toLocaleString()}</td>
+                                <td>{formatDateTimeValue(segment.createdAt)}</td>
                               </tr>
                               {isExpanded ? (
-                                <tr className="border-b border-gray-100 bg-slate-50/70">
-                                  <td colSpan={4} className="px-5 py-5">
-                                    <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
-                                      <div className="space-y-4 rounded-2xl border border-border/70 bg-white p-4">
-                                        <div className="grid gap-4 sm:grid-cols-2">
+                                <tr>
+                                  <td colSpan={4} style={{ padding: 0 }}>
+                                    <Box
+                                      sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: { xs: "1fr", lg: "1.1fr 1fr" },
+                                        gap: 2.5,
+                                        p: 2.5,
+                                        bgcolor: "background.level1",
+                                      }}
+                                    >
+                                      <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+                                        <Box
+                                          sx={{
+                                            display: "grid",
+                                            gridTemplateColumns: "1fr 1fr",
+                                            gap: 2,
+                                            mb: 2,
+                                          }}
+                                        >
                                           <DetailField
                                             label="Parent List"
-                                            value={
-                                              segment.parentListName ?? "—"
-                                            }
+                                            value={segment.parentListName ?? "\u2014"}
                                           />
                                           <DetailField
                                             label="Member Count"
                                             value={segment.memberCount.toLocaleString()}
                                           />
-                                        </div>
+                                        </Box>
                                         <Button
-                                          type="button"
-                                          variant="outline"
                                           size="sm"
+                                          variant="outlined"
+                                          color="neutral"
                                           onClick={() =>
                                             openCustomerSegmentFilter(
                                               segment.id,
@@ -745,16 +783,16 @@ export function ImportedDataTabView({
                                         >
                                           View All Customers
                                         </Button>
-                                      </div>
-                                      <div className="rounded-2xl border border-border/70 bg-white p-4">
-                                        <div className="mb-3 text-sm font-semibold text-slate-950">
+                                      </Sheet>
+                                      <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+                                        <Typography level="title-sm" sx={{ mb: 1.5 }}>
                                           First 10 Member Emails
-                                        </div>
+                                        </Typography>
                                         <SegmentMembersPreview
                                           segmentId={segment.id}
                                         />
-                                      </div>
-                                    </div>
+                                      </Sheet>
+                                    </Box>
                                   </td>
                                 </tr>
                               ) : null}
@@ -762,8 +800,8 @@ export function ImportedDataTabView({
                           );
                         })}
                       </tbody>
-                    </table>
-                  </div>
+                    </Table>
+                  </Box>
                 ) : null}
 
                 {!segmentsQuery.isLoading &&
@@ -774,7 +812,7 @@ export function ImportedDataTabView({
                     description="Run a Mailchimp import that includes segments to see them here."
                   />
                 ) : null}
-              </div>
+              </Sheet>
             </SectionCard>
           ) : null}
 
@@ -783,58 +821,47 @@ export function ImportedDataTabView({
               title="Tags"
               description="Review tags attached to Mailchimp-sourced customers and jump into the tagged customer set."
             >
-              <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                  <span className="text-sm font-medium text-slate-950">
-                    Associated tags
-                  </span>
-                  <span className="text-xs tabular-nums text-muted-foreground">
+              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                >
+                  <Typography level="body-sm" fontWeight="lg">Associated tags</Typography>
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                     {(tagsQuery.data?.length ?? 0).toLocaleString()} records
-                  </span>
-                </div>
+                  </Typography>
+                </Stack>
 
                 {tagsQuery.isLoading ? (
-                  <div className="px-5 py-10 text-sm text-muted-foreground">
-                    Loading imported tags…
-                  </div>
+                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
+                    Loading imported tags\u2026
+                  </Typography>
                 ) : null}
 
                 {(tagsQuery.data?.length ?? 0) > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] border-collapse">
+                  <Box sx={{ overflowX: "auto" }}>
+                    <Table sx={{ minWidth: 760 }}>
                       <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Tag Name
-                          </th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Customers
-                          </th>
-                          <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Created At
-                          </th>
-                          <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Action
-                          </th>
+                        <tr>
+                          <th>Tag Name</th>
+                          <th>Customers</th>
+                          <th>Created At</th>
+                          <th style={{ textAlign: "right" }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(tagsQuery.data ?? []).map((tag) => (
-                          <tr key={tag.id} className="border-b border-gray-50">
-                            <td className="px-5 py-3 text-sm text-slate-900">
-                              {tag.name}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-slate-900">
-                              {tag.customerCount.toLocaleString()}
-                            </td>
-                            <td className="px-5 py-3 text-sm text-muted-foreground">
-                              {formatDateTimeValue(tag.createdAt)}
-                            </td>
-                            <td className="px-5 py-3 text-right">
+                          <tr key={tag.id}>
+                            <td>{tag.name}</td>
+                            <td>{tag.customerCount.toLocaleString()}</td>
+                            <td>{formatDateTimeValue(tag.createdAt)}</td>
+                            <td style={{ textAlign: "right" }}>
                               <Button
-                                type="button"
-                                variant="ghost"
                                 size="sm"
+                                variant="plain"
+                                color="neutral"
                                 onClick={() =>
                                   openCustomerTagFilter(tag.id, tag.name)
                                 }
@@ -845,8 +872,8 @@ export function ImportedDataTabView({
                           </tr>
                         ))}
                       </tbody>
-                    </table>
-                  </div>
+                    </Table>
+                  </Box>
                 ) : null}
 
                 {!tagsQuery.isLoading && (tagsQuery.data?.length ?? 0) === 0 ? (
@@ -856,18 +883,24 @@ export function ImportedDataTabView({
                     description="Tags appear here after Mailchimp imports associate them with CRM customers."
                   />
                 ) : null}
-              </div>
+              </Sheet>
             </SectionCard>
           ) : null}
 
           {section === "compliance" ? (
-            <div className="space-y-6">
+            <Stack spacing={3}>
               <SectionCard
                 title="Consents"
                 description="Current consent records for Mailchimp-sourced customers, grouped by channel and status."
               >
-                <div className="space-y-5">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Stack spacing={2.5}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+                      gap: 1.5,
+                    }}
+                  >
                     {(complianceQuery.data?.consentSummaryCards ?? []).map(
                       (card) => (
                         <SummaryStat
@@ -877,75 +910,55 @@ export function ImportedDataTabView({
                         />
                       ),
                     )}
-                  </div>
+                  </Box>
 
-                  <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                      <span className="text-sm font-medium text-slate-950">
-                        Consent records
-                      </span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {(
-                          complianceQuery.data?.consentRows.length ?? 0
-                        ).toLocaleString()}{" "}
-                        records
-                      </span>
-                    </div>
+                  <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                    >
+                      <Typography level="body-sm" fontWeight="lg">Consent records</Typography>
+                      <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                        {(complianceQuery.data?.consentRows.length ?? 0).toLocaleString()} records
+                      </Typography>
+                    </Stack>
 
                     {complianceQuery.isLoading ? (
-                      <div className="px-5 py-10 text-sm text-muted-foreground">
-                        Loading consent records…
-                      </div>
+                      <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
+                        Loading consent records\u2026
+                      </Typography>
                     ) : null}
 
                     {(consentPageState.rows.length ?? 0) > 0 ? (
                       <>
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[760px] border-collapse">
+                        <Box sx={{ overflowX: "auto" }}>
+                          <Table sx={{ minWidth: 760 }}>
                             <thead>
-                              <tr className="border-b border-gray-100">
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Email
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Channel
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Consent Status
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Recorded At
-                                </th>
+                              <tr>
+                                <th>Email</th>
+                                <th>Channel</th>
+                                <th>Consent Status</th>
+                                <th>Recorded At</th>
                               </tr>
                             </thead>
                             <tbody>
                               {consentPageState.rows.map((row) => (
-                                <tr
-                                  key={row.id}
-                                  className="border-b border-gray-50"
-                                >
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.email}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.channel}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    <Badge
-                                      variant="secondary"
-                                      className="bg-slate-100 text-slate-700"
-                                    >
+                                <tr key={row.id}>
+                                  <td>{row.email}</td>
+                                  <td>{row.channel}</td>
+                                  <td>
+                                    <Chip size="sm" variant="soft" color="neutral">
                                       {row.statusLabel}
-                                    </Badge>
+                                    </Chip>
                                   </td>
-                                  <td className="px-5 py-3 text-sm text-muted-foreground">
-                                    {formatDateTimeValue(row.recordedAt)}
-                                  </td>
+                                  <td>{formatDateTimeValue(row.recordedAt)}</td>
                                 </tr>
                               ))}
                             </tbody>
-                          </table>
-                        </div>
+                          </Table>
+                        </Box>
                         <DataTabPagination
                           pagination={consentPageState.pagination}
                           onPageChange={setConsentPage}
@@ -961,95 +974,75 @@ export function ImportedDataTabView({
                         description="Mailchimp consent records will appear here after they are written to CRM."
                       />
                     ) : null}
-                  </div>
-                </div>
+                  </Sheet>
+                </Stack>
               </SectionCard>
 
               <SectionCard
                 title="Suppressions"
                 description="Active suppression rows matched to Mailchimp-sourced customers by customer id or normalized email."
               >
-                <div className="space-y-5">
-                  <div className="grid gap-3 md:max-w-sm">
+                <Stack spacing={2.5}>
+                  <Box sx={{ maxWidth: 200 }}>
                     <SummaryStat
                       label="Active Suppressions"
                       value={complianceQuery.data?.activeSuppressions ?? 0}
                     />
-                  </div>
+                  </Box>
 
-                  <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-                      <span className="text-sm font-medium text-slate-950">
-                        Suppression records
-                      </span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {(
-                          complianceQuery.data?.suppressionRows.length ?? 0
-                        ).toLocaleString()}{" "}
-                        records
-                      </span>
-                    </div>
+                  <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                    >
+                      <Typography level="body-sm" fontWeight="lg">Suppression records</Typography>
+                      <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                        {(complianceQuery.data?.suppressionRows.length ?? 0).toLocaleString()} records
+                      </Typography>
+                    </Stack>
 
                     {complianceQuery.isLoading ? (
-                      <div className="px-5 py-10 text-sm text-muted-foreground">
-                        Loading suppression records…
-                      </div>
+                      <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
+                        Loading suppression records\u2026
+                      </Typography>
                     ) : null}
 
                     {(suppressionPageState.rows.length ?? 0) > 0 ? (
                       <>
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[860px] border-collapse">
+                        <Box sx={{ overflowX: "auto" }}>
+                          <Table sx={{ minWidth: 860 }}>
                             <thead>
-                              <tr className="border-b border-gray-100">
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Email / Phone
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Channel
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Reason
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Suppressed At
-                                </th>
-                                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Active
-                                </th>
+                              <tr>
+                                <th>Email / Phone</th>
+                                <th>Channel</th>
+                                <th>Reason</th>
+                                <th>Suppressed At</th>
+                                <th>Active</th>
                               </tr>
                             </thead>
                             <tbody>
                               {suppressionPageState.rows.map((row) => (
-                                <tr
-                                  key={row.id}
-                                  className="border-b border-gray-50"
-                                >
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.email ?? row.phone ?? "—"}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.channel}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    {row.reason}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-muted-foreground">
-                                    {formatDateTimeValue(row.suppressedAt)}
-                                  </td>
-                                  <td className="px-5 py-3 text-sm text-slate-900">
-                                    <Badge
-                                      variant="secondary"
-                                      className="bg-rose-50 text-rose-700"
+                                <tr key={row.id}>
+                                  <td>{row.email ?? row.phone ?? "\u2014"}</td>
+                                  <td>{row.channel}</td>
+                                  <td>{row.reason}</td>
+                                  <td>{formatDateTimeValue(row.suppressedAt)}</td>
+                                  <td>
+                                    <Chip
+                                      size="sm"
+                                      variant="soft"
+                                      color={row.active ? "danger" : "neutral"}
                                     >
                                       {row.active ? "Active" : "Lifted"}
-                                    </Badge>
+                                    </Chip>
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
-                          </table>
-                        </div>
+                          </Table>
+                        </Box>
                         <DataTabPagination
                           pagination={suppressionPageState.pagination}
                           onPageChange={setSuppressionPage}
@@ -1065,13 +1058,13 @@ export function ImportedDataTabView({
                         description="Active suppressions tied to Mailchimp contacts will appear here."
                       />
                     ) : null}
-                  </div>
-                </div>
+                  </Sheet>
+                </Stack>
               </SectionCard>
-            </div>
+            </Stack>
           ) : null}
         </>
       ) : null}
-    </div>
+    </Stack>
   );
 }

@@ -1,17 +1,16 @@
 import { useState } from "react";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Loader2 } from "lucide-react";
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import { JoyInput as Input } from "@/components/joy/JoyInput";
+import { JoySelect } from "@/components/joy/JoySelect";
+import { JoyTextarea as Textarea } from "@/components/joy/JoyTextarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addYears } from "date-fns";
@@ -102,72 +101,77 @@ export const ChangePlanModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Change Plan</DialogTitle>
-        </DialogHeader>
+    <JoyDialog
+      open={open}
+      onClose={() => onClose()}
+      size="md"
+      title="Change Plan"
+    >
+      <JoyDialogContent>
+        <Stack spacing={2}>
+          <Sheet
+            variant="soft"
+            color="neutral"
+            sx={{ p: 2, borderRadius: "var(--joy-radius-md)" }}
+          >
+            <Stack spacing={0.25}>
+              <Typography level="body-sm" fontWeight="lg">
+                {tenantName}
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                {contactEmail}
+              </Typography>
+            </Stack>
+          </Sheet>
 
-        <div className="space-y-4 py-2">
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{tenantName}</span>
-            <br />
-            {contactEmail}
-          </div>
-
-          <div>
-            <Label htmlFor="plan">Plan</Label>
-            <NativeSelect
+          <Stack spacing={0.5}>
+            <JoySelect
+              label="Plan"
               value={plan}
-              onChange={(e) => setPlan(e.target.value)}
+              onValueChange={setPlan}
               options={PLANS}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Current: <span className="font-medium capitalize">{currentPlan}</span>
-            </p>
-          </div>
+            <Typography level="body-xs" color="neutral">
+              Current:{" "}
+              <strong style={{ textTransform: "capitalize" }}>
+                {currentPlan}
+              </strong>
+            </Typography>
+          </Stack>
 
-          <div>
-            <Label htmlFor="endDate">End Date</Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Default is 10 years from now (permanent). Adjust for time-limited overrides.
-            </p>
-          </div>
+          <Input
+            id="endDate"
+            label="End Date"
+            helperText="Default is 10 years from now (permanent). Adjust for time-limited overrides."
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
 
-          <div>
-            <Label htmlFor="reason">Reason *</Label>
-            <Textarea
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Gifted account, invoiced externally, founding customer..."
-              rows={2}
-            />
-          </div>
-        </div>
+          <Textarea
+            id="reason"
+            label="Reason *"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Gifted account, invoiced externally, founding customer..."
+            rows={2}
+          />
+        </Stack>
+      </JoyDialogContent>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Plan Change"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <JoyDialogActions>
+        <JoyButton bloomVariant="outline" onClick={onClose} disabled={saving}>
+          Cancel
+        </JoyButton>
+        <JoyButton
+          onClick={handleSave}
+          disabled={saving}
+          loading={saving}
+          loadingPosition="start"
+        >
+          {saving ? "Saving..." : "Save Plan Change"}
+        </JoyButton>
+      </JoyDialogActions>
+    </JoyDialog>
   );
 };

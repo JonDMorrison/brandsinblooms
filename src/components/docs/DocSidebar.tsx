@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { NativeSelect } from "@/components/ui/native-select";
+import { NativeSelect } from "@/components/ui-legacy/native-select";
 import { cn } from "@/lib/utils";
 
 import { DocLogoTile } from "./DocLogoTile";

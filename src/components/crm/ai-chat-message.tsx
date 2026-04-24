@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { ThinkingDots } from '@/components/ui/thinking-dots';
+import { ThinkingDots } from '@/components/ui-legacy/thinking-dots';
 
 interface Message {
   id: string;

@@ -243,6 +243,7 @@ export const useCampaignDerivedMetrics = (
   const [lastEventAt, setLastEventAt] = useState<Date | null>(null);
 
   const lastEventStateUpdateAtMsRef = useRef<number>(0);
+  const channelInstanceIdRef = useRef(Math.random().toString(36).slice(2));
 
   // Check if data is stale (rollup older than last event by threshold)
   const isStale = (() => {
@@ -340,8 +341,10 @@ export const useCampaignDerivedMetrics = (
   useEffect(() => {
     if (!campaignId) return;
 
+    const channelName = `campaign-events-${campaignId}-${channelInstanceIdRef.current}`;
+
     const channel = supabase
-      .channel(`campaign-events-${campaignId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

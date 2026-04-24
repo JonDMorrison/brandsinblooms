@@ -1,25 +1,16 @@
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyInput as Input } from "@/components/joy/JoyInput";
 import { Trash2, Users } from "lucide-react";
 import { SUPER_ADMIN_EMAILS } from "@/utils/adminUtils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 // Removed sonner import - using global toast replacement
 import { useState } from "react";
 
@@ -37,7 +28,13 @@ export const MassDeletionSection = ({
   nonAdminUsers,
   onMassDelete,
 }: MassDeletionSectionProps) => {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
+
+  const handleCloseConfirm = () => {
+    setConfirmOpen(false);
+    setConfirmationText("");
+  };
 
   const handleMassDeletion = async () => {
     if (confirmationText !== "DELETE ALL") {
@@ -82,104 +79,118 @@ export const MassDeletionSection = ({
   };
 
   return (
-    <Card className="border-red-200 bg-red-50">
-      <CardHeader>
-        <CardTitle className="text-red-800 flex items-center gap-2">
-          <Trash2 className="w-5 h-5" />
-          Database Reset
-        </CardTitle>
-        <CardDescription className="text-red-700">
-          Delete all user accounts except Master Admin accounts (
-          {SUPER_ADMIN_EMAILS.join(", ")})
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-red-700">
-              <Users className="w-4 h-4" />
-              <span>
+    <JoyCard sx={{ borderColor: "danger.200", backgroundColor: "danger.50" }}>
+      <JoyCardHeader
+        title="Database Reset"
+        description={`Delete all user accounts except Master Admin accounts (${SUPER_ADMIN_EMAILS.join(", ")})`}
+        startDecorator={<Trash2 className="w-5 h-5 text-red-700" />}
+      />
+      <JoyCardContent>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "flex-start", lg: "center" }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Stack spacing={0.75}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Users className="w-4 h-4 text-red-700" />
+              <Typography level="body-sm" sx={{ color: "danger.700" }}>
                 {nonAdminUsers.length} non-admin users will be deleted
-              </span>
-            </div>
-            <div className="text-xs text-red-600">
+              </Typography>
+            </Stack>
+            <Typography level="body-xs" sx={{ color: "danger.600" }}>
               This will permanently delete all user data including profiles,
               content, campaigns, and subscriptions
-            </div>
-          </div>
+            </Typography>
+          </Stack>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="destructive"
-                disabled={nonAdminUsers.length === 0}
-                className="gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete All Non-Admin Users
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="max-w-md">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-red-800">
-                  ⚠️ MASS DELETION WARNING
-                </AlertDialogTitle>
-                <AlertDialogDescription className="space-y-3">
-                  <div className="p-3 bg-red-100 rounded text-red-800 text-sm">
-                    <strong>
-                      You are about to permanently delete {nonAdminUsers.length}{" "}
-                      user accounts
-                    </strong>
-                  </div>
+          <JoyButton
+            bloomVariant="destructive"
+            disabled={nonAdminUsers.length === 0}
+            startDecorator={<Trash2 className="w-4 h-4" />}
+            onClick={() => setConfirmOpen(true)}
+          >
+            Delete All Non-Admin Users
+          </JoyButton>
+          <JoyAlertDialog
+            open={confirmOpen}
+            onClose={handleCloseConfirm}
+            onConfirm={() => {
+              setConfirmOpen(false);
+              void handleMassDeletion();
+            }}
+            title="MASS DELETION WARNING"
+            description={`You are about to permanently delete ${nonAdminUsers.length} user accounts.`}
+            variant="danger"
+            size="md"
+            confirmLabel={`Delete ${nonAdminUsers.length} Users Permanently`}
+            confirmDisabled={confirmationText !== "DELETE ALL"}
+          >
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+            >
+              <Typography level="body-sm" fontWeight="lg">
+                This action is permanent and cannot be undone.
+              </Typography>
+            </Sheet>
 
-                  <div className="text-sm">
-                    <strong>Protected accounts (will NOT be deleted):</strong>
-                    <ul className="mt-1 list-disc list-inside text-green-700">
-                      {SUPER_ADMIN_EMAILS.map((email) => (
-                        <li key={email}>{email}</li>
-                      ))}
-                    </ul>
-                  </div>
+            <Sheet
+              color="success"
+              variant="soft"
+              sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+            >
+              <Stack spacing={0.75}>
+                <Typography level="body-sm" fontWeight="lg">
+                  Protected accounts (will not be deleted)
+                </Typography>
+                <Stack component="ul" spacing={0.5} sx={{ pl: 2.5, m: 0 }}>
+                  {SUPER_ADMIN_EMAILS.map((email) => (
+                    <Typography component="li" key={email} level="body-sm">
+                      {email}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Stack>
+            </Sheet>
 
-                  <div className="p-3 bg-gray-100 rounded text-gray-800 text-sm">
-                    <strong>This will delete ALL:</strong>
-                    <ul className="mt-1 list-disc list-inside">
-                      <li>User profiles and company data</li>
-                      <li>Content tasks and campaigns</li>
-                      <li>Subscriptions and billing data</li>
-                      <li>Social connections and analytics</li>
-                    </ul>
-                  </div>
+            <Sheet
+              color="neutral"
+              variant="soft"
+              sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+            >
+              <Stack spacing={0.75}>
+                <Typography level="body-sm" fontWeight="lg">
+                  This will delete all:
+                </Typography>
+                <Stack component="ul" spacing={0.5} sx={{ pl: 2.5, m: 0 }}>
+                  <Typography component="li" level="body-sm">
+                    User profiles and company data
+                  </Typography>
+                  <Typography component="li" level="body-sm">
+                    Content tasks and campaigns
+                  </Typography>
+                  <Typography component="li" level="body-sm">
+                    Subscriptions and billing data
+                  </Typography>
+                  <Typography component="li" level="body-sm">
+                    Social connections and analytics
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Sheet>
 
-                  <div className="mt-4">
-                    <label className="text-sm font-medium">
-                      Type "DELETE ALL" to confirm:
-                    </label>
-                    <Input
-                      value={confirmationText}
-                      onChange={(e) => setConfirmationText(e.target.value)}
-                      placeholder="DELETE ALL"
-                      className="mt-1"
-                    />
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setConfirmationText("")}>
-                  Cancel
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleMassDeletion}
-                  disabled={confirmationText !== "DELETE ALL"}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Delete {nonAdminUsers.length} Users Permanently
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </CardContent>
-    </Card>
+            <Input
+              label='Type "DELETE ALL" to confirm:'
+              value={confirmationText}
+              onChange={(e) => setConfirmationText(e.target.value)}
+              placeholder="DELETE ALL"
+            />
+          </JoyAlertDialog>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
 };

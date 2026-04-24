@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, Sparkles, PartyPopper, ArrowRight, ListChecks } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { useNavigate } from 'react-router-dom';
 
 interface TourCelebrationProps {

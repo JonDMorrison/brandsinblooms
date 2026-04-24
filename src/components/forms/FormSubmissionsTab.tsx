@@ -1,216 +1,229 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Checkbox from "@mui/joy/Checkbox";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Switch from "@mui/joy/Switch";
+import Typography from "@mui/joy/Typography";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  CheckCircle,
   AlertTriangle,
-  Clock,
-  Mail,
-  MessageSquare,
-  Bot,
-  TrendingUp,
-  TrendingDown,
+  CheckCircle2,
+  Clock3,
+  Download,
   Eye,
-  AlertCircle,
-  TestTube2,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Trash2,
   Wifi,
   WifiOff,
-  ChevronDown,
 } from "lucide-react";
-import { format, formatDistanceToNow, startOfDay, endOfDay } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  Form,
-  FormSubmissionSortColumn,
-  FormSubmission,
-  FormSubmissionMetadata,
-  SortDirection,
-  SubmissionResult,
-} from "@/types/formBuilder";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyDrawer } from "@/components/joy/JoyDrawer";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySearchInput } from "@/components/joy/JoySearchInput";
+import { JoySelect } from "@/components/joy/JoySelect";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  SubmissionFilters,
-  SubmissionResultFilter,
-  DateRange,
-} from "./submissions/SubmissionFilters";
-import { SubmissionDetailModal } from "./submissions/SubmissionDetailModal";
-import { SubmissionExport } from "./submissions/SubmissionExport";
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTablePagination,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
 import {
   useDeleteFormSubmissions,
-  useFormAnalytics,
   useFormSubmissionsPage,
 } from "@/hooks/useForms";
 import { useFormSubmissionsRealtime } from "@/hooks/useFormSubmissionsRealtime";
 import {
+  formatSubmissionValue,
   getSubmissionDisplayEmail,
   getSubmissionDisplayName,
   getSubmissionDisplaySource,
+  getSubmissionVisibleEntries,
   isTestSubmission,
   submissionMatchesFilters,
 } from "@/lib/forms/submissionPresentation";
-import { FormTestMatrix } from "./FormTestMatrix";
+import type {
+  Form,
+  FormSubmission,
+  FormSubmissionSortColumn,
+  SortDirection,
+  SubmissionResult,
+} from "@/types/formBuilder";
 
 interface FormSubmissionsTabProps {
   form: Form;
   tenantId?: string;
 }
 
-// Canonical result display config
-const resultConfig: Record<
-  SubmissionResult,
-  {
-    label: string;
-    shortLabel: string;
-    variant: "default" | "secondary" | "destructive" | "outline";
-    icon: React.ReactNode;
-    className?: string;
-  }
-> = {
-  accepted: {
-    label: "Accepted",
-    shortLabel: "Accepted",
-    variant: "default",
-    icon: <CheckCircle className="h-3.5 w-3.5" />,
-    className: "bg-green-100 text-green-800 border-green-200",
-  },
-  rejected_invalid: {
-    label: "Invalid",
-    shortLabel: "Invalid",
-    variant: "destructive",
-    icon: <AlertCircle className="h-3.5 w-3.5" />,
-  },
-  rejected_rate_limited: {
-    label: "Rate Limited",
-    shortLabel: "Rate Limited",
-    variant: "outline",
-    icon: <Clock className="h-3.5 w-3.5" />,
-    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  },
-  rejected_spam: {
-    label: "Spam",
-    shortLabel: "Spam",
-    variant: "outline",
-    icon: <Bot className="h-3.5 w-3.5" />,
-    className: "bg-orange-100 text-orange-800 border-orange-200",
-  },
-};
+type SubmissionResultFilter = "all" | SubmissionResult;
 
-function getSubmissionResultInfo(
-  submission: Pick<FormSubmission, "result" | "metadata">,
-) {
-  switch (submission.result) {
-    case "accepted":
-      return resultConfig.accepted;
-    case "rejected_invalid":
-      return resultConfig.rejected_invalid;
-    case "rejected_rate_limited":
-      return resultConfig.rejected_rate_limited;
-    case "rejected_spam":
-      return resultConfig.rejected_spam;
-    default: {
-      const rejectionType = submission.metadata?.rejection_type;
-      if (rejectionType === "rate_limited") {
-        return resultConfig.rejected_rate_limited;
-      }
-      if (rejectionType === "spam") {
-        return resultConfig.rejected_spam;
-      }
-      return resultConfig.rejected_invalid;
-    }
-  }
-}
-
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const DEFAULT_SORT_COLUMN: FormSubmissionSortColumn = "submitted_at";
 const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
 
-const EMPTY_SUMMARY = {
-  total: 0,
-  accepted: 0,
-  rejected: 0,
-  acceptRate: 0,
-  last7Days: 0,
-  previous7Days: 0,
-  trend: 0,
-  rejectionBreakdown: { invalid: 0, rateLimit: 0, spam: 0 },
+const RESULT_OPTIONS: Array<{ value: SubmissionResultFilter; label: string }> =
+  [
+    { value: "all", label: "All results" },
+    { value: "accepted", label: "Accepted" },
+    { value: "rejected_invalid", label: "Invalid" },
+    { value: "rejected_rate_limited", label: "Rate limited" },
+    { value: "rejected_spam", label: "Spam" },
+  ];
+
+const resultConfig: Record<
+  SubmissionResult,
+  {
+    color: "success" | "danger" | "warning" | "neutral";
+    label: string;
+  }
+> = {
+  accepted: { color: "success", label: "Accepted" },
+  rejected_invalid: { color: "danger", label: "Invalid" },
+  rejected_rate_limited: { color: "warning", label: "Rate limited" },
+  rejected_spam: { color: "neutral", label: "Spam" },
 };
+
+function exportJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json;charset=utf-8",
+  });
+  downloadBlob(filename, blob);
+}
+
+function exportCsv(filename: string, rows: Array<Record<string, unknown>>) {
+  const keys = Array.from(
+    rows.reduce((set, row) => {
+      Object.keys(row).forEach((key) => set.add(key));
+      return set;
+    }, new Set<string>()),
+  );
+  const csv = [
+    keys.join(","),
+    ...rows.map((row) =>
+      keys
+        .map((key) => {
+          const raw = row[key];
+          const value = raw === null || raw === undefined ? "" : String(raw);
+          return `"${value.replace(/"/g, '""')}"`;
+        })
+        .join(","),
+    ),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  downloadBlob(filename, blob);
+}
+
+function downloadBlob(filename: string, blob: Blob) {
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(objectUrl);
+}
+
+function SubmissionsSkeleton() {
+  return (
+    <Stack spacing={3}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" },
+          gap: 2,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton
+            key={index}
+            variant="rectangular"
+            height={132}
+            animation="wave"
+            sx={{ borderRadius: "lg" }}
+          />
+        ))}
+      </Box>
+      <Skeleton
+        variant="rectangular"
+        height={84}
+        animation="wave"
+        sx={{ borderRadius: "lg" }}
+      />
+      <Skeleton
+        variant="rectangular"
+        height={480}
+        animation="wave"
+        sx={{ borderRadius: "lg" }}
+      />
+    </Stack>
+  );
+}
 
 export function FormSubmissionsTab({
   form,
   tenantId,
 }: FormSubmissionsTabProps) {
-  const formId = form.id;
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [resultFilter, setResultFilter] =
-    useState<SubmissionResultFilter>("all");
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: undefined,
-    to: undefined,
-  });
-  const [selectedSubmission, setSelectedSubmission] =
-    useState<FormSubmission | null>(null);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [page, setPage] = useState(1);
+    React.useState<SubmissionResultFilter>("all");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(25);
   const [sortColumn, setSortColumn] =
-    useState<FormSubmissionSortColumn>(DEFAULT_SORT_COLUMN);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(
+    React.useState<FormSubmissionSortColumn>(DEFAULT_SORT_COLUMN);
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>(
     DEFAULT_SORT_DIRECTION,
   );
-  const [hideTestSubmissions, setHideTestSubmissions] = useState(true);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [queuedRealtimeCount, setQueuedRealtimeCount] = useState(0);
-  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set());
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [hideTestSubmissions, setHideTestSubmissions] = React.useState(true);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [selectedSubmission, setSelectedSubmission] =
+    React.useState<FormSubmission | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [queuedRealtimeCount, setQueuedRealtimeCount] = React.useState(0);
 
-  const deleteSubmissionsMutation = useDeleteFormSubmissions();
-
-  const dateFrom = useMemo(
-    () => (dateRange.from ? startOfDay(dateRange.from).toISOString() : null),
-    [dateRange.from],
+  const deleteMutation = useDeleteFormSubmissions();
+  const {
+    data: pageData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useFormSubmissionsPage(
+    form.id,
+    tenantId,
+    page,
+    pageSize,
+    sortColumn,
+    sortDirection,
+    resultFilter,
+    searchQuery,
+    dateFrom || null,
+    dateTo || null,
+    hideTestSubmissions,
   );
-  const dateTo = useMemo(
-    () => (dateRange.to ? endOfDay(dateRange.to).toISOString() : null),
-    [dateRange.to],
-  );
 
-  useEffect(() => {
+  const submissions = pageData?.rows ?? [];
+  const summary = pageData?.summary;
+  const filteredTotal = pageData?.filteredTotal ?? 0;
+
+  React.useEffect(() => {
     setPage(1);
   }, [
     searchQuery,
@@ -220,889 +233,650 @@ export function FormSubmissionsTab({
     hideTestSubmissions,
     sortColumn,
     sortDirection,
+    pageSize,
   ]);
 
-  const {
-    data: pageData,
-    isLoading,
-    isFetching,
-    error,
-    refetch,
-  } = useFormSubmissionsPage(
-    formId,
-    tenantId,
-    page,
-    PAGE_SIZE,
-    sortColumn,
-    sortDirection,
-    resultFilter,
-    searchQuery,
-    dateFrom,
-    dateTo,
-    hideTestSubmissions,
-  );
-
-  const { data: analytics } = useFormAnalytics(formId, tenantId);
-
-  const submissions = useMemo(() => pageData?.rows ?? [], [pageData?.rows]);
-  const stats = pageData?.summary || EMPTY_SUMMARY;
-  const filteredTotal = pageData?.filteredTotal || 0;
-  const unfilteredTotal = pageData?.unfilteredTotal || 0;
-  const totalPages = pageData?.totalPages || 0;
-
-  useEffect(() => {
-    if (totalPages > 0 && page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
-
-  useEffect(() => {
-    setSelectedIds((currentSelection) => {
-      const nextSelection = new Set(
-        Array.from(currentSelection).filter((submissionId) =>
-          submissions.some((submission) => submission.id === submissionId),
+  React.useEffect(() => {
+    setSelectedIds((current) => {
+      const next = new Set(
+        Array.from(current).filter((id) =>
+          submissions.some((submission) => submission.id === id),
         ),
       );
-
-      if (nextSelection.size === currentSelection.size) {
-        return currentSelection;
-      }
-
-      return nextSelection;
+      return next.size === current.size ? current : next;
     });
   }, [submissions]);
 
-  const activeFiltersCount = [
-    searchQuery ? 1 : 0,
-    resultFilter !== "all" ? 1 : 0,
-    dateRange.from || dateRange.to ? 1 : 0,
-  ].reduce((a, b) => a + b, 0);
-
-  const handleClearFilters = () => {
-    setSearchQuery("");
-    setResultFilter("all");
-    setDateRange({ from: undefined, to: undefined });
-    setPage(1);
-  };
-
-  const handleViewDetails = (submission: FormSubmission) => {
-    setSelectedSubmission(submission);
-    setDetailModalOpen(true);
-  };
-
-  const selectedCount = selectedIds.size;
-  const allPageRowsSelected =
-    submissions.length > 0 &&
-    submissions.every((submission) => selectedIds.has(submission.id));
-  const somePageRowsSelected = submissions.some((submission) =>
-    selectedIds.has(submission.id),
-  );
-
-  const realtimeFilters = useMemo(
+  const realtimeFilters = React.useMemo(
     () => ({
-      dateFrom,
-      dateTo,
-      hideTestSubmissions,
-      resultFilter,
       searchQuery,
+      resultFilter,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      hideTestSubmissions,
     }),
-    [dateFrom, dateTo, hideTestSubmissions, resultFilter, searchQuery],
+    [searchQuery, resultFilter, dateFrom, dateTo, hideTestSubmissions],
   );
 
-  const isDefaultRealtimeView =
-    page === 1 &&
-    sortColumn === DEFAULT_SORT_COLUMN &&
-    sortDirection === DEFAULT_SORT_DIRECTION &&
-    searchQuery.trim().length === 0 &&
-    resultFilter === "all" &&
-    !dateFrom &&
-    !dateTo;
-
-  const highlightSubmission = useCallback((submissionId: string) => {
-    setHighlightedIds((currentIds) => new Set([...currentIds, submissionId]));
-
-    window.setTimeout(() => {
-      setHighlightedIds((currentIds) => {
-        if (!currentIds.has(submissionId)) {
-          return currentIds;
-        }
-
-        const nextIds = new Set(currentIds);
-        nextIds.delete(submissionId);
-        return nextIds;
-      });
-    }, 4000);
-  }, []);
-
-  const handleRealtimeSubmission = useCallback(
-    (submission: FormSubmission, options: { animate: boolean }) => {
+  const { connectionState, isLive } = useFormSubmissionsRealtime({
+    channelName: `form-submissions-${form.id}`,
+    enabled: Boolean(tenantId),
+    formId: form.id,
+    tenantId,
+    onSubmission: (submission) => {
       if (!submissionMatchesFilters(submission, realtimeFilters)) {
         return;
       }
 
-      if (isDefaultRealtimeView) {
-        if (options.animate) {
-          highlightSubmission(submission.id);
-        }
-        setQueuedRealtimeCount(0);
-        void refetch();
-        return;
-      }
-
-      setQueuedRealtimeCount((currentCount) => currentCount + 1);
+      setQueuedRealtimeCount((count) => count + 1);
     },
-    [highlightSubmission, isDefaultRealtimeView, realtimeFilters, refetch],
-  );
-
-  const { connectionState, isLive } = useFormSubmissionsRealtime({
-    channelName: `form-submissions-${formId}`,
-    enabled: Boolean(tenantId),
-    formId,
-    onSubmission: handleRealtimeSubmission,
-    tenantId,
   });
 
-  const handleRefreshQueued = useCallback(() => {
+  const handleRefresh = React.useCallback(() => {
     setQueuedRealtimeCount(0);
     void refetch();
   }, [refetch]);
 
-  const handleSortChange = (column: FormSubmissionSortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection((currentDirection) =>
-        currentDirection === "asc" ? "desc" : "asc",
-      );
-      return;
-    }
-
-    setSortColumn(column);
-    setSortDirection(column === DEFAULT_SORT_COLUMN ? "desc" : "asc");
-  };
-
-  const handleToggleSelection = (
-    submissionId: string,
-    nextChecked: boolean,
-  ) => {
-    setSelectedIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection);
-
-      if (nextChecked) {
-        nextSelection.add(submissionId);
-      } else {
-        nextSelection.delete(submissionId);
+  const handleSort = React.useCallback(
+    (column: FormSubmissionSortColumn) => {
+      if (sortColumn === column) {
+        setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+        return;
       }
 
-      return nextSelection;
-    });
-  };
+      setSortColumn(column);
+      setSortDirection(column === DEFAULT_SORT_COLUMN ? "desc" : "asc");
+    },
+    [sortColumn],
+  );
 
-  const handleTogglePageSelection = (nextChecked: boolean) => {
-    setSelectedIds(() => {
-      if (!nextChecked) {
-        return new Set();
-      }
+  const toggleSelection = React.useCallback(
+    (submissionId: string, checked: boolean) => {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        if (checked) {
+          next.add(submissionId);
+        } else {
+          next.delete(submissionId);
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
-      return new Set(submissions.map((submission) => submission.id));
-    });
-  };
+  const togglePageSelection = React.useCallback(
+    (checked: boolean) => {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        submissions.forEach((submission) => {
+          if (checked) {
+            next.add(submission.id);
+          } else {
+            next.delete(submission.id);
+          }
+        });
+        return next;
+      });
+    },
+    [submissions],
+  );
 
-  const handleDeleteSelected = async () => {
+  const allRowsSelected =
+    submissions.length > 0 &&
+    submissions.every((submission) => selectedIds.has(submission.id));
+  const selectedCount = selectedIds.size;
+
+  const handleDeleteSelected = React.useCallback(async () => {
     if (!tenantId || selectedIds.size === 0) {
       return;
     }
 
-    await deleteSubmissionsMutation.mutateAsync({
-      formId,
+    await deleteMutation.mutateAsync({
+      formId: form.id,
       submissionIds: Array.from(selectedIds),
       tenantId,
     });
 
-    if (selectedSubmission && selectedIds.has(selectedSubmission.id)) {
-      setSelectedSubmission(null);
-      setDetailModalOpen(false);
-    }
-
     setSelectedIds(new Set());
-    setDeleteDialogOpen(false);
-    void refetch();
-  };
+    setDeleteConfirmOpen(false);
+  }, [deleteMutation, form.id, selectedIds, tenantId]);
 
-  const hasAnySubmissions = unfilteredTotal > 0;
-  const showingFilteredView =
-    activeFiltersCount > 0 ||
-    hideTestSubmissions ||
-    filteredTotal !== unfilteredTotal ||
-    sortColumn !== DEFAULT_SORT_COLUMN ||
-    sortDirection !== DEFAULT_SORT_DIRECTION;
-  const lastSubmissionAt =
-    analytics?.lastSubmission || submissions[0]?.submitted_at || null;
+  const exportRows = React.useMemo(
+    () =>
+      submissions.map((submission) => ({
+        submitted_at: submission.submitted_at,
+        name: getSubmissionDisplayName(submission) || "",
+        email: getSubmissionDisplayEmail(submission),
+        result: submission.result,
+        source: getSubmissionDisplaySource(submission),
+        is_test: isTestSubmission(submission),
+        data: JSON.stringify(submission.data),
+      })),
+    [submissions],
+  );
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-96" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-destructive" />
-          <p className="text-muted-foreground">Failed to load submissions</p>
-        </CardContent>
-      </Card>
-    );
+    return <SubmissionsSkeleton />;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-sm text-muted-foreground">Total Submissions</p>
-            {showingFilteredView && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                {filteredTotal} currently shown
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-green-600">
-                {stats.accepted}
-              </span>
-              <Badge
-                variant="outline"
-                className="text-xs bg-green-50 text-green-700 border-green-200"
-              >
-                {stats.acceptRate}%
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">Accepted</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-destructive">
-              {stats.rejected}
-            </div>
-            <p className="text-sm text-muted-foreground">Rejected</p>
-            {stats.rejected > 0 && (
-              <div className="flex gap-2 mt-2 text-xs text-muted-foreground">
-                {stats.rejectionBreakdown.invalid > 0 && (
-                  <span>{stats.rejectionBreakdown.invalid} invalid</span>
-                )}
-                {stats.rejectionBreakdown.rateLimit > 0 && (
-                  <span>{stats.rejectionBreakdown.rateLimit} rate limit</span>
-                )}
-                {stats.rejectionBreakdown.spam > 0 && (
-                  <span>{stats.rejectionBreakdown.spam} spam</span>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            {lastSubmissionAt ? (
-              <>
-                <div className="text-lg font-semibold">
-                  {formatDistanceToNow(new Date(lastSubmissionAt), {
-                    addSuffix: true,
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {format(new Date(lastSubmissionAt), "PPpp")}
-                </p>
-              </>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                No submissions yet
-              </div>
-            )}
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Last 7 days: {stats.last7Days}</span>
-              {stats.trend !== 0 && (
-                <Badge
-                  variant="outline"
-                  className={`text-xs ${stats.trend > 0 ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"}`}
-                >
-                  {stats.trend > 0 ? (
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3 mr-1" />
-                  )}
-                  {Math.abs(stats.trend)}%
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Submissions Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between gap-4">
-            <div>
-              <CardTitle>Submissions</CardTitle>
-              <CardDescription>
-                {showingFilteredView
-                  ? `Showing ${filteredTotal} of ${unfilteredTotal} submissions`
-                  : `${unfilteredTotal} total submissions`}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <RealtimeStatusBadge
-                connectionState={connectionState}
-                isLive={isLive}
-              />
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="hide-test"
-                  checked={hideTestSubmissions}
-                  onCheckedChange={setHideTestSubmissions}
-                />
-                <Label
-                  htmlFor="hide-test"
-                  className="text-sm text-muted-foreground whitespace-nowrap"
-                >
-                  Hide test data
-                </Label>
-              </div>
-              <SubmissionExport
-                formId={formId}
-                form={form}
-                tenantId={tenantId}
-                formName={form.name}
-                totalCount={filteredTotal}
-                sortColumn={sortColumn}
-                sortDirection={sortDirection}
-                resultFilter={resultFilter}
-                searchQuery={searchQuery}
-                dateFrom={dateFrom}
-                dateTo={dateTo}
-                hideTestSubmissions={hideTestSubmissions}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {queuedRealtimeCount > 0 && !isDefaultRealtimeView && (
-            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {queuedRealtimeCount === 1
-                    ? "1 new submission is available"
-                    : `${queuedRealtimeCount} new submissions are available`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Refresh to update the current filtered or paged view.
-                </p>
-              </div>
-              <Button size="sm" onClick={handleRefreshQueued}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh View
-              </Button>
-            </div>
-          )}
-
-          {/* Filters */}
-          <SubmissionFilters
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            resultFilter={resultFilter}
-            onResultFilterChange={setResultFilter}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            activeFiltersCount={activeFiltersCount}
-            onClearFilters={handleClearFilters}
-          />
-
-          {selectedCount > 0 && (
-            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  {selectedCount === 1
-                    ? "1 submission selected on this page"
-                    : `${selectedCount} submissions selected on this page`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Selection is limited to the rows currently loaded on this
-                  page.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  Clear Selection
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteDialogOpen(true)}
-                  disabled={!tenantId || deleteSubmissionsMutation.isPending}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Selected
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {submissions.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[48px]">
-                        <Checkbox
-                          checked={
-                            allPageRowsSelected
-                              ? true
-                              : somePageRowsSelected
-                                ? "indeterminate"
-                                : false
-                          }
-                          onCheckedChange={(checked) =>
-                            handleTogglePageSelection(checked === true)
-                          }
-                          aria-label="Select current page"
-                        />
-                      </TableHead>
-                      <TableHead className="w-[180px]">
-                        <SortableHeader
-                          column="submitted_at"
-                          currentColumn={sortColumn}
-                          currentDirection={sortDirection}
-                          label="Timestamp"
-                          onSortChange={handleSortChange}
-                        />
-                      </TableHead>
-                      <TableHead className="min-w-[180px]">
-                        <SortableHeader
-                          column="name"
-                          currentColumn={sortColumn}
-                          currentDirection={sortDirection}
-                          label="Name"
-                          onSortChange={handleSortChange}
-                        />
-                      </TableHead>
-                      <TableHead className="min-w-[220px]">
-                        <SortableHeader
-                          column="email"
-                          currentColumn={sortColumn}
-                          currentDirection={sortDirection}
-                          label="Email"
-                          onSortChange={handleSortChange}
-                        />
-                      </TableHead>
-                      <TableHead className="w-[180px]">
-                        <SortableHeader
-                          column="result"
-                          currentColumn={sortColumn}
-                          currentDirection={sortDirection}
-                          label="Result"
-                          onSortChange={handleSortChange}
-                        />
-                      </TableHead>
-                      <TableHead className="min-w-[180px]">
-                        <SortableHeader
-                          column="source"
-                          currentColumn={sortColumn}
-                          currentDirection={sortDirection}
-                          label="Source"
-                          onSortChange={handleSortChange}
-                        />
-                      </TableHead>
-                      <TableHead className="w-[110px]">Consent</TableHead>
-                      <TableHead className="text-right w-[88px]">
-                        Actions
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {submissions.map((submission) => (
-                      <SubmissionRow
-                        key={submission.id}
-                        highlighted={highlightedIds.has(submission.id)}
-                        isSelected={selectedIds.has(submission.id)}
-                        submission={submission}
-                        onSelectedChange={(nextChecked) =>
-                          handleToggleSelection(submission.id, nextChecked)
-                        }
-                        onViewDetails={() => handleViewDetails(submission)}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Page {pageData?.page || page} of {totalPages}
-                    {isFetching && " · Updating..."}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((currentPage) => currentPage - 1)}
-                      disabled={page <= 1}
-                    >
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage((currentPage) => currentPage + 1)}
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : hasAnySubmissions ? (
-            <div className="text-center py-12">
-              <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">
-                No matching submissions
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your filters or search query.
-              </p>
-              <Button variant="outline" onClick={handleClearFilters}>
-                Clear filters
-              </Button>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Mail className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium mb-2">No submissions yet</h3>
-              <p className="text-muted-foreground">
-                When users submit this form, their entries will appear here.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <Collapsible open={diagnosticsOpen} onOpenChange={setDiagnosticsOpen}>
-          <CardHeader className="pb-0">
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                className="justify-between px-0 hover:bg-transparent"
-              >
-                <div className="text-left">
-                  <CardTitle className="text-base">Developer Tools</CardTitle>
-                  <CardDescription>
-                    Run the built-in test matrix without keeping it on the main
-                    submissions surface.
-                  </CardDescription>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${diagnosticsOpen ? "rotate-180" : "rotate-0"}`}
-                />
-              </Button>
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="pt-6">
-              <FormTestMatrix form={form} />
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-
-      <SubmissionDetailModal
-        form={form}
-        submission={selectedSubmission}
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-      />
-
-      <ConfirmationDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title={selectedCount === 1 ? "Delete submission" : "Delete submissions"}
-        description={
-          selectedCount === 1
-            ? "This submission will be permanently removed from form_submissions. This action cannot be undone."
-            : `${selectedCount} submissions will be permanently removed from form_submissions. This action cannot be undone.`
-        }
-        confirmText={
-          selectedCount === 1 ? "Delete Submission" : "Delete Selected"
-        }
-        loading={deleteSubmissionsMutation.isPending}
-        loadingText="Deleting..."
-        onConfirm={() => {
-          void handleDeleteSelected();
+    <Stack spacing={3}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" },
+          gap: 2,
         }}
-      />
-    </div>
-  );
-}
+      >
+        <JoyCard>
+          <JoyCardHeader title="Total" />
+          <JoyCardContent sx={{ pt: 2 }}>
+            <Typography level="h2">{summary?.total ?? 0}</Typography>
+            <Typography level="body-sm" color="neutral">
+              Filtered submissions in view
+            </Typography>
+          </JoyCardContent>
+        </JoyCard>
+        <JoyCard>
+          <JoyCardHeader title="Accepted" />
+          <JoyCardContent sx={{ pt: 2 }}>
+            <Typography level="h2">{summary?.accepted ?? 0}</Typography>
+            <Typography level="body-sm" color="neutral">
+              {summary
+                ? `${summary.acceptRate.toFixed(0)}% acceptance rate`
+                : "No data"}
+            </Typography>
+          </JoyCardContent>
+        </JoyCard>
+        <JoyCard>
+          <JoyCardHeader title="Rejected" />
+          <JoyCardContent sx={{ pt: 2 }}>
+            <Typography level="h2">{summary?.rejected ?? 0}</Typography>
+            <Typography level="body-sm" color="neutral">
+              Invalid {summary?.rejectionBreakdown.invalid ?? 0}, rate limited{" "}
+              {summary?.rejectionBreakdown.rateLimit ?? 0}, spam{" "}
+              {summary?.rejectionBreakdown.spam ?? 0}
+            </Typography>
+          </JoyCardContent>
+        </JoyCard>
+        <JoyCard>
+          <JoyCardHeader title="Recent activity" />
+          <JoyCardContent sx={{ pt: 2 }}>
+            <Typography level="h2">{summary?.last7Days ?? 0}</Typography>
+            <Typography level="body-sm" color="neutral">
+              Last 7 days vs previous period{" "}
+              {summary
+                ? `${summary.trend > 0 ? "+" : ""}${summary.trend.toFixed(1)}%`
+                : "0%"}
+            </Typography>
+          </JoyCardContent>
+        </JoyCard>
+      </Box>
 
-function SortableHeader({
-  column,
-  currentColumn,
-  currentDirection,
-  label,
-  onSortChange,
-}: {
-  column: FormSubmissionSortColumn;
-  currentColumn: FormSubmissionSortColumn;
-  currentDirection: SortDirection;
-  label: string;
-  onSortChange: (column: FormSubmissionSortColumn) => void;
-}) {
-  const isActive = currentColumn === column;
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-3 h-8 px-3 text-muted-foreground hover:text-foreground"
-      onClick={() => onSortChange(column)}
-    >
-      <span>{label}</span>
-      {isActive ? (
-        currentDirection === "asc" ? (
-          <ArrowUp className="ml-2 h-4 w-4" />
-        ) : (
-          <ArrowDown className="ml-2 h-4 w-4" />
-        )
-      ) : (
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      )}
-    </Button>
-  );
-}
-
-function RealtimeStatusBadge({
-  connectionState,
-  isLive,
-}: {
-  connectionState: "connecting" | "live" | "paused";
-  isLive: boolean;
-}) {
-  if (connectionState === "connecting") {
-    return (
-      <Badge variant="outline" className="gap-1 text-muted-foreground">
-        <RefreshCw className="h-3 w-3 animate-spin" />
-        Connecting
-      </Badge>
-    );
-  }
-
-  if (!isLive) {
-    return (
-      <Badge variant="outline" className="gap-1 text-muted-foreground">
-        <WifiOff className="h-3 w-3" />
-        Realtime paused
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge className="gap-1 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-      <Wifi className="h-3 w-3" />
-      Live
-    </Badge>
-  );
-}
-
-interface SubmissionRowProps {
-  highlighted: boolean;
-  isSelected: boolean;
-  submission: FormSubmission;
-  onSelectedChange: (checked: boolean) => void;
-  onViewDetails: () => void;
-}
-
-function SubmissionRow({
-  highlighted,
-  isSelected,
-  submission,
-  onSelectedChange,
-  onViewDetails,
-}: SubmissionRowProps) {
-  const resultInfo = getSubmissionResultInfo(submission);
-  const metadata = submission.metadata || ({} as FormSubmissionMetadata);
-  const isRejected = submission.result !== "accepted";
-  const isTest = isTestSubmission(submission);
-  const name = getSubmissionDisplayName(submission) || "—";
-  const email = getSubmissionDisplayEmail(submission);
-  const source = getSubmissionDisplaySource(submission);
-
-  return (
-    <TableRow
-      className={`cursor-pointer hover:bg-muted/50 ${highlighted ? "bg-emerald-50/60" : ""}`}
-      onClick={onViewDetails}
-    >
-      <TableCell onClick={(event) => event.stopPropagation()}>
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={(checked) => onSelectedChange(checked === true)}
-          aria-label={`Select submission ${submission.id}`}
+      <JoyCard>
+        <JoyCardHeader
+          startDecorator={
+            <Avatar
+              size="sm"
+              variant="soft"
+              color={isLive ? "success" : "warning"}
+            >
+              {isLive ? <Wifi size={18} /> : <WifiOff size={18} />}
+            </Avatar>
+          }
+          title="Submission queue"
+          description="Review incoming leads, export the current page, and inspect the full payload for each record."
+          actions={
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <JoyChip
+                size="sm"
+                variant="soft"
+                color={isLive ? "success" : "warning"}
+              >
+                {connectionState === "live"
+                  ? "Realtime live"
+                  : connectionState === "connecting"
+                    ? "Connecting"
+                    : "Realtime paused"}
+              </JoyChip>
+              {queuedRealtimeCount > 0 ? (
+                <JoyButton
+                  bloomVariant="ghost"
+                  color="primary"
+                  startDecorator={<RefreshCw size={16} />}
+                  onClick={handleRefresh}
+                >
+                  Refresh {queuedRealtimeCount} new
+                </JoyButton>
+              ) : null}
+            </Stack>
+          }
         />
-      </TableCell>
+        <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                xl: "minmax(0, 1.4fr) repeat(4, minmax(140px, 0.5fr))",
+              },
+              gap: 1,
+            }}
+          >
+            <JoySearchInput
+              value={searchQuery}
+              placeholder="Search submissions..."
+              onValueChange={setSearchQuery}
+              onDebouncedChange={setSearchQuery}
+            />
+            <JoySelect
+              label="Result"
+              value={resultFilter}
+              options={RESULT_OPTIONS}
+              onValueChange={(value) =>
+                setResultFilter((value || "all") as SubmissionResultFilter)
+              }
+            />
+            <JoyInput
+              label="From"
+              type="date"
+              value={dateFrom}
+              onValueChange={setDateFrom}
+            />
+            <JoyInput
+              label="To"
+              type="date"
+              value={dateTo}
+              onValueChange={setDateTo}
+            />
+            <Sheet
+              variant="plain"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                border: "1px solid",
+                borderColor: "neutral.200",
+                borderRadius: "lg",
+                px: 1.5,
+                py: 1.25,
+              }}
+            >
+              <Stack spacing={0.25}>
+                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                  Hide test submissions
+                </Typography>
+                <Typography level="body-xs" color="neutral">
+                  Exclude records flagged as tests.
+                </Typography>
+              </Stack>
+              <Switch
+                checked={hideTestSubmissions}
+                onChange={(event) =>
+                  setHideTestSubmissions(event.target.checked)
+                }
+              />
+            </Sheet>
+          </Box>
 
-      {/* Timestamp */}
-      <TableCell className="whitespace-nowrap">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger className="text-left">
-              <div className="text-sm">
-                {format(new Date(submission.submitted_at), "MMM d, HH:mm")}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(submission.submitted_at), {
-                  addSuffix: true,
-                })}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              {format(new Date(submission.submitted_at), "PPpp")}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </TableCell>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", md: "center" }}
+          >
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {filteredTotal} matching records
+              </JoyChip>
+              {selectedCount > 0 ? (
+                <JoyChip size="sm" variant="soft" color="primary">
+                  {selectedCount} selected
+                </JoyChip>
+              ) : null}
+              {isFetching ? (
+                <JoyChip size="sm" variant="soft" color="neutral">
+                  Refreshing...
+                </JoyChip>
+              ) : null}
+            </Stack>
 
-      <TableCell>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">{name}</div>
-          {isRejected && submission.reason && (
-            <p className="line-clamp-1 text-xs text-muted-foreground">
-              {submission.reason}
-            </p>
-          )}
-        </div>
-      </TableCell>
-
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm">{email}</span>
-          {isTest && (
-            <Badge variant="outline" className="text-xs bg-muted border-border">
-              <TestTube2 className="h-3 w-3 mr-1" />
-              Test
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-
-      {/* Status */}
-      <TableCell>
-        <Badge
-          variant={resultInfo.variant}
-          className={`flex items-center gap-1 w-fit ${resultInfo.className || ""}`}
-        >
-          {resultInfo.icon}
-          {resultInfo.shortLabel}
-        </Badge>
-      </TableCell>
-
-      <TableCell>
-        <div className="space-y-1">
-          <span className="text-sm text-foreground">{source}</span>
-          {metadata.utm_campaign && (
-            <p className="line-clamp-1 text-xs text-muted-foreground">
-              {metadata.utm_campaign}
-            </p>
-          )}
-        </div>
-      </TableCell>
-
-      {/* Consent */}
-      <TableCell>
-        <ConsentBadges metadata={metadata} />
-      </TableCell>
-
-      {/* Actions */}
-      <TableCell className="text-right">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewDetails();
-          }}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function ConsentBadges({
-  metadata,
-}: {
-  metadata: Partial<FormSubmissionMetadata>;
-}) {
-  const hasEmailConsent = metadata?.email_consent === true;
-  const hasSmsConsent = metadata?.sms_consent === true;
-  const noConsent = !hasEmailConsent && !hasSmsConsent;
-
-  if (noConsent) {
-    return <span className="text-muted-foreground text-sm">—</span>;
-  }
-
-  return (
-    <div className="flex gap-1">
-      {hasEmailConsent && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 text-xs bg-blue-50 border-blue-200"
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <JoyButton
+                bloomVariant="ghost"
+                color="neutral"
+                startDecorator={<Download size={16} />}
+                onClick={() =>
+                  exportCsv(
+                    `${form.name.toLowerCase().replace(/\s+/g, "-")}-submissions.csv`,
+                    exportRows,
+                  )
+                }
+                disabled={submissions.length === 0}
               >
-                <Mail className="h-3 w-3 text-blue-600" />
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>Email consent given</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-      {hasSmsConsent && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 text-xs bg-purple-50 border-purple-200"
+                Export CSV
+              </JoyButton>
+              <JoyButton
+                bloomVariant="ghost"
+                color="neutral"
+                startDecorator={<Download size={16} />}
+                onClick={() =>
+                  exportJson(
+                    `${form.name.toLowerCase().replace(/\s+/g, "-")}-submissions.json`,
+                    submissions,
+                  )
+                }
+                disabled={submissions.length === 0}
               >
-                <MessageSquare className="h-3 w-3 text-purple-600" />
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>SMS consent given</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-    </div>
+                Export JSON
+              </JoyButton>
+              <JoyButton
+                bloomVariant="ghost"
+                color="danger"
+                startDecorator={<Trash2 size={16} />}
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={selectedCount === 0 || deleteMutation.isPending}
+              >
+                Delete selected
+              </JoyButton>
+            </Stack>
+          </Stack>
+
+          {error ? (
+            <Sheet
+              variant="soft"
+              color="danger"
+              sx={{ borderRadius: "lg", p: 2 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AlertTriangle size={18} />
+                <Typography level="body-sm">
+                  {error instanceof Error
+                    ? error.message
+                    : "Unable to load submissions."}
+                </Typography>
+              </Stack>
+            </Sheet>
+          ) : null}
+
+          <JoyTable stickyHeader>
+            <JoyTableHead>
+              <JoyTableRow>
+                <JoyTableHeaderCell sx={{ width: 48 }}>
+                  <Checkbox
+                    checked={allRowsSelected}
+                    indeterminate={!allRowsSelected && selectedCount > 0}
+                    onChange={(event) =>
+                      togglePageSelection(event.target.checked)
+                    }
+                  />
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell
+                  sortable
+                  sortDirection={sortColumn === "name" ? sortDirection : "none"}
+                  onSort={() => handleSort("name")}
+                >
+                  Customer
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell
+                  sortable
+                  sortDirection={
+                    sortColumn === "email" ? sortDirection : "none"
+                  }
+                  onSort={() => handleSort("email")}
+                >
+                  Email
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell
+                  sortable
+                  sortDirection={
+                    sortColumn === "result" ? sortDirection : "none"
+                  }
+                  onSort={() => handleSort("result")}
+                >
+                  Result
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell
+                  sortable
+                  sortDirection={
+                    sortColumn === "source" ? sortDirection : "none"
+                  }
+                  onSort={() => handleSort("source")}
+                >
+                  Source
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell
+                  sortable
+                  sortDirection={
+                    sortColumn === "submitted_at" ? sortDirection : "none"
+                  }
+                  onSort={() => handleSort("submitted_at")}
+                >
+                  Submitted
+                </JoyTableHeaderCell>
+                <JoyTableHeaderCell align="right">Inspect</JoyTableHeaderCell>
+              </JoyTableRow>
+            </JoyTableHead>
+            <JoyTableBody>
+              {submissions.length === 0 ? (
+                <JoyTableRow>
+                  <JoyTableCell colSpan={7} sx={{ py: 5, textAlign: "center" }}>
+                    <Typography level="body-sm" color="neutral">
+                      No submissions match the current filters.
+                    </Typography>
+                  </JoyTableCell>
+                </JoyTableRow>
+              ) : (
+                submissions.map((submission) => {
+                  const displayName =
+                    getSubmissionDisplayName(submission) || "Anonymous";
+                  const displayEmail = getSubmissionDisplayEmail(submission);
+                  const status = resultConfig[submission.result];
+                  const testSubmission = isTestSubmission(submission);
+                  return (
+                    <JoyTableRow
+                      key={submission.id}
+                      clickable
+                      onClick={() => setSelectedSubmission(submission)}
+                    >
+                      <JoyTableCell
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={selectedIds.has(submission.id)}
+                          onChange={(event) =>
+                            toggleSelection(submission.id, event.target.checked)
+                          }
+                        />
+                      </JoyTableCell>
+                      <JoyTableCell>
+                        <Stack spacing={0.25}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
+                          >
+                            <Typography
+                              level="body-sm"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {displayName}
+                            </Typography>
+                            {testSubmission ? (
+                              <JoyChip size="sm" variant="soft" color="warning">
+                                Test
+                              </JoyChip>
+                            ) : null}
+                          </Stack>
+                          <Typography level="body-xs" color="neutral">
+                            {submission.customer_id
+                              ? `Customer ${submission.customer_id}`
+                              : "No linked customer yet"}
+                          </Typography>
+                        </Stack>
+                      </JoyTableCell>
+                      <JoyTableCell>{displayEmail}</JoyTableCell>
+                      <JoyTableCell>
+                        <JoyChip size="sm" variant="soft" color={status.color}>
+                          {status.label}
+                        </JoyChip>
+                      </JoyTableCell>
+                      <JoyTableCell>
+                        {getSubmissionDisplaySource(submission)}
+                      </JoyTableCell>
+                      <JoyTableCell>
+                        <Stack spacing={0.25}>
+                          <Typography level="body-sm">
+                            {formatDistanceToNow(
+                              new Date(submission.submitted_at),
+                              { addSuffix: true },
+                            )}
+                          </Typography>
+                          <Typography level="body-xs" color="neutral">
+                            {format(new Date(submission.submitted_at), "PPp")}
+                          </Typography>
+                        </Stack>
+                      </JoyTableCell>
+                      <JoyTableCell align="right">
+                        <JoyButton
+                          bloomVariant="ghost"
+                          color="neutral"
+                          startDecorator={<Eye size={16} />}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedSubmission(submission);
+                          }}
+                        >
+                          Open
+                        </JoyButton>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  );
+                })
+              )}
+            </JoyTableBody>
+          </JoyTable>
+
+          <JoyTablePagination
+            page={page}
+            pageSize={pageSize}
+            totalCount={filteredTotal}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+          />
+        </JoyCardContent>
+      </JoyCard>
+
+      <JoyDrawer
+        open={Boolean(selectedSubmission)}
+        onClose={() => setSelectedSubmission(null)}
+        title={
+          selectedSubmission
+            ? getSubmissionDisplayName(selectedSubmission) ||
+              getSubmissionDisplayEmail(selectedSubmission)
+            : "Submission details"
+        }
+        description={
+          selectedSubmission
+            ? `Submitted ${format(new Date(selectedSubmission.submitted_at), "PPpp")}`
+            : undefined
+        }
+        size="lg"
+      >
+        {selectedSubmission ? (
+          <Stack spacing={2.5}>
+            <JoyCard>
+              <JoyCardHeader title="Submission summary" />
+              <JoyCardContent sx={{ pt: 2, gap: 1.25 }}>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <JoyChip
+                    size="sm"
+                    variant="soft"
+                    color={resultConfig[selectedSubmission.result].color}
+                  >
+                    {resultConfig[selectedSubmission.result].label}
+                  </JoyChip>
+                  {isTestSubmission(selectedSubmission) ? (
+                    <JoyChip size="sm" variant="soft" color="warning">
+                      Test submission
+                    </JoyChip>
+                  ) : null}
+                </Stack>
+                <Typography level="body-sm" color="neutral">
+                  Source: {getSubmissionDisplaySource(selectedSubmission)}
+                </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Email: {getSubmissionDisplayEmail(selectedSubmission)}
+                </Typography>
+              </JoyCardContent>
+            </JoyCard>
+
+            <JoyCard>
+              <JoyCardHeader title="Captured values" />
+              <JoyCardContent sx={{ pt: 2, gap: 1 }}>
+                {getSubmissionVisibleEntries(form, selectedSubmission).map(
+                  (entry) => (
+                    <Sheet
+                      key={entry.id}
+                      variant="soft"
+                      sx={{ borderRadius: "lg", px: 1.5, py: 1.25 }}
+                    >
+                      <Stack spacing={0.5}>
+                        <Typography level="body-xs" color="neutral">
+                          {entry.label}
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          sx={{ fontWeight: 600, whiteSpace: "pre-wrap" }}
+                        >
+                          {entry.displayValue}
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                  ),
+                )}
+              </JoyCardContent>
+            </JoyCard>
+
+            <JoyCard>
+              <JoyCardHeader title="Metadata" />
+              <JoyCardContent sx={{ pt: 2 }}>
+                <Sheet
+                  component="pre"
+                  variant="soft"
+                  sx={{
+                    m: 0,
+                    p: 2,
+                    borderRadius: "lg",
+                    overflowX: "auto",
+                    fontFamily: "var(--joy-fontFamily-code)",
+                    fontSize: "0.8125rem",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {JSON.stringify(selectedSubmission.metadata, null, 2)}
+                </Sheet>
+              </JoyCardContent>
+            </JoyCard>
+          </Stack>
+        ) : null}
+      </JoyDrawer>
+
+      <JoyAlertDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void handleDeleteSelected()}
+        title={`Delete ${selectedCount} selected submission${selectedCount === 1 ? "" : "s"}?`}
+        description="This permanently removes the selected submission records and refreshes analytics after the delete completes."
+        confirmLabel="Delete submissions"
+        loading={deleteMutation.isPending}
+        variant="danger"
+      />
+    </Stack>
   );
 }

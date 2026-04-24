@@ -2,7 +2,7 @@ import React from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { cn } from "@/lib/utils";
 import { useDashboardContext } from "@/contexts/DashboardContext";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   FileText,
   Video,

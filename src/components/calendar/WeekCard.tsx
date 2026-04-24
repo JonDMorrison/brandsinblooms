@@ -1,6 +1,6 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { CampaignItem } from "./CampaignItem";
 import { getWeekDateRange, getCurrentWeekNumber, dateToWeekNumber } from "@/utils/dateUtils";

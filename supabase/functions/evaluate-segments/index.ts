@@ -1,222 +1,344 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  collectReferencedSegmentIds,
+  evaluateSegmentRule,
+  normalizeSegmentRuleGroup,
+} from "../_shared/segmentEvaluator.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
-
-interface SegmentCondition {
-  field: string;
-  operator: string;
-  value: any;
-}
-
-interface SegmentRule {
-  conditions: SegmentCondition[];
-  logic?: 'AND' | 'OR';
-}
 
 interface Segment {
   id: string;
   name: string;
   tenant_id: string;
   auto_update: boolean;
-  conditions: SegmentRule | null;
+  conditions: unknown;
   customer_count: number;
+  status?: string | null;
+  deleted_at?: string | null;
 }
 
 interface Customer {
   id: string;
-  [key: string]: any;
+  tenant_id: string;
+  [key: string]: unknown;
 }
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+function sortSegmentsByDependencies(segments: Segment[]) {
+  const ids = new Set(segments.map((segment) => segment.id));
+  const dependencyMap = new Map<string, string[]>();
+  const incomingCount = new Map<string, number>();
+
+  for (const segment of segments) {
+    const dependencies = collectReferencedSegmentIds(
+      normalizeSegmentRuleGroup(segment.conditions),
+    ).filter((dependencyId) => ids.has(dependencyId));
+
+    dependencyMap.set(segment.id, dependencies);
+    incomingCount.set(segment.id, dependencies.length);
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const queue = segments
+    .filter((segment) => (incomingCount.get(segment.id) ?? 0) === 0)
+    .map((segment) => segment.id);
+  const sortedIds: string[] = [];
 
-  // FIX: [issue #15] - Add auth check to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader || (authHeader !== `Bearer ${supabaseServiceKey}` && !authHeader.startsWith('Bearer '))) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  if (authHeader !== `Bearer ${supabaseServiceKey}`) {
-    const token = authHeader.replace('Bearer ', '');
-    const { error: authErr } = await supabase.auth.getUser(token);
-    if (authErr) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  while (queue.length) {
+    const nextId = queue.shift()!;
+    sortedIds.push(nextId);
+
+    for (const segment of segments) {
+      const dependencies = dependencyMap.get(segment.id) ?? [];
+      if (!dependencies.includes(nextId)) {
+        continue;
+      }
+
+      const nextCount = (incomingCount.get(segment.id) ?? 0) - 1;
+      incomingCount.set(segment.id, nextCount);
+      if (nextCount === 0) {
+        queue.push(segment.id);
+      }
     }
   }
 
-  // SECURITY: [M1] - Verify tenant_id matches authenticated user's tenant
+  if (sortedIds.length !== segments.length) {
+    return segments;
+  }
+
+  const registry = new Map(segments.map((segment) => [segment.id, segment]));
+  return sortedIds.map((segmentId) => registry.get(segmentId)!).filter(Boolean);
+}
+
+function buildMembershipMap(
+  rows: Array<{ customer_id: string; segment_id: string }>,
+) {
+  const membershipsByCustomerId = new Map<string, Set<string>>();
+
+  for (const row of rows) {
+    const next =
+      membershipsByCustomerId.get(row.customer_id) ?? new Set<string>();
+    next.add(row.segment_id);
+    membershipsByCustomerId.set(row.customer_id, next);
+  }
+
+  return membershipsByCustomerId;
+}
+
+function applyMembershipDiff(
+  membershipsByCustomerId: Map<string, Set<string>>,
+  segmentId: string,
+  enteringCustomerIds: string[],
+  exitingCustomerIds: string[],
+) {
+  for (const customerId of enteringCustomerIds) {
+    const next = membershipsByCustomerId.get(customerId) ?? new Set<string>();
+    next.add(segmentId);
+    membershipsByCustomerId.set(customerId, next);
+  }
+
+  for (const customerId of exitingCustomerIds) {
+    const next = membershipsByCustomerId.get(customerId);
+    if (!next) {
+      continue;
+    }
+    next.delete(segmentId);
+    membershipsByCustomerId.set(customerId, next);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const authHeader = req.headers.get("Authorization");
+  if (
+    !authHeader ||
+    (authHeader !== `Bearer ${supabaseServiceKey}` &&
+      !authHeader.startsWith("Bearer "))
+  ) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+    const token = authHeader.replace("Bearer ", "");
+    const { error: authErr } = await supabase.auth.getUser(token);
+    if (authErr) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const startTime = Date.now();
 
   try {
-
     const { tenant_id, segment_id } = await req.json().catch(() => ({}));
 
     if (tenant_id && authHeader !== `Bearer ${supabaseServiceKey}`) {
-      const token = authHeader!.replace('Bearer ', '');
-      const { data: { user } } = await supabase.auth.getUser(token);
+      const token = authHeader!.replace("Bearer ", "");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser(token);
       if (user) {
-        const { data: userData } = await supabase.from('users').select('tenant_id').eq('id', user.id).single();
+        const { data: userData } = await supabase
+          .from("users")
+          .select("tenant_id")
+          .eq("id", user.id)
+          .single();
         if (userData?.tenant_id !== tenant_id) {
-          return new Response(JSON.stringify({ error: 'Tenant access denied' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          return new Response(
+            JSON.stringify({ error: "Tenant access denied" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
         }
       }
     }
 
-    console.log(`[evaluate-segments] Starting evaluation for tenant: ${tenant_id || 'all'}, segment: ${segment_id || 'all'}`);
-
-    // Fetch segments to evaluate (auto_update = true means dynamic)
     let segmentsQuery = supabase
-      .from('crm_segments')
-      .select('id, name, tenant_id, auto_update, conditions, customer_count')
-      .eq('auto_update', true);
+      .from("crm_segments")
+      .select(
+        "id, name, tenant_id, auto_update, conditions, customer_count, status, deleted_at",
+      )
+      .eq("auto_update", true)
+      .eq("status", "active")
+      .is("deleted_at", null);
 
     if (tenant_id) {
-      segmentsQuery = segmentsQuery.eq('tenant_id', tenant_id);
+      segmentsQuery = segmentsQuery.eq("tenant_id", tenant_id);
     }
     if (segment_id) {
-      segmentsQuery = segmentsQuery.eq('id', segment_id);
+      segmentsQuery = segmentsQuery.eq("id", segment_id);
     }
 
     const { data: segments, error: segmentsError } = await segmentsQuery;
 
     if (segmentsError) {
-      console.error('[evaluate-segments] Error fetching segments:', segmentsError);
       throw segmentsError;
     }
 
-    if (!segments || segments.length === 0) {
-      console.log('[evaluate-segments] No dynamic segments to evaluate');
+    if (!segments?.length) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No segments to evaluate', evaluated: 0 }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          message: "No segments to evaluate",
+          evaluated: 0,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    console.log(`[evaluate-segments] Found ${segments.length} segments to evaluate`);
+    const tenantIds = Array.from(
+      new Set(segments.map((segment) => segment.tenant_id)),
+    );
+    const { data: tenantSegments, error: tenantSegmentsError } = await supabase
+      .from("crm_segments")
+      .select(
+        "id, name, tenant_id, auto_update, conditions, customer_count, status, deleted_at",
+      )
+      .in("tenant_id", tenantIds)
+      .is("deleted_at", null);
 
-    const results = [];
+    if (tenantSegmentsError) {
+      throw tenantSegmentsError;
+    }
 
-    for (const segment of segments as Segment[]) {
-      try {
+    const segmentIdsForMemberships = (tenantSegments ?? []).map(
+      (segment) => segment.id,
+    );
+    const { data: membershipRows, error: membershipError } =
+      segmentIdsForMemberships.length
+        ? await supabase
+            .from("customer_segments")
+            .select("customer_id, segment_id")
+            .in("segment_id", segmentIdsForMemberships)
+        : { data: [], error: null };
+
+    if (membershipError) {
+      throw membershipError;
+    }
+
+    const membershipsByCustomerId = buildMembershipMap(membershipRows ?? []);
+    const customersByTenant = new Map<string, Customer[]>();
+
+    for (const currentTenantId of tenantIds) {
+      const { data: customers, error: customersError } = await supabase
+        .from("crm_customers")
+        .select("*")
+        .eq("tenant_id", currentTenantId)
+        .is("deleted_at", null)
+        .limit(10000);
+
+      if (customersError) {
+        throw customersError;
+      }
+
+      customersByTenant.set(currentTenantId, (customers ?? []) as Customer[]);
+    }
+
+    const results: Array<Record<string, unknown>> = [];
+
+    for (const currentTenantId of tenantIds) {
+      const tenantCustomers = customersByTenant.get(currentTenantId) ?? [];
+      const tenantSegmentsToEvaluate = sortSegmentsByDependencies(
+        (segments as Segment[]).filter(
+          (segment) => segment.tenant_id === currentTenantId,
+        ),
+      );
+
+      for (const segment of tenantSegmentsToEvaluate) {
         const segmentStartTime = Date.now();
-        console.log(`[evaluate-segments] Evaluating segment: ${segment.name} (${segment.id})`);
-
-        // Get current membership
-        const { data: currentMembers, error: membersError } = await supabase
-          .from('customer_segments')
-          .select('customer_id')
-          .eq('segment_id', segment.id);
-
-        if (membersError) {
-          console.error(`[evaluate-segments] Error fetching members for segment ${segment.id}:`, membersError);
-          continue;
-        }
-
-        const currentMemberIds = new Set((currentMembers || []).map(m => m.customer_id));
-
-        // Fetch all customers for this tenant
-        // FIX: [issue #54] - Limit customer fetch to prevent OOM on large tenants
-        const { data: customers, error: customersError } = await supabase
-          .from('crm_customers')
-          .select('*')
-          .eq('tenant_id', segment.tenant_id)
-          .limit(10000);
-
-        if (customersError) {
-          console.error(`[evaluate-segments] Error fetching customers:`, customersError);
-          continue;
-        }
-
-        if (!customers || customers.length === 0) {
-          console.log(`[evaluate-segments] No customers found for tenant ${segment.tenant_id}`);
-          continue;
-        }
-
-        // Evaluate each customer against segment conditions
+        const normalizedRules = normalizeSegmentRuleGroup(segment.conditions);
         const matchingCustomerIds = new Set<string>();
 
-        for (const customer of customers as Customer[]) {
-          if (evaluateCustomerAgainstSegment(customer, segment.conditions)) {
+        for (const customer of tenantCustomers) {
+          const matches = evaluateSegmentRule(normalizedRules, customer, {
+            customerSegmentsByCustomerId: membershipsByCustomerId,
+          });
+
+          if (matches) {
             matchingCustomerIds.add(customer.id);
           }
         }
 
-        // Calculate entries and exits
-        const customersEntering: string[] = [];
-        const customersExiting: string[] = [];
-
-        for (const customerId of matchingCustomerIds) {
-          if (!currentMemberIds.has(customerId)) {
-            customersEntering.push(customerId);
+        const currentMemberIds = new Set<string>();
+        for (const customer of tenantCustomers) {
+          const currentMemberships = membershipsByCustomerId.get(customer.id);
+          if (currentMemberships?.has(segment.id)) {
+            currentMemberIds.add(customer.id);
           }
         }
 
-        for (const customerId of currentMemberIds) {
-          if (!matchingCustomerIds.has(customerId)) {
-            customersExiting.push(customerId);
-          }
-        }
+        const customersEntering = Array.from(matchingCustomerIds).filter(
+          (customerId) => !currentMemberIds.has(customerId),
+        );
+        const customersExiting = Array.from(currentMemberIds).filter(
+          (customerId) => !matchingCustomerIds.has(customerId),
+        );
 
-        console.log(`[evaluate-segments] Segment ${segment.name}: ${customersEntering.length} entering, ${customersExiting.length} exiting`);
-
-        // Process entries - insert into customer_segments
-        if (customersEntering.length > 0) {
-          const entryRecords = customersEntering.map(customerId => ({
+        if (customersEntering.length) {
+          const entryRecords = customersEntering.map((customerId) => ({
             customer_id: customerId,
             segment_id: segment.id,
             assigned_at: new Date().toISOString(),
           }));
 
           const { error: insertError } = await supabase
-            .from('customer_segments')
+            .from("customer_segments")
             .upsert(entryRecords, {
-              onConflict: 'customer_id,segment_id',
-              ignoreDuplicates: true
+              onConflict: "customer_id,segment_id",
+              ignoreDuplicates: true,
             });
 
           if (insertError) {
-            console.error(`[evaluate-segments] Error inserting membership:`, insertError);
+            throw insertError;
           }
         }
 
-        // Process exits - delete from customer_segments
-        if (customersExiting.length > 0) {
+        if (customersExiting.length) {
           const { error: exitError } = await supabase
-            .from('customer_segments')
+            .from("customer_segments")
             .delete()
-            .eq('segment_id', segment.id)
-            .in('customer_id', customersExiting);
+            .eq("segment_id", segment.id)
+            .in("customer_id", customersExiting);
 
           if (exitError) {
-            console.error(`[evaluate-segments] Error removing exited customers:`, exitError);
+            throw exitError;
           }
         }
 
-        // Update segment customer count
+        applyMembershipDiff(
+          membershipsByCustomerId,
+          segment.id,
+          customersEntering,
+          customersExiting,
+        );
+
         const { error: updateError } = await supabase
-          .from('crm_segments')
+          .from("crm_segments")
           .update({
             customer_count: matchingCustomerIds.size,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
-          .eq('id', segment.id);
+          .eq("id", segment.id);
 
         if (updateError) {
-          console.error(`[evaluate-segments] Error updating segment:`, updateError);
+          throw updateError;
         }
-
-        // Log the evaluation duration
-        const evaluationDuration = Date.now() - segmentStartTime;
-        console.log(`[evaluate-segments] Segment ${segment.name} evaluated in ${evaluationDuration}ms`);
 
         results.push({
           segment_id: segment.id,
@@ -225,167 +347,28 @@ Deno.serve(async (req) => {
           new_count: matchingCustomerIds.size,
           entered: customersEntering.length,
           exited: customersExiting.length,
-          duration_ms: evaluationDuration
-        });
-
-      } catch (segmentError) {
-        console.error(`[evaluate-segments] Error evaluating segment ${segment.id}:`, segmentError);
-        results.push({
-          segment_id: segment.id,
-          segment_name: segment.name,
-          error: String(segmentError)
+          duration_ms: Date.now() - segmentStartTime,
         });
       }
     }
-
-    const totalDuration = Date.now() - startTime;
-    console.log(`[evaluate-segments] Completed evaluation in ${totalDuration}ms`);
 
     return new Response(
       JSON.stringify({
         success: true,
         evaluated: results.length,
-        duration_ms: totalDuration,
-        results
+        duration_ms: Date.now() - startTime,
+        results,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error) {
-    console.error('[evaluate-segments] Error:', error);
+    console.error("[evaluate-segments] Error:", error);
     return new Response(
       JSON.stringify({ success: false, error: String(error) }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });
-
-/**
- * Evaluate a customer against segment conditions
- */
-function evaluateCustomerAgainstSegment(customer: Customer, conditions: SegmentRule | null): boolean {
-  if (!conditions || !conditions.conditions || conditions.conditions.length === 0) {
-    return false; // No conditions means no match
-  }
-
-  const logic = conditions.logic || 'AND';
-  const results = conditions.conditions.map(condition =>
-    evaluateCondition(customer, condition)
-  );
-
-  if (logic === 'AND') {
-    return results.every(r => r);
-  } else {
-    return results.some(r => r);
-  }
-}
-
-/**
- * Evaluate a single condition against a customer
- */
-function evaluateCondition(customer: Customer, condition: SegmentCondition): boolean {
-  const { field, operator, value } = condition;
-
-  // Handle nested fields (e.g., "order_history.total")
-  const customerValue = getNestedValue(customer, field);
-
-  switch (operator) {
-    case 'equals':
-    case 'eq':
-    case '=':
-      return customerValue === value;
-
-    case 'not_equals':
-    case 'neq':
-    case '!=':
-      return customerValue !== value;
-
-    case 'greater_than':
-    case 'gt':
-    case '>':
-      return Number(customerValue) > Number(value);
-
-    case 'greater_than_or_equal':
-    case 'gte':
-    case '>=':
-      return Number(customerValue) >= Number(value);
-
-    case 'less_than':
-    case 'lt':
-    case '<':
-      return Number(customerValue) < Number(value);
-
-    case 'less_than_or_equal':
-    case 'lte':
-    case '<=':
-      return Number(customerValue) <= Number(value);
-
-    case 'contains':
-      return String(customerValue || '').toLowerCase().includes(String(value).toLowerCase());
-
-    case 'not_contains':
-      return !String(customerValue || '').toLowerCase().includes(String(value).toLowerCase());
-
-    case 'starts_with':
-      return String(customerValue || '').toLowerCase().startsWith(String(value).toLowerCase());
-
-    case 'ends_with':
-      return String(customerValue || '').toLowerCase().endsWith(String(value).toLowerCase());
-
-    case 'is_empty':
-      return customerValue === null || customerValue === undefined || customerValue === '';
-
-    case 'is_not_empty':
-      return customerValue !== null && customerValue !== undefined && customerValue !== '';
-
-    case 'in':
-      return Array.isArray(value) && value.includes(customerValue);
-
-    case 'not_in':
-      return !Array.isArray(value) || !value.includes(customerValue);
-
-    case 'is_true':
-      return customerValue === true;
-
-    case 'is_false':
-      return customerValue === false;
-
-    case 'between':
-      if (Array.isArray(value) && value.length === 2) {
-        const numValue = Number(customerValue);
-        return numValue >= Number(value[0]) && numValue <= Number(value[1]);
-      }
-      return false;
-
-    case 'days_ago_less_than':
-      return getDaysAgo(customerValue) < Number(value);
-
-    case 'days_ago_greater_than':
-      return getDaysAgo(customerValue) > Number(value);
-
-    default:
-      console.warn(`[evaluate-segments] Unknown operator: ${operator}`);
-      return false;
-  }
-}
-
-/**
- * Get nested value from object using dot notation
- */
-function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => {
-    return current && current[key] !== undefined ? current[key] : null;
-  }, obj);
-}
-
-/**
- * Calculate days ago from a date value
- */
-function getDaysAgo(dateValue: any): number {
-  if (!dateValue) return Infinity;
-  const date = new Date(dateValue);
-  if (isNaN(date.getTime())) return Infinity;
-  const now = new Date();
-  const diffTime = now.getTime() - date.getTime();
-  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-}

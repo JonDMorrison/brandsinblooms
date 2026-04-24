@@ -1,233 +1,399 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { DashboardSection } from './DashboardSection';
-import { TimelineChart } from '@/components/charts/TimelineChart';
-import { EmptyChartOverlay } from '@/components/ui/empty-chart-overlay';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, TrendingUp, Calendar, Tag, DollarSign } from 'lucide-react';
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Calendar, DollarSign, ShoppingBag, TrendingUp } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyStatCard } from "@/components/joy/JoyStatCard";
+import type { PurchaseDisplayMetrics } from "@/lib/customerDashboardTransformers";
+import {
+  formatCurrency,
+  formatDateLabel,
+  formatPercent,
+} from "./customerDashboardUtils";
 
-interface PurchaseValueBehaviorProps {
-  metrics: {
-    totalPurchases?: number;
-    totalRevenue?: number;
-    ltv?: number;
-    aov?: number;
-    purchaseFrequency?: number;
-    avgDaysBetweenPurchases?: number;
-    repeatPurchaseRate?: number;
-    purchaseVelocity?: number;
-    firstPurchaseDate?: string;
-    lastPurchaseDate?: string;
-    fullPricePercentage?: number;
-    discountedPercentage?: number;
-    consecutiveDiscountPurchases?: number;
-  };
-  categoryAffinity?: Array<{
-    category: string;
-    percentage: number;
-    revenue: number;
-  }>;
-  purchaseTimeline?: Array<{
-    date: string;
-    orders: number;
-    revenue: number;
-  }>;
-  className?: string;
+interface PurchaseTimelinePoint {
+  date: string;
+  orders: number;
+  revenue: number;
 }
 
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
+interface PurchaseValueBehaviorProps {
+  metrics: PurchaseDisplayMetrics;
+  purchaseTimeline: PurchaseTimelinePoint[];
+  errorMessage?: string | null;
+  onRetry?: () => void;
+}
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return 'N/A';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+type TimelineMode = "per-order" | "cumulative";
+
+const buildTimelineData = (
+  mode: TimelineMode,
+  timeline: PurchaseTimelinePoint[],
+) => {
+  if (mode === "per-order") {
+    return timeline;
+  }
+
+  let orders = 0;
+  let revenue = 0;
+
+  return timeline.map((point) => {
+    orders += point.orders;
+    revenue += point.revenue;
+
+    return {
+      ...point,
+      orders,
+      revenue,
+    };
   });
 };
 
-export const PurchaseValueBehavior: React.FC<PurchaseValueBehaviorProps> = ({
+export function PurchaseValueBehavior({
   metrics,
-  categoryAffinity = [],
-  purchaseTimeline = [],
-  className,
-}) => {
-  const isVIP = (metrics.ltv || 0) > 500;
-  const hasDiscountDependency = (metrics.consecutiveDiscountPurchases || 0) >= 3;
-  const hasPurchaseData = purchaseTimeline.length > 0 && purchaseTimeline.some(d => d.orders > 0 || d.revenue > 0);
-  const hasCategoryData = categoryAffinity.length > 0;
+  purchaseTimeline,
+  errorMessage,
+  onRetry,
+}: PurchaseValueBehaviorProps) {
+  const [timelineMode, setTimelineMode] =
+    React.useState<TimelineMode>("per-order");
+
+  const chartData = React.useMemo(
+    () => buildTimelineData(timelineMode, purchaseTimeline),
+    [purchaseTimeline, timelineMode],
+  );
+
+  const affinityEntries = Object.entries(metrics.categoryAffinity || {}).sort(
+    (left, right) => right[1] - left[1],
+  );
 
   return (
-    <DashboardSection
-      title="Purchase & Value Behavior"
-      icon={<ShoppingCart className="h-4 w-4" />}
-      tooltip="Comprehensive view of purchase patterns, value, and product preferences"
-      badge={isVIP ? (
-        <Badge className="ml-2 bg-purple-100 text-purple-700 border-purple-200 text-xs">
-          💎 VIP Customer
-        </Badge>
-      ) : undefined}
-      className={className}
-    >
-      {/* Purchase Timeline Chart */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-medium text-foreground">Purchase Timeline</h4>
-          <div className="text-right">
-            <span className="text-lg font-bold text-foreground">
-              {formatCurrency(metrics.ltv || 0)}
-            </span>
-            <span className="text-xs text-muted-foreground ml-1">LTV</span>
-          </div>
-        </div>
-        {hasPurchaseData ? (
-          <TimelineChart
-            data={purchaseTimeline}
-            height={180}
-            showOrders={true}
-            showRevenue={true}
-          />
-        ) : (
-          <EmptyChartOverlay
-            message="No purchase history available yet"
-            icon="bar"
-            height={180}
-          />
-        )}
-      </div>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-1">
-            <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Total Orders</span>
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {metrics.totalPurchases || 0}
-          </div>
-        </div>
-        
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-1">
-            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">AOV</span>
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {formatCurrency(metrics.aov || 0)}
-          </div>
-        </div>
-        
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Frequency</span>
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {(metrics.purchaseFrequency || 0).toFixed(1)}/mo
-          </div>
-        </div>
-        
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Avg Gap</span>
-          </div>
-          <div className="text-xl font-bold text-foreground">
-            {metrics.avgDaysBetweenPurchases || 0}d
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Discount Behavior */}
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-3">Discount Behavior</h4>
-          
-          <div className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground">Full Price</span>
-                <span className="text-xs font-medium">{metrics.fullPricePercentage || 0}%</span>
-              </div>
-              <Progress value={metrics.fullPricePercentage || 0} className="h-2" />
-            </div>
-            
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-muted-foreground">Discounted</span>
-                <span className="text-xs font-medium">{metrics.discountedPercentage || 0}%</span>
-              </div>
-              <Progress value={metrics.discountedPercentage || 0} className="h-2" />
-            </div>
-          </div>
-          
-          {hasDiscountDependency && (
-            <div className="mt-3 p-2 rounded-lg bg-amber-50 border border-amber-200">
-              <div className="flex items-center gap-2">
-                <Tag className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-xs text-amber-700">
-                  {metrics.consecutiveDiscountPurchases} consecutive discount purchases
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Category Affinity */}
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-3">Product Category Affinity</h4>
-          
-          {hasCategoryData ? (
-            <div className="space-y-2">
-              {categoryAffinity.slice(0, 4).map((cat, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-foreground">{cat.category}</span>
-                    <span className="text-xs text-muted-foreground">{cat.percentage}%</span>
-                  </div>
-                  <Progress 
-                    value={cat.percentage} 
-                    className="h-1.5"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyChartOverlay
-              message="No category affinity data yet"
-              icon="bar"
-              height={100}
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="Purchase & value behavior"
+        description="Order cadence, value concentration, category affinity, and discount dependence."
+        actions={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <JoyButton
+              size="sm"
+              variant={timelineMode === "per-order" ? "solid" : "plain"}
+              color={timelineMode === "per-order" ? "primary" : "neutral"}
+              onClick={() => setTimelineMode("per-order")}
+            >
+              Per order
+            </JoyButton>
+            <JoyButton
+              size="sm"
+              variant={timelineMode === "cumulative" ? "solid" : "plain"}
+              color={timelineMode === "cumulative" ? "primary" : "neutral"}
+              onClick={() => setTimelineMode("cumulative")}
+            >
+              Cumulative
+            </JoyButton>
+            {errorMessage && onRetry ? (
+              <JoyButton
+                color="danger"
+                variant="plain"
+                size="sm"
+                onClick={onRetry}
+              >
+                Retry
+              </JoyButton>
+            ) : null}
+          </Stack>
+        }
+      />
+      <JoyCardContent>
+        <Stack spacing={2.5}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            <JoyStatCard
+              icon={<ShoppingBag />}
+              label="Total orders"
+              value={metrics.totalPurchases}
+              iconColor="success"
             />
-          )}
-        </div>
-      </div>
+            <JoyStatCard
+              icon={<DollarSign />}
+              label="Lifetime value"
+              value={formatCurrency(metrics.ltv)}
+              iconColor="primary"
+            />
+            <JoyStatCard
+              icon={<TrendingUp />}
+              label="Average order value"
+              value={formatCurrency(metrics.aov)}
+              iconColor="warning"
+            />
+            <JoyStatCard
+              icon={<Calendar />}
+              label="Repeat rate"
+              value={formatPercent(metrics.repeatPurchaseRate, 0)}
+              iconColor="neutral"
+            />
+          </Box>
 
-      {/* Purchase Dates */}
-      <div className="grid grid-cols-2 gap-3 mt-4">
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <span className="text-xs text-muted-foreground">First Purchase</span>
-          <div className="text-sm font-medium text-foreground mt-1">
-            {formatDate(metrics.firstPurchaseDate || '')}
-          </div>
-        </div>
-        <div className="p-3 rounded-lg border border-border bg-card">
-          <span className="text-xs text-muted-foreground">Last Purchase</span>
-          <div className="text-sm font-medium text-foreground mt-1">
-            {formatDate(metrics.lastPurchaseDate || '')}
-          </div>
-        </div>
-      </div>
-    </DashboardSection>
+          {errorMessage ? (
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="title-sm">
+                Purchase timeline unavailable
+              </Typography>
+              <Typography level="body-sm" color="danger">
+                {errorMessage}
+              </Typography>
+            </Sheet>
+          ) : chartData.length > 0 ? (
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Purchase timeline</Typography>
+                <Box sx={{ height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={chartData}
+                      margin={{ top: 8, right: 12, left: -14, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        stroke="var(--joy-palette-neutral-200)"
+                        strokeDasharray="3 3"
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tick={{
+                          fill: "var(--joy-palette-neutral-500)",
+                          fontSize: 11,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        tick={{
+                          fill: "var(--joy-palette-neutral-500)",
+                          fontSize: 11,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        tick={{
+                          fill: "var(--joy-palette-neutral-500)",
+                          fontSize: 11,
+                        }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid var(--joy-palette-neutral-200)",
+                          backgroundColor:
+                            "var(--joy-palette-background-surface)",
+                        }}
+                      />
+                      <Bar
+                        yAxisId="left"
+                        dataKey="orders"
+                        fill="var(--joy-palette-success-300)"
+                        radius={[6, 6, 0, 0]}
+                        name="Orders"
+                        barSize={18}
+                      />
+                      <Line
+                        yAxisId="right"
+                        dataKey="revenue"
+                        stroke="var(--joy-palette-primary-600)"
+                        strokeWidth={2.5}
+                        dot={{ r: 3 }}
+                        name="Revenue"
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Stack>
+            </Sheet>
+          ) : (
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "xl", p: 2.5 }}
+            >
+              <Typography level="title-sm">No purchase history yet</Typography>
+              <Typography level="body-sm" color="neutral">
+                Once the customer starts ordering, trend and value behavior will
+                appear here.
+              </Typography>
+            </Sheet>
+          )}
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1fr) minmax(0, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Discount behavior</Typography>
+                <Stack spacing={1}>
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography level="body-sm">Full price mix</Typography>
+                      <Typography level="body-xs" color="neutral">
+                        {formatPercent(metrics.fullPricePercentage, 0)}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      determinate
+                      value={metrics.fullPricePercentage}
+                      color="success"
+                      sx={{ borderRadius: 999 }}
+                    />
+                  </Stack>
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography level="body-sm">Discounted mix</Typography>
+                      <Typography level="body-xs" color="neutral">
+                        {formatPercent(metrics.discountedPercentage, 0)}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      determinate
+                      value={metrics.discountedPercentage}
+                      color="warning"
+                      sx={{ borderRadius: 999 }}
+                    />
+                  </Stack>
+                </Stack>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <JoyChip color="neutral" variant="soft" size="sm">
+                    Discount amount{" "}
+                    {formatCurrency(metrics.totalDiscountAmount)}
+                  </JoyChip>
+                  <JoyChip color="neutral" variant="soft" size="sm">
+                    Avg gap {metrics.avgDaysBetweenPurchases ?? "--"} days
+                  </JoyChip>
+                </Stack>
+                {metrics.consecutiveDiscountPurchases !== null &&
+                metrics.consecutiveDiscountPurchases >= 3 ? (
+                  <Sheet
+                    variant="soft"
+                    color="warning"
+                    sx={{ borderRadius: "xl", p: 1.5 }}
+                  >
+                    <Typography level="body-sm">
+                      {metrics.consecutiveDiscountPurchases} consecutive
+                      discount-driven purchases detected.
+                    </Typography>
+                  </Sheet>
+                ) : null}
+              </Stack>
+            </Sheet>
+
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Category affinity</Typography>
+                {affinityEntries.length > 0 ? (
+                  affinityEntries.slice(0, 5).map(([category, percentage]) => (
+                    <Stack key={category} spacing={0.5}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography level="body-sm">{category}</Typography>
+                        <Typography level="body-xs" color="neutral">
+                          {formatPercent(percentage, 0)}
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        determinate
+                        value={percentage}
+                        color="primary"
+                        sx={{ borderRadius: 999 }}
+                      />
+                    </Stack>
+                  ))
+                ) : (
+                  <Typography level="body-sm" color="neutral">
+                    Category affinity has not been calculated yet.
+                  </Typography>
+                )}
+              </Stack>
+            </Sheet>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="body-xs" color="neutral">
+                First purchase
+              </Typography>
+              <Typography level="title-md">
+                {formatDateLabel(metrics.firstPurchaseDate)}
+              </Typography>
+            </Sheet>
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="body-xs" color="neutral">
+                Last purchase
+              </Typography>
+              <Typography level="title-md">
+                {formatDateLabel(metrics.lastPurchaseDate)}
+              </Typography>
+            </Sheet>
+          </Box>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}
 
 export default PurchaseValueBehavior;

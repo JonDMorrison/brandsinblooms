@@ -1,5 +1,5 @@
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 import { Loader2, Sparkles, AlertCircle } from "lucide-react";
 
 interface HolidayGenerationButtonProps {

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader } from '@/components/ui-legacy/card';
+import { Skeleton } from '@/components/ui-legacy/skeleton';
 
 interface ContentGenerationSkeletonProps {
   type?: 'campaign' | 'bundle' | 'card';

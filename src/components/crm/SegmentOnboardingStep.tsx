@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Label } from "@/components/ui-legacy/label";
 import { Users, Plus, Sparkles } from "lucide-react";
 import { SegmentSelectorModal } from "./SegmentSelectorModal";
 import { supabase } from "@/integrations/supabase/client";

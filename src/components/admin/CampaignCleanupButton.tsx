@@ -1,11 +1,10 @@
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { cleanupDuplicateCampaigns } from '@/utils/campaignCleanup';
-import { getCurrentWeekNumber } from '@/utils/dateUtils';
+import React, { useState } from "react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { cleanupDuplicateCampaigns } from "@/utils/campaignCleanup";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 // Removed sonner import - using global toast replacement
-import { Trash2, RefreshCw } from 'lucide-react';
+import { Trash2 } from "lucide-react";
 
 export const CampaignCleanupButton = () => {
   const { user } = useAuth();
@@ -18,7 +17,7 @@ export const CampaignCleanupButton = () => {
     try {
       const currentWeek = getCurrentWeekNumber();
       const result = await cleanupDuplicateCampaigns(user.id, currentWeek);
-      
+
       if (result.success) {
         toast.success(result.message);
         // Refresh the page to show cleaned up data
@@ -27,8 +26,8 @@ export const CampaignCleanupButton = () => {
         toast.error(result.message);
       }
     } catch (error) {
-      console.error('Cleanup error:', error);
-      toast.error('Failed to cleanup campaigns');
+      console.error("Cleanup error:", error);
+      toast.error("Failed to cleanup campaigns");
     } finally {
       setIsCleaningUp(false);
     }
@@ -36,26 +35,24 @@ export const CampaignCleanupButton = () => {
 
   // Only show in development or for admin users
   const isDevelopment = import.meta.env.DEV;
-  const isAdmin = user?.email === 'jon@getclear.ca';
-  
+  const isAdmin = user?.email === "jon@getclear.ca";
+
   if (!isDevelopment && !isAdmin) {
     return null;
   }
 
   return (
-    <Button
+    <JoyButton
       onClick={handleCleanup}
+      color="warning"
       disabled={isCleaningUp}
-      variant="outline"
+      loading={isCleaningUp}
+      loadingPosition="start"
       size="sm"
-      className="gap-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+      startDecorator={<Trash2 className="w-4 h-4" />}
+      variant="soft"
     >
-      {isCleaningUp ? (
-        <RefreshCw className="w-4 h-4 animate-spin" />
-      ) : (
-        <Trash2 className="w-4 h-4" />
-      )}
-      {isCleaningUp ? 'Cleaning up...' : 'Cleanup Duplicates'}
-    </Button>
+      {isCleaningUp ? "Cleaning up..." : "Cleanup Duplicates"}
+    </JoyButton>
   );
 };

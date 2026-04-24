@@ -1,6 +1,6 @@
 
 import React from "react";
-import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { BodyMedium, CaptionMedium } from "@/components/ui-legacy/typography";
 import { cn } from "@/lib/utils";
 
 interface QuickActionItemProps {

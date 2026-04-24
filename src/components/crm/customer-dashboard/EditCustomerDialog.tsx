@@ -1,27 +1,43 @@
-import React from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import * as React from "react";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Loader2, Mail, MessageSquare } from 'lucide-react';
-import { useUpdateCustomer } from '@/hooks/useUpdateCustomer';
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySwitch } from "@/components/joy/JoySwitch";
+import { useUpdateCustomer } from "@/hooks/useUpdateCustomer";
+import type { CustomerData } from "@/hooks/useCustomerDashboard";
 
 const editCustomerSchema = z.object({
-  first_name: z.string().trim().max(100, 'First name must be less than 100 characters').optional(),
-  last_name: z.string().trim().max(100, 'Last name must be less than 100 characters').optional(),
-  email: z.string().trim().email('Invalid email address').max(255, 'Email must be less than 255 characters'),
-  phone: z.string().trim().max(20, 'Phone must be less than 20 characters').optional(),
+  first_name: z
+    .string()
+    .trim()
+    .max(100, "First name must be less than 100 characters")
+    .optional(),
+  last_name: z
+    .string()
+    .trim()
+    .max(100, "Last name must be less than 100 characters")
+    .optional(),
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email address")
+    .max(255, "Email must be less than 255 characters"),
+  phone: z
+    .string()
+    .trim()
+    .max(20, "Phone must be less than 20 characters")
+    .optional(),
   email_opt_in: z.boolean().optional(),
   sms_opt_in: z.boolean().optional(),
 });
@@ -40,214 +56,200 @@ interface EditCustomerDialogProps {
     email_opt_in?: boolean | null;
     sms_opt_in?: boolean | null;
   };
-  onSuccess?: () => void;
+  onSuccess?: (updatedCustomer: Partial<CustomerData>) => void;
 }
 
-export const EditCustomerDialog: React.FC<EditCustomerDialogProps> = ({
+export function EditCustomerDialog({
   open,
   onOpenChange,
   customerId,
   initialData,
   onSuccess,
-}) => {
+}: EditCustomerDialogProps) {
   const updateCustomer = useUpdateCustomer();
 
   const {
-    register,
-    handleSubmit,
     control,
-    formState: { errors, isDirty, dirtyFields },
+    register,
     reset,
-    watch,
+    handleSubmit,
+    formState: { errors, isDirty },
   } = useForm<EditCustomerFormData>({
     resolver: zodResolver(editCustomerSchema),
     defaultValues: {
-      first_name: initialData.first_name || '',
-      last_name: initialData.last_name || '',
+      first_name: initialData.first_name || "",
+      last_name: initialData.last_name || "",
       email: initialData.email,
-      phone: initialData.phone || '',
+      phone: initialData.phone || "",
       email_opt_in: initialData.email_opt_in ?? false,
       sms_opt_in: initialData.sms_opt_in ?? false,
     },
-    mode: 'onChange',
+    mode: "onChange",
   });
-  
-  // Watch opt-in fields to detect changes
-  const watchedEmailOptIn = watch('email_opt_in');
-  const watchedSmsOptIn = watch('sms_opt_in');
-  
-  // Check if form has any changes (including opt-in toggles)
-  const hasChanges = isDirty || 
-    Object.keys(dirtyFields).length > 0 ||
-    watchedEmailOptIn !== (initialData.email_opt_in ?? false) ||
-    watchedSmsOptIn !== (initialData.sms_opt_in ?? false);
 
-  // Reset form when dialog opens with new data
   React.useEffect(() => {
-    if (open) {
-      reset({
-        first_name: initialData.first_name || '',
-        last_name: initialData.last_name || '',
-        email: initialData.email,
-        phone: initialData.phone || '',
-        email_opt_in: initialData.email_opt_in ?? false,
-        sms_opt_in: initialData.sms_opt_in ?? false,
-      }, { keepDirty: false, keepDirtyValues: false });
-    }
-  }, [open, initialData.first_name, initialData.last_name, initialData.email, initialData.phone, initialData.email_opt_in, initialData.sms_opt_in, reset]);
+    if (!open) return;
+
+    reset({
+      first_name: initialData.first_name || "",
+      last_name: initialData.last_name || "",
+      email: initialData.email,
+      phone: initialData.phone || "",
+      email_opt_in: initialData.email_opt_in ?? false,
+      sms_opt_in: initialData.sms_opt_in ?? false,
+    });
+  }, [
+    initialData.email,
+    initialData.email_opt_in,
+    initialData.first_name,
+    initialData.last_name,
+    initialData.phone,
+    initialData.sms_opt_in,
+    open,
+    reset,
+  ]);
 
   const onSubmit = async (data: EditCustomerFormData) => {
-    try {
-      await updateCustomer.mutateAsync({
-        customerId,
-        data: {
-          first_name: data.first_name || null,
-          last_name: data.last_name || null,
-          email: data.email,
-          phone: data.phone || null,
-          email_opt_in: data.email_opt_in ?? false,
-          sms_opt_in: data.sms_opt_in ?? false,
-        },
-      });
-      onOpenChange(false);
-      onSuccess?.();
-    } catch {
-      // Error is handled by the mutation
-    }
+    const result = await updateCustomer.mutateAsync({
+      customerId,
+      data: {
+        first_name: data.first_name || null,
+        last_name: data.last_name || null,
+        email: data.email,
+        phone: data.phone || null,
+        email_opt_in: data.email_opt_in ?? false,
+        sms_opt_in: data.sms_opt_in ?? false,
+      },
+    });
+
+    onSuccess?.(result as Partial<CustomerData>);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Customer</DialogTitle>
-          <DialogDescription>
-            Update customer information. Click save when you're done.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
-                <Input
-                  id="first_name"
-                  placeholder="John"
-                  {...register('first_name')}
-                />
-                {errors.first_name && (
-                  <p className="text-sm text-destructive">{errors.first_name.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
-                <Input
-                  id="last_name"
-                  placeholder="Doe"
-                  {...register('last_name')}
-                />
-                {errors.last_name && (
-                  <p className="text-sm text-destructive">{errors.last_name.message}</p>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                {...register('email')}
+    <JoyDialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title="Edit Customer"
+      description="Update customer information and communication preferences."
+      size="md"
+    >
+      <JoyDialogContent>
+        <form id="edit-customer-form" onSubmit={handleSubmit(onSubmit)}>
+          <Stack spacing={2.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <JoyInput
+                label="First Name"
+                placeholder="First name"
+                error={Boolean(errors.first_name)}
+                errorMessage={errors.first_name?.message}
+                {...register("first_name")}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1 (555) 123-4567"
-                {...register('phone')}
+              <JoyInput
+                label="Last Name"
+                placeholder="Last name"
+                error={Boolean(errors.last_name)}
+                errorMessage={errors.last_name?.message}
+                {...register("last_name")}
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
-              )}
-            </div>
-            
-            {/* Opt-in Preferences */}
-            <div className="border-t pt-4 mt-4">
-              <Label className="text-sm font-medium mb-3 block">Communication Preferences</Label>
-              <div className="space-y-3">
-                <Controller
-                  name="email_opt_in"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="email_opt_in" className="text-sm font-normal cursor-pointer">
-                          Email Marketing
-                        </Label>
-                      </div>
-                      <Switch
-                        id="email_opt_in"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </div>
-                  )}
-                />
-                <Controller
-                  name="sms_opt_in"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                        <Label htmlFor="sms_opt_in" className="text-sm font-normal cursor-pointer">
-                          SMS Marketing
-                        </Label>
-                      </div>
-                      <Switch
-                        id="sms_opt_in"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </div>
-                  )}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={updateCustomer.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={updateCustomer.isPending || !hasChanges}
-            >
-              {updateCustomer.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
+            </Stack>
+
+            <JoyInput
+              label="Email"
+              type="email"
+              placeholder="customer@example.com"
+              error={Boolean(errors.email)}
+              errorMessage={errors.email?.message}
+              {...register("email")}
+            />
+
+            <JoyInput
+              label="Phone"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              error={Boolean(errors.phone)}
+              errorMessage={errors.phone?.message}
+              {...register("phone")}
+            />
+
+            <Stack spacing={1.5}>
+              <Typography level="title-sm">
+                Communication Preferences
+              </Typography>
+
+              <Controller
+                name="email_opt_in"
+                control={control}
+                render={({ field }) => (
+                  <FormControl
+                    orientation="horizontal"
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Stack spacing={0.25}>
+                      <FormLabel>Email Marketing</FormLabel>
+                      <Typography level="body-xs" color="neutral">
+                        Allow marketing campaigns and newsletters by email.
+                      </Typography>
+                    </Stack>
+                    <JoySwitch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                )}
+              />
+
+              <Controller
+                name="sms_opt_in"
+                control={control}
+                render={({ field }) => (
+                  <FormControl
+                    orientation="horizontal"
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Stack spacing={0.25}>
+                      <FormLabel>SMS Marketing</FormLabel>
+                      <Typography level="body-xs" color="neutral">
+                        Allow SMS reminders, campaigns, and outreach.
+                      </Typography>
+                    </Stack>
+                    <JoySwitch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                )}
+              />
+            </Stack>
+          </Stack>
         </form>
-      </DialogContent>
-    </Dialog>
+      </JoyDialogContent>
+      <JoyDialogActions>
+        <JoyButton
+          bloomVariant="ghost"
+          color="neutral"
+          disabled={updateCustomer.isPending}
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </JoyButton>
+        <JoyButton
+          type="submit"
+          form="edit-customer-form"
+          disabled={!isDirty}
+          loading={updateCustomer.isPending}
+        >
+          Save
+        </JoyButton>
+      </JoyDialogActions>
+    </JoyDialog>
   );
-};
+}
 
 export default EditCustomerDialog;

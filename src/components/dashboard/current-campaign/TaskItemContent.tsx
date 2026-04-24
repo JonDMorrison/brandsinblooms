@@ -6,7 +6,7 @@ import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 import { MagazineContentDisplay } from "@/components/content/task-item/MagazineContentDisplay";
 import { ImageAssetManager } from "@/lib/imageAssetManager";
 import { useAuth } from "@/contexts/AuthContext";
-import { AIImageLoadingOverlay } from "@/components/ui/AIImageLoadingOverlay";
+import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 import { useRealtimeImageUpdates } from "@/hooks/useRealtimeImageUpdates";
 
 interface TaskItemContentProps {

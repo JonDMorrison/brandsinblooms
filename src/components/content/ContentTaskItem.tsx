@@ -1,7 +1,7 @@
 
 import React from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
 import { TaskContent } from "./task-item/TaskContent";
 import { InlineEditableContent } from "./InlineEditableContent";
 import { normalizeTask } from "@/utils/normalizeTask";

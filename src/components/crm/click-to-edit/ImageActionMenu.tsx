@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 import { Image, Wand2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditMode } from '@/hooks/useBlockEditMode';

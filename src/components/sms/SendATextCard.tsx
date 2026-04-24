@@ -1,18 +1,24 @@
-import React, { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import IconButton from "@mui/joy/IconButton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { useDropzone } from "react-dropzone";
 import {
   AlertCircle,
   CheckCircle,
+  ImagePlus,
   Loader2,
   Send,
-  Upload,
   X,
 } from "lucide-react";
-import { useDropzone } from "react-dropzone";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoyTextarea } from "@/components/joy/JoyTextarea";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SendATextCardProps {
   onSent?: () => void;
@@ -51,44 +57,55 @@ function containsBlockedShortener(message: string): string | null {
 
 export function SendATextCard({ onSent }: SendATextCardProps) {
   const { toast } = useToast();
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<{
+  const [phone, setPhone] = React.useState("");
+  const [message, setMessage] = React.useState(DEFAULT_MESSAGE);
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
+  const [imagePreview, setImagePreview] = React.useState<string | null>(null);
+  const [sending, setSending] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [result, setResult] = React.useState<{
     success: boolean;
     message: string;
     messageId?: string;
   } | null>(null);
 
-  const onDrop = useCallback(
+  React.useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const onDrop = React.useCallback(
     (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
-      if (file) {
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-          toast({
-            title: "Invalid file type",
-            description: "Please upload JPG, PNG, or WebP",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          toast({
-            title: "File too large",
-            description: "Maximum 5MB allowed",
-            variant: "destructive",
-          });
-          return;
-        }
-        if (imagePreview) {
-          URL.revokeObjectURL(imagePreview);
-        }
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
+      if (!file) return;
+
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload JPG, PNG, or WebP",
+          variant: "destructive",
+        });
+        return;
       }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Maximum 5MB allowed",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     },
     [imagePreview, toast],
   );
@@ -101,13 +118,15 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
   });
 
   const removeImage = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImageFile(null);
     setImagePreview(null);
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "").slice(0, 10);
+  const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = event.target.value.replace(/\D/g, "").slice(0, 10);
     setPhone(raw);
   };
 
@@ -119,7 +138,9 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
       .from("media-mms")
       .upload(fileName, file, { contentType: file.type, upsert: false });
 
-    if (error) throw new Error(`Upload failed: ${error.message}`);
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
 
     const { data: urlData } = supabase.storage
       .from("media-mms")
@@ -131,7 +152,6 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
   const handleSend = async () => {
     setResult(null);
 
-    // Validation
     if (phone.length !== 10) {
       setResult({
         success: false,
@@ -159,24 +179,22 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
     try {
       let mediaUrl: string | undefined;
 
-      // Upload image if present
       if (imageFile) {
         setUploading(true);
         try {
           mediaUrl = await uploadImage(imageFile);
-        } catch (err) {
+        } catch (error) {
           setResult({
             success: false,
-            message: err instanceof Error ? err.message : "Image upload failed",
+            message:
+              error instanceof Error ? error.message : "Image upload failed",
           });
           setSending(false);
           setUploading(false);
           return;
         }
-        setUploading(false);
       }
 
-      // Call edge function
       const { data, error } = await supabase.functions.invoke("send-demo-sms", {
         body: { phone, message, mediaUrl },
       });
@@ -199,11 +217,13 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
       } else {
         setResult({ success: false, message: data.error || "Failed to send" });
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       setResult({ success: false, message: errorMessage });
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -211,162 +231,245 @@ export function SendATextCard({ onSent }: SendATextCardProps) {
     ? message
     : `${message.trim()}\n\nReply STOP to opt out.`;
   const segmentCount = Math.max(1, Math.ceil(message.length / 160));
-  const characterToneClassName =
+  const characterTone =
     message.length > 160
-      ? "text-red-500"
+      ? "danger.600"
       : message.length > 140
-        ? "text-amber-500"
-        : "text-gray-400";
+        ? "warning.600"
+        : "neutral.500";
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold text-gray-900">Send Text</h3>
-        <p className="text-sm text-gray-500">
+    <Stack spacing={2.5}>
+      <Stack spacing={0.75}>
+        <Typography level="title-md" fontWeight="lg">
+          Send Text
+        </Typography>
+        <Typography level="body-sm" color="neutral">
           Send a live demo text message in real time.
-        </p>
-      </div>
+        </Typography>
+      </Stack>
 
-      <div className="space-y-2">
-        <Label htmlFor="send-text-phone">Phone Number (US/CA)</Label>
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-col sm:flex-row">
-            <div className="flex h-12 items-center gap-2 border-b border-gray-200 px-4 text-sm font-medium text-gray-700 sm:w-[148px] sm:border-b-0 sm:border-r">
-              <span className="text-base">🇺🇸</span>
+      <JoyInput
+        id="send-text-phone"
+        type="tel"
+        label="Phone Number (US/CA)"
+        placeholder="(555) 123-4567"
+        value={formatPhoneDisplay(phone)}
+        onChange={handlePhoneChange}
+        disabled={sending}
+        startDecorator={
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <span aria-hidden="true">🇺🇸</span>
+            <Typography level="body-sm" fontWeight="md">
               +1
-            </div>
-            <input
-              id="send-text-phone"
-              type="tel"
-              placeholder="(555) 123-4567"
-              value={formatPhoneDisplay(phone)}
-              onChange={handlePhoneChange}
-              disabled={sending}
-              className="h-12 flex-1 border-0 bg-transparent px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-        </div>
-      </div>
+            </Typography>
+          </Box>
+        }
+        helperText="US and Canada demo numbers only."
+        sx={{ minHeight: 44, borderRadius: "12px" }}
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="send-text-message">Message</Label>
-        <div className="relative">
-          <Textarea
-            id="send-text-message"
-            placeholder="Type your message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={5}
-            disabled={sending}
-            className="min-h-[136px] resize-y rounded-xl border-gray-200 bg-white pb-10 pr-24 shadow-sm"
-          />
-          <div
-            className={`pointer-events-none absolute bottom-3 right-3 text-xs font-medium ${characterToneClassName}`}
-          >
-            {message.length}/160
-            {segmentCount > 1 ? ` · ${segmentCount} segments` : ""}
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">
-          Opt-out text is appended automatically if it is not already present.
-        </p>
-      </div>
+      <Box sx={{ position: "relative" }}>
+        <JoyTextarea
+          id="send-text-message"
+          label="Message"
+          placeholder="Type your message..."
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          rows={5}
+          disabled={sending}
+          helperText="Opt-out text is appended automatically if it is not already present."
+          sx={{ minHeight: 156, borderRadius: "12px", pr: 10, pb: 4 }}
+        />
+        <Typography
+          level="body-xs"
+          sx={{
+            position: "absolute",
+            right: 12,
+            bottom: 28,
+            color: characterTone,
+            fontWeight: "md",
+            pointerEvents: "none",
+          }}
+        >
+          {message.length}/160
+          {segmentCount > 1 ? ` · ${segmentCount} segments` : ""}
+        </Typography>
+      </Box>
 
-      <div className="space-y-2">
-        <Label>Image (Optional)</Label>
+      <Stack spacing={1}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1.5,
+          }}
+        >
+          <Typography level="body-sm" fontWeight="md">
+            Image (Optional)
+          </Typography>
+          {imageFile ? (
+            <Chip size="sm" variant="soft" color="neutral">
+              {Math.round(imageFile.size / 1024)} KB
+            </Chip>
+          ) : null}
+        </Box>
+
         {!imagePreview ? (
-          <div
+          <Box
             {...getRootProps()}
-            className={`rounded-xl border-2 border-dashed p-5 text-center transition-colors ${
-              isDragActive
-                ? "border-emerald-400 bg-emerald-50"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-            } ${sending ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
+            sx={{
+              borderRadius: "16px",
+              border: "2px dashed",
+              borderColor: isDragActive ? "success.400" : "neutral.300",
+              backgroundColor: isDragActive
+                ? "success.50"
+                : "background.level1",
+              px: 3,
+              py: 4,
+              textAlign: "center",
+              cursor: sending ? "not-allowed" : "pointer",
+              opacity: sending ? 0.5 : 1,
+              transition:
+                "border-color 160ms ease, background-color 160ms ease, opacity 160ms ease",
+            }}
           >
             <input {...getInputProps()} disabled={sending} />
-            <Upload className="mx-auto mb-3 h-6 w-6 text-gray-400" />
-            <p className="text-sm font-medium text-gray-700">
-              {isDragActive
-                ? "Drop image here…"
-                : "Drag & drop or click to upload"}
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              JPG, PNG, WebP · Max 5MB
-            </p>
-          </div>
+            <Stack spacing={1.5} alignItems="center">
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "14px",
+                  display: "grid",
+                  placeItems: "center",
+                  backgroundColor: "background.surface",
+                  color: "neutral.500",
+                }}
+              >
+                <ImagePlus size={18} />
+              </Box>
+              <Stack spacing={0.5}>
+                <Typography level="body-sm" fontWeight="md">
+                  {isDragActive
+                    ? "Drop image here"
+                    : "Drag and drop or click to upload"}
+                </Typography>
+                <Typography level="body-xs" color="neutral">
+                  JPG, PNG, WebP up to 5MB.
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
         ) : (
-          <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+          <Box
+            sx={{
+              position: "relative",
+              overflow: "hidden",
+              borderRadius: "16px",
+              border: "1px solid",
+              borderColor: "neutral.200",
+              backgroundColor: "background.surface",
+              p: 1.5,
+            }}
+          >
             <img
               src={imagePreview}
               alt="Preview"
-              className="h-32 w-full rounded-lg object-cover"
+              style={{
+                display: "block",
+                width: "100%",
+                height: 192,
+                objectFit: "cover",
+                borderRadius: 12,
+              }}
             />
-            <Button
+            <IconButton
               type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute right-5 top-5 h-8 w-8 rounded-full"
+              variant="solid"
+              color="danger"
+              size="sm"
+              sx={{ position: "absolute", right: 18, top: 18 }}
               onClick={removeImage}
               disabled={sending}
             >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+              <X size={16} />
+            </IconButton>
+          </Box>
         )}
-      </div>
+      </Stack>
 
-      {message && !message.toLowerCase().includes("stop") && (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
-          <p className="mb-1 font-medium text-gray-900">Preview with opt-out</p>
-          <p className="whitespace-pre-wrap">{messageWithOptOut}</p>
-        </div>
-      )}
+      {message && !message.toLowerCase().includes("stop") ? (
+        <Box
+          sx={{
+            borderRadius: "16px",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            backgroundColor: "background.level1",
+            p: 2,
+          }}
+        >
+          <Stack spacing={0.75}>
+            <Typography level="body-sm" fontWeight="md">
+              Preview with opt-out
+            </Typography>
+            <Typography
+              level="body-xs"
+              color="neutral"
+              sx={{ whiteSpace: "pre-wrap" }}
+            >
+              {messageWithOptOut}
+            </Typography>
+          </Stack>
+        </Box>
+      ) : null}
 
       <Button
         onClick={handleSend}
         disabled={sending || phone.length !== 10}
-        className="h-11 w-full rounded-xl bg-emerald-600 font-semibold text-white hover:bg-emerald-700"
+        size="lg"
+        startDecorator={
+          sending ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Send size={16} />
+          )
+        }
+        sx={{ borderRadius: "12px" }}
       >
-        {sending ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            {uploading ? "Uploading image..." : "Sending..."}
-          </>
-        ) : (
-          <>
-            <Send className="h-4 w-4 mr-2" />
-            Send Text
-          </>
-        )}
+        {sending
+          ? uploading
+            ? "Uploading image..."
+            : "Sending..."
+          : "Send Text"}
       </Button>
 
-      {result && (
-        <div
-          className={`flex items-start gap-2 rounded-2xl border p-3 ${
-            result.success
-              ? "border-green-200 bg-green-50"
-              : "border-red-200 bg-red-50"
-          }`}
+      {result ? (
+        <Alert
+          color={result.success ? "success" : "danger"}
+          variant="soft"
+          startDecorator={
+            result.success ? (
+              <CheckCircle size={18} />
+            ) : (
+              <AlertCircle size={18} />
+            )
+          }
+          sx={{ alignItems: "flex-start", borderRadius: "16px" }}
         >
-          {result.success ? (
-            <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-600" />
-          ) : (
-            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
-          )}
-          <div>
-            <p
-              className={`font-medium ${result.success ? "text-green-800" : "text-red-800"}`}
-            >
+          <Box>
+            <Typography level="body-sm" fontWeight="md">
               {result.message}
-            </p>
-            {result.messageId && (
-              <p className="mt-1 text-xs text-green-700">
+            </Typography>
+            {result.messageId ? (
+              <Typography level="body-xs" sx={{ mt: 0.5 }}>
                 Message ID: {result.messageId}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+              </Typography>
+            ) : null}
+          </Box>
+        </Alert>
+      ) : null}
+    </Stack>
   );
 }

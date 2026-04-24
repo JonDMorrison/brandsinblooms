@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 
 interface TemplateCardProps {
   title: string;

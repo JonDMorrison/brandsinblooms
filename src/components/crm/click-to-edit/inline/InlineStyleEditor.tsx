@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Switch } from '@/components/ui/switch';
+import { Card } from '@/components/ui-legacy/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Label } from '@/components/ui-legacy/label';
+import { Input } from '@/components/ui-legacy/input';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Switch } from '@/components/ui-legacy/switch';
 
 interface InlineStyleEditorProps {
   backgroundColor?: string;

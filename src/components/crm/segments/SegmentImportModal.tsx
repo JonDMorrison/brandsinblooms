@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui-legacy/dialog';
+import { Button } from '@/components/ui-legacy/button';
 import { Upload, FileText, CheckCircle, AlertCircle, Download, Loader2 } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
+import { Progress } from '@/components/ui-legacy/progress';
 import { useToast } from '@/hooks/use-toast';
 
 interface SegmentImportModalProps {

@@ -2,7 +2,7 @@ import React, { useState, useImperativeHandle, forwardRef } from "react";
 import { MediaSelectorSidebar } from "./MediaSelectorSidebar";
 import { AIPersonalizationDialog } from "./AIPersonalizationDialog";
 import { Camera, Upload, Sparkles, Wand2 } from "lucide-react";
-import { AIImageLoadingOverlay } from "@/components/ui/AIImageLoadingOverlay";
+import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";

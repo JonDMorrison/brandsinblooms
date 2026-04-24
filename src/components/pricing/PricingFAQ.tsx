@@ -3,7 +3,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/ui-legacy/accordion";
 import { pricingFaqs } from "./pricingConfig";
 
 export const PricingFAQ = () => {

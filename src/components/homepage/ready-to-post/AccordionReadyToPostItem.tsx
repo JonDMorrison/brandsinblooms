@@ -2,11 +2,11 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Calendar, Clock, Eye, Trash2 } from "lucide-react";
 import { ImageEditOverlay } from '@/components/image';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui-legacy/checkbox";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui-legacy/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui-legacy/alert-dialog";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { getStatusColor } from "../homepageUtils";
 import { formatDistanceToNow } from "date-fns";
@@ -15,7 +15,7 @@ import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
-import { SafeHtml } from "@/components/ui/safe-html";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { ConnectSocialCTA } from "@/components/social/ConnectSocialCTA";
 

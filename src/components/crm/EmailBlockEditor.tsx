@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { ContentBlock, BlockLayout } from "@/types/emailBuilder";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Label } from "@/components/ui-legacy/label";
 import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import {
   LayoutPreview,

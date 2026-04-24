@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Breadcrumbs, Typography } from "@mui/joy";
 import { toast } from "sonner";
 
 import { DocHeader } from "@/components/docs/DocHeader";
@@ -8,14 +9,6 @@ import { DocSection } from "@/components/docs/DocSection";
 import { DocShell } from "@/components/docs/DocShell";
 import { DocSidebar } from "@/components/docs/DocSidebar";
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { getDocumentationContent } from "@/pages/integrations/documentation/content";
 
 export default function IntegrationDocumentationPage() {
@@ -45,42 +38,29 @@ export default function IntegrationDocumentationPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto space-y-6 px-6 pt-6">
-        <Breadcrumb>
-          <BreadcrumbList className="flex-wrap gap-2 rounded-full border border-border/70 bg-white/90 px-4 py-2 text-sm shadow-sm shadow-brand-navy/5 backdrop-blur-sm">
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                asChild
-                className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
-              >
-                <Link to="/dashboard">Dashboard</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-muted-foreground/50" />
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                asChild
-                className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
-              >
-                <Link to="/integrations">Integrations</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-muted-foreground/50" />
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                asChild
-                className="font-medium text-muted-foreground transition-colors hover:text-brand-navy"
-              >
-                <Link to={`/integrations/${seed.slug}`}>{seed.name}</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-muted-foreground/50" />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="font-semibold text-brand-navy">
-                Documentation
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <Breadcrumbs
+          size="sm"
+          aria-label="Integration documentation breadcrumb"
+        >
+          <Link to="/dashboard">
+            <Typography level="body-sm" color="neutral">
+              Dashboard
+            </Typography>
+          </Link>
+          <Link to="/integrations">
+            <Typography level="body-sm" color="neutral">
+              Integrations
+            </Typography>
+          </Link>
+          <Link to={`/integrations/${seed.slug}`}>
+            <Typography level="body-sm" color="neutral">
+              {seed.name}
+            </Typography>
+          </Link>
+          <Typography level="body-sm" fontWeight="lg">
+            Documentation
+          </Typography>
+        </Breadcrumbs>
       </div>
 
       <DocShell

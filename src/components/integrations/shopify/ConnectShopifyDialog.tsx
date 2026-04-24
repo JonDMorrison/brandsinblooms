@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
+  Box,
+  Button,
+  CircularProgress,
+  DialogActions,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  FormHelperText,
+  Input,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Stack,
+  Typography,
+} from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
 
 const SHOPIFY_OAUTH_RESULT_KEY = "shopify_oauth_result";
@@ -206,24 +210,35 @@ export function ConnectShopifyDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
-        <DialogHeader>
-          <DialogTitle>Connect your Shopify store</DialogTitle>
-          <DialogDescription>
-            Enter your Shopify store domain to begin.
-          </DialogDescription>
-        </DialogHeader>
+    <Modal open={open} onClose={() => onOpenChange(false)}>
+      <ModalDialog
+        variant="outlined"
+        sx={{ maxWidth: 480, borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
+      >
+        <ModalClose />
+        <DialogTitle>Connect your Shopify store</DialogTitle>
+        <DialogContent sx={{ mt: 1 }}>
+          <Stack spacing={2}>
+            <Typography level="body-sm" textColor="text.tertiary">
+              Enter your Shopify store domain to begin. You'll be redirected to
+              Shopify to authorize BloomSuite — no admin credentials are shared.
+            </Typography>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="shopify-store-domain">Store domain</Label>
-            <div className="flex items-center gap-2">
+            <Box>
+              <Typography level="body-sm" fontWeight="md" mb={0.75}>
+                Store domain
+              </Typography>
               <Input
                 id="shopify-store-domain"
-                type="text"
                 placeholder="your-store"
                 value={storeDomain}
+                disabled={isLoading}
+                autoComplete="off"
+                endDecorator={
+                  <Typography level="body-sm" textColor="text.tertiary">
+                    .myshopify.com
+                  </Typography>
+                }
                 onChange={(event) => {
                   setStoreDomain(event.target.value);
                   if (domainError) {
@@ -236,49 +251,40 @@ export function ConnectShopifyDialog({
                     void handleConnect();
                   }
                 }}
-                className="flex-1"
-                autoComplete="off"
               />
-              <span className="shrink-0 text-sm text-muted-foreground">
-                .myshopify.com
-              </span>
-            </div>
-            {domainError ? (
-              <p className="text-xs text-red-600">{domainError}</p>
-            ) : null}
-          </div>
+              {domainError ? (
+                <FormHelperText sx={{ color: "danger.500", mt: 0.5 }}>
+                  {domainError}
+                </FormHelperText>
+              ) : null}
+            </Box>
+          </Stack>
+        </DialogContent>
 
-          <div className="rounded-lg border border-border bg-muted/40 p-3">
-            <p className="text-xs text-muted-foreground">
-              You&apos;ll be redirected to Shopify to authorize BloomSuite. No
-              password or Shopify admin credentials are shared with BloomSuite.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <DialogActions sx={{ gap: 1, justifyContent: "flex-end" }}>
+          <Button
+            variant="plain"
+            color="neutral"
+            onClick={() => onOpenChange(false)}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
           <Button
+            variant="solid"
+            color="neutral"
             onClick={() => void handleConnect()}
             disabled={!storeDomain || isLoading}
+            startDecorator={
+              isLoading ? <CircularProgress size="sm" /> : null
+            }
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              <>
-                Connect Shopify
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </>
-            )}
+            {isLoading ? "Connecting..." : "Connect Shopify"}
+            {!isLoading && <ArrowRight style={{ marginLeft: 6, width: 14, height: 14 }} />}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
   );
 }
 
@@ -291,12 +297,23 @@ export function getShopifyAdminUrl(shopDomain?: string | null) {
 
 export function ConnectShopifyHint() {
   return (
-    <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-      <p className="flex items-start gap-2">
-        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+    <Box
+      sx={{
+        borderRadius: "lg",
+        border: "1px solid",
+        borderColor: "neutral.outlinedBorder",
+        bgcolor: "neutral.softBg",
+        p: 1.5,
+      }}
+    >
+      <Typography
+        level="body-xs"
+        startDecorator={<ExternalLink style={{ width: 12, height: 12 }} />}
+        textColor="text.tertiary"
+      >
         Shopify authorizes BloomSuite in a popup. Keep this page open while the
         connection completes and BloomSuite will refresh automatically.
-      </p>
-    </div>
+      </Typography>
+    </Box>
   );
 }

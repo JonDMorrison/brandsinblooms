@@ -1,8 +1,8 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { SafeHtml } from '@/components/ui/safe-html';
+import { Badge } from '@/components/ui-legacy/badge';
+import { SafeHtml } from '@/components/ui-legacy/safe-html';
 import { Clock, Palette, Target, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 export interface NewsletterBlock {
   title: string;

@@ -1,10 +1,13 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import IconButton from "@mui/joy/IconButton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { useUsageTracking } from "@/hooks/useUsageTracking";
-import { AlertTriangle, TrendingUp, X } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { Link as RouterLink } from "react-router-dom";
+import { AlertTriangle, X } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 
 interface UsageWarningBannerProps {
   className?: string;
@@ -12,7 +15,6 @@ interface UsageWarningBannerProps {
 }
 
 export const UsageWarningBanner = ({ className, dismissible = true }: UsageWarningBannerProps) => {
-  const navigate = useNavigate();
   const { usage, loading, getThresholds, getUpgradeRecommendation } = useUsageTracking();
   const [dismissed, setDismissed] = useState(false);
 
@@ -25,7 +27,7 @@ export const UsageWarningBanner = ({ className, dismissible = true }: UsageWarni
   if (!thresholds.anyAt80) return null;
 
   const isAtLimit = thresholds.anyAt100;
-  const isNearLimit = thresholds.anyAt80 && !thresholds.anyAt100;
+  const bannerColor = isAtLimit ? "danger" : "warning";
 
   const getMessage = () => {
     if (thresholds.emailAt100 && thresholds.smsAt100) {
@@ -49,53 +51,60 @@ export const UsageWarningBanner = ({ className, dismissible = true }: UsageWarni
     return '';
   };
 
+  const title = isAtLimit ? "Usage limit reached" : "Approaching usage limit";
+  const secondaryLine = recommendation.suggestedTier
+    ? `Upgrade to ${recommendation.suggestedTier} for more capacity.`
+    : undefined;
+
   return (
-    <Alert 
-      className={cn(
-        "relative",
-        isAtLimit 
-          ? "border-destructive/50 bg-destructive/10" 
-          : "border-amber-300 bg-amber-50",
-        className
-      )}
-    >
-      <div className="flex items-center gap-3">
-        {isAtLimit ? (
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-        ) : (
-          <TrendingUp className="h-4 w-4 text-amber-600" />
-        )}
-        <AlertDescription className={cn(
-          "flex-1",
-          isAtLimit ? "text-destructive" : "text-amber-800"
-        )}>
-          {getMessage()}
-          {recommendation.suggestedTier && (
-            <span className="ml-1">
-              Upgrade to unlock more capacity.
-            </span>
-          )}
-        </AlertDescription>
-        <Button 
-          size="sm" 
-          variant={isAtLimit ? "destructive" : "outline"}
-          onClick={() => navigate('/pricing')}
-          className={cn(!isAtLimit && "border-amber-400 text-amber-800 hover:bg-amber-100")}
-        >
-          Upgrade
-        </Button>
-        {dismissible && (
-          <button 
-            onClick={() => setDismissed(true)}
-            className={cn(
-              "p-1 rounded-full hover:bg-black/10",
-              isAtLimit ? "text-destructive" : "text-amber-600"
-            )}
+    <Alert
+      className={className}
+      color={bannerColor}
+      size="md"
+      startDecorator={<AlertTriangle size={20} />}
+      variant="soft"
+      endDecorator={
+        <Stack direction="row" spacing={1} alignItems="center">
+          <JoyButton
+            color={bannerColor}
+            component={RouterLink}
+            size="sm"
+            to="/pricing"
+            variant="solid"
           >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+            Upgrade Plan
+          </JoyButton>
+          {dismissible ? (
+            <IconButton
+              color={bannerColor}
+              onClick={() => setDismissed(true)}
+              size="sm"
+              variant="plain"
+            >
+              <X size={16} />
+            </IconButton>
+          ) : null}
+        </Stack>
+      }
+      sx={{
+        borderRadius: "20px",
+        alignItems: "flex-start",
+        bgcolor: "background.surface",
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={600} level="title-sm">
+          {title}
+        </Typography>
+        <Typography level="body-sm" sx={{ mt: 0.5 }}>
+          {getMessage()}
+        </Typography>
+        {secondaryLine ? (
+          <Typography level="body-xs" sx={{ mt: 0.75, color: "text.tertiary" }}>
+            {secondaryLine}
+          </Typography>
+        ) : null}
+      </Box>
     </Alert>
   );
 };

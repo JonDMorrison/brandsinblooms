@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { NativeSelect } from "@/components/ui/NativeSelect";
-import { Calendar } from "@/components/ui/calendar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
+import { Label } from "@/components/ui-legacy/label";
+import { Badge } from "@/components/ui-legacy/badge";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Calendar } from "@/components/ui-legacy/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui-legacy/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui-legacy/radio-group";
+import { Separator } from "@/components/ui-legacy/separator";
 import { usePagePersistence } from "@/hooks/usePagePersistence";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

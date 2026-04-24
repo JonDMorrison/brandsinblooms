@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, Sparkles, ArrowRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui-legacy/button';
 
 interface OnboardingSuccessIndicatorProps {
   isCompleting: boolean;

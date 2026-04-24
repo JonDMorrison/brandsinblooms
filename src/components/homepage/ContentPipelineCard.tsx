@@ -1,6 +1,6 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
 import { BarChart3, ArrowRight, Instagram, Facebook, Mail, FileText } from "lucide-react";
 import { getTasksByStatus } from './homepageUtils';
 

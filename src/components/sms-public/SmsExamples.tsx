@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { Smartphone } from 'lucide-react';
 
 const exampleMessages = [

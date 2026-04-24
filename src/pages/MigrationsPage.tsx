@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui-legacy/card";
 import { Check } from "lucide-react";
 import { ConnectStep } from "@/components/migrations/ConnectStep";
 import { ChooseStep } from "@/components/migrations/ChooseStep";

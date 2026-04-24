@@ -6,9 +6,9 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
+import { Badge } from '@/components/ui-legacy/badge';
 import { Sparkles, Search, User, ShoppingCart, Star, Settings, Building2 } from 'lucide-react';
 import {
   MERGE_TAG_DEFINITIONS,

@@ -6,10 +6,10 @@ import React, {
   useMemo,
 } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui-legacy/tabs";
 import {
   X,
   Search,

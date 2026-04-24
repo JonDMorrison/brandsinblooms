@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui-legacy/card';
 import { PlusCircle, Send, BarChart3 } from 'lucide-react';
 
 const screenshots = [

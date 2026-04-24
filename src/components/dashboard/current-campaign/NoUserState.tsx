@@ -1,7 +1,7 @@
 
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { EnhancedAppleCard } from "@/components/ui-legacy/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui-legacy/apple-card";
+import { HeadlineLarge, BodyMedium } from "@/components/ui-legacy/typography";
 import { PlusCircle } from "lucide-react";
 
 export const NoUserState = () => {

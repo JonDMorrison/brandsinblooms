@@ -1,116 +1,148 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Target, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { SegmentDetailsModal } from './SegmentDetailsModal';
-import { SegmentSMSDialog } from '@/components/sms/SegmentSMSDialog';
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { formatDistanceToNow } from "date-fns";
+import {
+  ArrowRight,
+  ChevronRight,
+  MoreHorizontal,
+  PencilLine,
+  Trash2,
+  Users,
+} from "lucide-react";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardFooter,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import { SegmentStatusBadge } from "@/components/crm/segments/SegmentStatusBadge";
+import { SegmentTypeBadge } from "@/components/crm/segments/SegmentTypeBadge";
+import type { SegmentListItem } from "@/hooks/useSegments";
 
-interface Segment {
-  id: string;
-  name: string;
-  description?: string;
-  conditions: any;
-  customer_count: number;
-  auto_update: boolean;
-  created_at: string;
+export interface SegmentCardProps {
+  segment: SegmentListItem;
+  summary: string;
+  onEdit: (segmentId: string) => void;
+  onViewMembers: (segmentId: string) => void;
+  onDelete: (segment: SegmentListItem) => void;
 }
 
-interface SegmentCardProps {
-  segment: Segment;
-  onSegmentUpdate?: () => void;
-}
-
-export const SegmentCard: React.FC<SegmentCardProps> = ({ segment, onSegmentUpdate }) => {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showSMSDialog, setShowSMSDialog] = useState(false);
-  const navigate = useNavigate();
-  const getFilterCount = () => {
-    return segment.conditions?.filters?.length || 0;
-  };
+export function SegmentCard({
+  segment,
+  summary,
+  onEdit,
+  onViewMembers,
+  onDelete,
+}: SegmentCardProps) {
+  const updatedLabel = segment.updatedAt
+    ? formatDistanceToNow(new Date(segment.updatedAt), { addSuffix: true })
+    : "Recently created";
 
   return (
-    <>
-      <Card className="hover:shadow-md transition-shadow h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">{segment.name}</CardTitle>
-            </div>
-          </div>
-          {segment.description && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {segment.description}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="pt-0 flex flex-col flex-1">
-          <div className="space-y-3 flex-1">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">
-                {segment.customer_count} customers
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {getFilterCount()} {getFilterCount() === 1 ? 'filter' : 'filters'}
-              </Badge>
-              {segment.auto_update && (
-                <Badge variant="outline">Auto-update</Badge>
-              )}
-            </div>
-            
-            <div className="text-xs text-muted-foreground">
-              Created {new Date(segment.created_at).toLocaleDateString()}
-            </div>
-          </div>
-            
-          {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row gap-2 mt-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex-1"
-              onClick={() => {
-                setShowDetailsModal(true);
-              }}
-            >
-              View Details
-            </Button>
-            <Button 
-              size="sm" 
-              className="flex-1"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                navigate(`/crm/campaigns/new?segmentId=${segment.id}`);
-              }}
-            >
-              Create Campaign
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <JoyCard sx={{ minHeight: 320 }}>
+      <JoyCardHeader
+        actions={
+          <JoyDropdownMenu>
+            <JoyDropdownMenuTrigger>
+              <MoreHorizontal size={16} />
+            </JoyDropdownMenuTrigger>
+            <JoyDropdownMenuContent>
+              <JoyDropdownMenuItem
+                onClick={() => onEdit(segment.id)}
+                startDecorator={<PencilLine size={16} />}
+              >
+                Edit segment
+              </JoyDropdownMenuItem>
+              <JoyDropdownMenuItem
+                onClick={() => onViewMembers(segment.id)}
+                startDecorator={<Users size={16} />}
+              >
+                View members
+              </JoyDropdownMenuItem>
+              <JoyDropdownMenuItem
+                destructive
+                onClick={() => onDelete(segment)}
+                startDecorator={<Trash2 size={16} />}
+              >
+                Delete segment
+              </JoyDropdownMenuItem>
+            </JoyDropdownMenuContent>
+          </JoyDropdownMenu>
+        }
+        description={segment.description || "No description yet."}
+        title={segment.name}
+      >
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <SegmentTypeBadge type={segment.type} />
+          <SegmentStatusBadge status={segment.status} />
+        </Stack>
+      </JoyCardHeader>
 
-      <SegmentDetailsModal
-        open={showDetailsModal}
-        onOpenChange={setShowDetailsModal}
-        segment={segment}
-        onSegmentUpdate={onSegmentUpdate}
-      />
+      <JoyCardContent
+        sx={{ gap: 2, display: "flex", flexDirection: "column", pt: 3 }}
+      >
+        <Stack direction="row" spacing={2}>
+          <Box sx={{ flex: 1 }}>
+            <Typography level="body-xs" color="neutral">
+              Members
+            </Typography>
+            <Typography level="title-lg">
+              {segment.memberCount.toLocaleString()}
+            </Typography>
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography level="body-xs" color="neutral">
+              Updated
+            </Typography>
+            <Typography level="body-sm">{updatedLabel}</Typography>
+          </Box>
+        </Stack>
 
-      <SegmentSMSDialog
-        open={showSMSDialog}
-        onOpenChange={setShowSMSDialog}
-        segmentId={segment.id}
-        segmentName={segment.name}
-        customerCount={segment.customer_count}
-        isSystemSegment={false}
-      />
-    </>
+        <Divider />
+
+        <Box sx={{ minHeight: 82 }}>
+          <Typography level="body-xs" color="neutral" sx={{ mb: 0.75 }}>
+            Audience logic
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+            {summary}
+          </Typography>
+        </Box>
+      </JoyCardContent>
+
+      <JoyCardFooter
+        sx={{ justifyContent: "space-between", alignItems: "center" }}
+      >
+        <Typography level="body-xs" color="neutral">
+          {segment.type === "dynamic"
+            ? "Auto-updates when customers change"
+            : "Members are managed manually"}
+        </Typography>
+        <Stack direction="row" spacing={1}>
+          <JoyButton
+            bloomVariant="ghost"
+            onClick={() => onViewMembers(segment.id)}
+            startDecorator={<Users size={16} />}
+          >
+            Members
+          </JoyButton>
+          <JoyButton
+            onClick={() => onEdit(segment.id)}
+            endDecorator={<ChevronRight size={16} />}
+          >
+            Open
+          </JoyButton>
+        </Stack>
+      </JoyCardFooter>
+    </JoyCard>
   );
-};
+}

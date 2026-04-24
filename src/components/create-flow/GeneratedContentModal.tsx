@@ -5,11 +5,11 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
 import { useToast } from "@/hooks/use-toast";

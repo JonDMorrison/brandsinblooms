@@ -23,10 +23,10 @@ import { DocCodeBlock } from "@/components/docs/DocCodeBlock";
 import { DocScrollProgress } from "@/components/docs/DocScrollProgress";
 import { DocSection } from "@/components/docs/DocSection";
 import { DocShell } from "@/components/docs/DocShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui-legacy/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { NativeSelect } from "@/components/ui-legacy/native-select";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import {
   useCopyFeedback,
   type CopyFeedbackState,
@@ -47,7 +47,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui-legacy/tooltip";
 import { cn } from "@/lib/utils";
 
 const DOC_SECTIONS = [

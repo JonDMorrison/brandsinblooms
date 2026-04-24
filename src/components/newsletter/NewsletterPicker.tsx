@@ -1,30 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
+import { Sparkles, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { IdeaGrid } from "./IdeaGrid";
 import { NewsletterLayoutPicker } from "../NewsletterLayoutPicker";
-import { NewsletterIdea, NewsletterTemplate } from "@/types/newsletter";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
-import { ArrowLeft, Sparkles, Search, X } from "lucide-react";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { cn } from "@/lib/utils";
+import { NewsletterIdea } from "@/types/newsletter";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { IdeaGrid } from "./IdeaGrid";
+import { POPULAR_NEWSLETTER_PROMPTS } from "./newsletterPromptSuggestions";
 
 interface NewsletterPickerProps {
   isOpen: boolean;
@@ -33,80 +25,79 @@ interface NewsletterPickerProps {
 
 type PickerStep = "ideas" | "layout";
 
+const stepLabelSx = {
+  fontSize: "0.925rem",
+  transition: "color 0.15s ease, font-weight 0.15s ease",
+} as const;
+
 export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   isOpen,
   onClose,
 }) => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width: 768px)");
-  const { ideas, templates, loading, generateAIIdeas, refetch } =
-    useNewsletterIdeas();
+  const { ideas, templates, loading, generateAIIdeas } = useNewsletterIdeas();
 
   const [currentStep, setCurrentStep] = useState<PickerStep>("ideas");
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
   const [selectedLayout, setSelectedLayout] = useState<
     "block-builder" | "simple-email" | null
-  >("block-builder");
+  >(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [textareaRows, setTextareaRows] = useState(1);
 
-  // Default to block-builder layout
+  const currentWeekNumber = useMemo(() => getCurrentWeekNumber(), []);
+  const currentWeekIdea = useMemo(
+    () => ideas.find((idea) => idea.weekNumber === currentWeekNumber) ?? null,
+    [currentWeekNumber, ideas],
+  );
+
+  const quickPromptSuggestions = POPULAR_NEWSLETTER_PROMPTS.slice(0, 4);
+
   useEffect(() => {
-    if (!selectedLayout) {
-      setSelectedLayout("block-builder");
+    if (!isOpen) {
+      return;
     }
-  }, [selectedLayout]);
+
+    setCurrentStep("ideas");
+    setSelectedLayout(null);
+    setSelectedIdea(null);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || selectedIdea || !currentWeekIdea) {
+      return;
+    }
+
+    setSelectedIdea(currentWeekIdea);
+  }, [currentWeekIdea, isOpen, selectedIdea]);
 
   const handleSelectIdea = (idea: NewsletterIdea) => {
     setSelectedIdea(idea);
+    setSelectedLayout(null);
     setCurrentStep("layout");
   };
 
-  const handleGenerateAI = async () => {
-    if (!aiPrompt.trim()) return;
+  const handleGenerateAI = async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? aiPrompt).trim();
+    if (!prompt) return;
+
+    if (promptOverride) {
+      setAiPrompt(promptOverride);
+    }
+
     setGeneratingAI(true);
     try {
-      const newIdeas = await generateAIIdeas(aiPrompt);
-      setAiPrompt("");
-      setTextareaRows(1); // Reset to default rows
+      await generateAIIdeas(prompt);
     } catch (error) {
-      console.error("❌ Failed to generate AI ideas:", error);
+      console.error("Failed to generate AI ideas:", error);
     } finally {
       setGeneratingAI(false);
     }
   };
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setAiPrompt(value);
-
-    // Auto-expand functionality
-    const textarea = e.target;
-    const lineHeight = 24; // Approximate line height
-    const padding = 24; // Top and bottom padding (p-3 = 12px * 2)
-    const minRows = 1;
-    const maxRows = 5;
-
-    // Reset height to auto to get accurate scrollHeight
-    textarea.style.height = "auto";
-    const scrollHeight = textarea.scrollHeight;
-    const newRows = Math.min(
-      maxRows,
-      Math.max(minRows, Math.ceil((scrollHeight - padding) / lineHeight)),
-    );
-
-    setTextareaRows(newRows);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Allow normal Enter behavior for new lines
-  };
-
   const handleContinue = () => {
     if (!selectedIdea || !selectedLayout) return;
 
-    // Navigate to newsletter builder with template data
     const params = new URLSearchParams({
       type: "newsletter",
       flow: "template-picker",
@@ -125,237 +116,259 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   const handleBack = () => {
     if (currentStep === "layout") {
       setCurrentStep("ideas");
-      setSelectedIdea(null);
     }
   };
 
-  const handleSkipToBlank = () => {
-    navigate("/crm/campaigns/new?type=newsletter");
-    onClose();
-  };
+  return (
+    <Modal
+      open={isOpen}
+      onClose={() => onClose()}
+      slotProps={{
+        backdrop: {
+          sx: {
+            backgroundColor: "rgba(0, 0, 0, 0.25)",
+          },
+        },
+      }}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: { xs: 0, sm: 1.5 },
+      }}
+    >
+      <ModalDialog
+        className="bg-card"
+        layout="center"
+        sx={{
+          width: { xs: "100vw", sm: "95vw", md: "90vw" },
+          maxWidth: 900,
+          height: { xs: "100dvh", md: "88vh" },
+          maxHeight: { xs: "100dvh", md: "88vh" },
+          borderRadius: { xs: 0, md: "xl" },
+          borderColor: "neutral.200",
+          backgroundColor: "background.surface",
+          backgroundImage: "none",
+          boxShadow: "0 24px 48px rgba(0, 0, 0, 0.12)",
+          p: 0,
+          overflow: "hidden",
+        }}
+      >
+        <Stack sx={{ height: "100%" }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            justifyContent="space-between"
+            alignItems="flex-start"
+            sx={{ px: 3, py: 2 }}
+          >
+            <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+              <Typography level="title-lg" sx={{ fontWeight: 700 }}>
+                Newsletter Idea Studio
+              </Typography>
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                Curate an idea, pair it with a layout, then continue into the
+                editor.
+              </Typography>
+            </Stack>
 
-  const renderContent = () => (
-    <div className="flex flex-col h-full">
-      {/* Main Content Area */}
-      {currentStep === "ideas" && (
-        <div
-          className="flex-1 overflow-hidden"
-          style={{ paddingBottom: textareaRows >= 3 ? "120px" : "80px" }}
-        >
-          <IdeaGrid
-            ideas={ideas}
-            onSelectIdea={handleSelectIdea}
-            onGenerateIdeas={generateAIIdeas}
-            loading={loading}
-            className="h-full"
-          />
-        </div>
-      )}
-
-      {currentStep === "layout" && selectedIdea && (
-        <div className="flex-1 overflow-y-auto">
-          {/* Back Button Section */}
-          <div className="mb-8">
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              className="group hover:bg-muted/60 transition-colors"
+            <IconButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={() => onClose()}
+              sx={{
+                borderRadius: "999px",
+                "&:hover": {
+                  backgroundColor: "neutral.100",
+                },
+              }}
             >
-              <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-              Back to Ideas
-            </Button>
-          </div>
+              <X size={16} />
+            </IconButton>
+          </Stack>
 
-          {/* Selected Idea Showcase */}
-          <div className="mb-12">
-            <div className="bg-gradient-to-br from-background via-muted/30 to-muted/50 rounded-2xl p-8 border border-border/60 shadow-sm">
-              <div className="flex items-start gap-3 mb-4">
-                {selectedIdea.badge && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                    {selectedIdea.badge}
-                  </span>
-                )}
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-foreground mb-3 leading-tight">
-                    {selectedIdea.title}
-                  </h3>
-                  <p className="text-muted-foreground text-base leading-relaxed">
-                    {selectedIdea.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Divider sx={{ borderColor: "neutral.100" }} />
 
-          {/* Layout Selection Section */}
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-2">
-                Choose Your Layout
-              </h4>
-              <p className="text-sm text-muted-foreground mb-8">
-                Select a layout style that best fits your newsletter content
-              </p>
-            </div>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ px: 3, py: 1.5 }}
+          >
+            <Typography
+              level="body-sm"
+              sx={{
+                ...stepLabelSx,
+                color:
+                  currentStep === "ideas" ? "text.primary" : "text.tertiary",
+                fontWeight: currentStep === "ideas" ? 600 : 400,
+              }}
+            >
+              {currentStep === "layout" ? "✓ Choose an Idea" : "Choose an Idea"}
+            </Typography>
 
-            <div className="px-2">
-              <NewsletterLayoutPicker
-                value={selectedLayout}
-                onChange={setSelectedLayout}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+            <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+              →
+            </Typography>
 
-      {/* AI Idea Generator - Fixed at bottom */}
-      {currentStep === "ideas" && (
-        <div
-          className="fixed left-1/2 transform -translate-x-1/2 z-[1000020] pointer-events-auto"
-          style={{ bottom: "48px" }}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <div
-            className="bg-white backdrop-blur-sm border-2 border-primary/30 rounded-xl p-4 shadow-2xl transition-all duration-200"
-            style={{
-              width: "600px",
-              minHeight: `${1 * 24 + 120}px`,
-              height: `${textareaRows * 24 + 120}px`,
+            <Typography
+              level="body-sm"
+              sx={{
+                ...stepLabelSx,
+                color:
+                  currentStep === "layout" ? "text.primary" : "text.tertiary",
+                fontWeight: currentStep === "layout" ? 600 : 400,
+              }}
+            >
+              Pick a Layout
+            </Typography>
+          </Stack>
+
+          <Divider sx={{ borderColor: "neutral.100" }} />
+
+          <Box
+            key={currentStep}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+              animation: "newsletter-picker-fade 0.16s ease",
+              "@keyframes newsletter-picker-fade": {
+                from: { opacity: 0 },
+                to: { opacity: 1 },
+              },
             }}
           >
-            <div className="space-y-3">
-              <div className="w-full">
-                <Label htmlFor="ai-prompt" className="sr-only">
-                  Describe your newsletter
-                </Label>
-                <Textarea
-                  id="ai-prompt"
-                  placeholder="Write your AI prompt here..."
-                  className="w-full p-3 rounded-lg border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none overflow-hidden bg-white text-foreground text-base transition-all"
-                  value={aiPrompt}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={() => {}}
-                  onBlur={() => {}}
-                  rows={textareaRows}
-                  style={{
-                    minHeight: `${1 * 24 + 24}px`,
-                    maxHeight: `${5 * 24 + 24}px`,
-                    overflowY: textareaRows >= 5 ? "auto" : "hidden",
-                  }}
-                />
-              </div>
-              <div className="flex justify-end mt-3">
-                <Button
-                  onClick={(e) => {
-                    handleGenerateAI();
-                  }}
-                  disabled={!aiPrompt.trim() || generatingAI}
-                  size="sm"
-                  className="pointer-events-auto"
+            {currentStep === "ideas" ? (
+              <Stack sx={{ flex: 1, minHeight: 0 }}>
+                <Stack
+                  spacing={1.5}
+                  sx={{ px: 3, pt: 2.5, pb: 2, bgcolor: "neutral.50" }}
                 >
-                  {generatingAI ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-4 h-4 mr-2" />
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: "text.secondary", fontWeight: 500 }}
+                  >
+                    What should this newsletter be about?
+                  </Typography>
+
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={1.5}
+                    alignItems={{ xs: "stretch", md: "flex-start" }}
+                  >
+                    <Textarea
+                      minRows={2}
+                      maxRows={3}
+                      value={aiPrompt}
+                      onChange={(event) => setAiPrompt(event.target.value)}
+                      placeholder="e.g. Spring gardening tips for beginners, a weekly product roundup, a behind-the-scenes look at our team..."
+                      sx={{
+                        flex: 1,
+                        backgroundColor: "background.surface",
+                        borderColor: "neutral.200",
+                        boxShadow: "none",
+                        "--Textarea-focusedHighlight": "rgba(0, 0, 0, 0)",
+                        "--Textarea-focusedThickness": "1px",
+                        "&:focus-within": {
+                          borderColor: "neutral.400",
+                          boxShadow: "none",
+                        },
+                        "& textarea::placeholder": {
+                          color: "var(--joy-palette-text-tertiary)",
+                        },
+                      }}
+                    />
+
+                    <Button
+                      size="sm"
+                      variant="solid"
+                      color="primary"
+                      disabled={!aiPrompt.trim() || generatingAI}
+                      loading={generatingAI}
+                      startDecorator={
+                        !generatingAI ? <Sparkles size={14} /> : undefined
+                      }
+                      onClick={() => handleGenerateAI()}
+                      sx={{
+                        minWidth: { xs: "100%", md: 120 },
+                        alignSelf: { xs: "stretch", md: "center" },
+                      }}
+                    >
                       Generate
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                    </Button>
+                  </Stack>
 
-      {/* Footer */}
-      {currentStep === "layout" && (
-        <div className="flex-shrink-0 mt-6 pt-4 border-t flex justify-center">
-          <Button
-            onClick={handleContinue}
-            disabled={!selectedIdea || !selectedLayout}
-            className="px-8"
-            size="lg"
-          >
-            Continue to Builder
-          </Button>
-        </div>
-      )}
-    </div>
-  );
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    useFlexGap
+                    flexWrap="wrap"
+                  >
+                    {quickPromptSuggestions.map((prompt) => (
+                      <Chip
+                        key={prompt}
+                        size="sm"
+                        variant="outlined"
+                        color="neutral"
+                        onClick={() => setAiPrompt(prompt)}
+                        sx={{
+                          cursor: "pointer",
+                          color: "text.secondary",
+                          borderColor: "neutral.200",
+                          backgroundColor: "transparent",
+                          transition:
+                            "background-color 0.15s ease, border-color 0.15s ease",
+                          "&:hover": {
+                            backgroundColor: "neutral.50",
+                            borderColor: "neutral.300",
+                          },
+                        }}
+                      >
+                        {prompt}
+                      </Chip>
+                    ))}
+                  </Stack>
+                </Stack>
 
-  if (isMobile) {
-    return (
-      <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent side="bottom" className="h-[90vh] overflow-hidden">
-          <SheetHeader className="mb-4">
-            <SheetTitle>Create Newsletter</SheetTitle>
-          </SheetHeader>
-          {renderContent()}
-        </SheetContent>
-      </Sheet>
-    );
-  }
+                <Divider sx={{ borderColor: "neutral.100" }} />
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className={cn(
-          "!fixed !inset-0 !w-full !h-full !max-w-none !max-h-none !m-0 !p-0",
-          "!transform-none !translate-x-0 !translate-y-0 !left-0 !top-0",
-          "overflow-hidden border-0 rounded-none bg-white text-foreground",
-          "z-[1000010]",
-        )}
-      >
-        {/* Corner gradient effects */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Top left corner gradient */}
-          <div className="absolute top-0 left-0 w-80 h-80 bg-gradient-radial from-brand-teal/20 via-brand-teal/10 to-transparent rounded-full -translate-x-1/2 -translate-y-1/2" />
-
-          {/* Bottom right corner gradient */}
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-radial from-brand-teal/15 via-brand-teal/8 to-transparent rounded-full translate-x-1/3 translate-y-1/3" />
-        </div>
-
-        {/* Blurry effect layer */}
-        <div className="absolute inset-0 pointer-events-none backdrop-blur-[0.5px] bg-white/10" />
-
-        {/* Additional subtle blur elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute top-20 left-20 w-32 h-32 bg-brand-teal/8 rounded-full blur-2xl animate-pulse"
-            style={{ animationDelay: "0s", animationDuration: "6s" }}
-          />
-          <div
-            className="absolute bottom-32 right-32 w-24 h-24 bg-brand-teal/12 rounded-full blur-xl animate-pulse"
-            style={{ animationDelay: "2s", animationDuration: "8s" }}
-          />
-          <div
-            className="absolute top-1/2 left-1/3 w-16 h-16 bg-brand-teal/6 rounded-full blur-lg animate-pulse"
-            style={{ animationDelay: "4s", animationDuration: "10s" }}
-          />
-        </div>
-
-        {/* Close button in top left */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="absolute top-4 left-4 z-30 w-8 h-8 p-0 rounded-full hover:bg-brand-teal/10 backdrop-blur-sm border border-brand-teal/20"
-        >
-          <X className="w-4 h-4 text-brand-teal" />
-        </Button>
-
-        {/* Content layer */}
-        <div className="w-full h-full p-6 pt-16 relative z-20 flex flex-col overflow-hidden bg-white/40 backdrop-blur-sm">
-          {renderContent()}
-        </div>
-      </DialogContent>
-    </Dialog>
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    px: 3,
+                    py: 2,
+                  }}
+                >
+                  <IdeaGrid
+                    ideas={ideas}
+                    currentWeekIdeaId={currentWeekIdea?.id ?? null}
+                    onSelectIdea={handleSelectIdea}
+                    onGenerateIdeas={handleGenerateAI}
+                    loading={loading || generatingAI}
+                    selectedIdeaId={selectedIdea?.id ?? null}
+                  />
+                </Box>
+              </Stack>
+            ) : selectedIdea ? (
+              <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
+                <NewsletterLayoutPicker
+                  ideaTitle={selectedIdea.title}
+                  onBack={handleBack}
+                  onChange={setSelectedLayout}
+                  onContinue={handleContinue}
+                  templates={templates}
+                  value={selectedLayout}
+                />
+              </Box>
+            ) : null}
+          </Box>
+        </Stack>
+      </ModalDialog>
+    </Modal>
   );
 };

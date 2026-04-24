@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui-legacy/button';
+import { Input } from '@/components/ui-legacy/input';
 import { RefreshCw, Search, Check } from 'lucide-react';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { cn } from '@/lib/utils';

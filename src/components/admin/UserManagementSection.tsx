@@ -1,10 +1,15 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoySearchInput } from "@/components/joy/JoySearchInput";
 import { UserManagementTable } from "./UserManagementTable";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Users, Search } from "lucide-react";
+import { EmptyState } from "@/components/ui-legacy/empty-state";
+import { Users } from "lucide-react";
 import { useState } from "react";
 
 interface UserData {
@@ -21,38 +26,51 @@ interface UserManagementSectionProps {
   users: UserData[];
 }
 
-export const UserManagementSection = ({ users }: UserManagementSectionProps) => {
+export const UserManagementSection = ({
+  users,
+}: UserManagementSectionProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter((user) =>
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-garden-green-dark">Basic User Overview</h2>
-        <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2">
+    <Stack spacing={2}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+      >
+        <Typography
+          level="title-lg"
+          sx={{ color: "var(--joy-palette-brandNavy-800)" }}
+        >
+          Basic User Overview
+        </Typography>
+        <JoyButton
+          color="success"
+          variant="solid"
+          sx={{ borderRadius: "var(--joy-radius-xl)" }}
+        >
           Invite User
-        </Button>
-      </div>
+        </JoyButton>
+      </Stack>
 
-      <Card className="rounded-xl">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Quick User Stats ({users.length})</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <JoyCard>
+        <JoyCardHeader
+          title={`Quick User Stats (${users.length})`}
+          actions={
+            <JoySearchInput
+              placeholder="Search users..."
+              value={searchTerm}
+              onValueChange={setSearchTerm}
+              sx={{ width: 256 }}
+            />
+          }
+        />
+        <JoyCardContent>
           {users.length === 0 ? (
             <EmptyState
               icon={Users}
@@ -60,14 +78,14 @@ export const UserManagementSection = ({ users }: UserManagementSectionProps) => 
               description="Invite your first user or verify your Stripe setup."
               action={{
                 label: "Invite User",
-                onClick: () => {}
+                onClick: () => {},
               }}
             />
           ) : (
             <UserManagementTable users={filteredUsers} />
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </JoyCardContent>
+      </JoyCard>
+    </Stack>
   );
 };

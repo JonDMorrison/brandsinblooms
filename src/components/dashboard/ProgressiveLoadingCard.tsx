@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { Loader2, Clock } from "lucide-react";
 
 interface ProgressiveLoadingCardProps {

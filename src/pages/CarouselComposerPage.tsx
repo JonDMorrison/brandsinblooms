@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { Label } from "@/components/ui-legacy/label";
+import { Badge } from "@/components/ui-legacy/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui-legacy/card";
 import { CarouselImageSelector } from "@/components/social/CarouselImageSelector";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
 import { AIPersonalizationDialog } from "@/components/crm/AIPersonalizationDialog";

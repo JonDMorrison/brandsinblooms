@@ -1,37 +1,29 @@
-import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Zap, Settings, Trash2 } from 'lucide-react';
-import { getTriggerById } from '@/lib/automation/triggerCatalog';
+import React, { memo } from "react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { AutomationNodeShell } from "@/components/automation/flow/nodes/AutomationNodeShell";
+import type {
+  AutomationNodeEditorHandler,
+  TriggerNodeData,
+} from "@/components/automation/flow/automationBuilderTypes";
+import { getAutomationNodeVisual } from "@/components/automation/flow/automationNodeVisuals";
 
-export interface TriggerNodeData {
-  triggerType: string;
-  label: string;
-  conditions?: Record<string, any>;
-  [key: string]: unknown;
-}
-
-interface TriggerNodeProps {
-  id: string;
-  data: TriggerNodeData;
-  selected?: boolean;
-  onEdit?: (nodeId: string, nodeType: string, nodeData: any) => void;
+type TriggerNodeProps = NodeProps<TriggerNodeData> & {
+  onEdit?: AutomationNodeEditorHandler;
   onDelete?: (nodeId: string) => void;
-}
+};
 
-const TriggerNode: React.FC<TriggerNodeProps> = ({ 
-  id, 
-  data, 
-  selected, 
-  onEdit, 
-  onDelete 
+const TriggerNode: React.FC<TriggerNodeProps> = ({
+  id,
+  data,
+  selected,
+  onEdit,
+  onDelete,
 }) => {
-  const nodeData = data as TriggerNodeData;
+  const visual = getAutomationNodeVisual("trigger", data);
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onEdit?.(id, 'trigger', nodeData);
+    onEdit?.(id, "trigger", data);
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -40,52 +32,36 @@ const TriggerNode: React.FC<TriggerNodeProps> = ({
   };
 
   const handleCardClick = () => {
-    onEdit?.(id, 'trigger', nodeData);
+    onEdit?.(id, "trigger", data);
   };
 
   return (
-    <Card 
-      className={`min-w-[200px] cursor-pointer hover:shadow-md transition-shadow ${
-        selected ? 'ring-2 ring-primary' : ''
-      }`}
+    <AutomationNodeShell
+      title={visual.title}
+      description={visual.description}
+      summary={visual.summary}
+      badge={visual.badge}
+      color={visual.tone.color}
+      borderColor={visual.tone.borderColor}
+      hoverBorderColor={visual.tone.hoverBorderColor}
+      backgroundColor={visual.tone.backgroundColor}
+      accentColor={visual.tone.accentColor}
+      ringColor={visual.tone.ringColor}
+      selected={selected}
+      icon={visual.icon}
       onClick={handleCardClick}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-            <Zap className="w-4 h-4 text-green-600" />
-          </div>
-          <div className="flex-1">
-            <Badge variant="secondary" className="text-xs">
-              TRIGGER
-            </Badge>
-          </div>
-          <div className="flex gap-1">
-            <Settings 
-              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-foreground" 
-              onClick={handleEdit}
-            />
-            <Trash2 
-              className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-destructive" 
-              onClick={handleDelete}
-            />
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="font-medium text-sm mb-1">{nodeData.label}</h3>
-          <p className="text-xs text-muted-foreground">
-            {getTriggerById(nodeData.triggerType)?.description || `Trigger: ${nodeData.triggerType}`}
-          </p>
-        </div>
-
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="w-3 h-3 !bg-green-500 !border-green-600"
-        />
-      </CardContent>
-    </Card>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="automation-node-handle"
+        style={{
+          bottom: -7,
+        }}
+      />
+    </AutomationNodeShell>
   );
 };
 

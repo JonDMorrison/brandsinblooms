@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
+import { Button } from '@/components/ui-legacy/button';
 import { AlertTriangle, RefreshCw, Settings } from 'lucide-react';
 
 interface PublishErrorHandlerProps {

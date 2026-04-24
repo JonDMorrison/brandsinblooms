@@ -5,8 +5,8 @@ import { normalizeTask } from "@/utils/normalizeTask";
 import { validateContentCompliance } from "@/utils/campaignTitleUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
+import { Button } from "@/components/ui-legacy/button";
 import { RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 

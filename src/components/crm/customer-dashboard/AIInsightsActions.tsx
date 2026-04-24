@@ -1,264 +1,362 @@
-import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { DashboardSection } from './DashboardSection';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Sparkles, 
-  RefreshCw, 
-  MessageSquare, 
-  Calendar, 
-  Clock,
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import Skeleton from "@mui/joy/Skeleton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  AlertCircle,
   ChevronRight,
-  Lightbulb,
-  Target,
-  TrendingUp,
-  Mail,
+  Clock,
   EyeOff,
-  AlertCircle
-} from 'lucide-react';
-import type { AIInsightsData, AIAction } from '@/hooks/useCustomerAIInsights';
-import { formatDistanceToNow } from 'date-fns';
+  Lightbulb,
+  Mail,
+  MessageSquare,
+  RefreshCw,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyTooltip } from "@/components/joy/JoyTooltip";
+import type { AIInsightsData } from "@/hooks/useCustomerAIInsights";
 
 interface AIInsightsActionsProps {
   insights: AIInsightsData | null;
   loading?: boolean;
   regenerating?: boolean;
-  onRegenerate?: () => void;
-  className?: string;
+  errorMessage?: string | null;
+  onRegenerate?: () => void | Promise<void>;
 }
 
-const actionTypeIcons: Record<string, React.ReactNode> = {
-  sms: <MessageSquare className="h-4 w-4" />,
-  email: <Mail className="h-4 w-4" />,
-  schedule: <Calendar className="h-4 w-4" />,
-  monitor: <Clock className="h-4 w-4" />,
-  suppress: <EyeOff className="h-4 w-4" />,
+const actionTypeIcons: Record<string, React.ElementType> = {
+  sms: MessageSquare,
+  email: Mail,
+  schedule: Clock,
+  monitor: TrendingUp,
+  suppress: EyeOff,
 };
 
-const priorityColors: Record<string, string> = {
-  high: 'bg-destructive/10 text-destructive border-destructive/20',
-  medium: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  low: 'bg-muted text-muted-foreground border-border',
+const priorityConfig: Record<
+  string,
+  { color: "danger" | "warning" | "neutral" }
+> = {
+  high: { color: "danger" },
+  medium: { color: "warning" },
+  low: { color: "neutral" },
 };
 
-export const AIInsightsActions: React.FC<AIInsightsActionsProps> = ({
+export function AIInsightsActions({
   insights,
   loading = false,
   regenerating = false,
+  errorMessage,
   onRegenerate,
-  className,
-}) => {
-  const [expandedAction, setExpandedAction] = useState<number | null>(null);
+}: AIInsightsActionsProps) {
+  const [expandedAction, setExpandedAction] = React.useState<number | null>(
+    null,
+  );
 
-  const isLoading = loading && !insights;
-
-  // Loading state
-  if (isLoading) {
+  if (loading && !insights) {
     return (
-      <DashboardSection
-        title="AI Insights & Next Best Actions"
-        icon={<Sparkles className="h-4 w-4" />}
-        tooltip="AI-powered analysis and personalized recommendations"
-        variant="highlight"
-        className={className}
-      >
-        <div className="space-y-4">
-          <Skeleton className="h-24 w-full rounded-lg" />
-          <Skeleton className="h-32 w-full rounded-lg" />
-          <Skeleton className="h-48 w-full rounded-lg" />
-        </div>
-      </DashboardSection>
+      <JoyCard variant="outlined">
+        <JoyCardHeader
+          title="AI insights & next actions"
+          description="Personalized analysis and action recommendations generated from customer behavior."
+        />
+        <JoyCardContent>
+          <Stack spacing={2}>
+            <Skeleton
+              variant="rectangular"
+              sx={{ height: 120, borderRadius: "xl" }}
+            />
+            <Skeleton
+              variant="rectangular"
+              sx={{ height: 120, borderRadius: "xl" }}
+            />
+            <Skeleton
+              variant="rectangular"
+              sx={{ height: 180, borderRadius: "xl" }}
+            />
+          </Stack>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
-  // No insights available
   if (!insights) {
     return (
-      <DashboardSection
-        title="AI Insights & Next Best Actions"
-        icon={<Sparkles className="h-4 w-4" />}
-        tooltip="AI-powered analysis and personalized recommendations"
-        variant="highlight"
-        badge={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRegenerate}
-            disabled={regenerating}
-            className="ml-2 h-6 px-2 text-xs gap-1"
+      <JoyCard variant="outlined">
+        <JoyCardHeader
+          title="AI insights & next actions"
+          description="Personalized analysis and action recommendations generated from customer behavior."
+          actions={
+            onRegenerate ? (
+              <JoyButton
+                size="sm"
+                onClick={() => void onRegenerate()}
+                loading={regenerating}
+                startDecorator={<RefreshCw size={14} />}
+              >
+                Generate
+              </JoyButton>
+            ) : null
+          }
+        />
+        <JoyCardContent>
+          <Sheet
+            variant="soft"
+            color={errorMessage ? "danger" : "neutral"}
+            sx={{ borderRadius: "xl", p: 3, textAlign: "center" }}
           >
-            <RefreshCw className={cn('h-3 w-3', regenerating && 'animate-spin')} />
-            {regenerating ? 'Analyzing...' : 'Generate'}
-          </Button>
-        }
-        className={className}
-      >
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <AlertCircle className="h-12 w-12 text-muted-foreground mb-3" />
-          <h4 className="text-sm font-medium text-foreground mb-1">No AI insights available</h4>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            Click "Generate" to analyze this customer and receive personalized insights and recommendations.
-          </p>
-        </div>
-      </DashboardSection>
+            <Stack spacing={1.5} alignItems="center">
+              <AlertCircle size={28} />
+              <Typography level="title-md">
+                {errorMessage
+                  ? "AI insights unavailable"
+                  : "No AI insights generated yet"}
+              </Typography>
+              <Typography
+                level="body-sm"
+                color={errorMessage ? "danger" : "neutral"}
+              >
+                {errorMessage ||
+                  "Generate insights to summarize behavior, patterns, and next-best actions for this customer."}
+              </Typography>
+            </Stack>
+          </Sheet>
+        </JoyCardContent>
+      </JoyCard>
     );
   }
 
-  const { keyInsight, patterns, actions, hasSufficientData, generatedAt } = insights;
-
-  const generatedAgo = generatedAt 
-    ? formatDistanceToNow(new Date(generatedAt), { addSuffix: true })
+  const generatedAgo = insights.generatedAt
+    ? formatDistanceToNow(new Date(insights.generatedAt), { addSuffix: true })
     : null;
 
   return (
-    <DashboardSection
-      title="AI Insights & Next Best Actions"
-      icon={<Sparkles className="h-4 w-4" />}
-      tooltip="AI-powered analysis and personalized recommendations"
-      variant="highlight"
-      badge={
-        <div className="flex items-center gap-2">
-          {generatedAgo && (
-            <span className="text-[10px] text-muted-foreground">
-              Generated {generatedAgo}
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRegenerate}
-            disabled={regenerating}
-            className="h-6 px-2 text-xs gap-1"
-          >
-            <RefreshCw className={cn('h-3 w-3', regenerating && 'animate-spin')} />
-            {regenerating ? 'Analyzing...' : 'Regenerate'}
-          </Button>
-        </div>
-      }
-      className={className}
-    >
-      {/* Data sufficiency notice */}
-      {!hasSufficientData && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <p className="text-xs text-amber-600 flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5" />
-            Limited data available. Insights are based on initial customer profile.
-          </p>
-        </div>
-      )}
-
-      {/* Key Insight */}
-      <div className="p-4 rounded-lg bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/10 mb-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Lightbulb className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-foreground mb-1">Key Insight</h4>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {keyInsight}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Behavioral Patterns */}
-      {patterns && patterns.length > 0 && (
-        <div className="p-4 rounded-lg border border-border bg-card mb-4">
-          <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
-            Behavioral Patterns
-          </h4>
-          <ul className="space-y-2">
-            {patterns.map((pattern, index) => (
-              <li key={index} className="flex items-start gap-2 text-sm">
-                <span className="text-primary mt-1">•</span>
-                <span className="text-muted-foreground">{pattern}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Recommended Actions */}
-      {actions && actions.length > 0 && (
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            Recommended Actions
-          </h4>
-          
-          <div className="space-y-3">
-            {actions.map((action, index) => (
-              <div 
-                key={index}
-                className={cn(
-                  'p-3 rounded-lg border border-border bg-muted/30 transition-all cursor-pointer',
-                  expandedAction === index && 'bg-muted/50 border-primary/30'
-                )}
-                onClick={() => setExpandedAction(expandedAction === index ? null : index)}
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="AI insights & next actions"
+        description="Personalized analysis and action recommendations generated from customer behavior."
+        actions={
+          <Stack direction="row" spacing={1} alignItems="center">
+            {generatedAgo ? (
+              <Typography level="body-xs" color="neutral">
+                Generated {generatedAgo}
+              </Typography>
+            ) : null}
+            {onRegenerate ? (
+              <JoyButton
+                size="sm"
+                variant="plain"
+                color="primary"
+                onClick={() => void onRegenerate()}
+                loading={regenerating}
+                startDecorator={<RefreshCw size={14} />}
               >
-                <div className="flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5">
-                    {actionTypeIcons[action.actionType] || <TrendingUp className="h-4 w-4" />}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
-                        {index + 1}. {action.title}
-                      </span>
-                      <Badge variant="secondary" className="text-[10px] px-1.5">
-                        {action.confidence}% confidence
-                      </Badge>
-                      <Badge 
-                        variant="outline" 
-                        className={cn('text-[10px] px-1.5', priorityColors[action.priority])}
+                Regenerate
+              </JoyButton>
+            ) : null}
+          </Stack>
+        }
+      />
+      <JoyCardContent>
+        <Stack spacing={2.5}>
+          {!insights.hasSufficientData ? (
+            <Sheet
+              color="warning"
+              variant="soft"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="body-sm">
+                Limited data available. Recommendations are based on partial
+                profile and event history.
+              </Typography>
+            </Sheet>
+          ) : null}
+
+          <Sheet
+            variant="soft"
+            color="primary"
+            sx={{ borderRadius: "xl", p: 2.5 }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Sheet
+                variant="solid"
+                color="primary"
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "lg",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Lightbulb size={18} />
+              </Sheet>
+              <Stack spacing={0.5}>
+                <Typography
+                  level="body-xs"
+                  textTransform="uppercase"
+                  fontWeight="lg"
+                >
+                  Key insight
+                </Typography>
+                <Typography level="title-md">{insights.keyInsight}</Typography>
+              </Stack>
+            </Stack>
+          </Sheet>
+
+          {insights.patterns.length > 0 ? (
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.25}>
+                <Typography level="title-sm">Observed patterns</Typography>
+                {insights.patterns.map((pattern) => (
+                  <Stack
+                    key={pattern}
+                    direction="row"
+                    spacing={1}
+                    alignItems="flex-start"
+                  >
+                    <Sparkles size={14} />
+                    <Typography level="body-sm">{pattern}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Sheet>
+          ) : null}
+
+          <Stack spacing={1.5}>
+            <Typography level="title-sm">Recommended actions</Typography>
+            {insights.actions.length > 0 ? (
+              insights.actions.map((action, index) => {
+                const Icon = actionTypeIcons[action.actionType] || TrendingUp;
+
+                return (
+                  <Sheet
+                    key={`${action.title}-${index}`}
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "xl",
+                      p: 2,
+                      cursor: "pointer",
+                      borderColor:
+                        expandedAction === index
+                          ? "primary.300"
+                          : "neutral.200",
+                    }}
+                    onClick={() =>
+                      setExpandedAction((current) =>
+                        current === index ? null : index,
+                      )
+                    }
+                  >
+                    <Stack spacing={1.25}>
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        alignItems="flex-start"
                       >
-                        {action.priority}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      "{action.description}"
-                    </p>
-                    
-                    {expandedAction === index && (
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs gap-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // TODO: Wire up action execution
+                        <Sheet
+                          variant="soft"
+                          color="primary"
+                          sx={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: "lg",
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
                           }}
                         >
-                          Queue Action
-                          <ChevronRight className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <ChevronRight className={cn(
-                    'h-4 w-4 text-muted-foreground transition-transform',
-                    expandedAction === index && 'rotate-90'
-                  )} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                          <Icon size={16} />
+                        </Sheet>
+                        <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={0.75}
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                          >
+                            <Typography level="title-sm">
+                              {index + 1}. {action.title}
+                            </Typography>
+                            <JoyChip
+                              color={
+                                priorityConfig[action.priority]?.color ||
+                                "neutral"
+                              }
+                              variant="soft"
+                              size="sm"
+                            >
+                              {action.priority}
+                            </JoyChip>
+                            <JoyChip color="neutral" variant="soft" size="sm">
+                              {action.confidence}% confidence
+                            </JoyChip>
+                          </Stack>
+                          <Typography level="body-sm" color="neutral">
+                            {action.description}
+                          </Typography>
+                        </Stack>
+                        <ChevronRight
+                          size={16}
+                          style={{
+                            transform:
+                              expandedAction === index
+                                ? "rotate(90deg)"
+                                : "rotate(0deg)",
+                            transition: "transform 0.16s ease",
+                            flexShrink: 0,
+                          }}
+                        />
+                      </Stack>
 
-      {/* AI Disclaimer */}
-      <p className="text-[10px] text-muted-foreground text-center mt-4">
-        Insights generated by AI ({insights.modelUsed}) based on customer behavior data. Review before taking action.
-      </p>
-    </DashboardSection>
+                      {expandedAction === index ? (
+                        <Stack spacing={1} sx={{ pl: { xs: 0, sm: 5 } }}>
+                          <JoyTooltip title="Action queueing is not wired on this page yet.">
+                            <Box component="span">
+                              <JoyButton
+                                disabled
+                                size="sm"
+                                color="neutral"
+                                variant="soft"
+                              >
+                                Queue action
+                              </JoyButton>
+                            </Box>
+                          </JoyTooltip>
+                          <Typography level="body-xs" color="neutral">
+                            Review this recommendation before executing it
+                            elsewhere in CRM.
+                          </Typography>
+                        </Stack>
+                      ) : null}
+                    </Stack>
+                  </Sheet>
+                );
+              })
+            ) : (
+              <Typography level="body-sm" color="neutral">
+                No actions were suggested for the current data set.
+              </Typography>
+            )}
+          </Stack>
+
+          <Typography level="body-xs" color="neutral" textAlign="center">
+            Generated by {insights.modelUsed}. Review before taking action.
+          </Typography>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}
 
 export default AIInsightsActions;

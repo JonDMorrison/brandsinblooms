@@ -1,27 +1,28 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import FormControl from "@mui/joy/FormControl";
+import FormHelperText from "@mui/joy/FormHelperText";
+import FormLabel from "@mui/joy/FormLabel";
+import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Link from "@mui/joy/Link";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Globe,
   ArrowRight,
-  Loader2,
-  Info,
-  CheckCircle2,
-  Zap,
-  Settings,
-  Sparkles,
-  Copy,
   Check,
+  CheckCircle,
+  Copy,
   ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,69 @@ type WizardStep =
   | "dns_pending"
   | "entri_success"
   | "complete";
+
+type SetupMethod = "automatic" | "manual";
+
+const STEP_PROGRESS: Record<WizardStep, number> = {
+  enter_domain: 16,
+  choose_method: 33,
+  provisioning: 50,
+  dns_pending: 75,
+  entri_success: 90,
+  complete: 100,
+};
+
+const STEP_COPY: Record<WizardStep, { title: string; subtitle: string }> = {
+  enter_domain: {
+    title: "Enter your domain",
+    subtitle:
+      "Send emails from your own domain for better deliverability and brand recognition.",
+  },
+  choose_method: {
+    title: "Choose setup method",
+    subtitle: "Select how you'd like to configure your DNS records.",
+  },
+  provisioning: {
+    title: "Configuring...",
+    subtitle: "Setting up your domain with our email infrastructure.",
+  },
+  dns_pending: {
+    title: "Configure DNS records",
+    subtitle: "Add these records at your domain registrar to verify ownership.",
+  },
+  entri_success: {
+    title: "DNS configured",
+    subtitle: "Your DNS records have been set up automatically.",
+  },
+  complete: {
+    title: "Domain connected",
+    subtitle: "Your sending domain is ready.",
+  },
+};
+
+const STEP_TRANSITION_SX = {
+  animation: "domain-connect-fade-up 200ms ease-out",
+  "@keyframes domain-connect-fade-up": {
+    from: {
+      opacity: 0,
+      transform: "translateY(4px)",
+    },
+    to: {
+      opacity: 1,
+      transform: "translateY(0)",
+    },
+  },
+} as const;
+
+const dnsProviderLinks = [
+  { name: "Cloudflare", url: "https://dash.cloudflare.com/" },
+  { name: "GoDaddy", url: "https://dcc.godaddy.com/domains" },
+  { name: "Namecheap", url: "https://ap.www.namecheap.com/domains/list/" },
+  {
+    name: "Google Domains",
+    url: "https://support.google.com/domains/answer/3290309",
+  },
+];
 
 export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   open,
@@ -64,6 +128,55 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   const [entriProvider, setEntriProvider] = useState<string | null>(null);
   const [isEntriModalOpen, setIsEntriModalOpen] = useState(false);
   const [copiedRecordId, setCopiedRecordId] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<SetupMethod | null>(
+    null,
+  );
+  const [provisioningError, setProvisioningError] = useState<string | null>(
+    null,
+  );
+
+  const validateDomain = (value: string): boolean => {
+    const domainRegex =
+      /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
+    return domainRegex.test(value);
+  };
+
+  const cleanDomainInput = (value: string): string => {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/^(https?:\/\/)?(www\.)?/, "");
+  };
+
+  const cleanedDomain = useMemo(() => cleanDomainInput(domain), [domain]);
+  const hasDomainInput = domain.trim().length > 0;
+  const domainFormatError =
+    hasDomainInput && !validateDomain(cleanedDomain)
+      ? "Enter a valid root domain such as yourdomain.com."
+      : null;
+  const stepOneError =
+    step === "enter_domain" ? error || domainFormatError : null;
+  const canContinueFromDomain =
+    Boolean(cleanedDomain) && !domainFormatError && !loading;
+
+  const resetWizardState = () => {
+    setStep("enter_domain");
+    setDomain("");
+    setError(null);
+    setLoading(false);
+    setProvisionedData(null);
+    setEntriProvider(null);
+    setIsEntriModalOpen(false);
+    setCopiedRecordId(null);
+    setSelectedMethod(null);
+    setProvisioningError(null);
+  };
+
+  useEffect(() => {
+    if (!open) {
+      resetWizardState();
+    }
+  }, [open]);
 
   const copyToClipboard = async (text: string, fieldKey: string) => {
     try {
@@ -96,25 +209,6 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     return "DNS Record";
   };
 
-  const dnsProviderLinks = [
-    { name: "Cloudflare", url: "https://dash.cloudflare.com/" },
-    { name: "GoDaddy", url: "https://dcc.godaddy.com/domains" },
-    { name: "Namecheap", url: "https://ap.www.namecheap.com/domains/list/" },
-  ];
-
-  const validateDomain = (value: string): boolean => {
-    const domainRegex =
-      /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
-    return domainRegex.test(value);
-  };
-
-  const cleanDomainInput = (value: string): string => {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/^(https?:\/\/)?(www\.)?/, "");
-  };
-
   const handleContinueToMethod = () => {
     setError(null);
 
@@ -126,7 +220,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     const cleanDomain = cleanDomainInput(domain);
 
     if (!validateDomain(cleanDomain)) {
-      setError("Please enter a valid domain (e.g., example.com)");
+      setError("Enter a valid root domain such as yourdomain.com.");
       return;
     }
 
@@ -134,28 +228,58 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     setStep("choose_method");
   };
 
-  const handleEntriSetup = async () => {
+  const captureEntriProvider = () => {
+    const eventNames = ["onSuccess", "onEntriClose"] as const;
+
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        provider?: string;
+        setupType?: string;
+      };
+      const provider = detail?.provider || detail?.setupType || null;
+
+      if (provider) {
+        setEntriProvider(provider);
+      }
+
+      cleanup();
+    };
+
+    const cleanup = () => {
+      eventNames.forEach((eventName) => {
+        window.removeEventListener(eventName, handler as EventListener);
+      });
+    };
+
+    eventNames.forEach((eventName) => {
+      window.addEventListener(eventName, handler as EventListener);
+    });
+
+    return cleanup;
+  };
+
+  const handleAutomaticSetup = async () => {
     if (!tenant?.id) {
-      setError("No workspace context");
+      setProvisioningError("No workspace context");
       return;
     }
 
     const cleanDomain = cleanDomainInput(domain);
     setError(null);
+    setProvisioningError(null);
     setLoading(true);
+
     try {
-      // Step 1: Provision domain in Resend FIRST to get real DNS records
       const result = await provisionDomain(cleanDomain);
 
       if (!result.success) {
-        setError(result.error || "Failed to provision domain");
+        setProvisioningError(result.error || "Failed to provision domain");
         setLoading(false);
         return;
       }
 
       setProvisionedData(result.data);
 
-      // Step 2: Extract DNS records from backend response
       const backendRecords = result.data?.records;
 
       if (
@@ -163,76 +287,62 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
         !Array.isArray(backendRecords) ||
         backendRecords.length === 0
       ) {
-        console.error("❌ No DNS records returned from backend");
-        setError(
+        setProvisioningError(
           "Failed to get DNS records from email service. Please try manual setup.",
         );
         setLoading(false);
         return;
       }
 
-      // Step 3: Sanitize and convert to Entri format using new sanitizer
       const { records: entriRecords, validation } = sanitizeAndConvertRecords(
         cleanDomain,
         backendRecords,
       );
 
-      // Step 4: STRICT validation - block if required records are missing
       if (!validation.valid) {
         const errorMsg = validation.errors.join("\n• ");
-        console.error(`❌ DNS validation FAILED:`, validation.errors);
-        setError(
+        setProvisioningError(
           `DNS record validation failed:\n• ${errorMsg}\n\nPlease contact support.`,
         );
         setLoading(false);
         return;
       }
 
-      // Log warnings but continue
-      if (validation.warnings.length > 0) {
-      }
-
       setLoading(false);
-
-      // Step 6: Open Entri with sanitized records
       setIsEntriModalOpen(true);
+
+      const cleanupProviderCapture = captureEntriProvider();
 
       openEntriSetup(
         cleanDomain,
         tenant.id,
         entriRecords,
-        // onSuccess
         () => {
-          console.log(`✅ Entri setup completed for ${cleanDomain}`);
+          cleanupProviderCapture();
           setIsEntriModalOpen(false);
           refetch();
           setStep("entri_success");
         },
-        // onCancel - fall back to manual
         () => {
-          console.log(
-            `⚠️ Entri setup cancelled for ${cleanDomain}, falling back to manual`,
-          );
+          cleanupProviderCapture();
           setIsEntriModalOpen(false);
-          setStep("dns_pending"); // Show manual DNS setup since domain is provisioned
+          setStep("dns_pending");
         },
-        // onClose - always fires when Entri overlay closes (after success or cancel)
         () => {
-          console.log(`🔒 Entri overlay closed, restoring wizard`);
+          cleanupProviderCapture();
           setIsEntriModalOpen(false);
         },
       );
     } catch (err: any) {
-      console.error("Error in Entri setup:", err);
-      setError(err.message || "Failed to set up domain");
+      setProvisioningError(err.message || "Failed to set up domain");
       setLoading(false);
     }
   };
 
   const handleManualSetup = async () => {
     setError(null);
+    setProvisioningError(null);
     setLoading(true);
-    setStep("provisioning");
 
     const cleanDomain = cleanDomainInput(domain);
     const result = await provisionDomain(cleanDomain);
@@ -243,457 +353,667 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
       setProvisionedData(result.data);
       setStep("dns_pending");
     } else {
-      setStep("choose_method");
-      setError(result.error || "Failed to provision domain");
+      setProvisioningError(result.error || "Failed to provision domain");
     }
   };
 
-  const handleClose = () => {
-    setStep("enter_domain");
-    setDomain("");
+  const handleSelectMethod = async (method: SetupMethod) => {
+    if (loading || entriLoading) {
+      return;
+    }
+
+    if (method === "automatic" && !isEntriConfigured) {
+      return;
+    }
+
+    setSelectedMethod(method);
     setError(null);
-    setProvisionedData(null);
-    setEntriProvider(null);
-    setIsEntriModalOpen(false);
+    setProvisioningError(null);
+
+    await new Promise((resolve) => window.setTimeout(resolve, 140));
+
+    setStep("provisioning");
+
+    if (method === "automatic") {
+      await handleAutomaticSetup();
+      return;
+    }
+
+    await handleManualSetup();
+  };
+
+  const handleRetryProvisioning = async () => {
+    if (!selectedMethod) {
+      setStep("choose_method");
+      return;
+    }
+
+    setProvisioningError(null);
+    setStep("provisioning");
+
+    if (selectedMethod === "automatic") {
+      await handleAutomaticSetup();
+      return;
+    }
+
+    await handleManualSetup();
+  };
+
+  const handleClose = () => {
+    resetWizardState();
     onClose();
   };
 
-  // Don't render our dialog when Entri modal is active to prevent z-index conflicts
   if (isEntriModalOpen) {
     return null;
   }
 
-  const getStepNumber = () => {
-    switch (step) {
-      case "enter_domain":
-        return 1;
-      case "choose_method":
-        return 2;
-      case "provisioning":
-      case "dns_pending":
-      case "entri_success":
-      case "complete":
-        return 3;
-      default:
-        return 1;
-    }
-  };
+  const currentStepCopy = STEP_COPY[step];
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between mb-1">
-            <DialogTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              Connect Your Domain
-            </DialogTitle>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">
-                Step {getStepNumber()}
-              </span>
-              <span>/</span>
-              <span>3</span>
-            </div>
-          </div>
-          <DialogDescription>
-            Send emails from your own domain for better deliverability and brand
-            recognition.
-          </DialogDescription>
-        </DialogHeader>
+  const renderStepHeader = () => (
+    <Box sx={{ px: 3, pt: 3, pb: 0 }}>
+      <Stack spacing={0.5}>
+        <Typography level="title-lg" sx={{ fontWeight: 700 }}>
+          {currentStepCopy.title}
+        </Typography>
+        <Typography level="body-sm" color="neutral">
+          {currentStepCopy.subtitle}
+        </Typography>
+      </Stack>
+    </Box>
+  );
 
-        {/* Step 1: Enter Domain */}
-        {step === "enter_domain" && (
-          <div className="space-y-4 py-4">
-            <Alert className="bg-primary/5 border-primary/20">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              <AlertDescription className="text-xs">
-                <span className="font-medium">Why connect your domain?</span>{" "}
-                Emails sent from your own domain (like news@yourbusiness.com)
-                have better deliverability than shared addresses, and recipients
-                recognize and trust your brand.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="domain">Your Domain</Label>
-              <Input
-                id="domain"
-                placeholder="example.com"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleContinueToMethod()}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter your domain without https:// or www
-              </p>
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
-
-        {/* Step 2: Choose Setup Method */}
-        {step === "choose_method" && (
-          <div className="space-y-4 py-4">
-            <div className="text-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Setting up{" "}
-                <span className="font-medium text-foreground">{domain}</span>
-              </p>
-            </div>
-
-            {/* Automatic Setup Option */}
-            {isEntriConfigured && (
-              <div
-                className={`relative border-2 border-primary/20 rounded-lg p-4 transition-colors ${loading ? "opacity-75" : "hover:border-primary/40 cursor-pointer"} bg-primary/5`}
-                onClick={() => !loading && handleEntriSetup()}
-              >
-                <div className="absolute -top-2.5 left-3 px-2 bg-background">
-                  <span className="text-xs font-medium text-primary flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    Recommended
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Zap className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-sm">
-                      Automatic Setup via Entri
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Securely connect to your DNS provider for one-click setup.
-                      Works with GoDaddy, Cloudflare, Namecheap, and 50+
-                      providers.
-                    </p>
-                    {loading && (
-                      <p className="text-xs text-primary mt-2 flex items-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Provisioning domain in Resend...
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={loading || entriLoading}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEntriSetup();
-                    }}
-                  >
-                    {loading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Set Up"
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-border"></div>
-              <span className="mx-3 text-xs text-muted-foreground">or</span>
-              <div className="flex-grow border-t border-border"></div>
-            </div>
-
-            {/* Manual Setup Option */}
-            <div
-              className="border rounded-lg p-4 hover:border-primary/30 transition-colors cursor-pointer"
-              onClick={handleManualSetup}
+  const renderRecordInput = ({
+    label,
+    value,
+    fieldKey,
+    displayValue,
+    tooltip,
+  }: {
+    label: string;
+    value: string;
+    fieldKey: string;
+    displayValue?: string;
+    tooltip?: string;
+  }) => (
+    <FormControl>
+      <FormLabel>{label}</FormLabel>
+      <Tooltip title={tooltip || value}>
+        <Input
+          endDecorator={
+            <IconButton
+              color="neutral"
+              size="sm"
+              variant="plain"
+              onClick={() => copyToClipboard(value, fieldKey)}
             >
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-muted">
-                  <Settings className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-sm">Manual Setup</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Get DNS records to add manually. Best for advanced users or
-                    unsupported providers.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={loading}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleManualSetup();
+              {copiedRecordId === fieldKey ? (
+                <Check size={14} />
+              ) : (
+                <Copy size={14} />
+              )}
+            </IconButton>
+          }
+          readOnly
+          size="sm"
+          value={displayValue || value}
+          variant="soft"
+          sx={{
+            bgcolor: "background.surface",
+            "& input": {
+              fontFamily: "code",
+              fontSize: "0.75rem",
+              textOverflow: "ellipsis",
+            },
+          }}
+        />
+      </Tooltip>
+    </FormControl>
+  );
+
+  const renderStepBody = () => {
+    if (step === "enter_domain") {
+      return (
+        <>
+          {renderStepHeader()}
+          <Box sx={{ px: 3, pt: 2.5, pb: 3 }}>
+            <Stack spacing={1.5}>
+              <FormControl>
+                <FormLabel sx={{ fontWeight: 600, fontSize: "sm" }}>
+                  Domain
+                </FormLabel>
+                <Input
+                  autoFocus
+                  placeholder="yourdomain.com"
+                  size="md"
+                  value={domain}
+                  variant="outlined"
+                  onChange={(event) => {
+                    setDomain(event.target.value);
+                    if (error) {
+                      setError(null);
+                    }
                   }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && canContinueFromDomain) {
+                      handleContinueToMethod();
+                    }
+                  }}
+                  sx={{
+                    bgcolor: "background.surface",
+                    "& input": {
+                      fontFamily: "code",
+                    },
+                  }}
+                />
+                <FormHelperText>
+                  Enter your root domain without https:// or www
+                </FormHelperText>
+              </FormControl>
+
+              {stepOneError ? (
+                <Alert color="danger" size="sm" variant="soft">
+                  {stepOneError}
+                </Alert>
+              ) : null}
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              px: 3,
+              pb: 3,
+              pt: 1,
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 1,
+            }}
+          >
+            <Button
+              color="neutral"
+              size="sm"
+              variant="plain"
+              onClick={handleClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              disabled={!canContinueFromDomain}
+              endDecorator={<ArrowRight size={14} />}
+              loading={false}
+              size="sm"
+              variant="solid"
+              onClick={handleContinueToMethod}
+            >
+              Continue
+            </Button>
+          </Box>
+        </>
+      );
+    }
+
+    if (step === "choose_method") {
+      return (
+        <>
+          {renderStepHeader()}
+          <Box sx={{ px: 3, pt: 2, pb: 3 }}>
+            <Stack spacing={1.5}>
+              <Sheet
+                variant="outlined"
+                onClick={() => void handleSelectMethod("automatic")}
+                sx={{
+                  borderRadius: "sm",
+                  p: 2,
+                  cursor: isEntriConfigured ? "pointer" : "default",
+                  opacity: isEntriConfigured ? 1 : 0.5,
+                  pointerEvents: isEntriConfigured ? "auto" : "none",
+                  borderColor:
+                    selectedMethod === "automatic"
+                      ? "primary.outlinedActiveBorder"
+                      : undefined,
+                  bgcolor:
+                    selectedMethod === "automatic"
+                      ? "primary.softBg"
+                      : "background.surface",
+                  "&:hover": isEntriConfigured
+                    ? {
+                        borderColor: "primary.outlinedHoverBorder",
+                      }
+                    : undefined,
+                }}
+              >
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  spacing={2}
                 >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Configure"
-                  )}
-                </Button>
-              </div>
-            </div>
+                  <Stack spacing={0.5}>
+                    <Typography level="title-sm" sx={{ fontWeight: 600 }}>
+                      Automatic setup
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      We'll configure your DNS records automatically through
+                      your provider
+                    </Typography>
+                  </Stack>
+                  <Chip color="success" size="sm" variant="soft">
+                    Recommended
+                  </Chip>
+                </Stack>
+              </Sheet>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              {!isEntriConfigured ? (
+                <Typography level="body-xs" color="neutral">
+                  Automatic setup is not available for your configuration.
+                </Typography>
+              ) : null}
+
+              <Sheet
+                variant="outlined"
+                onClick={() => void handleSelectMethod("manual")}
+                sx={{
+                  borderRadius: "sm",
+                  p: 2,
+                  cursor: "pointer",
+                  borderColor:
+                    selectedMethod === "manual"
+                      ? "primary.outlinedActiveBorder"
+                      : undefined,
+                  bgcolor:
+                    selectedMethod === "manual"
+                      ? "primary.softBg"
+                      : "background.surface",
+                  "&:hover": {
+                    borderColor: "primary.outlinedHoverBorder",
+                  },
+                }}
+              >
+                <Stack spacing={0.5}>
+                  <Typography level="title-sm" sx={{ fontWeight: 600 }}>
+                    Manual setup
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    We'll provide the DNS records for you to add at your domain
+                    registrar
+                  </Typography>
+                </Stack>
+              </Sheet>
+
+              {error ? (
+                <Alert color="danger" size="sm" variant="soft">
+                  {error}
+                </Alert>
+              ) : null}
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              px: 3,
+              pb: 3,
+              pt: 0,
+              display: "flex",
+              justifyContent: "flex-start",
+              gap: 1,
+            }}
+          >
+            <Button
+              color="neutral"
+              size="sm"
+              variant="plain"
+              onClick={() => {
+                setError(null);
+                setSelectedMethod(null);
+                setStep("enter_domain");
+              }}
+            >
+              Back
+            </Button>
+          </Box>
+        </>
+      );
+    }
+
+    if (step === "provisioning") {
+      return (
+        <>
+          {renderStepHeader()}
+          <Box sx={{ px: 3, pt: 3, pb: 4, textAlign: "center" }}>
+            {provisioningError ? (
+              <Stack spacing={2} alignItems="center">
+                <Alert
+                  color="danger"
+                  size="sm"
+                  variant="soft"
+                  sx={{ width: "100%", textAlign: "left" }}
+                >
+                  {provisioningError}
+                </Alert>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    color="neutral"
+                    size="sm"
+                    variant="outlined"
+                    onClick={() => void handleRetryProvisioning()}
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    color="neutral"
+                    size="sm"
+                    variant="plain"
+                    onClick={handleClose}
+                  >
+                    Cancel
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : (
+              <Stack spacing={2} alignItems="center">
+                <CircularProgress color="neutral" size="md" variant="soft" />
+                <Stack spacing={0.5} alignItems="center">
+                  <Typography level="body-sm" color="neutral">
+                    Provisioning email infrastructure for{" "}
+                    <Box
+                      component="span"
+                      sx={{ fontFamily: "code", fontWeight: 600 }}
+                    >
+                      {cleanedDomain}
+                    </Box>
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    This usually takes a few seconds
+                  </Typography>
+                </Stack>
+              </Stack>
             )}
+          </Box>
+        </>
+      );
+    }
 
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                <span className="font-medium">What's configured:</span> SPF
-                (sender verification), DKIM (email signing), and DMARC (policy
-                enforcement) records for email authentication.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {/* Step 3: Provisioning */}
-        {step === "provisioning" && (
-          <div className="py-8 text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <div>
-              <p className="font-medium">Setting up your domain...</p>
-              <p className="text-sm text-muted-foreground">
-                This may take a few seconds
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: DNS Pending (Manual) */}
-        {step === "dns_pending" && (
-          <div className="space-y-4 py-4">
-            {/* Progress checklist */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-              <span className="text-green-700 font-medium">
-                Domain registered
-              </span>
-              <span className="mx-1">→</span>
-              <span className="font-medium text-foreground">
-                Add DNS records
-              </span>
-              <span className="mx-1">→</span>
-              <span>Verified</span>
-            </div>
-
-            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
-                <span className="font-medium">What to do:</span> Log in to your
-                domain registrar (e.g., GoDaddy, Cloudflare, Namecheap), go to
-                the DNS settings for{" "}
-                <span className="font-semibold">{domain}</span>, and add each
-                record below exactly as shown. Then come back and click "Check
-                DNS".
-              </AlertDescription>
-            </Alert>
-
-            {/* DNS Records Display */}
-            {provisionedData?.records && provisionedData.records.length > 0 ? (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">DNS Records to Add:</p>
-                <div className="border rounded-lg divide-y">
+    if (step === "dns_pending") {
+      return (
+        <>
+          {renderStepHeader()}
+          <Box sx={{ px: 3, pt: 2, pb: 3 }}>
+            <Stack spacing={1.5}>
+              {provisionedData?.records &&
+              provisionedData.records.length > 0 ? (
+                <Stack spacing={1.5}>
                   {provisionedData.records.map((record: any, index: number) => {
                     const recordType =
                       record.record_type || record.type || "TXT";
                     const recordName = record.name || "@";
                     const recordValue = record.value || record.data || "";
                     const purpose = getRecordPurpose(record);
+                    const priority = record.priority;
+                    const displayValue =
+                      recordValue.length > 88
+                        ? `${recordValue.slice(0, 88)}...`
+                        : recordValue;
 
                     return (
-                      <div key={`record-${index}`} className="p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 text-xs font-mono font-medium bg-muted rounded">
-                            {recordType}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {purpose}
-                          </span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-muted-foreground w-12 shrink-0">
-                              Name:
-                            </span>
-                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all flex-1">
-                              {recordName}
-                            </code>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 shrink-0"
-                              onClick={() =>
-                                copyToClipboard(recordName, `name-${index}`)
-                              }
-                            >
-                              {copiedRecordId === `name-${index}` ? (
-                                <Check className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <Copy className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
-                          <div className="flex items-start gap-2 text-xs">
-                            <span className="text-muted-foreground w-12 shrink-0 pt-0.5">
-                              Value:
-                            </span>
-                            <code className="font-mono text-foreground bg-muted px-1.5 py-0.5 rounded break-all text-[11px] leading-relaxed flex-1">
-                              {recordValue}
-                            </code>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 shrink-0 mt-0.5"
-                              onClick={() =>
-                                copyToClipboard(recordValue, `value-${index}`)
-                              }
-                            >
-                              {copiedRecordId === `value-${index}` ? (
-                                <Check className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <Copy className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                      <Sheet
+                        key={`record-${index}`}
+                        variant="outlined"
+                        sx={{
+                          bgcolor: "background.surface",
+                          borderRadius: "sm",
+                          p: 2,
+                        }}
+                      >
+                        <Stack spacing={1.25}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
+                          >
+                            <Typography level="body-xs" color="neutral">
+                              {index + 1}
+                            </Typography>
+                            <Chip color="neutral" size="sm" variant="soft">
+                              {recordType}
+                            </Chip>
+                            <Chip color="neutral" size="sm" variant="outlined">
+                              {purpose}
+                            </Chip>
+                          </Stack>
+
+                          {renderRecordInput({
+                            label: "Host / Name",
+                            value: recordName,
+                            fieldKey: `name-${index}`,
+                          })}
+
+                          {renderRecordInput({
+                            label: "Value / Points to",
+                            value: recordValue,
+                            displayValue,
+                            fieldKey: `value-${index}`,
+                            tooltip: recordValue,
+                          })}
+
+                          {priority !== undefined
+                            ? renderRecordInput({
+                                label: "Priority",
+                                value: String(priority),
+                                fieldKey: `priority-${index}`,
+                              })
+                            : null}
+
+                          {displayValue !== recordValue ? (
+                            <Typography level="body-xs" color="neutral">
+                              Hover the value field to inspect the full record.
+                            </Typography>
+                          ) : null}
+                        </Stack>
+                      </Sheet>
                     );
                   })}
-                </div>
+                </Stack>
+              ) : (
+                <Alert color="warning" size="sm" variant="soft">
+                  DNS records could not be loaded. Close this wizard and open
+                  the domain details modal to inspect the saved records.
+                </Alert>
+              )}
 
-                {/* Provider Quick Links */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-muted-foreground">
-                    Open your DNS provider:
-                  </span>
-                  {dnsProviderLinks.map((provider) => (
-                    <a
-                      key={provider.name}
-                      href={provider.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      {provider.name}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  DNS records could not be loaded. Please close this wizard and
-                  click "DNS Instructions" on your domain in the list to view
-                  the records.
-                </AlertDescription>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                useFlexGap
+                flexWrap="wrap"
+                alignItems="center"
+              >
+                <Typography level="body-xs" color="neutral">
+                  DNS provider guides:
+                </Typography>
+                {dnsProviderLinks.map((provider) => (
+                  <Link
+                    key={provider.name}
+                    color="neutral"
+                    href={provider.url}
+                    level="body-xs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                    }}
+                  >
+                    {provider.name}
+                    <ExternalLink size={12} />
+                  </Link>
+                ))}
+              </Stack>
+
+              <Alert color="warning" size="sm" variant="soft" sx={{ mt: 0.5 }}>
+                <Stack spacing={0.5}>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    Common mistakes to avoid
+                  </Typography>
+                  <Typography level="body-xs">
+                    Copy values exactly as shown. Cloudflare users should keep
+                    proxies off for these records. Some registrars use @ for the
+                    root host, some flatten CNAMEs automatically, and some add
+                    trailing dots for you, so avoid editing the target value
+                    unless your provider explicitly requires it.
+                  </Typography>
+                </Stack>
               </Alert>
-            )}
 
-            <div className="space-y-2 pt-2 border-t">
-              <p className="text-sm font-medium">What happens next:</p>
-              <ol className="text-sm text-muted-foreground space-y-1.5 list-decimal list-inside">
-                <li>Add all the DNS records above to your domain provider</li>
-                <li>Close this dialog — your domain is saved</li>
-                <li>
-                  Click{" "}
-                  <span className="font-medium text-foreground">
-                    "Check DNS"
-                  </span>{" "}
-                  next to your domain to verify
-                </li>
-                <li>
-                  DNS typically propagates in 5–30 minutes (up to 48 hours max)
-                </li>
-              </ol>
-            </div>
-
-            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900">
-              <Info className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-amber-800 dark:text-amber-200 text-xs space-y-1">
-                <p className="font-medium">Common mistakes to avoid:</p>
-                <ul className="space-y-0.5 mt-1">
-                  <li>
-                    • Copy values <span className="font-medium">exactly</span> —
-                    even small typos will fail verification
-                  </li>
-                  <li>
-                    • Cloudflare users: turn the proxy{" "}
-                    <span className="font-medium">OFF</span> (grey cloud, not
-                    orange)
-                  </li>
-                  <li>
-                    • Some providers use{" "}
-                    <span className="font-mono font-medium">@</span> instead of
-                    your domain name for the root record
-                  </li>
-                </ul>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {/* Step 5: Entri Success */}
-        {step === "entri_success" && (
-          <div className="space-y-4 py-4">
-            <div className="text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="font-semibold text-lg">
-                DNS Configured Successfully!
-              </h3>
-              <p className="text-sm text-muted-foreground mt-2">
-                Your DNS records have been automatically applied
-                {entriProvider ? ` via ${entriProvider}` : ""}.
-              </p>
-            </div>
-
-            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800 dark:text-blue-200 text-xs">
-                <span className="font-medium">What happens next:</span> DNS
-                changes typically propagate within 5-30 minutes. We'll
-                automatically verify your domain so you can start sending
-                campaigns.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        <DialogFooter>
-          {step === "enter_domain" && (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button onClick={handleContinueToMethod}>
-                Continue
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </>
-          )}
-
-          {step === "choose_method" && (
-            <Button variant="outline" onClick={() => setStep("enter_domain")}>
-              Back
+              <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                Verification will continue automatically in the background after
+                these records propagate. You can also use Check DNS from the
+                domains list if you want to confirm sooner.
+              </Typography>
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              px: 3,
+              pb: 3,
+              pt: 0,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Button
+              color="primary"
+              size="sm"
+              variant="solid"
+              onClick={handleClose}
+            >
+              Done
             </Button>
-          )}
+          </Box>
+        </>
+      );
+    }
 
-          {(step === "dns_pending" || step === "entri_success") && (
-            <Button onClick={handleClose}>Done</Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    if (step === "entri_success") {
+      return (
+        <>
+          {renderStepHeader()}
+          <Box sx={{ px: 3, pt: 2, pb: 3, textAlign: "center" }}>
+            <Stack spacing={1.5} alignItems="center">
+              <CheckCircle
+                size={40}
+                style={{ color: "var(--joy-palette-success-500)" }}
+              />
+              <Typography level="body-sm">
+                {entriProvider
+                  ? `${entriProvider} has been configured automatically for ${cleanedDomain}.`
+                  : "Your DNS records have been configured automatically."}
+              </Typography>
+              <Typography level="body-xs" color="neutral">
+                Verification will continue in the background. Your domain will
+                be ready to use once DNS propagation completes.
+              </Typography>
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              px: 3,
+              pb: 3,
+              pt: 0,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Button
+              color="primary"
+              size="sm"
+              variant="solid"
+              onClick={handleClose}
+            >
+              Done
+            </Button>
+          </Box>
+        </>
+      );
+    }
+
+    return (
+      <>
+        {renderStepHeader()}
+        <Box sx={{ px: 3, pt: 2, pb: 3, textAlign: "center" }}>
+          <Stack spacing={1.5} alignItems="center">
+            <CheckCircle
+              size={40}
+              style={{ color: "var(--joy-palette-success-500)" }}
+            />
+            <Typography level="body-sm">
+              {cleanedDomain || "Your domain"} is connected and ready to send.
+            </Typography>
+            <Typography level="body-xs" color="neutral">
+              You can start using this sending domain as soon as traffic begins
+              flowing through it.
+            </Typography>
+          </Stack>
+        </Box>
+        <Box
+          sx={{
+            px: 3,
+            pb: 3,
+            pt: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <Button
+            color="primary"
+            size="sm"
+            variant="solid"
+            onClick={handleClose}
+          >
+            Done
+          </Button>
+        </Box>
+      </>
+    );
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => {
+        // Dismissal is controlled by explicit buttons only.
+      }}
+    >
+      <ModalDialog
+        variant="outlined"
+        sx={{
+          maxWidth: 520,
+          width: "100%",
+          p: 0,
+          overflow: "hidden",
+          bgcolor: "background.surface",
+          borderRadius: "lg",
+        }}
+      >
+        <LinearProgress
+          color="primary"
+          determinate
+          size="sm"
+          value={STEP_PROGRESS[step]}
+          sx={{
+            borderRadius: 0,
+            height: 3,
+            "--LinearProgress-radius": "0px",
+          }}
+        />
+        {step !== "provisioning" ? (
+          <ModalClose onClick={handleClose} sx={{ top: 12, right: 12 }} />
+        ) : null}
+        <Box key={step} sx={STEP_TRANSITION_SX}>
+          {renderStepBody()}
+        </Box>
+      </ModalDialog>
+    </Modal>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { CompanyProfileForm } from '@/components/CompanyProfileForm';
 import { Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';

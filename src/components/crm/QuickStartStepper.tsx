@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui-legacy/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Users, Target, Heart, Mail, ChevronRight, Import, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PersonaSelectorModal } from './PersonaSelectorModal';

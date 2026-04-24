@@ -1,6 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Loader2, Target, Users } from "lucide-react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { ArrowRight, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { SegmentSMSDialog } from "./SegmentSMSDialog";
@@ -41,14 +46,13 @@ const SYSTEM_SEGMENTS: Omit<SegmentOption, "count">[] = [
 ];
 
 export const SendToSegmentCard: React.FC = () => {
-  const [segments, setSegments] = useState<SegmentOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSegment, setSelectedSegment] = useState<SegmentOption | null>(
-    null,
-  );
+  const [segments, setSegments] = React.useState<SegmentOption[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selectedSegment, setSelectedSegment] =
+    React.useState<SegmentOption | null>(null);
   const { tenant } = useTenant();
 
-  const fetchSystemSegmentCount = useCallback(
+  const fetchSystemSegmentCount = React.useCallback(
     async (segmentId: string) => {
       if (!tenant?.id) return 0;
 
@@ -105,12 +109,11 @@ export const SendToSegmentCard: React.FC = () => {
     [tenant?.id],
   );
 
-  const fetchSegments = useCallback(async () => {
+  const fetchSegments = React.useCallback(async () => {
     if (!tenant?.id) return;
 
     setLoading(true);
     try {
-      // Fetch custom segments
       const { data: customSegments, error } = await supabase
         .from("crm_segments")
         .select("id, name, description, customer_count")
@@ -120,11 +123,11 @@ export const SendToSegmentCard: React.FC = () => {
       if (error) throw error;
 
       const customOptions: SegmentOption[] = (customSegments || []).map(
-        (s) => ({
-          id: s.id,
-          name: s.name,
-          description: s.description || undefined,
-          count: s.customer_count || 0,
+        (segment) => ({
+          id: segment.id,
+          name: segment.name,
+          description: segment.description || undefined,
+          count: segment.customer_count || 0,
           isSystem: false,
         }),
       );
@@ -144,97 +147,198 @@ export const SendToSegmentCard: React.FC = () => {
     }
   }, [fetchSystemSegmentCount, tenant?.id]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (tenant?.id) {
       void fetchSegments();
     }
   }, [fetchSegments, tenant?.id]);
 
-  const handleSelectSegment = (segment: SegmentOption) => {
-    setSelectedSegment(segment);
-  };
+  const visibleSegments = segments.slice(0, 6);
 
   return (
     <>
-      <div className="space-y-5">
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-gray-900">Segments</h3>
-          <p className="text-sm text-gray-500">
+      <Stack spacing={2.5}>
+        <Stack spacing={0.75}>
+          <Typography level="title-md" fontWeight="lg">
+            Segments
+          </Typography>
+          <Typography level="body-sm" color="neutral">
             Choose a segment to open the send flow with the right audience
             preselected.
-          </p>
-        </div>
+          </Typography>
+        </Stack>
 
         {loading ? (
-          <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-10 shadow-sm">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
-          </div>
-        ) : segments.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-            No segments available
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {segments.slice(0, 6).map((segment) => (
-              <button
-                key={segment.id}
-                onClick={() => handleSelectSegment(segment)}
-                className="group flex w-full items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-100 hover:bg-emerald-50/40 hover:shadow-md"
+          <Stack spacing={1.25}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Box
+                key={index}
+                sx={{
+                  borderRadius: "16px",
+                  border: "1px solid",
+                  borderColor: "neutral.200",
+                  backgroundColor: "background.surface",
+                  px: 1.75,
+                  py: 1.5,
+                }}
               >
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-500 group-hover:bg-white">
-                  <Target className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-gray-900">
-                      {segment.name}
-                    </span>
-                    {segment.isSystem ? (
-                      <Badge
-                        variant="outline"
-                        className="rounded-full border-gray-200 bg-gray-100 px-2 py-0 text-[10px] uppercase tracking-wide text-gray-500 hover:bg-gray-100"
-                      >
-                        System
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {segment.description ||
-                      (segment.isSystem
-                        ? "Rule-based SMS audience"
-                        : "Custom customer segment")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-gray-900">
-                    {segment.count.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
-                    Subscribers
-                  </div>
-                </div>
-                <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 group-hover:translate-x-0.5" />
-              </button>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Skeleton variant="circular" width={40} height={40} />
+                  <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                    <Skeleton
+                      variant="text"
+                      sx={{ width: "42%", height: 16 }}
+                    />
+                    <Skeleton
+                      variant="text"
+                      sx={{ width: "68%", height: 14 }}
+                    />
+                  </Stack>
+                  <Stack spacing={0.75} alignItems="flex-end">
+                    <Skeleton variant="text" sx={{ width: 44, height: 16 }} />
+                    <Skeleton variant="text" sx={{ width: 64, height: 12 }} />
+                  </Stack>
+                </Stack>
+              </Box>
             ))}
-            {segments.length > 6 ? (
-              <p className="pt-1 text-center text-xs text-gray-500">
-                +{segments.length - 6} more segments
-              </p>
-            ) : null}
-          </div>
-        )}
-      </div>
+          </Stack>
+        ) : segments.length === 0 ? (
+          <Box
+            sx={{
+              minHeight: 260,
+              display: "grid",
+              placeItems: "center",
+              px: 3,
+              py: 8,
+              textAlign: "center",
+              borderRadius: "18px",
+              border: "1px dashed",
+              borderColor: "neutral.300",
+              backgroundColor: "background.level1",
+            }}
+          >
+            <Stack spacing={2} alignItems="center" sx={{ maxWidth: 360 }}>
+              <Avatar size="lg" variant="soft" color="neutral">
+                <Target size={20} />
+              </Avatar>
+              <Stack spacing={0.75}>
+                <Typography level="title-md">No segments available</Typography>
+                <Typography level="body-sm" color="neutral">
+                  Create a CRM segment first, then come back here to start a
+                  targeted SMS send.
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        ) : (
+          <Stack spacing={1.25}>
+            {visibleSegments.map((segment) => (
+              <Box
+                key={segment.id}
+                component="button"
+                type="button"
+                onClick={() => setSelectedSegment(segment)}
+                sx={{
+                  textAlign: "left",
+                  borderRadius: "16px",
+                  border: "1px solid",
+                  borderColor: "neutral.200",
+                  backgroundColor: "background.surface",
+                  px: 1.75,
+                  py: 1.5,
+                  transition:
+                    "border-color 160ms ease, background-color 160ms ease, transform 160ms ease, box-shadow 160ms ease",
+                  display: "block",
+                  width: "100%",
+                  cursor: "pointer",
+                  boxShadow: "sm",
+                  "&:hover": {
+                    borderColor: "primary.300",
+                    backgroundColor: "background.level1",
+                    transform: "translateY(-1px)",
+                    boxShadow: "md",
+                  },
+                }}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar
+                    size="md"
+                    variant="soft"
+                    color={segment.isSystem ? "neutral" : "primary"}
+                  >
+                    <Target size={16} />
+                  </Avatar>
+                  <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      useFlexGap
+                      flexWrap="wrap"
+                    >
+                      <Typography level="body-sm" fontWeight="md">
+                        {segment.name}
+                      </Typography>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={segment.isSystem ? "neutral" : "primary"}
+                      >
+                        {segment.isSystem ? "System" : "Custom"}
+                      </Chip>
+                    </Stack>
+                    <Typography level="body-xs" color="neutral">
+                      {segment.description ||
+                        (segment.isSystem
+                          ? "Rule-based SMS audience"
+                          : "Custom customer segment")}
+                    </Typography>
+                  </Stack>
 
-      {selectedSegment && (
+                  <Stack
+                    spacing={0.25}
+                    alignItems="flex-end"
+                    sx={{ flexShrink: 0 }}
+                  >
+                    <Typography level="body-sm" fontWeight="lg">
+                      {segment.count.toLocaleString()}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      Subscribers
+                    </Typography>
+                  </Stack>
+
+                  <Avatar size="sm" variant="plain" color="neutral">
+                    <ArrowRight size={16} />
+                  </Avatar>
+                </Stack>
+              </Box>
+            ))}
+
+            {segments.length > visibleSegments.length ? (
+              <Typography level="body-xs" color="neutral" textAlign="center">
+                +{segments.length - visibleSegments.length} more segments
+                available in your CRM
+              </Typography>
+            ) : null}
+          </Stack>
+        )}
+      </Stack>
+
+      {selectedSegment ? (
         <SegmentSMSDialog
-          open={!!selectedSegment}
-          onOpenChange={(open) => !open && setSelectedSegment(null)}
+          open={Boolean(selectedSegment)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedSegment(null);
+            }
+          }}
           segmentId={selectedSegment.id}
           segmentName={selectedSegment.name}
           customerCount={selectedSegment.count}
           isSystemSegment={selectedSegment.isSystem}
         />
-      )}
+      ) : null}
     </>
   );
 };

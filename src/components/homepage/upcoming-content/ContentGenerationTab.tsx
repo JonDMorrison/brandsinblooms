@@ -1,7 +1,7 @@
 
 import { ContentTypeCard } from "./ContentTypeCard";
 import { Instagram, Facebook, Mail, Video, BookOpen, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui-legacy/button";
 
 interface ContentType {
   id: string;

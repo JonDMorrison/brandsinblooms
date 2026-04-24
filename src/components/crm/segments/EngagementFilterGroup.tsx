@@ -1,7 +1,7 @@
 import React from 'react';
-import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/NativeSelect';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui-legacy/label';
+import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Mail, MousePointer, X, Eye } from 'lucide-react';
 
 interface SegmentCondition {
