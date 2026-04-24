@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui-legacy/dialog";
@@ -38,9 +39,9 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <div className="flex justify-end gap-3 mt-6">
+        <DialogFooter className="mt-6">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
@@ -49,7 +50,7 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <Button variant="destructive" onClick={onConfirm} disabled={loading}>
             {loading ? loadingText || `${confirmText}...` : confirmText}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

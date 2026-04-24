@@ -1,27 +1,60 @@
 import React from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Link as RouterLink } from "react-router-dom";
 import { useActivityFeed } from "@/hooks/useActivityFeed";
 import { ActivityRow } from "@/components/activity/ActivityRow";
-import { Button } from "@/components/ui-legacy/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
-import { Loader2 } from "lucide-react";
 import { useIntersectionSentinel } from "@/hooks/useIntersectionSentinel";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import type { ActivityFeedFilters } from "@/types/activity";
 
-export function CustomerActivityPanel({ customerId }: { customerId: string }) {
+interface CustomerActivityPanelProps {
+  customerId: string;
+  customerName?: string;
+  pageSize?: number;
+  title?: string;
+  description?: string;
+  filters?: Omit<ActivityFeedFilters, "customerId">;
+}
+
+export function CustomerActivityPanel({
+  customerId,
+  customerName: customerNameProp,
+  pageSize = 10,
+  title = "Activity",
+  description = "Recent customer events across CRM, campaigns, and automations.",
+  filters,
+}: CustomerActivityPanelProps) {
   const feed = useActivityFeed(
     {
       customerId,
+      ...filters,
     },
-    { pageSize: 10, enabled: !!customerId },
+    { pageSize, enabled: !!customerId },
   );
 
-  const [customerName, setCustomerName] = React.useState<string>("");
+  const [customerName, setCustomerName] = React.useState<string>(
+    customerNameProp ?? "",
+  );
+
+  React.useEffect(() => {
+    setCustomerName(customerNameProp ?? "");
+  }, [customerNameProp]);
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function run() {
-      if (!customerId) return;
+      if (!customerId || customerNameProp) return;
 
       const { data, error } = await supabase
         .from("crm_customers")
@@ -42,7 +75,7 @@ export function CustomerActivityPanel({ customerId }: { customerId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [customerId]);
+  }, [customerId, customerNameProp]);
 
   const events = feed.data?.pages.flat() ?? [];
 
@@ -56,56 +89,78 @@ export function CustomerActivityPanel({ customerId }: { customerId: string }) {
   );
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-base">Activity</CardTitle>
-        <a href={`/activity?customer=${customerId}`}>
-          <Button variant="outline" size="sm">
+    <JoyCard>
+      <JoyCardHeader
+        title={title}
+        description={description}
+        actions={
+          <Button
+            component={RouterLink}
+            to={`/activity?customer=${customerId}`}
+            variant="soft"
+            color="primary"
+            size="sm"
+          >
             View all
           </Button>
-        </a>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {feed.isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading activity…
-          </div>
-        ) : null}
+        }
+      />
+      <JoyCardContent sx={{ pt: 3 }}>
+        <Stack spacing={1.5}>
+          {feed.isLoading ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size="sm" />
+              <Typography level="body-sm" color="neutral">
+                Loading activity…
+              </Typography>
+            </Stack>
+          ) : null}
 
-        {feed.isError ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            Failed to load activity.
-          </div>
-        ) : null}
+          {feed.isError ? (
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
+            >
+              <Typography level="body-sm" color="danger">
+                Failed to load activity.
+              </Typography>
+            </Sheet>
+          ) : null}
 
-        {!feed.isLoading && !feed.isError && events.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            No recent activity.
-          </div>
-        ) : null}
+          {!feed.isLoading && !feed.isError && events.length === 0 ? (
+            <Typography level="body-sm" color="neutral">
+              No recent activity.
+            </Typography>
+          ) : null}
 
-        {events.map((ev) => (
-          <ActivityRow
-            key={ev.id}
-            event={ev}
-            customerNameOverride={customerName || undefined}
-          />
-        ))}
+          {events.map((ev) => (
+            <ActivityRow
+              key={ev.id}
+              event={ev}
+              customerNameOverride={customerName || undefined}
+              compact
+            />
+          ))}
 
-        <div ref={sentinelRef} />
+          <Box ref={sentinelRef} sx={{ height: 1 }} />
 
-        {feed.hasNextPage ? (
-          <Button
-            variant="ghost"
-            onClick={() => feed.fetchNextPage()}
-            disabled={feed.isFetchingNextPage}
-            className="w-full"
-          >
-            {feed.isFetchingNextPage ? "Loading…" : "Load more"}
-          </Button>
-        ) : null}
-      </CardContent>
-    </Card>
+          {feed.isFetchingNextPage ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="center"
+              sx={{ py: 0.5 }}
+            >
+              <CircularProgress size="sm" />
+              <Typography level="body-xs" color="neutral">
+                Loading more activity…
+              </Typography>
+            </Stack>
+          ) : null}
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
 }

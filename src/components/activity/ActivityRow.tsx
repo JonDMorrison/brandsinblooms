@@ -1,179 +1,269 @@
-import React, { useMemo } from "react";
-import { ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Box from "@mui/joy/Box";
+import IconButton from "@mui/joy/IconButton";
+import Link from "@mui/joy/Link";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { Copy, Ellipsis, ExternalLink } from "lucide-react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import { JoyChip } from "@/components/joy/JoyChip";
 import type { ActivityEvent } from "@/types/activity";
 import { ActivityDescription } from "./ActivityDescription";
-
-function formatActivityType(value?: string) {
-  if (!value) return "";
-  const normalized = value.replace(/_/g, " ");
-  const parts = normalized.split(".").filter(Boolean);
-  const joined = parts.join(" ");
-  if (!joined) return "";
-  return joined.charAt(0).toUpperCase() + joined.slice(1);
-}
+import {
+  formatActivityActor,
+  formatActivitySource,
+  getCustomerNameFromEvent,
+  isCustomerCreatedEvent,
+} from "./activityPresentation";
 
 export function ActivityRow({
   event,
-  className,
   customerNameOverride,
+  compact = false,
 }: {
   event: ActivityEvent;
-  className?: string;
   customerNameOverride?: string;
+  compact?: boolean;
 }) {
-  const isCustomerCreated =
-    String(event.activity_type) === "customer.created" ||
-    String(event.title).toLowerCase().includes("customer created");
-
+  const navigate = useNavigate();
+  const isCustomerCreated = isCustomerCreatedEvent(event);
   const customerHref = event.customer_id
     ? `/crm/customers/${event.customer_id}`
     : null;
-
-  const customerName = useMemo(() => {
-    if (
-      typeof customerNameOverride === "string" &&
-      customerNameOverride.trim()
-    ) {
-      return customerNameOverride.trim();
-    }
-
-    const metadata = (event.metadata as any) ?? {};
-    const metaName =
-      metadata.customer_name ||
-      `${metadata.customer_first_name ?? ""} ${metadata.customer_last_name ?? ""}`.trim();
-
-    if (metaName) return metaName;
-
-    const related = (event.related_entities as any) ?? {};
-    const relatedName =
-      related.customer_name ||
-      `${related.customer_first_name ?? ""} ${related.customer_last_name ?? ""}`.trim() ||
-      related.customer?.name ||
-      related.customer?.full_name ||
-      `${related.customer?.first_name ?? ""} ${related.customer?.last_name ?? ""}`.trim() ||
-      `${related.customer?.firstName ?? ""} ${related.customer?.lastName ?? ""}`.trim();
-
-    if (typeof relatedName === "string" && relatedName.trim())
-      return relatedName.trim();
-
-    if (isCustomerCreated) {
-      const parts = (event.description as any)?.parts || [];
-      const textPart = parts.find((p: any) => p?.type === "text" && p?.text);
-      if (typeof textPart?.text === "string") return textPart.text;
-    }
-
-    return "";
-  }, [
-    customerNameOverride,
-    event.description,
-    event.metadata,
-    event.related_entities,
-    isCustomerCreated,
-  ]);
-
-  const shouldShowCustomer =
-    Boolean(event.customer_id) && !isCustomerCreated && Boolean(customerName);
-
+  const customerName = getCustomerNameFromEvent(event, customerNameOverride);
+  const shouldShowCustomer = Boolean(
+    customerHref && customerName && !isCustomerCreated,
+  );
   const detailHref = `/activity/${encodeURIComponent(String(event.id))}`;
 
-  const links = Array.isArray(event.links) ? event.links : [];
+  const timestampLabel = (() => {
+    try {
+      const timestamp = new Date(event.timestamp);
+      return `${format(timestamp, "PPp")} · ${formatDistanceToNowStrict(
+        timestamp,
+        {
+          addSuffix: true,
+        },
+      )}`;
+    } catch {
+      return event.timestamp;
+    }
+  })();
+
+  const handleCopyId = () => {
+    void navigator.clipboard.writeText(String(event.id));
+    toast.success("Activity ID copied");
+  };
+
+  const handleOpenDetails = (clickEvent?: React.MouseEvent) => {
+    clickEvent?.stopPropagation();
+    navigate(detailHref);
+  };
 
   return (
-    <div className={cn("py-1", className)}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {isCustomerCreated ? null : (
-                <div className="font-medium truncate">{event.title}</div>
-              )}
-            </div>
-
-            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {event.activity_type && !isCustomerCreated ? (
-                <span className="truncate">
-                  • {formatActivityType(String(event.activity_type))}
-                </span>
+    <Sheet
+      variant="outlined"
+      sx={{
+        borderRadius: "xl",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        px: compact ? 2 : 2.5,
+        py: compact ? 1.75 : 2.25,
+        boxShadow: "sm",
+        transition:
+          "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+        "&:hover": {
+          transform: "translateY(-1px)",
+          boxShadow: "md",
+          borderColor: "primary.200",
+        },
+      }}
+    >
+      <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          alignItems="flex-start"
+          justifyContent="space-between"
+        >
+          <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+            >
+              {!isCustomerCreated ? (
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={handleOpenDetails}
+                  sx={{
+                    appearance: "none",
+                    border: 0,
+                    p: 0,
+                    m: 0,
+                    background: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    color: "text.primary",
+                    "&:hover": {
+                      color: "primary.600",
+                    },
+                    "&:focus-visible": {
+                      outline:
+                        "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.35)",
+                      outlineOffset: "3px",
+                      borderRadius: "8px",
+                    },
+                  }}
+                >
+                  <Typography
+                    level={compact ? "title-sm" : "title-md"}
+                    sx={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {event.title || "Activity event"}
+                  </Typography>
+                </Box>
               ) : null}
-            </div>
 
-            <div className="text-sm">
-              {isCustomerCreated ? (
-                <span>
-                  {customerName ? (
-                    <>
-                      Customer{" "}
-                      {customerHref ? (
-                        <a
-                          href={customerHref}
-                          className="text-brand-teal hover:underline"
-                        >
-                          {customerName}
-                        </a>
-                      ) : (
-                        <span className="font-medium">{customerName}</span>
-                      )}{" "}
-                      has been created.
-                    </>
-                  ) : (
-                    <>Customer has been created.</>
-                  )}
-                </span>
+              <JoyChip size="sm" variant="soft" color="primary">
+                {event.activity_type || "activity"}
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {formatActivityActor(event.actor_type)}
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {formatActivitySource(event.source)}
+              </JoyChip>
+              {event.integration_name ? (
+                <JoyChip size="sm" variant="soft" color="warning">
+                  {event.integration_name}
+                </JoyChip>
+              ) : null}
+            </Stack>
+
+            <Typography
+              level="body-xs"
+              color="neutral"
+              sx={{ display: { xs: "block", md: "none" } }}
+            >
+              {timestampLabel}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <JoyDropdownMenu>
+              <JoyDropdownMenuTrigger aria-label="Open activity actions">
+                <Ellipsis size={16} />
+              </JoyDropdownMenuTrigger>
+              <JoyDropdownMenuContent>
+                <JoyDropdownMenuItem
+                  startDecorator={<ExternalLink size={16} />}
+                  onClick={() => navigate(detailHref)}
+                >
+                  View details
+                </JoyDropdownMenuItem>
+                <JoyDropdownMenuItem
+                  startDecorator={<Copy size={16} />}
+                  onClick={handleCopyId}
+                >
+                  Copy event ID
+                </JoyDropdownMenuItem>
+                {customerHref ? (
+                  <JoyDropdownMenuItem
+                    startDecorator={<ExternalLink size={16} />}
+                    onClick={() => navigate(customerHref)}
+                  >
+                    View customer
+                  </JoyDropdownMenuItem>
+                ) : null}
+              </JoyDropdownMenuContent>
+            </JoyDropdownMenu>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ minWidth: 0 }}>
+          {isCustomerCreated ? (
+            <Typography
+              level="body-sm"
+              color="neutral"
+              sx={{ lineHeight: 1.65 }}
+            >
+              Customer{" "}
+              {customerHref && customerName ? (
+                <Link
+                  component={RouterLink}
+                  to={customerHref}
+                  underline="hover"
+                >
+                  {customerName}
+                </Link>
               ) : (
-                <div className="flex flex-wrap items-baseline gap-1">
-                  {shouldShowCustomer ? (
-                    <span className="text-muted-foreground">
-                      Customer{" "}
-                      {customerHref ? (
-                        <a
-                          href={customerHref}
-                          className="text-brand-teal hover:underline"
-                        >
-                          {customerName}
-                        </a>
-                      ) : (
-                        <span className="font-medium">{customerName}</span>
-                      )}{" "}
-                      —
-                    </span>
-                  ) : null}
-                  <ActivityDescription description={event.description} />
-                </div>
-              )}
-            </div>
+                <Typography
+                  component="span"
+                  level="body-sm"
+                  sx={{ display: "inline", fontWeight: 600 }}
+                >
+                  {customerName || "Customer"}
+                </Typography>
+              )}{" "}
+              has been created.
+            </Typography>
+          ) : (
+            <Typography
+              level="body-sm"
+              color="neutral"
+              sx={{ lineHeight: 1.65 }}
+            >
+              {shouldShowCustomer ? (
+                <>
+                  Customer{" "}
+                  <Link
+                    component={RouterLink}
+                    to={customerHref!}
+                    underline="hover"
+                  >
+                    {customerName}
+                  </Link>{" "}
+                  —{" "}
+                </>
+              ) : null}
+              <ActivityDescription
+                description={event.description}
+                maxCharacters={120}
+              />
+            </Typography>
+          )}
+        </Box>
 
-            {event.error_message ? (
-              <div className="mt-2 text-sm text-red-600">
-                {event.error_message}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <a
-            href={detailHref}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        {event.error_message ? (
+          <Sheet
+            color="danger"
+            variant="soft"
+            sx={{ borderRadius: "lg", px: 1.5, py: 1.25 }}
           >
-            <ExternalLink className="h-3 w-3" />
-            <span className="hidden sm:inline">Details</span>
-          </a>
-          {links
-            .filter((l) => l && typeof l === "object" && l.href)
-            .slice(0, 2)
-            .map((l, idx) => (
-              <a
-                key={idx}
-                href={String(l.href)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <ExternalLink className="h-3 w-3" />
-                <span className="hidden sm:inline">Link</span>
-              </a>
-            ))}
-        </div>
-      </div>
-    </div>
+            <Typography level="body-sm" color="danger">
+              {event.error_message}
+            </Typography>
+          </Sheet>
+        ) : null}
+      </Stack>
+    </Sheet>
   );
 }

@@ -1,51 +1,36 @@
 import React, { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Link from "@mui/joy/Link";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { format, formatDistanceToNowStrict } from "date-fns";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import {
-  ArrowLeft,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  Info,
-  XCircle,
-  ExternalLink,
-} from "lucide-react";
-import { Button } from "@/components/ui-legacy/button";
-import { Badge } from "@/components/ui-legacy/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+  Link as RouterLink,
+  Navigate,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import { ActivityDescription } from "@/components/activity/ActivityDescription";
 import { ActivityKeyValueList } from "@/components/activity/ActivityKeyValueList";
+import ActivityDetailSkeleton from "@/components/activity/ActivityDetailSkeleton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import {
+  ActivityStatusMarker,
+  formatActivityActor,
+  formatActivitySource,
+  getActivityStatusTone,
+  isInternalHref,
+} from "@/components/activity/activityPresentation";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { PageContainer } from "@/components/joy/PageContainer";
 import { useActivityEvent } from "@/hooks/useActivityEvent";
-
-function statusIcon(status: string) {
-  switch (status) {
-    case "success":
-      return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-    case "failed":
-      return <XCircle className="h-5 w-5 text-red-600" />;
-    case "warning":
-      return <AlertTriangle className="h-5 w-5 text-amber-600" />;
-    case "pending":
-      return <Clock className="h-5 w-5 text-muted-foreground" />;
-    default:
-      return <Info className="h-5 w-5 text-muted-foreground" />;
-  }
-}
-
-function statusVariant(status: string): any {
-  switch (status) {
-    case "success":
-      return "secondary";
-    case "failed":
-      return "destructive";
-    case "warning":
-      return "outline";
-    case "pending":
-      return "outline";
-    default:
-      return "outline";
-  }
-}
 
 const LABEL_MAP: Record<string, string> = {
   customer_id: "Customer",
@@ -61,10 +46,40 @@ const LABEL_MAP: Record<string, string> = {
   phone: "Phone",
 };
 
+function classifyError(error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String(error.message)
+        : "";
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? Number(error.status)
+      : null;
+
+  return {
+    message,
+    isAuth:
+      status === 401 ||
+      status === 403 ||
+      /auth|jwt|permission|forbidden|rls|not authenticated/i.test(message),
+    isNetwork:
+      error instanceof TypeError ||
+      /network|failed to fetch|fetch failed/i.test(message),
+  };
+}
+
 export default function ActivityDetailsPage() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const { data: event, isLoading, isError } = useActivityEvent(eventId);
+  const {
+    data: event,
+    error,
+    isError,
+    isLoading,
+    refetch,
+  } = useActivityEvent(eventId);
 
   const ts = useMemo(() => (event ? new Date(event.timestamp) : null), [event]);
   const relative = useMemo(() => {
@@ -76,9 +91,20 @@ export default function ActivityDetailsPage() {
     }
   }, [ts]);
 
+  const absolute = useMemo(() => {
+    if (!ts) return "";
+    try {
+      return format(ts, "PPpp");
+    } catch {
+      return "";
+    }
+  }, [ts]);
+
   const customerHref = event?.customer_id
     ? `/crm/customers/${event.customer_id}`
     : null;
+
+  const errorState = classifyError(error);
 
   const automationContext = useMemo(() => {
     if (!event) return null;
@@ -102,172 +128,405 @@ export default function ActivityDetailsPage() {
     return hasAutomation ? context : null;
   }, [event]);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/activity");
+  };
+
+  const pageHeader = (
+    <Stack spacing={1}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        useFlexGap
+        flexWrap="wrap"
+      >
+        <Link component={RouterLink} to="/activity" underline="hover">
+          Activity Center
+        </Link>
+        <Typography level="body-xs" color="neutral">
+          /
+        </Typography>
+        <Typography level="body-xs" color="neutral">
+          Event details
+        </Typography>
+      </Stack>
+      <Button
+        size="sm"
+        variant="plain"
+        color="neutral"
+        startDecorator={<ArrowLeft size={14} />}
+        onClick={handleBack}
+        sx={{ alignSelf: "flex-start", px: 0 }}
+      >
+        Back
+      </Button>
+    </Stack>
+  );
+
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="text-sm text-muted-foreground">
-          Loading activity details…
-        </div>
-      </div>
+      <PageContainer>
+        <Stack
+          spacing={2.5}
+          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+        >
+          {pageHeader}
+          <ActivityDetailSkeleton />
+        </Stack>
+      </PageContainer>
     );
   }
 
-  if (isError || !event) {
+  if (isError && errorState.isAuth) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (isError && errorState.isNetwork) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          Activity details not found.
-        </div>
-      </div>
+      <PageContainer>
+        <Stack
+          spacing={2.5}
+          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+        >
+          {pageHeader}
+          <Sheet
+            color="warning"
+            variant="soft"
+            sx={{ borderRadius: "2xl", px: 3, py: 3 }}
+          >
+            <Stack spacing={1.5}>
+              <Typography level="title-md">
+                Couldn&apos;t reach activity details
+              </Typography>
+              <Typography level="body-sm" color="warning">
+                {errorState.message ||
+                  "The request failed before the event details could be loaded."}
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="sm"
+                  variant="solid"
+                  color="warning"
+                  onClick={() => refetch()}
+                >
+                  Retry
+                </Button>
+                <Button
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  onClick={handleBack}
+                >
+                  Back to activity
+                </Button>
+              </Stack>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageContainer>
+        <Stack
+          spacing={2.5}
+          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+        >
+          {pageHeader}
+          <Sheet
+            color="danger"
+            variant="soft"
+            sx={{ borderRadius: "2xl", px: 3, py: 3 }}
+          >
+            <Stack spacing={1.5}>
+              <Typography level="title-md">
+                Activity details unavailable
+              </Typography>
+              <Typography level="body-sm" color="danger">
+                {errorState.message ||
+                  "Something went wrong while loading this event."}
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="sm"
+                  variant="solid"
+                  color="danger"
+                  onClick={() => refetch()}
+                >
+                  Retry
+                </Button>
+                <Button
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  onClick={handleBack}
+                >
+                  Back to activity
+                </Button>
+              </Stack>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
+    );
+  }
+
+  if (!event) {
+    return (
+      <PageContainer>
+        <Stack
+          spacing={2.5}
+          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+        >
+          {pageHeader}
+          <Sheet variant="soft" sx={{ borderRadius: "2xl", px: 3, py: 3 }}>
+            <Stack spacing={1.5}>
+              <Typography level="title-md">
+                This activity event no longer exists
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                The ID may be invalid, or the underlying record may have been
+                removed.
+              </Typography>
+              <Box>
+                <Button
+                  size="sm"
+                  variant="solid"
+                  color="primary"
+                  onClick={handleBack}
+                >
+                  Back to activity
+                </Button>
+              </Box>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </PageContainer>
     );
   }
 
   const links = Array.isArray(event.links) ? event.links : [];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate(-1)}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <div className="text-sm text-muted-foreground">Activity details</div>
-      </div>
+    <PageContainer>
+      <Stack
+        spacing={2.5}
+        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+      >
+        {pageHeader}
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-1">{statusIcon(String(event.status))}</div>
-              <div>
-                <CardTitle className="text-xl">{event.title}</CardTitle>
-                <div className="mt-2 flex items-center gap-2 flex-wrap">
-                  <Badge variant={statusVariant(String(event.status))}>
-                    {String(event.status)}
-                  </Badge>
-                  <Badge variant="outline">{String(event.actor_type)}</Badge>
-                  <Badge variant="outline">{String(event.source)}</Badge>
-                  {event.integration_name ? (
-                    <Badge variant="outline">{event.integration_name}</Badge>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-            {customerHref ? (
-              <a
-                href={customerHref}
-                className="text-sm text-brand-teal hover:underline"
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <ActivityStatusMarker status={event.status} size={42} />
+            }
+            title={event.title || "Activity event"}
+            description={`${absolute || event.timestamp}${relative ? ` · ${relative}` : ""}`}
+            actions={
+              customerHref ? (
+                <Button
+                  component={RouterLink}
+                  to={customerHref}
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                >
+                  View customer
+                </Button>
+              ) : undefined
+            }
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ pt: 1 }}
+            >
+              <JoyChip
+                size="sm"
+                variant="soft"
+                color={getActivityStatusTone(event.status)}
               >
-                View customer
-              </a>
-            ) : null}
-          </div>
+                {String(event.status)}
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {formatActivityActor(event.actor_type)}
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {formatActivitySource(event.source)}
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="primary">
+                {event.activity_type}
+              </JoyChip>
+              {event.integration_name ? (
+                <JoyChip size="sm" variant="soft" color="warning">
+                  {event.integration_name}
+                </JoyChip>
+              ) : null}
+            </Stack>
+          </JoyCardHeader>
+          <JoyCardContent sx={{ pt: 3 }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography level="title-sm">What happened</Typography>
+                <Box sx={{ mt: 1.25 }}>
+                  <ActivityDescription description={event.description} />
+                  {!event.description?.parts?.length ? (
+                    <Typography level="body-sm" color="neutral">
+                      No description available.
+                    </Typography>
+                  ) : null}
+                </Box>
+              </Box>
 
-          <div className="text-sm text-muted-foreground">
-            {relative || (ts ? format(ts, "PPpp") : "")}
-            {event.activity_type ? <span> • {event.activity_type}</span> : null}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="text-sm font-medium">What happened</div>
-            <div className="mt-2">
-              <ActivityDescription description={event.description} />
-            </div>
-          </div>
-
-          {event.error_message ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {event.error_message}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {automationContext ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Automation context</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityKeyValueList
-              data={automationContext}
-              labelMap={LABEL_MAP}
-              emptyLabel="No automation details"
-            />
-            {automationContext.automation_id ? (
-              <div className="mt-3">
-                <a
-                  href={`/crm/automations/${automationContext.automation_id}`}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              {event.error_message ? (
+                <Sheet
+                  color="danger"
+                  variant="soft"
+                  sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
                 >
-                  <ExternalLink className="h-3 w-3" />
-                  Open automation
-                </a>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
+                  <Typography level="body-sm" color="danger">
+                    {event.error_message}
+                  </Typography>
+                </Sheet>
+              ) : null}
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Metadata</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityKeyValueList
-              data={(event.metadata ?? {}) as Record<string, unknown>}
-              labelMap={LABEL_MAP}
-              emptyLabel="No metadata"
-            />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Related</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActivityKeyValueList
-              data={(event.related_entities ?? {}) as Record<string, unknown>}
-              hiddenKeys={["customer_id"]}
-              labelMap={LABEL_MAP}
-              emptyLabel="No related items"
-            />
-          </CardContent>
-        </Card>
-      </div>
+        {automationContext ? (
+          <JoyCard>
+            <JoyCardHeader title="Automation context" />
+            <JoyCardContent sx={{ pt: 3 }}>
+              <Stack spacing={2}>
+                <ActivityKeyValueList
+                  data={automationContext}
+                  labelMap={LABEL_MAP}
+                  emptyLabel="No automation details"
+                />
+                {automationContext.automation_id ? (
+                  <Box>
+                    <Link
+                      component={RouterLink}
+                      to={`/crm/automations/${automationContext.automation_id}`}
+                      underline="hover"
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                      }}
+                    >
+                      <ExternalLink size={14} />
+                      Open automation
+                    </Link>
+                  </Box>
+                ) : null}
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+        ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Links & references</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {links.length ? (
-            links
-              .filter((l) => l && typeof l === "object" && l.href)
-              .map((l, idx) => (
-                <a
-                  key={idx}
-                  href={String(l.href)}
-                  className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {String(l.label || l.type || "Open link")}
-                </a>
-              ))
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              No links available.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+            gap: 2.5,
+          }}
+        >
+          <JoyCard>
+            <JoyCardHeader title="Metadata" />
+            <JoyCardContent sx={{ pt: 3 }}>
+              <ActivityKeyValueList
+                data={(event.metadata ?? {}) as Record<string, unknown>}
+                labelMap={LABEL_MAP}
+                emptyLabel="No metadata"
+              />
+            </JoyCardContent>
+          </JoyCard>
+
+          <JoyCard>
+            <JoyCardHeader title="Related" />
+            <JoyCardContent sx={{ pt: 3 }}>
+              <ActivityKeyValueList
+                data={(event.related_entities ?? {}) as Record<string, unknown>}
+                hiddenKeys={["customer_id"]}
+                labelMap={LABEL_MAP}
+                emptyLabel="No related items"
+              />
+            </JoyCardContent>
+          </JoyCard>
+        </Box>
+
+        <JoyCard>
+          <JoyCardHeader title="Links & references" />
+          <JoyCardContent sx={{ pt: 3 }}>
+            <Stack spacing={1.25}>
+              {links.length ? (
+                links
+                  .filter(
+                    (link) => link && typeof link === "object" && link.href,
+                  )
+                  .map((link, idx) => {
+                    const href = String(link.href);
+                    const label = String(
+                      link.label || link.type || "Open link",
+                    );
+
+                    if (isInternalHref(href)) {
+                      return (
+                        <Link
+                          key={`${href}:${idx}`}
+                          component={RouterLink}
+                          to={href}
+                          underline="hover"
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.75,
+                          }}
+                        >
+                          <ExternalLink size={14} />
+                          {label}
+                        </Link>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={`${href}:${idx}`}
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        underline="hover"
+                        sx={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 0.75,
+                        }}
+                      >
+                        <ExternalLink size={14} />
+                        {label}
+                      </Link>
+                    );
+                  })
+              ) : (
+                <Typography level="body-sm" color="neutral">
+                  No links available.
+                </Typography>
+              )}
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
+    </PageContainer>
   );
 }

@@ -6,6 +6,7 @@ import JoyBaseTextarea, {
   type TextareaProps as JoyBaseTextareaProps,
 } from "@mui/joy/Textarea";
 import type { SxProps } from "@mui/joy/styles/types";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 type NativeJoyVariant = NonNullable<JoyBaseTextareaProps["variant"]>;
 type LegacyTextareaVariant = "default" | "success" | "error";
@@ -20,9 +21,6 @@ export type JoyTextareaProps = Omit<JoyBaseTextareaProps, "variant"> & {
   onValueChange?: (value: string) => void;
   formControlSx?: SxProps;
 };
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
 
 const assignRef = <T,>(ref: React.Ref<T> | undefined, value: T | null) => {
   if (typeof ref === "function") {
@@ -56,30 +54,55 @@ const resolveNativeVariant = (
   return variant;
 };
 
-const createFocusShadow = (channel: string) =>
-  `0 0 0 4px rgba(${channel} / 0.14)`;
-
 const baseTextareaSx: SxProps = {
+  minHeight: 80,
+  borderColor: "neutral.300",
   borderRadius: "var(--joy-radius-lg)",
-  boxShadow: "var(--joy-shadow-xs)",
-  backgroundColor: "background.surface",
+  boxShadow: "none",
+  backgroundColor: "#FFFFFF",
+  color: "var(--joy-palette-neutral-800)",
   transition:
     "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-  "--Textarea-paddingBlock": "0.75rem",
-  "--Textarea-paddingInline": "0.875rem",
-  "--Textarea-focusedThickness": "2px",
+  "--Textarea-paddingBlock": "0.625rem",
+  "--Textarea-paddingInline": "0.75rem",
+  "--Textarea-focusedThickness": "0px",
+  "--Textarea-placeholderColor": "var(--joy-palette-neutral-400)",
+  "--Textarea-placeholderOpacity": "1",
+  "--Textarea-decoratorColor": "var(--joy-palette-neutral-400)",
   "&:hover:not([data-disabled='true'])": {
-    backgroundColor: "background.surface",
+    backgroundColor: "#FFFFFF",
+    borderColor: "neutral.400",
   },
   "&:focus-within": {
-    borderColor: "primary.500",
-    boxShadow: createFocusShadow("var(--joy-palette-primary-mainChannel)"),
+    borderColor: "primary.400",
+  },
+  "&.Mui-focusVisible, &:focus-visible": {
+    borderColor: "transparent",
+  },
+  "&[data-disabled='true'], &[aria-disabled='true']": {
+    borderColor: "neutral.200",
+    backgroundColor: "neutral.50",
+    color: "neutral.400",
+  },
+  "& .MuiTextarea-textarea": {
+    fontSize: "var(--joy-fontSize-sm)",
+    fontWeight: "var(--joy-fontWeight-regular)",
+    lineHeight: "var(--joy-lineHeight-md)",
+    color: "var(--joy-palette-neutral-800)",
+    minHeight: 80,
+    resize: "vertical",
+    "&::placeholder": {
+      color: "var(--joy-palette-neutral-400)",
+      opacity: 1,
+    },
   },
 };
 
 const labelSx: SxProps = {
-  color: "var(--joy-palette-brandNavy-800)",
-  fontWeight: "var(--joy-fontWeight-md)",
+  color: "var(--joy-palette-neutral-600)",
+  fontSize: "0.8125rem",
+  fontWeight: "var(--joy-fontWeight-medium)",
+  lineHeight: 1.4,
 };
 
 export const JoyTextarea = React.forwardRef<
@@ -124,16 +147,20 @@ export const JoyTextarea = React.forwardRef<
       ? "danger.600"
       : isSuccess
         ? "success.600"
-        : "neutral.600";
+        : "neutral.500";
     const stateSx: SxProps | undefined = isError
       ? {
-          borderColor: "danger.300",
+          borderColor: "danger.400",
           backgroundColor: "rgba(var(--joy-palette-danger-mainChannel) / 0.05)",
+          "&:hover:not([data-disabled='true'])": {
+            borderColor: "danger.400",
+          },
           "&:focus-within": {
-            borderColor: "danger.500",
-            boxShadow: createFocusShadow(
-              "var(--joy-palette-danger-mainChannel)",
-            ),
+            borderColor: "danger.400",
+          },
+          "&.Mui-focusVisible, &:focus-visible": {
+            outline: "none",
+            outlineOffset: 0,
           },
         }
       : isSuccess
@@ -141,11 +168,11 @@ export const JoyTextarea = React.forwardRef<
             borderColor: "success.300",
             backgroundColor:
               "rgba(var(--joy-palette-success-mainChannel) / 0.05)",
+            "&:hover:not([data-disabled='true'])": {
+              borderColor: "success.400",
+            },
             "&:focus-within": {
-              borderColor: "success.500",
-              boxShadow: createFocusShadow(
-                "var(--joy-palette-success-mainChannel)",
-              ),
+              borderColor: "success.400",
             },
           }
         : undefined;
@@ -179,7 +206,10 @@ export const JoyTextarea = React.forwardRef<
         required={required}
         error={isError}
         disabled={disabled}
-        sx={mergeSx({ width: "100%", gap: 0.75 }, formControlSx)}
+        sx={mergeSx(
+          { width: fullWidth === false ? undefined : "100%", gap: 0.5 },
+          formControlSx,
+        )}
       >
         {label ? (
           <FormLabel htmlFor={textareaId} sx={labelSx}>
@@ -192,7 +222,6 @@ export const JoyTextarea = React.forwardRef<
           color={resolvedColor}
           variant={resolveNativeVariant(variant)}
           disabled={disabled}
-          fullWidth={fullWidth ?? true}
           minRows={minRows ?? rows ?? 3}
           onChange={(event) => {
             onValueChange?.(event.target.value);
@@ -205,7 +234,14 @@ export const JoyTextarea = React.forwardRef<
           sx={mergeSx(baseTextareaSx, stateSx, sx)}
         />
         {helperContent ? (
-          <FormHelperText sx={{ color: helperColor, minHeight: 20 }}>
+          <FormHelperText
+            sx={{
+              color: helperColor,
+              minHeight: 18,
+              fontSize: "var(--joy-fontSize-xs)",
+              fontWeight: "var(--joy-fontWeight-regular)",
+            }}
+          >
             {helperContent}
           </FormHelperText>
         ) : null}

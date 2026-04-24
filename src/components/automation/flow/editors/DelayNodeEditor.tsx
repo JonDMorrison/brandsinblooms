@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Button } from '@/components/ui-legacy/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { NativeSelect } from '@/components/ui-legacy/native-select';
+import React, { useMemo, useState } from "react";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Clock3 } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySelect } from "@/components/joy/JoySelect";
 
 interface DelayNodeData {
   delayValue: number;
-  delayUnit: 'minutes' | 'hours' | 'days';
+  delayUnit: "minutes" | "hours" | "days" | "weeks";
 }
 
 interface DelayNodeEditorProps {
@@ -17,56 +19,52 @@ interface DelayNodeEditorProps {
 }
 
 const delayUnits = [
-  { value: 'minutes', label: 'Minutes' },
-  { value: 'hours', label: 'Hours' },
-  { value: 'days', label: 'Days' }
+  { value: "minutes", label: "Minutes" },
+  { value: "hours", label: "Hours" },
+  { value: "days", label: "Days" },
+  { value: "weeks", label: "Weeks" },
 ];
 
 export const DelayNodeEditor: React.FC<DelayNodeEditorProps> = ({
   data,
   onSave,
-  onCancel
+  onCancel,
 }) => {
   const [delayValue, setDelayValue] = useState(data.delayValue || 1);
-  const [delayUnit, setDelayUnit] = useState<'minutes' | 'hours' | 'days'>(data.delayUnit || 'hours');
-  const [error, setError] = useState('');
+  const [delayUnit, setDelayUnit] = useState<
+    "minutes" | "hours" | "days" | "weeks"
+  >(data.delayUnit || "hours");
 
-  useEffect(() => {
-    setDelayValue(data.delayValue || 1);
-    setDelayUnit(data.delayUnit || 'hours');
-  }, [data]);
+  const error = useMemo(() => {
+    if (delayValue <= 0) {
+      return "Delay value must be greater than 0";
+    }
+
+    if (delayValue > 52 && delayUnit === "weeks") {
+      return "Maximum delay is 52 weeks";
+    }
+
+    if (delayValue > 365 && delayUnit === "days") {
+      return "Maximum delay is 365 days";
+    }
+
+    if (delayValue > 8760 && delayUnit === "hours") {
+      return "Maximum delay is 8760 hours (1 year)";
+    }
+
+    if (delayValue > 525600 && delayUnit === "minutes") {
+      return "Maximum delay is 525600 minutes (1 year)";
+    }
+
+    return "";
+  }, [delayUnit, delayValue]);
 
   const validateAndSave = () => {
-    if (delayValue <= 0) {
-      setError('Delay value must be greater than 0');
+    if (error) {
       return;
     }
 
-    if (delayValue > 365 && delayUnit === 'days') {
-      setError('Maximum delay is 365 days');
-      return;
-    }
-
-    if (delayValue > 8760 && delayUnit === 'hours') {
-      setError('Maximum delay is 8760 hours (1 year)');
-      return;
-    }
-
-    if (delayValue > 525600 && delayUnit === 'minutes') {
-      setError('Maximum delay is 525600 minutes (1 year)');
-      return;
-    }
-
-    setError('');
-    onSave({ delayValue, delayUnit });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onCancel();
-    } else if (e.key === 'Enter') {
-      validateAndSave();
-    }
+    onSave({ ...data, delayValue, delayUnit });
   };
 
   const getDelayPreview = () => {
@@ -77,64 +75,58 @@ export const DelayNodeEditor: React.FC<DelayNodeEditorProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-md" onKeyDown={handleKeyDown}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          ⏱️ Edit Delay Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="delay-value">Delay Duration *</Label>
-          <div className="flex gap-2">
-            <Input
-              id="delay-value"
-              type="number"
-              min="1"
-              value={delayValue}
-              onChange={(e) => {
-                const value = parseInt(e.target.value) || 1;
-                setDelayValue(value);
-                setError('');
-              }}
-              className="flex-1"
-              autoFocus
-            />
-            <NativeSelect
-              value={delayUnit}
-              onChange={(e) => setDelayUnit(e.target.value as 'minutes' | 'hours' | 'days')}
-              className="min-w-[100px]"
-            >
-              {delayUnits.map((unit) => (
-                <option key={unit.value} value={unit.value}>
-                  {unit.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-        </div>
+    <Stack spacing={2} sx={{ p: 2 }}>
+      <Sheet variant="soft" color="neutral" sx={{ p: 1.5, borderRadius: "lg" }}>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start">
+          <Clock3 size={16} />
+          <Stack spacing={0.5}>
+            <Typography level="title-sm">Delay window</Typography>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              Choose how long a customer waits before the next step. Weeks are
+              supported for longer nurture gaps.
+            </Typography>
+          </Stack>
+        </Stack>
+      </Sheet>
 
-        <div className="bg-muted/50 rounded-lg p-3">
-          <p className="text-sm font-medium text-foreground">
-            Preview: {getDelayPreview()}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Customers will wait this duration before proceeding to the next step.
-          </p>
-        </div>
+      <Stack direction="row" spacing={1}>
+        <JoyInput
+          label="Delay"
+          type="number"
+          value={String(delayValue)}
+          onChange={(event) =>
+            setDelayValue(Number.parseInt(event.target.value || "1", 10) || 1)
+          }
+          error={Boolean(error)}
+          errorMessage={error || undefined}
+        />
+        <JoySelect
+          label="Unit"
+          value={delayUnit}
+          onChange={(_event, value) => {
+            if (value) {
+              setDelayUnit(value as "minutes" | "hours" | "days" | "weeks");
+            }
+          }}
+          options={delayUnits}
+        />
+      </Stack>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button onClick={validateAndSave} disabled={!!error}>
-            Save Changes
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <Sheet variant="outlined" sx={{ p: 1.5, borderRadius: "lg" }}>
+        <Typography level="title-sm">Preview</Typography>
+        <Typography level="body-sm" sx={{ mt: 0.5, color: "neutral.600" }}>
+          {getDelayPreview()} before the next step runs.
+        </Typography>
+      </Sheet>
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <JoyButton variant="outlined" color="neutral" onClick={onCancel}>
+          Cancel
+        </JoyButton>
+        <JoyButton onClick={validateAndSave} disabled={Boolean(error)}>
+          Save changes
+        </JoyButton>
+      </Stack>
+    </Stack>
   );
 };

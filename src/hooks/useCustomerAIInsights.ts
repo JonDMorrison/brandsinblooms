@@ -92,11 +92,16 @@ export const useCustomerAIInsights = (
     }
   };
 
+  const refetch = async (): Promise<void> => {
+    await query.refetch();
+  };
+
   return {
     insights: query.data ?? null,
     isLoading: query.isLoading,
     isRegenerating,
     error: query.error,
+    refetch,
     regenerate,
     lastGeneratedAt: query.data?.generatedAt
       ? new Date(query.data.generatedAt)

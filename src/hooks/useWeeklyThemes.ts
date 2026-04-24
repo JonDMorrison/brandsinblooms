@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export interface WeeklyTheme {
@@ -162,6 +163,7 @@ const createFallbackTheme = (
 
 export const useWeeklyThemes = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [themes, setThemes] = useState<WeeklyTheme[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -183,6 +185,21 @@ export const useWeeklyThemes = () => {
         if (week > 52) week -= 52;
         weekNumbers.push(week);
       }
+
+      let campaignsQuery = supabase
+        .from("campaigns")
+        .select("id, title, week_number, user_id, tenant_id")
+        .in("week_number", weekNumbers)
+        .order("created_at", { ascending: false });
+
+      if (tenant?.id) {
+        campaignsQuery = campaignsQuery.eq("tenant_id", tenant.id);
+      } else {
+        campaignsQuery = campaignsQuery
+          .is("tenant_id", null)
+          .eq("user_id", user.id);
+      }
+
       // Fetch master themes and their corresponding campaigns
       const [masterThemesResult, campaignsResult] = await Promise.all([
         supabase
@@ -190,12 +207,7 @@ export const useWeeklyThemes = () => {
           .select("*")
           .in("week_number", weekNumbers)
           .order("week_number"),
-        supabase
-          .from("campaigns")
-          .select("id, title, week_number, user_id, tenant_id")
-          .eq("user_id", user.id)
-          .in("week_number", weekNumbers)
-          .order("created_at", { ascending: false }),
+        campaignsQuery,
       ]);
 
       if (masterThemesResult.error) {
@@ -213,6 +225,7 @@ export const useWeeklyThemes = () => {
       }
 
       const masterThemes = masterThemesResult.data;
+      const campaigns = campaignsResult.data || [];
 
       // Create themes array ensuring we have exactly 5 themes in chronological order
       const orderedThemes: WeeklyTheme[] = [];
@@ -258,8 +271,8 @@ export const useWeeklyThemes = () => {
   };
 
   useEffect(() => {
-    loadThemes();
-  }, [user]);
+    void loadThemes();
+  }, [tenant?.id, user]);
 
   const refreshThemes = useCallback(
     async (delayMs = 0) => {
@@ -268,7 +281,7 @@ export const useWeeklyThemes = () => {
       }
       await loadThemes();
     },
-    [user],
+    [tenant?.id, user],
   );
 
   return {

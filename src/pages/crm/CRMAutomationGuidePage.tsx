@@ -1,11 +1,16 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
-import { Button } from "@/components/ui-legacy/button";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { AutomationPresets } from "@/components/automation/AutomationPresets";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { PageContainer } from "@/components/joy/PageContainer";
 import { getTemplatesForTrigger } from "@/lib/campaignTemplates";
 import { getPresetFlowById } from "@/utils/automationPresetFlows";
 import { useLocation } from "react-router-dom";
@@ -69,6 +74,7 @@ export const CRMAutomationGuidePage: React.FC = () => {
       "repeat_purchase_90d",
       "birthday",
       "contact.created",
+      "form_submitted",
       "contact.updated",
       "segment.added",
       "persona.assigned",
@@ -208,41 +214,67 @@ export const CRMAutomationGuidePage: React.FC = () => {
     }
   };
   return (
-    <div className="min-h-[100dvh] flex flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-4 py-3">
-          <h1 className="text-xl font-semibold text-foreground">
-            Build Your Custom Automation
-          </h1>
-          <Link to="/crm/automations/new/canvas" aria-label="Switch to Canvas">
-            <Button variant="outline">Switch to Canvas</Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto">
-        <section className="max-w-5xl mx-auto p-4 md:p-6">
-          {showPresets && !isGuidedMode ? (
-            <AutomationPresets
-              onSelectPreset={handlePresetSelection}
-              onCreateCustom={() => setShowPresets(false)}
-            />
-          ) : (
-            <Suspense
-              fallback={
-                <div className="text-sm text-muted-foreground">
-                  Loading guide...
-                </div>
-              }
+    <PageContainer sx={{ px: { xs: 2, md: 3 }, py: 2.5 }}>
+      <Stack spacing={2.5}>
+        <Sheet
+          variant="outlined"
+          sx={{ p: { xs: 2, md: 2.5 }, borderRadius: "xl" }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", md: "center" }}
+          >
+            <div>
+              <Typography level="h2">Build Your Custom Automation</Typography>
+              <Typography
+                level="body-sm"
+                sx={{ color: "neutral.600", mt: 0.5 }}
+              >
+                Start from a proven preset or use the guided builder to generate
+                a starter canvas.
+              </Typography>
+            </div>
+            <JoyButton
+              component={Link}
+              to="/crm/automations/new/canvas"
+              variant="outlined"
+              color="neutral"
             >
-              <GuidedAutomationBuilder
-                onComplete={handleGuideComplete}
-                onBack={() => setShowPresets(true)}
-              />
-            </Suspense>
-          )}
-        </section>
-      </main>
-    </div>
+              Switch to canvas
+            </JoyButton>
+          </Stack>
+        </Sheet>
+
+        {showPresets && !isGuidedMode ? (
+          <AutomationPresets
+            onSelectPreset={handlePresetSelection}
+            onCreateCustom={() => setShowPresets(false)}
+          />
+        ) : (
+          <Suspense
+            fallback={
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ py: 4 }}
+              >
+                <CircularProgress size="sm" />
+                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                  Loading guide...
+                </Typography>
+              </Stack>
+            }
+          >
+            <GuidedAutomationBuilder
+              onComplete={handleGuideComplete}
+              onBack={() => setShowPresets(true)}
+            />
+          </Suspense>
+        )}
+      </Stack>
+    </PageContainer>
   );
 };

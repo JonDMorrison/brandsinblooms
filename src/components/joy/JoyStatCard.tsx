@@ -50,7 +50,7 @@ export function JoyStatCard({
       }
       sx={sx}
     >
-      <JoyCardContent sx={{ pt: 3 }}>
+      <JoyCardContent sx={{ pt: 4 }}>
         <Stack
           direction="row"
           spacing={2}
@@ -58,19 +58,26 @@ export function JoyStatCard({
           justifyContent="space-between"
         >
           <Stack spacing={0.75}>
-            <Typography level="body-sm" color="neutral">
+            <Typography level="body-xs" color="neutral">
               {label}
             </Typography>
             <Typography
               level="h2"
-              sx={{ lineHeight: 1.05, letterSpacing: "-0.02em" }}
+              sx={{
+                fontFamily: "var(--joy-fontFamily-display)",
+                fontSize: { xs: "1.75rem", md: "2rem" },
+                fontWeight: 700,
+                lineHeight: 1.05,
+                letterSpacing: "-0.02em",
+                color: "neutral.900",
+              }}
             >
               {value}
             </Typography>
             {change ? (
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <ChangeIcon className="h-3.5 w-3.5" />
-                <Typography level="body-sm" color={changeColor}>
+                <ChangeIcon size={14} strokeWidth={1.9} />
+                <Typography level="body-xs" color={changeColor}>
                   {change.value}
                 </Typography>
               </Stack>
@@ -80,15 +87,15 @@ export function JoyStatCard({
             variant="soft"
             color={iconColor}
             sx={{
-              width: 48,
-              height: 48,
+              width: 40,
+              height: 40,
               borderRadius: "999px",
               display: "grid",
               placeItems: "center",
               flexShrink: 0,
               "& > *": {
-                width: 22,
-                height: 22,
+                width: 20,
+                height: 20,
               },
             }}
           >

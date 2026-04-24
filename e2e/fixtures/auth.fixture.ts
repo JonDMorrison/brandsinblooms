@@ -1,5 +1,9 @@
-import { test as base, expect } from '@playwright/test';
-import { TestDataFactory, TestDatabaseUtils, PageUtils } from '../utils/test-setup';
+import { test as base, expect } from "@playwright/test";
+import {
+  TestDataFactory,
+  TestDatabaseUtils,
+  PageUtils,
+} from "../utils/test-setup";
 
 type AuthFixtures = {
   authenticatedUser: {
@@ -31,7 +35,7 @@ export const test = base.extend<AuthFixtures>({
         const authData = await dbUtils.createTestUser(userData);
 
         if (!authData.user) {
-          throw new Error('Failed to create test user');
+          throw new Error("Failed to create test user");
         }
 
         createdUserId = authData.user.id;

@@ -20,6 +20,8 @@ import {
   formatCurrency,
   formatRelativeTimestamp,
   parseTags,
+  DataTabLoadingState,
+  JoyDataTable,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type ProductsSortValue =
@@ -126,7 +128,7 @@ export function ProductsTabView({
       {rows.length > 0 ? (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] border-collapse">
+            <JoyDataTable>
               <thead>
                 <tr className="border-b border-gray-100">
                   <th
@@ -209,7 +211,7 @@ export function ProductsTabView({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </JoyDataTable>
           </div>
           <DataTabPagination
             pagination={pagination}
@@ -218,11 +220,7 @@ export function ProductsTabView({
         </>
       ) : null}
 
-      {isLoading || isFetching ? (
-        <div className="px-5 py-10 text-sm text-muted-foreground">
-          Loading products…
-        </div>
-      ) : null}
+      {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState

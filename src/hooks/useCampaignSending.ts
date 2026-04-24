@@ -217,7 +217,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         options.onSuccess?.(campaign.id, sentCount);
 
         if (navigateOnSuccess) {
-          navigate(`/crm/campaigns/${campaign.id}/analytics`);
+          navigate(`/crm/campaigns/${campaign.id}/report`);
         }
 
         return { success: true, campaignId: campaign.id, sentCount };

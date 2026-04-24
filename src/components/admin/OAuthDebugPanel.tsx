@@ -235,14 +235,7 @@ export const OAuthDebugPanel: React.FC = () => {
                       loadingPosition="start"
                       size="sm"
                       startDecorator={<Trash2 className="h-4 w-4" />}
-                      variant="outlined"
-                      sx={{
-                        borderColor: "var(--joy-palette-warning-300)",
-                        "&:hover": {
-                          backgroundColor: "var(--joy-palette-warning-50)",
-                          borderColor: "var(--joy-palette-warning-400)",
-                        },
-                      }}
+                      variant="soft"
                     >
                       {cleaningUp === entry.codeUsage.id
                         ? "Cleaning..."

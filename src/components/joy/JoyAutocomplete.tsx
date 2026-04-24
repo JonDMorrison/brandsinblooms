@@ -11,6 +11,7 @@ import List from "@mui/joy/List";
 import ListItem from "@mui/joy/ListItem";
 import ListSubheader from "@mui/joy/ListSubheader";
 import type { SxProps } from "@mui/joy/styles/types";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export type JoyAutocompleteValue<
   T,
@@ -34,15 +35,11 @@ export type JoyAutocompleteProps<
   formControlSx?: SxProps;
 };
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
-const createFocusShadow = (channel: string) =>
-  `0 0 0 4px rgba(${channel} / 0.14)`;
-
 const labelSx: SxProps = {
-  color: "var(--joy-palette-brandNavy-800)",
-  fontWeight: "var(--joy-fontWeight-md)",
+  color: "var(--joy-palette-neutral-600)",
+  fontSize: "0.8125rem",
+  fontWeight: "var(--joy-fontWeight-medium)",
+  lineHeight: 1.4,
 };
 
 const groupHeaderSx: SxProps = {
@@ -59,39 +56,76 @@ const groupHeaderSx: SxProps = {
 
 const baseAutocompleteSx: SxProps = {
   width: "100%",
-  minHeight: 40,
+  minHeight: 36,
   borderRadius: "var(--joy-radius-lg)",
-  boxShadow: "var(--joy-shadow-xs)",
-  backgroundColor: "background.surface",
+  borderColor: "neutral.300",
+  boxShadow: "none",
+  backgroundColor: "#FFFFFF",
+  color: "var(--joy-palette-neutral-800)",
   transition:
     "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-  "--Input-paddingInline": "0.875rem",
+  "--Input-paddingInline": "0.75rem",
   "--Input-gap": "0.625rem",
-  "--Input-focusedThickness": "2px",
-  "--Autocomplete-wrapperGap": "0.375rem",
-  "--Chip-radius": "999px",
-  "--Chip-gap": "0.25rem",
+  "--Input-focusedThickness": "0px",
+  "--Input-placeholderColor": "var(--joy-palette-neutral-400)",
+  "--Input-placeholderOpacity": "1",
+  "--Input-decoratorColor": "var(--joy-palette-neutral-400)",
+  "--Autocomplete-wrapperGap": "0.25rem",
   "&:hover:not([data-disabled='true'])": {
-    backgroundColor: "background.surface",
+    backgroundColor: "#FFFFFF",
+    borderColor: "neutral.400",
   },
   "&:focus-within, &.MuiAutocomplete-focused": {
-    borderColor: "primary.500",
-    boxShadow: createFocusShadow("var(--joy-palette-primary-mainChannel)"),
+    borderColor: "primary.400",
+  },
+  "&.Mui-focusVisible, &:focus-visible": {
+    borderColor: "transparent",
+  },
+  "&[data-disabled='true'], &[aria-disabled='true']": {
+    borderColor: "neutral.200",
+    backgroundColor: "neutral.50",
+    color: "neutral.400",
   },
   "& .MuiAutocomplete-input": {
     minWidth: 0,
+    fontSize: "var(--joy-fontSize-sm)",
+    fontWeight: "var(--joy-fontWeight-regular)",
+    lineHeight: "var(--joy-lineHeight-md)",
+    color: "var(--joy-palette-neutral-800)",
+    "&::placeholder": {
+      color: "var(--joy-palette-neutral-400)",
+      opacity: 1,
+    },
+  },
+  "& .MuiAutocomplete-startDecorator, & .MuiAutocomplete-endDecorator": {
+    color: "neutral.400",
   },
   "& .MuiChip-root": {
+    minHeight: 24,
     minWidth: 0,
-    fontWeight: "var(--joy-fontWeight-md)",
-    backgroundColor: "neutral.100",
-    color: "neutral.700",
+    borderRadius: "999px",
+    border: "1px solid",
+    borderColor: "primary.100",
+    fontSize: "var(--joy-fontSize-xs)",
+    fontWeight: "var(--joy-fontWeight-medium)",
+    backgroundColor: "primary.50",
+    color: "primary.700",
   },
   "& .MuiChip-action": {
     minWidth: 0,
   },
   "& .MuiChipDelete-root": {
-    color: "neutral.500",
+    color: "primary.500",
+    "--Icon-fontSize": "16px",
+  },
+  "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator": {
+    color: "neutral.400",
+    width: 24,
+    height: 24,
+    minWidth: 24,
+    minHeight: 24,
+    borderRadius: "999px",
+    "--Icon-fontSize": "16px",
   },
 };
 
@@ -208,20 +242,31 @@ export function JoyAutocomplete<
   const generatedId = React.useId();
   const autocompleteId = id ?? generatedId;
   const helperContent = errorMessage ?? helperText;
-  const helperColor = error ? "danger.600" : "neutral.600";
+  const helperColor = error ? "danger.600" : "neutral.500";
   const stateSx: SxProps | undefined = error
     ? {
-        borderColor: "danger.300",
+        borderColor: "danger.400",
         backgroundColor: "rgba(var(--joy-palette-danger-mainChannel) / 0.05)",
+        "&:hover:not([data-disabled='true'])": {
+          borderColor: "danger.400",
+        },
         "&:focus-within, &.MuiAutocomplete-focused": {
-          borderColor: "danger.500",
-          boxShadow: createFocusShadow("var(--joy-palette-danger-mainChannel)"),
+          borderColor: "danger.400",
+        },
+        "&.Mui-focusVisible, &:focus-visible": {
+          outline: "none",
+          outlineOffset: 0,
         },
       }
     : undefined;
 
   const resolvedSlotProps = {
     ...slotProps,
+    clearIndicator: mergeAutocompleteSlotProps(slotProps?.clearIndicator, {
+      color: "neutral",
+      size: "sm",
+      variant: "plain",
+    }),
     listbox: mergeAutocompleteSlotProps(slotProps?.listbox, {
       sx: baseListboxSx,
     }),
@@ -233,6 +278,11 @@ export function JoyAutocomplete<
     }),
     limitTag: mergeAutocompleteSlotProps(slotProps?.limitTag, {
       sx: limitTagSx,
+    }),
+    popupIndicator: mergeAutocompleteSlotProps(slotProps?.popupIndicator, {
+      color: "neutral",
+      size: "sm",
+      variant: "plain",
     }),
   } as JoyBaseAutocompleteProps<
     T,
@@ -246,7 +296,7 @@ export function JoyAutocomplete<
       required={required}
       error={error}
       disabled={disabled}
-      sx={mergeSx({ width: "100%", gap: 0.75 }, formControlSx)}
+      sx={mergeSx({ width: "100%", gap: 0.5 }, formControlSx)}
     >
       {label ? (
         <FormLabel htmlFor={autocompleteId} sx={labelSx}>
@@ -271,7 +321,14 @@ export function JoyAutocomplete<
         sx={mergeSx(baseAutocompleteSx, stateSx, sx)}
       />
       {helperContent ? (
-        <FormHelperText sx={{ color: helperColor, minHeight: 20 }}>
+        <FormHelperText
+          sx={{
+            color: helperColor,
+            minHeight: 18,
+            fontSize: "var(--joy-fontSize-xs)",
+            fontWeight: "var(--joy-fontWeight-regular)",
+          }}
+        >
           {helperContent}
         </FormHelperText>
       ) : null}

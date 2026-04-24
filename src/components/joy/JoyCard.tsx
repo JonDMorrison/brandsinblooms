@@ -12,6 +12,7 @@ import Divider from "@mui/joy/Divider";
 import Stack, { type StackProps } from "@mui/joy/Stack";
 import type { SxProps } from "@mui/joy/styles/types";
 import Typography, { type TypographyProps } from "@mui/joy/Typography";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export type JoyCardProps = JoyBaseCardProps & {
   interactive?: boolean;
@@ -32,24 +33,22 @@ export type JoyCardFooterProps = JoyBaseCardActionsProps & {
   divider?: boolean;
 };
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
 const baseCardSx: SxProps = {
   borderRadius: "var(--joy-radius-lg)",
   borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
-  boxShadow: "var(--joy-shadow-sm)",
+  backgroundColor: "background.surface",
+  boxShadow: "var(--joy-shadow-xs)",
   overflow: "hidden",
   p: 0,
 };
 
 const interactiveCardSx: SxProps = {
   cursor: "pointer",
-  transition: "transform 0.18s ease, box-shadow 0.18s ease",
+  transition:
+    "background-color 200ms ease, color 150ms ease, box-shadow 200ms ease, transform 200ms ease",
   "&:hover": {
     transform: "translateY(-1px)",
-    boxShadow: "var(--joy-shadow-md)",
+    boxShadow: "var(--joy-shadow-sm)",
   },
   "&:focus-visible": {
     outline: "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.45)",
@@ -67,7 +66,7 @@ export const JoyCard = React.forwardRef<HTMLDivElement, JoyCardProps>(
         variant === "plain"
           ? {
               boxShadow: "none",
-              backgroundColor: "#FFFFFF",
+              backgroundColor: "background.surface",
             }
           : undefined,
         interactive ? interactiveCardSx : undefined,
@@ -105,11 +104,31 @@ export const JoyCardHeader = React.forwardRef<
       actions !== undefined ||
       startDecorator !== undefined;
 
+    const renderHeaderContent = (
+      content: React.ReactNode,
+      typographyProps: TypographyProps | undefined,
+      fallbackProps: TypographyProps,
+    ) => {
+      if (content === undefined || content === null || content === false) {
+        return null;
+      }
+
+      if (React.isValidElement(content)) {
+        return content;
+      }
+
+      return (
+        <Typography {...fallbackProps} {...typographyProps}>
+          {content}
+        </Typography>
+      );
+    };
+
     return (
       <Stack
         ref={ref}
         spacing={spacing}
-        sx={mergeSx({ px: 3, pt: 3, pb: 0 }, sx)}
+        sx={mergeSx({ px: 4, pt: 4, pb: 0 }, sx)}
         {...props}
       >
         {hasStructuredHeader ? (
@@ -126,20 +145,13 @@ export const JoyCardHeader = React.forwardRef<
                 </Box>
               ) : null}
               <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                {title ? (
-                  <Typography level="title-md" {...titleProps}>
-                    {title}
-                  </Typography>
-                ) : null}
-                {description ? (
-                  <Typography
-                    level="body-sm"
-                    color="neutral"
-                    {...descriptionProps}
-                  >
-                    {description}
-                  </Typography>
-                ) : null}
+                {renderHeaderContent(title, titleProps, {
+                  level: "title-md",
+                })}
+                {renderHeaderContent(description, descriptionProps, {
+                  level: "body-sm",
+                  color: "neutral",
+                })}
               </Stack>
             </Stack>
             {actions ? (
@@ -161,7 +173,7 @@ export const JoyCardContent = React.forwardRef<
   HTMLDivElement,
   JoyCardContentProps
 >(({ sx, ...props }, ref) => (
-  <CardContent ref={ref} sx={mergeSx({ px: 3, pb: 3, pt: 0 }, sx)} {...props} />
+  <CardContent ref={ref} sx={mergeSx({ px: 4, pb: 4, pt: 0 }, sx)} {...props} />
 ));
 
 JoyCardContent.displayName = "JoyCardContent";
@@ -175,7 +187,7 @@ export const JoyCardFooter = React.forwardRef<
     <CardActions
       ref={ref}
       sx={mergeSx(
-        { px: 3, pb: 3, pt: 2, gap: 1, justifyContent: "flex-end" },
+        { px: 4, pb: 4, pt: 4, gap: 2, justifyContent: "flex-end" },
         sx,
       )}
       {...props}

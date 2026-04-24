@@ -1,230 +1,195 @@
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import { NewsletterIdea } from "@/types/newsletter";
 import { IdeaCard } from "./IdeaCard";
 import { NewsletterEmptyState } from "./NewsletterEmptyState";
-import { NewsletterIdea } from "@/types/newsletter";
-import { cn } from "@/lib/utils";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui-legacy/button";
-
-// @ts-ignore - Swiper CSS imports
-import "swiper/css";
 
 interface IdeaGridProps {
   ideas: NewsletterIdea[];
+  currentWeekIdeaId?: string | null;
   onSelectIdea: (idea: NewsletterIdea) => void;
-  onGenerateIdeas?: (prompt: string) => void;
+  onGenerateIdeas?: (prompt: string) => void | Promise<unknown>;
   loading?: boolean;
   className?: string;
+  selectedIdeaId?: string | null;
 }
 
-const IdeaCardSkeleton = () => (
-  <div className="relative overflow-hidden rounded-3xl aspect-[3/4] animate-pulse">
-    {/* Gradient Background */}
-    <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 opacity-90" />
+function IdeaCardSkeleton() {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        minHeight: 236,
+        borderRadius: "lg",
+        borderColor: "neutral.200",
+        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.03)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.25,
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        justifyContent="space-between"
+        alignItems="center"
+      >
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: 74, height: 12, borderRadius: 999 }}
+        />
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: 54, height: 12, borderRadius: 999 }}
+        />
+      </Stack>
 
-    {/* Content */}
-    <div className="relative z-10 h-full flex flex-col justify-between p-6 text-white">
-      <div className="flex-1 flex flex-col justify-center items-center text-center space-y-4">
-        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl animate-pulse"></div>
-        <div className="space-y-2 w-full">
-          <div className="h-6 w-3/4 bg-white/20 rounded mx-auto"></div>
-          <div className="h-4 w-full bg-white/20 rounded"></div>
-          <div className="h-4 w-2/3 bg-white/20 rounded mx-auto"></div>
-        </div>
-        <div className="h-10 w-32 bg-white/20 rounded-full"></div>
-      </div>
+      <Stack spacing={0.9}>
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: "74%", height: 18, borderRadius: "sm" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: "100%", height: 12, borderRadius: "sm" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: "94%", height: 12, borderRadius: "sm" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: "70%", height: 12, borderRadius: "sm" }}
+        />
+      </Stack>
 
-      {/* Bottom accent */}
-      <div className="flex justify-center mt-4">
-        <div className="w-12 h-1 bg-white/30 rounded-full">
-          <div className="w-6 h-1 bg-white rounded-full"></div>
-        </div>
-      </div>
-    </div>
-
-    {/* Labels */}
-    <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
-      <div className="w-12 h-3 bg-white/20 rounded"></div>
-    </div>
-  </div>
-);
+      <Box
+        sx={{ mt: "auto", display: "flex", justifyContent: "flex-end", pt: 1 }}
+      >
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          sx={{ width: 108, height: 14, borderRadius: "sm" }}
+        />
+      </Box>
+    </Card>
+  );
+}
 
 export const IdeaGrid: React.FC<IdeaGridProps> = ({
   ideas,
+  currentWeekIdeaId,
   onSelectIdea,
   onGenerateIdeas,
   loading = false,
   className,
+  selectedIdeaId,
 }) => {
-  // Calculate initial slide based on current week number
-  const currentWeek = getCurrentWeekNumber();
-  const currentWeekIndex = ideas.findIndex(
-    (idea) => idea.weekNumber === currentWeek,
-  );
-  const initialSlide = currentWeekIndex >= 0 ? currentWeekIndex : 0;
-  const [currentSlide, setCurrentSlide] = useState(initialSlide);
-  const swiperRef = useRef<any>(null);
+  const orderedIdeas = React.useMemo(() => {
+    return ideas
+      .map((idea, index) => ({
+        idea,
+        index,
+        weekNumber:
+          typeof idea.weekNumber === "number"
+            ? idea.weekNumber
+            : Number.POSITIVE_INFINITY,
+      }))
+      .sort((left, right) => {
+        if (left.weekNumber !== right.weekNumber) {
+          return left.weekNumber - right.weekNumber;
+        }
 
-  useEffect(() => {
-    // Force swiper to center on the initial slide after mount
-    if (swiperRef.current && initialSlide > 0) {
-      setTimeout(() => {
-        swiperRef.current.slideTo(initialSlide, 0);
-      }, 300);
+        return left.index - right.index;
+      })
+      .map((entry) => entry.idea);
+  }, [ideas]);
+
+  const displayIdeas = React.useMemo(() => {
+    const baseEntries = orderedIdeas.map((idea) => ({
+      displayKey: idea.id,
+      displayVariant:
+        idea.id === currentWeekIdeaId
+          ? ("natural-current" as const)
+          : ("standard" as const),
+      idea,
+    }));
+
+    const currentWeekIdea = currentWeekIdeaId
+      ? (orderedIdeas.find((idea) => idea.id === currentWeekIdeaId) ?? null)
+      : null;
+
+    if (!currentWeekIdea) {
+      return baseEntries;
     }
-  }, [initialSlide]);
 
-  // Watch for new ideas being added (e.g., from AI generation)
-  // and scroll to the first one to show the user their new content
-  useEffect(() => {
-    if (swiperRef.current && ideas.length > 0) {
-      // Check if the first idea is an AI-generated one (they have category 'ai-generated')
-      const firstIdea = ideas[0];
-      if (firstIdea && firstIdea.category === "ai-generated") {
-        setTimeout(() => {
-          swiperRef.current?.slideTo(0, 600); // Smooth scroll to first slide
-          setCurrentSlide(0);
-        }, 300);
-      }
-    }
-  }, [ideas.length]); // Re-run when ideas count changes
-
-  const handleSwiper = (swiper: any) => {
-    swiperRef.current = swiper;
-  };
+    // Duplicate the current week at the top as a promoted shortcut while
+    // preserving its natural chronological slot further down the grid.
+    return [
+      {
+        displayKey: `promoted-${currentWeekIdea.id}`,
+        displayVariant: "promoted-current" as const,
+        idea: currentWeekIdea,
+      },
+      ...baseEntries,
+    ];
+  }, [currentWeekIdeaId, orderedIdeas]);
 
   if (loading) {
     return (
-      <div className={cn("py-8", className)}>
-        <Swiper
-          grabCursor={true}
-          centeredSlides={true}
-          slidesPerView="auto"
-          spaceBetween={16}
-          initialSlide={0}
-          breakpoints={{
-            320: {
-              slidesPerView: "auto",
-              spaceBetween: 12,
-            },
-            640: {
-              slidesPerView: "auto",
-              spaceBetween: 14,
-            },
-            768: {
-              slidesPerView: "auto",
-              spaceBetween: 16,
-            },
-            1024: {
-              slidesPerView: "auto",
-              spaceBetween: 20,
-            },
+      <Box className={className}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 2,
           }}
-          className="!pb-16 newsletter-idea-slider"
         >
-          {Array.from({ length: 6 }).map((_, index) => (
-            <SwiperSlide key={index} className="!h-auto">
-              <div className="scale-95 opacity-70">
-                <IdeaCardSkeleton />
-              </div>
-            </SwiperSlide>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <IdeaCardSkeleton key={index} />
           ))}
-        </Swiper>
-      </div>
+        </Box>
+      </Box>
     );
   }
 
   if (ideas.length === 0) {
     return (
-      <div className={cn("py-8", className)}>
-        <NewsletterEmptyState
-          onPromptClick={onGenerateIdeas}
-          onSelectIdea={onSelectIdea}
-        />
-      </div>
+      <Box className={className}>
+        <NewsletterEmptyState onPromptClick={onGenerateIdeas} />
+      </Box>
     );
   }
+
   return (
-    <div className={cn("py-8 relative", className)}>
-      <div className="max-w-6xl mx-auto">
-        <div className="h-full w-full relative">
-          {/* Left Navigation Handle */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-50 rounded-full shadow-lg hover:shadow-xl transition-all"
-            onClick={() => swiperRef.current?.slidePrev()}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-
-          {/* Right Navigation Handle */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-50 rounded-full shadow-lg hover:shadow-xl transition-all"
-            onClick={() => swiperRef.current?.slideNext()}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-
-          <Swiper
-            grabCursor={true}
-            centeredSlides={true}
-            centerInsufficientSlides={true}
-            slideToClickedSlide={true}
-            slidesPerView="auto"
-            slidesPerGroup={1}
-            spaceBetween={16}
-            initialSlide={initialSlide}
-            speed={600}
-            longSwipesRatio={0.5}
-            resistance={true}
-            resistanceRatio={0.85}
-            onSwiper={handleSwiper}
-            onSlideChange={(swiper) => setCurrentSlide(swiper.activeIndex)}
-            breakpoints={{
-              320: {
-                slidesPerView: "auto",
-                spaceBetween: 12,
-                centeredSlides: true,
-              },
-              640: {
-                slidesPerView: "auto",
-                spaceBetween: 14,
-                centeredSlides: true,
-              },
-              768: {
-                slidesPerView: "auto",
-                spaceBetween: 16,
-                centeredSlides: true,
-              },
-              1024: {
-                slidesPerView: "auto",
-                spaceBetween: 20,
-                centeredSlides: true,
-              },
-            }}
-            className="!pb-16 !pt-8 newsletter-idea-slider !h-[calc(100vh-280px)] !relative !z-40 overflow-visible [&_.swiper-slide]:!w-auto"
-          >
-            {ideas.map((idea, index) => {
-              const isActive = index === currentSlide;
-              return (
-                <SwiperSlide key={idea.id} className="!h-auto">
-                  <IdeaCard
-                    idea={idea}
-                    onSelect={onSelectIdea}
-                    isActive={isActive}
-                    slideIndex={index}
-                  />
-                </SwiperSlide>
-              );
-            })}
-          </Swiper>
-        </div>
-      </div>
-    </div>
+    <Box className={className}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          gap: 2,
+        }}
+      >
+        {displayIdeas.map((entry) => (
+          <IdeaCard
+            key={entry.displayKey}
+            displayVariant={entry.displayVariant}
+            idea={entry.idea}
+            onSelect={onSelectIdea}
+            isSelected={selectedIdeaId === entry.idea.id}
+          />
+        ))}
+      </Box>
+    </Box>
   );
 };

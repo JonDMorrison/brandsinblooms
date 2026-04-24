@@ -1,3 +1,4 @@
+/** @deprecated — No longer route-connected. Superseded by the IntegrationDetailPage and detailPrimitives-based surfaces (INT-UI-006). */
 import { useState, useEffect } from "react";
 import {
   Card,

@@ -222,7 +222,7 @@ export const EnhancedUserTable = ({
         progress={progress}
       />
 
-      <JoyCard className="enhanced-user-table">
+      <JoyCard>
         <JoyCardHeader
           title={`All Users (${users.length})`}
           titleProps={{ level: "title-lg" }}

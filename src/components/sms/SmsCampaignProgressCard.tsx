@@ -1,229 +1,379 @@
-import React from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card'
-import { Progress } from '@/components/ui-legacy/progress'
-import { Badge } from '@/components/ui-legacy/badge'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert'
-import { 
-  MessageSquareIcon, 
-  CheckCircle2Icon, 
-  XCircleIcon, 
-  ClockIcon, 
-  AlertTriangleIcon,
-  LoaderIcon,
-  SendIcon
-} from 'lucide-react'
-import { SmsCampaignProgress } from '@/lib/sms/getSmsCampaignProgress'
+import Alert from "@mui/joy/Alert";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  MessageSquareText,
+  Send,
+  XCircle,
+} from "lucide-react";
+import { SmsCampaignProgress } from "@/lib/sms/getSmsCampaignProgress";
 
 interface SmsCampaignProgressCardProps {
-  progress: SmsCampaignProgress | null
-  loading?: boolean
-  error?: Error | null
+  progress: SmsCampaignProgress | null;
+  loading?: boolean;
+  error?: Error | null;
 }
 
-export function SmsCampaignProgressCard({ progress, loading, error }: SmsCampaignProgressCardProps) {
+function getStatusPresentation(progress: SmsCampaignProgress) {
+  const enqueue = (
+    progress as SmsCampaignProgress & {
+      enqueue?: {
+        isEnqueuing?: boolean;
+        percentComplete?: number;
+      };
+    }
+  ).enqueue;
+
+  if (enqueue?.isEnqueuing) {
+    return { color: "primary" as const, label: "Preparing audience" };
+  }
+
+  if (progress.isStalled) {
+    return { color: "danger" as const, label: "Stalled" };
+  }
+
+  if (progress.isComplete && progress.messages.failed === 0) {
+    return { color: "success" as const, label: "Complete" };
+  }
+
+  if (progress.isComplete && progress.messages.failed > 0) {
+    return { color: "warning" as const, label: "Complete with failures" };
+  }
+
+  if (progress.jobs.in_progress > 0) {
+    return { color: "primary" as const, label: "Sending" };
+  }
+
+  if (progress.jobs.pending > 0) {
+    return { color: "warning" as const, label: "Queued" };
+  }
+
+  return {
+    color: "neutral" as const,
+    label: progress.campaignStatus || "Unknown",
+  };
+}
+
+function formatTimestamp(value: string | null) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+export function SmsCampaignProgressCard({
+  progress,
+  loading,
+  error,
+}: SmsCampaignProgressCardProps) {
   if (loading && !progress) {
     return (
-      <Card>
-        <CardContent className="py-8 flex items-center justify-center">
-          <LoaderIcon className="h-6 w-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Loading progress...</span>
-        </CardContent>
+      <Card
+        variant="outlined"
+        sx={{ borderRadius: "28px", borderColor: "neutral.200", p: 2.5 }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <CircularProgress size="sm" />
+          <Typography level="body-sm" color="neutral">
+            Loading live delivery progress...
+          </Typography>
+        </Stack>
       </Card>
-    )
+    );
   }
 
   if (error && !progress) {
     return (
-      <Card>
-        <CardContent className="py-8">
-          <Alert variant="destructive">
-            <AlertTriangleIcon className="h-4 w-4" />
-            <AlertTitle>Error loading progress</AlertTitle>
-            <AlertDescription>{error.message}</AlertDescription>
-          </Alert>
-        </CardContent>
+      <Card
+        variant="outlined"
+        sx={{ borderRadius: "28px", borderColor: "danger.200", p: 2.5 }}
+      >
+        <Alert
+          color="danger"
+          variant="soft"
+          sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+        >
+          <Stack spacing={0.5}>
+            <Typography level="title-sm">
+              Unable to load campaign progress
+            </Typography>
+            <Typography level="body-sm">{error.message}</Typography>
+          </Stack>
+        </Alert>
       </Card>
-    )
+    );
   }
 
-  if (!progress) return null
-
-  const { jobs, messages, rates, isComplete, isStalled, stallReason } = progress
-  const enqueue = (progress as any).enqueue || { status: 'not_started', totalEstimate: 0, totalEnqueued: 0, percentComplete: 0, isEnqueuing: false, isEnqueued: false }
-
-  // Calculate progress percentage
-  const processedMessages = messages.sent + messages.delivered + messages.failed
-  const progressPercent = messages.total > 0 
-    ? Math.round((processedMessages / messages.total) * 100) 
-    : 0
-
-  // Status display
-  const getStatusBadge = () => {
-    // Show enqueue status first
-    if (enqueue.isEnqueuing) {
-      return <Badge variant="secondary" className="animate-pulse">Preparing audience...</Badge>
-    }
-    if (isComplete && messages.failed === 0) {
-      return <Badge className="bg-green-500 hover:bg-green-600">Complete</Badge>
-    }
-    if (isComplete && messages.failed > 0) {
-      return <Badge variant="secondary">Completed with errors</Badge>
-    }
-    if (isStalled) {
-      return <Badge variant="destructive">Stalled</Badge>
-    }
-    if (jobs.in_progress > 0) {
-      return <Badge variant="secondary" className="animate-pulse">Sending</Badge>
-    }
-    if (jobs.pending > 0) {
-      return <Badge variant="outline">Queued</Badge>
-    }
-    return <Badge variant="outline">{(progress as any).campaignStatus}</Badge>
+  if (!progress) {
+    return null;
   }
+
+  const enqueue = (
+    progress as SmsCampaignProgress & {
+      enqueue?: {
+        status?: string;
+        totalEstimate?: number;
+        totalEnqueued?: number;
+        percentComplete?: number;
+        isEnqueuing?: boolean;
+      };
+    }
+  ).enqueue;
+
+  const processedMessages =
+    progress.messages.sent +
+    progress.messages.delivered +
+    progress.messages.failed;
+  const progressPercent =
+    progress.messages.total > 0
+      ? Math.round((processedMessages / progress.messages.total) * 100)
+      : 0;
+  const status = getStatusPresentation(progress);
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <SendIcon className="h-5 w-5" />
-              Sending Progress
-            </CardTitle>
-            <CardDescription>
-              Real-time campaign delivery status
-            </CardDescription>
-          </div>
-          {getStatusBadge()}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Stall Warning */}
-        {isStalled && stallReason && (
-          <Alert variant="destructive">
-            <AlertTriangleIcon className="h-4 w-4" />
-            <AlertTitle>Campaign Stalled</AlertTitle>
-            <AlertDescription>{stallReason}</AlertDescription>
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: "30px",
+        borderColor: "neutral.200",
+        overflow: "hidden",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)",
+      }}
+    >
+      <Stack spacing={2.25} sx={{ p: { xs: 2.5, md: 3 } }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ md: "center" }}
+        >
+          <Stack spacing={0.5}>
+            <Typography level="title-lg" fontWeight="lg">
+              Live Campaign Progress
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              Real-time preparation, delivery, and failure signals for this
+              send.
+            </Typography>
+          </Stack>
+          <Chip
+            size="md"
+            color={status.color}
+            variant="soft"
+            startDecorator={<Send size={14} />}
+          >
+            {status.label}
+          </Chip>
+        </Stack>
+
+        {progress.isStalled && progress.stallReason ? (
+          <Alert
+            color="danger"
+            variant="soft"
+            sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-sm">Campaign stalled</Typography>
+              <Typography level="body-sm">{progress.stallReason}</Typography>
+            </Stack>
           </Alert>
-        )}
+        ) : null}
 
-        {/* Enqueue Progress (shown during preparation) */}
-        {enqueue.isEnqueuing && (
-          <div className="space-y-2 pb-4 border-b border-border/50">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Preparing audience</span>
-              <span className="font-medium">{enqueue.percentComplete}%</span>
-            </div>
-            <Progress value={enqueue.percentComplete} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {enqueue.totalEnqueued.toLocaleString()} of ~{enqueue.totalEstimate.toLocaleString()} recipients prepared
-            </p>
-          </div>
-        )}
+        {enqueue?.isEnqueuing ? (
+          <Sheet
+            variant="soft"
+            color="primary"
+            sx={{ borderRadius: "22px", p: 2 }}
+          >
+            <Stack spacing={1.25}>
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography level="title-sm">Audience preparation</Typography>
+                <Typography level="body-sm" fontWeight="lg">
+                  {`${enqueue.percentComplete ?? 0}%`}
+                </Typography>
+              </Stack>
+              <LinearProgress
+                determinate
+                value={enqueue.percentComplete ?? 0}
+                sx={{ borderRadius: 999, height: 8 }}
+              />
+              <Typography level="body-xs" color="neutral">
+                {`${(enqueue.totalEnqueued ?? 0).toLocaleString()} of ~${(enqueue.totalEstimate ?? 0).toLocaleString()} recipients prepared`}
+              </Typography>
+            </Stack>
+          </Sheet>
+        ) : null}
 
-        {/* Progress Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Sending Progress</span>
-            <span className="font-medium">{progressPercent}%</span>
-          </div>
-          <Progress value={progressPercent} className="h-2" />
-          <p className="text-xs text-muted-foreground">
-            {processedMessages.toLocaleString()} of {messages.total.toLocaleString()} messages processed
-          </p>
-        </div>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Typography level="body-sm" fontWeight="lg">
+              Delivery progress
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              {`${processedMessages.toLocaleString()} / ${progress.messages.total.toLocaleString()} processed`}
+            </Typography>
+          </Stack>
+          <LinearProgress
+            determinate
+            value={progressPercent}
+            sx={{ borderRadius: 999, height: 10 }}
+          />
+        </Stack>
 
-        {/* Message Counts */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <ClockIcon className="h-3.5 w-3.5" />
-              <span className="text-xs">Queued</span>
-            </div>
-            <div className="text-xl font-semibold">{messages.queued.toLocaleString()}</div>
-          </div>
-          
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 mb-1">
-              <MessageSquareIcon className="h-3.5 w-3.5" />
-              <span className="text-xs">Sent</span>
-            </div>
-            <div className="text-xl font-semibold">{messages.sent.toLocaleString()}</div>
-          </div>
-          
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400 mb-1">
-              <CheckCircle2Icon className="h-3.5 w-3.5" />
-              <span className="text-xs">Delivered</span>
-            </div>
-            <div className="text-xl font-semibold">{messages.delivered.toLocaleString()}</div>
-          </div>
-          
-          <div className="bg-muted/50 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-destructive mb-1">
-              <XCircleIcon className="h-3.5 w-3.5" />
-              <span className="text-xs">Failed</span>
-            </div>
-            <div className="text-xl font-semibold">{messages.failed.toLocaleString()}</div>
-          </div>
-        </div>
+        <BoxGrid>
+          <MetricTile
+            label="Queued"
+            value={progress.messages.queued.toLocaleString()}
+            icon={<Clock3 size={16} />}
+            color="warning"
+          />
+          <MetricTile
+            label="Sent"
+            value={progress.messages.sent.toLocaleString()}
+            icon={<MessageSquareText size={16} />}
+            color="primary"
+          />
+          <MetricTile
+            label="Delivered"
+            value={progress.messages.delivered.toLocaleString()}
+            icon={<CheckCircle2 size={16} />}
+            color="success"
+          />
+          <MetricTile
+            label="Failed"
+            value={progress.messages.failed.toLocaleString()}
+            icon={<XCircle size={16} />}
+            color="danger"
+          />
+        </BoxGrid>
 
-        {/* Rates */}
-        {messages.total > 0 && (processedMessages > 0) && (
-          <div className="flex gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Delivery Rate:</span>{' '}
-              <span className="font-medium text-green-600 dark:text-green-400">
-                {(rates.deliveredRate * 100).toFixed(1)}%
-              </span>
-            </div>
-            {messages.failed > 0 && (
-              <div>
-                <span className="text-muted-foreground">Failure Rate:</span>{' '}
-                <span className="font-medium text-destructive">
-                  {(rates.failedRate * 100).toFixed(1)}%
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+        <Divider />
 
-        {/* Job Status (collapsible detail) */}
-        {jobs.total > 0 && (
-          <div className="pt-2 border-t">
-            <div className="text-xs text-muted-foreground mb-2">Worker Jobs</div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {jobs.pending > 0 && (
-                <Badge variant="outline" className="font-normal">
-                  {jobs.pending} pending
-                </Badge>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ md: "center" }}
+        >
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Chip size="sm" variant="soft" color="success">
+              {`Delivery ${(progress.rates.deliveredRate * 100).toFixed(1)}%`}
+            </Chip>
+            <Chip size="sm" variant="soft" color="danger">
+              {`Failure ${(progress.rates.failedRate * 100).toFixed(1)}%`}
+            </Chip>
+            <Chip size="sm" variant="soft" color="neutral">
+              {`${progress.jobs.in_progress} active workers`}
+            </Chip>
+          </Stack>
+
+          <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
+            <TimestampStat
+              label="Scheduled"
+              value={formatTimestamp(progress.timestamps.scheduledAt)}
+            />
+            <TimestampStat
+              label="Sent"
+              value={formatTimestamp(progress.timestamps.sentAt)}
+            />
+            <TimestampStat
+              label="Last update"
+              value={formatTimestamp(
+                progress.timestamps.lastJobUpdatedAt ||
+                  progress.timestamps.lastMessageUpdatedAt,
               )}
-              {jobs.in_progress > 0 && (
-                <Badge variant="secondary" className="font-normal">
-                  {jobs.in_progress} processing
-                </Badge>
-              )}
-              {jobs.completed > 0 && (
-                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 font-normal">
-                  {jobs.completed} completed
-                </Badge>
-              )}
-              {jobs.failed > 0 && (
-                <Badge variant="destructive" className="font-normal">
-                  {jobs.failed} failed
-                </Badge>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Timestamps */}
-        {progress.timestamps.lastJobUpdatedAt && (
-          <div className="text-xs text-muted-foreground pt-2">
-            Last update: {new Date(progress.timestamps.lastJobUpdatedAt).toLocaleTimeString()}
-          </div>
-        )}
-      </CardContent>
+            />
+          </Stack>
+        </Stack>
+      </Stack>
     </Card>
-  )
+  );
+}
+
+function BoxGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={1.25}
+      useFlexGap
+      flexWrap="wrap"
+      sx={{
+        "& > *": {
+          flex: "1 1 180px",
+        },
+      }}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+  color: "primary" | "success" | "warning" | "danger";
+}) {
+  return (
+    <Sheet variant="soft" color={color} sx={{ borderRadius: "20px", p: 1.75 }}>
+      <Stack spacing={0.75}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {icon}
+          <Typography level="body-xs" color="neutral">
+            {label}
+          </Typography>
+        </Stack>
+        <Typography level="title-lg" fontWeight="lg">
+          {value}
+        </Typography>
+      </Stack>
+    </Sheet>
+  );
+}
+
+function TimestampStat({ label, value }: { label: string; value: string }) {
+  return (
+    <Stack spacing={0.25} sx={{ minWidth: 100 }}>
+      <Typography level="body-xs" color="neutral">
+        {label}
+      </Typography>
+      <Typography level="body-sm" fontWeight="md">
+        {value}
+      </Typography>
+    </Stack>
+  );
 }

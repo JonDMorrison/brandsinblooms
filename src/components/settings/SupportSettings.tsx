@@ -1,282 +1,415 @@
 import React from "react";
 import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  HelpCircle,
   BookOpen,
-  MessageCircle,
-  Mail,
+  ChevronRight,
   ExternalLink,
   FileText,
-  Video,
+  HelpCircle,
+  Mail,
+  MessageCircle,
   Users,
+  Video,
+  type LucideIcon,
 } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
-import {
-  JoyCard,
-  JoyCardContent,
-  JoyCardHeader,
-} from "@/components/joy/JoyCard";
-import { JoyChip } from "@/components/joy/JoyChip";
+import { useToast } from "@/hooks/use-toast";
+import { SettingsSectionCard } from "./SettingsSurface";
+
+interface SupportResource {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  url: string;
+  meta?: string;
+}
+
+interface ContactMethod {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  value: string;
+  actionLabel: string;
+  onClick: () => void;
+}
+
+interface SystemDetail {
+  label: string;
+  value: string;
+}
+
+interface SupportFeedbackCta {
+  title: string;
+  description: string;
+  actionLabel: string;
+  onClick: () => void;
+}
+
+const SUPPORT_EMAIL = "support@bloomsuite.com";
+const PLACEHOLDER_RESOURCE_URL = "#";
+
+const rowSx = {
+  width: "100%",
+  p: 2,
+  borderRadius: "18px",
+  border: "1px solid",
+  borderColor: "neutral.200",
+  bgcolor: "background.level1",
+  textAlign: "left",
+  transition:
+    "border-color 150ms ease, background-color 150ms ease, transform 150ms ease",
+  cursor: "pointer",
+  "&:hover": {
+    borderColor: "neutral.300",
+    bgcolor: "background.surface",
+    transform: "translateY(-1px)",
+  },
+};
+
+const resolveBrowserName = () => {
+  if (typeof navigator === "undefined") {
+    return "Unavailable";
+  }
+
+  const userAgent = navigator.userAgent;
+
+  if (/Edg/i.test(userAgent)) {
+    return "Microsoft Edge";
+  }
+
+  if (/Chrome/i.test(userAgent) && !/Edg/i.test(userAgent)) {
+    return "Google Chrome";
+  }
+
+  if (/Safari/i.test(userAgent) && !/Chrome/i.test(userAgent)) {
+    return "Safari";
+  }
+
+  if (/Firefox/i.test(userAgent)) {
+    return "Firefox";
+  }
+
+  return navigator.userAgent.split(" ")[0] || "Unknown";
+};
+
+const resolveEnvironmentLabel = () => {
+  const mode = import.meta.env.MODE;
+
+  if (mode === "development") {
+    return "Development";
+  }
+
+  if (mode === "test") {
+    return "Test";
+  }
+
+  return "Production";
+};
+
+const resolveAppVersion = () => import.meta.env.VITE_APP_VERSION || "v1.0.0";
+
+const InteractiveRow = ({
+  icon: Icon,
+  title,
+  description,
+  value,
+  actionLabel,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  value?: string;
+  actionLabel?: string;
+  onClick: () => void;
+}) => {
+  return (
+    <Box component="button" onClick={onClick} sx={rowSx} type="button">
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", md: "center" }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "16px",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: "background.surface",
+              color: "text.secondary",
+              flexShrink: 0,
+            }}
+          >
+            <Icon size={18} />
+          </Box>
+
+          <Stack spacing={0.4} sx={{ minWidth: 0 }}>
+            <Typography level="title-sm">{title}</Typography>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              {description}
+            </Typography>
+            {value ? (
+              <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                {value}
+              </Typography>
+            ) : null}
+          </Stack>
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+          {actionLabel ? (
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              {actionLabel}
+            </Typography>
+          ) : null}
+          <ChevronRight size={18} style={{ color: "var(--joy-palette-text-tertiary)" }} />
+        </Stack>
+      </Stack>
+    </Box>
+  );
+};
 
 export const SupportSettings = () => {
-  const supportResources = [
+  const { toast } = useToast();
+
+  const openExternalTarget = (url?: string) => {
+    if (!url || url === PLACEHOLDER_RESOURCE_URL) {
+      toast({
+        title: "Resource unavailable",
+        description: "This support resource is not linked in the workspace yet.",
+      });
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const openEmailSupport = () => {
+    window.location.href = `mailto:${SUPPORT_EMAIL}`;
+  };
+
+  const openFeedback = () => {
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=BloomSuite%20Product%20Feedback`;
+  };
+
+  const openLiveChat = () => {
+    const supportWindow = window as Window & {
+      Intercom?: (...args: unknown[]) => void;
+      $crisp?: { push?: (args: unknown[]) => void } | Array<unknown>;
+      Tawk_API?: { toggle?: () => void; maximize?: () => void };
+      chatwootSDK?: { toggle?: () => void; popoutChatWindow?: () => void };
+    };
+
+    if (typeof supportWindow.Intercom === "function") {
+      supportWindow.Intercom("show");
+      return;
+    }
+
+    if (Array.isArray(supportWindow.$crisp)) {
+      supportWindow.$crisp.push(["do", "chat:open"]);
+      return;
+    }
+
+    if (supportWindow.$crisp?.push) {
+      supportWindow.$crisp.push(["do", "chat:open"]);
+      return;
+    }
+
+    if (supportWindow.Tawk_API?.toggle) {
+      supportWindow.Tawk_API.toggle();
+      return;
+    }
+
+    if (supportWindow.Tawk_API?.maximize) {
+      supportWindow.Tawk_API.maximize();
+      return;
+    }
+
+    if (supportWindow.chatwootSDK?.toggle) {
+      supportWindow.chatwootSDK.toggle();
+      return;
+    }
+
+    if (supportWindow.chatwootSDK?.popoutChatWindow) {
+      supportWindow.chatwootSDK.popoutChatWindow();
+      return;
+    }
+
+    toast({
+      title: "Live chat unavailable",
+      description: "No live chat widget is available in this environment.",
+    });
+  };
+
+  const supportResources: SupportResource[] = [
     {
       title: "Help Center",
-      description: "Browse our comprehensive knowledge base and tutorials",
-      icon: <BookOpen className="h-6 w-6 text-blue-600" />,
-      action: "Browse Articles",
-      url: "#",
-      badge: "Popular",
+      description:
+        "Browse product guidance, troubleshooting notes, and onboarding walkthroughs.",
+      icon: BookOpen,
+      url: PLACEHOLDER_RESOURCE_URL,
+      meta: "Popular",
     },
     {
-      title: "Video Tutorials",
-      description: "Watch step-by-step video guides for getting started",
-      icon: <Video className="h-6 w-6 text-purple-600" />,
-      action: "Watch Videos",
-      url: "#",
-      badge: null,
+      title: "Setup Guides",
+      description:
+        "Review setup flows and onboarding references without leaving the settings workspace.",
+      icon: HelpCircle,
+      url: PLACEHOLDER_RESOURCE_URL,
     },
     {
       title: "API Documentation",
-      description: "Technical documentation for developers and integrations",
-      icon: <FileText className="h-6 w-6 text-green-600" />,
-      action: "View Docs",
-      url: "#",
-      badge: null,
+      description:
+        "Reference technical setup details for integrations, auth, and delivery tooling.",
+      icon: FileText,
+      url: PLACEHOLDER_RESOURCE_URL,
     },
     {
-      title: "Community Forum",
-      description: "Connect with other users and share best practices",
-      icon: <Users className="h-6 w-6 text-orange-600" />,
-      action: "Join Community",
-      url: "#",
-      badge: "New",
+      title: "Video Tutorials",
+      description:
+        "Watch concise walkthroughs for publishing, automation, and account setup.",
+      icon: Video,
+      url: PLACEHOLDER_RESOURCE_URL,
     },
   ];
 
-  const contactOptions = [
+  const contactMethods: ContactMethod[] = [
     {
       title: "Email Support",
-      description: "Get help via email - we typically respond within 24 hours",
-      icon: <Mail className="h-5 w-5 text-blue-600" />,
-      action: "Send Email",
-      contact: "support@bloomsuite.com",
+      description: "General product questions and issue follow-up.",
+      icon: Mail,
+      value: SUPPORT_EMAIL,
+      actionLabel: "Write email",
+      onClick: openEmailSupport,
     },
     {
       title: "Live Chat",
-      description: "Chat with our support team during business hours",
-      icon: <MessageCircle className="h-5 w-5 text-green-600" />,
-      action: "Start Chat",
-      contact: "Available 9 AM - 5 PM EST",
+      description: "Business-hours support for active troubleshooting.",
+      icon: MessageCircle,
+      value: "Available 9 AM - 5 PM EST",
+      actionLabel: "Start chat",
+      onClick: openLiveChat,
     },
   ];
 
-  const browserName =
-    typeof navigator === "undefined"
-      ? "Unknown"
-      : navigator.userAgent.split(" ")[0] || "Unknown";
+  const systemDetails: SystemDetail[] = [
+    { label: "Version", value: resolveAppVersion() },
+    { label: "Environment", value: resolveEnvironmentLabel() },
+    { label: "Browser", value: resolveBrowserName() },
+    { label: "Support Email", value: SUPPORT_EMAIL },
+  ];
+
+  const feedback: SupportFeedbackCta = {
+    title: "Feedback & Feature Requests",
+    description:
+      "Share workflow gaps, product feedback, or feature requests with the BloomSuite team.",
+    actionLabel: "Submit Feedback",
+    onClick: openFeedback,
+  };
 
   return (
-    <Stack spacing={3}>
-      <JoyCard>
-        <JoyCardHeader
-          title="Support & Help"
-          description="Access documentation, contact support, and capture the context needed for troubleshooting."
-          startDecorator={
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: "16px",
-                display: "grid",
-                placeItems: "center",
-                backgroundColor: "primary.50",
-                color: "primary.700",
-              }}
-            >
-              <HelpCircle className="h-5 w-5" />
-            </Box>
-          }
-        />
-        <JoyCardContent>
-          <Stack spacing={3}>
-            <div>
-              <Typography level="title-sm" sx={{ mb: 1.5 }}>
-                Help Resources
-              </Typography>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "minmax(0, 1fr)",
-                    md: "repeat(2, minmax(0, 1fr))",
-                  },
-                  gap: 2,
-                }}
-              >
-                {supportResources.map((resource) => (
-                  <JoyCard key={resource.title}>
-                    <JoyCardContent sx={{ pt: 3 }}>
-                      <Stack spacing={1.5}>
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          justifyContent="space-between"
-                          alignItems="flex-start"
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={1.5}
-                            alignItems="center"
-                          >
-                            {resource.icon}
-                            <div>
-                              <Typography level="title-sm">
-                                {resource.title}
-                              </Typography>
-                              {resource.badge ? (
-                                <JoyChip
-                                  color="primary"
-                                  variant="soft"
-                                  size="sm"
-                                  sx={{ mt: 0.75 }}
-                                >
-                                  {resource.badge}
-                                </JoyChip>
-                              ) : null}
-                            </div>
-                          </Stack>
-                        </Stack>
-                        <Typography level="body-sm" color="neutral">
-                          {resource.description}
-                        </Typography>
-                        <JoyButton
-                          bloomVariant="outline"
-                          size="sm"
-                          sx={{ alignSelf: "flex-start" }}
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          {resource.action}
-                        </JoyButton>
-                      </Stack>
-                    </JoyCardContent>
-                  </JoyCard>
-                ))}
-              </Box>
-            </div>
+    <Stack spacing={3} sx={{ width: "100%" }}>
+      <Stack spacing={1}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <HelpCircle size={18} strokeWidth={1.8} />
+          <Typography level="title-lg">Support</Typography>
+        </Stack>
+        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 720 }}>
+          Access support contacts, internal product guidance, and troubleshooting context from a single settings surface.
+        </Typography>
+      </Stack>
 
-            <div>
-              <Typography level="title-sm" sx={{ mb: 1.5 }}>
-                Contact Support
-              </Typography>
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: {
-                    xs: "minmax(0, 1fr)",
-                    md: "repeat(2, minmax(0, 1fr))",
-                  },
-                  gap: 2,
-                }}
-              >
-                {contactOptions.map((option) => (
-                  <JoyCard key={option.title}>
-                    <JoyCardContent sx={{ pt: 3 }}>
-                      <Stack spacing={1.5}>
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          alignItems="center"
-                        >
-                          {option.icon}
-                          <Typography level="title-sm">
-                            {option.title}
-                          </Typography>
-                        </Stack>
-                        <Typography level="body-sm" color="neutral">
-                          {option.description}
-                        </Typography>
-                        <Typography level="body-xs" color="neutral">
-                          {option.contact}
-                        </Typography>
-                        <JoyButton size="sm" sx={{ alignSelf: "flex-start" }}>
-                          {option.action}
-                        </JoyButton>
-                      </Stack>
-                    </JoyCardContent>
-                  </JoyCard>
-                ))}
-              </Box>
-            </div>
+      <SettingsSectionCard
+        description="Reach the BloomSuite team using the available support channels and response windows."
+        startDecorator={<Mail size={18} />}
+        title="Support Channels"
+      >
+        <Stack spacing={1.25}>
+          {contactMethods.map((contact) => (
+            <InteractiveRow
+              actionLabel={contact.actionLabel}
+              description={contact.description}
+              icon={contact.icon}
+              key={contact.title}
+              onClick={contact.onClick}
+              title={contact.title}
+              value={contact.value}
+            />
+          ))}
+        </Stack>
+      </SettingsSectionCard>
 
-            <JoyCard
-              variant="plain"
-              sx={{ backgroundColor: "neutral.50", borderColor: "neutral.200" }}
-            >
-              <JoyCardHeader title="System Information" />
-              <JoyCardContent>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      md: "repeat(2, minmax(0, 1fr))",
-                    },
-                    gap: 1.5,
-                  }}
-                >
-                  <Typography level="body-sm">
-                    <strong>Version:</strong> v1.0.0
-                  </Typography>
-                  <Typography level="body-sm">
-                    <strong>Environment:</strong> Production
-                  </Typography>
-                  <Typography level="body-sm">
-                    <strong>Browser:</strong> {browserName}
-                  </Typography>
-                  <Typography level="body-sm">
-                    <strong>User ID:</strong> ••••••••
-                  </Typography>
-                </Box>
-                <Typography level="body-xs" color="neutral" sx={{ mt: 1.5 }}>
-                  This information helps support narrow down
-                  environment-specific issues faster.
+      <SettingsSectionCard
+        description="Reference concise product material and support guidance without leaving the settings workflow."
+        startDecorator={<BookOpen size={18} />}
+        title="Help Resources"
+      >
+        <Stack spacing={1.25}>
+          {supportResources.map((resource) => (
+            <InteractiveRow
+              actionLabel={resource.meta}
+              description={resource.description}
+              icon={resource.icon}
+              key={resource.title}
+              onClick={() => openExternalTarget(resource.url)}
+              title={resource.title}
+            />
+          ))}
+        </Stack>
+      </SettingsSectionCard>
+
+      <SettingsSectionCard
+        description="A concise environment snapshot that helps support narrow down browser- or environment-specific issues."
+        startDecorator={<Users size={18} />}
+        title="System Info"
+      >
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              md: "repeat(2, minmax(0, 1fr))",
+            },
+            gap: 1.5,
+          }}
+        >
+          {systemDetails.map((detail) => (
+            <Sheet key={detail.label} sx={{ borderRadius: "18px", p: 2 }} variant="soft">
+              <Stack spacing={0.5}>
+                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                  {detail.label}
                 </Typography>
-              </JoyCardContent>
-            </JoyCard>
+                <Typography level="title-sm">{detail.value}</Typography>
+              </Stack>
+            </Sheet>
+          ))}
+        </Box>
+      </SettingsSectionCard>
 
-            <JoyCard
-              variant="plain"
-              sx={{ backgroundColor: "primary.50", borderColor: "primary.100" }}
-            >
-              <JoyCardContent sx={{ pt: 3 }}>
-                <Stack spacing={1.25}>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <MessageCircle className="h-5 w-5 text-blue-600" />
-                    <Typography level="title-sm">
-                      Feedback & Feature Requests
-                    </Typography>
-                  </Stack>
-                  <Typography level="body-sm" color="neutral">
-                    Help improve BloomSuite by sharing product feedback,
-                    workflow gaps, or requested features.
-                  </Typography>
-                  <JoyButton
-                    bloomVariant="outline"
-                    size="sm"
-                    sx={{ alignSelf: "flex-start" }}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Submit Feedback
-                  </JoyButton>
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
-          </Stack>
-        </JoyCardContent>
-      </JoyCard>
+      <SettingsSectionCard
+        description="Share product direction feedback and feature requests without altering the existing support behavior."
+        headerActions={
+          <JoyButton onClick={feedback.onClick} startDecorator={<ExternalLink size={16} />} variant="outline">
+            {feedback.actionLabel}
+          </JoyButton>
+        }
+        startDecorator={<MessageCircle size={18} />}
+        title="Feedback & Feature Requests"
+      >
+        <Stack spacing={0.75}>
+          <Typography level="title-sm">{feedback.title}</Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            {feedback.description}
+          </Typography>
+        </Stack>
+      </SettingsSectionCard>
     </Stack>
   );
 };

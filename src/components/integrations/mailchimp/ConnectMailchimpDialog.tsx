@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
+import { ArrowRight, CheckCircle2, RotateCcw } from "lucide-react";
 
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-import { Button } from "@/components/ui-legacy/button";
 import {
-  Dialog,
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  DialogActions,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
-} from "@/components/ui-legacy/dialog";
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
 
 type ConnectMailchimpDialogPhase =
@@ -228,124 +234,169 @@ export function ConnectMailchimpDialog({
   const showSuccess = phase === "success";
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader className="space-y-4 text-left">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50">
-              <img
-                src={mailchimpLogo}
-                alt="Mailchimp logo"
-                className="h-8 w-8 object-contain"
-              />
-            </div>
-            <div>
-              <DialogTitle>
-                {showSuccess ? "Mailchimp Connected" : "Connect Mailchimp"}
-              </DialogTitle>
-              <DialogDescription className="mt-2">
-                {showSuccess
-                  ? "BloomSuite can now refresh your Mailchimp audiences and connection details from this page."
-                  : "Authorize BloomSuite to view your Mailchimp account and cache audience metadata without leaving this integration page."}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <Modal open={open} onClose={() => handleOpenChange(false)}>
+      <ModalDialog
+        variant="outlined"
+        sx={{ maxWidth: 500, borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
+      >
+        <ModalClose disabled={showWaiting} />
 
-        <div className="space-y-4 py-2">
-          {showPermissions ? (
-            <div className="rounded-2xl border border-border bg-slate-50/80 p-4 text-sm text-slate-900">
-              <p className="font-medium">
-                Mailchimp will grant BloomSuite permission to:
-              </p>
-              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>Read your connected Mailchimp account details</li>
-                <li>Cache list and segment metadata for import setup</li>
-                <li>Refresh access later from this same integration page</li>
-              </ul>
-            </div>
-          ) : null}
+        <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 0.5 }}>
+          <Box
+            sx={{
+              flexShrink: 0,
+              width: 52,
+              height: 52,
+              borderRadius: "xl",
+              border: "1px solid",
+              borderColor: "warning.200",
+              bgcolor: "warning.50",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src={mailchimpLogo}
+              alt="Mailchimp logo"
+              style={{ width: 30, height: 30, objectFit: "contain" }}
+            />
+          </Box>
+          <Box>
+            <DialogTitle sx={{ p: 0 }}>
+              {showSuccess ? "Mailchimp Connected" : "Connect Mailchimp"}
+            </DialogTitle>
+            <Typography level="body-sm" textColor="text.tertiary" sx={{ mt: 0.5 }}>
+              {showSuccess
+                ? "BloomSuite can now refresh your Mailchimp audiences and connection details from this page."
+                : "Authorize BloomSuite to view your Mailchimp account and cache audience metadata."}
+            </Typography>
+          </Box>
+        </Stack>
 
-          {feedbackMessage ? (
-            <div
-              className={`rounded-2xl border p-4 text-sm ${phase === "cancelled" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-rose-200 bg-rose-50 text-rose-900"}`}
+        <DialogContent sx={{ mt: 1.5 }}>
+          <Stack spacing={1.5}>
+            {showPermissions ? (
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "lg", p: 2 }}
+              >
+                <Typography level="body-sm" fontWeight="md" mb={1}>
+                  Mailchimp will grant BloomSuite permission to:
+                </Typography>
+                <Stack component="ul" spacing={0.5} sx={{ pl: 2, m: 0 }}>
+                  {[
+                    "Read your connected Mailchimp account details",
+                    "Cache list and segment metadata for import setup",
+                    "Refresh access later from this same integration page",
+                  ].map((item) => (
+                    <Typography key={item} component="li" level="body-sm" textColor="text.secondary">
+                      {item}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Sheet>
+            ) : null}
+
+            {feedbackMessage ? (
+              <Alert
+                color={phase === "cancelled" ? "warning" : "danger"}
+                variant="soft"
+                size="sm"
+              >
+                {feedbackMessage}
+              </Alert>
+            ) : null}
+
+            {showWaiting ? (
+              <Alert
+                color="primary"
+                variant="soft"
+                size="sm"
+                startDecorator={<CircularProgress size="sm" />}
+              >
+                <Box>
+                  <Typography level="body-sm" fontWeight="md">
+                    Waiting for Mailchimp authorization…
+                  </Typography>
+                  <Typography level="body-xs" textColor="text.tertiary" sx={{ mt: 0.5 }}>
+                    Finish the authorization in the new tab to connect this account.
+                  </Typography>
+                </Box>
+              </Alert>
+            ) : null}
+
+            {showSuccess ? (
+              <Alert
+                color="success"
+                variant="soft"
+                size="sm"
+                startDecorator={<CheckCircle2 style={{ width: 16, height: 16 }} />}
+              >
+                <Box>
+                  <Typography level="body-sm" fontWeight="md">
+                    Mailchimp authorization complete
+                  </Typography>
+                  <Typography level="body-xs" textColor="text.tertiary" sx={{ mt: 0.5 }}>
+                    {successAccountName
+                      ? `Connected as ${successAccountName}.`
+                      : "Your Mailchimp account is now connected."}
+                  </Typography>
+                </Box>
+              </Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+
+        <DialogActions sx={{ gap: 1, justifyContent: "flex-end" }}>
+          {showSuccess ? (
+            <Button
+              variant="solid"
+              color="neutral"
+              onClick={() => onOpenChange(false)}
             >
-              {feedbackMessage}
-            </div>
-          ) : null}
-
-          {showWaiting ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
-              <Loader2 className="mt-0.5 h-5 w-5 animate-spin" />
-              <div>
-                <p className="font-medium">
-                  Waiting for Mailchimp authorization…
-                </p>
-                <p className="mt-1 text-sky-800/80">
-                  Finish the Mailchimp authorization in the new tab to connect
-                  this account. If you close the tab without completing
-                  authorization, you can try again from here.
-                </p>
-              </div>
-            </div>
-          ) : null}
-
-          {showSuccess ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-              <CheckCircle2 className="mt-0.5 h-5 w-5" />
-              <div>
-                <p className="font-medium">Mailchimp authorization complete</p>
-                <p className="mt-1 text-emerald-800/80">
-                  {successAccountName
-                    ? `Connected as ${successAccountName}.`
-                    : "Your Mailchimp account is now connected."}
-                </p>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <DialogFooter>
-          {showSuccess ? (
-            <Button type="button" onClick={() => onOpenChange(false)}>
               Done
             </Button>
           ) : (
             <>
               <Button
-                type="button"
-                variant="ghost"
+                variant="plain"
+                color="neutral"
                 onClick={() => onOpenChange(false)}
                 disabled={showWaiting}
               >
                 Cancel
               </Button>
               <Button
-                type="button"
+                variant="solid"
+                color="neutral"
                 onClick={() => void startAuthorization()}
                 disabled={showWaiting}
+                startDecorator={
+                  showWaiting ? <CircularProgress size="sm" /> : null
+                }
               >
-                {showWaiting ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                    Waiting for Mailchimp authorization…
-                  </>
-                ) : phase === "cancelled" ? (
-                  <>
-                    <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                    Try Again
-                  </>
-                ) : (
-                  <>
-                    Connect with Mailchimp
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                  </>
-                )}
+                {showWaiting
+                  ? "Waiting for authorization…"
+                  : phase === "cancelled"
+                    ? (
+                      <>
+                        <RotateCcw style={{ width: 14, height: 14, marginRight: 6 }} />
+                        Try Again
+                      </>
+                    )
+                    : (
+                      <>
+                        Connect with Mailchimp
+                        <ArrowRight style={{ width: 14, height: 14, marginLeft: 6 }} />
+                      </>
+                    )}
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
   );
 }

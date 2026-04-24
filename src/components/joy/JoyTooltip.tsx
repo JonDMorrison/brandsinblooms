@@ -3,9 +3,7 @@ import JoyBaseTooltip, {
   type TooltipProps as JoyBaseTooltipProps,
 } from "@mui/joy/Tooltip";
 import type { SxProps } from "@mui/joy/styles/types";
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export interface JoyTooltipProps extends Omit<
   JoyBaseTooltipProps,

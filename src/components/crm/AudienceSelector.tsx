@@ -7,13 +7,19 @@ import { Separator } from "@/components/ui-legacy/separator";
 import { Search, Users, Lightbulb, X, Plus, Check, Lock } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
+import { SegmentPicker } from "./segments/SegmentPicker";
 import { CustomPersonaModal } from "./personas/CustomPersonaModal";
 import { CustomSegmentModal } from "./segments/CustomSegmentModal";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
-import { useAllSegments } from "@/hooks/useAllSegments";
+import { useSegments } from "@/hooks/useSegments";
 import { usePersonaCustomerCounts } from "@/hooks/usePersonaCustomerCounts";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "@/utils/toast";
 import { useScrollGuard } from "@/hooks/useScrollGuard";
+import { useNavigate } from "react-router-dom";
+import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
+
+const AUDIENCE_RECALC_MS = 300;
 
 interface Persona {
   id: string;
@@ -52,25 +58,35 @@ export const AudienceSelector = ({
   onClose,
   lockedSegmentIds = [],
 }: AudienceSelectorProps) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [showSegmentModal, setShowSegmentModal] = useState(false);
   const [isStableLoading, setIsStableLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
+  const [totalAudienceCount, setTotalAudienceCount] = useState(0);
 
   // Prevent scroll locks from persisting
   useScrollGuard();
 
   // Use existing hooks
-  const { personas, loading: personasLoading } = useAllPersonas();
-  const { segments, loading: segmentsLoading } = useAllSegments();
-  const { counts: personaCounts, loading: personaCountsLoading } =
-    usePersonaCustomerCounts();
+  const {
+    personas,
+    loading: personasLoading,
+    createPersona,
+  } = useAllPersonas();
+  const { allSegments, isLoading: segmentsLoading } = useSegments();
+  const {
+    counts: personaCounts,
+    summary,
+    loading: personaCountsLoading,
+  } = usePersonaCustomerCounts();
+  const { tenant } = useTenant();
 
   // Stable loading state management
   const isDataLoading =
     personasLoading || segmentsLoading || personaCountsLoading;
-  const hasData = personas.length >= 0 && segments.length >= 0;
+  const hasData = personas.length >= 0 && allSegments.length >= 0;
 
   // Implement minimum loading duration and smooth transitions
   useEffect(() => {
@@ -104,29 +120,110 @@ export const AudienceSelector = ({
       )
     : personas;
 
-  const filteredSegments = searchTerm
-    ? segments.filter(
-        (segment) =>
-          segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          segment.description?.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    : segments;
+  const availableSegments = useMemo(
+    () =>
+      allSegments.map((segment) => ({
+        id: segment.id,
+        name: segment.name,
+        description: segment.description,
+        customer_count: segment.memberCount,
+        type: segment.isSystemSegment
+          ? ("predefined" as const)
+          : ("custom" as const),
+        persona_id: segment.personaId ?? undefined,
+      })),
+    [allSegments],
+  );
+
+  const segmentRegistry = useMemo(
+    () =>
+      new Map(
+        [...selectedSegments, ...availableSegments].map((segment) => [
+          segment.id,
+          segment,
+        ]),
+      ),
+    [availableSegments, selectedSegments],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const run = async () => {
+      if (!tenant?.id) {
+        if (!cancelled) {
+          setTotalAudienceCount(0);
+        }
+        return;
+      }
+
+      if (selectedSegments.length === 0 && selectedPersonas.length === 0) {
+        if (!cancelled) {
+          setTotalAudienceCount(0);
+        }
+        return;
+      }
+
+      try {
+        const count = await computeAudienceRecipientCount({
+          tenantId: tenant.id,
+          totalCustomerCount: summary.totalCustomers,
+          segmentIds: selectedSegments.map((segment) => segment.id),
+          personaIds: selectedPersonas.map((persona) => persona.id),
+        });
+
+        if (!cancelled) {
+          setTotalAudienceCount(count);
+        }
+      } catch (error) {
+        console.error("Failed to calculate exact audience size:", error);
+        if (!cancelled) {
+          setTotalAudienceCount(0);
+        }
+      }
+    };
+
+    timer = setTimeout(() => {
+      void run();
+    }, AUDIENCE_RECALC_MS);
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [selectedPersonas, selectedSegments, summary.totalCustomers, tenant?.id]);
 
   const handleCreatePersona = async (personaData: {
     name: string;
-    description?: string;
+    description?: string | null;
+    metadata?: any;
   }) => {
-    // Handle persona creation - for now just close modal
+    const createdPersona = await createPersona(personaData);
+
+    if (!createdPersona) {
+      return null;
+    }
+
     setShowPersonaModal(false);
-    return true;
+
+    if (selectedPersonas.length < maxPersonas) {
+      onPersonasChange([...selectedPersonas, createdPersona]);
+    }
+
+    return createdPersona;
   };
 
   const handleCreateSegment = async (segmentData: {
     name: string;
     filters: any[];
   }) => {
-    // Handle segment creation - for now just close modal
+    void segmentData;
     setShowSegmentModal(false);
+    onClose();
+    navigate("/crm/segments/new");
     return true;
   };
 
@@ -160,6 +257,24 @@ export const AudienceSelector = ({
     }
   };
 
+  const handleSegmentIdsChange = (segmentIds: string[]) => {
+    const lockedSelection = lockedSegmentIds.filter((segmentId) =>
+      selectedSegments.some((segment) => segment.id === segmentId),
+    );
+    const mergedIds = Array.from(new Set([...segmentIds, ...lockedSelection]));
+
+    if (mergedIds.length > maxSegments) {
+      toast.error(`You can select up to ${maxSegments} segments`);
+      return;
+    }
+
+    const nextSegments = mergedIds
+      .map((segmentId) => segmentRegistry.get(segmentId))
+      .filter(Boolean) as Segment[];
+
+    onSegmentsChange(nextSegments);
+  };
+
   const removePersona = (personaId: string) => {
     onPersonasChange(selectedPersonas.filter((p) => p.id !== personaId));
   };
@@ -175,19 +290,7 @@ export const AudienceSelector = ({
   };
 
   const getTotalAudience = () => {
-    // Calculate total from segments
-    const segmentTotal = selectedSegments.reduce(
-      (total, segment) => total + segment.customer_count,
-      0,
-    );
-
-    // Calculate total from personas
-    const personaTotal = selectedPersonas.reduce((total, persona) => {
-      const count = personaCounts[persona.id] || 0;
-      return total + count;
-    }, 0);
-
-    return segmentTotal + personaTotal;
+    return totalAudienceCount;
   };
 
   const isPersonaSelected = (personaId: string) => {
@@ -418,7 +521,6 @@ export const AudienceSelector = ({
           </div>
 
           <div className="space-y-2 max-h-96 overflow-y-auto scroll-container border border-border rounded-lg p-3">
-            {/* Add "All Contacts" Option */}
             <div
               className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
                 selectedSegments.length === 0 && selectedPersonas.length === 0
@@ -459,67 +561,44 @@ export const AudienceSelector = ({
               </div>
             </div>
 
-            {filteredSegments.map((segment) => {
-              const mappedSegment: Segment = {
-                id: segment.id,
-                name: segment.name,
-                description: segment.description,
-                customer_count: segment.customer_count,
-                type: "predefined",
-              };
-              const isSelected = isSegmentSelected(segment.id);
-              const isDisabled =
-                !isSelected && selectedSegments.length >= maxSegments;
+            <div className="rounded-lg border border-border bg-background p-3">
+              <SegmentPicker
+                onChange={handleSegmentIdsChange}
+                statuses={["active", "draft", "paused"]}
+                value={selectedSegments.map((segment) => segment.id)}
+              />
+              <p className="mt-2 text-sm text-muted-foreground">
+                Use the shared segment picker so campaigns and automations
+                target the same tenant-scoped audiences as the new segments
+                workspace.
+              </p>
+            </div>
 
-              return (
-                <div
-                  key={segment.id}
-                  className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
-                    isSelected
-                      ? "border-brand-teal bg-brand-teal/5"
-                      : isDisabled
-                        ? "border-muted bg-muted/50 opacity-50"
-                        : "border-border hover:border-brand-teal/30 hover:bg-brand-teal/5"
-                  }`}
-                >
-                  <Checkbox
-                    id={segment.id}
-                    checked={isSelected}
-                    disabled={isDisabled}
-                    onCheckedChange={(checked) =>
-                      handleSegmentToggle(mappedSegment, checked as boolean)
-                    }
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <label
-                        htmlFor={segment.id}
-                        className={`font-medium cursor-pointer ${isDisabled ? "cursor-not-allowed" : ""}`}
-                      >
-                        {segment.name}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {segment.customer_count.toLocaleString()}
-                        </span>
-                      </div>
+            {selectedSegments.length > 0 ? (
+              <div className="space-y-2">
+                {selectedSegments.map((segment) => (
+                  <div
+                    key={segment.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium">{segment.name}</div>
+                      {segment.description ? (
+                        <p className="text-sm text-muted-foreground">
+                          {segment.description}
+                        </p>
+                      ) : null}
                     </div>
-                    {segment.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {segment.description}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>{segment.customer_count.toLocaleString()}</span>
+                      {lockedSegmentIds.includes(segment.id) ? (
+                        <Lock className="h-4 w-4" />
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-
-            {filteredSegments.length === 0 && (
-              <div className="text-center py-6 text-muted-foreground">
-                <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No segments found</p>
+                ))}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

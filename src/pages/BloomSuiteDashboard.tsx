@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
@@ -19,13 +21,7 @@ import {
   getTwilioStatus,
 } from "@/components/dashboard/TwilioSetupChecker";
 import { JoyButton } from "@/components/joy/JoyButton";
-import {
-  JoyCard,
-  JoyCardContent,
-  JoyCardHeader,
-} from "@/components/joy/JoyCard";
 import { JoyChip } from "@/components/joy/JoyChip";
-import { JoyStatCard } from "@/components/joy/JoyStatCard";
 import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
 import {
@@ -35,12 +31,220 @@ import {
   Megaphone,
   Calendar,
   Share2,
-  Globe,
   HelpCircle,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
+
+const panelSurfaceSx = {
+  borderRadius: "12px",
+  borderColor: "neutral.200",
+  backgroundColor: "#FFFFFF",
+  boxShadow: "none",
+  p: 2,
+} as const;
+
+const actionCardSx = {
+  borderRadius: "12px",
+  borderColor: "neutral.200",
+  backgroundColor: "#FFFFFF",
+  boxShadow: "none",
+  p: 2,
+  height: "100%",
+} as const;
+
+const subtleDividerSx = {
+  "--Divider-lineColor": "var(--joy-palette-neutral-100)",
+} as const;
+
+const capitalizeStatusText = (value: string) =>
+  value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
+
+const getHeaderStatusChipMessage = (label: string, message: string) => {
+  const normalizedMessage = message.trim();
+  if (!normalizedMessage) {
+    return label;
+  }
+
+  const normalizedLabel = label.trim().toLowerCase();
+  if (normalizedMessage.toLowerCase().startsWith(`${normalizedLabel} `)) {
+    return capitalizeStatusText(
+      normalizedMessage.slice(label.trim().length).trim(),
+    );
+  }
+
+  return normalizedMessage;
+};
+
+type DashboardStatCardProps = {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  icon: React.ReactNode;
+  change?: {
+    value: string;
+    direction: "up" | "down";
+  };
+  loading?: boolean;
+  onClick?: () => void;
+};
+
+function DashboardStatCard({
+  label,
+  value,
+  icon,
+  change,
+  loading = false,
+  onClick,
+}: DashboardStatCardProps) {
+  const isInteractive = Boolean(onClick);
+  const Component = isInteractive ? "button" : "div";
+  const ChangeIcon = change?.direction === "down" ? TrendingDown : TrendingUp;
+  const changeColor =
+    change?.direction === "down" ? "danger.600" : "success.600";
+
+  return (
+    <Box
+      component={Component}
+      type={isInteractive ? "button" : undefined}
+      onClick={onClick}
+      sx={{
+        width: "100%",
+        height: "100%",
+        appearance: "none",
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "12px",
+        backgroundColor: "#FFFFFF",
+        boxShadow: "var(--joy-shadow-xs)",
+        p: 2,
+        textAlign: "left",
+        transition:
+          "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
+        cursor: isInteractive ? "pointer" : "default",
+        ...(isInteractive
+          ? {
+              "&:hover": {
+                transform: "translateY(-1px)",
+                boxShadow: "var(--joy-shadow-sm)",
+                borderColor: "neutral.300",
+              },
+              "&:focus-visible": {
+                outline: "2px solid var(--joy-palette-primary-400)",
+                outlineOffset: "1px",
+              },
+            }
+          : null),
+      }}
+    >
+      <Stack spacing={1.25} sx={{ height: "100%" }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+        >
+          {loading ? (
+            <Skeleton sx={{ width: 88, height: 12, borderRadius: "999px" }} />
+          ) : (
+            <Typography
+              sx={{
+                fontSize: "13px",
+                fontWeight: 500,
+                lineHeight: 1.4,
+                color: "neutral.500",
+              }}
+            >
+              {label}
+            </Typography>
+          )}
+
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              color: "neutral.400",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              "& > .lucide": {
+                width: 20,
+                height: 20,
+              },
+              "& > *": {
+                flexShrink: 0,
+              },
+            }}
+          >
+            {loading ? (
+              <Skeleton sx={{ width: 20, height: 20, borderRadius: "999px" }} />
+            ) : (
+              icon
+            )}
+          </Box>
+        </Stack>
+
+        {loading ? (
+          <Skeleton
+            sx={{
+              width: "68%",
+              maxWidth: 120,
+              height: 34,
+              borderRadius: "10px",
+            }}
+          />
+        ) : (
+          <Typography
+            sx={{
+              fontFamily: "var(--joy-fontFamily-display)",
+              fontSize: "28px",
+              fontWeight: 700,
+              lineHeight: 1.05,
+              letterSpacing: "-0.03em",
+              color: "neutral.900",
+            }}
+          >
+            {value}
+          </Typography>
+        )}
+
+        <Box sx={{ minHeight: 18, display: "flex", alignItems: "center" }}>
+          {loading ? (
+            <Skeleton
+              sx={{
+                width: "72%",
+                maxWidth: 132,
+                height: 12,
+                borderRadius: "999px",
+              }}
+            />
+          ) : change ? (
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <ChangeIcon
+                className="h-3 w-3"
+                style={{
+                  color: `var(--joy-palette-${change.direction === "down" ? "danger" : "success"}-600)`,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  lineHeight: 1.4,
+                  color: changeColor,
+                }}
+              >
+                {change.value}
+              </Typography>
+            </Stack>
+          ) : null}
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
 
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
@@ -103,6 +307,8 @@ export const BloomSuiteDashboard = () => {
   const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
   const cardsLoading = loadingMetrics || loadingPOSAnalytics;
+  const focusLoading =
+    loadingConnections || loadingTwilio || loadingPOSAnalytics;
 
   const handleSelectAction = (action: string) => {
     switch (action) {
@@ -212,9 +418,7 @@ export const BloomSuiteDashboard = () => {
   const overviewStats = [
     {
       label: "Customers",
-      value: cardsLoading
-        ? "..."
-        : (crmMetrics?.totalCustomers ?? 0).toLocaleString(),
+      value: (crmMetrics?.totalCustomers ?? 0).toLocaleString(),
       icon: <Mail />,
       change:
         crmMetrics && Number.isFinite(crmMetrics.totalCustomersGrowth)
@@ -230,9 +434,7 @@ export const BloomSuiteDashboard = () => {
     },
     {
       label: "Orders",
-      value: cardsLoading
-        ? "..."
-        : (posAnalytics?.totalOrders ?? 0).toLocaleString(),
+      value: (posAnalytics?.totalOrders ?? 0).toLocaleString(),
       icon: <Calendar />,
       change: posAnalytics?.hasIntegration
         ? {
@@ -244,9 +446,7 @@ export const BloomSuiteDashboard = () => {
     },
     {
       label: "Active campaigns",
-      value: cardsLoading
-        ? "..."
-        : (crmMetrics?.activeCampaigns ?? 0).toLocaleString(),
+      value: (crmMetrics?.activeCampaigns ?? 0).toLocaleString(),
       icon: <Megaphone />,
       change:
         crmMetrics && Number.isFinite(crmMetrics.activeCampaignsGrowth)
@@ -262,13 +462,11 @@ export const BloomSuiteDashboard = () => {
     },
     {
       label: "Revenue",
-      value: cardsLoading
-        ? "..."
-        : new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-            maximumFractionDigits: 0,
-          }).format(crmMetrics?.totalRevenue ?? 0),
+      value: new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      }).format(crmMetrics?.totalRevenue ?? 0),
       icon: <BarChart3 />,
       change:
         crmMetrics && Number.isFinite(crmMetrics.totalRevenueGrowth)
@@ -289,11 +487,15 @@ export const BloomSuiteDashboard = () => {
       label: "Social accounts",
       value: socialStatus.statusMessage,
       tone: socialStatus.status === "ready" ? "success" : "warning",
+      statusLabel:
+        socialStatus.status === "ready" ? "Ready" : "Needs attention",
     },
     {
       label: "SMS readiness",
       value: twilioStatus.statusMessage,
       tone: twilioStatus.status === "ready" ? "success" : "warning",
+      statusLabel:
+        twilioStatus.status === "ready" ? "Ready" : "Needs attention",
     },
     {
       label: "POS sync",
@@ -301,88 +503,181 @@ export const BloomSuiteDashboard = () => {
         ? `${posAnalytics.integrationName ?? "POS"} connected`
         : "No POS integration connected",
       tone: posAnalytics?.hasIntegration ? "success" : "warning",
+      statusLabel: posAnalytics?.hasIntegration ? "Ready" : "Needs attention",
     },
     {
       label: "Website tools",
       value: "Website builder remains available from the workspace shell.",
-      tone: "neutral",
+      tone: "primary",
+      statusLabel: "Info",
+      highlighted: true,
+    },
+  ] as const;
+
+  const quickLinks = [
+    { label: "Open analytics", to: "/analytics" },
+    { label: "Review products", to: "/products" },
+    { label: "Update settings", to: "/settings" },
+    { label: "Website workspace", to: "/website/app" },
+  ] as const;
+
+  const headerStatusChips = [
+    {
+      key: "social",
+      label: "Social",
+      message: loadingConnections
+        ? "Checking connection"
+        : socialStatus.statusMessage,
+      color: loadingConnections
+        ? ("neutral" as const)
+        : socialStatus.status === "ready"
+          ? ("success" as const)
+          : ("warning" as const),
+    },
+    {
+      key: "sms",
+      label: "SMS",
+      message: loadingTwilio
+        ? "Checking readiness"
+        : twilioStatus.statusMessage,
+      color: loadingTwilio
+        ? ("neutral" as const)
+        : twilioStatus.status === "ready"
+          ? ("success" as const)
+          : ("warning" as const),
     },
   ] as const;
 
   return (
-    <Stack spacing={3.5}>
+    <Stack spacing={3}>
       <Sheet
         variant="plain"
         sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: "28px",
-          border: "1px solid",
-          borderColor: "neutral.200",
+          px: { xs: 2.5, md: 3 },
+          py: { xs: 2.5, md: 3 },
+          borderRadius: "16px",
           background:
-            "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(239, 246, 255, 0.88) 45%, rgba(255, 255, 255, 1) 100%)",
+            "linear-gradient(135deg, rgba(240, 255, 254, 0.96) 0%, rgba(240, 255, 254, 0.42) 42%, rgba(255, 255, 255, 0) 100%)",
         }}
       >
-        <Stack spacing={1.5}>
-          <Typography
-            level="body-sm"
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", lg: "flex-start" }}
+        >
+          <Stack spacing={1.25} sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              component="p"
+              sx={{
+                fontSize: "11px",
+                fontWeight: 700,
+                lineHeight: 1.4,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "primary.600",
+              }}
+            >
+              TENANT DASHBOARD
+            </Typography>
+            <Typography
+              level="h3"
+              sx={{
+                fontSize: "24px",
+                fontWeight: 700,
+                lineHeight: 1.2,
+                color: "neutral.900",
+              }}
+            >
+              Welcome back, {displayName}
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: "14px",
+                lineHeight: 1.5,
+                color: "neutral.500",
+                maxWidth: "42rem",
+              }}
+            >
+              Keep customers, campaigns, and store operations moving from one
+              premium workspace.
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={1.25}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ columnGap: 1.25, rowGap: 1 }}
+            >
+              {headerStatusChips.map((chip) => (
+                <JoyChip
+                  key={chip.key}
+                  size="sm"
+                  variant="soft"
+                  color={chip.color}
+                  sx={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                    px: 1.25,
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      columnGap: 0.75,
+                    }}
+                  >
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      {chip.label}
+                    </Box>
+                    <Box
+                      component="span"
+                      sx={{ color: "currentColor", opacity: 0.55 }}
+                    >
+                      ·
+                    </Box>
+                    <Box component="span">
+                      {getHeaderStatusChipMessage(chip.label, chip.message)}
+                    </Box>
+                  </Box>
+                </JoyChip>
+              ))}
+            </Stack>
+          </Stack>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
             sx={{
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "primary.700",
-              fontWeight: 700,
+              alignSelf: { xs: "stretch", lg: "flex-start" },
+              width: { xs: "100%", lg: "auto" },
             }}
           >
-            Tenant Dashboard
-          </Typography>
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            spacing={2}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", lg: "center" }}
-          >
-            <Stack spacing={1}>
-              <Typography level="h1">Welcome back, {displayName}</Typography>
-              <Typography level="body-md" color="neutral">
-                Keep customers, campaigns, and store operations moving from one
-                Joy dashboard.
-              </Typography>
-              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                <JoyChip color="success" variant="soft">
-                  Social{" "}
-                  {loadingConnections ? "checking" : socialStatus.statusMessage}
-                </JoyChip>
-                <JoyChip
-                  color={
-                    loadingTwilio
-                      ? "neutral"
-                      : twilioStatus.status === "ready"
-                        ? "success"
-                        : "warning"
-                  }
-                  variant="soft"
-                >
-                  SMS {loadingTwilio ? "checking" : twilioStatus.statusMessage}
-                </JoyChip>
-              </Stack>
-            </Stack>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <JoyButton
+              variant="soft"
+              color="neutral"
+              size="sm"
+              onClick={() => setShowLaunchpad(true)}
+              startDecorator={<HelpCircle />}
+              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+            >
+              Open launchpad
+            </JoyButton>
+            {!isCompleted && !hasEverCompleted ? (
               <JoyButton
-                bloomVariant="outline"
-                onClick={() => setShowLaunchpad(true)}
-                startDecorator={<HelpCircle />}
+                variant="solid"
+                color="primary"
+                size="sm"
+                onClick={() => setShowSetupWizard(true)}
+                startDecorator={<Sparkles />}
+                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
               >
-                Open launchpad
+                Complete setup
               </JoyButton>
-              {!isCompleted && !hasEverCompleted ? (
-                <JoyButton
-                  onClick={() => setShowSetupWizard(true)}
-                  startDecorator={<Sparkles />}
-                >
-                  Complete Setup
-                </JoyButton>
-              ) : null}
-            </Stack>
+            ) : null}
           </Stack>
         </Stack>
       </Sheet>
@@ -395,16 +690,18 @@ export const BloomSuiteDashboard = () => {
             md: "repeat(2, minmax(0, 1fr))",
             xl: "repeat(4, minmax(0, 1fr))",
           },
-          gap: 3,
+          gap: 1.5,
+          gridAutoRows: "1fr",
         }}
       >
         {overviewStats.map((stat) => (
-          <JoyStatCard
+          <DashboardStatCard
             key={stat.label}
             icon={stat.icon}
             label={stat.label}
             value={stat.value}
             change={stat.change}
+            loading={cardsLoading}
             onClick={stat.onClick}
           />
         ))}
@@ -418,160 +715,312 @@ export const BloomSuiteDashboard = () => {
             xl: "minmax(0, 2fr) minmax(320px, 1fr)",
           },
           gap: 3,
+          alignItems: "start",
         }}
       >
-        <JoyCard>
-          <JoyCardHeader
-            title="What would you like to do today?"
-            description="Jump straight into the most common tenant workflows."
-          />
-          <JoyCardContent>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  md: "repeat(2, minmax(0, 1fr))",
-                },
-                gap: 2,
-              }}
+        <Stack spacing={2}>
+          <Stack spacing={0.5}>
+            <Typography
+              level="title-md"
+              sx={{ fontSize: "18px", fontWeight: 600, color: "neutral.900" }}
             >
-              {quickActions.map((action) => {
-                const Icon = action.icon;
+              What would you like to do today?
+            </Typography>
+            <Typography
+              sx={{ fontSize: "14px", lineHeight: 1.5, color: "neutral.500" }}
+            >
+              Jump straight into the most common tenant workflows.
+            </Typography>
+          </Stack>
 
-                return (
-                  <JoyCard
-                    key={action.id}
-                    variant="plain"
-                    sx={{
-                      borderColor: "neutral.200",
-                      backgroundColor: "neutral.50",
-                    }}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "minmax(0, 1fr)",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+              gridAutoRows: "1fr",
+            }}
+          >
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+
+              return (
+                <Sheet key={action.id} variant="outlined" sx={actionCardSx}>
+                  <Stack
+                    spacing={1.5}
+                    sx={{ height: "100%", justifyContent: "space-between" }}
                   >
-                    <JoyCardContent sx={{ pt: 3 }}>
-                      <Stack spacing={2}>
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          alignItems="flex-start"
+                    <Stack spacing={1.5}>
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "999px",
+                          display: "grid",
+                          placeItems: "center",
+                          backgroundColor: "primary.50",
+                          color: "primary.700",
+                          flexShrink: 0,
+                          "& > .lucide": {
+                            width: 18,
+                            height: 18,
+                          },
+                        }}
+                      >
+                        <Icon />
+                      </Box>
+
+                      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
+                        <Typography
+                          sx={{
+                            fontSize: "15px",
+                            fontWeight: 600,
+                            lineHeight: 1.35,
+                            color: "neutral.800",
+                          }}
                         >
-                          <Box
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: "16px",
-                              display: "grid",
-                              placeItems: "center",
-                              backgroundColor: "primary.50",
-                              color: "primary.700",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <Icon className="h-5 w-5" />
-                          </Box>
-                          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                            <Typography level="title-sm">
-                              {action.title}
-                            </Typography>
-                            <Typography level="body-sm" color="neutral">
-                              {action.description}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          spacing={1.25}
+                          {action.title}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: "13px",
+                            lineHeight: 1.5,
+                            color: "neutral.500",
+                            display: "-webkit-box",
+                            WebkitBoxOrient: "vertical",
+                            WebkitLineClamp: 2,
+                            overflow: "hidden",
+                          }}
                         >
-                          <JoyButton
-                            size="sm"
-                            onClick={action.primaryAction.onClick}
-                          >
-                            {action.primaryAction.label}
-                          </JoyButton>
-                          <JoyButton
-                            bloomVariant="outline"
-                            size="sm"
-                            onClick={action.secondaryAction.onClick}
-                          >
-                            {action.secondaryAction.label}
-                          </JoyButton>
-                        </Stack>
+                          {action.description}
+                        </Typography>
                       </Stack>
-                    </JoyCardContent>
-                  </JoyCard>
-                );
-              })}
-            </Box>
-          </JoyCardContent>
-        </JoyCard>
+                    </Stack>
+
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <JoyButton
+                        variant="solid"
+                        color="primary"
+                        size="sm"
+                        onClick={action.primaryAction.onClick}
+                        sx={{ borderRadius: "var(--joy-radius-sm)" }}
+                      >
+                        {action.primaryAction.label}
+                      </JoyButton>
+                      <JoyButton
+                        variant="plain"
+                        color="neutral"
+                        size="sm"
+                        onClick={action.secondaryAction.onClick}
+                        sx={{ borderRadius: "var(--joy-radius-sm)" }}
+                      >
+                        {action.secondaryAction.label}
+                      </JoyButton>
+                    </Stack>
+                  </Stack>
+                </Sheet>
+              );
+            })}
+          </Box>
+        </Stack>
 
         <Stack spacing={3}>
-          <JoyCard>
-            <JoyCardHeader
-              title="Today's focus"
-              description="A quick tenant-level readiness check across the main channels."
-            />
-            <JoyCardContent>
-              <Stack spacing={1.5}>
-                {todayItems.map((item) => (
-                  <Sheet
-                    key={item.label}
-                    variant="outlined"
+          <Sheet variant="outlined" sx={panelSurfaceSx}>
+            <Stack spacing={2}>
+              <Stack spacing={0.5}>
+                <Typography
+                  level="title-md"
+                  sx={{
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    color: "neutral.900",
+                  }}
+                >
+                  Today&apos;s focus
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "13px",
+                    lineHeight: 1.5,
+                    color: "neutral.500",
+                  }}
+                >
+                  A quick tenant-level readiness check across the main channels.
+                </Typography>
+              </Stack>
+
+              <Stack spacing={0} divider={<Divider sx={subtleDividerSx} />}>
+                {focusLoading
+                  ? Array.from({ length: 4 }).map((_, index) => (
+                      <Box
+                        key={`focus-skeleton-${index}`}
+                        sx={{
+                          py: 1.5,
+                          px: 1.25,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 1.5,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                          <Skeleton
+                            sx={{
+                              width: 120,
+                              height: 14,
+                              borderRadius: "999px",
+                            }}
+                          />
+                          <Skeleton
+                            sx={{
+                              width: "80%",
+                              maxWidth: 220,
+                              height: 12,
+                              borderRadius: "999px",
+                            }}
+                          />
+                        </Stack>
+                        <Skeleton
+                          sx={{ width: 92, height: 24, borderRadius: "999px" }}
+                        />
+                      </Box>
+                    ))
+                  : todayItems.map((item) => (
+                      <Box
+                        key={item.label}
+                        sx={{
+                          py: 1.5,
+                          px: 1.25,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 1.5,
+                          alignItems: "center",
+                          borderRadius: "12px",
+                          backgroundColor: item.highlighted
+                            ? "primary.50"
+                            : "transparent",
+                        }}
+                      >
+                        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "14px",
+                              fontWeight: 500,
+                              lineHeight: 1.4,
+                              color: "neutral.800",
+                            }}
+                          >
+                            {item.label}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "12px",
+                              lineHeight: 1.5,
+                              color: "neutral.500",
+                            }}
+                          >
+                            {item.value}
+                          </Typography>
+                        </Stack>
+                        <JoyChip size="sm" variant="soft" color={item.tone}>
+                          {item.statusLabel}
+                        </JoyChip>
+                      </Box>
+                    ))}
+              </Stack>
+            </Stack>
+          </Sheet>
+
+          <Sheet variant="outlined" sx={panelSurfaceSx}>
+            <Stack spacing={2}>
+              <Stack spacing={0.5}>
+                <Typography
+                  level="title-md"
+                  sx={{
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    color: "neutral.900",
+                  }}
+                >
+                  Quick links
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: "13px",
+                    lineHeight: 1.5,
+                    color: "neutral.500",
+                  }}
+                >
+                  Tenant actions that are usually a click away after login.
+                </Typography>
+              </Stack>
+
+              <Stack spacing={0} divider={<Divider sx={subtleDividerSx} />}>
+                {quickLinks.map((item) => (
+                  <Box
+                    key={item.to}
+                    component="button"
+                    type="button"
+                    onClick={() => navigate(item.to)}
                     sx={{
-                      p: 1.75,
-                      borderRadius: "16px",
+                      width: "100%",
+                      appearance: "none",
+                      border: 0,
+                      backgroundColor: "transparent",
+                      px: 1.25,
+                      py: 1.5,
+                      mx: -1.25,
                       display: "flex",
+                      alignItems: "center",
                       justifyContent: "space-between",
                       gap: 1.5,
-                      alignItems: "center",
+                      borderRadius: "12px",
+                      cursor: "pointer",
+                      transition: "background-color 0.18s ease",
+                      "&:hover": {
+                        backgroundColor: "neutral.50",
+                      },
+                      "&:focus-visible": {
+                        outline: "2px solid var(--joy-palette-primary-400)",
+                        outlineOffset: "1px",
+                      },
+                      "&:hover .dashboard-quick-link-label": {
+                        color: "var(--joy-palette-neutral-900)",
+                      },
+                      "&:hover .dashboard-quick-link-icon": {
+                        color: "var(--joy-palette-neutral-600)",
+                        transform: "translateX(1px)",
+                      },
                     }}
                   >
-                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                      <Typography level="title-sm">{item.label}</Typography>
-                      <Typography level="body-xs" color="neutral">
-                        {item.value}
-                      </Typography>
-                    </Stack>
-                    <JoyChip color={item.tone} variant="soft">
-                      {item.tone === "success"
-                        ? "Ready"
-                        : item.tone === "warning"
-                          ? "Needs attention"
-                          : "Info"}
-                    </JoyChip>
-                  </Sheet>
+                    <Typography
+                      className="dashboard-quick-link-label"
+                      sx={{
+                        fontSize: "14px",
+                        fontWeight: 500,
+                        lineHeight: 1.4,
+                        color: "neutral.700",
+                        transition: "color 0.18s ease",
+                        textAlign: "left",
+                      }}
+                    >
+                      {item.label}
+                    </Typography>
+                    <ArrowRight
+                      className="dashboard-quick-link-icon h-4 w-4"
+                      style={{
+                        color: "var(--joy-palette-neutral-400)",
+                        transition: "color 0.18s ease, transform 0.18s ease",
+                      }}
+                    />
+                  </Box>
                 ))}
               </Stack>
-            </JoyCardContent>
-          </JoyCard>
-
-          <JoyCard>
-            <JoyCardHeader
-              title="Quick links"
-              description="Tenant actions that are usually a click away after login."
-            />
-            <JoyCardContent>
-              <Stack spacing={1}>
-                {[
-                  { label: "Open analytics", to: "/analytics" },
-                  { label: "Review products", to: "/products" },
-                  { label: "Update settings", to: "/settings" },
-                  { label: "Website workspace", to: "/website/app" },
-                ].map((item) => (
-                  <JoyButton
-                    key={item.to}
-                    bloomVariant="ghost"
-                    color="neutral"
-                    onClick={() => navigate(item.to)}
-                    sx={{ justifyContent: "space-between" }}
-                  >
-                    {item.label}
-                    <ArrowRight className="h-4 w-4" />
-                  </JoyButton>
-                ))}
-              </Stack>
-            </JoyCardContent>
-          </JoyCard>
+            </Stack>
+          </Sheet>
         </Stack>
       </Box>
 

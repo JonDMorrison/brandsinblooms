@@ -1,23 +1,23 @@
-import React from 'react';
-import { Card } from '@/components/ui-legacy/card';
+import React from "react";
+import { Card } from "@/components/ui-legacy/card";
 
 interface MobilePreviewFrameProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export const MobilePreviewFrame: React.FC<MobilePreviewFrameProps> = ({ 
-  children, 
-  className 
+export const MobilePreviewFrame: React.FC<MobilePreviewFrameProps> = ({
+  children,
+  className,
 }) => {
   return (
-    <div className={`mx-auto ${className}`} style={{ maxWidth: '390px' }}>
+    <div className={`mx-auto ${className}`} style={{ maxWidth: "390px" }}>
       <Card className="bg-white shadow-2xl rounded-[2.5rem] border-8 border-gray-800 overflow-hidden relative">
         {/* Phone bezel simulation */}
         <div className="bg-gray-800 h-6 flex items-center justify-center">
           <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
         </div>
-        
+
         {/* Screen content */}
         <div className="mobile-email-preview bg-white min-h-[600px] overflow-y-auto">
           <style>{`
@@ -31,8 +31,8 @@ export const MobilePreviewFrame: React.FC<MobilePreviewFrameProps> = ({
             }
             .mobile-email-preview .email-block {
               padding: 8px 16px;
-              border: none !important;
-              margin: 0 !important;
+              border: none;
+              margin: 0;
             }
             .mobile-email-preview .email-block-header {
               text-align: center;
@@ -66,7 +66,7 @@ export const MobilePreviewFrame: React.FC<MobilePreviewFrameProps> = ({
           `}</style>
           {children}
         </div>
-        
+
         {/* Phone bottom */}
         <div className="bg-gray-800 h-6"></div>
       </Card>

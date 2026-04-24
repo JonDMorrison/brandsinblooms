@@ -58,6 +58,7 @@ export interface FormField {
   label: string;
   required: boolean;
   placeholder?: string;
+  help_text?: string;
   options?: string[]; // For select type
   mapping_key: string; // Maps to crm_customers fields or custom keys
   default_value?: string | boolean;

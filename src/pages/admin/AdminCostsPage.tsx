@@ -567,7 +567,10 @@ export default function AdminCostsPage() {
                         </Typography>
                         <Stack spacing={0.25}>
                           <Typography level="title-sm">
-                            <JoySkeleton key={i} sx={{ height: 48, width: "100%" }} />
+                            <JoySkeleton
+                              key={i}
+                              sx={{ height: 48, width: "100%" }}
+                            />
                           </Typography>
                           <Typography
                             level="body-xs"

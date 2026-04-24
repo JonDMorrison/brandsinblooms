@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,11 +19,28 @@ export interface ClimateProfile {
 export const useClimateProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const hasResolvedInitialLoadRef = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [climateProfile, setClimateProfile] = useState<ClimateProfile | null>(null);
 
   const fetchClimateProfile = useCallback(async () => {
-    if (!user?.id) return null;
+    const isInitialLoad = !hasResolvedInitialLoadRef.current;
+
+    if (!user?.id) {
+      setClimateProfile(null);
+
+      if (isInitialLoad) {
+        hasResolvedInitialLoadRef.current = true;
+        setIsLoading(false);
+      }
+
+      return null;
+    }
+
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
 
     try {
       const { data, error } = await supabase
@@ -38,6 +55,7 @@ export const useClimateProfile = () => {
 
       if (error) {
         console.error('Error fetching climate profile:', error);
+        setClimateProfile(null);
         return null;
       }
 
@@ -58,10 +76,17 @@ export const useClimateProfile = () => {
         return profile;
       }
 
+      setClimateProfile(null);
       return null;
     } catch (error) {
       console.error('Error in fetchClimateProfile:', error);
+      setClimateProfile(null);
       return null;
+    } finally {
+      if (isInitialLoad) {
+        hasResolvedInitialLoadRef.current = true;
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 
@@ -155,6 +180,7 @@ export const useClimateProfile = () => {
 
   return {
     climateProfile,
+    isLoading,
     isRefreshing,
     fetchClimateProfile,
     refreshClimateProfile,

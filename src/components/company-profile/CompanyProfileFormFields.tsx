@@ -1,272 +1,405 @@
-import { Label } from "@/components/ui-legacy/label";
-import { Input } from "@/components/ui-legacy/input";
-import { Textarea } from "@/components/ui-legacy/textarea";
-import { Button } from "@/components/ui-legacy/button";
-import { Plus, X } from "lucide-react";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import ChipDelete from "@mui/joy/ChipDelete";
+import Divider from "@mui/joy/Divider";
+import FormControl from "@mui/joy/FormControl";
+import FormHelperText from "@mui/joy/FormHelperText";
+import FormLabel from "@mui/joy/FormLabel";
+import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
+import { Plus } from "lucide-react";
+import { useMemo, useState } from "react";
 
-interface CompanyProfileFormFieldsProps {
-  formData: {
-    company_name: string;
-    company_phone?: string;
-    company_overview: string;
-    mission_statement: string;
-    brand_voice: string;
-    tone_of_writing: string;
-    target_audience: string;
-    ideal_customer: string;
-    unique_selling_points: string;
-    company_values: string;
-    seasonal_focus: string;
-    specializations: string;
-    location_info: string;
-  };
-  isEditing: boolean;
-  onInputChange: (field: string, value: string) => void;
+export interface CompanyProfileFormData {
+  company_name: string;
+  company_phone: string;
+  company_overview: string;
+  mission_statement: string;
+  brand_voice: string;
+  tone_of_writing: string;
+  target_audience: string;
+  ideal_customer: string;
+  unique_selling_points: string;
+  company_values: string;
+  seasonal_focus: string;
+  specializations: string;
+  location_info: string;
 }
 
-const parseArrayField = (value: string): string[] => {
-  if (!value) return [];
+export const EMPTY_COMPANY_PROFILE_FORM_DATA: CompanyProfileFormData = {
+  company_name: "",
+  company_phone: "",
+  company_overview: "",
+  mission_statement: "",
+  brand_voice: "",
+  tone_of_writing: "",
+  target_audience: "",
+  ideal_customer: "",
+  unique_selling_points: "",
+  company_values: "",
+  seasonal_focus: "",
+  specializations: "",
+  location_info: "",
+};
+
+interface CompanyProfileFormFieldsProps {
+  formData: CompanyProfileFormData;
+  onInputChange: (field: keyof CompanyProfileFormData, value: string) => void;
+}
+
+export const parseArrayField = (value: string): string[] => {
+  if (!value) {
+    return [];
+  }
+
   try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [value];
+    const parsedValue = JSON.parse(value);
+    return Array.isArray(parsedValue)
+      ? parsedValue.map((item) => String(item).trim()).filter(Boolean)
+      : [value.trim()].filter(Boolean);
   } catch {
-    return value.split('\n').filter(item => item.trim());
+    return value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 };
 
-const stringifyArrayField = (array: string[]): string => {
-  return JSON.stringify(array);
+const stringifyArrayField = (array: string[]) => JSON.stringify(array);
+
+const formControlSx = {
+  mb: 2.5,
 };
 
-export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }: CompanyProfileFormFieldsProps) => {
-  const handleArrayFieldChange = (field: string, newArray: string[]) => {
-    onInputChange(field, stringifyArrayField(newArray));
-  };
+const inputSx = {
+  minHeight: 44,
+  borderRadius: "lg",
+  bgcolor: "background.surface",
+  "--Input-focusedThickness": "0px",
+};
 
-  const addArrayItem = (field: string) => {
-    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
-    handleArrayFieldChange(field, [...currentArray, '']);
-  };
+const textareaSx = {
+  minHeight: 112,
+  borderRadius: "lg",
+  bgcolor: "background.surface",
+  "--Textarea-focusedThickness": "0px",
+};
 
-  const removeArrayItem = (field: string, index: number) => {
-    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
-    const newArray = currentArray.filter((_, i) => i !== index);
-    handleArrayFieldChange(field, newArray);
-  };
+const sectionLabelSx = {
+  mt: 3,
+  mb: 2,
+  color: "text.tertiary",
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
 
-  const updateArrayItem = (field: string, index: number, value: string) => {
-    const currentArray = parseArrayField(formData[field as keyof typeof formData]);
-    const newArray = [...currentArray];
-    newArray[index] = value;
-    handleArrayFieldChange(field, newArray);
-  };
+const helperTextSx = {
+  color: "text.tertiary",
+  fontSize: "var(--joy-fontSize-xs)",
+  lineHeight: 1.4,
+};
 
-  const renderArrayField = (field: string, label: string, placeholder: string) => {
-    const items = parseArrayField(formData[field as keyof typeof formData]);
-    
-    if (!isEditing) {
-      return (
-        <div>
-          <Label className="text-lg font-semibold">{label}</Label>
-          {items.length > 0 ? (
-            <ul className="mt-2 space-y-2">
-              {items.map((item, index) => (
-                <li key={index} className="flex items-start">
-                  <span className="mr-2 text-primary">•</span>
-                  <span className="text-lg">{item}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground mt-2">No {label.toLowerCase()} added yet.</p>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        <Label className="text-lg font-semibold">{label}</Label>
-        <div className="space-y-3 mt-2">
-          {items.map((item, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <Input
-                placeholder={placeholder}
-                value={item}
-                onChange={(e) => updateArrayItem(field, index, e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => removeArrayItem(field, index)}
-                className="flex-shrink-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => addArrayItem(field)}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {label.slice(0, -1)}
-          </Button>
-        </div>
-      </div>
-    );
-  };
+export const CompanyProfileFormFields = ({
+  formData,
+  onInputChange,
+}: CompanyProfileFormFieldsProps) => {
   return (
-    <div className="grid grid-cols-1 gap-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="company_name" className="text-lg font-semibold">Company Name</Label>
-          <Input
-            id="company_name"
-            placeholder="Your garden center name"
-            value={formData.company_name}
-            onChange={(e) => onInputChange('company_name', e.target.value)}
-            disabled={!isEditing}
-            className="text-xl p-4 h-12"
-          />
-        </div>
-        <div>
-          <Label htmlFor="company_phone" className="text-lg font-semibold">Phone Number</Label>
-          <Input
-            id="company_phone"
-            placeholder="(555) 123-4567"
-            value={formData.company_phone || ''}
-            onChange={(e) => onInputChange('company_phone', e.target.value)}
-            disabled={!isEditing}
-            className="text-xl p-4 h-12"
-          />
-        </div>
-      </div>
+    <Stack spacing={0} sx={{ width: "100%", maxWidth: 760 }}>
+      <InputField
+        label="Company Name"
+        onValueChange={(value) => onInputChange("company_name", value)}
+        placeholder="Your business name"
+        value={formData.company_name}
+      />
 
-      <div>
-        <Label htmlFor="company_overview" className="text-lg font-semibold">Company Overview</Label>
-        <Textarea
-          id="company_overview"
-          placeholder="Brief description of your garden center, what you do, and what makes you special"
-          value={formData.company_overview}
-          onChange={(e) => onInputChange('company_overview', e.target.value)}
-          disabled={!isEditing}
-          rows={4}
-          className="text-lg p-4"
-        />
-      </div>
+      <InputField
+        label="Phone Number"
+        onValueChange={(value) => onInputChange("company_phone", value)}
+        placeholder="+1 (555) 000-0000"
+        type="tel"
+        value={formData.company_phone}
+      />
 
-      <div>
-        <Label htmlFor="brand_voice" className="text-lg font-semibold">Brand Voice</Label>
-        <Textarea
-          id="brand_voice"
-          placeholder="How your brand speaks (e.g., friendly and approachable, expert and authoritative, warm and family-oriented)"
-          value={formData.brand_voice}
-          onChange={(e) => onInputChange('brand_voice', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <SectionDivider label="About Your Business" />
 
-      <div>
-        <Label htmlFor="tone_of_writing" className="text-lg font-semibold">Tone of Writing</Label>
-        <Textarea
-          id="tone_of_writing"
-          placeholder="Describe your preferred writing style (e.g., casual and conversational, professional but warm, educational and helpful)"
-          value={formData.tone_of_writing}
-          onChange={(e) => onInputChange('tone_of_writing', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <TextareaField
+        helperText={`${formData.company_overview.length} / 500 characters`}
+        label="Company Overview"
+        maxRows={6}
+        minRows={3}
+        onValueChange={(value) => onInputChange("company_overview", value)}
+        placeholder="Describe your business, what you offer, and what makes you unique"
+        value={formData.company_overview}
+      />
 
-      <div>
-        <Label htmlFor="target_audience" className="text-lg font-semibold">Target Audience</Label>
-        <Textarea
-          id="target_audience"
-          placeholder="Who are your main customers? (e.g., home gardeners, landscape professionals, plant enthusiasts)"
-          value={formData.target_audience}
-          onChange={(e) => onInputChange('target_audience', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <TextareaField
+        label="Mission Statement"
+        maxRows={4}
+        minRows={2}
+        onValueChange={(value) => onInputChange("mission_statement", value)}
+        placeholder="Your company's mission and purpose"
+        value={formData.mission_statement}
+      />
 
-      <div>
-        <Label htmlFor="ideal_customer" className="text-lg font-semibold">Ideal Customer Profile</Label>
-        <Textarea
-          id="ideal_customer"
-          placeholder="Detailed description of your perfect customer (demographics, interests, gardening experience level)"
-          value={formData.ideal_customer}
-          onChange={(e) => onInputChange('ideal_customer', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <SectionDivider label="Brand & Voice" />
 
-      {renderArrayField('unique_selling_points', 'Unique Selling Points', 'Enter a unique selling point')}
+      <InputField
+        label="Brand Voice"
+        onValueChange={(value) => onInputChange("brand_voice", value)}
+        placeholder="e.g., Friendly, Expert, Approachable"
+        value={formData.brand_voice}
+      />
 
-      {renderArrayField('company_values', 'Company Values', 'Enter a company value')}
+      <InputField
+        label="Tone of Writing"
+        onValueChange={(value) => onInputChange("tone_of_writing", value)}
+        placeholder="e.g., Conversational, Professional, Warm"
+        value={formData.tone_of_writing}
+      />
 
-      <div>
-        <Label htmlFor="seasonal_focus" className="text-lg font-semibold">Seasonal Focus</Label>
-        <Textarea
-          id="seasonal_focus"
-          placeholder="Key seasonal events, promotions, or focuses throughout the year"
-          value={formData.seasonal_focus}
-          onChange={(e) => onInputChange('seasonal_focus', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <SectionDivider label="Audience" />
 
-      <div>
-        <Label htmlFor="specializations" className="text-lg font-semibold">Specializations</Label>
-        <Textarea
-          id="specializations"
-          placeholder="Areas of expertise (e.g., native plants, organic gardening, landscaping, indoor plants)"
-          value={formData.specializations}
-          onChange={(e) => onInputChange('specializations', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <TextareaField
+        label="Target Audience"
+        minRows={2}
+        onValueChange={(value) => onInputChange("target_audience", value)}
+        placeholder="Who are your primary customers?"
+        value={formData.target_audience}
+      />
 
-      <div>
-        <Label htmlFor="location_info" className="text-lg font-semibold">Location Information</Label>
-        <Textarea
-          id="location_info"
-          placeholder="Location details, climate zone, local growing conditions, community context"
-          value={formData.location_info}
-          onChange={(e) => onInputChange('location_info', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
+      <TextareaField
+        label="Ideal Customer"
+        minRows={2}
+        onValueChange={(value) => onInputChange("ideal_customer", value)}
+        placeholder="Describe your ideal customer profile"
+        value={formData.ideal_customer}
+      />
 
-      <div>
-        <Label htmlFor="mission_statement" className="text-lg font-semibold">Mission Statement</Label>
-        <Textarea
-          id="mission_statement"
-          placeholder="Your company's mission statement - the fundamental purpose and values that drive your business"
-          value={formData.mission_statement}
-          onChange={(e) => onInputChange('mission_statement', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
-    </div>
+      <SectionDivider label="Differentiators" />
+
+      <ChipInputField
+        label="Unique Selling Points"
+        onValueChange={(value) => onInputChange("unique_selling_points", value)}
+        placeholder="Add a selling point..."
+        value={formData.unique_selling_points}
+      />
+
+      <ChipInputField
+        label="Company Values"
+        onValueChange={(value) => onInputChange("company_values", value)}
+        placeholder="Add a value..."
+        value={formData.company_values}
+      />
+
+      <SectionDivider label="Specialization" />
+
+      <InputField
+        label="Seasonal Focus"
+        onValueChange={(value) => onInputChange("seasonal_focus", value)}
+        placeholder="e.g., Spring planting, Holiday arrangements"
+        value={formData.seasonal_focus}
+      />
+
+      <InputField
+        label="Specializations"
+        onValueChange={(value) => onInputChange("specializations", value)}
+        placeholder="e.g., Orchids, Native plants, Wedding florals"
+        value={formData.specializations}
+      />
+
+      <TextareaField
+        label="Location & Service Area"
+        minRows={2}
+        onValueChange={(value) => onInputChange("location_info", value)}
+        placeholder="Describe your location, delivery area, or service region"
+        value={formData.location_info}
+      />
+    </Stack>
   );
 };
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <FormLabel>
+      <Typography fontWeight="lg" level="body-sm">
+        {children}
+      </Typography>
+    </FormLabel>
+  );
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <Box>
+      <Divider />
+      <Typography fontWeight="lg" level="body-xs" sx={sectionLabelSx}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+function InputField({
+  label,
+  onValueChange,
+  placeholder,
+  type,
+  value,
+}: {
+  label: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  type?: React.ComponentProps<typeof Input>["type"];
+  value: string;
+}) {
+  return (
+    <FormControl sx={formControlSx}>
+      <FieldLabel>{label}</FieldLabel>
+      <Input
+        fullWidth
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+        sx={inputSx}
+        type={type}
+        value={value}
+        variant="outlined"
+      />
+    </FormControl>
+  );
+}
+
+function TextareaField({
+  helperText,
+  label,
+  maxRows,
+  minRows,
+  onValueChange,
+  placeholder,
+  value,
+}: {
+  helperText?: string;
+  label: string;
+  maxRows?: number;
+  minRows?: number;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <FormControl sx={formControlSx}>
+      <FieldLabel>{label}</FieldLabel>
+      <Textarea
+        fullWidth
+        maxRows={maxRows}
+        minRows={minRows}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+        sx={textareaSx}
+        value={value}
+        variant="outlined"
+      />
+      {helperText ? (
+        <FormHelperText sx={helperTextSx}>{helperText}</FormHelperText>
+      ) : null}
+    </FormControl>
+  );
+}
+
+function ChipInputField({
+  label,
+  onValueChange,
+  placeholder,
+  value,
+}: {
+  label: string;
+  onValueChange: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  const items = useMemo(() => parseArrayField(value), [value]);
+  const [draftValue, setDraftValue] = useState("");
+
+  const handleDelete = (index: number) => {
+    onValueChange(
+      stringifyArrayField(items.filter((_, itemIndex) => itemIndex !== index)),
+    );
+  };
+
+  const handleAdd = () => {
+    const trimmedValue = draftValue.trim();
+
+    if (!trimmedValue) {
+      return;
+    }
+
+    onValueChange(stringifyArrayField([...items, trimmedValue]));
+    setDraftValue("");
+  };
+
+  return (
+    <FormControl sx={formControlSx}>
+      <FieldLabel>{label}</FieldLabel>
+
+      {items.length ? (
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1.25 }} useFlexGap>
+          {items.map((item, index) => (
+            <Chip
+              color="neutral"
+              endDecorator={
+                <ChipDelete
+                  aria-label={`Remove ${item}`}
+                  onDelete={() => handleDelete(index)}
+                />
+              }
+              key={`${item}-${index}`}
+              size="sm"
+              sx={{
+                "& .MuiChip-label": {
+                  whiteSpace: "normal",
+                },
+                bgcolor: "background.surface",
+                height: "auto",
+                py: 0.25,
+              }}
+              variant="soft"
+            >
+              {item}
+            </Chip>
+          ))}
+        </Stack>
+      ) : null}
+
+      <Stack alignItems="center" direction="row" spacing={1}>
+        <Input
+          fullWidth
+          onChange={(event) => setDraftValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleAdd();
+            }
+          }}
+          placeholder={placeholder}
+          size="sm"
+          sx={inputSx}
+          value={draftValue}
+          variant="outlined"
+        />
+        <IconButton
+          aria-label={`Add ${label.toLowerCase()}`}
+          color="neutral"
+          onClick={handleAdd}
+          size="sm"
+          variant="soft"
+        >
+          <Plus size={16} />
+        </IconButton>
+      </Stack>
+
+      <FormHelperText sx={helperTextSx}>Press Enter to add each point</FormHelperText>
+    </FormControl>
+  );
+}

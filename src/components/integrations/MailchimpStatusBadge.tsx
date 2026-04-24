@@ -1,3 +1,4 @@
+/** @deprecated — No longer route-connected. Superseded by the IntegrationDetailPage and detailPrimitives-based surfaces (INT-UI-006). */
 import React from "react";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";

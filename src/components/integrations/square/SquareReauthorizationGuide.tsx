@@ -1,27 +1,33 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui-legacy/dialog";
-import { Button } from "@/components/ui-legacy/button";
-import { Progress } from "@/components/ui-legacy/progress";
-import {
-  Shield,
-  CheckCircle2,
   ArrowRight,
-  Sparkles,
-  RefreshCw,
-  Lock,
-  Loader2,
-  XCircle,
+  CheckCircle2,
   Heart,
+  Lock,
+  RefreshCw,
+  Shield,
+  Sparkles,
+  XCircle,
 } from "lucide-react";
+
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  DialogContent,
+  DialogTitle,
+  LinearProgress,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { detectEnvironment } from "@/utils/environmentUtils";
-import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
 
 type ReauthStep = "intro" | "explain" | "authorizing" | "success" | "error";
 
@@ -57,7 +63,6 @@ export const SquareReauthorizationGuide = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setCurrentStep("intro");
@@ -66,14 +71,13 @@ export const SquareReauthorizationGuide = ({
     }
   }, [open]);
 
-  // Listen for OAuth completion during authorization
   useEffect(() => {
     if (currentStep !== "authorizing") return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleOAuthResult = (data: any) => {
       if (Date.now() - data.timestamp < 30000) {
         localStorage.removeItem("square_oauth_result");
-
         if (data.status === "success") {
           setAuthProgress(100);
           setTimeout(() => setCurrentStep("success"), 500);
@@ -100,12 +104,11 @@ export const SquareReauthorizationGuide = ({
       }
     };
 
-    // Set up listeners
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel("square_oauth");
       channel.onmessage = (event) => handleOAuthResult(event.data);
-    } catch (e) {}
+    } catch { /* ignore */ }
 
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -115,15 +118,15 @@ export const SquareReauthorizationGuide = ({
         handleOAuthResult(event.data.data);
       }
     };
+
     window.addEventListener("message", handleMessage);
     window.addEventListener("storage", checkLocalStorage);
-
     const interval = setInterval(checkLocalStorage, 500);
 
     return () => {
       window.removeEventListener("storage", checkLocalStorage);
       window.removeEventListener("message", handleMessage);
-      if (channel) channel.close();
+      channel?.close();
       clearInterval(interval);
     };
   }, [currentStep]);
@@ -133,25 +136,17 @@ export const SquareReauthorizationGuide = ({
     setAuthProgress(20);
 
     try {
-      // Step 1: Delete existing connection (silently)
       if (connectionId) {
         setAuthProgress(30);
-        await supabase
-          .from("square_connections")
-          .delete()
-          .eq("id", connectionId);
+        await supabase.from("square_connections").delete().eq("id", connectionId);
       }
 
       setAuthProgress(50);
 
-      // Step 2: Start OAuth flow
       const state = crypto.randomUUID();
-      const { data, error } = await supabase.functions.invoke(
-        "square-oauth-start",
-        {
-          body: { state },
-        },
-      );
+      const { data, error } = await supabase.functions.invoke("square-oauth-start", {
+        body: { state },
+      });
 
       if (error || !data?.authUrl) {
         throw new Error(error?.message || "Failed to initiate authorization");
@@ -160,21 +155,17 @@ export const SquareReauthorizationGuide = ({
       setAuthProgress(70);
       localStorage.removeItem("square_oauth_result");
 
-      // Open authorization window
       const link = document.createElement("a");
-      link.href = data.authUrl;
+      link.href = data.authUrl as string;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[REAUTH] Error:", error);
       setErrorMessage(
-        getUserFacingIntegrationError(
-          error,
-          "Failed to start authorization. Please try again.",
-        ),
+        getUserFacingIntegrationError(error, "Failed to start authorization. Please try again."),
       );
       setCurrentStep("error");
     }
@@ -183,37 +174,19 @@ export const SquareReauthorizationGuide = ({
   const handleSuccess = () => {
     onSuccess?.();
     onOpenChange(false);
-    toast({
-      title: "✓ Permissions updated successfully",
-      description:
-        "Your Square connection now has access to Loyalty Program data.",
-    });
+    toast({ title: "✓ Permissions updated successfully", description: "Your Square connection now has access to Loyalty Program data." });
   };
 
   const triggerLoyaltyBackfill = async () => {
     try {
-      toast({
-        title: "Starting loyalty sync...",
-        description: "This may take a moment.",
-      });
-
-      const { error } = await supabase.functions.invoke(
-        "square-loyalty-backfill",
-      );
-
+      toast({ title: "Starting loyalty sync...", description: "This may take a moment." });
+      const { error } = await supabase.functions.invoke("square-loyalty-backfill");
       if (error) throw error;
-
-      toast({
-        title: "✓ Loyalty sync complete",
-        description: "Your loyalty members have been synced.",
-      });
-    } catch (error: any) {
+      toast({ title: "✓ Loyalty sync complete", description: "Your loyalty members have been synced." });
+    } catch (error: unknown) {
       toast({
         title: "Loyalty sync failed",
-        description: getUserFacingIntegrationError(
-          error,
-          "Square loyalty sync could not be completed.",
-        ),
+        description: getUserFacingIntegrationError(error, "Square loyalty sync could not be completed."),
         variant: "destructive",
       });
     }
@@ -225,310 +198,220 @@ export const SquareReauthorizationGuide = ({
     return idx === -1 ? 0 : idx;
   };
 
-  const progressPercent = ((getStepIndex() + 1) / STEPS.length) * 100;
+  const progressValue = ((getStepIndex() + 1) / STEPS.length) * 100;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Update Square Permissions
-          </DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={() => currentStep !== "authorizing" && onOpenChange(false)}>
+      <ModalDialog
+        variant="outlined"
+        sx={{ maxWidth: 480, borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
+      >
+        {currentStep !== "authorizing" && <ModalClose />}
 
-        {/* Progress Steps */}
-        <div className="mb-6">
-          <Progress value={progressPercent} className="h-1.5 mb-3" />
-          <div className="flex justify-between">
+        <Stack direction="row" spacing={1.5} alignItems="center" mb={0.5}>
+          <Shield style={{ width: 18, height: 18 }} />
+          <DialogTitle sx={{ p: 0 }}>Update Square Permissions</DialogTitle>
+        </Stack>
+
+        {/* Step progress */}
+        <Box mb={2}>
+          <LinearProgress determinate value={progressValue} size="sm" color="neutral" sx={{ mb: 0.75 }} />
+          <Stack direction="row" justifyContent="space-between">
             {STEPS.map((step, idx) => (
-              <div
+              <Typography
                 key={step.id}
-                className={`text-xs font-medium transition-colors ${
-                  idx <= getStepIndex()
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
+                level="body-xs"
+                fontWeight={idx <= getStepIndex() ? "md" : "normal"}
+                textColor={idx <= getStepIndex() ? "text.primary" : "text.tertiary"}
               >
                 {step.label}
-              </div>
+              </Typography>
             ))}
-          </div>
-        </div>
+          </Stack>
+        </Box>
 
-        {/* Step Content */}
-        <div className="min-h-[280px] flex flex-col">
+        <DialogContent sx={{ minHeight: 280, mt: 0 }}>
           {currentStep === "intro" && (
-            <div className="flex-1 flex flex-col">
-              <div className="flex justify-center mb-6">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-primary" />
-                </div>
-              </div>
+            <Stack spacing={2.5}>
+              <Stack alignItems="center" spacing={1}>
+                <Box sx={{ width: 56, height: 56, borderRadius: "xl", bgcolor: "neutral.softBg", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Sparkles style={{ width: 28, height: 28 }} />
+                </Box>
+                <Typography level="title-md" fontWeight="xl" textAlign="center">
+                  New Capabilities Available!
+                </Typography>
+                <Typography level="body-sm" textColor="text.tertiary" textAlign="center">
+                  We've added new features to your Square integration. Update your permissions to unlock them.
+                </Typography>
+              </Stack>
 
-              <h3 className="text-lg font-semibold text-center mb-2">
-                New Capabilities Available!
-              </h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                We've added new features to your Square integration. Update your
-                permissions to unlock them.
-              </p>
-
-              <div className="space-y-3 mb-6">
+              <Stack spacing={1}>
                 {NEW_PERMISSIONS.map((perm, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
-                  >
-                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">{perm.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {perm.description}
-                      </p>
-                    </div>
-                  </div>
+                  <Sheet key={idx} variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 1.5 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                      <CheckCircle2 style={{ width: 16, height: 16, color: "var(--joy-palette-success-500)", flexShrink: 0, marginTop: 2 }} />
+                      <Box>
+                        <Typography level="body-sm" fontWeight="md">{perm.name}</Typography>
+                        <Typography level="body-xs" textColor="text.tertiary">{perm.description}</Typography>
+                      </Box>
+                    </Stack>
+                  </Sheet>
                 ))}
-              </div>
+              </Stack>
 
-              <div className="mt-auto flex gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1"
-                >
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button variant="plain" color="neutral" onClick={() => onOpenChange(false)}>
                   Maybe Later
                 </Button>
-                <Button
-                  onClick={() => setCurrentStep("explain")}
-                  className="flex-1"
-                >
+                <Button variant="solid" color="neutral" onClick={() => setCurrentStep("explain")} endDecorator={<ArrowRight style={{ width: 14, height: 14 }} />}>
                   Continue
-                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
 
           {currentStep === "explain" && (
-            <div className="flex-1 flex flex-col">
-              <div className="flex justify-center mb-6">
-                <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center">
-                  <RefreshCw className="h-8 w-8 text-blue-500" />
-                </div>
-              </div>
+            <Stack spacing={2.5}>
+              <Stack alignItems="center" spacing={1}>
+                <Box sx={{ width: 56, height: 56, borderRadius: "xl", bgcolor: "primary.softBg", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <RefreshCw style={{ width: 28, height: 28, color: "var(--joy-palette-primary-500)" }} />
+                </Box>
+                <Typography level="title-md" fontWeight="xl" textAlign="center">Here's What Will Happen</Typography>
+              </Stack>
 
-              <h3 className="text-lg font-semibold text-center mb-2">
-                Here's What Will Happen
-              </h3>
+              <Stack spacing={1}>
+                {[
+                  "A Square authorization window will open",
+                  "You'll see the updated permissions list",
+                  "Click "Allow" to grant access",
+                  "The window will close automatically",
+                ].map((step, idx) => (
+                  <Stack key={idx} direction="row" spacing={1.5} alignItems="flex-start">
+                    <Box sx={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", bgcolor: "neutral.softBg", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: "bold" }}>
+                      {idx + 1}
+                    </Box>
+                    <Typography level="body-sm" sx={{ pt: 0.25 }}>{step}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    1
-                  </div>
-                  <p className="text-sm">
-                    A Square authorization window will open
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    2
-                  </div>
-                  <p className="text-sm">
-                    You'll see the updated permissions list
-                  </p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    3
-                  </div>
-                  <p className="text-sm">Click "Allow" to grant access</p>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                    4
-                  </div>
-                  <p className="text-sm">The window will close automatically</p>
-                </div>
-              </div>
+              <Alert color="success" variant="soft" size="sm" startDecorator={<Lock style={{ width: 14, height: 14 }} />}>
+                Your existing data is safe — customers, sales, and products will not be affected.
+              </Alert>
 
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 mb-6">
-                <Lock className="h-4 w-4 text-green-600 shrink-0" />
-                <p className="text-xs text-green-700 dark:text-green-400">
-                  Your existing data is safe — customers, sales, and products
-                  will not be affected.
-                </p>
-              </div>
-
-              <div className="mt-auto flex gap-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => setCurrentStep("intro")}
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button onClick={startReauthorization} className="flex-1">
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button variant="plain" color="neutral" onClick={() => setCurrentStep("intro")}>Back</Button>
+                <Button variant="solid" color="neutral" onClick={() => void startReauthorization()} endDecorator={<ArrowRight style={{ width: 14, height: 14 }} />}>
                   Update Permissions
-                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
 
           {currentStep === "authorizing" && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mb-6" />
+            <Stack spacing={2.5} alignItems="center" sx={{ py: 2 }}>
+              <CircularProgress size="lg" color="neutral" />
+              <Box textAlign="center">
+                <Typography level="title-md" fontWeight="xl" mb={0.5}>Authorizing...</Typography>
+                <Typography level="body-sm" textColor="text.tertiary">
+                  Complete the authorization in the Square window that opened.
+                </Typography>
+              </Box>
 
-              <h3 className="text-lg font-semibold text-center mb-2">
-                Authorizing...
-              </h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                Complete the authorization in the Square window that opened.
-              </p>
+              <LinearProgress determinate value={authProgress} size="sm" color="neutral" sx={{ width: "100%", maxWidth: 280 }} />
 
-              <Progress
-                value={authProgress}
-                className="w-full max-w-xs h-2 mb-4"
-              />
+              <Stack spacing={0.75}>
+                {[
+                  { threshold: 30, label: "Preparing connection" },
+                  { threshold: 70, label: "Opening Square" },
+                  { threshold: 100, label: "Waiting for authorization" },
+                ].map(({ threshold, label }) => (
+                  <Stack key={label} direction="row" spacing={1} alignItems="center">
+                    {authProgress >= threshold ? (
+                      <CheckCircle2 style={{ width: 14, height: 14, color: "var(--joy-palette-success-500)" }} />
+                    ) : authProgress >= threshold - 40 ? (
+                      <CircularProgress size="sm" />
+                    ) : (
+                      <Box sx={{ width: 14, height: 14 }} />
+                    )}
+                    <Typography
+                      level="body-sm"
+                      textColor={authProgress >= threshold ? "success.600" : "text.tertiary"}
+                    >
+                      {label}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  {authProgress >= 30 ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  <span
-                    className={
-                      authProgress >= 30
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    Preparing connection
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {authProgress >= 70 ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : authProgress >= 50 ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <div className="h-4 w-4" />
-                  )}
-                  <span
-                    className={
-                      authProgress >= 70
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    Opening Square
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {authProgress >= 100 ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  ) : authProgress >= 70 ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : (
-                    <div className="h-4 w-4" />
-                  )}
-                  <span
-                    className={
-                      authProgress >= 100
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                    }
-                  >
-                    Waiting for authorization
-                  </span>
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onOpenChange(false)}
-                className="mt-8"
-              >
+              <Button variant="plain" color="neutral" size="sm" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-            </div>
+            </Stack>
           )}
 
           {currentStep === "success" && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center mb-6">
-                <CheckCircle2 className="h-10 w-10 text-green-500" />
-              </div>
+            <Stack spacing={2.5} alignItems="center" sx={{ py: 2 }}>
+              <Box sx={{ width: 56, height: 56, borderRadius: "xl", bgcolor: "success.softBg", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CheckCircle2 style={{ width: 28, height: 28, color: "var(--joy-palette-success-500)" }} />
+              </Box>
+              <Box textAlign="center">
+                <Typography level="title-md" fontWeight="xl" mb={0.5}>Permissions Updated!</Typography>
+                <Typography level="body-sm" textColor="text.tertiary">
+                  Your Square connection now has access to new features.
+                </Typography>
+              </Box>
 
-              <h3 className="text-lg font-semibold text-center mb-2">
-                Permissions Updated!
-              </h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                Your Square connection now has access to new features.
-              </p>
-
-              <div className="w-full space-y-2 mb-6">
+              <Stack spacing={0.75} sx={{ width: "100%" }}>
                 {NEW_PERMISSIONS.map((perm, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>{perm.name}</span>
-                  </div>
+                  <Stack key={idx} direction="row" spacing={1} alignItems="center">
+                    <CheckCircle2 style={{ width: 14, height: 14, color: "var(--joy-palette-success-500)" }} />
+                    <Typography level="body-sm">{perm.name}</Typography>
+                  </Stack>
                 ))}
-              </div>
+              </Stack>
 
-              <div className="flex gap-3 w-full mt-auto">
-                <Button
-                  variant="outline"
-                  onClick={handleSuccess}
-                  className="flex-1"
-                >
+              <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+                <Button variant="outlined" color="neutral" onClick={handleSuccess} sx={{ flex: 1 }}>
                   Close
                 </Button>
-                <Button onClick={triggerLoyaltyBackfill} className="flex-1">
-                  <Heart className="h-4 w-4 mr-2" />
+                <Button
+                  variant="solid"
+                  color="neutral"
+                  onClick={() => void triggerLoyaltyBackfill()}
+                  startDecorator={<Heart style={{ width: 14, height: 14 }} />}
+                  sx={{ flex: 1 }}
+                >
                   Sync Loyalty Now
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
 
           {currentStep === "error" && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
-                <XCircle className="h-10 w-10 text-destructive" />
-              </div>
+            <Stack spacing={2.5} alignItems="center" sx={{ py: 2 }}>
+              <Box sx={{ width: 56, height: 56, borderRadius: "xl", bgcolor: "danger.softBg", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <XCircle style={{ width: 28, height: 28, color: "var(--joy-palette-danger-500)" }} />
+              </Box>
+              <Box textAlign="center">
+                <Typography level="title-md" fontWeight="xl" mb={0.5}>Authorization Failed</Typography>
+                <Typography level="body-sm" textColor="text.tertiary">
+                  {errorMessage || "Something went wrong. Please try again."}
+                </Typography>
+              </Box>
 
-              <h3 className="text-lg font-semibold text-center mb-2">
-                Authorization Failed
-              </h3>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                {errorMessage || "Something went wrong. Please try again."}
-              </p>
-
-              <div className="flex gap-3 w-full mt-auto">
-                <Button
-                  variant="ghost"
-                  onClick={() => onOpenChange(false)}
-                  className="flex-1"
-                >
+              <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+                <Button variant="plain" color="neutral" onClick={() => onOpenChange(false)} sx={{ flex: 1 }}>
                   Cancel
                 </Button>
-                <Button
-                  onClick={() => setCurrentStep("explain")}
-                  className="flex-1"
-                >
+                <Button variant="solid" color="neutral" onClick={() => setCurrentStep("explain")} sx={{ flex: 1 }}>
                   Try Again
                 </Button>
-              </div>
-            </div>
+              </Stack>
+            </Stack>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </ModalDialog>
+    </Modal>
   );
 };

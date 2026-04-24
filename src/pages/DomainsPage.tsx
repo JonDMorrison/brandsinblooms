@@ -1,24 +1,55 @@
-
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { EmailDomainsList } from '@/components/domains/EmailDomainsList';
-import { Shield, Mail, CheckCircle } from 'lucide-react';
+import React, { useState } from "react";
+import Button from "@mui/joy/Button";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Plus } from "lucide-react";
+import { EmailDomainsList } from "@/components/domains/EmailDomainsList";
+import { PageContainer } from "@/components/joy/PageContainer";
 
 const DomainsPage = () => {
+  const [addDomainOpen, setAddDomainOpen] = useState(false);
+
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Email Domains</h1>
-        <p className="text-gray-600 mt-2">
-          Manage your email domains for improved deliverability and DMARC compliance
-        </p>
-      </div>
+    <PageContainer sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
+      <Sheet sx={{ bgcolor: "transparent" }}>
+        <Stack spacing={0}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            spacing={2}
+            useFlexGap
+            sx={{ mb: 3 }}
+          >
+            <Stack spacing={0.75}>
+              <Typography level="h3" sx={{ fontWeight: 700 }}>
+                Email Domains
+              </Typography>
+              <Typography level="body-sm" color="neutral">
+                Manage branded sending domains to improve deliverability and
+                keep DMARC compliance on track.
+              </Typography>
+            </Stack>
 
+            <Button
+              color="primary"
+              size="sm"
+              startDecorator={<Plus size={16} />}
+              variant="solid"
+              onClick={() => setAddDomainOpen(true)}
+            >
+              Add Domain
+            </Button>
+          </Stack>
 
-      {/* Main Content */}
-      <EmailDomainsList />
-    </div>
+          <EmailDomainsList
+            addDomainOpen={addDomainOpen}
+            onAddDomainOpenChange={setAddDomainOpen}
+          />
+        </Stack>
+      </Sheet>
+    </PageContainer>
   );
 };
 

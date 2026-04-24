@@ -1,6 +1,10 @@
-import React from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui-legacy/alert';
-import { AlertTriangle, Info, ShieldAlert, Phone } from 'lucide-react';
+import Alert from "@mui/joy/Alert";
+import List from "@mui/joy/List";
+import ListItem from "@mui/joy/ListItem";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { AlertTriangle, Info, Phone, ShieldAlert } from "lucide-react";
 
 interface SmsComplianceWarningsProps {
   messageContent: string;
@@ -13,7 +17,15 @@ interface SmsComplianceWarningsProps {
   hasBrandIdentification?: boolean;
 }
 
-const SmsComplianceWarnings: React.FC<SmsComplianceWarningsProps> = ({
+type ComplianceNotice = {
+  key: string;
+  color: "warning" | "danger" | "neutral";
+  title: string;
+  detail: string;
+  icon: React.ReactNode;
+};
+
+export default function SmsComplianceWarnings({
   messageContent,
   isFirstMessage = false,
   hasOptOutText,
@@ -22,116 +34,119 @@ const SmsComplianceWarnings: React.FC<SmsComplianceWarningsProps> = ({
   landlineCount = 0,
   isMms = false,
   hasBrandIdentification,
-}) => {
-  const warnings: React.ReactNode[] = [];
-
-  // Check for opt-out text
-  const optOutKeywords = ['stop', 'unsubscribe', 'opt out', 'opt-out', 'reply stop'];
-  const messageHasOptOut = optOutKeywords.some(keyword => 
-    messageContent.toLowerCase().includes(keyword)
+}: SmsComplianceWarningsProps) {
+  const lowerMessage = messageContent.toLowerCase();
+  const messageHasOptOut = [
+    "stop",
+    "unsubscribe",
+    "opt out",
+    "opt-out",
+    "reply stop",
+  ].some((keyword) => lowerMessage.includes(keyword));
+  const messageHasBrand = ["from", "sent by", "team", "bloomsuite"].some(
+    (keyword) => lowerMessage.includes(keyword),
   );
-  const finalHasOptOut = hasOptOutText !== undefined ? hasOptOutText : messageHasOptOut;
-
-  // Check for brand identification
-  const brandKeywords = ['from', 'sent by', 'team'];
-  const messageHasBrand = brandKeywords.some(keyword => 
-    messageContent.toLowerCase().includes(keyword)
+  const finalHasOptOut = hasOptOutText ?? messageHasOptOut;
+  const finalHasBrand = hasBrandIdentification ?? messageHasBrand;
+  const hasUnicode = Array.from(messageContent).some(
+    (character) => character.charCodeAt(0) > 127,
   );
-  const finalHasBrand = hasBrandIdentification !== undefined ? hasBrandIdentification : messageHasBrand;
+  const segmentLimit = hasUnicode ? 67 : 153;
+  const segments = Math.ceil(messageContent.length / segmentLimit) || 1;
 
-  // Warning: Missing opt-out on first message
+  const notices: ComplianceNotice[] = [];
+
   if (isFirstMessage && !finalHasOptOut) {
-    warnings.push(
-      <Alert key="no-optout" variant="destructive" className="mb-2">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Missing Opt-Out Instructions</AlertTitle>
-        <AlertDescription>
-          First marketing messages should include opt-out instructions (e.g., "Reply STOP to unsubscribe").
-          This is required for TCPA compliance.
-        </AlertDescription>
-      </Alert>
-    );
+    notices.push({
+      key: "opt-out",
+      color: "danger",
+      title: "Missing opt-out language",
+      detail:
+        'First marketing messages should include instructions like "Reply STOP to unsubscribe" for compliance.',
+      icon: <AlertTriangle size={16} />,
+    });
   }
 
-  // Warning: MMS without brand identification
-  if (isMms && !finalHasBrand && isFirstMessage) {
-    warnings.push(
-      <Alert key="mms-brand" className="mb-2">
-        <Info className="h-4 w-4" />
-        <AlertTitle>MMS Brand Identification</AlertTitle>
-        <AlertDescription>
-          MMS marketing messages should include your business name for compliance and trust.
-        </AlertDescription>
-      </Alert>
-    );
+  if (isMms && isFirstMessage && !finalHasBrand) {
+    notices.push({
+      key: "brand",
+      color: "warning",
+      title: "Add brand identification",
+      detail:
+        "MMS campaigns perform better when the business name is clear near the start of the message.",
+      icon: <Info size={16} />,
+    });
   }
 
-  // Warning: Invalid phone numbers
   if (invalidPhoneCount > 0) {
-    warnings.push(
-      <Alert key="invalid-phones" className="mb-2">
-        <Phone className="h-4 w-4" />
-        <AlertTitle>Invalid Phone Numbers Detected</AlertTitle>
-        <AlertDescription>
-          {invalidPhoneCount} recipient(s) have invalid phone numbers and will be skipped.
-        </AlertDescription>
-      </Alert>
-    );
+    notices.push({
+      key: "invalid-phone",
+      color: "warning",
+      title: "Invalid phone numbers detected",
+      detail: `${invalidPhoneCount} recipient${invalidPhoneCount === 1 ? "" : "s"} will be skipped during delivery.`,
+      icon: <Phone size={16} />,
+    });
   }
 
-  // Warning: Landline numbers
   if (landlineCount > 0) {
-    warnings.push(
-      <Alert key="landlines" className="mb-2">
-        <ShieldAlert className="h-4 w-4" />
-        <AlertTitle>Landline Numbers Detected</AlertTitle>
-        <AlertDescription>
-          {landlineCount} recipient(s) may have landline numbers that cannot receive SMS.
-        </AlertDescription>
-      </Alert>
-    );
+    notices.push({
+      key: "landline",
+      color: "warning",
+      title: "Possible landlines in audience",
+      detail: `${landlineCount} recipient${landlineCount === 1 ? "" : "s"} may not be able to receive SMS messages.`,
+      icon: <ShieldAlert size={16} />,
+    });
   }
 
-  // Info: Large campaign
   if (recipientCount > 1000) {
-    warnings.push(
-      <Alert key="large-campaign" className="mb-2">
-        <Info className="h-4 w-4" />
-        <AlertTitle>Large Campaign</AlertTitle>
-        <AlertDescription>
-          You're sending to {recipientCount.toLocaleString()} recipients. 
-          Delivery may take some time due to warmup limits and rate limiting.
-        </AlertDescription>
-      </Alert>
-    );
+    notices.push({
+      key: "large-campaign",
+      color: "neutral",
+      title: "Large audience",
+      detail: `This campaign targets ${recipientCount.toLocaleString()} recipients. Warmup limits and rate controls may stretch delivery time.`,
+      icon: <Info size={16} />,
+    });
   }
 
-  // Check message length for potential split
-  const msgLength = messageContent.length;
-  if (msgLength > 160) {
-    const hasUnicode = /[^\x00-\x7F]/.test(messageContent);
-    const segmentLimit = hasUnicode ? 67 : 153;
-    const segments = Math.ceil(msgLength / segmentLimit);
-    
-    if (segments > 3) {
-      warnings.push(
-        <Alert key="long-message" className="mb-2">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Long Message ({segments} segments)</AlertTitle>
-          <AlertDescription>
-            This message will be sent as {segments} segments, which costs more credits.
-            Consider shortening to reduce costs.
-          </AlertDescription>
-        </Alert>
-      );
-    }
+  if (messageContent.length > 160 && segments > 3) {
+    notices.push({
+      key: "segments",
+      color: "warning",
+      title: `Long message (${segments} segments)`,
+      detail:
+        "This message spans multiple SMS segments, which increases delivery cost.",
+      icon: <Info size={16} />,
+    });
   }
 
-  if (warnings.length === 0) {
+  if (notices.length === 0) {
     return null;
   }
 
-  return <div className="space-y-2">{warnings}</div>;
-};
-
-export default SmsComplianceWarnings;
+  return (
+    <Stack spacing={1.25}>
+      {notices.map((notice) => (
+        <Alert
+          key={notice.key}
+          color={notice.color}
+          variant="soft"
+          sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+        >
+          <List sx={{ "--List-padding": "0px", gap: 0.35, width: "100%" }}>
+            <ListItem sx={{ px: 0, py: 0, alignItems: "flex-start" }}>
+              <ListItemDecorator
+                sx={{ minWidth: 24, color: `${notice.color}.600`, mt: 0.2 }}
+              >
+                {notice.icon}
+              </ListItemDecorator>
+              <Stack spacing={0.25}>
+                <Typography level="title-sm">{notice.title}</Typography>
+                <Typography level="body-sm">{notice.detail}</Typography>
+              </Stack>
+            </ListItem>
+          </List>
+        </Alert>
+      ))}
+    </Stack>
+  );
+}

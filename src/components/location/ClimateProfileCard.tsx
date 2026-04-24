@@ -1,22 +1,27 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Badge } from '@/components/ui-legacy/badge';
+import Box from '@mui/joy/Box';
+import Chip from '@mui/joy/Chip';
+import Divider from '@mui/joy/Divider';
+import Sheet from '@mui/joy/Sheet';
+import Skeleton from '@mui/joy/Skeleton';
+import Stack from '@mui/joy/Stack';
+import Typography from '@mui/joy/Typography';
 import {
-  Thermometer,
+  Droplets,
+  Leaf,
+  Mountain,
   RefreshCw,
   Snowflake,
   Sun,
-  Droplets,
-  Mountain,
+  Thermometer,
   Wind,
-  Leaf,
-  AlertCircle,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import React from 'react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { JoyButton } from '@/components/joy/JoyButton';
+import { JoyEmptyState } from '@/components/joy/JoyEmptyState';
 
 interface ClimateProfileCardProps {
+  isLoading?: boolean;
   climateArchetype?: string | null;
   climateLabel?: string | null;
   climateConfidence?: string | null;
@@ -32,32 +37,36 @@ interface ClimateProfileCardProps {
 const getClimateIcon = (archetype: string | null | undefined) => {
   switch (archetype) {
     case 'hot_dry':
-      return <Sun className="h-5 w-5 text-orange-500" />;
+      return <Sun className="h-5 w-5" />;
     case 'hot_humid':
-      return <Droplets className="h-5 w-5 text-blue-500" />;
+      return <Droplets className="h-5 w-5" />;
+    case 'subtropical':
+      return <Droplets className="h-5 w-5" />;
+    case 'mediterranean':
+      return <Sun className="h-5 w-5" />;
     case 'temperate':
-      return <Leaf className="h-5 w-5 text-green-500" />;
+      return <Leaf className="h-5 w-5" />;
     case 'cool_wet':
-      return <Wind className="h-5 w-5 text-teal-500" />;
+      return <Wind className="h-5 w-5" />;
     case 'cold':
-      return <Snowflake className="h-5 w-5 text-blue-400" />;
+      return <Snowflake className="h-5 w-5" />;
     case 'coastal':
-      return <Wind className="h-5 w-5 text-cyan-500" />;
+      return <Wind className="h-5 w-5" />;
     case 'mountain':
-      return <Mountain className="h-5 w-5 text-slate-600" />;
+      return <Mountain className="h-5 w-5" />;
     default:
-      return <Thermometer className="h-5 w-5 text-muted-foreground" />;
+      return <Thermometer className="h-5 w-5" />;
   }
 };
 
-const getConfidenceBadge = (confidence: string | null | undefined) => {
+const getConfidenceChip = (confidence: string | null | undefined) => {
   switch (confidence) {
     case 'high':
-      return <Badge className="bg-green-100 text-green-800 border-green-200">High Confidence</Badge>;
+      return <Chip color="success" size="sm" variant="soft">High Confidence</Chip>;
     case 'medium':
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Medium Confidence</Badge>;
+      return <Chip color="warning" size="sm" variant="soft">Medium Confidence</Chip>;
     case 'low':
-      return <Badge className="bg-red-100 text-red-800 border-red-200">Low Confidence</Badge>;
+      return <Chip color="danger" size="sm" variant="soft">Low Confidence</Chip>;
     default:
       return null;
   }
@@ -69,6 +78,10 @@ const getArchetypeDescription = (archetype: string | null | undefined): string =
       return 'Xeriscaping, drought-tolerant plants, efficient irrigation. Avoid water-hungry species.';
     case 'hot_humid':
       return 'Tropicals, heat-tolerant varieties. Watch for fungal issues and high humidity stress.';
+    case 'subtropical':
+      return 'Long warm seasons support lush growth, but moisture, airflow, and heat stress still need active management.';
+    case 'mediterranean':
+      return 'Dry summers and mild wet winters favor deep watering, drainage planning, and seasonal drought resilience.';
     case 'temperate':
       return 'Wide variety of plants thrive. Standard seasonal care with moderate watering.';
     case 'cool_wet':
@@ -84,7 +97,79 @@ const getArchetypeDescription = (archetype: string | null | undefined): string =
   }
 };
 
+const formatArchetypeLabel = (value: string | null | undefined) => {
+  if (!value) {
+    return 'Climate profile';
+  }
+
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const formatSourceLabel = (value: string | null | undefined) => {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+function ClimateProfileSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={{ p: { xs: 3, md: 3.5 }, borderRadius: 'xl', bgcolor: 'background.surface' }}>
+      <Stack spacing={2.5}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+        >
+          <Stack spacing={1}>
+            <Skeleton animation="wave" sx={{ width: 150, height: 18 }} variant="text" />
+            <Skeleton animation="wave" sx={{ width: 240, height: 14 }} variant="text" />
+          </Stack>
+          <Skeleton animation="wave" sx={{ width: 112, height: 34, borderRadius: 'lg' }} variant="rectangular" />
+        </Stack>
+
+        <Sheet variant="soft" sx={{ p: 2.5, borderRadius: 'lg' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Skeleton animation="wave" sx={{ width: 48, height: 48, borderRadius: 'xl', flexShrink: 0 }} variant="rectangular" />
+            <Stack spacing={1} sx={{ flex: 1 }}>
+              <Skeleton animation="wave" sx={{ width: 180, height: 20 }} variant="text" />
+              <Skeleton animation="wave" sx={{ width: '100%', height: 16 }} variant="text" />
+              <Skeleton animation="wave" sx={{ width: '80%', height: 16 }} variant="text" />
+            </Stack>
+          </Stack>
+        </Sheet>
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+            gap: 1.5,
+          }}
+        >
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Sheet key={index} variant="soft" sx={{ p: 2, borderRadius: 'lg' }}>
+              <Stack spacing={0.75}>
+                <Skeleton animation="wave" sx={{ width: 84, height: 12 }} variant="text" />
+                <Skeleton animation="wave" sx={{ width: 96, height: 18 }} variant="text" />
+              </Stack>
+            </Sheet>
+          ))}
+        </Box>
+
+        <Skeleton animation="wave" sx={{ width: 260, height: 14 }} variant="text" />
+      </Stack>
+    </Sheet>
+  );
+}
+
 export const ClimateProfileCard: React.FC<ClimateProfileCardProps> = ({
+  isLoading = false,
   climateArchetype,
   climateLabel,
   climateConfidence,
@@ -98,6 +183,8 @@ export const ClimateProfileCard: React.FC<ClimateProfileCardProps> = ({
 }) => {
   const hasClimateData = climateArchetype || climateLabel;
   const hasFrostDates = firstFrostDate || lastFrostDate;
+  const resolvedClimateLabel = climateLabel || formatArchetypeLabel(climateArchetype);
+  const sourceLabel = formatSourceLabel(climateSource);
 
   const formatFrostDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return 'Unknown';
@@ -108,92 +195,151 @@ export const ClimateProfileCard: React.FC<ClimateProfileCardProps> = ({
     }
   };
 
-  return (
-    <Card className={cn(
-      "transition-colors",
-      hasClimateData ? "border-green-200 bg-green-50/30" : "border-yellow-200 bg-yellow-50/30"
-    )}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          {getClimateIcon(climateArchetype)}
-          Climate Profile
-          {climateConfidence && getConfidenceBadge(climateConfidence)}
-        </CardTitle>
-        {!hasClimateData && (
-          <CardDescription className="flex items-center gap-2 text-yellow-700">
-            <AlertCircle className="h-4 w-4" />
-            Climate profile not yet derived. Click refresh to generate.
-          </CardDescription>
-        )}
-      </CardHeader>
+  if (isLoading) {
+    return <ClimateProfileSkeleton />;
+  }
 
-      <CardContent className="space-y-4">
+  return (
+    <Sheet variant="outlined" sx={{ p: { xs: 3, md: 3.5 }, borderRadius: 'xl', bgcolor: 'background.surface' }}>
+      <Stack spacing={2.5}>
         {hasClimateData ? (
           <>
-            {/* Main climate info */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-lg">
-                  {climateLabel || climateArchetype?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {getArchetypeDescription(climateArchetype)}
-              </p>
-            </div>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              justifyContent="space-between"
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              spacing={2}
+            >
+              <Stack spacing={0.5}>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                  <Typography level="title-lg">Climate Profile</Typography>
+                  {getConfidenceChip(climateConfidence)}
+                </Stack>
+                <Typography level="body-sm" sx={{ color: 'neutral.500' }}>
+                  Derived from your confirmed location to guide seasonal and climate-aware recommendations.
+                </Typography>
+              </Stack>
+              <JoyButton
+                color="neutral"
+                loading={isRefreshing}
+                loadingPosition="start"
+                onClick={() => {
+                  void onRefresh();
+                }}
+                startDecorator={!isRefreshing ? <RefreshCw className="h-4 w-4" /> : undefined}
+                variant="plain"
+              >
+                Refresh climate profile
+              </JoyButton>
+            </Stack>
 
-            {/* Additional data grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+            <Sheet variant="soft" sx={{ p: 2.5, borderRadius: 'lg' }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 'xl',
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'background.surface',
+                    color: 'neutral.600',
+                    flexShrink: 0,
+                    '& .lucide': {
+                      width: 24,
+                      height: 24,
+                    },
+                  }}
+                >
+                  {getClimateIcon(climateArchetype)}
+                </Box>
+
+                <Stack spacing={0.75}>
+                  <Typography level="title-md">{resolvedClimateLabel}</Typography>
+                  <Typography level="body-sm" sx={{ color: 'neutral.700' }}>
+                    {getArchetypeDescription(climateArchetype)}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Sheet>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+                gap: 1.5,
+              }}
+            >
               {usdaZone && (
-                <div className="p-3 bg-background rounded-lg border">
-                  <p className="text-xs text-muted-foreground">USDA Zone</p>
-                  <p className="font-semibold">{usdaZone}</p>
-                </div>
+                <MetricCard label="USDA Zone" value={usdaZone} />
               )}
-              
+
               {hasFrostDates && (
                 <>
-                  <div className="p-3 bg-background rounded-lg border">
-                    <p className="text-xs text-muted-foreground">Last Frost</p>
-                    <p className="font-semibold">{formatFrostDate(lastFrostDate)}</p>
-                  </div>
-                  <div className="p-3 bg-background rounded-lg border">
-                    <p className="text-xs text-muted-foreground">First Frost</p>
-                    <p className="font-semibold">{formatFrostDate(firstFrostDate)}</p>
-                  </div>
+                  <MetricCard label="Last Frost" value={formatFrostDate(lastFrostDate)} />
+                  <MetricCard label="First Frost" value={formatFrostDate(firstFrostDate)} />
                 </>
               )}
-            </div>
+            </Box>
 
-            {/* Metadata */}
-            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-2 border-t">
-              {climateSource && (
-                <span>Source: {climateSource}</span>
-              )}
-              {climateLastUpdatedAt && (
-                <span>Updated: {format(new Date(climateLastUpdatedAt), 'MMM d, yyyy')}</span>
-              )}
-            </div>
+            {(sourceLabel || climateLastUpdatedAt) ? (
+              <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
+                {sourceLabel ? `Source: ${sourceLabel}` : ''}
+                {sourceLabel && climateLastUpdatedAt ? ' • ' : ''}
+                {climateLastUpdatedAt
+                  ? `Last updated ${formatDistanceToNow(new Date(climateLastUpdatedAt), {
+                      addSuffix: true,
+                    })}`
+                  : ''}
+              </Typography>
+            ) : null}
           </>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            Your climate profile helps generate location-appropriate content recommendations
-            for plants, gardening tips, and seasonal advice.
-          </p>
+          <>
+            <Stack spacing={0.5}>
+              <Typography level="title-lg">Climate Profile</Typography>
+              <Typography level="body-sm" sx={{ color: 'neutral.500' }}>
+                Generate a climate snapshot once your location is confirmed.
+              </Typography>
+            </Stack>
+            <Divider />
+            <JoyEmptyState
+              icon={<Thermometer />}
+              title="No climate profile yet"
+              description="Generate your climate snapshot to personalize plant recommendations, frost timing, and seasonal guidance for your business."
+              primaryAction={{
+                label: 'Generate Climate Profile',
+                loading: isRefreshing,
+                loadingPosition: 'start',
+                onClick: () => {
+                  void onRefresh();
+                },
+                startDecorator: !isRefreshing ? <RefreshCw className="h-4 w-4" /> : undefined,
+                variant: 'solid',
+              }}
+            />
+          </>
         )}
-
-        {/* Refresh button */}
-        <Button
-          variant={hasClimateData ? "outline" : "default"}
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="w-full sm:w-auto"
-        >
-          <RefreshCw className={cn("h-4 w-4 mr-2", isRefreshing && "animate-spin")} />
-          {isRefreshing ? 'Refreshing...' : hasClimateData ? 'Refresh Climate Profile' : 'Generate Climate Profile'}
-        </Button>
-      </CardContent>
-    </Card>
+      </Stack>
+    </Sheet>
   );
 };
+
+function MetricCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <Sheet variant="soft" sx={{ p: 2, borderRadius: 'lg' }}>
+      <Stack spacing={0.5}>
+        <Typography level="body-xs" sx={{ color: 'neutral.500' }}>
+          {label}
+        </Typography>
+        <Typography level="title-sm">{value}</Typography>
+      </Stack>
+    </Sheet>
+  );
+}

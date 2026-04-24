@@ -1,82 +1,76 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  FileText,
+  Globe,
+  Pencil,
+  Rocket,
+} from "lucide-react";
 import {
   useLocation,
   useNavigate,
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Badge } from "@/components/ui-legacy/badge";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Skeleton } from "@/components/ui-legacy/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui-legacy/tooltip";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Check,
-  CheckCircle2,
-  Copy,
-  ExternalLink,
-  Eye,
-  Globe,
-  Loader2,
-  Pencil,
-  Share2,
-} from "lucide-react";
+import { toast } from "sonner";
 import { FormAnalyticsTab } from "@/components/forms/FormAnalyticsTab";
 import { FormAudienceTab } from "@/components/forms/FormAudienceTab";
 import { FormBuildTab } from "@/components/forms/FormBuildTab";
 import { FormComplianceTab } from "@/components/forms/FormComplianceTab";
 import { FormDesignTab } from "@/components/forms/FormDesignTab";
 import { FormPublishTab } from "@/components/forms/FormPublishTab";
-import { FormShareDialog } from "@/components/forms/FormShareDialog";
 import { FormSubmissionsTab } from "@/components/forms/FormSubmissionsTab";
 import { FormPreviewDialog } from "@/components/forms/preview/FormPreviewDialog";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui-legacy/alert-dialog";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui-legacy/dialog";
-import { useToast } from "@/hooks/use-toast";
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { PageContainer } from "@/components/joy/PageContainer";
+import {
+  JoyTabs,
+  JoyTabsContent,
+  JoyTabsList,
+  JoyTabsTrigger,
+} from "@/components/joy/JoyTabs";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useFormEditor } from "@/hooks/useFormEditor";
 import {
-  PublishValidationIssue,
+  type PublishValidationIssue,
   validateFormForPublish,
 } from "@/lib/forms/publish";
 import { getPublicFormUrl } from "@/lib/forms/share";
-import { cn } from "@/lib/utils";
 
 const FORM_EDITOR_TABS = [
   "build",
   "design",
-  "audience",
-  "compliance",
   "submissions",
   "analytics",
+  "audience",
+  "compliance",
+  "publish",
 ] as const;
 
 type FormEditorTab = (typeof FORM_EDITOR_TABS)[number];
@@ -88,30 +82,35 @@ const FORM_EDITOR_TAB_COPY: Record<
   analytics: {
     label: "Analytics",
     description:
-      "Track conversion signals, referrers, and performance over time.",
+      "Track submission performance, rejection reasons, and referrers.",
   },
   audience: {
     label: "Audience",
     description:
-      "Control who should see the form and how targeting is applied.",
+      "Attach personas and tags that should follow accepted submissions.",
   },
   build: {
     label: "Build",
     description:
-      "Shape the visitor journey, step structure, and field hierarchy.",
+      "Shape the field canvas, step order, and conditional visibility rules.",
   },
   compliance: {
     label: "Compliance",
-    description: "Configure consent language and operational safeguards.",
+    description: "Control consent language and honest operational flags.",
   },
   design: {
     label: "Design",
-    description: "Tune typography, layout, and visual styling before launch.",
+    description: "Tune content, spacing, color, and live runtime presentation.",
+  },
+  publish: {
+    label: "Publish",
+    description:
+      "Copy the hosted URL, embed snippets, QR code, and developer endpoints.",
   },
   submissions: {
     label: "Submissions",
     description:
-      "Review captured leads, diagnostics, and live submission activity.",
+      "Inspect captured leads, export the queue, and manage records.",
   },
 };
 
@@ -124,27 +123,70 @@ function isFormEditorTab(value: string | null): value is FormEditorTab {
   return value !== null && FORM_EDITOR_TABS.includes(value as FormEditorTab);
 }
 
+function SaveIndicator({
+  saveStatus,
+}: {
+  saveStatus: "saved" | "pending" | "saving" | "error";
+}) {
+  if (saveStatus === "error") {
+    return (
+      <JoyChip
+        size="sm"
+        variant="soft"
+        color="danger"
+        startDecorator={<AlertCircle size={14} />}
+      >
+        Save failed
+      </JoyChip>
+    );
+  }
+
+  if (saveStatus === "saved") {
+    return (
+      <JoyChip
+        size="sm"
+        variant="soft"
+        color="success"
+        startDecorator={<CheckCircle2 size={14} />}
+      >
+        All changes saved
+      </JoyChip>
+    );
+  }
+
+  return (
+    <JoyChip
+      size="sm"
+      variant="soft"
+      color="neutral"
+      startDecorator={<CircularProgress size="sm" thickness={4} />}
+    >
+      {saveStatus === "saving" ? "Saving" : "Unsaved changes"}
+    </JoyChip>
+  );
+}
+
 export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { toast } = useToast();
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isExitSaving, setIsExitSaving] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isNameEditing, setIsNameEditing] = useState(false);
-  const [isPublishValidationOpen, setIsPublishValidationOpen] = useState(false);
-  const [isPublishSuccessOpen, setIsPublishSuccessOpen] = useState(false);
-  const [isUnpublishConfirmOpen, setIsUnpublishConfirmOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const [isExitSaving, setIsExitSaving] = React.useState(false);
+  const [isPublishing, setIsPublishing] = React.useState(false);
+  const [isNameEditing, setIsNameEditing] = React.useState(false);
+  const [isPublishValidationOpen, setIsPublishValidationOpen] =
+    React.useState(false);
+  const [isPublishSuccessOpen, setIsPublishSuccessOpen] = React.useState(false);
+  const [isUnpublishConfirmOpen, setIsUnpublishConfirmOpen] =
+    React.useState(false);
   const [pendingNavigation, setPendingNavigation] =
-    useState<PendingNavigation | null>(null);
+    React.useState<PendingNavigation | null>(null);
   const [highlightedPublishIssue, setHighlightedPublishIssue] =
-    useState<PublishValidationIssue | null>(null);
-  const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const currentPathRef = useRef("");
-  const pendingNavigationRef = useRef<PendingNavigation | null>(null);
+    React.useState<PublishValidationIssue | null>(null);
+  const nameInputRef = React.useRef<HTMLInputElement | null>(null);
+  const currentPathRef = React.useRef("");
+  const pendingNavigationRef = React.useRef<PendingNavigation | null>(null);
 
   const {
     tenantId,
@@ -173,11 +215,11 @@ export default function FormEditorPage() {
   const rawTab = searchParams.get("tab");
   const activeTab: FormEditorTab = isFormEditorTab(rawTab) ? rawTab : "build";
   const tabMeta = FORM_EDITOR_TAB_COPY[activeTab];
-  const publishValidationIssues = useMemo(
+  const publishValidationIssues = React.useMemo(
     () => validateFormForPublish({ name, fields, settings }),
     [fields, name, settings],
   );
-  const publicFormUrl = useMemo(
+  const publicFormUrl = React.useMemo(
     () => (form ? getPublicFormUrl(form.embed_key) : ""),
     [form],
   );
@@ -188,7 +230,7 @@ export default function FormEditorPage() {
 
   useBeforeUnload({ when: hasUnsavedChanges });
 
-  const guardedNavigate = useCallback(
+  const guardedNavigate = React.useCallback(
     (to: string, options?: { replace?: boolean }) => {
       if (hasUnsavedChanges) {
         setPendingNavigation({
@@ -203,7 +245,7 @@ export default function FormEditorPage() {
     [hasUnsavedChanges, navigate],
   );
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (rawTab === activeTab) {
       return;
     }
@@ -213,28 +255,15 @@ export default function FormEditorPage() {
     setSearchParams(nextParams, { replace: true });
   }, [activeTab, rawTab, searchParams, setSearchParams]);
 
-  useEffect(() => {
-    if (form?.status !== "published") {
-      setIsShareDialogOpen(false);
-      setIsPublishSuccessOpen(false);
-    }
-  }, [form?.status]);
-
-  useEffect(() => {
-    if (isPublishValidationOpen && publishValidationIssues.length === 0) {
-      setIsPublishValidationOpen(false);
-    }
-  }, [isPublishValidationOpen, publishValidationIssues.length]);
-
-  useEffect(() => {
+  React.useEffect(() => {
     currentPathRef.current = currentPath;
   }, [currentPath]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     pendingNavigationRef.current = pendingNavigation;
   }, [pendingNavigation]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!highlightedPublishIssue) {
       return;
     }
@@ -250,7 +279,7 @@ export default function FormEditorPage() {
     return () => window.clearTimeout(timeoutId);
   }, [highlightedPublishIssue]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isNameEditing) {
       return;
     }
@@ -267,7 +296,7 @@ export default function FormEditorPage() {
     return () => window.cancelAnimationFrame(frameId);
   }, [isNameEditing]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!hasUnsavedChanges) {
       return;
     }
@@ -290,17 +319,16 @@ export default function FormEditorPage() {
     };
 
     window.addEventListener("popstate", handlePopState);
-
     return () => window.removeEventListener("popstate", handlePopState);
   }, [hasUnsavedChanges, navigate]);
 
-  const handleTabChange = (nextTab: string) => {
-    if (!isFormEditorTab(nextTab)) {
+  const handleTabChange = (nextTab: string | number | null) => {
+    if (!isFormEditorTab(String(nextTab))) {
       return;
     }
 
     const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("tab", nextTab);
+    nextParams.set("tab", String(nextTab));
     setSearchParams(nextParams, { replace: true });
   };
 
@@ -332,6 +360,9 @@ export default function FormEditorPage() {
 
     if (nextForm) {
       setIsPublishSuccessOpen(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("tab", "publish");
+      setSearchParams(nextParams, { replace: true });
     }
   };
 
@@ -353,11 +384,7 @@ export default function FormEditorPage() {
 
     if (nextForm) {
       setIsUnpublishConfirmOpen(false);
-      toast({
-        title: "Form unpublished",
-        description:
-          "Your form is now a draft and no longer accepting submissions.",
-      });
+      toast.success("Form unpublished");
     }
   };
 
@@ -366,14 +393,15 @@ export default function FormEditorPage() {
       return;
     }
 
-    await navigator.clipboard.writeText(publicFormUrl);
-    toast({
-      title: "Copied",
-      description: "The public form URL was copied to your clipboard.",
-    });
+    try {
+      await navigator.clipboard.writeText(publicFormUrl);
+      toast.success("Public form URL copied");
+    } catch {
+      toast.error("Unable to copy the public form URL");
+    }
   };
 
-  const handleDiscardAndLeave = useCallback(() => {
+  const handleDiscardAndLeave = React.useCallback(() => {
     if (!pendingNavigationRef.current) {
       return;
     }
@@ -387,12 +415,12 @@ export default function FormEditorPage() {
     );
   }, [navigate]);
 
-  const handleCancelLeave = useCallback(() => {
+  const handleCancelLeave = React.useCallback(() => {
     setPendingNavigation(null);
     setIsExitSaving(false);
   }, []);
 
-  const handleSaveAndLeave = useCallback(async () => {
+  const handleSaveAndLeave = React.useCallback(async () => {
     if (!pendingNavigationRef.current) {
       return;
     }
@@ -414,63 +442,51 @@ export default function FormEditorPage() {
     setIsExitSaving(false);
   }, [navigate, saveNow]);
 
-  const handleManualSave = useCallback(async () => {
+  const handleManualSave = React.useCallback(async () => {
     const saved = await saveNow({ force: true });
 
     if (saved) {
-      toast({
-        title: "Form saved",
-        description: "Your latest form changes were saved.",
-      });
+      toast.success("Form saved");
     }
-  }, [saveNow, toast]);
+  }, [saveNow]);
 
-  const handleNameEditStart = useCallback(() => {
-    setIsNameEditing(true);
-  }, []);
-
-  const handleNameSave = useCallback(async () => {
+  const handleNameSave = React.useCallback(async () => {
     setIsNameEditing(false);
     await saveNow({ force: true });
   }, [saveNow]);
-
-  const handleNameBlur = useCallback(async () => {
-    await handleNameSave();
-  }, [handleNameSave]);
 
   const isManualSaveDisabled =
     saveStatus === "saving" ||
     isStatusUpdating ||
     (!hasUnsavedChanges && saveStatus !== "error");
 
-  const saveIndicator =
-    saveStatus === "error" ? (
-      <div className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/5 px-3 py-1.5 text-sm text-destructive">
-        <AlertCircle className="h-4 w-4" />
-        <span>Error saving</span>
-      </div>
-    ) : saveStatus === "saved" ? (
-      <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1.5 text-sm text-muted-foreground">
-        <CheckCircle2 className="h-4 w-4 text-primary" />
-        <span>All changes saved</span>
-      </div>
-    ) : (
-      <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1.5 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Saving changes</span>
-      </div>
-    );
-
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10" />
-          <Skeleton className="h-8 w-64" />
-        </div>
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <PageContainer
+        fullWidth
+        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
+      >
+        <Stack spacing={3}>
+          <Skeleton
+            variant="rectangular"
+            height={192}
+            animation="wave"
+            sx={{ borderRadius: "lg" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            height={56}
+            animation="wave"
+            sx={{ borderRadius: "lg" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            height={640}
+            animation="wave"
+            sx={{ borderRadius: "lg" }}
+          />
+        </Stack>
+      </PageContainer>
     );
   }
 
@@ -483,499 +499,504 @@ export default function FormEditorPage() {
           : "This form may have been deleted.";
 
     return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold mb-2">Form not found</h2>
-          <p className="text-muted-foreground mb-4">{errorMessage}</p>
-          <Button
-            variant="outline"
-            onClick={() => guardedNavigate("/crm/forms")}
+      <PageContainer
+        fullWidth
+        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
+      >
+        <JoyCard>
+          <JoyCardContent
+            sx={{ pt: 5, gap: 1.5, textAlign: "center", alignItems: "center" }}
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Forms
-          </Button>
-        </div>
-      </div>
+            <Avatar size="lg" variant="soft" color="neutral">
+              <FileText size={24} />
+            </Avatar>
+            <Typography level="title-md">Form not found</Typography>
+            <Typography level="body-sm" color="neutral">
+              {errorMessage}
+            </Typography>
+            <JoyButton
+              bloomVariant="ghost"
+              color="neutral"
+              startDecorator={<ArrowLeft size={16} />}
+              onClick={() => guardedNavigate("/crm/forms")}
+            >
+              Back to forms
+            </JoyButton>
+          </JoyCardContent>
+        </JoyCard>
+      </PageContainer>
     );
   }
 
   return (
-    <TooltipProvider>
-      <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden">
-          <div className="absolute left-[8%] top-[-5rem] h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute right-[12%] top-8 h-48 w-48 rounded-full bg-accent/60 blur-3xl" />
-        </div>
-
-        <Tabs
-          value={activeTab}
-          onValueChange={handleTabChange}
-          className="relative flex min-h-0 flex-1 flex-col"
+    <JoyTabs value={activeTab} onValueChange={handleTabChange}>
+      <Sheet
+        variant="plain"
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 5,
+          borderBottom: "1px solid",
+          borderColor: "neutral.200",
+          backgroundColor: "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <PageContainer
+          fullWidth
+          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
         >
-          <div className="border-b border-border/70 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
-            <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-              <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0 space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="rounded-full"
-                          onClick={() => guardedNavigate("/crm/forms")}
-                          aria-label="Back to forms"
-                        >
-                          <ArrowLeft className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Back to forms</TooltipContent>
-                    </Tooltip>
-
-                    <Badge
-                      variant="outline"
-                      className="rounded-full bg-background/80 px-3 py-1"
-                    >
-                      Form Builder
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "rounded-full px-3 py-1",
-                        form.status === "published"
-                          ? "border-primary/20 bg-primary/10 text-primary"
-                          : "bg-background/80 text-muted-foreground",
-                      )}
-                    >
-                      {form.status === "published" ? "Published" : "Draft"}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="relative max-w-3xl">
-                      <Input
-                        ref={nameInputRef}
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        onBlur={() => void handleNameBlur()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        readOnly={!isNameEditing}
-                        className={cn(
-                          "h-auto border-none bg-transparent px-0 pr-14 text-3xl font-semibold tracking-tight shadow-none focus-visible:ring-0 sm:text-4xl",
-                          !isNameEditing && "cursor-default",
-                          highlightedPublishIssue?.target === "header:name" &&
-                            "rounded-xl ring-2 ring-primary/30 ring-offset-2",
-                        )}
-                        placeholder="Form name"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full text-muted-foreground hover:text-foreground"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          if (isNameEditing) {
-                            void handleNameSave();
-                            return;
-                          }
-
-                          handleNameEditStart();
-                        }}
-                        aria-label={
-                          isNameEditing ? "Save form name" : "Edit form name"
-                        }
-                      >
-                        {isNameEditing ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Pencil className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
-                      Build the visitor journey, refine the visual system, and
-                      validate the live experience from one workspace.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3">
-                    {saveIndicator}
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/80 px-3 py-1.5 text-sm text-muted-foreground">
-                      <span>
-                        {fields.length} field{fields.length === 1 ? "" : "s"}
-                      </span>
-                      <span className="text-border">•</span>
-                      <span>
-                        {configuredStepCount} step
-                        {configuredStepCount === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    {saveStatus === "error" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full"
-                        onClick={() => void retrySave()}
-                      >
-                        Retry Save
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 xl:items-end">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => void handleManualSave()}
-                      disabled={isManualSaveDisabled}
-                    >
-                      {saveStatus === "saving" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Save
-                    </Button>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full"
-                          onClick={() => setIsPreviewOpen(true)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Preview
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Open the full-screen preview workspace
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => setIsShareDialogOpen(true)}
-                    >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      className="rounded-full px-4"
-                      onClick={() => void handlePublishToggle()}
-                      disabled={isPublishing || isStatusUpdating}
-                    >
-                      {isPublishing || isStatusUpdating ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Globe className="mr-2 h-4 w-4" />
-                      )}
-                      {form.status === "published" ? "Unpublish" : "Publish"}
-                    </Button>
-                  </div>
-
-                  <div className="max-w-xl rounded-[24px] border border-border/80 bg-card/80 px-4 py-3 text-sm text-muted-foreground shadow-sm">
-                    <p className="font-medium text-foreground">
-                      {tabMeta.label}
-                    </p>
-                    <p className="mt-1">{tabMeta.description}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <TabsList className="inline-flex h-auto min-w-max gap-6 rounded-none bg-transparent p-0">
-                  {FORM_EDITOR_TABS.map((tab) => (
-                    <TabsTrigger
-                      key={tab}
-                      value={tab}
-                      className="relative rounded-none bg-transparent px-0 pb-4 pt-1 text-sm font-medium text-muted-foreground shadow-none transition data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-primary after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
-                    >
-                      {FORM_EDITOR_TAB_COPY[tab].label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </div>
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-x-visible overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[1400px] flex-col px-4 py-6 sm:px-6 lg:px-8">
-              <div className="mx-auto w-full max-w-[1180px]">
-                <TabsContent value="build" className="mt-0">
-                  <FormBuildTab
-                    fields={fields}
-                    updateFields={setFields}
-                    settings={settings}
-                    updateSettings={setSettings}
-                    compliance={compliance}
-                    updateCompliance={setCompliance}
-                    onApplyTemplate={applyTemplate}
-                    publishValidationIssue={highlightedPublishIssue}
-                  />
-                </TabsContent>
-
-                <TabsContent value="design" className="mt-0">
-                  <FormDesignTab
-                    settings={settings}
-                    onSettingsChange={setSettings}
-                  />
-                </TabsContent>
-
-                <TabsContent value="audience" className="mt-0">
-                  <FormAudienceTab
-                    audience={audience}
-                    onAudienceChange={setAudience}
-                  />
-                </TabsContent>
-
-                <TabsContent value="compliance" className="mt-0">
-                  <FormComplianceTab
-                    compliance={compliance}
-                    onComplianceChange={setCompliance}
-                    hasPhoneField={fields.some(
-                      (field) => field.type === "phone",
-                    )}
-                    hasEmailField={fields.some(
-                      (field) => field.type === "email",
-                    )}
-                  />
-                </TabsContent>
-
-                <TabsContent value="submissions" className="mt-0">
-                  <FormSubmissionsTab form={form} tenantId={tenantId} />
-                </TabsContent>
-
-                <TabsContent value="analytics" className="mt-0">
-                  <FormAnalyticsTab
-                    formId={form.id}
-                    tenantId={tenantId}
-                    isPublished={form.status === "published"}
-                    onOpenShare={() => setIsShareDialogOpen(true)}
-                  />
-                </TabsContent>
-              </div>
-            </div>
-          </div>
-        </Tabs>
-
-        <FormShareDialog
-          form={form}
-          open={isShareDialogOpen}
-          onOpenChange={setIsShareDialogOpen}
-        />
-
-        <Dialog
-          open={isPublishValidationOpen}
-          onOpenChange={setIsPublishValidationOpen}
-        >
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Resolve publish issues</DialogTitle>
-              <DialogDescription>
-                Publish is blocked until every issue below is fixed.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3">
-              {publishValidationIssues.map((issue) => (
-                <div
-                  key={issue.id}
-                  className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-start"
+          <Stack spacing={3}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  xl: "minmax(0, 1.1fr) 360px",
+                },
+                gap: 2,
+                alignItems: "start",
+              }}
+            >
+              <Stack spacing={2.25} sx={{ minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  useFlexGap
+                  flexWrap="wrap"
                 >
-                  <div className="flex h-5 w-5 items-center justify-center rounded border border-border bg-muted/40">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-primary" />
-                  </div>
-
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {issue.description}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {issue.fixHint}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="outline"
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="neutral"
+                    startDecorator={<ArrowLeft size={16} />}
+                    onClick={() => guardedNavigate("/crm/forms")}
+                  >
+                    Back to forms
+                  </JoyButton>
+                  <JoyChip size="sm" variant="soft" color="neutral">
+                    Form builder
+                  </JoyChip>
+                  <JoyChip
                     size="sm"
+                    variant="soft"
+                    color={
+                      form.status === "published"
+                        ? "success"
+                        : form.status === "archived"
+                          ? "neutral"
+                          : "warning"
+                    }
+                  >
+                    {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
+                  </JoyChip>
+                </Stack>
+
+                <Box sx={{ position: "relative", maxWidth: 860 }}>
+                  <JoyInput
+                    ref={nameInputRef}
+                    value={name}
+                    onValueChange={setName}
+                    onBlur={() => {
+                      void handleNameSave();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void handleNameSave();
+                      }
+                    }}
+                    readOnly={!isNameEditing}
+                    placeholder="Form name"
+                    variant="plain"
+                    sx={{
+                      minHeight: "auto",
+                      px: 0,
+                      pr: 6,
+                      fontSize: { xs: "2rem", md: "2.75rem" },
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                      border: "none",
+                      backgroundColor: "transparent",
+                      boxShadow: "none",
+                      ...(highlightedPublishIssue?.target === "header:name"
+                        ? {
+                            borderRadius: "lg",
+                            boxShadow:
+                              "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
+                            px: 1,
+                          }
+                        : null),
+                    }}
+                  />
+                  <IconButton
+                    color="neutral"
+                    variant="plain"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      if (isNameEditing) {
+                        void handleNameSave();
+                        return;
+                      }
+
+                      setIsNameEditing(true);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      right: 0,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    {isNameEditing ? <Check size={16} /> : <Pencil size={16} />}
+                  </IconButton>
+                </Box>
+
+                <Typography
+                  level="body-md"
+                  color="neutral"
+                  sx={{ maxWidth: 760 }}
+                >
+                  Build the visitor journey, refine the public presentation,
+                  inspect submissions, and ship the final embed from one
+                  workspace.
+                </Typography>
+
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <SaveIndicator saveStatus={saveStatus} />
+                  <JoyChip size="sm" variant="soft" color="neutral">
+                    {fields.length} field{fields.length === 1 ? "" : "s"}
+                  </JoyChip>
+                  <JoyChip size="sm" variant="soft" color="neutral">
+                    {configuredStepCount} step
+                    {configuredStepCount === 1 ? "" : "s"}
+                  </JoyChip>
+                  {saveStatus === "error" ? (
+                    <JoyButton
+                      bloomVariant="ghost"
+                      color="danger"
+                      onClick={() => void retrySave()}
+                    >
+                      Retry save
+                    </JoyButton>
+                  ) : null}
+                </Stack>
+              </Stack>
+
+              <Stack spacing={1.5}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  justifyContent={{ xs: "flex-start", xl: "flex-end" }}
+                >
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="neutral"
+                    onClick={() => void handleManualSave()}
+                    disabled={isManualSaveDisabled}
+                  >
+                    Save
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="neutral"
+                    startDecorator={<Eye size={16} />}
+                    onClick={() => setIsPreviewOpen(true)}
+                  >
+                    Preview
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="neutral"
+                    startDecorator={<Rocket size={16} />}
+                    onClick={() => {
+                      const nextParams = new URLSearchParams(searchParams);
+                      nextParams.set("tab", "publish");
+                      setSearchParams(nextParams, { replace: true });
+                    }}
+                  >
+                    Publish tools
+                  </JoyButton>
+                  <JoyButton
+                    startDecorator={<Globe size={16} />}
+                    onClick={() => void handlePublishToggle()}
+                    disabled={isPublishing || isStatusUpdating}
+                  >
+                    {form.status === "published" ? "Unpublish" : "Publish"}
+                  </JoyButton>
+                </Stack>
+
+                <JoyCard>
+                  <JoyCardHeader
+                    title={tabMeta.label}
+                    description={tabMeta.description}
+                  />
+                  <JoyCardContent sx={{ pt: 2, gap: 1 }}>
+                    <Typography level="body-xs" color="neutral">
+                      Tabs persist in the URL, so you can share or reload this
+                      editor without losing your place.
+                    </Typography>
+                  </JoyCardContent>
+                </JoyCard>
+              </Stack>
+            </Box>
+
+            <JoyTabsList
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(2, minmax(0, 1fr))",
+                  md: "repeat(4, minmax(0, 1fr))",
+                  xl: "repeat(7, minmax(0, 1fr))",
+                },
+              }}
+            >
+              {FORM_EDITOR_TABS.map((tab) => (
+                <JoyTabsTrigger
+                  key={tab}
+                  value={tab}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    justifyContent: "flex-start",
+                    minWidth: 0,
+                    py: 1.5,
+                    textAlign: "left",
+                  }}
+                >
+                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                    {FORM_EDITOR_TAB_COPY[tab].label}
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    {FORM_EDITOR_TAB_COPY[tab].description}
+                  </Typography>
+                </JoyTabsTrigger>
+              ))}
+            </JoyTabsList>
+          </Stack>
+        </PageContainer>
+      </Sheet>
+
+      <PageContainer
+        fullWidth
+        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
+      >
+        <JoyTabsContent value="build">
+          <FormBuildTab
+            fields={fields}
+            updateFields={setFields}
+            settings={settings}
+            updateSettings={setSettings}
+            compliance={compliance}
+            updateCompliance={setCompliance}
+            onApplyTemplate={applyTemplate}
+            publishValidationIssue={highlightedPublishIssue}
+          />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="design">
+          <FormDesignTab
+            settings={settings}
+            onSettingsChange={setSettings}
+            fields={fields}
+            compliance={compliance}
+            formName={name}
+            uploadEmbedKey={form.embed_key}
+          />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="submissions">
+          <FormSubmissionsTab form={form} tenantId={tenantId} />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="analytics">
+          <FormAnalyticsTab
+            formId={form.id}
+            tenantId={tenantId}
+            isPublished={form.status === "published"}
+            onOpenShare={() => {
+              const nextParams = new URLSearchParams(searchParams);
+              nextParams.set("tab", "publish");
+              setSearchParams(nextParams, { replace: true });
+            }}
+          />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="audience">
+          <FormAudienceTab audience={audience} onAudienceChange={setAudience} />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="compliance">
+          <FormComplianceTab
+            compliance={compliance}
+            onComplianceChange={setCompliance}
+            hasPhoneField={fields.some((field) => field.type === "phone")}
+            hasEmailField={fields.some((field) => field.type === "email")}
+          />
+        </JoyTabsContent>
+
+        <JoyTabsContent value="publish">
+          <FormPublishTab form={form} />
+        </JoyTabsContent>
+      </PageContainer>
+
+      <JoyDialog
+        open={isPublishValidationOpen}
+        onClose={() => setIsPublishValidationOpen(false)}
+        title="Resolve publish blockers"
+        description="Publishing stays disabled until each issue below is fixed."
+      >
+        <JoyDialogContent sx={{ pt: 0 }}>
+          <Stack spacing={1.25}>
+            {publishValidationIssues.map((issue) => (
+              <Sheet
+                key={issue.id}
+                variant="soft"
+                sx={{
+                  borderRadius: "lg",
+                  p: 2,
+                }}
+              >
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={2}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "flex-start", sm: "center" }}
+                >
+                  <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                      {issue.description}
+                    </Typography>
+                    <Typography level="body-sm" color="neutral">
+                      {issue.fixHint}
+                    </Typography>
+                  </Stack>
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="primary"
                     onClick={() => handleFixPublishIssue(issue)}
                   >
                     Fix
-                  </Button>
-                </div>
-              ))}
-            </div>
+                  </JoyButton>
+                </Stack>
+              </Sheet>
+            ))}
+          </Stack>
+        </JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton
+            bloomVariant="ghost"
+            color="neutral"
+            onClick={() => setIsPublishValidationOpen(false)}
+          >
+            Close
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
 
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsPublishValidationOpen(false)}
-              >
-                Cancel
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog
-          open={isPublishSuccessOpen}
-          onOpenChange={setIsPublishSuccessOpen}
-        >
-          <DialogContent className="max-w-5xl">
-            <DialogHeader>
-              <DialogTitle>Form published</DialogTitle>
-              <DialogDescription>
-                Your form is live. Share the direct link or copy one of the
-                embed snippets below.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Public form URL
-                  </p>
-                  <Input
-                    value={publicFormUrl}
-                    readOnly
-                    className="bg-background font-mono text-sm"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
+      <JoyDialog
+        open={isPublishSuccessOpen}
+        onClose={() => setIsPublishSuccessOpen(false)}
+        size="xl"
+        title="Form published"
+        description="The form is live. Copy the hosted URL or ship one of the embed snippets below."
+      >
+        <JoyDialogContent sx={{ pt: 0 }}>
+          <Stack spacing={2}>
+            <JoyCard>
+              <JoyCardHeader title="Public URL" />
+              <JoyCardContent sx={{ pt: 2, gap: 2 }}>
+                <JoyInput value={publicFormUrl} readOnly />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                  <JoyButton
+                    startDecorator={<Check size={16} />}
                     onClick={() => void copyPublicFormUrl()}
                   >
-                    <Copy className="mr-2 h-4 w-4" />
                     Copy URL
-                  </Button>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={publicFormUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Open Form
-                    </a>
-                  </Button>
-                </div>
-              </div>
-            </div>
-
+                  </JoyButton>
+                  <JoyButton
+                    bloomVariant="ghost"
+                    color="neutral"
+                    startDecorator={<ExternalLink size={16} />}
+                    component="a"
+                    href={publicFormUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open form
+                  </JoyButton>
+                </Stack>
+              </JoyCardContent>
+            </JoyCard>
             <FormPublishTab form={form} analyticsSurface="publish-success" />
+          </Stack>
+        </JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton onClick={() => setIsPublishSuccessOpen(false)}>
+            Done
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
 
-            <DialogFooter>
-              <Button onClick={() => setIsPublishSuccessOpen(false)}>
-                Done
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <FormPreviewDialog
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        fields={fields}
+        settings={settings}
+        compliance={compliance}
+        formName={name}
+        uploadEmbedKey={form.embed_key}
+      />
 
-        <FormPreviewDialog
-          open={isPreviewOpen}
-          onOpenChange={setIsPreviewOpen}
-          fields={fields}
-          settings={settings}
-          compliance={compliance}
-          formName={name}
-          uploadEmbedKey={form?.embed_key}
-        />
+      <JoyDialog
+        open={pendingNavigation !== null}
+        onClose={() => {
+          if (!isExitSaving) {
+            handleCancelLeave();
+          }
+        }}
+        title="Unsaved changes"
+        description="You have unsaved changes. Save before leaving this form or discard them."
+      >
+        <JoyDialogActions>
+          <JoyButton
+            onClick={() => void handleSaveAndLeave()}
+            disabled={isExitSaving}
+          >
+            {isExitSaving ? "Saving..." : "Save and leave"}
+          </JoyButton>
+          <JoyButton
+            bloomVariant="ghost"
+            color="danger"
+            onClick={handleDiscardAndLeave}
+            disabled={isExitSaving}
+          >
+            Discard
+          </JoyButton>
+          <JoyButton
+            bloomVariant="ghost"
+            color="neutral"
+            onClick={handleCancelLeave}
+            disabled={isExitSaving}
+          >
+            Cancel
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
 
-        <AlertDialog
-          open={pendingNavigation !== null}
-          onOpenChange={(open) => {
-            if (!open) {
-              handleCancelLeave();
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
-              <AlertDialogDescription>
-                You have unsaved changes. Do you want to save before leaving
-                this form?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Button
-                onClick={() => void handleSaveAndLeave()}
-                disabled={isExitSaving}
-              >
-                {isExitSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Save & Leave
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleDiscardAndLeave}
-                disabled={isExitSaving}
-              >
-                Discard & Leave
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCancelLeave}
-                disabled={isExitSaving}
-              >
-                Cancel
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog
-          open={isUnpublishConfirmOpen}
-          onOpenChange={setIsUnpublishConfirmOpen}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Unpublish this form?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Unpublishing this form will make it inaccessible to visitors.
-                Existing embed codes will stop working. Submissions already
-                collected remain intact.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsUnpublishConfirmOpen(false)}
-                disabled={isPublishing}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void handleConfirmUnpublish()}
-                disabled={isPublishing}
-              >
-                {isPublishing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Unpublish
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </TooltipProvider>
+      <JoyAlertDialog
+        open={isUnpublishConfirmOpen}
+        onClose={() => setIsUnpublishConfirmOpen(false)}
+        onConfirm={() => void handleConfirmUnpublish()}
+        title="Unpublish this form?"
+        description="Existing hosted links and embeds stop working immediately, but collected submissions remain intact."
+        confirmLabel="Unpublish"
+        loading={isPublishing}
+        variant="warning"
+      />
+    </JoyTabs>
   );
 }

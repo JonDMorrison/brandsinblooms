@@ -12,6 +12,7 @@ import { RegenerateBlockButton } from "./RegenerateBlockButton";
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
+  onRequestAddBlock?: (afterIndex?: number) => void;
   generatingBlocks?: Set<string>;
   campaignName?: string;
   campaignId?: string;
@@ -224,28 +225,28 @@ const mapLayoutToBlock = async (
           autoImageMode: false,
         },
       };
-    case 'divider':
+    case "divider":
       return {
-        type: 'divider',
+        type: "divider",
         config: {
-          content: 'solid',
-          textColor: '#e2e8f0',
+          content: "solid",
+          textColor: "#e2e8f0",
           dividerThickness: 1,
-          margin: 'medium'
-        }
+          margin: "medium",
+        },
       };
-    case 'button':
+    case "button":
       return {
-        type: 'button',
+        type: "button",
         config: {
-          heading: '',
-          body: '',
-          buttonText: '',
-          buttonUrl: '',
-          buttonColor: '',
-          alignment: 'center',
-          padding: 'medium'
-        }
+          heading: "",
+          body: "",
+          buttonText: "",
+          buttonUrl: "",
+          buttonColor: "",
+          alignment: "center",
+          padding: "medium",
+        },
       };
     default:
       return {
@@ -265,6 +266,7 @@ const mapLayoutToBlock = async (
 export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange,
+  onRequestAddBlock,
   generatingBlocks = new Set(),
   campaignName,
   campaignId,
@@ -274,6 +276,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   onFooterStylingChange,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
+  const [hydrationComplete, setHydrationComplete] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
 
@@ -549,6 +552,11 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   };
 
   const openAddModal = (index?: number) => {
+    if (onRequestAddBlock) {
+      onRequestAddBlock(index);
+      return;
+    }
+
     setInsertIndex(index ?? null);
     setIsModalOpen(true);
   };
@@ -657,11 +665,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       />
 
       {/* Block Layout Modal */}
-      <BlockLayoutModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSelect={handleModalAddBlock}
-      />
+      {onRequestAddBlock ? null : (
+        <BlockLayoutModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSelect={handleModalAddBlock}
+        />
+      )}
     </div>
   );
 };

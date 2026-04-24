@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Card, CardContent } from '@/components/ui-legacy/card';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Globe, Zap, Sparkles, Users, ArrowRight, Check, ArrowLeft } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Badge } from "@/components/ui-legacy/badge";
+import {
+  Globe,
+  Zap,
+  Sparkles,
+  Users,
+  ArrowRight,
+  Check,
+  ArrowLeft,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   SUPABASE_PUBLISHABLE_KEY,
   SUPABASE_URL,
-} from '@/integrations/supabase/config';
-import { toast } from 'sonner';
+} from "@/integrations/supabase/config";
+import { toast } from "sonner";
 
 export const WebsiteWaitlistPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -23,25 +31,27 @@ export const WebsiteWaitlistPage = () => {
     if (!email || isSubmitting) return;
 
     setIsSubmitting(true);
-    
+
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/website_waitlist`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-          'apikey': SUPABASE_PUBLISHABLE_KEY
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ email, source: 'dashboard' })
+        body: JSON.stringify({ email, source: "dashboard" }),
       });
 
-      if (!response.ok) throw new Error('Failed to join waitlist');
+      if (!response.ok) throw new Error("Failed to join waitlist");
 
       setIsSubmitted(true);
-      toast.success('You\'re on the waitlist! We\'ll notify you when it\'s ready.');
+      toast.success(
+        "You're on the waitlist! We'll notify you when it's ready.",
+      );
     } catch (error) {
-      console.error('Error joining waitlist:', error);
-      toast.error('Something went wrong. Please try again.');
+      console.error("Error joining waitlist:", error);
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -55,14 +65,14 @@ export const WebsiteWaitlistPage = () => {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">You're In!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              You're In!
+            </h2>
             <p className="text-gray-600 mb-6">
-              Thanks for joining our website builder waitlist. We'll send you early access when it's ready!
+              Thanks for joining our website builder waitlist. We'll send you
+              early access when it's ready!
             </p>
-            <Button 
-              onClick={() => navigate('/')}
-              className="w-full"
-            >
+            <Button onClick={() => navigate("/")} className="w-full">
               Back to Dashboard
             </Button>
           </CardContent>
@@ -71,21 +81,21 @@ export const WebsiteWaitlistPage = () => {
     );
   }
 
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
-        {/* Back Button */}
-        <div className="absolute top-6 left-6">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Button>
-        </div>
-        
-        <div className="container mx-auto px-4 py-12">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50">
+      {/* Back Button */}
+      <div className="absolute top-6 left-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Button>
+      </div>
+
+      <div className="container mx-auto px-4 py-12">
         {/* Hero Section */}
         <div className="text-center mb-16">
           <Badge className="mb-4 bg-teal-100 text-teal-700 border-teal-200">
@@ -96,8 +106,9 @@ export const WebsiteWaitlistPage = () => {
             <span className="block text-teal-600">In Just Minutes</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-            Our AI-powered website builder is almost here. Create stunning, professional websites 
-            without any coding knowledge. Just describe what you want, and watch it come to life.
+            Our AI-powered website builder is almost here. Create stunning,
+            professional websites without any coding knowledge. Just describe
+            what you want, and watch it come to life.
           </p>
         </div>
 
@@ -108,9 +119,12 @@ export const WebsiteWaitlistPage = () => {
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Zap className="w-8 h-8 text-teal-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Lightning Fast</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Lightning Fast
+              </h3>
               <p className="text-gray-600">
-                Go from idea to live website in minutes, not weeks. Our AI understands your vision instantly.
+                Go from idea to live website in minutes, not weeks. Our AI
+                understands your vision instantly.
               </p>
             </CardContent>
           </Card>
@@ -120,9 +134,12 @@ export const WebsiteWaitlistPage = () => {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">AI-Powered Design</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                AI-Powered Design
+              </h3>
               <p className="text-gray-600">
-                Advanced AI creates beautiful, custom designs tailored to your brand and industry.
+                Advanced AI creates beautiful, custom designs tailored to your
+                brand and industry.
               </p>
             </CardContent>
           </Card>
@@ -132,9 +149,12 @@ export const WebsiteWaitlistPage = () => {
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Globe className="w-8 h-8 text-purple-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Fully Responsive</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Fully Responsive
+              </h3>
               <p className="text-gray-600">
-                Every website looks perfect on desktop, tablet, and mobile. No design compromises.
+                Every website looks perfect on desktop, tablet, and mobile. No
+                design compromises.
               </p>
             </CardContent>
           </Card>
@@ -147,10 +167,12 @@ export const WebsiteWaitlistPage = () => {
               <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-teal-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Join the Waitlist</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Join the Waitlist
+              </h2>
               <p className="text-gray-600">
-                Be among the first to experience our revolutionary website builder. 
-                Get early access and exclusive launch pricing.
+                Be among the first to experience our revolutionary website
+                builder. Get early access and exclusive launch pricing.
               </p>
             </div>
 
@@ -165,19 +187,20 @@ export const WebsiteWaitlistPage = () => {
                   className="text-center text-lg py-6"
                 />
               </div>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full text-lg py-6 bg-teal-600 hover:bg-teal-700"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Joining...' : 'Join the Waitlist'}
+                {isSubmitting ? "Joining..." : "Join the Waitlist"}
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-500">
-                🎉 Limited early access • 🔥 Special launch pricing • ⚡ Priority support
+                🎉 Limited early access • 🔥 Special launch pricing • ⚡
+                Priority support
               </p>
             </div>
           </CardContent>
@@ -185,7 +208,9 @@ export const WebsiteWaitlistPage = () => {
 
         {/* Benefits Section */}
         <div className="mt-16 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8">Why Join the Waitlist?</h3>
+          <h3 className="text-2xl font-bold text-gray-900 mb-8">
+            Why Join the Waitlist?
+          </h3>
           <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
             <div className="flex flex-col items-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">

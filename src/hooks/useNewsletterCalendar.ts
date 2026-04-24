@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Newsletter {
   id: string;
   name: string;
   subject_line: string;
   preheader_text?: string;
-  status: 'draft' | 'scheduled' | 'sent';
+  status: "draft" | "scheduled" | "sent";
   scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
@@ -24,35 +26,45 @@ interface Newsletter {
 }
 
 export const useNewsletterCalendar = () => {
+  const { user } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  useEffect(() => {
+    setNewsletters([]);
+    setError(null);
+    setLoading(Boolean(user));
+  }, [tenant?.id, user?.id]);
+
   const loadNewsletters = useCallback(async () => {
+    if (!user) {
+      setNewsletters([]);
+      setLoading(false);
+      return;
+    }
+
+    if (tenantLoading) {
+      return;
+    }
+
+    if (!tenant?.id) {
+      setNewsletters([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-
-      // Get user's tenant
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
-        .single();
-
-      if (!userData?.tenant_id) {
-        setNewsletters([]);
-        return;
-      }
-
       // Load newsletters (CRM campaigns)
       const { data, error } = await supabase
-        .from('crm_campaigns')
-        .select(`
+        .from("crm_campaigns")
+        .select(
+          `
           id,
           name,
           subject_line,
@@ -64,14 +76,15 @@ export const useNewsletterCalendar = () => {
           segment_id,
           metrics,
           crm_segments!inner(name)
-        `)
-        .eq('tenant_id', userData.tenant_id)
-        .not('scheduled_at', 'is', null)
-        .order('scheduled_at', { ascending: true });
+        `,
+        )
+        .eq("tenant_id", tenant.id)
+        .not("scheduled_at", "is", null)
+        .order("scheduled_at", { ascending: true });
 
       if (error) {
-        console.error('Error loading newsletters:', error);
-        setError('Failed to load newsletters');
+        console.error("Error loading newsletters:", error);
+        setError("Failed to load newsletters");
         return;
       }
 
@@ -81,201 +94,213 @@ export const useNewsletterCalendar = () => {
         name: item.name,
         subject_line: item.subject_line,
         preheader_text: item.preheader_text,
-        status: item.status as 'draft' | 'scheduled' | 'sent',
+        status: item.status as "draft" | "scheduled" | "sent",
         scheduled_at: item.scheduled_at,
         sent_at: item.sent_at,
         created_at: item.created_at,
         segment_id: item.segment_id,
         metrics: item.metrics,
-        crm_segments: item.crm_segments
+        crm_segments: item.crm_segments,
       })) as Newsletter[];
 
       setNewsletters(typedNewsletters);
     } catch (error) {
-      console.error('Error in loadNewsletters:', error);
-      setError('An unexpected error occurred');
+      console.error("Error in loadNewsletters:", error);
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tenant?.id, tenantLoading, user]);
 
-  const createNewsletter = useCallback(async (newsletterData: {
-    name: string;
-    subject_line: string;
-    preheader_text?: string;
-    segment_id?: string;
-    scheduled_at: string;
-  }) => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('Not authenticated');
+  const createNewsletter = useCallback(
+    async (newsletterData: {
+      name: string;
+      subject_line: string;
+      preheader_text?: string;
+      segment_id?: string;
+      scheduled_at: string;
+    }) => {
+      try {
+        if (!user) throw new Error("Not authenticated");
+        if (!tenant?.id) throw new Error("No tenant found");
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
-        .single();
+        const { data, error } = await supabase
+          .from("crm_campaigns")
+          .insert([
+            {
+              ...newsletterData,
+              tenant_id: tenant.id,
+              user_id: user.id,
+              status: "scheduled",
+              delivery_method: "custom_domain",
+            },
+          ])
+          .select()
+          .single();
 
-      if (!userData?.tenant_id) throw new Error('No tenant found');
+        if (error) throw error;
 
-      const { data, error } = await supabase
-        .from('crm_campaigns')
-        .insert([{
-          ...newsletterData,
-          tenant_id: userData.tenant_id,
-          user_id: user.user.id,
-          status: 'scheduled',
-          delivery_method: 'custom_domain'
-        }])
-        .select()
-        .single();
+        await loadNewsletters();
 
-      if (error) throw error;
+        toast({
+          title: "Newsletter Created",
+          description: "Your newsletter has been successfully scheduled.",
+        });
 
-      await loadNewsletters();
+        return data;
+      } catch (error) {
+        console.error("Error creating newsletter:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create newsletter. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
+    [loadNewsletters, tenant?.id, toast, user],
+  );
 
-      toast({
-        title: "Newsletter Created",
-        description: "Your newsletter has been successfully scheduled."
-      });
+  const updateNewsletter = useCallback(
+    async (id: string, updates: Partial<Newsletter>) => {
+      try {
+        if (!tenant?.id) throw new Error("No tenant found");
 
-      return data;
-    } catch (error) {
-      console.error('Error creating newsletter:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create newsletter. Please try again.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [loadNewsletters, toast]);
+        const { error } = await supabase
+          .from("crm_campaigns")
+          .update(updates)
+          .eq("id", id)
+          .eq("tenant_id", tenant.id);
 
-  const updateNewsletter = useCallback(async (id: string, updates: Partial<Newsletter>) => {
-    try {
-      const { error } = await supabase
-        .from('crm_campaigns')
-        .update(updates)
-        .eq('id', id);
+        if (error) throw error;
 
-      if (error) throw error;
+        await loadNewsletters();
 
-      await loadNewsletters();
+        toast({
+          title: "Newsletter Updated",
+          description: "Your newsletter has been successfully updated.",
+        });
+      } catch (error) {
+        console.error("Error updating newsletter:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update newsletter. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
+    [loadNewsletters, tenant?.id, toast],
+  );
 
-      toast({
-        title: "Newsletter Updated",
-        description: "Your newsletter has been successfully updated."
-      });
-    } catch (error) {
-      console.error('Error updating newsletter:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update newsletter. Please try again.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [loadNewsletters, toast]);
+  const deleteNewsletter = useCallback(
+    async (id: string) => {
+      try {
+        if (!tenant?.id) throw new Error("No tenant found");
 
-  const deleteNewsletter = useCallback(async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('crm_campaigns')
-        .delete()
-        .eq('id', id);
+        const { error } = await supabase
+          .from("crm_campaigns")
+          .delete()
+          .eq("id", id)
+          .eq("tenant_id", tenant.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadNewsletters();
+        await loadNewsletters();
 
-      toast({
-        title: "Newsletter Deleted",
-        description: "The newsletter has been successfully deleted."
-      });
-    } catch (error) {
-      console.error('Error deleting newsletter:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete newsletter. Please try again.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [loadNewsletters, toast]);
+        toast({
+          title: "Newsletter Deleted",
+          description: "The newsletter has been successfully deleted.",
+        });
+      } catch (error) {
+        console.error("Error deleting newsletter:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete newsletter. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
+    [loadNewsletters, tenant?.id, toast],
+  );
 
-  const duplicateNewsletter = useCallback(async (newsletter: Newsletter) => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('Not authenticated');
+  const duplicateNewsletter = useCallback(
+    async (newsletter: Newsletter) => {
+      try {
+        if (!user) throw new Error("Not authenticated");
+        if (!tenant?.id) throw new Error("No tenant found");
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
-        .single();
+        // Create a copy with modified name and reset status
+        const duplicateData = {
+          tenant_id: tenant.id,
+          user_id: user.id,
+          name: `Copy of ${newsletter.name}`,
+          subject_line: newsletter.subject_line,
+          preheader_text: newsletter.preheader_text,
+          segment_id: newsletter.segment_id,
+          status: "draft",
+          delivery_method: "custom_domain",
+          scheduled_at: null, // Reset scheduling
+        };
 
-      if (!userData?.tenant_id) throw new Error('No tenant found');
+        const { data, error } = await supabase
+          .from("crm_campaigns")
+          .insert([duplicateData])
+          .select()
+          .single();
 
-      // Create a copy with modified name and reset status
-      const duplicateData = {
-        tenant_id: userData.tenant_id,
-        user_id: user.user.id,
-        name: `Copy of ${newsletter.name}`,
-        subject_line: newsletter.subject_line,
-        preheader_text: newsletter.preheader_text,
-        segment_id: newsletter.segment_id,
-        status: 'draft',
-        delivery_method: 'custom_domain',
-        scheduled_at: null // Reset scheduling
-      };
+        if (error) throw error;
 
-      const { data, error } = await supabase
-        .from('crm_campaigns')
-        .insert([duplicateData])
-        .select()
-        .single();
+        await loadNewsletters();
 
-      if (error) throw error;
+        toast({
+          title: "Newsletter Duplicated",
+          description: "A copy of the newsletter has been created as a draft.",
+        });
 
-      await loadNewsletters();
-
-      toast({
-        title: "Newsletter Duplicated",
-        description: "A copy of the newsletter has been created as a draft."
-      });
-
-      return data;
-    } catch (error) {
-      console.error('Error duplicating newsletter:', error);
-      toast({
-        title: "Error",
-        description: "Failed to duplicate newsletter. Please try again.",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  }, [loadNewsletters, toast]);
+        return data;
+      } catch (error) {
+        console.error("Error duplicating newsletter:", error);
+        toast({
+          title: "Error",
+          description: "Failed to duplicate newsletter. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
+    [loadNewsletters, tenant?.id, toast, user],
+  );
 
   // Filter newsletters by date range
-  const getNewslettersForDateRange = useCallback((startDate: Date, endDate: Date) => {
-    return newsletters.filter(newsletter => {
-      const scheduleDate = newsletter.scheduled_at ? new Date(newsletter.scheduled_at) : null;
-      if (!scheduleDate) return false;
+  const getNewslettersForDateRange = useCallback(
+    (startDate: Date, endDate: Date) => {
+      return newsletters.filter((newsletter) => {
+        const scheduleDate = newsletter.scheduled_at
+          ? new Date(newsletter.scheduled_at)
+          : null;
+        if (!scheduleDate) return false;
 
-      return scheduleDate >= startDate && scheduleDate <= endDate;
-    });
-  }, [newsletters]);
+        return scheduleDate >= startDate && scheduleDate <= endDate;
+      });
+    },
+    [newsletters],
+  );
 
   // Get newsletters for a specific date
-  const getNewslettersForDate = useCallback((date: Date) => {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+  const getNewslettersForDate = useCallback(
+    (date: Date) => {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    return getNewslettersForDateRange(startOfDay, endOfDay);
-  }, [getNewslettersForDateRange]);
+      return getNewslettersForDateRange(startOfDay, endOfDay);
+    },
+    [getNewslettersForDateRange],
+  );
 
   useEffect(() => {
     loadNewsletters();
@@ -291,6 +316,6 @@ export const useNewsletterCalendar = () => {
     deleteNewsletter,
     duplicateNewsletter,
     getNewslettersForDateRange,
-    getNewslettersForDate
+    getNewslettersForDate,
   };
 };

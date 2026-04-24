@@ -2,13 +2,7 @@ import { useState } from "react";
 import { Package, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui-legacy/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui-legacy/sheet";
+
 import type {
   LightspeedPagination,
   LightspeedSortDirection,
@@ -28,6 +22,13 @@ import {
   TagList,
   ToolbarSelect,
   formatDateTimeValue,
+  DataTabLoadingState,
+  JoyDataTable,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type ProductSortValue =
@@ -140,7 +141,7 @@ export function ProductsTabView({
         {rows.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1060px] border-collapse">
+              <JoyDataTable>
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -202,7 +203,7 @@ export function ProductsTabView({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -211,11 +212,7 @@ export function ProductsTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading products...
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {showFilteredEmptyState ? (
           <DataTabEmptyState

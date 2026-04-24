@@ -41,6 +41,11 @@ export const JoyDebouncedInput = React.forwardRef<
     );
     const debouncedValue = useDebounce(inputValue, debounceMs);
     const hasMountedRef = React.useRef(false);
+    const onDebouncedChangeRef = React.useRef(onDebouncedChange);
+
+    React.useEffect(() => {
+      onDebouncedChangeRef.current = onDebouncedChange;
+    }, [onDebouncedChange]);
 
     React.useEffect(() => {
       if (isControlled) {
@@ -54,8 +59,8 @@ export const JoyDebouncedInput = React.forwardRef<
         return;
       }
 
-      onDebouncedChange?.(debouncedValue);
-    }, [debouncedValue, onDebouncedChange]);
+      onDebouncedChangeRef.current?.(debouncedValue);
+    }, [debouncedValue]);
 
     return (
       <JoyInput

@@ -1,20 +1,44 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useCustomerCrossChannelMetrics } from '@/hooks/useCrossChannelMetrics';
-import { useCustomerPurchaseMetrics } from '@/hooks/usePurchaseMetrics';
-import { useCustomerPostPurchaseMetrics } from '@/hooks/usePostPurchaseMetrics';
-import { useCustomerLoyaltyMetrics } from '@/hooks/useLoyaltyMetrics';
-import { useCustomerLifecycleMetrics } from '@/hooks/useLifecycleMetrics';
-import { useCustomerContentIntentMetrics } from '@/hooks/useContentIntentMetrics';
-import { useCustomerRiskSignals, useCustomerNegativeEvents } from '@/hooks/useRiskSignals';
-import { useCustomerUnifiedTimeline, TimelineEvent } from '@/hooks/useCustomerUnifiedTimeline';
-import { useCustomerEngagementTimeline, EngagementTimelinePoint } from '@/hooks/useCustomerEngagementTimeline';
-import { useCustomerPurchaseTimeline, PurchaseTimelinePoint } from '@/hooks/useCustomerPurchaseTimeline';
-import { useCustomerActivityHeatmap, HeatmapDataPoint } from '@/hooks/useCustomerActivityHeatmap';
-import { useCustomerChannelTrend, ChannelTrendPoint } from '@/hooks/useCustomerChannelTrend';
-import { useCustomerEngagementDecay } from '@/hooks/useCustomerEngagementDecay';
-import { useCustomerAIInsights, AIInsightsData, AIAction } from '@/hooks/useCustomerAIInsights';
-import type { Customer360Enriched } from '@/types/customerMetrics';
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useCustomerCrossChannelMetrics } from "@/hooks/useCrossChannelMetrics";
+import { useCustomerPurchaseMetrics } from "@/hooks/usePurchaseMetrics";
+import { useCustomerPostPurchaseMetrics } from "@/hooks/usePostPurchaseMetrics";
+import { useCustomerLoyaltyMetrics } from "@/hooks/useLoyaltyMetrics";
+import { useCustomerLifecycleMetrics } from "@/hooks/useLifecycleMetrics";
+import { useCustomerContentIntentMetrics } from "@/hooks/useContentIntentMetrics";
+import {
+  useCustomerRiskSignals,
+  useCustomerNegativeEvents,
+} from "@/hooks/useRiskSignals";
+import {
+  useCustomerUnifiedTimeline,
+  type TimelineEvent,
+} from "@/hooks/useCustomerUnifiedTimeline";
+import {
+  useCustomerEngagementTimeline,
+  type EngagementTimelinePoint,
+} from "@/hooks/useCustomerEngagementTimeline";
+import {
+  useCustomerPurchaseTimeline,
+  type PurchaseTimelinePoint,
+} from "@/hooks/useCustomerPurchaseTimeline";
+import {
+  useCustomerActivityHeatmap,
+  type HeatmapDataPoint,
+} from "@/hooks/useCustomerActivityHeatmap";
+import {
+  useCustomerChannelTrend,
+  type ChannelTrendPoint,
+} from "@/hooks/useCustomerChannelTrend";
+import { useCustomerEngagementDecay } from "@/hooks/useCustomerEngagementDecay";
+import {
+  useCustomerAIInsights,
+  type AIInsightsData,
+} from "@/hooks/useCustomerAIInsights";
+import {
+  type CustomerDashboardTimeRange,
+  getDashboardRangeStartDate,
+} from "@/hooks/customerDashboardQueryTypes";
 
 // Extended type to handle both enriched view and basic customer data
 export interface CustomerData {
@@ -26,7 +50,7 @@ export interface CustomerData {
   phone: string | null;
   created_at: string;
   updated_at: string;
-  
+
   // Optional enriched fields
   first_seen_at?: string;
   last_seen_at?: string;
@@ -40,7 +64,7 @@ export interface CustomerData {
   timezone?: string | null;
   store_id?: string | null;
   store_name?: string | null;
-  
+
   // Email metrics
   email_total_sent?: number;
   email_total_delivered?: number;
@@ -54,7 +78,7 @@ export interface CustomerData {
   email_last_sent_at?: string | null;
   email_last_opened_at?: string | null;
   email_last_clicked_at?: string | null;
-  
+
   // SMS metrics
   sms_total_sent?: number;
   sms_total_delivered?: number;
@@ -73,11 +97,11 @@ export interface CustomerData {
   sms_last_clicked_at?: string | null;
   sms_last_replied_at?: string | null;
   sms_last_opt_out_at?: string | null;
-  
+
   // Opt-in status
   email_opt_in?: boolean | null;
   sms_opt_in?: boolean | null;
-  
+
   // Engagement summary
   engagement_overall_score?: number;
   engagement_email_score?: number;
@@ -92,23 +116,23 @@ export interface CustomerData {
  */
 export const useCustomer360 = (customerId: string | undefined) => {
   return useQuery({
-    queryKey: ['customer-360', customerId],
+    queryKey: ["customer-360", customerId],
     queryFn: async () => {
       if (!customerId) return null;
 
       // Try the enriched view first
       const { data: enriched, error: enrichedError } = await supabase
-        .from('customer_360_enriched')
-        .select('*')
-        .eq('id', customerId)
+        .from("customer_360_enriched")
+        .select("*")
+        .eq("id", customerId)
         .maybeSingle();
 
       if (!enrichedError && enriched) {
         // customer_360_enriched does not include opt-in fields; merge from base table
         const { data: baseCustomer } = await supabase
-          .from('crm_customers')
-          .select('email_opt_in, sms_opt_in')
-          .eq('id', customerId)
+          .from("crm_customers")
+          .select("email_opt_in, sms_opt_in")
+          .eq("id", customerId)
           .maybeSingle();
 
         return {
@@ -119,13 +143,13 @@ export const useCustomer360 = (customerId: string | undefined) => {
 
       // Fallback to basic customer data
       const { data: customer, error: customerError } = await supabase
-        .from('crm_customers')
-        .select('*')
-        .eq('id', customerId)
+        .from("crm_customers")
+        .select("*")
+        .eq("id", customerId)
         .maybeSingle();
 
       if (customerError) {
-        console.error('Error fetching customer:', customerError);
+        console.error("Error fetching customer:", customerError);
         throw customerError;
       }
 
@@ -140,15 +164,22 @@ export interface CustomerDashboardData {
   customer: CustomerData | null;
 
   // Metrics from various hooks
-  crossChannelMetrics: ReturnType<typeof useCustomerCrossChannelMetrics>['data'];
-  purchaseMetrics: ReturnType<typeof useCustomerPurchaseMetrics>['data'];
-  postPurchaseMetrics: ReturnType<typeof useCustomerPostPurchaseMetrics>['data'];
-  loyaltyMetrics: ReturnType<typeof useCustomerLoyaltyMetrics>['data'];
-  lifecycleMetrics: ReturnType<typeof useCustomerLifecycleMetrics>['data'];
-  contentIntentMetrics: ReturnType<typeof useCustomerContentIntentMetrics>['data'];
-  riskSignals: ReturnType<typeof useCustomerRiskSignals>['data'];
-  negativeEvents: ReturnType<typeof useCustomerNegativeEvents>['data'];
+  crossChannelMetrics: ReturnType<
+    typeof useCustomerCrossChannelMetrics
+  >["data"];
+  purchaseMetrics: ReturnType<typeof useCustomerPurchaseMetrics>["data"];
+  postPurchaseMetrics: ReturnType<
+    typeof useCustomerPostPurchaseMetrics
+  >["data"];
+  loyaltyMetrics: ReturnType<typeof useCustomerLoyaltyMetrics>["data"];
+  lifecycleMetrics: ReturnType<typeof useCustomerLifecycleMetrics>["data"];
+  contentIntentMetrics: ReturnType<
+    typeof useCustomerContentIntentMetrics
+  >["data"];
+  riskSignals: ReturnType<typeof useCustomerRiskSignals>["data"];
+  negativeEvents: ReturnType<typeof useCustomerNegativeEvents>["data"];
   timelineEvents: TimelineEvent[];
+  timelineError: string | null;
 
   // Chart data
   engagementTimeline: EngagementTimelinePoint[];
@@ -157,6 +188,16 @@ export interface CustomerDashboardData {
   smsHeatmapData: HeatmapDataPoint[];
   channelTrend: ChannelTrendPoint[];
   engagementDecay: number[];
+  chartErrors: {
+    engagementTimeline: string | null;
+    purchaseTimeline: string | null;
+    emailHeatmap: string | null;
+    smsHeatmap: string | null;
+    channelTrend: string | null;
+    engagementDecay: string | null;
+  };
+  timeRange: CustomerDashboardTimeRange;
+  rangeStartDate: Date | null;
 
   // AI Insights
   aiInsights: AIInsightsData | null;
@@ -176,14 +217,24 @@ export interface CustomerDashboardData {
   errors: Error[];
 
   // Refresh function
-  refetch: () => void;
+  refetch: () => Promise<void>;
+}
+
+export interface UseCustomerDashboardOptions {
+  timeRange?: CustomerDashboardTimeRange;
 }
 
 /**
  * Main orchestration hook for Customer Dashboard
  * Fetches all customer data in parallel and provides a unified interface
  */
-export const useCustomerDashboard = (customerId: string | undefined): CustomerDashboardData => {
+export const useCustomerDashboard = (
+  customerId: string | undefined,
+  options: UseCustomerDashboardOptions = {},
+): CustomerDashboardData => {
+  const { timeRange = "30d" } = options;
+  const rangeStartDate = getDashboardRangeStartDate(timeRange);
+
   // Core customer data
   const customer360Query = useCustomer360(customerId);
 
@@ -208,18 +259,29 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
   const negativeEventsQuery = useCustomerNegativeEvents(customerId);
 
   // Unified timeline
-  const timelineQuery = useCustomerUnifiedTimeline(customerId, { limit: 50 });
+  const timelineQuery = useCustomerUnifiedTimeline(customerId, {
+    limit: 50,
+    timeRange,
+  });
 
   // Chart data hooks
-  const engagementTimelineQuery = useCustomerEngagementTimeline(customerId);
-  const purchaseTimelineQuery = useCustomerPurchaseTimeline(customerId);
-  const emailHeatmapQuery = useCustomerActivityHeatmap(customerId, 'email');
-  const smsHeatmapQuery = useCustomerActivityHeatmap(customerId, 'sms');
-  const channelTrendQuery = useCustomerChannelTrend(customerId);
+  const engagementTimelineQuery = useCustomerEngagementTimeline(
+    customerId,
+    timeRange,
+  );
+  const purchaseTimelineQuery = useCustomerPurchaseTimeline(
+    customerId,
+    timeRange,
+  );
+  const emailHeatmapQuery = useCustomerActivityHeatmap(customerId, "email");
+  const smsHeatmapQuery = useCustomerActivityHeatmap(customerId, "sms");
+  const channelTrendQuery = useCustomerChannelTrend(customerId, timeRange);
   const engagementDecayQuery = useCustomerEngagementDecay(customerId);
 
   // AI Insights - only fetches when dashboard is open
-  const aiInsightsQuery = useCustomerAIInsights(customerId, { enabled: !!customerId });
+  const aiInsightsQuery = useCustomerAIInsights(customerId, {
+    enabled: !!customerId,
+  });
 
   // Aggregate loading states
   const isCustomerLoading = customer360Query.isLoading;
@@ -261,23 +323,26 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
   const hasError = errors.length > 0;
 
   // Refetch all data
-  const refetch = () => {
-    customer360Query.refetch();
-    crossChannelQuery.refetch();
-    purchaseQuery.refetch();
-    postPurchaseQuery.refetch();
-    loyaltyQuery.refetch();
-    lifecycleQuery.refetch();
-    contentIntentQuery.refetch();
-    riskQuery.refetch();
-    negativeEventsQuery.refetch();
-    timelineQuery.refetch();
-    engagementTimelineQuery.refetch();
-    purchaseTimelineQuery.refetch();
-    emailHeatmapQuery.refetch();
-    smsHeatmapQuery.refetch();
-    channelTrendQuery.refetch();
-    engagementDecayQuery.refetch();
+  const refetch = async () => {
+    await Promise.all([
+      customer360Query.refetch(),
+      crossChannelQuery.refetch(),
+      purchaseQuery.refetch(),
+      postPurchaseQuery.refetch(),
+      loyaltyQuery.refetch(),
+      lifecycleQuery.refetch(),
+      contentIntentQuery.refetch(),
+      riskQuery.refetch(),
+      negativeEventsQuery.refetch(),
+      timelineQuery.refetch(),
+      engagementTimelineQuery.refetch(),
+      purchaseTimelineQuery.refetch(),
+      emailHeatmapQuery.refetch(),
+      smsHeatmapQuery.refetch(),
+      channelTrendQuery.refetch(),
+      engagementDecayQuery.refetch(),
+      aiInsightsQuery.refetch(),
+    ]);
   };
 
   return {
@@ -290,13 +355,24 @@ export const useCustomerDashboard = (customerId: string | undefined): CustomerDa
     contentIntentMetrics: contentIntentQuery.data,
     riskSignals: riskQuery.data,
     negativeEvents: negativeEventsQuery.data ?? [],
-    timelineEvents: timelineQuery.data ?? [],
-    engagementTimeline: engagementTimelineQuery.data ?? [],
-    purchaseTimeline: purchaseTimelineQuery.data ?? [],
-    emailHeatmapData: emailHeatmapQuery.data ?? [],
-    smsHeatmapData: smsHeatmapQuery.data ?? [],
-    channelTrend: channelTrendQuery.data ?? [],
-    engagementDecay: engagementDecayQuery.data ?? [],
+    timelineEvents: timelineQuery.data?.data ?? [],
+    timelineError: timelineQuery.data?.error ?? null,
+    engagementTimeline: engagementTimelineQuery.data?.data ?? [],
+    purchaseTimeline: purchaseTimelineQuery.data?.data ?? [],
+    emailHeatmapData: emailHeatmapQuery.data?.data ?? [],
+    smsHeatmapData: smsHeatmapQuery.data?.data ?? [],
+    channelTrend: channelTrendQuery.data?.data ?? [],
+    engagementDecay: engagementDecayQuery.data?.data ?? [],
+    chartErrors: {
+      engagementTimeline: engagementTimelineQuery.data?.error ?? null,
+      purchaseTimeline: purchaseTimelineQuery.data?.error ?? null,
+      emailHeatmap: emailHeatmapQuery.data?.error ?? null,
+      smsHeatmap: smsHeatmapQuery.data?.error ?? null,
+      channelTrend: channelTrendQuery.data?.error ?? null,
+      engagementDecay: engagementDecayQuery.data?.error ?? null,
+    },
+    timeRange,
+    rangeStartDate,
     aiInsights: aiInsightsQuery.insights,
     isAILoading: aiInsightsQuery.isLoading,
     isAIRegenerating: aiInsightsQuery.isRegenerating,

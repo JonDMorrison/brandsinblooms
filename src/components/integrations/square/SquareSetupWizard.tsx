@@ -1,61 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui-legacy/dialog";
-import { Button } from "@/components/ui-legacy/button";
-import { Progress } from "@/components/ui-legacy/progress";
-import { Card } from "@/components/ui-legacy/card";
-import { Switch } from "@/components/ui-legacy/switch";
+import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  CheckCircle,
+  Package,
+  PartyPopper,
+  ShoppingCart,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
+
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { SQUARE_QUICK_AUTOMATIONS } from "@/lib/automation/squareQuickAutomations";
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  DialogContent,
+  DialogTitle,
+  LinearProgress,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Loader2,
-  CheckCircle,
-  Users,
-  ShoppingCart,
-  Package,
-  Gift,
-  Star,
-  Cake,
-  Clock,
-  User,
-  Heart,
-  Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  Zap,
-  PartyPopper,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import {
-  SQUARE_QUICK_AUTOMATIONS,
-  type QuickAutomation,
-} from "@/lib/automation/squareQuickAutomations";
-import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-
-interface SquareSetupWizardProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  merchantName?: string;
-  connectionId?: string;
-}
 
 type WizardStep = "sync" | "overview" | "automations" | "complete";
 
+interface SyncEntityProgress {
+  synced: number;
+  total: number;
+  status: "pending" | "syncing" | "complete" | "error";
+}
+
 interface SyncProgress {
-  customers: {
-    synced: number;
-    total: number;
-    status: "pending" | "syncing" | "complete" | "error";
-  };
-  sales: {
-    synced: number;
-    total: number;
-    status: "pending" | "syncing" | "complete" | "error";
-  };
-  products: {
-    synced: number;
-    total: number;
-    status: "pending" | "syncing" | "complete" | "error";
-  };
+  customers: SyncEntityProgress;
+  sales: SyncEntityProgress;
+  products: SyncEntityProgress;
 }
 
 interface SyncResults {
@@ -65,17 +53,12 @@ interface SyncResults {
   totalRevenue: number;
 }
 
-const ICON_MAP: Record<
-  QuickAutomation["icon"],
-  React.ComponentType<{ className?: string }>
-> = {
-  gift: Gift,
-  star: Star,
-  cake: Cake,
-  clock: Clock,
-  user: User,
-  heart: Heart,
-};
+interface SquareSetupWizardProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  merchantName?: string;
+  connectionId?: string;
+}
 
 const STEPS: { id: WizardStep; label: string }[] = [
   { id: "sync", label: "Sync Data" },
@@ -83,6 +66,14 @@ const STEPS: { id: WizardStep; label: string }[] = [
   { id: "automations", label: "Automations" },
   { id: "complete", label: "Done" },
 ];
+
+const ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  Users,
+  ShoppingCart,
+  Package,
+  Sparkles,
+  Zap,
+};
 
 export const SquareSetupWizard = ({
   open,
@@ -113,19 +104,13 @@ export const SquareSetupWizard = ({
 
   const currentStepIndex = STEPS.findIndex((s) => s.id === currentStep);
 
-  // Start sync automatically when wizard opens
   useEffect(() => {
     if (open && currentStep === "sync" && !isSyncing) {
       startSync();
     }
   }, [open, currentStep]);
 
-  // Query actual counts from database
-  const fetchActualCounts = async (): Promise<{
-    customers: number;
-    sales: number;
-    products: number;
-  }> => {
+  const fetchActualCounts = async () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) return { customers: 0, sales: 0, products: 0 };
@@ -160,8 +145,7 @@ export const SquareSetupWizard = ({
         sales: salesResult.count || 0,
         products: productsResult.count || 0,
       };
-    } catch (error) {
-      console.error("[SquareSetupWizard] Error fetching counts:", error);
+    } catch {
       return { customers: 0, sales: 0, products: 0 };
     }
   };
@@ -175,77 +159,46 @@ export const SquareSetupWizard = ({
     });
 
     try {
-      // Step 1: Sync customers
       setSyncProgress((prev) => ({
         ...prev,
         customers: { ...prev.customers, status: "syncing" },
       }));
-
-      try {
-        await supabase.functions.invoke("square-sync-customers");
-      } catch {}
-
+      try { await supabase.functions.invoke("square-sync-customers"); } catch {}
       setSyncProgress((prev) => ({
         ...prev,
         customers: { ...prev.customers, status: "complete" },
         sales: { ...prev.sales, status: "syncing" },
       }));
 
-      // Step 2: Sync sales
-      try {
-        await supabase.functions.invoke("square-sync-sales");
-      } catch {}
-
+      try { await supabase.functions.invoke("square-sync-sales"); } catch {}
       setSyncProgress((prev) => ({
         ...prev,
         sales: { ...prev.sales, status: "complete" },
         products: { ...prev.products, status: "syncing" },
       }));
 
-      // Step 3: Sync products
-      try {
-        await supabase.functions.invoke("square-sync-products");
-      } catch {}
-
+      try { await supabase.functions.invoke("square-sync-products"); } catch {}
       setSyncProgress((prev) => ({
         ...prev,
         products: { ...prev.products, status: "complete" },
       }));
 
-      // Wait a moment for database writes to complete, then query actual counts
       await new Promise((resolve) => setTimeout(resolve, 2000));
-
       const actualCounts = await fetchActualCounts();
+
       setSyncResults({
         customersCount: actualCounts.customers,
         salesCount: actualCounts.sales,
         productsCount: actualCounts.products,
         totalRevenue: 0,
       });
-
       setSyncProgress({
-        customers: {
-          synced: actualCounts.customers,
-          total: actualCounts.customers,
-          status: "complete",
-        },
-        sales: {
-          synced: actualCounts.sales,
-          total: actualCounts.sales,
-          status: "complete",
-        },
-        products: {
-          synced: actualCounts.products,
-          total: actualCounts.products,
-          status: "complete",
-        },
+        customers: { synced: actualCounts.customers, total: actualCounts.customers, status: "complete" },
+        sales: { synced: actualCounts.sales, total: actualCounts.sales, status: "complete" },
+        products: { synced: actualCounts.products, total: actualCounts.products, status: "complete" },
       });
 
-      const hasData =
-        actualCounts.customers > 0 ||
-        actualCounts.sales > 0 ||
-        actualCounts.products > 0;
-
+      const hasData = actualCounts.customers > 0 || actualCounts.sales > 0 || actualCounts.products > 0;
       toast({
         title: "Sync complete!",
         description: hasData
@@ -253,11 +206,8 @@ export const SquareSetupWizard = ({
           : "No data found to import. You can proceed to set up automations.",
       });
 
-      // Auto-advance to overview after short delay
-      setTimeout(() => {
-        setCurrentStep("overview");
-      }, 1500);
-    } catch (error: any) {
+      setTimeout(() => setCurrentStep("overview"), 1500);
+    } catch (error: unknown) {
       console.error("Sync error:", error);
       toast({
         title: "Sync encountered issues",
@@ -272,11 +222,8 @@ export const SquareSetupWizard = ({
   const toggleAutomation = (id: string) => {
     setSelectedAutomations((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -286,19 +233,15 @@ export const SquareSetupWizard = ({
       setCurrentStep("complete");
       return;
     }
-
     setCreatingAutomations(true);
-
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Not authenticated");
-
       const { data: user } = await supabase
         .from("users")
         .select("tenant_id")
         .eq("id", userData.user.id)
         .single();
-
       if (!user?.tenant_id) throw new Error("No tenant found");
 
       const automationsToCreate = SQUARE_QUICK_AUTOMATIONS.filter((a) =>
@@ -311,33 +254,20 @@ export const SquareSetupWizard = ({
         user_id: userData.user.id,
         template_source: "square_wizard",
         workflow_steps: JSON.stringify([
-          {
-            type: a.default_channel,
-            delay: a.delay_days ? { days: a.delay_days } : null,
-          },
+          { type: a.default_channel, delay: a.delay_days ? { days: a.delay_days } : null },
         ]),
       }));
 
-      const { error } = await supabase
-        .from("crm_automations")
-        .insert(automationsToCreate);
-
+      const { error } = await supabase.from("crm_automations").insert(automationsToCreate);
       if (error) throw error;
 
-      toast({
-        title: "Automations created",
-        description: `${automationsToCreate.length} automation(s) activated`,
-      });
-
+      toast({ title: "Automations created", description: `${automationsToCreate.length} automation(s) activated` });
       setCurrentStep("complete");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating automations:", error);
       toast({
         title: "Failed to create automations",
-        description: getUserFacingIntegrationError(
-          error,
-          "The automations could not be created. Please try again.",
-        ),
+        description: getUserFacingIntegrationError(error, "The automations could not be created."),
         variant: "destructive",
       });
     } finally {
@@ -347,355 +277,324 @@ export const SquareSetupWizard = ({
 
   const handleClose = () => {
     onOpenChange(false);
-    // Mark wizard as completed
     if (connectionId) {
-      supabase
+      void supabase
         .from("square_connections")
         .update({ setup_wizard_completed_at: new Date().toISOString() })
-        .eq("id", connectionId)
-        .then(() => {});
+        .eq("id", connectionId);
     }
   };
 
   const goNext = () => {
     const nextIndex = currentStepIndex + 1;
-    if (nextIndex < STEPS.length) {
-      setCurrentStep(STEPS[nextIndex].id);
-    }
+    if (nextIndex < STEPS.length) setCurrentStep(STEPS[nextIndex].id);
   };
 
   const goBack = () => {
     const prevIndex = currentStepIndex - 1;
-    if (prevIndex >= 0) {
-      setCurrentStep(STEPS[prevIndex].id);
-    }
+    if (prevIndex >= 0) setCurrentStep(STEPS[prevIndex].id);
+  };
+
+  const getEntityProgress = (entity: SyncEntityProgress) => {
+    if (entity.status === "complete") return 100;
+    if (entity.status === "syncing") return 50;
+    return 0;
   };
 
   const renderSyncStep = () => (
-    <div className="space-y-6 py-4">
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-          <Zap className="h-8 w-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold">Syncing Your Data</h3>
-        <p className="text-muted-foreground">
+    <Stack spacing={3} sx={{ py: 1 }}>
+      <Stack alignItems="center" spacing={1}>
+        <Box
+          sx={{
+            width: 56, height: 56, borderRadius: "xl",
+            bgcolor: "neutral.softBg",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Zap style={{ width: 28, height: 28 }} />
+        </Box>
+        <Typography level="title-lg" fontWeight="xl">Syncing Your Data</Typography>
+        <Typography level="body-sm" textColor="text.tertiary">
           We're importing your customers, sales, and products from Square.
-        </p>
-      </div>
+        </Typography>
+        {merchantName && (
+          <Typography level="body-xs" textColor="text.tertiary">
+            Connected to <strong>{merchantName}</strong>
+          </Typography>
+        )}
+      </Stack>
 
-      <div className="space-y-4">
-        {/* Customers */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span>Customers</span>
-            </div>
-            <span className="text-muted-foreground">
-              {syncProgress.customers.status === "complete" ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : syncProgress.customers.status === "syncing" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+      {(
+        [
+          { key: "customers", label: "Customers", Icon: Users },
+          { key: "sales", label: "Sales History", Icon: ShoppingCart },
+          { key: "products", label: "Products", Icon: Package },
+        ] as Array<{ key: keyof SyncProgress; label: string; Icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }>
+      ).map(({ key, label, Icon }) => {
+        const entity = syncProgress[key];
+        return (
+          <Box key={key}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.75}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Icon style={{ width: 14, height: 14 }} />
+                <Typography level="body-sm">{label}</Typography>
+              </Stack>
+              {entity.status === "complete" ? (
+                <CheckCircle style={{ width: 14, height: 14, color: "var(--joy-palette-success-500)" }} />
+              ) : entity.status === "syncing" ? (
+                <CircularProgress size="sm" />
               ) : null}
-            </span>
-          </div>
-          <Progress
-            value={
-              syncProgress.customers.status === "complete"
-                ? 100
-                : syncProgress.customers.status === "syncing"
-                  ? 50
-                  : 0
-            }
-            className="h-2"
-          />
-        </div>
-
-        {/* Sales */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              <span>Sales History</span>
-            </div>
-            <span className="text-muted-foreground">
-              {syncProgress.sales.status === "complete" ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : syncProgress.sales.status === "syncing" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
-            </span>
-          </div>
-          <Progress
-            value={
-              syncProgress.sales.status === "complete"
-                ? 100
-                : syncProgress.sales.status === "syncing"
-                  ? 50
-                  : 0
-            }
-            className="h-2"
-          />
-        </div>
-
-        {/* Products */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <span>Products</span>
-            </div>
-            <span className="text-muted-foreground">
-              {syncProgress.products.status === "complete" ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : syncProgress.products.status === "syncing" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
-            </span>
-          </div>
-          <Progress
-            value={
-              syncProgress.products.status === "complete"
-                ? 100
-                : syncProgress.products.status === "syncing"
-                  ? 50
-                  : 0
-            }
-            className="h-2"
-          />
-        </div>
-      </div>
+            </Stack>
+            <LinearProgress
+              determinate
+              value={getEntityProgress(entity)}
+              color={entity.status === "complete" ? "success" : "neutral"}
+              size="sm"
+            />
+          </Box>
+        );
+      })}
 
       {syncProgress.customers.status === "error" && (
-        <Button onClick={startSync} variant="outline" className="w-full">
+        <Button variant="outlined" color="neutral" onClick={() => void startSync()} size="sm">
           Retry Sync
         </Button>
       )}
-    </div>
+    </Stack>
   );
 
   const renderOverviewStep = () => (
-    <div className="space-y-6 py-4">
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
-          <CheckCircle className="h-8 w-8 text-green-600" />
-        </div>
-        <h3 className="text-xl font-semibold">Import Complete!</h3>
-        <p className="text-muted-foreground">
+    <Stack spacing={3} sx={{ py: 1 }}>
+      <Stack alignItems="center" spacing={1}>
+        <Box
+          sx={{
+            width: 56, height: 56, borderRadius: "xl",
+            bgcolor: "success.softBg",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <CheckCircle style={{ width: 28, height: 28, color: "var(--joy-palette-success-500)" }} />
+        </Box>
+        <Typography level="title-lg" fontWeight="xl">Import Complete!</Typography>
+        <Typography level="body-sm" textColor="text.tertiary">
           Here's what we found in your Square account.
-        </p>
-      </div>
+        </Typography>
+      </Stack>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4 text-center">
-          <Users className="h-6 w-6 mx-auto mb-2 text-primary" />
-          <div className="text-2xl font-bold">{syncResults.customersCount}</div>
-          <div className="text-xs text-muted-foreground">Customers</div>
-        </Card>
-        <Card className="p-4 text-center">
-          <ShoppingCart className="h-6 w-6 mx-auto mb-2 text-primary" />
-          <div className="text-2xl font-bold">{syncResults.salesCount}</div>
-          <div className="text-xs text-muted-foreground">Sales</div>
-        </Card>
-        <Card className="p-4 text-center">
-          <Package className="h-6 w-6 mx-auto mb-2 text-primary" />
-          <div className="text-2xl font-bold">{syncResults.productsCount}</div>
-          <div className="text-xs text-muted-foreground">Products</div>
-        </Card>
-      </div>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1.5 }}>
+        {[
+          { label: "Customers", value: syncResults.customersCount, Icon: Users },
+          { label: "Sales", value: syncResults.salesCount, Icon: ShoppingCart },
+          { label: "Products", value: syncResults.productsCount, Icon: Package },
+        ].map(({ label, value, Icon }) => (
+          <Sheet key={label} variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2, textAlign: "center" }}>
+            <Icon style={{ width: 20, height: 20, margin: "0 auto 8px" }} />
+            <Typography level="title-lg" fontWeight="xl">{value.toLocaleString()}</Typography>
+            <Typography level="body-xs" textColor="text.tertiary">{label}</Typography>
+          </Sheet>
+        ))}
+      </Box>
 
-      <div className="flex justify-end">
-        <Button onClick={goNext}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="solid" color="neutral" onClick={goNext} endDecorator={<ArrowRight style={{ width: 14, height: 14 }} />}>
           Set Up Automations
-          <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
-      </div>
-    </div>
+      </Box>
+    </Stack>
   );
 
   const renderAutomationsStep = () => (
-    <div className="space-y-6 py-4">
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-          <Sparkles className="h-8 w-8 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold">Quick Automations</h3>
-        <p className="text-muted-foreground">
+    <Stack spacing={2.5} sx={{ py: 1 }}>
+      <Stack alignItems="center" spacing={1}>
+        <Box
+          sx={{
+            width: 56, height: 56, borderRadius: "xl",
+            bgcolor: "neutral.softBg",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Sparkles style={{ width: 28, height: 28 }} />
+        </Box>
+        <Typography level="title-lg" fontWeight="xl">Quick Automations</Typography>
+        <Typography level="body-sm" textColor="text.tertiary">
           Enable automated campaigns to engage your customers.
-        </p>
-      </div>
+        </Typography>
+      </Stack>
 
-      <div className="space-y-3 max-h-[350px] overflow-y-auto px-1 -mx-1">
+      <Stack spacing={1} sx={{ maxHeight: 320, overflowY: "auto" }}>
         {SQUARE_QUICK_AUTOMATIONS.map((automation) => {
-          const IconComponent = ICON_MAP[automation.icon];
+          const IconComponent = ICON_MAP[automation.icon] ?? Sparkles;
           const isSelected = selectedAutomations.has(automation.id);
-
           return (
-            <Card
+            <Sheet
               key={automation.id}
-              className={cn(
-                "p-4 cursor-pointer transition-all hover:shadow-md",
-                isSelected && "ring-2 ring-primary bg-primary/5",
-              )}
+              variant="soft"
+              color={isSelected ? "neutral" : "neutral"}
+              sx={{
+                borderRadius: "lg",
+                p: 1.5,
+                cursor: "pointer",
+                border: "1px solid",
+                borderColor: isSelected ? "neutral.outlinedHoverBorder" : "transparent",
+                "&:hover": { bgcolor: "neutral.softHoverBg" },
+              }}
               onClick={() => toggleAutomation(automation.id)}
             >
-              <div className="flex items-center gap-4">
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center",
-                    isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted",
-                  )}
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box
+                  sx={{
+                    flexShrink: 0,
+                    width: 36, height: 36, borderRadius: "md",
+                    bgcolor: isSelected ? "neutral.700" : "neutral.200",
+                    color: isSelected ? "white" : "neutral.600",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
                 >
-                  <IconComponent className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium truncate">{automation.name}</h4>
+                  <IconComponent style={{ width: 16, height: 16 }} />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Typography level="body-sm" fontWeight="md" noWrap>{automation.name}</Typography>
                     {automation.recommended && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                        Recommended
-                      </span>
+                      <Chip size="sm" color="primary" variant="soft">Recommended</Chip>
                     )}
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">
+                  </Stack>
+                  <Typography level="body-xs" textColor="text.tertiary" noWrap>
                     {automation.description}
-                  </p>
-                </div>
-                <Switch
+                  </Typography>
+                </Box>
+                <Checkbox
                   checked={isSelected}
-                  onCheckedChange={() => toggleAutomation(automation.id)}
+                  onChange={() => toggleAutomation(automation.id)}
                   onClick={(e) => e.stopPropagation()}
+                  size="sm"
                 />
-              </div>
-            </Card>
+              </Stack>
+            </Sheet>
           );
         })}
-      </div>
+      </Stack>
 
-      <div className="flex justify-between">
-        <Button variant="ghost" onClick={goBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+      <Stack direction="row" justifyContent="space-between">
+        <Button variant="plain" color="neutral" onClick={goBack}>
           Back
         </Button>
         <Button
-          onClick={createSelectedAutomations}
+          variant="solid"
+          color="neutral"
+          onClick={() => void createSelectedAutomations()}
           disabled={creatingAutomations}
+          startDecorator={creatingAutomations ? <CircularProgress size="sm" /> : null}
+          endDecorator={!creatingAutomations ? <ArrowRight style={{ width: 14, height: 14 }} /> : null}
         >
-          {creatingAutomations ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Creating...
-            </>
-          ) : selectedAutomations.size > 0 ? (
-            <>
-              Activate {selectedAutomations.size} Automation
-              {selectedAutomations.size > 1 ? "s" : ""}
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </>
-          ) : (
-            <>
-              Skip
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </>
-          )}
+          {creatingAutomations
+            ? "Creating..."
+            : selectedAutomations.size > 0
+              ? `Activate ${selectedAutomations.size} Automation${selectedAutomations.size > 1 ? "s" : ""}`
+              : "Skip"}
         </Button>
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 
   const renderCompleteStep = () => (
-    <div className="space-y-6 py-4 text-center">
-      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 mb-4 animate-bounce">
-        <PartyPopper className="h-10 w-10 text-green-600" />
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-2xl font-bold">You're All Set! 🎉</h3>
-        <p className="text-muted-foreground">
+    <Stack spacing={3} sx={{ py: 1, textAlign: "center" }}>
+      <Stack alignItems="center" spacing={1.5}>
+        <Box
+          sx={{
+            width: 68, height: 68, borderRadius: "xl",
+            bgcolor: "success.softBg",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <PartyPopper style={{ width: 32, height: 32, color: "var(--joy-palette-success-600)" }} />
+        </Box>
+        <Typography level="title-lg" fontWeight="xl">You're All Set! 🎉</Typography>
+        <Typography level="body-sm" textColor="text.tertiary">
           Your Square integration is ready to go.
-        </p>
-      </div>
+        </Typography>
+      </Stack>
 
-      <div className="bg-muted/50 rounded-lg p-4 text-left space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <span>{syncResults.customersCount} customers synced</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <span>{syncResults.salesCount} sales imported</span>
-        </div>
-        {selectedAutomations.size > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>
-              {selectedAutomations.size} automation
-              {selectedAutomations.size > 1 ? "s" : ""} activated
-            </span>
-          </div>
-        )}
-      </div>
+      <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2, textAlign: "left" }}>
+        <Stack spacing={0.75}>
+          {[
+            `${syncResults.customersCount} customers synced`,
+            `${syncResults.salesCount} sales imported`,
+            ...(selectedAutomations.size > 0
+              ? [`${selectedAutomations.size} automation${selectedAutomations.size > 1 ? "s" : ""} activated`]
+              : []),
+          ].map((line) => (
+            <Stack key={line} direction="row" spacing={1} alignItems="center">
+              <CheckCircle style={{ width: 14, height: 14, color: "var(--joy-palette-success-500)", flexShrink: 0 }} />
+              <Typography level="body-sm">{line}</Typography>
+            </Stack>
+          ))}
+        </Stack>
+      </Sheet>
 
-      <Button onClick={handleClose} className="w-full" size="lg">
+      <Button variant="solid" color="neutral" onClick={handleClose} size="lg" sx={{ width: "100%" }}>
         Get Started
       </Button>
-    </div>
+    </Stack>
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-2xl"
-        onPointerDownOutside={(e) => e.preventDefault()}
+    <Modal open={open} onClose={() => {}}>
+      <ModalDialog
+        variant="outlined"
+        sx={{ maxWidth: 600, borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
       >
-        <DialogTitle className="sr-only">Square Setup Wizard</DialogTitle>
+        <ModalClose onClick={handleClose} />
+        <DialogTitle sx={{ sr: "only" }}>Square Setup Wizard</DialogTitle>
 
-        {/* Progress indicator */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Step indicator */}
+        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0} mb={2.5}>
           {STEPS.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                  index <= currentStepIndex
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {index < currentStepIndex ? (
-                  <CheckCircle className="h-4 w-4" />
-                ) : (
-                  index + 1
-                )}
-              </div>
+            <Stack key={step.id} direction="row" alignItems="center">
+              <Stack alignItems="center" spacing={0.5}>
+                <Box
+                  sx={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    bgcolor: index <= currentStepIndex ? "neutral.800" : "neutral.200",
+                    color: index <= currentStepIndex ? "white" : "neutral.500",
+                    fontSize: 12, fontWeight: "bold",
+                    transition: "background-color 0.2s",
+                  }}
+                >
+                  {index < currentStepIndex
+                    ? <CheckCircle style={{ width: 14, height: 14 }} />
+                    : index + 1}
+                </Box>
+                <Typography
+                  level="body-xs"
+                  fontWeight={index === currentStepIndex ? "md" : "normal"}
+                  textColor={index === currentStepIndex ? "text.primary" : "text.tertiary"}
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  {step.label}
+                </Typography>
+              </Stack>
               {index < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    "w-12 sm:w-16 h-1 mx-1",
-                    index < currentStepIndex ? "bg-primary" : "bg-muted",
-                  )}
+                <Box
+                  sx={{
+                    width: 48, height: 2, mx: 0.75, mb: 2,
+                    bgcolor: index < currentStepIndex ? "neutral.600" : "neutral.200",
+                    transition: "background-color 0.2s",
+                  }}
                 />
               )}
-            </div>
+            </Stack>
           ))}
-        </div>
+        </Stack>
 
-        {/* Merchant name */}
-        {merchantName && currentStep === "sync" && (
-          <div className="text-center text-sm text-muted-foreground mb-4">
-            Connected to{" "}
-            <span className="font-medium text-foreground">{merchantName}</span>
-          </div>
-        )}
-
-        {/* Step content */}
-        {currentStep === "sync" && renderSyncStep()}
-        {currentStep === "overview" && renderOverviewStep()}
-        {currentStep === "automations" && renderAutomationsStep()}
-        {currentStep === "complete" && renderCompleteStep()}
-      </DialogContent>
-    </Dialog>
+        <DialogContent sx={{ overflow: "visible" }}>
+          {currentStep === "sync" && renderSyncStep()}
+          {currentStep === "overview" && renderOverviewStep()}
+          {currentStep === "automations" && renderAutomationsStep()}
+          {currentStep === "complete" && renderCompleteStep()}
+        </DialogContent>
+      </ModalDialog>
+    </Modal>
   );
 };

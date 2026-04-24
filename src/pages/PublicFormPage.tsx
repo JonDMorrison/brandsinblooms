@@ -1,15 +1,21 @@
-import { type ReactNode, useEffect, useState } from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { AlertCircle, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useParams } from "react-router-dom";
-import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { FormPreviewRenderer } from "@/components/forms/preview/FormPreviewRenderer";
-import { Button } from "@/components/ui-legacy/button";
 import { SUPABASE_URL } from "@/integrations/supabase/config";
 import {
-  FormField,
-  FormSettings,
-  FormCompliance,
-  DEFAULT_FORM_SETTINGS,
   DEFAULT_FORM_COMPLIANCE,
+  DEFAULT_FORM_SETTINGS,
+  type FormCompliance,
+  type FormField,
+  type FormSettings,
 } from "@/types/formBuilder";
 
 interface FormConfig {
@@ -25,18 +31,55 @@ interface PublicFormLoadError {
   retryable: boolean;
 }
 
+function PublicPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        px: { xs: 2, md: 3 },
+        py: { xs: 3, md: 5 },
+        background:
+          "radial-gradient(circle at top, rgba(34, 197, 94, 0.14), transparent 24%), linear-gradient(180deg, #f8fafc 0%, #f3efe6 100%)",
+      }}
+    >
+      <Box
+        sx={{
+          minHeight: "calc(100vh - 48px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Stack spacing={2} alignItems="center" sx={{ width: "100%" }}>
+          <JoyChip
+            size="sm"
+            variant="soft"
+            color="neutral"
+            startDecorator={<ShieldCheck size={14} />}
+          >
+            Secure BloomSuite form
+          </JoyChip>
+          {children}
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
 export default function PublicFormPage() {
   const { embedKey } = useParams<{ embedKey: string }>();
-  const [form, setForm] = useState<FormConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<PublicFormLoadError | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = React.useState<FormConfig | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<PublicFormLoadError | null>(
+    null,
+  );
+  const [submitting, setSubmitting] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!embedKey) {
       setLoadError({
-        title: "This form isn't available",
-        message: "The link is incomplete or no longer valid.",
+        title: "This form is not available",
+        message: "The public link is incomplete or no longer valid.",
         retryable: false,
       });
       setLoading(false);
@@ -64,7 +107,7 @@ export default function PublicFormPage() {
           return;
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as FormConfig;
         setForm(data);
       } catch (error) {
         setForm(null);
@@ -79,51 +122,37 @@ export default function PublicFormPage() {
       }
     };
 
-    fetchForm();
+    void fetchForm();
   }, [embedKey]);
 
   const handleSubmit = async (formData: Record<string, unknown>) => {
-    if (!form || !embedKey) return;
+    if (!form || !embedKey) {
+      return;
+    }
 
     const fieldIds = new Set(form.fields_json.map((field) => field.id));
     const enrichedData: Record<string, unknown> = {};
 
-    // Normalize all field values to canonical submission keys.
     form.fields_json.forEach((field) => {
-      const fieldKey = field.mapping_key || field.id;
-
-      if (field.type === "hidden" && field.default_value) {
-        enrichedData[fieldKey] = field.default_value;
-        return;
-      }
+      const submissionKey = field.mapping_key || field.id;
 
       if (
-        field.type === "email_consent" &&
-        formData.__email_consent !== undefined
+        field.type === "hidden" &&
+        field.default_value !== undefined &&
+        field.default_value !== null &&
+        field.default_value !== ""
       ) {
-        enrichedData[fieldKey] = formData.__email_consent;
-        return;
-      }
-
-      if (
-        field.type === "sms_consent" &&
-        formData.__sms_consent !== undefined
-      ) {
-        enrichedData[fieldKey] = formData.__sms_consent;
+        enrichedData[submissionKey] = field.default_value;
         return;
       }
 
       if (formData[field.id] !== undefined) {
-        enrichedData[fieldKey] = formData[field.id];
+        enrichedData[submissionKey] = formData[field.id];
       }
     });
 
     Object.entries(formData).forEach(([key, value]) => {
-      if (
-        key === "__email_consent" ||
-        key === "__sms_consent" ||
-        fieldIds.has(key)
-      ) {
+      if (fieldIds.has(key)) {
         return;
       }
 
@@ -131,6 +160,7 @@ export default function PublicFormPage() {
     });
 
     setSubmitting(true);
+
     try {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/submit-form`, {
         method: "POST",
@@ -159,7 +189,7 @@ export default function PublicFormPage() {
       }
     } catch (error) {
       throw new Error(
-        error instanceof Error ? error.message : "Failed to submit form",
+        error instanceof Error ? error.message : "Failed to submit form.",
       );
     } finally {
       setSubmitting(false);
@@ -169,18 +199,31 @@ export default function PublicFormPage() {
   if (loading) {
     return (
       <PublicPageShell>
-        <div className="mx-auto w-full max-w-md rounded-[28px] border border-border/60 bg-card/90 p-8 text-center shadow-[0_32px_80px_-48px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-          <h1 className="mt-5 text-2xl font-semibold text-foreground">
-            Loading form
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Fetching the latest published version and preparing the secure
-            submission flow.
-          </p>
-        </div>
+        <Sheet
+          variant="plain"
+          sx={{
+            width: "100%",
+            maxWidth: 420,
+            borderRadius: "xl",
+            backgroundColor: "rgba(255,255,255,0.88)",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            p: 4,
+            textAlign: "center",
+            boxShadow: "var(--joy-shadow-lg)",
+          }}
+        >
+          <Stack spacing={1.5} alignItems="center">
+            <Avatar size="lg" variant="soft" color="primary">
+              <Loader2 size={24} />
+            </Avatar>
+            <Typography level="title-lg">Loading form</Typography>
+            <Typography level="body-sm" color="neutral">
+              Fetching the latest published version and preparing the secure
+              submission flow.
+            </Typography>
+          </Stack>
+        </Sheet>
       </PublicPageShell>
     );
   }
@@ -188,59 +231,60 @@ export default function PublicFormPage() {
   if (loadError && !form) {
     return (
       <PublicPageShell>
-        <div className="mx-auto w-full max-w-lg rounded-[28px] border border-border/60 bg-card/95 p-8 text-center shadow-[0_32px_80px_-48px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-            <AlertCircle className="h-6 w-6" />
-          </div>
-          <h1 className="mt-5 text-2xl font-semibold text-foreground">
-            {loadError.title}
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {loadError.message}
-          </p>
-
-          {loadError.retryable ? (
-            <div className="mt-6 flex justify-center">
-              <Button onClick={() => window.location.reload()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+        <Sheet
+          variant="plain"
+          sx={{
+            width: "100%",
+            maxWidth: 520,
+            borderRadius: "xl",
+            backgroundColor: "rgba(255,255,255,0.92)",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            p: 4,
+            textAlign: "center",
+            boxShadow: "var(--joy-shadow-lg)",
+          }}
+        >
+          <Stack spacing={1.5} alignItems="center">
+            <Avatar size="lg" variant="soft" color="danger">
+              <AlertCircle size={24} />
+            </Avatar>
+            <Typography level="title-lg">{loadError.title}</Typography>
+            <Typography level="body-sm" color="neutral">
+              {loadError.message}
+            </Typography>
+            {loadError.retryable ? (
+              <JoyButton
+                startDecorator={<RefreshCw size={16} />}
+                onClick={() => window.location.reload()}
+              >
                 Try again
-              </Button>
-            </div>
-          ) : null}
-        </div>
+              </JoyButton>
+            ) : null}
+          </Stack>
+        </Sheet>
       </PublicPageShell>
     );
   }
 
-  if (!form) return null;
-
-  const formSettings = form.settings_json || DEFAULT_FORM_SETTINGS;
-  const formCompliance = form.compliance_json || DEFAULT_FORM_COMPLIANCE;
+  if (!form) {
+    return null;
+  }
 
   return (
     <PublicPageShell>
-      <div className="w-full max-w-6xl">
+      <Box sx={{ width: "100%", maxWidth: 1200 }}>
         <FormPreviewRenderer
           fields={form.fields_json || []}
-          settings={formSettings}
-          compliance={formCompliance}
+          settings={form.settings_json || DEFAULT_FORM_SETTINGS}
+          compliance={form.compliance_json || DEFAULT_FORM_COMPLIANCE}
           mode="embed"
           onSubmit={handleSubmit}
           isSubmitting={submitting}
           uploadEmbedKey={embedKey}
         />
-      </div>
+      </Box>
     </PublicPageShell>
-  );
-}
-
-function PublicPageShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.12),_transparent_28%),linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(241,245,249,0.9))] px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full items-center justify-center">
-        {children}
-      </div>
-    </div>
   );
 }
 
@@ -250,16 +294,16 @@ function getPublicFormLoadError(
 ): PublicFormLoadError {
   if (status === 404) {
     return {
-      title: "This form isn't available",
+      title: "This form is not available",
       message:
-        "The link is invalid or the form is no longer published. If you expected this form to be live, contact the team that shared it.",
+        "The link is invalid or the form is no longer published. If you expected it to be live, contact the team that shared it.",
       retryable: false,
     };
   }
 
   if (status !== null && status >= 500) {
     return {
-      title: "We couldn't load this form",
+      title: "We could not load this form",
       message:
         "The form service returned an unexpected error. Refresh and try again in a moment.",
       retryable: true,
@@ -268,7 +312,7 @@ function getPublicFormLoadError(
 
   if (status !== null) {
     return {
-      title: "We couldn't load this form",
+      title: "We could not load this form",
       message: message || "Refresh and try again in a moment.",
       retryable: true,
     };
@@ -277,7 +321,7 @@ function getPublicFormLoadError(
   return {
     title: "Connection problem",
     message:
-      "We couldn't reach the form service. Check your connection and try again.",
+      "We could not reach the form service. Check your connection and try again.",
     retryable: true,
   };
 }
@@ -319,7 +363,7 @@ function getSubmissionErrorMessage({
   }
 
   if (status >= 500) {
-    return "We couldn't submit the form right now. Please try again in a moment.";
+    return "We could not submit the form right now. Please try again in a moment.";
   }
 
   return errorPayload.error || "Submission failed. Please try again.";

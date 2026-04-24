@@ -28,12 +28,16 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     },
     ref,
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = React.useId();
+    const inputId = id ?? generatedId;
 
     const variantClasses = {
-      default: "border-input focus-visible:ring-garden-green",
-      success: "border-green-300 focus-visible:ring-green-500 bg-green-50/50",
-      error: "border-red-300 focus-visible:ring-red-500 bg-red-50/50",
+      default:
+        "border-slate-300 bg-white text-slate-800 hover:border-slate-400 focus:border-teal-400 focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400",
+      success:
+        "border-green-400 bg-white text-slate-800 hover:border-green-500 focus:border-green-500 focus-visible:border-green-400 focus-visible:ring-0",
+      error:
+        "border-red-400 bg-red-50/30 text-slate-800 hover:border-red-400 focus:border-red-400 focus-visible:border-red-400 focus-visible:ring-0",
     };
 
     const getStatusIcon = () => {
@@ -45,11 +49,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     };
 
     return (
-      <div className="w-full space-y-2">
+      <div className="w-full space-y-1">
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-gray-700 block apple-color-transition"
+            className="block text-[13px] font-medium leading-[1.4] text-slate-600 apple-color-transition"
           >
             {label}
           </label>
@@ -66,7 +70,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             id={inputId}
             className={cn(
-              "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm transition-all duration-200 ease-apple",
+              "flex h-9 w-full rounded-lg border px-3 py-2 text-sm font-normal leading-6 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-normal placeholder:text-slate-400 placeholder:opacity-100 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-100 transition-colors duration-200 ease-apple",
               leftIcon && "pl-10",
               (rightIcon || variant !== "default") && "pr-10",
               variantClasses[variant],
@@ -86,12 +90,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {helperText && (
           <p
             className={cn(
-              "text-xs transition-colors duration-200 ease-apple",
+              "text-xs font-normal leading-[1.4] transition-colors duration-200 ease-apple",
               variant === "error"
                 ? "text-red-600"
                 : variant === "success"
                   ? "text-green-600"
-                  : "text-gray-500",
+                  : "text-slate-500",
             )}
           >
             {helperText}

@@ -3,19 +3,18 @@ import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
 import type { SxProps } from "@mui/joy/styles/types";
 import { Search, X } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
 import {
   JoyDebouncedInput,
   type JoyDebouncedInputProps,
 } from "@/components/joy/JoyDebouncedInput";
 
 export type JoySearchInputProps = JoyDebouncedInputProps & {
+  appearance?: "page" | "topbar";
   clearable?: boolean;
   clearAriaLabel?: string;
   onClear?: () => void;
 };
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
 
 const coerceValue = (value: unknown) => {
   if (typeof value === "string") {
@@ -29,13 +28,39 @@ const coerceValue = (value: unknown) => {
   return "";
 };
 
-const searchInputSx: SxProps = {
-  borderRadius: "var(--joy-radius-xl)",
-  backgroundColor: "background.body",
-  "--Input-gap": "0.625rem",
-  "&:hover:not([data-disabled='true'])": {
-    backgroundColor: "background.surface",
-  },
+const getSearchInputSx = (appearance: "page" | "topbar"): SxProps => {
+  if (appearance === "topbar") {
+    return {
+      borderRadius: "var(--joy-radius-lg)",
+      borderColor: "transparent",
+      backgroundColor: "neutral.100",
+      "--Input-gap": "0.625rem",
+      "--Input-decoratorColor": "var(--joy-palette-neutral-400)",
+      transition:
+        "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease",
+      "&:hover:not([data-disabled='true'])": {
+        borderColor: "transparent",
+        backgroundColor: "neutral.100",
+      },
+      "&:focus-within": {
+        borderColor: "primary.400",
+        backgroundColor: "neutral.100",
+        boxShadow:
+          "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
+      },
+      "&.Mui-focusVisible, &:focus-visible": {
+        borderColor: "primary.400",
+      },
+      "& .MuiInput-input": {
+        fontSize: "14px",
+      },
+    };
+  }
+
+  return {
+    borderRadius: "var(--joy-radius-lg)",
+    "--Input-gap": "0.625rem",
+  };
 };
 
 export const JoySearchInput = React.forwardRef<
@@ -44,6 +69,7 @@ export const JoySearchInput = React.forwardRef<
 >(
   (
     {
+      appearance = "page",
       value,
       defaultValue,
       onChange,
@@ -85,7 +111,9 @@ export const JoySearchInput = React.forwardRef<
         value={searchValue}
         placeholder={placeholder}
         startDecorator={
-          startDecorator ?? <Search className="h-4 w-4" aria-hidden="true" />
+          startDecorator ?? (
+            <Search aria-hidden="true" size={18} strokeWidth={1.9} />
+          )
         }
         endDecorator={
           clearable && searchValue ? (
@@ -104,6 +132,7 @@ export const JoySearchInput = React.forwardRef<
                   borderRadius: "999px",
                   width: 24,
                   height: 24,
+                  color: "neutral.400",
                 }}
               >
                 <X className="h-4 w-4" />
@@ -120,7 +149,7 @@ export const JoySearchInput = React.forwardRef<
           onValueChange?.(nextValue);
           onChange?.(event);
         }}
-        sx={mergeSx(searchInputSx, sx)}
+        sx={mergeSx(getSearchInputSx(appearance), sx)}
       />
     );
   },

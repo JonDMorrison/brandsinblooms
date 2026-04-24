@@ -1,263 +1,238 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { DashboardSection } from './DashboardSection';
-import { RadialGauge } from '@/components/ui-legacy/radial-gauge';
-import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Progress } from '@/components/ui-legacy/progress';
-import { ScrollArea } from '@/components/ui-legacy/scroll-area';
-import { 
-  AlertTriangle, 
-  ShieldAlert, 
-  Ban, 
-  Bell, 
-  Tag, 
-  Mail,
-  TrendingDown
-} from 'lucide-react';
+import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { ShieldAlert, TrendingDown } from "lucide-react";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyStatusChip } from "@/components/joy/JoyChip";
+import type {
+  RecentRiskEvent,
+  RiskDisplayMetrics,
+} from "@/lib/customerDashboardTransformers";
+import { clampPercent, getRiskColor } from "./customerDashboardUtils";
 
 interface RiskNegativeSignalsProps {
-  metrics: {
-    overallRiskScore?: number;
-    riskLevel?: 'minimal' | 'low' | 'moderate' | 'high' | 'critical';
-    riskTrend?: 'improving' | 'stable' | 'worsening';
-    optOutRiskScore?: number;
-    ignoreStreakRiskScore?: number;
-    engagementGapRiskScore?: number;
-    incentiveAbuseRiskScore?: number;
-    couponDependencyRiskScore?: number;
-    dormancyRiskScore?: number;
-    bounceRiskScore?: number;
-    riskFactors?: string[];
-    shouldSuppress?: boolean;
-  };
-  recentEvents?: Array<{
-    id: string;
-    type: string;
-    timestamp: string;
-    description: string;
-  }>;
-  engagementDecay?: number[];
-  className?: string;
+  metrics: RiskDisplayMetrics;
+  recentEvents: RecentRiskEvent[];
+  engagementDecay: number[];
 }
 
-const riskLevelStyles: Record<string, { bg: string; text: string; border: string }> = {
-  minimal: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
-  low: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
-  moderate: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  high: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-  critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
-};
+const subRisks = (metrics: RiskDisplayMetrics) => [
+  { label: "Churn risk", value: metrics.ignoreStreakRiskScore },
+  { label: "Email fatigue", value: metrics.optOutRiskScore },
+  { label: "Discount dependency", value: metrics.couponDependencyRiskScore },
+  { label: "Bounce risk", value: metrics.bounceRiskScore },
+];
 
-const riskTypeIcons: Record<string, React.ReactNode> = {
-  opt_out: <Ban className="h-4 w-4" />,
-  ignoring: <Bell className="h-4 w-4" />,
-  coupon: <Tag className="h-4 w-4" />,
-  bounce: <Mail className="h-4 w-4" />,
-};
-
-const getRiskLabel = (score: number): string => {
-  if (score >= 80) return 'Critical';
-  if (score >= 60) return 'High';
-  if (score >= 40) return 'Moderate';
-  if (score >= 20) return 'Low';
-  return 'Minimal';
-};
-
-const getRiskColor = (score: number): string => {
-  if (score >= 80) return 'hsl(0 84% 60%)';
-  if (score >= 60) return 'hsl(25 95% 53%)';
-  if (score >= 40) return 'hsl(45 93% 47%)';
-  if (score >= 20) return 'hsl(142 76% 50%)';
-  return 'hsl(142 76% 36%)';
-};
-
-export const RiskNegativeSignals: React.FC<RiskNegativeSignalsProps> = ({
+export function RiskNegativeSignals({
   metrics,
-  recentEvents = [],
-  engagementDecay = [],
-  className,
-}) => {
-  const riskLevel = metrics.riskLevel || 'low';
-  const levelStyle = riskLevelStyles[riskLevel];
-
-  const riskIndicators = [
-    { key: 'opt_out', label: 'Opt-Out Risk', score: metrics.optOutRiskScore || 0, icon: <Ban className="h-3.5 w-3.5" /> },
-    { key: 'ignoring', label: 'Ignoring Risk', score: metrics.ignoreStreakRiskScore || 0, icon: <Bell className="h-3.5 w-3.5" /> },
-    { key: 'coupon', label: 'Coupon Dependency', score: metrics.couponDependencyRiskScore || 0, icon: <Tag className="h-3.5 w-3.5" /> },
-    { key: 'bounce', label: 'Bounce Risk', score: metrics.bounceRiskScore || 0, icon: <Mail className="h-3.5 w-3.5" /> },
-  ];
-
-  const hasDecayData = engagementDecay.length > 0 && engagementDecay.some(v => v > 0);
+  recentEvents,
+  engagementDecay,
+}: RiskNegativeSignalsProps) {
+  const riskColor = getRiskColor(metrics.overallRiskScore);
 
   return (
-    <DashboardSection
-      title="Risk & Negative Signals"
-      icon={<ShieldAlert className="h-4 w-4" />}
-      tooltip="Monitor warning signs and negative behavior patterns"
-      variant={riskLevel === 'critical' || riskLevel === 'high' ? 'critical' : 
-               riskLevel === 'moderate' ? 'warning' : 'default'}
-      badge={
-        <Badge className={cn('ml-2 text-xs', levelStyle.bg, levelStyle.text, levelStyle.border)}>
-          {riskLevel.toUpperCase()}
-        </Badge>
-      }
-      className={className}
-    >
-      {/* Main Risk Assessment */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        {/* Overall Risk Gauge */}
-        <div className="flex flex-col items-center p-4 rounded-lg border border-border bg-card">
-          <RadialGauge
-            value={metrics.overallRiskScore || 0}
-            size="lg"
-            variant="risk"
-            showValue={true}
-          />
-          <div className="text-center mt-2">
-            <p className={cn('text-sm font-semibold', levelStyle.text)}>
-              {getRiskLabel(metrics.overallRiskScore || 0)} Risk
-            </p>
-            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
-              Trend: 
-              {metrics.riskTrend === 'worsening' && (
-                <span className="text-red-600 flex items-center gap-0.5">
-                  <TrendingDown className="h-3 w-3" /> Worsening
-                </span>
-              )}
-              {metrics.riskTrend === 'improving' && (
-                <span className="text-green-600">Improving ↑</span>
-              )}
-              {metrics.riskTrend === 'stable' && (
-                <span className="text-muted-foreground">Stable →</span>
-              )}
-            </p>
-          </div>
-          
-          {/* Active Risk Factors */}
-          {metrics.riskFactors && metrics.riskFactors.length > 0 && (
-            <div className="mt-3 w-full">
-              <p className="text-xs text-muted-foreground mb-2">Active Risk Factors:</p>
-              <div className="space-y-1">
-                {metrics.riskFactors.slice(0, 3).map((factor, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                    <span className="text-foreground">{factor}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Risk Indicators */}
-        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-          {riskIndicators.map((indicator) => (
-            <div 
-              key={indicator.key}
-              className="p-3 rounded-lg border border-border bg-card"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{indicator.icon}</span>
-                  <span className="text-xs text-foreground font-medium">
-                    {indicator.label}
-                  </span>
-                </div>
-                <span 
-                  className="text-sm font-bold"
-                  style={{ color: getRiskColor(indicator.score) }}
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="Risk & signals"
+        description="Flags that suggest churn, fatigue, deliverability issues, or discount dependence."
+      />
+      <JoyCardContent>
+        <Stack spacing={2.5}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+          >
+            <Stack direction="row" spacing={2} alignItems="center">
+              <CircularProgress
+                determinate
+                value={clampPercent(metrics.overallRiskScore)}
+                color={riskColor}
+                size="lg"
+                sx={{
+                  "--CircularProgress-size": "78px",
+                  "--CircularProgress-thickness": "7px",
+                }}
+              >
+                <Typography level="title-sm">
+                  {metrics.overallRiskScore}
+                </Typography>
+              </CircularProgress>
+              <Stack spacing={0.5}>
+                <Typography
+                  level="body-xs"
+                  textTransform="uppercase"
+                  color="neutral"
                 >
-                  {indicator.score}
-                </span>
-              </div>
-              <Progress 
-                value={indicator.score} 
-                className="h-1.5"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Engagement Decay Curve */}
-      <div className="p-4 rounded-lg border border-border bg-card mb-4">
-        <h4 className="text-sm font-medium text-foreground mb-3">Engagement Decay Curve</h4>
-        {hasDecayData ? (
-          <>
-            <div className="h-20 flex items-end gap-1">
-              {engagementDecay.map((value, index) => (
-                <div 
-                  key={index}
-                  className="flex-1 rounded-t transition-all"
-                  style={{ 
-                    height: `${Math.max(value, 5)}%`,
-                    backgroundColor: getRiskColor(100 - value),
-                    opacity: 0.7 + (index / engagementDecay.length) * 0.3
-                  }}
+                  Overall risk
+                </Typography>
+                <Typography level="title-lg">
+                  {metrics.overallRiskScore}/100
+                </Typography>
+                <JoyStatusChip
+                  status={metrics.riskLevel}
+                  tone={
+                    riskColor === "success"
+                      ? "success"
+                      : riskColor === "warning"
+                        ? "warning"
+                        : riskColor === "danger"
+                          ? "danger"
+                          : "neutral"
+                  }
                 />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-              <span>Week 1</span>
-              <span>Current</span>
-            </div>
-          </>
-        ) : (
-          <EmptyChartOverlay
-            message="No engagement decay data available yet"
-            icon="bar"
-            height={100}
-          />
-        )}
-      </div>
+              </Stack>
+            </Stack>
 
-      {/* Recent Negative Events */}
-      {recentEvents.length > 0 && (
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            Recent Negative Events
-          </h4>
-          <ScrollArea className="h-32">
-            <div className="space-y-2">
-              {recentEvents.map((event) => (
-                <div 
-                  key={event.id}
-                  className="flex items-start gap-2 p-2 rounded-lg bg-muted/30"
-                >
-                  <span className="text-muted-foreground mt-0.5">
-                    {riskTypeIcons[event.type] || <AlertTriangle className="h-4 w-4" />}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground">{event.description}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {new Date(event.timestamp).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </div>
-      )}
+            <Sheet
+              variant="soft"
+              color={riskColor}
+              sx={{
+                borderRadius: "xl",
+                px: 2,
+                py: 1.5,
+                minWidth: { xs: "100%", md: 280 },
+              }}
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <TrendingDown size={16} />
+                <Typography level="body-sm">
+                  Trend:{" "}
+                  {metrics.riskTrend.replace(/\b\w/g, (character) =>
+                    character.toUpperCase(),
+                  )}
+                </Typography>
+              </Stack>
+            </Sheet>
+          </Stack>
 
-      {/* Suppression Warning */}
-      {metrics.shouldSuppress && (
-        <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-red-600" />
-            <div>
-              <p className="text-sm font-medium text-red-700">Suppression Recommended</p>
-              <p className="text-xs text-red-600">
-                This customer should be suppressed from marketing communications
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </DashboardSection>
+          {metrics.shouldSuppress ? (
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <ShieldAlert size={18} />
+                <Stack spacing={0.35}>
+                  <Typography level="title-sm">Suppression warning</Typography>
+                  <Typography level="body-sm" color="danger">
+                    {metrics.suppressionReason ||
+                      "This customer is currently marked for suppression."}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Sheet>
+          ) : null}
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 1.5,
+            }}
+          >
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Sub-risk indicators</Typography>
+                {subRisks(metrics).map((item) => (
+                  <Stack key={item.label} spacing={0.5}>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography level="body-sm">{item.label}</Typography>
+                      <Typography level="body-xs" color="neutral">
+                        {item.value}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      determinate
+                      value={clampPercent(item.value)}
+                      color={getRiskColor(item.value)}
+                      sx={{ borderRadius: 999 }}
+                    />
+                  </Stack>
+                ))}
+              </Stack>
+            </Sheet>
+
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Recent negative events</Typography>
+                {recentEvents.length > 0 ? (
+                  <Stack spacing={1}>
+                    {recentEvents.slice(0, 3).map((event) => (
+                      <Sheet
+                        key={event.id}
+                        variant="soft"
+                        color="danger"
+                        sx={{ borderRadius: "lg", p: 1.25 }}
+                      >
+                        <Typography level="body-sm">
+                          {event.description}
+                        </Typography>
+                        <Typography level="body-xs" color="danger">
+                          {new Date(event.timestamp).toLocaleDateString()}
+                        </Typography>
+                      </Sheet>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography level="body-sm" color="neutral">
+                    No recent negative events were recorded.
+                  </Typography>
+                )}
+              </Stack>
+            </Sheet>
+          </Box>
+
+          <Sheet
+            variant="soft"
+            color="neutral"
+            sx={{ borderRadius: "xl", p: 2 }}
+          >
+            <Stack spacing={1.25}>
+              <Typography level="title-sm">Engagement decay</Typography>
+              {engagementDecay.length > 0 ? (
+                <Stack direction="row" spacing={0.75} alignItems="flex-end">
+                  {engagementDecay.map((value, index) => (
+                    <Box key={`${index}-${value}`} sx={{ flex: 1 }}>
+                      <Box
+                        sx={{
+                          height: `${Math.max(20, clampPercent(value))}%`,
+                          minHeight: 20,
+                          borderRadius: "md md 0 0",
+                          backgroundColor:
+                            value >= 65
+                              ? "success.400"
+                              : value >= 40
+                                ? "warning.400"
+                                : "danger.400",
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography level="body-sm" color="neutral">
+                  Decay data is not yet available for this customer.
+                </Typography>
+              )}
+            </Stack>
+          </Sheet>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}
 
 export default RiskNegativeSignals;

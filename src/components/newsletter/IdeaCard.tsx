@@ -1,124 +1,217 @@
-import React from 'react';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Button } from '@/components/ui-legacy/button';
-import { Clock, ChevronRight, Mail, Calendar, Sparkles, Target, BarChart3 } from 'lucide-react';
-import { NewsletterIdea } from '@/types/newsletter';
-import { cn } from '@/lib/utils';
-import { format, addDays } from 'date-fns';
+import React, { type KeyboardEvent } from "react";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { NewsletterIdea } from "@/types/newsletter";
 
-interface IdeaCardProps {
-  idea: NewsletterIdea;
-  onSelect: (idea: NewsletterIdea, options?: { enableHeaderBackground?: boolean }) => void;
-  className?: string;
-  isActive?: boolean;
-  slideIndex?: number;
+const surfaceTransition =
+  "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease";
+
+const categoryLabelByCategory: Record<NewsletterIdea["category"], string> = {
+  holiday: "Holiday",
+  seasonal: "Seasonal",
+  product: "Product",
+  "ai-generated": "AI Idea",
+  general: "General",
+  weekly: "Weekly",
+};
+
+function getIdeaMeta(idea: NewsletterIdea) {
+  if (idea.badge) {
+    return idea.badge;
+  }
+
+  if (typeof idea.weekNumber === "number") {
+    return `Week ${idea.weekNumber}`;
+  }
+
+  return idea.estimatedReadTime || "Curated";
 }
 
-export const IdeaCard: React.FC<IdeaCardProps> = ({ 
-  idea, 
-  onSelect, 
-  className, 
-  isActive = false,
-  slideIndex = 0 
+interface IdeaCardProps {
+  displayVariant?: "standard" | "promoted-current" | "natural-current";
+  idea: NewsletterIdea;
+  onSelect: (idea: NewsletterIdea) => void;
+  className?: string;
+  isSelected?: boolean;
+}
+
+export const IdeaCard: React.FC<IdeaCardProps> = ({
+  displayVariant = "standard",
+  idea,
+  onSelect,
+  className,
+  isSelected = false,
 }) => {
-  // Get icon based on category
-  const getIcon = (category: NewsletterIdea['category']) => {
-    switch (category) {
-      case 'holiday':
-        return Calendar;
-      case 'weekly':
-        return Target;
-      case 'seasonal':
-        return Sparkles;
-      case 'product':
-        return BarChart3;
-      case 'ai-generated':
-        return Sparkles;
-      default:
-        return Mail;
+  const isNaturalCurrent = displayVariant === "natural-current";
+  const isPromotedCurrent = displayVariant === "promoted-current";
+  const showPrimarySelection = isSelected && !isNaturalCurrent;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect(idea);
     }
   };
-
-  // Get gradient classes based on category - using dark colors like Home1Page
-  const getGradientClasses = (category: NewsletterIdea['category']) => {
-    switch (category) {
-      case 'holiday':
-        return "from-red-800 to-red-900";
-      case 'weekly':
-        return "from-green-800 to-green-900";
-      case 'seasonal':
-        return "from-purple-800 to-purple-900";
-      case 'product':
-        return "from-blue-800 to-blue-900";
-      case 'ai-generated':
-        return "from-orange-800 to-orange-900";
-      default:
-        return "from-gray-800 to-gray-900";
-    }
-  };
-
-  const Icon = getIcon(idea.category);
 
   return (
-    <div className={cn(
-      "relative overflow-hidden rounded-3xl bg-white shadow-lg border !w-[380px] !h-full",
-      "transition-all duration-500 ease-out cursor-pointer",
-      isActive ? 'scale-105 z-10' : 'scale-90 opacity-60',
-      className
-    )}>
-      {/* Gradient Background */}
-      <div className={cn(
-        "absolute inset-0 bg-gradient-to-br opacity-90",
-        getGradientClasses(idea.category)
-      )} />
-      
-      {/* Content */}
-      <div className="relative z-10 h-full w-full flex flex-col justify-between py-4 text-white">
-        <div className="flex-1 flex flex-col justify-center items-center text-center space-y-3">
-          <div className="space-y-1.5">
-            <h3 className="text-base font-bold leading-tight text-white">{idea.title}</h3>
-            <p className="text-white/90 text-xs leading-snug px-3 line-clamp-4">{idea.description}</p>
-          </div>
-          
-          {/* Action Button */}
-          <Button 
-            onClick={() => onSelect(idea, { enableHeaderBackground: true })}
-            className="bg-white/20 hover:bg-white/30 text-white border-white/30 backdrop-blur-sm rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-300"
-            variant="outline"
+    <Card
+      className={className}
+      role="button"
+      tabIndex={0}
+      variant="outlined"
+      onClick={() => onSelect(idea)}
+      onKeyDown={handleKeyDown}
+      sx={{
+        p: 2.5,
+        height: "100%",
+        minHeight: 236,
+        borderRadius: "lg",
+        borderWidth: isNaturalCurrent || showPrimarySelection ? 2 : 1,
+        borderColor: isNaturalCurrent
+          ? "success.400"
+          : showPrimarySelection
+            ? "primary.400"
+            : "neutral.200",
+        boxShadow: showPrimarySelection
+          ? "0 4px 12px rgba(0, 0, 0, 0.06)"
+          : "0 1px 2px rgba(0, 0, 0, 0.03)",
+        backgroundColor: isNaturalCurrent
+          ? "rgba(var(--joy-palette-success-mainChannel) / 0.02)"
+          : showPrimarySelection
+            ? "rgba(var(--joy-palette-primary-mainChannel) / 0.03)"
+            : "background.surface",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.25,
+        transition: surfaceTransition,
+        outline: 0,
+        "&:hover": {
+          transform: "translateY(-1px)",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.06)",
+          borderColor: isNaturalCurrent
+            ? "success.400"
+            : showPrimarySelection
+              ? "primary.400"
+              : "neutral.300",
+        },
+        "&:focus-visible": {
+          borderColor: isNaturalCurrent
+            ? "success.400"
+            : showPrimarySelection
+              ? "primary.400"
+              : "neutral.300",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.06)",
+        },
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1}
+        justifyContent="space-between"
+        alignItems="center"
+      >
+        <Stack
+          direction="row"
+          spacing={0.75}
+          alignItems="center"
+          sx={{ minWidth: 0 }}
+        >
+          <Typography
+            level="body-xs"
+            sx={{
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "text.tertiary",
+            }}
           >
-            Start with this
-            <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-        
-        {/* Bottom accent */}
-        <div className="flex justify-center mt-4">
-          <div className="w-12 h-1 bg-white/30 rounded-full">
-            <div className="w-6 h-1 bg-white rounded-full"></div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Material You inspired overlay pattern */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-      
-      {/* Slide label - show week number for weekly themes */}
-      <div className="absolute top-4 left-4 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
-        <span className="text-white/90 text-xs font-medium">
-          {idea.category === 'weekly' && idea.weekNumber 
-            ? `Week ${idea.weekNumber}`
-            : `Idea ${slideIndex + 1}`
-          }
-        </span>
-      </div>
+            {categoryLabelByCategory[idea.category]}
+          </Typography>
 
-      {/* Estimated read time badge */}
-      {idea.estimatedReadTime && (
-        <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm px-2 py-1 rounded-full flex items-center">
-          <Clock className="w-3 h-3 mr-1 text-white/80" />
-          <span className="text-white/90 text-xs">{idea.estimatedReadTime}</span>
-        </div>
-      )}
-    </div>
+          {isPromotedCurrent ? (
+            <Typography
+              level="body-xs"
+              sx={{ fontWeight: 600, color: "primary.plainColor" }}
+            >
+              This Week
+            </Typography>
+          ) : null}
+        </Stack>
+
+        <Stack direction="row" spacing={0.75} alignItems="center">
+          <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+            {getIdeaMeta(idea)}
+          </Typography>
+
+          {isNaturalCurrent ? (
+            <Chip
+              size="sm"
+              variant="soft"
+              color="success"
+              sx={{
+                borderRadius: "sm",
+                fontWeight: 600,
+              }}
+            >
+              Current
+            </Chip>
+          ) : null}
+        </Stack>
+      </Stack>
+
+      <Stack spacing={0.9}>
+        <Typography
+          level="title-sm"
+          sx={{
+            fontWeight: 600,
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
+            overflow: "hidden",
+          }}
+        >
+          {idea.title}
+        </Typography>
+
+        <Typography
+          level="body-sm"
+          sx={{
+            color: "text.secondary",
+            lineHeight: 1.55,
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 3,
+            overflow: "hidden",
+          }}
+        >
+          {idea.description}
+        </Typography>
+      </Stack>
+
+      <Box sx={{ mt: "auto", pt: 1 }}>
+        <Typography
+          level="body-sm"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(idea);
+          }}
+          sx={{
+            display: "inline-flex",
+            color: "primary.plainColor",
+            fontWeight: 500,
+            cursor: "pointer",
+            "&:hover": {
+              textDecoration: "underline",
+            },
+          }}
+        >
+          Use this idea →
+        </Typography>
+      </Box>
+    </Card>
   );
 };

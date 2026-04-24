@@ -1,6 +1,7 @@
 import * as React from "react";
 import JoyBaseChip, { type ChipProps as JoyBaseChipProps } from "@mui/joy/Chip";
 import type { SxProps } from "@mui/joy/styles/types";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 type NativeJoyChipColor = NonNullable<JoyBaseChipProps["color"]>;
 type NativeJoyChipVariant = NonNullable<JoyBaseChipProps["variant"]>;
@@ -47,9 +48,6 @@ const LEGACY_VARIANTS = new Set<BloomChipVariant>([
   "info",
 ]);
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
 const resolveNativeSize = (
   size: JoyChipSize | undefined,
 ): NativeJoyChipSize => {
@@ -95,7 +93,7 @@ const resolveVariantConfig = (
     case "destructive":
       return { color: "danger" as const, variant: "solid" as const };
     case "outline":
-      return { color: "neutral" as const, variant: "outlined" as const };
+      return { color: "neutral" as const, variant: "soft" as const };
     case "success":
       return { color: "success" as const, variant: "soft" as const };
     case "warning":

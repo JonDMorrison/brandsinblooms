@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, getISOWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateCampaignContent } from "./ContentGenerationServices";
 
@@ -35,12 +35,14 @@ interface AddEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEventCreated: () => void;
+  defaultDate?: Date | null;
 }
 
 export const AddEventDialog = ({
   open,
   onOpenChange,
   onEventCreated,
+  defaultDate,
 }: AddEventDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -65,6 +67,19 @@ export const AddEventDialog = ({
       setIsCalendarOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (defaultDate) {
+      setSelectedDate(defaultDate);
+      setEventDate(format(defaultDate, "PPP"));
+      return;
+    }
+
+    setSelectedDate(undefined);
+    setEventDate("");
+  }, [defaultDate, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +111,12 @@ export const AddEventDialog = ({
         description: eventDescription.trim() || null,
         theme: `${eventName} Promotion`,
         prompt: eventPrompt,
-        start_date: new Date().toISOString().split("T")[0],
-        week_number: getCurrentWeekNumber(),
+        start_date: selectedDate
+          ? format(selectedDate, "yyyy-MM-dd")
+          : new Date().toISOString().split("T")[0],
+        week_number: selectedDate
+          ? getISOWeek(selectedDate)
+          : getCurrentWeekNumber(),
         source: "quick_action",
         user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
         created_by_user_id: user.id, // 🔒 Track who created it

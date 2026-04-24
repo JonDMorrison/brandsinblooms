@@ -1,6 +1,6 @@
-
-import { Button } from "@/components/ui-legacy/button";
+import Stack from "@mui/joy/Stack";
 import { Edit, Save, X } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 
 interface CompanyProfileFormActionsProps {
   isEditing: boolean;
@@ -18,24 +18,28 @@ export const CompanyProfileFormActions = ({
   onCancel 
 }: CompanyProfileFormActionsProps) => {
   return (
-    <div className="flex gap-2">
+    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
       {isEditing ? (
         <>
-          <Button variant="outline" size="sm" onClick={onCancel} className="text-base">
+          <JoyButton color="neutral" onClick={onCancel} variant="plain">
             <X className="w-4 h-4 mr-2" />
             Cancel
-          </Button>
-          <Button size="sm" onClick={onSave} disabled={isSaving} className="text-base">
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
+          </JoyButton>
+          <JoyButton
+            loading={isSaving}
+            loadingPosition="start"
+            onClick={onSave}
+            startDecorator={!isSaving ? <Save className="w-4 h-4" /> : undefined}
+            variant="solid"
+          >
+            Save changes
+          </JoyButton>
         </>
       ) : (
-        <Button variant="outline" size="sm" onClick={onToggleEdit} className="text-base">
-          <Edit className="w-4 h-4 mr-2" />
+        <JoyButton color="neutral" onClick={onToggleEdit} startDecorator={<Edit className="w-4 h-4" />} variant="plain">
           Edit
-        </Button>
+        </JoyButton>
       )}
-    </div>
+    </Stack>
   );
 };

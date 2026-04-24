@@ -1,230 +1,379 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-import { DashboardSection } from './DashboardSection';
-import { EngagementRadarChart } from '@/components/charts/EngagementRadarChart';
-import { EmptyChartOverlay } from '@/components/ui-legacy/empty-chart-overlay';
-import { Progress } from '@/components/ui-legacy/progress';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Layers, Mail, MessageSquare, Star, Clock, AlertTriangle } from 'lucide-react';
+import Box from "@mui/joy/Box";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  PolarRadiusAxis,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  AlertTriangle,
+  Clock3,
+  Layers,
+  Mail,
+  MessageSquare,
+  Star,
+} from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import type { CrossChannelDisplayMetrics } from "@/lib/customerDashboardTransformers";
+import {
+  clampPercent,
+  formatDaysLabel,
+  humanizeChannel,
+} from "./customerDashboardUtils";
 
-interface CrossChannelIntelligenceProps {
-  metrics: {
-    multiChannelScore?: number;
-    emailEngagement?: number;
-    smsEngagement?: number;
-    loyaltyEngagement?: number;
-    preferredChannel?: string;
-    channelFatigueEmail?: number;
-    channelFatigueSms?: number;
-    daysSinceLastEmail?: number;
-    daysSinceLastSms?: number;
-    daysSinceLastLoyalty?: number;
-  };
-  channelTrend?: Array<{
-    month: string;
-    preferredChannel: 'email' | 'sms';
-  }>;
-  className?: string;
+interface ChannelTrendPoint {
+  month: string;
+  preferredChannel: "email" | "sms";
 }
 
-const getChannelRecommendation = (
-  emailFatigue: number, 
-  smsFatigue: number, 
-  preferredChannel: string
-): string => {
-  if (emailFatigue > 70 && smsFatigue < 50) {
-    return 'Switch to SMS for the next 2 weeks to reduce email fatigue';
+interface CrossChannelIntelligenceProps {
+  metrics: CrossChannelDisplayMetrics;
+  channelTrend: ChannelTrendPoint[];
+  engagementDecay: number[];
+  errorMessage?: string | null;
+  onRetry?: () => void;
+}
+
+const getRecommendation = (metrics: CrossChannelDisplayMetrics) => {
+  if (metrics.channelFatigueEmail >= 70 && metrics.channelFatigueSms < 55) {
+    return "Shift the next sequence toward SMS to reduce email fatigue without going fully silent.";
   }
-  if (smsFatigue > 70 && emailFatigue < 50) {
-    return 'Switch to email for the next 2 weeks to reduce SMS fatigue';
+
+  if (metrics.channelFatigueSms >= 70 && metrics.channelFatigueEmail < 55) {
+    return "Pause SMS-heavy outreach and lean on email until message fatigue cools down.";
   }
-  if (emailFatigue > 70 && smsFatigue > 70) {
-    return 'Reduce overall messaging frequency - customer showing fatigue across channels';
+
+  if (metrics.channelFatigueEmail >= 70 && metrics.channelFatigueSms >= 70) {
+    return "Reduce overall outreach frequency. This customer is fatigued across both primary channels.";
   }
-  return `Continue with ${preferredChannel} as primary channel`;
+
+  return `Preferred channel remains ${humanizeChannel(metrics.preferredChannel).toLowerCase()}, with room to keep cadence steady.`;
 };
 
-const getFatigueColor = (value: number): string => {
-  if (value >= 70) return 'bg-red-500';
-  if (value >= 50) return 'bg-amber-500';
-  return 'bg-green-500';
-};
-
-const getFatigueLabel = (value: number): string => {
-  if (value >= 70) return 'High';
-  if (value >= 50) return 'Moderate';
-  return 'Low';
-};
-
-export const CrossChannelIntelligence: React.FC<CrossChannelIntelligenceProps> = ({
+export function CrossChannelIntelligence({
   metrics,
-  channelTrend = [],
-  className,
-}) => {
+  channelTrend,
+  engagementDecay,
+  errorMessage,
+  onRetry,
+}: CrossChannelIntelligenceProps) {
   const radarData = [
-    { channel: 'Email', value: metrics.emailEngagement || 0 },
-    { channel: 'SMS', value: metrics.smsEngagement || 0 },
-    { channel: 'Loyalty', value: metrics.loyaltyEngagement || 0 },
+    { channel: "Email", value: metrics.emailEngagement },
+    { channel: "SMS", value: metrics.smsEngagement },
+    { channel: "Loyalty", value: metrics.loyaltyEngagement },
+    { channel: "Multi", value: metrics.multiChannelScore },
   ];
 
-  const recommendation = getChannelRecommendation(
-    metrics.channelFatigueEmail || 0,
-    metrics.channelFatigueSms || 0,
-    metrics.preferredChannel || 'email'
-  );
-
-  const hasChannelTrendData = channelTrend.length > 0;
-
   return (
-    <DashboardSection
-      title="Cross-Channel Intelligence"
-      icon={<Layers className="h-4 w-4" />}
-      tooltip="Understand how channels interact and identify the optimal communication strategy"
-      className={className}
-    >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Radar Chart */}
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-2">Engagement by Channel</h4>
-          <EngagementRadarChart data={radarData} height={180} />
-          <div className="text-center mt-2">
-            <Badge variant="secondary" className="text-xs">
-              Multi-Channel Score: {metrics.multiChannelScore || 0}
-            </Badge>
-          </div>
-        </div>
+    <JoyCard variant="outlined">
+      <JoyCardHeader
+        title="Cross-channel intelligence"
+        description="Where this customer responds best, where fatigue is building, and how channel preference is shifting."
+        actions={
+          errorMessage && onRetry ? (
+            <JoyButton
+              color="danger"
+              variant="plain"
+              size="sm"
+              onClick={onRetry}
+            >
+              Retry
+            </JoyButton>
+          ) : null
+        }
+      />
+      <JoyCardContent>
+        <Stack spacing={2.5}>
+          {errorMessage ? (
+            <Sheet
+              color="danger"
+              variant="soft"
+              sx={{ borderRadius: "xl", p: 2 }}
+            >
+              <Typography level="title-sm">Trend data unavailable</Typography>
+              <Typography level="body-sm" color="danger">
+                {errorMessage}
+              </Typography>
+            </Sheet>
+          ) : null}
 
-        {/* Channel Fatigue */}
-        <div className="p-4 rounded-lg border border-border bg-card">
-          <h4 className="text-sm font-medium text-foreground mb-4">Channel Fatigue Analysis</h4>
-          
-          {/* Email Fatigue */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <Mail className="h-3.5 w-3.5 text-blue-600" />
-                <span className="text-sm text-foreground">Email</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">
-                  {metrics.channelFatigueEmail || 0}%
-                </span>
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    'text-[10px]',
-                    (metrics.channelFatigueEmail || 0) >= 70 
-                      ? 'border-red-200 text-red-700' 
-                      : 'border-green-200 text-green-700'
-                  )}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1fr) minmax(0, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Layers size={16} />
+                  <Typography level="title-sm">Engagement mix</Typography>
+                </Stack>
+                <Box sx={{ height: 260 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData} outerRadius={84}>
+                      <PolarGrid stroke="var(--joy-palette-neutral-200)" />
+                      <PolarAngleAxis
+                        dataKey="channel"
+                        tick={{
+                          fill: "var(--joy-palette-neutral-500)",
+                          fontSize: 12,
+                        }}
+                      />
+                      <PolarRadiusAxis
+                        domain={[0, 100]}
+                        tick={false}
+                        axisLine={false}
+                      />
+                      <Radar
+                        dataKey="value"
+                        stroke="var(--joy-palette-primary-500)"
+                        fill="rgba(var(--joy-palette-primary-mainChannel) / 0.24)"
+                        fillOpacity={1}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </Box>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <JoyChip color="primary" variant="soft" size="sm">
+                    Multi-channel score {metrics.multiChannelScore}
+                  </JoyChip>
+                  <JoyChip color="neutral" variant="soft" size="sm">
+                    Preferred {humanizeChannel(metrics.preferredChannel)}
+                  </JoyChip>
+                </Stack>
+              </Stack>
+            </Sheet>
+
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.75}>
+                <Typography level="title-sm">
+                  Fatigue & recommendation
+                </Typography>
+                {[
+                  {
+                    label: "Email fatigue",
+                    value: metrics.channelFatigueEmail,
+                    icon: Mail,
+                  },
+                  {
+                    label: "SMS fatigue",
+                    value: metrics.channelFatigueSms,
+                    icon: MessageSquare,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Stack key={item.label} spacing={0.5}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Icon size={14} />
+                          <Typography level="body-sm">{item.label}</Typography>
+                        </Stack>
+                        <Typography level="body-xs" color="neutral">
+                          {item.value}%
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        determinate
+                        value={clampPercent(item.value)}
+                        color={
+                          item.value >= 70
+                            ? "danger"
+                            : item.value >= 50
+                              ? "warning"
+                              : "success"
+                        }
+                        sx={{ borderRadius: 999 }}
+                      />
+                    </Stack>
+                  );
+                })}
+
+                <Sheet
+                  variant="soft"
+                  color="warning"
+                  sx={{ borderRadius: "xl", p: 2 }}
                 >
-                  {getFatigueLabel(metrics.channelFatigueEmail || 0)}
-                </Badge>
-              </div>
-            </div>
-            <Progress 
-              value={metrics.channelFatigueEmail || 0} 
-              className="h-2"
-            />
-          </div>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <AlertTriangle size={16} />
+                    <Typography level="body-sm">
+                      {getRecommendation(metrics)}
+                    </Typography>
+                  </Stack>
+                </Sheet>
+              </Stack>
+            </Sheet>
+          </Box>
 
-          {/* SMS Fatigue */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-3.5 w-3.5 text-green-600" />
-                <span className="text-sm text-foreground">SMS</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">
-                  {metrics.channelFatigueSms || 0}%
-                </span>
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    'text-[10px]',
-                    (metrics.channelFatigueSms || 0) >= 70 
-                      ? 'border-red-200 text-red-700' 
-                      : 'border-green-200 text-green-700'
-                  )}
-                >
-                  {getFatigueLabel(metrics.channelFatigueSms || 0)}
-                </Badge>
-              </div>
-            </div>
-            <Progress 
-              value={metrics.channelFatigueSms || 0} 
-              className="h-2"
-            />
-          </div>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                lg: "minmax(0, 1.1fr) minmax(0, 0.9fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">
+                  Preferred channel trend
+                </Typography>
+                {channelTrend.length > 0 ? (
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {channelTrend.map((item) => (
+                      <Sheet
+                        key={`${item.month}-${item.preferredChannel}`}
+                        variant="soft"
+                        color={
+                          item.preferredChannel === "email"
+                            ? "primary"
+                            : "success"
+                        }
+                        sx={{ borderRadius: "lg", px: 1.25, py: 1 }}
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="center"
+                        >
+                          {item.preferredChannel === "email" ? (
+                            <Mail size={14} />
+                          ) : (
+                            <MessageSquare size={14} />
+                          )}
+                          <Stack spacing={0.1}>
+                            <Typography level="body-xs">
+                              {item.month}
+                            </Typography>
+                            <Typography level="body-xs" fontWeight="lg">
+                              {item.preferredChannel.toUpperCase()}
+                            </Typography>
+                          </Stack>
+                        </Stack>
+                      </Sheet>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography level="body-sm" color="neutral">
+                    No preferred-channel trend history is available yet.
+                  </Typography>
+                )}
+              </Stack>
+            </Sheet>
 
-          {/* Recommendation */}
-          <div className="p-3 rounded-lg bg-muted/50 border border-border mt-4">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-muted-foreground">{recommendation}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+            <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 2 }}>
+              <Stack spacing={1.5}>
+                <Typography level="title-sm">Channel recency</Typography>
+                {[
+                  {
+                    label: "Email",
+                    value: formatDaysLabel(metrics.daysSinceLastEmail),
+                    icon: Mail,
+                  },
+                  {
+                    label: "SMS",
+                    value: formatDaysLabel(metrics.daysSinceLastSms),
+                    icon: MessageSquare,
+                  },
+                  {
+                    label: "Loyalty",
+                    value: formatDaysLabel(metrics.daysSinceLastLoyalty),
+                    icon: Star,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Sheet
+                      key={item.label}
+                      variant="soft"
+                      color="neutral"
+                      sx={{ borderRadius: "lg", p: 1.5 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Icon size={14} />
+                          <Typography level="body-sm">{item.label}</Typography>
+                        </Stack>
+                        <Typography level="body-sm" fontWeight="lg">
+                          {item.value}
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                  );
+                })}
+              </Stack>
+            </Sheet>
+          </Box>
 
-      {/* Channel Preference Trend */}
-      <div className="mt-4 p-4 rounded-lg border border-border bg-card">
-        <h4 className="text-sm font-medium text-foreground mb-3">Preferred Channel Trend</h4>
-        {hasChannelTrendData ? (
-          <div className="flex items-center gap-1 overflow-x-auto pb-2">
-            {channelTrend.map((item, index) => (
-              <div key={index} className="flex flex-col items-center min-w-[40px]">
-                <div className={cn(
-                  'h-8 w-8 rounded-full flex items-center justify-center mb-1',
-                  item.preferredChannel === 'email' 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-green-100 text-green-600'
-                )}>
-                  {item.preferredChannel === 'email' 
-                    ? <Mail className="h-4 w-4" /> 
-                    : <MessageSquare className="h-4 w-4" />
-                  }
-                </div>
-                <span className="text-[10px] text-muted-foreground">{item.month}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyChartOverlay
-            message="No channel trend data available yet"
-            icon="activity"
-            height={80}
-          />
-        )}
-      </div>
-
-      {/* Days Since Last Engagement */}
-      <div className="grid grid-cols-3 gap-3 mt-4">
-        <div className="p-3 rounded-lg border border-border bg-card text-center">
-          <Clock className="h-4 w-4 mx-auto mb-1 text-blue-600" />
-          <div className="text-lg font-semibold text-foreground">
-            {metrics.daysSinceLastEmail || 0}
-          </div>
-          <p className="text-[10px] text-muted-foreground">Days since email</p>
-        </div>
-        <div className="p-3 rounded-lg border border-border bg-card text-center">
-          <Clock className="h-4 w-4 mx-auto mb-1 text-green-600" />
-          <div className="text-lg font-semibold text-foreground">
-            {metrics.daysSinceLastSms || 0}
-          </div>
-          <p className="text-[10px] text-muted-foreground">Days since SMS</p>
-        </div>
-        <div className="p-3 rounded-lg border border-border bg-card text-center">
-          <Clock className="h-4 w-4 mx-auto mb-1 text-purple-600" />
-          <div className="text-lg font-semibold text-foreground">
-            {metrics.daysSinceLastLoyalty || 0}
-          </div>
-          <p className="text-[10px] text-muted-foreground">Days since loyalty</p>
-        </div>
-      </div>
-    </DashboardSection>
+          <Sheet
+            variant="soft"
+            color="neutral"
+            sx={{ borderRadius: "xl", p: 2 }}
+          >
+            <Stack spacing={1.25}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Clock3 size={16} />
+                <Typography level="title-sm">Engagement decay strip</Typography>
+              </Stack>
+              {engagementDecay.length > 0 ? (
+                <Stack direction="row" spacing={0.75} alignItems="flex-end">
+                  {engagementDecay.map((value, index) => (
+                    <Box key={`${index}-${value}`} sx={{ flex: 1 }}>
+                      <Box
+                        sx={{
+                          height: `${Math.max(18, clampPercent(value))}%`,
+                          minHeight: 18,
+                          borderRadius: "md md 0 0",
+                          backgroundColor:
+                            value >= 65
+                              ? "success.400"
+                              : value >= 40
+                                ? "warning.400"
+                                : "danger.400",
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography level="body-sm" color="neutral">
+                  Decay data is not yet available.
+                </Typography>
+              )}
+            </Stack>
+          </Sheet>
+        </Stack>
+      </JoyCardContent>
+    </JoyCard>
   );
-};
+}
 
 export default CrossChannelIntelligence;

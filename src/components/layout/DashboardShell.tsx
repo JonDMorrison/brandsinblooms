@@ -30,6 +30,7 @@ import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 
 const SIDEBAR_EXPANDED_WIDTH = 260;
 const SIDEBAR_COLLAPSED_WIDTH = 72;
+const SIDEBAR_WIDTH_TRANSITION = "200ms cubic-bezier(0.4, 0, 0.2, 1)";
 
 const getSidebarStorageKey = (mode: DashboardShellMode) =>
   `dashboard-shell:sidebar-collapsed:${mode}`;
@@ -189,7 +190,7 @@ export function DashboardShell({
             ? "minmax(0, 1fr)"
             : `${sidebarWidth}px minmax(0, 1fr)`,
           gridTemplateRows: `${DASHBOARD_TOPBAR_HEIGHT}px minmax(0, 1fr)`,
-          transition: "grid-template-columns 200ms ease",
+          transition: `grid-template-columns ${SIDEBAR_WIDTH_TRANSITION}`,
           backgroundColor: "var(--joy-palette-sand-50)",
         }}
       >
@@ -206,19 +207,21 @@ export function DashboardShell({
             minHeight: 0,
             overflowY: "auto",
             overflowX: "hidden",
+            scrollBehavior: "smooth",
             overscrollBehavior: "contain",
             backgroundColor: "var(--joy-palette-sand-50)",
             scrollbarWidth: "thin",
-            scrollbarColor: "rgba(71, 85, 105, 0.35) transparent",
+            scrollbarColor: "var(--joy-palette-neutral-300) transparent",
             "&::-webkit-scrollbar": {
-              width: "10px",
-              height: "10px",
+              width: "6px",
+              height: "6px",
             },
             "&::-webkit-scrollbar-thumb": {
-              backgroundColor: "rgba(71, 85, 105, 0.35)",
+              backgroundColor: "var(--joy-palette-neutral-300)",
               borderRadius: "999px",
-              border: "3px solid transparent",
-              backgroundClip: "content-box",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              backgroundColor: "var(--joy-palette-neutral-400)",
             },
             "&::-webkit-scrollbar-track": {
               backgroundColor: "transparent",
@@ -228,19 +231,31 @@ export function DashboardShell({
           <Box
             sx={{
               width: "100%",
+              height: "100%",
               minHeight: "100%",
-              px: 6,
-              py: 6,
+              px: { xs: 4, md: 6 },
+              py: 8,
               mx: "auto",
               maxWidth: resolvedContentWidth === "contained" ? "80rem" : "100%",
             }}
           >
-            <Stack spacing={3}>
+            <Stack spacing={6} sx={{ height: "100%", minHeight: "100%" }}>
               <TrialBanner />
               {!isLocationLoading && isLocationBlocked && (
                 <LocationBlockingBanner />
               )}
-              <Box sx={{ minWidth: 0 }}>{children}</Box>
+              <Box
+                sx={{
+                  minWidth: 0,
+                  height: "100%",
+                  minHeight: 0,
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {children}
+              </Box>
             </Stack>
           </Box>
         </Box>
@@ -273,7 +288,7 @@ function DashboardSidebarSlot({ mode }: { mode: DashboardShellMode }) {
         borderRight: "1px solid rgba(255, 255, 255, 0.08)",
         backgroundColor: "var(--joy-palette-brandNavy-800)",
         color: "var(--joy-palette-common-white)",
-        transition: "width 200ms ease",
+        transition: `width ${SIDEBAR_WIDTH_TRANSITION}`,
         display: "flex",
         flexDirection: "column",
         zIndex: "var(--joy-zIndex-sidebar)",

@@ -1,614 +1,829 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Badge } from "@/components/ui-legacy/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
+import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import {
-  Target,
+  Layers3,
   Plus,
-  Search,
   RefreshCw,
-  Upload,
-  SlidersHorizontal,
-  Eye,
-  EyeOff,
-  ChevronDown,
+  Search,
+  Shapes,
+  Users,
+  Zap,
 } from "lucide-react";
-import { useCRMSegments } from "@/hooks/useCRMSegments";
-import { useSegmentCounts } from "@/hooks/useSegmentCounts";
-import { useSystemSegmentVisibility } from "@/hooks/useSystemSegmentVisibility";
-import { SegmentCard } from "@/components/crm/segments/SegmentCard";
-import { CustomSegmentModal } from "@/components/crm/segments/CustomSegmentModal";
-import { SegmentOverviewCard } from "@/components/crm/segments/SegmentOverviewCard";
-import { SegmentCustomersModal } from "@/components/crm/segments/SegmentCustomersModal";
-import { EnhancedSegmentImportDialog } from "@/components/crm/segments/EnhancedSegmentImportDialog";
-import { SegmentSMSDialog } from "@/components/sms/SegmentSMSDialog";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { SYSTEM_SEGMENTS } from "@/config/segmentDefinitions";
+import { getSegmentDisplayDescription } from "@/config/systemSegments";
+import { CatalogGridSkeleton } from "@/components/crm/catalog/CatalogCardSkeleton";
 import {
-  CustomDropdown,
-  CustomDropdownItem,
-} from "@/components/ui-legacy/custom-dropdown";
-import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
+  CatalogStatsStrip,
+  CatalogStatsStripSkeleton,
+} from "@/components/crm/catalog/CatalogStatsStrip";
+import { SegmentCatalogCard } from "@/components/crm/segments/SegmentCatalogCard";
+import { SegmentDeleteDialog } from "@/components/crm/segments/SegmentDeleteDialog";
+import {
+  SegmentsFilterBar,
+  type SegmentSortOption,
+  type SegmentViewFilter,
+} from "@/components/crm/segments/SegmentsFilterBar";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
+import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoyTooltip } from "@/components/joy/JoyTooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { useCreateSegment } from "@/hooks/useCreateSegment";
+import { useDeleteSegment } from "@/hooks/useDeleteSegment";
+import { useEvaluateSegments } from "@/hooks/useSegmentEvaluation";
+import { type SegmentListItem, useSegments } from "@/hooks/useSegments";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import { BASE_SEGMENT_FIELDS } from "@/lib/segmentFields";
+import { segmentRuleToNaturalLanguage } from "@/lib/segmentRuleToNaturalLanguage";
+import {
+  downloadTextFile,
+  sanitizeFileNamePart,
+  toCsvValue,
+} from "@/lib/crm/campaignRecipientOperations";
 
-// Predefined segments data (without hardcoded counts)
-const predefinedSegments = [
-  {
-    id: "perks-members",
-    name: "Perks Members",
-    description: "Customers enrolled in your Perks loyalty program",
-    icon: "crown" as const,
-  },
-  {
-    id: "loyalty-members",
-    name: "Loyalty Members",
-    description:
-      "Customers enrolled in your loyalty program with active engagement",
-    icon: "crown" as const,
-  },
-  {
-    id: "high-value",
-    name: "High-Value Customers",
-    description: "Top spending customers who drive significant revenue",
-    icon: "trending" as const,
-  },
-  {
-    id: "new-customers",
-    name: "New Customers",
-    description:
-      "Recent customers who made their first purchase within 30 days",
-    icon: "users" as const,
-  },
-  {
-    id: "lapsed-customers",
-    name: "Lapsed Customers",
-    description:
-      "Previously active customers who haven't purchased in 90+ days",
-    icon: "mail" as const,
-  },
-  {
-    id: "seasonal-shoppers",
-    name: "Seasonal Shoppers",
-    description:
-      "Customers who typically purchase during specific seasons or holidays",
-    icon: "gift" as const,
-  },
-  {
-    id: "frequent-buyers",
-    name: "Frequent Buyers",
-    description: "Customers with 3+ purchases in the last 6 months",
-    icon: "shopping" as const,
-  },
-];
+const SEGMENT_GRID_COLUMNS = {
+  xs: "1fr",
+  md: "repeat(2, minmax(0, 1fr))",
+  xl: "repeat(3, minmax(0, 1fr))",
+} as const;
 
-export const CRMSegmentsPage: React.FC = () => {
-  const {
-    segments,
-    loading,
-    searchTerm,
-    setSearchTerm,
-    fetchSegments,
-    createSegment,
-    deleteSegment,
-    bulkImportSegments,
-  } = useCRMSegments();
-  const { counts, loading: countsLoading, refreshCounts } = useSegmentCounts();
-  const { hideSegment, showSegment, isHidden, hiddenCount } =
-    useSystemSegmentVisibility();
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [highlightedSegment, setHighlightedSegment] = useState<string | null>(
-    null,
+const normalizeSegmentName = (value: string) =>
+  value.trim().toLowerCase().replace(/\s+/g, " ");
+
+const SYSTEM_SEGMENT_NAMES = new Set(
+  SYSTEM_SEGMENTS.map((segment) => normalizeSegmentName(segment.name)),
+);
+
+function SegmentSectionHeading({ label }: { label: string }) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography
+        level="body-xs"
+        sx={{
+          color: "neutral.500",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        {label}
+      </Typography>
+      <Divider sx={{ borderColor: "neutral.200" }} />
+    </Stack>
   );
-  const [selectedSegment, setSelectedSegment] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [smsSegment, setSmsSegment] = useState<{
-    id: string;
-    name: string;
-    count: number;
-    isSystem: boolean;
-  } | null>(null);
-  const [activeTab, setActiveTab] = useState<"visible" | "hidden">("visible");
-  const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
+}
+
+function CreateSegmentCard({ onClick }: { onClick: () => void }) {
+  return (
+    <JoyCard
+      interactive
+      onClick={onClick}
+      sx={{
+        minHeight: 280,
+        display: "grid",
+        placeItems: "center",
+        borderStyle: "dashed",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        boxShadow: "none",
+        textAlign: "center",
+        transition: "border-color 160ms ease, box-shadow 160ms ease",
+        "&:hover": {
+          borderColor: "neutral.400",
+          boxShadow: "none",
+          backgroundColor: "background.surface",
+        },
+        "&:hover .create-segment-icon": {
+          color: "neutral.500",
+        },
+      }}
+    >
+      <JoyCardContent
+        sx={{
+          pt: 4,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          alignItems: "center",
+        }}
+      >
+        <Plus
+          size={24}
+          className="create-segment-icon"
+          style={{ color: "var(--joy-palette-neutral-300)" }}
+        />
+        <Typography
+          level="body-sm"
+          sx={{ color: "neutral.700", fontWeight: 500 }}
+        >
+          Create segment
+        </Typography>
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
+function buildCustomerName(customer: {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}) {
+  const name = [customer.first_name, customer.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  return name || customer.email || "Unknown customer";
+}
+
+function getNextDuplicateSegmentName(
+  name: string,
+  segments: SegmentListItem[],
+) {
+  const existingNames = new Set(
+    segments.map((segment) => segment.name.trim().toLowerCase()),
+  );
+  const baseName = `${name} Copy`;
+
+  if (!existingNames.has(baseName.toLowerCase())) {
+    return baseName;
+  }
+
+  let index = 2;
+  while (existingNames.has(`${baseName} ${index}`.toLowerCase())) {
+    index += 1;
+  }
+
+  return `${baseName} ${index}`;
+}
+
+export function CRMSegmentsPage() {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const segmentRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const { tenant, loading: tenantLoading } = useTenant();
+  const { user, loading: authLoading } = useAuth();
+  const tenantId = tenant?.id ?? null;
+  const userId = user?.id ?? null;
+  const [query, setQuery] = React.useState("");
+  const [view, setView] = React.useState<SegmentViewFilter>("all");
+  const [sort, setSort] = React.useState<SegmentSortOption>("members-desc");
+  const [segmentPendingDelete, setSegmentPendingDelete] =
+    React.useState<SegmentListItem | null>(null);
+  const { allSegments, stats, isLoading, isFetching, error, refetch } =
+    useSegments();
+  const createSegment = useCreateSegment();
+  const deleteSegment = useDeleteSegment();
+  const evaluateSegments = useEvaluateSegments();
+  const [isHydratingSystemSegments, setIsHydratingSystemSegments] =
+    React.useState(false);
+  const hydrationAttemptRef = React.useRef<string | null>(null);
 
-  const handleCreateSegment = () => {
-    setShowCustomBuilder(true);
-  };
+  const totalCustomersQuery = useQuery({
+    queryKey: ["segments-total-customers", tenantId],
+    enabled: Boolean(tenantId),
+    queryFn: async () => {
+      if (!tenantId) {
+        return 0;
+      }
 
-  const handleSaveCustomSegment = async (segmentData: any) => {
-    try {
-      await createSegment(segmentData);
-      setShowCustomBuilder(false);
-      // Refresh both segments and counts
-      await fetchSegments();
-      refreshCounts();
-    } catch (error) {
-      // Error is already handled in createSegment with toast
-      console.error("Failed to save segment:", error);
-    }
-  };
+      const { count, error: countError } = await supabase
+        .from("crm_customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null);
 
-  const handleSegmentUpdate = async () => {
-    // Refresh both segments and counts when segment customers are modified
-    await fetchSegments();
-    refreshCounts();
-  };
+      if (countError) {
+        throw countError;
+      }
 
-  const handleImportComplete = async () => {
-    setShowImportModal(false);
-    await fetchSegments();
-    refreshCounts();
-  };
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
 
-  const handleCreateCampaign = (segmentId: string) => {
-    navigate(`/crm/campaigns/new?segment=${segmentId}`);
-  };
+  const summaries = React.useMemo(() => {
+    return Object.fromEntries(
+      allSegments.map((segment) => [
+        segment.id,
+        segmentRuleToNaturalLanguage(segment.rules, BASE_SEGMENT_FIELDS),
+      ]),
+    );
+  }, [allSegments]);
 
-  const handleSendSMS = (
-    segmentId: string,
-    segmentName: string,
-    count: number,
-    isSystem: boolean,
-  ) => {
-    setSmsSegment({ id: segmentId, name: segmentName, count, isSystem });
-  };
+  const missingSystemDefinitions = React.useMemo(() => {
+    const existingNames = new Set(
+      allSegments.map((segment) => normalizeSegmentName(segment.name)),
+    );
 
-  const handleViewSegmentDetails = (segmentId: string) => {
-    // Find segment name
-    const segment = predefinedSegments.find((s) => s.id === segmentId);
-    if (segment) {
-      setSelectedSegment({ id: segmentId, name: segment.name });
+    return SYSTEM_SEGMENTS.filter(
+      (segment) => !existingNames.has(normalizeSegmentName(segment.name)),
+    );
+  }, [allSegments]);
+
+  React.useEffect(() => {
+    if (
+      !tenantId ||
+      !userId ||
+      isLoading ||
+      missingSystemDefinitions.length === 0
+    ) {
       return;
     }
 
-    // If not found in predefined, try highlighting (for navigation effect)
-    // Update URL with highlight parameter
-    const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set("highlight", segmentId);
-    setSearchParams(newSearchParams);
+    const attemptKey = `${tenantId}:${missingSystemDefinitions
+      .map((segment) => segment.id)
+      .join(",")}`;
 
-    // Set highlighted segment
-    setHighlightedSegment(segmentId);
-
-    // Scroll to segment
-    const segmentElement = segmentRefs.current[segmentId];
-    if (segmentElement) {
-      segmentElement.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    if (
+      hydrationAttemptRef.current === attemptKey ||
+      isHydratingSystemSegments
+    ) {
+      return;
     }
 
-    // Clear highlight after 3 seconds
-    setTimeout(() => {
-      setHighlightedSegment(null);
-      const params = new URLSearchParams(searchParams);
-      params.delete("highlight");
-      setSearchParams(params);
-    }, 3000);
+    hydrationAttemptRef.current = attemptKey;
+    let cancelled = false;
+
+    const hydrateSystemSegments = async () => {
+      setIsHydratingSystemSegments(true);
+
+      try {
+        const { error: insertError } = await supabase
+          .from("crm_segments")
+          .insert(
+            missingSystemDefinitions.map((segment) => ({
+              tenant_id: tenantId,
+              user_id: userId,
+              name: segment.name,
+              description: segment.description,
+              auto_update: true,
+              conditions: segment.conditions,
+              status: "active",
+              is_system_segment: true,
+              customer_count: 0,
+            })),
+          );
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        await evaluateSegments.mutateAsync({ tenantId });
+
+        if (!cancelled) {
+          await Promise.all([refetch(), totalCustomersQuery.refetch()]);
+        }
+      } catch (hydrationError) {
+        if (!cancelled) {
+          toast.error(
+            hydrationError instanceof Error
+              ? hydrationError.message
+              : "Failed to restore built-in system segments",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHydratingSystemSegments(false);
+        }
+      }
+    };
+
+    void hydrateSystemSegments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    evaluateSegments,
+    isHydratingSystemSegments,
+    isLoading,
+    missingSystemDefinitions,
+    refetch,
+    tenantId,
+    totalCustomersQuery,
+    userId,
+  ]);
+
+  const systemSegments = React.useMemo(() => {
+    const segmentsByName = new Map(
+      allSegments.map((segment) => [
+        normalizeSegmentName(segment.name),
+        segment,
+      ]),
+    );
+
+    return SYSTEM_SEGMENTS.map((definition) =>
+      segmentsByName.get(normalizeSegmentName(definition.name)),
+    ).filter(Boolean) as SegmentListItem[];
+  }, [allSegments]);
+
+  const customSegments = React.useMemo(
+    () =>
+      allSegments.filter(
+        (segment) =>
+          !SYSTEM_SEGMENT_NAMES.has(normalizeSegmentName(segment.name)),
+      ),
+    [allSegments],
+  );
+
+  const matchesQuery = React.useCallback(
+    (segment: SegmentListItem) => {
+      const normalizedQuery = query.trim().toLowerCase();
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [
+        segment.name,
+        segment.description,
+        summaries[segment.id],
+        getSegmentDisplayDescription({
+          isSystemSegment: segment.isSystemSegment,
+          name: segment.name,
+          description: segment.description,
+          fallback: summaries[segment.id],
+        }),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    },
+    [query, summaries],
+  );
+
+  const visibleSystemSegments = React.useMemo(
+    () => systemSegments.filter((segment) => matchesQuery(segment)),
+    [matchesQuery, systemSegments],
+  );
+
+  const visibleCustomSegments = React.useMemo(() => {
+    return customSegments
+      .filter((segment) => matchesQuery(segment))
+      .sort((left, right) => {
+        switch (sort) {
+          case "name-asc":
+            return left.name.localeCompare(right.name);
+          case "newest":
+            return (
+              new Date(right.updatedAt ?? right.createdAt ?? 0).getTime() -
+              new Date(left.updatedAt ?? left.createdAt ?? 0).getTime()
+            );
+          case "members-desc":
+          default:
+            return right.memberCount - left.memberCount;
+        }
+      });
+  }, [customSegments, matchesQuery, sort]);
+
+  const clearFilters = React.useCallback(() => {
+    setQuery("");
+    setView("all");
+    setSort("members-desc");
+  }, []);
+
+  const openCreateSegment = React.useCallback(() => {
+    navigate("/crm/segments/new");
+  }, [navigate]);
+
+  const handleRefresh = React.useCallback(() => {
+    void Promise.all([refetch(), totalCustomersQuery.refetch()]);
+  }, [refetch, totalCustomersQuery]);
+
+  const handleDuplicateSegment = React.useCallback(
+    async (segment: SegmentListItem) => {
+      try {
+        let memberIds: string[] | undefined;
+
+        if (segment.type === "static") {
+          const { data, error: membershipError } = await supabase
+            .from("customer_segments")
+            .select("customer_id")
+            .eq("segment_id", segment.id);
+
+          if (membershipError) {
+            throw membershipError;
+          }
+
+          memberIds = (data ?? []).map((membership) => membership.customer_id);
+        }
+
+        const created = await createSegment.mutateAsync({
+          name: getNextDuplicateSegmentName(segment.name, allSegments),
+          description: segment.description,
+          type: segment.type,
+          status: segment.status,
+          rules: segment.rules,
+          memberIds,
+        });
+
+        toast.success("Segment duplicated");
+        navigate(`/crm/segments/${created.id}`);
+      } catch (duplicateError) {
+        toast.error(
+          duplicateError instanceof Error
+            ? duplicateError.message
+            : "Failed to duplicate segment",
+        );
+      }
+    },
+    [allSegments, createSegment, navigate],
+  );
+
+  const handleExportMembers = React.useCallback(
+    async (segment: SegmentListItem) => {
+      try {
+        const { data, error: exportError } = await supabase
+          .from("customer_segments")
+          .select(
+            `
+              assigned_at,
+              crm_customers!inner(first_name, last_name, email, phone, tenant_id)
+            `,
+          )
+          .eq("segment_id", segment.id)
+          .eq("crm_customers.tenant_id", tenantId);
+
+        if (exportError) {
+          throw exportError;
+        }
+
+        const headers = ["Customer Name", "Email", "Phone", "Added At"];
+        const rows = (data ?? []).map((record) => {
+          const customer = record.crm_customers as {
+            first_name?: string | null;
+            last_name?: string | null;
+            email?: string | null;
+            phone?: string | null;
+          };
+
+          return [
+            buildCustomerName(customer),
+            customer.email ?? "",
+            customer.phone ?? "",
+            record.assigned_at ?? "",
+          ];
+        });
+
+        const csv = [
+          headers.map(toCsvValue).join(","),
+          ...rows.map((row) => row.map(toCsvValue).join(",")),
+        ].join("\n");
+
+        downloadTextFile(
+          csv,
+          `${sanitizeFileNamePart(segment.name)}-members.csv`,
+          "text/csv;charset=utf-8",
+        );
+        toast.success("Member CSV exported");
+      } catch (exportMembersError) {
+        toast.error(
+          exportMembersError instanceof Error
+            ? exportMembersError.message
+            : "Failed to export members",
+        );
+      }
+    },
+    [tenantId],
+  );
+
+  const handleDelete = async () => {
+    if (!segmentPendingDelete) {
+      return;
+    }
+
+    try {
+      await deleteSegment.mutateAsync(segmentPendingDelete.id);
+      toast.success("Segment archived");
+      setSegmentPendingDelete(null);
+    } catch (deleteError) {
+      toast.error(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to archive segment",
+      );
+    }
   };
 
-  // Handle URL highlight parameter on page load
-  useEffect(() => {
-    const highlightParam = searchParams.get("highlight");
-    if (highlightParam) {
-      setHighlightedSegment(highlightParam);
-
-      // Scroll to segment after a brief delay to ensure rendering
-      setTimeout(() => {
-        const segmentElement = segmentRefs.current[highlightParam];
-        if (segmentElement) {
-          segmentElement.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      }, 100);
-
-      // Clear highlight after 3 seconds
-      setTimeout(() => {
-        setHighlightedSegment(null);
-        const params = new URLSearchParams(searchParams);
-        params.delete("highlight");
-        setSearchParams(params);
-      }, 3000);
-    }
-  }, [searchParams, setSearchParams]);
-
-  // Filter predefined segments based on search term and visibility
-  const filteredPredefinedSegments = predefinedSegments.filter(
-    (segment) =>
-      segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      segment.description.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  // Split into visible and hidden segments
-  const visibleSystemSegments = filteredPredefinedSegments.filter(
-    (s) => !isHidden(s.id),
-  );
-  const hiddenSystemSegments = filteredPredefinedSegments.filter((s) =>
-    isHidden(s.id),
-  );
+  const totalCustomers = totalCustomersQuery.data ?? 0;
+  const segmentedCustomers = stats.totalSegmentedCustomers;
+  const filteredCount =
+    view === "system"
+      ? visibleSystemSegments.length
+      : view === "custom"
+        ? visibleCustomSegments.length
+        : visibleSystemSegments.length + visibleCustomSegments.length;
+  const hasLoadedSegments = allSegments.length > 0;
+  const isInitialCatalogLoading =
+    authLoading ||
+    tenantLoading ||
+    (!hasLoadedSegments && (isLoading || totalCustomersQuery.isLoading));
+  const isRefreshingCatalog =
+    isFetching || totalCustomersQuery.isFetching || isHydratingSystemSegments;
+  const showSearchEmptyState = filteredCount === 0 && query.trim().length > 0;
+  const loadError = error ?? totalCustomersQuery.error;
+  const segmentStats = [
+    {
+      label: "Total segments",
+      value: allSegments.length.toLocaleString(),
+      icon: <Shapes size={18} />,
+      iconColor: "primary" as const,
+    },
+    {
+      label: "Dynamic segments",
+      value: allSegments
+        .filter((segment) => segment.type === "dynamic")
+        .length.toLocaleString(),
+      icon: <Zap size={18} />,
+      iconColor: "warning" as const,
+    },
+    {
+      label: "Static segments",
+      value: allSegments
+        .filter((segment) => segment.type === "static")
+        .length.toLocaleString(),
+      icon: <Layers3 size={18} />,
+      iconColor: "neutral" as const,
+    },
+    {
+      label: "Customers reached",
+      value: segmentedCustomers.toLocaleString(),
+      icon: <Users size={18} />,
+      iconColor: "success" as const,
+    },
+  ];
 
   return (
-    <div
-      className={`${isMobile ? "mobile-section" : "p-6"} mobile-space-normal mobile-container`}
-    >
-      <DomainHealthBanner />
-      {/* Header */}
-      <div
-        className={`${isMobile ? "mobile-space-tight" : "flex justify-between items-center"} mb-6`}
-      >
-        <div className="flex items-center gap-3 mb-4 md:mb-0">
-          <h1
-            className={`${isMobile ? "mobile-text-hero" : "text-3xl"} font-bold`}
-          >
-            Customer Segments
-          </h1>
-        </div>
-        <div className={`flex ${isMobile ? "flex-col gap-2" : "gap-2"}`}>
-          <Button
-            variant="outline"
-            onClick={fetchSegments}
-            disabled={loading}
-            className={`${isMobile ? "mobile-btn-secondary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
-            size={isMobile ? "default" : "sm"}
-          >
-            <RefreshCw
-              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh Data
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowImportModal(true)}
-            className={`${isMobile ? "mobile-btn-secondary mobile-touch-feedback w-full" : ""} mobile-focus-ring`}
-            size={isMobile ? "default" : "sm"}
-          >
-            <Upload
-              className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
-            />
-            Import CSV
-          </Button>
-          <CustomDropdown
-            open={createDropdownOpen}
-            onOpenChange={setCreateDropdownOpen}
-            align="end"
-            trigger={(props) => (
-              <Button
-                {...props}
-                ref={props.ref as React.RefCallback<HTMLButtonElement>}
-                className={`${isMobile ? "mobile-btn-primary mobile-touch-feedback w-full" : ""} mobile-focus-ring gap-1`}
-                size={isMobile ? "default" : "sm"}
-              >
-                <Plus
-                  className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"}`}
-                />
-                Create Segment
-                <ChevronDown className="h-3 w-3 ml-1" />
-              </Button>
-            )}
-          >
-            <CustomDropdownItem
-              onSelect={() => {
-                setCreateDropdownOpen(false);
-                handleCreateSegment();
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <div>
-                  <div className="font-medium">Create Segment</div>
-                  <div className="text-xs text-muted-foreground">
-                    Simple segment with filters
-                  </div>
-                </div>
-              </div>
-            </CustomDropdownItem>
-            <CustomDropdownItem
-              onSelect={() => {
-                setCreateDropdownOpen(false);
-                navigate("/crm/segments/beta");
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4" />
-                <div>
-                  <div className="font-medium">Advanced Segment</div>
-                  <div className="text-xs text-muted-foreground">
-                    Rule-based with analytics
-                  </div>
-                </div>
-              </div>
-            </CustomDropdownItem>
-          </CustomDropdown>
-        </div>
-      </div>
-
-      <div className={isMobile ? "mobile-space-normal" : "space-y-6"}>
-        {/* Search */}
-        <Card className="mobile-card-elevated">
-          <CardContent className={isMobile ? "p-4" : "pt-6"}>
-            <div className="relative">
-              <Search
-                className={`absolute left-3 top-3 ${isMobile ? "mobile-icon-sm" : "h-4 w-4"} text-muted-foreground`}
-              />
-              <Input
-                placeholder="Search all segments..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 ${isMobile ? "mobile-touch-target" : ""} mobile-focus-ring`}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Segments with Tabs */}
-        <Card className="mobile-card-elevated">
-          <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
-            <CardTitle
-              className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
-            >
-              <Target
-                className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
-              />
-              System Segments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-4 pt-2" : ""}>
-            <Tabs
-              value={activeTab}
-              onValueChange={(v) => setActiveTab(v as "visible" | "hidden")}
-              className="w-full"
-            >
-              <TabsList className="mb-4">
-                <TabsTrigger value="visible" className="gap-2">
-                  <Eye className="h-4 w-4" />
-                  Visible
-                  {visibleSystemSegments.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {visibleSystemSegments.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="hidden" className="gap-2">
-                  <EyeOff className="h-4 w-4" />
-                  Hidden
-                  {hiddenCount > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {hiddenCount}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="visible">
-                {visibleSystemSegments.length > 0 ? (
-                  <div
-                    className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
-                  >
-                    {visibleSystemSegments.map((segment) => (
-                      <div
-                        key={segment.id}
-                        ref={(el) => (segmentRefs.current[segment.id] = el)}
-                        className={`transition-all duration-500 ${
-                          highlightedSegment === segment.id
-                            ? "ring-4 ring-primary ring-offset-4 bg-primary/20 shadow-2xl scale-105 rounded-lg"
-                            : ""
-                        }`}
-                      >
-                        <SegmentOverviewCard
-                          name={segment.name}
-                          description={segment.description}
-                          estimatedCount={
-                            counts[segment.id as keyof typeof counts] || 0
-                          }
-                          isLoadingCount={countsLoading}
-                          icon={segment.icon}
-                          isSystem={true}
-                          isHidden={false}
-                          onCreateCampaign={() =>
-                            handleCreateCampaign(segment.id)
-                          }
-                          onViewDetails={() =>
-                            handleViewSegmentDetails(segment.id)
-                          }
-                          onHide={() => hideSegment(segment.id)}
-                          onSendSMS={() =>
-                            handleSendSMS(
-                              segment.id,
-                              segment.name,
-                              counts[segment.id as keyof typeof counts] || 0,
-                              true,
-                            )
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <EyeOff className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">
-                      All system segments are hidden
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Switch to the "Hidden" tab to make them visible again.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="hidden">
-                {hiddenSystemSegments.length > 0 ? (
-                  <div
-                    className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
-                  >
-                    {hiddenSystemSegments.map((segment) => (
-                      <div
-                        key={segment.id}
-                        ref={(el) => (segmentRefs.current[segment.id] = el)}
-                        className="opacity-70"
-                      >
-                        <SegmentOverviewCard
-                          name={segment.name}
-                          description={segment.description}
-                          estimatedCount={
-                            counts[segment.id as keyof typeof counts] || 0
-                          }
-                          isLoadingCount={countsLoading}
-                          icon={segment.icon}
-                          isSystem={true}
-                          isHidden={true}
-                          onCreateCampaign={() =>
-                            handleCreateCampaign(segment.id)
-                          }
-                          onViewDetails={() =>
-                            handleViewSegmentDetails(segment.id)
-                          }
-                          onShow={() => showSegment(segment.id)}
-                          onSendSMS={() =>
-                            handleSendSMS(
-                              segment.id,
-                              segment.name,
-                              counts[segment.id as keyof typeof counts] || 0,
-                              true,
-                            )
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Eye className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">
-                      No hidden segments
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Hide segments you don't need by clicking the hide icon on
-                      any segment card.
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {/* Custom Segments */}
-        <Card className="mobile-card-elevated">
-          <CardHeader className={isMobile ? "p-4 pb-2" : ""}>
-            <CardTitle
-              className={`flex items-center gap-2 ${isMobile ? "mobile-text-heading" : ""}`}
-            >
-              <Target
-                className={`${isMobile ? "mobile-icon-md" : "h-5 w-5"}`}
-              />
-              Custom Segments
-            </CardTitle>
-          </CardHeader>
-          <CardContent className={isMobile ? "p-4 pt-2" : ""}>
-            {loading || countsLoading ? (
-              <div className="text-center py-8">
-                <div
-                  className={`animate-spin rounded-full ${isMobile ? "mobile-icon-lg" : "h-8 w-8"} border-b-2 border-primary mx-auto`}
-                ></div>
-                <p
-                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mt-2`}
+    <PageContainer>
+      <Stack spacing={3} sx={{ pb: 4 }}>
+        <JoyPageHeaderBand
+          title="Segments"
+          description="System and custom segments for targeting, campaign planning, and audience management."
+          actions={
+            <>
+              <JoyTooltip title="Refresh segments">
+                <IconButton
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                  onClick={handleRefresh}
                 >
-                  Loading custom segments...
-                </p>
-              </div>
-            ) : segments.length === 0 ? (
-              <div className="text-center py-8">
-                <Target
-                  className={`${isMobile ? "mobile-icon-xl" : "h-12 w-12"} text-muted-foreground mx-auto mb-4`}
-                />
-                <h3
-                  className={`${isMobile ? "mobile-text-subheading" : "text-lg"} font-semibold mb-2`}
-                >
-                  No custom segments found
-                </h3>
-                <p
-                  className={`${isMobile ? "mobile-text-body" : "text-muted-foreground"} mb-4 mobile-text-balance`}
-                >
-                  {searchTerm
-                    ? "No custom segments match your search."
-                    : "Create your first custom segment to start targeting specific customer groups."}
-                </p>
-                {!searchTerm && (
-                  <Button
-                    onClick={handleCreateSegment}
-                    className={`${isMobile ? "mobile-btn-cta mobile-touch-feedback" : ""} mobile-focus-ring`}
-                  >
-                    <Plus
-                      className={`${isMobile ? "mobile-icon-sm" : "h-4 w-4"} mr-2`}
-                    />
-                    Create Your First Custom Segment
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div
-                className={`${isMobile ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}`}
-              >
-                {segments.map((segment) => (
-                  <SegmentCard
-                    key={segment.id}
-                    segment={segment}
-                    onSegmentUpdate={handleSegmentUpdate}
+                  <RefreshCw
+                    size={16}
+                    className={isRefreshingCatalog ? "animate-spin" : undefined}
                   />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <CustomSegmentModal
-        open={showCustomBuilder}
-        onSave={handleSaveCustomSegment}
-        onCancel={() => setShowCustomBuilder(false)}
-      />
-
-      <EnhancedSegmentImportDialog
-        open={showImportModal}
-        onOpenChange={setShowImportModal}
-        onImportComplete={handleImportComplete}
-      />
-
-      {/* Segment Customers Modal */}
-      {selectedSegment && (
-        <SegmentCustomersModal
-          open={!!selectedSegment}
-          onClose={() => setSelectedSegment(null)}
-          segmentId={selectedSegment.id}
-          segmentName={selectedSegment.name}
-          onAssignmentChange={refreshCounts}
+                </IconButton>
+              </JoyTooltip>
+              <JoyButton
+                size="sm"
+                onClick={openCreateSegment}
+                startDecorator={<Plus size={16} />}
+              >
+                Create segment
+              </JoyButton>
+            </>
+          }
+          sx={{
+            px: 0,
+            py: 0,
+            borderRadius: 0,
+            background: "transparent",
+          }}
         />
-      )}
 
-      {/* SMS Dialog for System Segments */}
-      {smsSegment && (
-        <SegmentSMSDialog
-          open={!!smsSegment}
-          onOpenChange={(open) => !open && setSmsSegment(null)}
-          segmentId={smsSegment.id}
-          segmentName={smsSegment.name}
-          customerCount={smsSegment.count}
-          isSystemSegment={smsSegment.isSystem}
+        {isInitialCatalogLoading ? (
+          <CatalogStatsStripSkeleton />
+        ) : (
+          <CatalogStatsStrip items={segmentStats} />
+        )}
+
+        <SegmentsFilterBar
+          query={query}
+          onQueryChange={setQuery}
+          view={view}
+          onViewChange={setView}
+          sort={sort}
+          onSortChange={setSort}
+          resultCount={filteredCount}
+          totalCount={allSegments.length}
+          loading={isInitialCatalogLoading}
+          hasActiveFilters={
+            query.trim().length > 0 || view !== "all" || sort !== "members-desc"
+          }
+          onClearFilters={clearFilters}
         />
-      )}
-    </div>
+
+        {loadError ? (
+          <JoyCard>
+            <JoyCardContent sx={{ pt: 4, display: "grid", gap: 1.25 }}>
+              <Typography level="title-md">Unable to load segments</Typography>
+              <Typography level="body-sm" color="neutral">
+                {loadError instanceof Error
+                  ? loadError.message
+                  : "Unknown error"}
+              </Typography>
+              <Stack direction="row">
+                <JoyButton
+                  variant="plain"
+                  color="primary"
+                  onClick={handleRefresh}
+                >
+                  Retry
+                </JoyButton>
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+        ) : null}
+
+        {isInitialCatalogLoading ? (
+          <Stack spacing={4}>
+            <CatalogGridSkeleton
+              columns={SEGMENT_GRID_COLUMNS}
+              headingWidth={138}
+            />
+            <CatalogGridSkeleton
+              columns={SEGMENT_GRID_COLUMNS}
+              headingWidth={138}
+            />
+          </Stack>
+        ) : showSearchEmptyState ? (
+          <Stack
+            spacing={1.25}
+            alignItems="center"
+            sx={{ py: { xs: 6, md: 8 } }}
+          >
+            <Search
+              size={32}
+              style={{ color: "var(--joy-palette-neutral-300)" }}
+            />
+            <Typography level="body-sm" color="neutral">
+              No segments match your search
+            </Typography>
+            <JoyButton
+              variant="plain"
+              color="primary"
+              size="sm"
+              sx={{ minHeight: "auto", px: 0 }}
+              onClick={clearFilters}
+            >
+              Clear search
+            </JoyButton>
+          </Stack>
+        ) : (
+          <Stack spacing={4}>
+            {view !== "custom" && visibleSystemSegments.length > 0 ? (
+              <Stack spacing={1.5}>
+                <SegmentSectionHeading label="System Segments" />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gap: 2,
+                  }}
+                >
+                  {visibleSystemSegments.map((segment) => (
+                    <SegmentCatalogCard
+                      key={segment.id}
+                      item={{
+                        id: segment.id,
+                        name: segment.name,
+                        description: getSegmentDisplayDescription({
+                          isSystemSegment: true,
+                          name: segment.name,
+                          description: segment.description,
+                          fallback: summaries[segment.id],
+                        }),
+                        isSystemSegment: true,
+                        memberCount: segment.memberCount,
+                        averageValue: 0,
+                        totalValue: 0,
+                      }}
+                      detailHref={`/crm/segments/${segment.id}`}
+                      membersHref={`/crm/segments/${segment.id}/members`}
+                      campaignHref={`/crm/campaigns/new?segment=${encodeURIComponent(segment.id)}`}
+                      onView={() => navigate(`/crm/segments/${segment.id}`)}
+                      onViewMembers={() =>
+                        navigate(`/crm/segments/${segment.id}/members`)
+                      }
+                      onCreateCampaign={() =>
+                        navigate(
+                          `/crm/campaigns/new?segment=${encodeURIComponent(segment.id)}`,
+                        )
+                      }
+                      onExportMembers={() => void handleExportMembers(segment)}
+                    />
+                  ))}
+                </Box>
+              </Stack>
+            ) : null}
+
+            {view !== "system" ? (
+              <Stack spacing={1.5}>
+                <SegmentSectionHeading label="Custom Segments" />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: SEGMENT_GRID_COLUMNS,
+                    gap: 2,
+                  }}
+                >
+                  <CreateSegmentCard onClick={openCreateSegment} />
+                  {visibleCustomSegments.map((segment) => (
+                    <SegmentCatalogCard
+                      key={segment.id}
+                      item={{
+                        id: segment.id,
+                        name: segment.name,
+                        description: getSegmentDisplayDescription({
+                          isSystemSegment: false,
+                          name: segment.name,
+                          description: segment.description,
+                          fallback: summaries[segment.id],
+                        }),
+                        isSystemSegment: false,
+                        memberCount: segment.memberCount,
+                        averageValue: 0,
+                        totalValue: 0,
+                      }}
+                      detailHref={`/crm/segments/${segment.id}`}
+                      membersHref={`/crm/segments/${segment.id}/members`}
+                      campaignHref={`/crm/campaigns/new?segment=${encodeURIComponent(segment.id)}`}
+                      onView={() => navigate(`/crm/segments/${segment.id}`)}
+                      onViewMembers={() =>
+                        navigate(`/crm/segments/${segment.id}/members`)
+                      }
+                      onCreateCampaign={() =>
+                        navigate(
+                          `/crm/campaigns/new?segment=${encodeURIComponent(segment.id)}`,
+                        )
+                      }
+                      onExportMembers={() => void handleExportMembers(segment)}
+                      onEdit={() => navigate(`/crm/segments/${segment.id}`)}
+                      onDuplicate={() => void handleDuplicateSegment(segment)}
+                      onArchive={() => setSegmentPendingDelete(segment)}
+                    />
+                  ))}
+                </Box>
+
+                {visibleCustomSegments.length === 0 &&
+                query.trim().length === 0 ? (
+                  <Sheet
+                    variant="outlined"
+                    sx={{
+                      borderStyle: "dashed",
+                      borderColor: "neutral.200",
+                      borderRadius: "lg",
+                      px: 3,
+                      py: 3.5,
+                      textAlign: "center",
+                    }}
+                  >
+                    <Stack spacing={1.25} alignItems="center">
+                      <Typography level="title-sm">
+                        No custom segments yet
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        Create a custom segment for audiences that go beyond the
+                        built-in system groupings.
+                      </Typography>
+                      <JoyButton
+                        variant="plain"
+                        color="primary"
+                        size="sm"
+                        sx={{ minHeight: "auto", px: 0 }}
+                        onClick={openCreateSegment}
+                      >
+                        Create your first custom segment
+                      </JoyButton>
+                    </Stack>
+                  </Sheet>
+                ) : null}
+              </Stack>
+            ) : null}
+          </Stack>
+        )}
+      </Stack>
+
+      <SegmentDeleteDialog
+        loading={deleteSegment.isPending}
+        onClose={() => setSegmentPendingDelete(null)}
+        onConfirm={() => void handleDelete()}
+        open={Boolean(segmentPendingDelete)}
+        segment={segmentPendingDelete}
+      />
+    </PageContainer>
   );
-};
+}
+
+export default CRMSegmentsPage;

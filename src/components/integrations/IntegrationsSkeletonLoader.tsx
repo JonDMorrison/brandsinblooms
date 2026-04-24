@@ -1,116 +1,164 @@
-import { cn } from "@/lib/utils";
-import { INTEGRATION_CATEGORIES } from "@/components/integrations/integrationsHubConfig";
+import Box from "@mui/joy/Box";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Sheet from "@mui/joy/Sheet";
+import Typography from "@mui/joy/Typography";
+import { PageContainer } from "@/components/joy/PageContainer";
 
 const SKELETON_CARD_COUNT = 8;
-const TAB_WIDTHS = ["w-14", "w-24", "w-16", "w-20", "w-32", "w-24", "w-28"];
-
-function SkeletonBlock({
-  className,
-  testId,
-}: {
-  className?: string;
-  testId?: string;
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      data-testid={testId}
-      className={cn("integrations-skeleton-block", className)}
-    />
-  );
-}
 
 function IntegrationSkeletonCard() {
   return (
-    <article
-      aria-hidden="true"
+    <Sheet
+      color="neutral"
       data-testid="integration-skeleton-card"
-      className="flex min-h-56 flex-col rounded-2xl border border-border/70 bg-card p-5 shadow-sm shadow-brand-navy/5"
+      variant="outlined"
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.75,
+        minHeight: 248,
+        p: 2.5,
+        borderRadius: "xl",
+        borderColor: "neutral.200",
+        boxShadow: "sm",
+      }}
     >
-      <div className="mb-3 flex items-start justify-between gap-4">
-        <SkeletonBlock className="h-12 w-12 rounded-xl border border-border/70" />
-        <SkeletonBlock className="h-4 w-20 rounded-full" />
-      </div>
+      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+        <Skeleton
+          sx={{ width: 44, height: 44, borderRadius: "50%" }}
+          variant="circular"
+        />
+        <Skeleton
+          sx={{ width: 76, height: 28, borderRadius: 999 }}
+          variant="rectangular"
+        />
+      </Stack>
 
-      <div className="flex flex-1 flex-col">
-        <SkeletonBlock className="mb-2 h-[18px] w-36 rounded-md" />
-        <div className="mb-4 space-y-2">
-          <SkeletonBlock className="h-3.5 w-full rounded-md" />
-          <SkeletonBlock className="h-3.5 w-4/5 rounded-md" />
-          <SkeletonBlock className="h-3.5 w-3/5 rounded-md" />
-        </div>
-      </div>
+      <Stack spacing={1}>
+        <Typography level="title-md">
+          <Skeleton width="58%">Integration</Skeleton>
+        </Typography>
+        <Skeleton
+          sx={{ width: 84, height: 24, borderRadius: 999 }}
+          variant="rectangular"
+        />
+        <Typography level="body-sm">
+          <Skeleton>Browse integration details.</Skeleton>
+        </Typography>
+        <Typography level="body-sm">
+          <Skeleton width="72%">Sync commerce data.</Skeleton>
+        </Typography>
+      </Stack>
 
-      <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-        <SkeletonBlock className="h-8 w-24 rounded-lg" />
-        <SkeletonBlock className="h-8 w-[72px] rounded-md border border-border/80" />
-      </div>
-    </article>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        spacing={1.5}
+        sx={{ mt: "auto", pt: 0.5 }}
+      >
+        <Skeleton
+          sx={{ width: 104, height: 28, borderRadius: 999 }}
+          variant="rectangular"
+        />
+        <Typography level="body-xs">
+          <Skeleton width={72}>Updated recently</Skeleton>
+        </Typography>
+      </Stack>
+    </Sheet>
   );
 }
 
+type IntegrationsSkeletonLoaderProps = {
+  canUseActions: boolean;
+  showFilters?: boolean;
+};
+
 export function IntegrationsSkeletonLoader({
   canUseActions,
-}: {
-  canUseActions: boolean;
-}) {
-  const tabs = [{ value: "all", label: "All" }, ...INTEGRATION_CATEGORIES];
-
+  showFilters = true,
+}: IntegrationsSkeletonLoaderProps) {
   return (
-    <div
-      className="container mx-auto space-y-7 p-6"
-      aria-busy="true"
+    <PageContainer
       data-testid="integrations-skeleton-loader"
+      fullWidth
+      aria-busy="true"
+      sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
     >
-      <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-gradient-to-br from-white via-white to-brand-teal/5 p-5 shadow-sm shadow-brand-navy/5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/70 bg-white/90 px-4 py-2 shadow-sm shadow-brand-navy/5 backdrop-blur-sm">
-              <SkeletonBlock className="h-4 w-20 rounded-full" />
-              <SkeletonBlock className="h-3 w-3 rounded-full" />
-              <SkeletonBlock className="h-4 w-24 rounded-full" />
-            </div>
+      <Stack spacing={3}>
+        <Stack spacing={1.25} sx={{ maxWidth: 760 }}>
+          <Skeleton
+            sx={{ width: 132, height: 16, borderRadius: 999 }}
+            variant="rectangular"
+          />
+          <Skeleton
+            sx={{ width: "38%", height: 36, borderRadius: "md" }}
+            variant="rectangular"
+          />
+          <Skeleton
+            sx={{ width: "92%", height: 16, borderRadius: 999 }}
+            variant="rectangular"
+          />
+        </Stack>
 
-            <div className="space-y-2">
-              <SkeletonBlock className="h-6 w-32 rounded-full" />
-              <SkeletonBlock className="h-4 w-[280px] max-w-full rounded-full" />
-            </div>
-          </div>
-
-          {canUseActions ? (
-            <SkeletonBlock
-              testId="integrations-skeleton-actions"
-              className="h-10 w-24 self-start rounded-xl border border-border/80"
-            />
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div
-            className="flex flex-wrap gap-2 border-b border-border/70 pb-2"
-            aria-hidden="true"
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", xl: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", xl: "center" }}
           >
-            {tabs.map((tab, index) => (
-              <SkeletonBlock
-                key={tab.value}
-                className={cn("h-8 rounded-md", TAB_WIDTHS[index] ?? "w-24")}
-              />
-            ))}
-          </div>
+            <Skeleton
+              sx={{ height: 42, flex: 1, borderRadius: "md" }}
+              variant="rectangular"
+            />
 
-          <div className="relative min-w-0 flex-1 lg:max-w-md">
-            <SkeletonBlock className="h-10 w-full rounded-xl border border-border/80" />
-          </div>
-        </div>
-      </section>
+            {showFilters ? (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton
+                    key={index}
+                    sx={{ width: 88, height: 32, borderRadius: 999 }}
+                    variant="rectangular"
+                  />
+                ))}
+              </Box>
+            ) : null}
 
-      <section className="space-y-6">
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+            {canUseActions ? (
+              <Box
+                data-testid="integrations-skeleton-actions"
+                sx={{ display: "flex", gap: 1, ml: { xl: "auto" } }}
+              >
+                <Skeleton
+                  sx={{ width: 182, height: 36, borderRadius: "md" }}
+                  variant="rectangular"
+                />
+                <Skeleton
+                  sx={{ width: 168, height: 36, borderRadius: "md" }}
+                  variant="rectangular"
+                />
+              </Box>
+            ) : null}
+          </Stack>
+        </Stack>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(2, minmax(0, 1fr))",
+              xl: "repeat(4, minmax(0, 1fr))",
+            },
+            gap: 2,
+          }}
+        >
           {Array.from({ length: SKELETON_CARD_COUNT }).map((_, index) => (
             <IntegrationSkeletonCard key={index} />
           ))}
-        </div>
-      </section>
-    </div>
+        </Box>
+      </Stack>
+    </PageContainer>
   );
 }

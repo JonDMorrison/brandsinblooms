@@ -1,10 +1,13 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
-import { Toaster as ShadcnToaster } from "@/components/ui-legacy/toaster";
+import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SidebarLayout } from "@/components/SidebarLayout";
+import ChunkErrorBoundary from "@/components/loading/ChunkErrorBoundary";
+import { PageSkeleton } from "@/components/loading/PageSkeleton";
+import PublicPageFallback from "@/components/loading/PublicPageFallback";
 import {
   DashboardShell,
   resolveAdminDashboardContentWidth,
@@ -13,117 +16,316 @@ import {
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
 import { AuthPage } from "@/components/auth/AuthPage";
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
-import { ForgotPasswordSentPage } from "@/pages/ForgotPasswordSentPage";
-import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
 import { RedirectWithQuery } from "@/components/RedirectWithQuery";
-import { CRMCampaignCreatorPage } from "@/pages/CRMCampaignCreatorPage";
 import { NavigationTracker } from "@/components/NavigationTracker";
-import { CRMCampaignBuilderPage } from "@/pages/CRMCampaignBuilderPage";
-import CRMCampaignReport from "@/pages/crm/CRMCampaignReport";
-import CRMCampaignRecipientsPage from "@/pages/crm/CRMCampaignRecipientsPage";
-import CRMCampaignRecipientDetailPage from "@/pages/crm/CRMCampaignRecipientDetailPage";
-import { CRMAutomationBuilderPage } from "@/pages/crm/CRMAutomationBuilderPage";
-import { CRMAutomationGuidePage } from "@/pages/crm/CRMAutomationGuidePage";
-import { AutomationWizardLandingPage } from "@/pages/crm/AutomationWizardLandingPage";
-import OnboardingPage from "@/pages/OnboardingPage";
-import { BloomSuiteDashboard } from "@/pages/BloomSuiteDashboard";
-import { NewslettersPage } from "@/pages/NewslettersPage";
-import { NewsletterNewPage } from "@/pages/NewsletterNewPage";
-import { TemplatesPage } from "@/pages/TemplatesPage";
-import { WebsitePage } from "@/pages/WebsitePage";
-import { WebsiteWaitlistPage } from "@/pages/WebsiteWaitlistPage";
-import Index from "@/pages/Index";
-import SocialMediaPage from "@/pages/SocialMediaPage";
-import { CRMDashboardPage } from "@/pages/crm/CRMDashboardPage";
-import SMSTestingDemo from "@/pages/SMSTestingDemo";
-import SMSRoutes from "@/routes/SMSRoutes";
-import { CRMCampaignsPage } from "@/pages/crm/CRMCampaignsPage";
-import { CRMCustomersPage } from "@/pages/crm/CRMCustomersPage";
-import { CRMSegmentsPage } from "@/pages/crm/CRMSegmentsPage";
-import CRMSegmentsBetaPage from "@/pages/crm/CRMSegmentsBetaPage";
-import { CRMPersonasPage } from "@/pages/crm/CRMPersonasPage";
-import AddCustomer from "@/pages/crm/AddCustomer";
-import { CustomerDetailPage } from "@/pages/crm/CustomerDetailPage";
-import CustomerDashboardPage from "@/pages/crm/CustomerDashboardPage";
-import CRMAnalytics from "@/pages/crm/CRMAnalytics";
-import CRMAutomations from "@/pages/crm/CRMAutomations";
-import AnalyticsPage from "@/pages/AnalyticsPage";
-import ContentLibraryPage from "@/pages/ContentLibraryPage";
-import SettingsPage from "@/pages/SettingsPage";
-import PublicFormPage from "@/pages/PublicFormPage";
-import AccountSetupPage from "@/pages/AccountSetupPage";
-import DomainsPage from "@/pages/DomainsPage";
-import CalendarPage from "@/pages/CalendarPage";
-import AccountPage from "@/pages/AccountPage";
-import ProfilePage from "@/pages/ProfilePage";
-import IntegrationsPage from "@/pages/IntegrationsPage";
-import POSIntegrationsPage from "@/pages/integrations/POSIntegrationsPage";
-import CRMIntegrationsPage from "@/pages/integrations/CRMIntegrationsPage";
-import SocialIntegrationsPage from "@/pages/integrations/SocialIntegrationsPage";
-import AutomationsIntegrationsPage from "@/pages/integrations/AutomationsIntegrationsPage";
-import WebsiteIntegrationsPage from "@/pages/integrations/WebsiteIntegrationsPage";
-import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
-import IntegrationDocumentationPage from "@/pages/integrations/IntegrationDocumentationPage";
-import MigrationsRouteGate from "@/pages/MigrationsRouteGate";
 import { OAuthCallbackHandler } from "@/components/migrations/OAuthCallbackHandler";
-import ReportedProblemsPage from "@/pages/admin/ReportedProblemsPage";
-import ReportedProblemDetailPage from "@/pages/admin/ReportedProblemDetailPage";
-import OAuthDebugPage from "@/pages/admin/OAuthDebugPage";
-import { AuthCallbackPage } from "@/pages/AuthCallbackPage";
-import CallbackPage from "@/pages/integrations/lightspeed/CallbackPage";
-import GuidePage from "@/pages/integrations/lightspeed/GuidePage";
-import DebugPage from "@/pages/integrations/lightspeed/DebugPage";
-import LightspeedConnectPage from "@/pages/integrations/lightspeed/ConnectPage";
-import ShopifyCallbackPage from "@/pages/integrations/shopify/CallbackPage";
-import ShopifyDebugPage from "@/pages/integrations/shopify/DebugPage";
-import SquareCallbackPage from "@/pages/integrations/square/CallbackPage";
-import SquareGuidePage from "@/pages/integrations/square/GuidePage";
-import CloverCallbackPage from "@/pages/integrations/clover/CallbackPage";
-import CloverGuidePage from "@/pages/integrations/clover/GuidePage";
-import SupportPage from "@/pages/SupportPage";
-import PricingPage from "@/pages/PricingPage";
-import FAQPage from "@/pages/FAQPage";
-import ContactPage from "@/pages/ContactPage";
-import PublishPage from "@/pages/PublishPage";
-import PlanPage from "@/pages/PlanPage";
-import { AboutPage } from "@/pages/AboutPage";
-import { FeaturesPage } from "@/pages/FeaturesPage";
-import { Home1Page } from "@/pages/Home1Page";
-import AdminHub from "@/pages/admin/AdminHub";
-import AdminTenants from "@/pages/admin/AdminTenants";
-import AdminManage from "@/pages/AdminManage";
-import AdminGovernanceConfig from "@/pages/admin/AdminGovernanceConfig";
-import TenantEmailManagement from "@/pages/admin/TenantEmailManagement";
-import AdminAuditLogsPage from "@/pages/admin/AdminAuditLogsPage";
-import { AdminReportsPage } from "@/pages/AdminReportsPage";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminCostsPage from "@/pages/admin/AdminCostsPage";
-import { CommunityPage } from "@/pages/CommunityPage";
-import { SavedBlocksPage } from "@/pages/crm/SavedBlocksPage";
-import ConfirmSubscription from "@/pages/ConfirmSubscription";
-import CarouselComposerPage from "@/pages/CarouselComposerPage";
-import HelpDeskPage from "@/pages/HelpDeskPage";
-import TicketListPage from "@/pages/TicketListPage";
-import CreateTicketPage from "@/pages/CreateTicketPage";
-import TicketDetailPage from "@/pages/TicketDetailPage";
-import SeedDemoCustomers from "@/pages/SeedDemoCustomers";
-import EmailSendingSettings from "@/pages/crm/EmailSendingSettings";
-import UsagePage from "@/pages/UsagePage";
-import EmailPreferences from "@/pages/EmailPreferences";
-import { ProductsPage, ProductDetailPage } from "@/pages/products";
-import FormsPage from "@/pages/crm/FormsPage";
-import FormEditorPage from "@/pages/crm/FormEditorPage";
-import FormDocumentationPage from "@/pages/crm/FormDocumentationPage";
-import ActivityCenterPage from "@/pages/ActivityCenterPage";
-import ActivityDetailsPage from "@/pages/ActivityDetailsPage";
+import { lazyNamed } from "@/utils/lazyNamed";
+import { lazyRetry } from "@/utils/lazyRetry";
 
-// Public compliance pages
-import { SmsPage } from "@/pages/public/SmsPage";
-import { PrivacyPage } from "@/pages/public/PrivacyPage";
-import { TermsPage } from "@/pages/public/TermsPage";
+// ============================================================
+// LAZY-LOADED ADMIN PAGES
+// ============================================================
+const AdminHub = lazyRetry(() => import("@/pages/admin/AdminHub"));
+const AdminTenants = lazyRetry(() => import("@/pages/admin/AdminTenants"));
+const AdminDashboard = lazyRetry(() => import("@/pages/admin/AdminDashboard"));
+const AdminManage = lazyRetry(() => import("@/pages/AdminManage"));
+const AdminGovernanceConfig = lazyRetry(
+  () => import("@/pages/admin/AdminGovernanceConfig"),
+);
+const TenantEmailManagement = lazyRetry(
+  () => import("@/pages/admin/TenantEmailManagement"),
+);
+const AdminReportsPage = lazyNamed(
+  () => import("@/pages/AdminReportsPage"),
+  "AdminReportsPage",
+);
+const AdminCostsPage = lazyRetry(() => import("@/pages/admin/AdminCostsPage"));
+const AdminAuditLogsPage = lazyRetry(
+  () => import("@/pages/admin/AdminAuditLogsPage"),
+);
+const ReportedProblemsPage = lazyRetry(
+  () => import("@/pages/admin/ReportedProblemsPage"),
+);
+const ReportedProblemDetailPage = lazyRetry(
+  () => import("@/pages/admin/ReportedProblemDetailPage"),
+);
+const OAuthDebugPage = lazyRetry(() => import("@/pages/admin/OAuthDebugPage"));
+const SeedDemoCustomers = lazyRetry(() => import("@/pages/SeedDemoCustomers"));
+const TwilioCopyPage = lazyNamed(
+  () => import("@/pages/admin/TwilioCopyPage"),
+  "TwilioCopyPage",
+);
+const AnalyticsHealthPage = lazyRetry(
+  () => import("@/pages/admin/AnalyticsHealthPage"),
+);
+
+// ============================================================
+// LAZY-LOADED INTEGRATIONS PAGES
+// ============================================================
+const IntegrationsPage = lazyRetry(() => import("@/pages/IntegrationsPage"));
+const POSIntegrationsPage = lazyRetry(
+  () => import("@/pages/integrations/POSIntegrationsPage"),
+);
+const CRMIntegrationsPage = lazyRetry(
+  () => import("@/pages/integrations/CRMIntegrationsPage"),
+);
+const SocialIntegrationsPage = lazyRetry(
+  () => import("@/pages/integrations/SocialIntegrationsPage"),
+);
+const AutomationsIntegrationsPage = lazyRetry(
+  () => import("@/pages/integrations/AutomationsIntegrationsPage"),
+);
+const WebsiteIntegrationsPage = lazyRetry(
+  () => import("@/pages/integrations/WebsiteIntegrationsPage"),
+);
+const MigrationsRouteGate = lazyRetry(
+  () => import("@/pages/MigrationsRouteGate"),
+);
+const LightspeedConnectPage = lazyRetry(
+  () => import("@/pages/integrations/lightspeed/ConnectPage"),
+);
+const GuidePage = lazyRetry(
+  () => import("@/pages/integrations/lightspeed/GuidePage"),
+);
+const DebugPage = lazyRetry(
+  () => import("@/pages/integrations/lightspeed/DebugPage"),
+);
+const ShopifyDebugPage = lazyRetry(
+  () => import("@/pages/integrations/shopify/DebugPage"),
+);
+const SquareGuidePage = lazyRetry(
+  () => import("@/pages/integrations/square/GuidePage"),
+);
+const CloverGuidePage = lazyRetry(
+  () => import("@/pages/integrations/clover/GuidePage"),
+);
+const IntegrationDocumentationPage = lazyRetry(
+  () => import("@/pages/integrations/IntegrationDocumentationPage"),
+);
+const IntegrationDetailPage = lazyRetry(
+  () => import("@/pages/integrations/IntegrationDetailPage"),
+);
+
+// ============================================================
+// LAZY-LOADED PUBLIC / AUTH / MARKETING PAGES
+// ============================================================
+const ForgotPasswordPage = lazyNamed(
+  () => import("@/pages/ForgotPasswordPage"),
+  "ForgotPasswordPage",
+);
+const ForgotPasswordSentPage = lazyNamed(
+  () => import("@/pages/ForgotPasswordSentPage"),
+  "ForgotPasswordSentPage",
+);
+const ResetPasswordPage = lazyNamed(
+  () => import("@/pages/ResetPasswordPage"),
+  "ResetPasswordPage",
+);
+const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
+const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
+const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
+const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
+const AboutPage = lazyNamed(() => import("@/pages/AboutPage"), "AboutPage");
+const SmsPage = lazyNamed(() => import("@/pages/public/SmsPage"), "SmsPage");
+const PrivacyPage = lazyNamed(
+  () => import("@/pages/public/PrivacyPage"),
+  "PrivacyPage",
+);
+const TermsPage = lazyNamed(
+  () => import("@/pages/public/TermsPage"),
+  "TermsPage",
+);
+const PlatformAgreementPage = lazyNamed(
+  () => import("@/pages/public/PlatformAgreementPage"),
+  "PlatformAgreementPage",
+);
+const EcommPage = lazyNamed(
+  () => import("@/pages/public/EcommPage"),
+  "EcommPage",
+);
+const FeaturesPage = lazyNamed(
+  () => import("@/pages/FeaturesPage"),
+  "FeaturesPage",
+);
+const Home1Page = lazyNamed(() => import("@/pages/Home1Page"), "Home1Page");
+const EmailPreferences = lazyRetry(() => import("@/pages/EmailPreferences"));
+const PublicFormPage = lazyRetry(() => import("@/pages/PublicFormPage"));
+const WebsiteWaitlistPage = lazyNamed(
+  () => import("@/pages/WebsiteWaitlistPage"),
+  "WebsiteWaitlistPage",
+);
+const AuthCallbackPage = lazyNamed(
+  () => import("@/pages/AuthCallbackPage"),
+  "AuthCallbackPage",
+);
+const CallbackPage = lazyRetry(
+  () => import("@/pages/integrations/lightspeed/CallbackPage"),
+);
+const ShopifyCallbackPage = lazyRetry(
+  () => import("@/pages/integrations/shopify/CallbackPage"),
+);
+const SquareCallbackPage = lazyRetry(
+  () => import("@/pages/integrations/square/CallbackPage"),
+);
+const CloverCallbackPage = lazyRetry(
+  () => import("@/pages/integrations/clover/CallbackPage"),
+);
+const ConfirmSubscription = lazyRetry(
+  () => import("@/pages/ConfirmSubscription"),
+);
+const NotFound = lazyRetry(() => import("@/pages/NotFound"));
+
+// ============================================================
+// LAZY-LOADED CRM PAGES
+// ============================================================
+const CRMDashboardPage = lazyNamed(
+  () => import("@/pages/crm/CRMDashboardPage"),
+  "CRMDashboardPage",
+);
+const CRMCustomersPage = lazyNamed(
+  () => import("@/pages/crm/CRMCustomersPage"),
+  "CRMCustomersPage",
+);
+const AddCustomer = lazyRetry(() => import("@/pages/crm/AddCustomer"));
+const CustomerDashboardPage = lazyRetry(
+  () => import("@/pages/crm/CustomerDashboardPage"),
+);
+const CRMCampaignsPage = lazyNamed(
+  () => import("@/pages/crm/CRMCampaignsPage"),
+  "CRMCampaignsPage",
+);
+const CRMCampaignReport = lazyRetry(
+  () => import("@/pages/crm/CRMCampaignReport"),
+);
+const CRMCampaignRecipientsPage = lazyRetry(
+  () => import("@/pages/crm/CRMCampaignRecipientsPage"),
+);
+const CRMCampaignRecipientDetailPage = lazyRetry(
+  () => import("@/pages/crm/CRMCampaignRecipientDetailPage"),
+);
+const CRMSegmentsBetaPage = lazyRetry(
+  () => import("@/pages/crm/CRMSegmentsBetaPage"),
+);
+const CRMSegmentsPage = lazyNamed(
+  () => import("@/pages/crm/CRMSegmentsPage"),
+  "CRMSegmentsPage",
+);
+const CRMPersonasPage = lazyNamed(
+  () => import("@/pages/crm/CRMPersonasPage"),
+  "CRMPersonasPage",
+);
+const PersonaDetailPage = lazyRetry(
+  () => import("@/pages/crm/PersonaDetailPage"),
+);
+const CRMAnalytics = lazyRetry(() => import("@/pages/crm/CRMAnalytics"));
+const CRMAutomations = lazyRetry(() => import("@/pages/crm/CRMAutomations"));
+const AutomationWizardLandingPage = lazyNamed(
+  () => import("@/pages/crm/AutomationWizardLandingPage"),
+  "AutomationWizardLandingPage",
+);
+const CRMAutomationGuidePage = lazyNamed(
+  () => import("@/pages/crm/CRMAutomationGuidePage"),
+  "CRMAutomationGuidePage",
+);
+const CRMAutomationBuilderPage = lazyNamed(
+  () => import("@/pages/crm/CRMAutomationBuilderPage"),
+  "CRMAutomationBuilderPage",
+);
+const CRMAutomationExecutionsPage = lazyNamed(
+  () => import("@/pages/crm/CRMAutomationExecutionsPage"),
+  "CRMAutomationExecutionsPage",
+);
+const FormsPage = lazyRetry(() => import("@/pages/crm/FormsPage"));
+const FormEditorPage = lazyRetry(() => import("@/pages/crm/FormEditorPage"));
+const FormDocumentationPage = lazyRetry(
+  () => import("@/pages/crm/FormDocumentationPage"),
+);
+const EmailSendingSettings = lazyRetry(
+  () => import("@/pages/crm/EmailSendingSettings"),
+);
+
+// ============================================================
+// LAZY-LOADED MARKETING / CONTENT PAGES
+// ============================================================
+const CRMCampaignEditorPage = lazyRetry(
+  () => import("@/pages/crm/CRMCampaignEditorPage"),
+);
+const SavedBlocksPage = lazyNamed(
+  () => import("@/pages/crm/SavedBlocksPage"),
+  "SavedBlocksPage",
+);
+const NewslettersPage = lazyNamed(
+  () => import("@/pages/NewslettersPage"),
+  "NewslettersPage",
+);
+const NewsletterNewPage = lazyNamed(
+  () => import("@/pages/NewsletterNewPage"),
+  "NewsletterNewPage",
+);
+const SegmentBuilderPage = lazyRetry(
+  () => import("@/pages/crm/SegmentBuilderPage"),
+);
+const SegmentMembersPage = lazyRetry(
+  () => import("@/pages/crm/SegmentMembersPage"),
+);
+const ContentLibraryPage = lazyRetry(
+  () => import("@/pages/ContentLibraryPage"),
+);
+const SocialMediaPage = lazyRetry(() => import("@/pages/SocialMediaPage"));
+const PublishPage = lazyRetry(() => import("@/pages/PublishPage"));
+const CarouselComposerPage = lazyRetry(
+  () => import("@/pages/CarouselComposerPage"),
+);
+const TemplatesPage = lazyNamed(
+  () => import("@/pages/TemplatesPage"),
+  "TemplatesPage",
+);
+const WebsitePage = lazyNamed(
+  () => import("@/pages/WebsitePage"),
+  "WebsitePage",
+);
+const AnalyticsPage = lazyRetry(() => import("@/pages/AnalyticsPage"));
+
+// ============================================================
+// LAZY-LOADED DASHBOARD / STORE / SETTINGS / UTILITY PAGES
+// ============================================================
+const BloomSuiteDashboard = lazyNamed(
+  () => import("@/pages/BloomSuiteDashboard"),
+  "BloomSuiteDashboard",
+);
+const CalendarPage = lazyRetry(() => import("@/pages/CalendarPage"));
+const ActivityCenterPage = lazyRetry(
+  () => import("@/pages/ActivityCenterPage"),
+);
+const ActivityDetailsPage = lazyRetry(
+  () => import("@/pages/ActivityDetailsPage"),
+);
+const SMSTestingDemo = lazyRetry(() => import("@/pages/SMSTestingDemo"));
+const SettingsPage = lazyRetry(() => import("@/pages/SettingsPage"));
+const AccountSetupPage = lazyRetry(() => import("@/pages/AccountSetupPage"));
+const UsagePage = lazyRetry(() => import("@/pages/UsagePage"));
+const DomainsPage = lazyRetry(() => import("@/pages/DomainsPage"));
+const ProductsPage = lazyRetry(() => import("@/pages/products/ProductsPage"));
+const ProductDetailPage = lazyRetry(
+  () => import("@/pages/products/ProductDetailPage"),
+);
+const ProfilePage = lazyRetry(() => import("@/pages/ProfilePage"));
+const AccountPage = lazyRetry(() => import("@/pages/AccountPage"));
+const SupportPage = lazyRetry(() => import("@/pages/SupportPage"));
+const HelpDeskPage = lazyRetry(() => import("@/pages/HelpDeskPage"));
+const TicketListPage = lazyRetry(() => import("@/pages/TicketListPage"));
+const CreateTicketPage = lazyRetry(() => import("@/pages/CreateTicketPage"));
+const TicketDetailPage = lazyRetry(() => import("@/pages/TicketDetailPage"));
+const PlanPage = lazyRetry(() => import("@/pages/PlanPage"));
+const CommunityPage = lazyNamed(
+  () => import("@/pages/CommunityPage"),
+  "CommunityPage",
+);
+const SMSRoutes = lazyRetry(() =>
+  import("@/routes/SMSRoutes").then((mod) => ({ default: mod.default })),
+);
 
 function IntegrationsRouteLayout() {
   return <TenantRouteLayout />;
@@ -154,11 +356,93 @@ function AdminRouteLayout() {
   );
 }
 
-import { PlatformAgreementPage } from "@/pages/public/PlatformAgreementPage";
-import { EcommPage } from "@/pages/public/EcommPage";
-import { TwilioCopyPage } from "@/pages/admin/TwilioCopyPage";
-import AnalyticsHealthPage from "@/pages/admin/AnalyticsHealthPage";
-import NotFound from "@/pages/NotFound";
+function AdminLazyBoundary() {
+  return (
+    <ChunkErrorBoundary>
+      <Suspense fallback={<PageSkeleton variant="default" />}>
+        <Outlet />
+      </Suspense>
+    </ChunkErrorBoundary>
+  );
+}
+
+function IntegrationsLazyBoundary() {
+  return (
+    <ChunkErrorBoundary>
+      <Suspense fallback={<PageSkeleton variant="default" />}>
+        <Outlet />
+      </Suspense>
+    </ChunkErrorBoundary>
+  );
+}
+
+function PublicLazyBoundary() {
+  return (
+    <ChunkErrorBoundary dashboardHref="/" linkLabel="Go home">
+      <Suspense fallback={<PublicPageFallback />}>
+        <Outlet />
+      </Suspense>
+    </ChunkErrorBoundary>
+  );
+}
+
+function CallbackLazyBoundary() {
+  return (
+    <ChunkErrorBoundary dashboardHref="/" linkLabel="Go home">
+      <Suspense
+        fallback={
+          <PublicPageFallback
+            title="Processing redirect"
+            description="Preparing your connection and loading the next step."
+          />
+        }
+      >
+        <Outlet />
+      </Suspense>
+    </ChunkErrorBoundary>
+  );
+}
+
+const CRM_LAZY_PAGE_OPTIONS = {
+  dashboardHref: "/crm",
+  linkLabel: "Go to CRM",
+} as const;
+
+const DASHBOARD_LAZY_PAGE_OPTIONS = {
+  dashboardHref: "/dashboard",
+  linkLabel: "Go to Dashboard",
+} as const;
+
+type ProtectedSidebarSkeletonVariant =
+  | "table"
+  | "form"
+  | "default"
+  | "dashboard";
+
+interface ProtectedSidebarLazyPageOptions {
+  dashboardHref: string;
+  linkLabel: string;
+}
+
+function renderProtectedSidebarLazyPage(
+  page: React.ReactElement,
+  skeleton: ProtectedSidebarSkeletonVariant,
+  options: ProtectedSidebarLazyPageOptions = CRM_LAZY_PAGE_OPTIONS,
+) {
+  const { dashboardHref, linkLabel } = options;
+
+  return (
+    <ProtectedRoute>
+      <SidebarLayout>
+        <ChunkErrorBoundary dashboardHref={dashboardHref} linkLabel={linkLabel}>
+          <Suspense fallback={<PageSkeleton variant={skeleton} />}>
+            {page}
+          </Suspense>
+        </ChunkErrorBoundary>
+      </SidebarLayout>
+    </ProtectedRoute>
+  );
+}
 
 function App() {
   return (
@@ -176,133 +460,133 @@ function App() {
                 </PublicRoute>
               }
             />
-            <Route
-              path="/forgot-password"
-              element={
-                <PublicRoute>
-                  <ForgotPasswordPage />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/forgot-password/sent"
-              element={
-                <PublicRoute>
-                  <ForgotPasswordSentPage />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/reset-password"
-              element={
-                <PublicRoute>
-                  <ResetPasswordPage />
-                </PublicRoute>
-              }
-            />
-            <Route
-              path="/onboarding"
-              element={
-                <ProtectedRoute>
-                  <OnboardingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/onboarding/manual"
-              element={
-                <ProtectedRoute>
-                  <OnboardingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/about" element={<AboutPage />} />
+            <Route element={<PublicLazyBoundary />}>
+              <Route
+                path="/forgot-password"
+                element={
+                  <PublicRoute>
+                    <ForgotPasswordPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/forgot-password/sent"
+                element={
+                  <PublicRoute>
+                    <ForgotPasswordSentPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <PublicRoute>
+                    <ResetPasswordPage />
+                  </PublicRoute>
+                }
+              />
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute>
+                    <OnboardingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/onboarding/manual"
+                element={
+                  <ProtectedRoute>
+                    <OnboardingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/about" element={<AboutPage />} />
 
-            {/* Public compliance pages */}
-            <Route path="/sms-program" element={<SmsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route
-              path="/platform-agreement"
-              element={<PlatformAgreementPage />}
-            />
-            <Route path="/ecomm" element={<EcommPage />} />
-            <Route path="/features" element={<FeaturesPage />} />
-            <Route path="/home1" element={<Home1Page />} />
-            <Route path="/email-preferences" element={<EmailPreferences />} />
+              {/* Public compliance pages */}
+              <Route path="/sms-program" element={<SmsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route
+                path="/platform-agreement"
+                element={<PlatformAgreementPage />}
+              />
+              <Route path="/ecomm" element={<EcommPage />} />
+              <Route path="/features" element={<FeaturesPage />} />
+              <Route path="/home1" element={<Home1Page />} />
+              <Route path="/email-preferences" element={<EmailPreferences />} />
 
-            {/* Public form page - no auth required */}
-            <Route path="/f/:embedKey" element={<PublicFormPage />} />
+              {/* Public form page - no auth required */}
+              <Route path="/f/:embedKey" element={<PublicFormPage />} />
+
+              {/* Public website landing page */}
+              <Route path="/website" element={<WebsiteWaitlistPage />} />
+              <Route
+                path="/website/waitlist"
+                element={<WebsiteWaitlistPage />}
+              />
+
+              {/* Public confirmation page */}
+              <Route
+                path="/confirm-subscription"
+                element={<ConfirmSubscription />}
+              />
+            </Route>
 
             <Route path="/" element={<SmartRootRoute />} />
 
             {/* Protected routes with sidebar */}
             <Route
               path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <BloomSuiteDashboard />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <BloomSuiteDashboard />,
+                "dashboard",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/newsletters"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <NewslettersPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <NewslettersPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/templates"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <TemplatesPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <TemplatesPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
-            {/* Public website landing page */}
-            <Route path="/website" element={<WebsiteWaitlistPage />} />
-            <Route path="/website/waitlist" element={<WebsiteWaitlistPage />} />
             {/* Protected website builder */}
             <Route
               path="/website/app"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <WebsitePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <WebsitePage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/content"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ContentLibraryPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ContentLibraryPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/content/library"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ContentLibraryPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ContentLibraryPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/calendar"
@@ -310,7 +594,16 @@ function App() {
                 <ProtectedRoute>
                   <SidebarLayout>
                     <DataProviderWrapper>
-                      <CalendarPage />
+                      <ChunkErrorBoundary
+                        dashboardHref="/dashboard"
+                        linkLabel="Go to Dashboard"
+                      >
+                        <Suspense
+                          fallback={<PageSkeleton variant="dashboard" />}
+                        >
+                          <CalendarPage />
+                        </Suspense>
+                      </ChunkErrorBoundary>
                     </DataProviderWrapper>
                   </SidebarLayout>
                 </ProtectedRoute>
@@ -318,233 +611,200 @@ function App() {
             />
             <Route
               path="/activity"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ActivityCenterPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ActivityCenterPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/activity/:eventId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ActivityDetailsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ActivityDetailsPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/campaigns"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SocialMediaPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SocialMediaPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/crm"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMDashboardPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMDashboardPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/customers"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCustomersPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCustomersPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/customers/new"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AddCustomer />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(<AddCustomer />, "form")}
             />
             <Route
               path="/crm/customers/:customerId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CustomerDashboardPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CustomerDashboardPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/campaigns"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignsPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/campaigns/:campaignId/analytics"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignReport />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignReport />,
+                "table",
+              )}
+            />
+            <Route
+              path="/crm/campaigns/:campaignId/report"
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignReport />,
+                "table",
+              )}
             />
             <Route
               path="/crm/campaigns/:campaignId/recipients"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignRecipientsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignRecipientsPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/campaigns/:campaignId/recipients/:recipientId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignRecipientDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignRecipientDetailPage />,
+                "form",
+              )}
             />
             <Route
               path="/dashboard/campaigns/:campaignId/recipients"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignRecipientsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignRecipientsPage />,
+                "table",
+              )}
             />
             <Route
               path="/dashboard/campaigns/:campaignId/recipients/:recipientId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignRecipientDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignRecipientDetailPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/segments/beta"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMSegmentsBetaPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={<Navigate replace to="/crm/segments" />}
             />
             <Route
               path="/crm/segments"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMSegmentsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMSegmentsPage />,
+                "table",
+              )}
+            />
+            <Route
+              path="/crm/segments/new"
+              element={renderProtectedSidebarLazyPage(
+                <SegmentBuilderPage />,
+                "form",
+              )}
+            />
+            <Route
+              path="/crm/segments/:segmentId"
+              element={renderProtectedSidebarLazyPage(
+                <SegmentBuilderPage />,
+                "form",
+              )}
+            />
+            <Route
+              path="/crm/segments/:segmentId/members"
+              element={renderProtectedSidebarLazyPage(
+                <SegmentMembersPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/personas"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMPersonasPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMPersonasPage />,
+                "table",
+              )}
+            />
+            <Route
+              path="/crm/personas/:personaId"
+              element={renderProtectedSidebarLazyPage(
+                <PersonaDetailPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/analytics"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMAnalytics />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMAnalytics />,
+                "table",
+              )}
             />
             <Route
               path="/crm/automations"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMAutomations />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMAutomations />,
+                "table",
+              )}
             />
             <Route
               path="/crm/automations/new"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AutomationWizardLandingPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <AutomationWizardLandingPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/automations/new/guide"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMAutomationGuidePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMAutomationGuidePage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/automations/new/canvas"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMAutomationBuilderPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMAutomationBuilderPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/automations/:automationId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMAutomationBuilderPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMAutomationBuilderPage />,
+                "form",
+              )}
+            />
+            <Route
+              path="/crm/automations/:automationId/executions"
+              element={renderProtectedSidebarLazyPage(
+                <CRMAutomationExecutionsPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/forms"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <FormsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(<FormsPage />, "table")}
             />
             <Route
               path="/crm/forms/developer-guide"
@@ -558,254 +818,219 @@ function App() {
             />
             <Route
               path="/dashboard/forms/:formId/docs"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <FormDocumentationPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <FormDocumentationPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/forms/:formId/docs"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <FormDocumentationPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <FormDocumentationPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/forms/:formId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <FormEditorPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <FormEditorPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/settings/email-sending"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <EmailSendingSettings />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <EmailSendingSettings />,
+                "form",
+              )}
             />
             <Route
               path="/crm/campaigns/blocks"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SavedBlocksPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SavedBlocksPage />,
+                "table",
+              )}
             />
             <Route
               path="/crm/campaigns/new"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignCreatorPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignEditorPage />,
+                "form",
+              )}
             />
             <Route
               path="/crm/campaigns/:campaignId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignBuilderPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignEditorPage />,
+                "form",
+              )}
             />
             <Route
               path="/sms/*"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SMSRoutes />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SMSRoutes />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/sms/test"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SMSTestingDemo />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SMSTestingDemo />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AnalyticsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <AnalyticsPage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/assets"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ContentLibraryPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ContentLibraryPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SettingsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SettingsPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/account-setup"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AccountSetupPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <AccountSetupPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/settings/usage"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <UsagePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <UsagePage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/domains"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <DomainsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <DomainsPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/social-accounts"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SocialMediaPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SocialMediaPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/newsletters/new"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <NewsletterNewPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <NewsletterNewPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/newsletters/builder"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CRMCampaignCreatorPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignEditorPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route path="/integrations" element={<IntegrationsRouteLayout />}>
-              <Route index element={<IntegrationsPage />} />
-              <Route path="pos" element={<POSIntegrationsPage />} />
-              <Route path="crm" element={<CRMIntegrationsPage />} />
-              <Route path="social" element={<SocialIntegrationsPage />} />
-              <Route
-                path="facebook"
-                element={<RedirectWithQuery to="/integrations/meta" />}
-              />
-              <Route
-                path="instagram"
-                element={<RedirectWithQuery to="/integrations/meta" />}
-              />
-              <Route
-                path="google-analytics-4"
-                element={
-                  <RedirectWithQuery to="/integrations/google-analytics" />
-                }
-              />
-              <Route
-                path="email-domain-dns"
-                element={
-                  <RedirectWithQuery to="/integrations/email-infrastructure" />
-                }
-              />
-              <Route
-                path="automations"
-                element={<AutomationsIntegrationsPage />}
-              />
-              <Route path="website" element={<WebsiteIntegrationsPage />} />
-              <Route path="migrations" element={<MigrationsRouteGate />} />
-              <Route
-                path="lightspeed/connect"
-                element={<LightspeedConnectPage />}
-              />
-              <Route path="lightspeed/guide" element={<GuidePage />} />
-              <Route path="lightspeed/debug" element={<DebugPage />} />
-              <Route path="shopify/debug" element={<ShopifyDebugPage />} />
-              <Route path="square/guide" element={<SquareGuidePage />} />
-              <Route path="clover/guide" element={<CloverGuidePage />} />
-              <Route
-                path=":slug/documentation"
-                element={<IntegrationDocumentationPage />}
-              />
-              <Route path=":slug" element={<IntegrationDetailPage />} />
+              <Route element={<IntegrationsLazyBoundary />}>
+                <Route index element={<IntegrationsPage />} />
+                <Route path="pos" element={<POSIntegrationsPage />} />
+                <Route path="crm" element={<CRMIntegrationsPage />} />
+                <Route path="social" element={<SocialIntegrationsPage />} />
+                <Route
+                  path="facebook"
+                  element={<RedirectWithQuery to="/integrations/meta" />}
+                />
+                <Route
+                  path="instagram"
+                  element={<RedirectWithQuery to="/integrations/meta" />}
+                />
+                <Route
+                  path="google-analytics-4"
+                  element={
+                    <RedirectWithQuery to="/integrations/google-analytics" />
+                  }
+                />
+                <Route
+                  path="email-domain-dns"
+                  element={
+                    <RedirectWithQuery to="/integrations/email-infrastructure" />
+                  }
+                />
+                <Route
+                  path="automations"
+                  element={<AutomationsIntegrationsPage />}
+                />
+                <Route path="website" element={<WebsiteIntegrationsPage />} />
+                <Route path="migrations" element={<MigrationsRouteGate />} />
+                <Route
+                  path="lightspeed/connect"
+                  element={<LightspeedConnectPage />}
+                />
+                <Route path="lightspeed/guide" element={<GuidePage />} />
+                <Route path="lightspeed/debug" element={<DebugPage />} />
+                <Route path="shopify/debug" element={<ShopifyDebugPage />} />
+                <Route path="square/guide" element={<SquareGuidePage />} />
+                <Route path="clover/guide" element={<CloverGuidePage />} />
+                <Route
+                  path=":slug/documentation"
+                  element={<IntegrationDocumentationPage />}
+                />
+                <Route path=":slug" element={<IntegrationDetailPage />} />
+              </Route>
             </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
-            <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            <Route
-              path="/integrations/lightspeed/callback"
-              element={<CallbackPage />}
-            />
-            <Route
-              path="/integrations/shopify/callback"
-              element={<ShopifyCallbackPage />}
-            />
-            <Route
-              path="/integrations/square/callback"
-              element={<SquareCallbackPage />}
-            />
-            <Route
-              path="/integrations/clover/callback"
-              element={<CloverCallbackPage />}
-            />
+            <Route element={<CallbackLazyBoundary />}>
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/integrations/lightspeed/callback"
+                element={<CallbackPage />}
+              />
+              <Route
+                path="/integrations/shopify/callback"
+                element={<ShopifyCallbackPage />}
+              />
+              <Route
+                path="/integrations/square/callback"
+                element={<SquareCallbackPage />}
+              />
+              <Route
+                path="/integrations/clover/callback"
+                element={<CloverCallbackPage />}
+              />
+            </Route>
             <Route
               path="/crm/pos"
               element={
                 <ProtectedRoute>
                   <SidebarLayout>
-                    <POSIntegrationsPage />
+                    <ChunkErrorBoundary>
+                      <Suspense fallback={<PageSkeleton variant="default" />}>
+                        <POSIntegrationsPage />
+                      </Suspense>
+                    </ChunkErrorBoundary>
                   </SidebarLayout>
                 </ProtectedRoute>
               }
@@ -814,181 +1039,175 @@ function App() {
             {/* Products routes */}
             <Route
               path="/products"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ProductsPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ProductsPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/products/:productId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ProductDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ProductDetailPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/profile/*"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <ProfilePage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <ProfilePage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/account"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <AccountPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <AccountPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/support"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <SupportPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <SupportPage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
 
             {/* Help Desk Routes */}
             <Route
               path="/helpdesk"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <HelpDeskPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <HelpDeskPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/helpdesk/tickets"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <TicketListPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <TicketListPage />,
+                "table",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/helpdesk/tickets/new"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CreateTicketPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CreateTicketPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/helpdesk/tickets/:ticketId"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <TicketDetailPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <TicketDetailPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
 
             <Route
               path="/publish"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <PublishPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <PublishPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/carousel/composer"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CarouselComposerPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CarouselComposerPage />,
+                "form",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route
               path="/plan"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <PlanPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <PlanPage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
             <Route path="/admin" element={<AdminRouteLayout />}>
-              <Route index element={<AdminHub />} />
-              <Route path="tenants" element={<AdminTenants />} />
-              <Route path="search" element={<AdminDashboard />} />
-              <Route path="manage" element={<AdminManage />} />
-              <Route
-                path="governance-config"
-                element={<AdminGovernanceConfig />}
-              />
-              <Route
-                path="tenants/:tenantId/email"
-                element={<TenantEmailManagement />}
-              />
-              <Route path="reports" element={<AdminReportsPage />} />
-              <Route path="costs" element={<AdminCostsPage />} />
-              <Route path="audit-logs" element={<AdminAuditLogsPage />} />
-              <Route
-                path="reported-problems"
-                element={<ReportedProblemsPage />}
-              />
-              <Route
-                path="reported-problems/:problemId"
-                element={<ReportedProblemDetailPage />}
-              />
-              <Route path="oauth-debug" element={<OAuthDebugPage />} />
-              <Route path="seed-demo" element={<SeedDemoCustomers />} />
-              <Route path="twilio-copy" element={<TwilioCopyPage />} />
-              <Route
-                path="analytics-health"
-                element={<AnalyticsHealthPage />}
-              />
+              <Route element={<AdminLazyBoundary />}>
+                <Route index element={<AdminHub />} />
+                <Route path="tenants" element={<AdminTenants />} />
+                <Route path="search" element={<AdminDashboard />} />
+                <Route path="manage" element={<AdminManage />} />
+                <Route
+                  path="governance-config"
+                  element={<AdminGovernanceConfig />}
+                />
+                <Route
+                  path="tenants/:tenantId/email"
+                  element={<TenantEmailManagement />}
+                />
+                <Route path="reports" element={<AdminReportsPage />} />
+                <Route path="costs" element={<AdminCostsPage />} />
+                <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+                <Route
+                  path="reported-problems"
+                  element={<ReportedProblemsPage />}
+                />
+                <Route
+                  path="reported-problems/:problemId"
+                  element={<ReportedProblemDetailPage />}
+                />
+                <Route path="oauth-debug" element={<OAuthDebugPage />} />
+                <Route path="seed-demo" element={<SeedDemoCustomers />} />
+                <Route path="twilio-copy" element={<TwilioCopyPage />} />
+                <Route
+                  path="analytics-health"
+                  element={<AnalyticsHealthPage />}
+                />
+              </Route>
             </Route>
             <Route
               path="/community"
-              element={
-                <ProtectedRoute>
-                  <SidebarLayout>
-                    <CommunityPage />
-                  </SidebarLayout>
-                </ProtectedRoute>
-              }
+              element={renderProtectedSidebarLazyPage(
+                <CommunityPage />,
+                "default",
+                DASHBOARD_LAZY_PAGE_OPTIONS,
+              )}
             />
-
-            {/* Public confirmation page */}
-            <Route
-              path="/confirm-subscription"
-              element={<ConfirmSubscription />}
-            />
-
-            {/* Show NotFound for any unrecognized routes */}
-            <Route path="*" element={<NotFound />} />
+            <Route element={<PublicLazyBoundary />}>
+              {/* Show NotFound for any unrecognized routes */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
           </Routes>
-          <Toaster />
-          <ShadcnToaster />
+          <Toaster
+            closeButton={false}
+            duration={4000}
+            expand={false}
+            visibleToasts={4}
+            position="top-right"
+            icons={{
+              success: <CheckCircle2 size={16} strokeWidth={1.9} />,
+              error: <AlertCircle size={16} strokeWidth={1.9} />,
+              info: <Info size={16} strokeWidth={1.9} />,
+              warning: <TriangleAlert size={16} strokeWidth={1.9} />,
+            }}
+            toastOptions={{
+              classNames: {
+                toast: "bloom-sonner-toast",
+                title: "bloom-sonner-title",
+                description: "bloom-sonner-description",
+                actionButton: "bloom-sonner-action",
+                success: "bloom-sonner-toast--success",
+                error: "bloom-sonner-toast--error",
+                info: "bloom-sonner-toast--info",
+                warning: "bloom-sonner-toast--warning",
+              },
+            }}
+          />
         </ErrorBoundary>
       </div>
     </HelmetProvider>

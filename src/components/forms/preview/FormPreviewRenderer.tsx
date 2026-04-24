@@ -13,8 +13,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { Progress } from "@/components/ui-legacy/progress";
-import { cn } from "@/lib/utils";
+import LinearProgress from "@mui/joy/LinearProgress";
 import {
   getFontFamilyCss,
   getFormWidthValue,
@@ -110,6 +109,27 @@ type FieldControlElement = HTMLInputElement | HTMLSelectElement;
 const RESPONSIVE_TWO_COLUMN_MIN_WIDTH = 640;
 const CONTROL_RADIUS = 8;
 const CARD_RADIUS = 12;
+
+function getHighlightStyle(tokens: ThemeTokens): React.CSSProperties {
+  return {
+    borderRadius: CARD_RADIUS,
+    boxShadow: `0 0 0 2px ${toRgba(tokens.primary, 0.35)}`,
+  };
+}
+
+function getVisuallyHiddenStyle(): React.CSSProperties {
+  return {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    border: 0,
+  };
+}
 
 export function FormPreviewRenderer({
   fields,
@@ -805,13 +825,21 @@ export function FormPreviewRenderer({
     border: `1px solid ${tokens.subtleBorder}`,
     borderRadius: `${CARD_RADIUS}px`,
   };
+  const containerPadding =
+    containerWidth !== null && containerWidth >= RESPONSIVE_TWO_COLUMN_MIN_WIDTH
+      ? 32
+      : 20;
 
   if (isSubmitted) {
     return (
       <div
         ref={containerRef}
-        className="w-full rounded-xl border px-5 py-5 shadow-sm transition-opacity duration-300 sm:px-8 sm:py-8"
-        style={containerStyle}
+        style={{
+          ...containerStyle,
+          padding: containerPadding,
+          boxShadow: tokens.shadow,
+          transition: "opacity 300ms ease",
+        }}
       >
         <SuccessState
           mode={mode}
@@ -836,26 +864,34 @@ export function FormPreviewRenderer({
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "w-full rounded-xl border px-5 py-5 shadow-sm transition-opacity duration-300 sm:px-8 sm:py-8",
-        isTransitioningToSuccess && "pointer-events-none opacity-0",
-      )}
-      style={containerStyle}
+      style={{
+        ...containerStyle,
+        padding: containerPadding,
+        boxShadow: tokens.shadow,
+        transition: "opacity 300ms ease",
+        ...(isTransitioningToSuccess
+          ? { pointerEvents: "none", opacity: 0 }
+          : { opacity: 1 }),
+      }}
     >
       <form
         onSubmit={handleSubmit}
-        className="space-y-6"
         noValidate
         aria-busy={isSubmitting || hasActiveUploads}
+        style={{ display: "grid", gap: "1.5rem" }}
       >
         {(normalizedSettings.form_headline ||
           normalizedSettings.form_subheadline) && (
           <div
-            className={cn(
-              "space-y-2 text-center transition-all duration-300",
-              changedIds.has("__headline") &&
-                "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-            )}
+            style={{
+              display: "grid",
+              gap: "0.5rem",
+              textAlign: "center",
+              transition: "box-shadow 300ms ease",
+              ...(changedIds.has("__headline")
+                ? getHighlightStyle(tokens)
+                : null),
+            }}
           >
             {normalizedSettings.form_headline && (
               <h2
@@ -890,11 +926,14 @@ export function FormPreviewRenderer({
         {(normalizedSettings.form_title ||
           normalizedSettings.form_description) && (
           <div
-            className={cn(
-              "space-y-1 transition-all duration-300",
-              changedIds.has("__settings") &&
-                "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-            )}
+            style={{
+              display: "grid",
+              gap: "0.25rem",
+              transition: "box-shadow 300ms ease",
+              ...(changedIds.has("__settings")
+                ? getHighlightStyle(tokens)
+                : null),
+            }}
           >
             {normalizedSettings.form_title && (
               <h3
@@ -928,9 +967,9 @@ export function FormPreviewRenderer({
 
         {hasRequiredFields && (
           <p
-            className="text-xs"
             style={{
               color: tokens.quietText,
+              fontSize: "0.75rem",
               margin: 0,
             }}
           >
@@ -940,7 +979,7 @@ export function FormPreviewRenderer({
         )}
 
         {multiStepEnabled && activeStepGroup && (
-          <div className="space-y-5">
+          <div style={{ display: "grid", gap: "1.25rem" }}>
             <StepProgress
               steps={stepGroups.map((group) => group.step)}
               activeIndex={activeStepPosition}
@@ -960,13 +999,26 @@ export function FormPreviewRenderer({
             />
 
             <div
-              className="space-y-2 rounded-lg px-6 py-4"
               style={{
+                display: "grid",
+                gap: "0.5rem",
+                borderRadius: CONTROL_RADIUS,
+                padding: "16px 24px",
                 backgroundColor: mixHex(tokens.background, tokens.text, 0.05),
                 border: `1px solid ${tokens.subtleBorder}`,
               }}
             >
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em]">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.18em",
+                }}
+              >
                 <span style={{ color: tokens.quietText }}>
                   STEP {activeStepPosition + 1} OF {stepGroups.length}
                 </span>
@@ -1069,8 +1121,11 @@ export function FormPreviewRenderer({
           </div>
         ) : (
           <div
-            className="rounded-xl border border-dashed px-5 py-8 text-center"
             style={{
+              borderRadius: CARD_RADIUS,
+              border: `1px dashed ${tokens.subtleBorder}`,
+              padding: "32px 20px",
+              textAlign: "center",
               borderColor: tokens.subtleBorder,
               backgroundColor: mixHex(tokens.background, tokens.text, 0.03),
             }}
@@ -1101,21 +1156,33 @@ export function FormPreviewRenderer({
 
         {submitError && (
           <div
-            className="rounded-xl px-4 py-3"
             role="alert"
             aria-live="assertive"
             style={{
+              borderRadius: CARD_RADIUS,
+              padding: "12px 16px",
               backgroundColor: tokens.errorSurface,
               border: `1px solid ${toRgba(tokens.error, 0.18)}`,
               color: tokens.error,
             }}
           >
-            <p className="text-sm font-medium">{submitError}</p>
+            <p style={{ margin: 0, fontSize: "0.875rem", fontWeight: 500 }}>
+              {submitError}
+            </p>
           </div>
         )}
 
         {multiStepEnabled ? (
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            style={{
+              marginTop: 32,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              alignItems: "center",
+              justifyContent: isFirstStep ? "flex-end" : "space-between",
+            }}
+          >
             {!isFirstStep ? (
               <button
                 type="button"
@@ -1127,14 +1194,28 @@ export function FormPreviewRenderer({
                   }
                 }}
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50"
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  minHeight: 48,
+                  padding: "12px 24px",
+                  borderRadius: CONTROL_RADIUS,
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  transition:
+                    "background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease",
                   borderColor: tokens.strongBorder,
+                  borderStyle: "solid",
+                  borderWidth: 1,
                   color: tokens.quietText,
                   backgroundColor: "transparent",
+                  cursor: isSubmitting ? "not-allowed" : "pointer",
+                  opacity: isSubmitting ? 0.5 : 1,
                 }}
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowLeft size={16} />
                 Back
               </button>
             ) : null}
@@ -1143,21 +1224,30 @@ export function FormPreviewRenderer({
               type={isLastStep ? "submit" : "button"}
               onClick={isLastStep ? undefined : handleAdvanceStep}
               disabled={isSubmitting || hasActiveUploads}
-              className={cn(
-                "inline-flex w-full items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-[180px]",
-                isFirstStep && "sm:ml-auto",
-                changedIds.has("__settings") &&
-                  "ring-2 ring-primary/40 ring-offset-2",
-              )}
-              style={getSubmitButtonStyle(
-                tokens,
-                theme.button_style ?? "filled",
-              )}
+              style={{
+                ...getSubmitButtonStyle(tokens, theme.button_style ?? "filled"),
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                width: "100%",
+                flex: "1 1 180px",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                transition:
+                  "background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, opacity 150ms ease",
+                cursor:
+                  isSubmitting || hasActiveUploads ? "not-allowed" : "pointer",
+                opacity: isSubmitting || hasActiveUploads ? 0.7 : 1,
+                ...(changedIds.has("__settings")
+                  ? getHighlightStyle(tokens)
+                  : null),
+              }}
             >
               {isSubmitting && isLastStep ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 size={16} />
               ) : hasActiveUploads && isLastStep ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 size={16} />
               ) : null}
               <span>
                 {isLastStep
@@ -1171,7 +1261,7 @@ export function FormPreviewRenderer({
                     : "Next Step"}
               </span>
               {!isSubmitting && !hasActiveUploads ? (
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight size={16} />
               ) : null}
             </button>
           </div>
@@ -1179,16 +1269,27 @@ export function FormPreviewRenderer({
           <button
             type="submit"
             disabled={isSubmitting || hasActiveUploads}
-            className={cn(
-              "mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-6 py-3 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-70",
-              changedIds.has("__settings") &&
-                "ring-2 ring-primary/40 ring-offset-2",
-            )}
-            style={getSubmitButtonStyle(tokens, theme.button_style ?? "filled")}
+            style={{
+              ...getSubmitButtonStyle(tokens, theme.button_style ?? "filled"),
+              marginTop: 32,
+              display: "inline-flex",
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              transition:
+                "background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, opacity 150ms ease",
+              cursor:
+                isSubmitting || hasActiveUploads ? "not-allowed" : "pointer",
+              opacity: isSubmitting || hasActiveUploads ? 0.7 : 1,
+              ...(changedIds.has("__settings")
+                ? getHighlightStyle(tokens)
+                : null),
+            }}
           >
-            {isSubmitting || hasActiveUploads ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : null}
+            {isSubmitting || hasActiveUploads ? <Loader2 size={16} /> : null}
             <span>
               {isSubmitting
                 ? "Submitting..."
@@ -1197,15 +1298,19 @@ export function FormPreviewRenderer({
                   : normalizedSettings.submit_button_text || "Submit"}
             </span>
             {!isSubmitting && !hasActiveUploads ? (
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight size={16} />
             ) : null}
           </button>
         )}
 
         {hasActiveUploads && (
           <p
-            className="text-center text-xs"
-            style={{ color: tokens.quietText, margin: 0 }}
+            style={{
+              color: tokens.quietText,
+              margin: 0,
+              textAlign: "center",
+              fontSize: "0.75rem",
+            }}
           >
             File uploads must finish before you can continue or submit.
           </p>
@@ -1213,8 +1318,12 @@ export function FormPreviewRenderer({
 
         {normalizedSettings.show_branding && (
           <div
-            className="mt-8 border-t pt-4 text-center"
-            style={{ borderColor: tokens.subtleBorder }}
+            style={{
+              marginTop: 32,
+              paddingTop: 16,
+              textAlign: "center",
+              borderTop: `1px solid ${tokens.subtleBorder}`,
+            }}
           >
             <span
               style={{
@@ -1240,16 +1349,21 @@ export function FormPreviewRenderer({
         )}
 
         {mode === "preview" && hiddenFieldCount > 0 && (
-          <div className="flex justify-center">
+          <div style={{ display: "flex", justifyContent: "center" }}>
             <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                borderRadius: 999,
+                padding: "6px 12px",
+                fontSize: "0.75rem",
                 backgroundColor: mixHex(tokens.background, tokens.text, 0.06),
                 color: tokens.quietText,
                 border: `1px solid ${tokens.subtleBorder}`,
               }}
             >
-              <EyeOff className="h-3.5 w-3.5" />
+              <EyeOff size={14} />
               {hiddenFieldCount} hidden{" "}
               {hiddenFieldCount === 1 ? "field" : "fields"}
             </span>
@@ -1274,7 +1388,14 @@ function StepProgress({
   onStepSelect,
 }: StepProgressProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.75rem",
+      }}
+    >
       {steps.map((step, index) => {
         const isActive = index === activeIndex;
         const isComplete = index < activeIndex;
@@ -1282,28 +1403,49 @@ function StepProgress({
           <button
             type="button"
             onClick={() => onStepSelect(step.index)}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-150"
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              borderRadius: 999,
+              padding: "8px 16px",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              transition:
+                "background-color 150ms ease, border-color 150ms ease, color 150ms ease",
               backgroundColor: toRgba(tokens.primary, 0.25),
               color: tokens.primary,
               border: `2px solid ${tokens.primary}`,
             }}
           >
             <span
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold"
               style={{
+                display: "inline-flex",
+                width: 24,
+                height: 24,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 999,
+                fontSize: "11px",
+                fontWeight: 600,
                 backgroundColor: toRgba(tokens.primary, 0.25),
                 color: tokens.primary,
               }}
             >
-              <Check className="h-3.5 w-3.5" />
+              <Check size={14} />
             </span>
             <span>{step.title || `Step ${index + 1}`}</span>
           </button>
         ) : (
           <div
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              borderRadius: 999,
+              padding: "8px 16px",
+              fontSize: "0.875rem",
+              fontWeight: 500,
               backgroundColor: isActive
                 ? toRgba(tokens.primary, 0.25)
                 : toRgba(tokens.text, 0.08),
@@ -1314,8 +1456,15 @@ function StepProgress({
             }}
           >
             <span
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold"
               style={{
+                display: "inline-flex",
+                width: 24,
+                height: 24,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 999,
+                fontSize: "11px",
+                fontWeight: 600,
                 backgroundColor: isActive
                   ? toRgba(tokens.primary, 0.25)
                   : toRgba(tokens.text, 0.12),
@@ -1332,8 +1481,9 @@ function StepProgress({
           <React.Fragment key={`step-progress-${step.index}`}>
             {index > 0 ? (
               <div
-                className="h-px w-8"
                 style={{
+                  width: 32,
+                  height: 1,
                   backgroundColor:
                     index <= activeIndex ? tokens.primary : tokens.subtleBorder,
                 }}
@@ -1399,6 +1549,7 @@ function FieldRenderer({
     setIsFocused(false);
     onBlur();
   };
+  const helpText = field.help_text?.trim();
 
   if (field.type === "file") {
     return (
@@ -1420,15 +1571,21 @@ function FieldRenderer({
   if (field.type === "checkbox") {
     return (
       <div
-        className={cn(
-          "space-y-2 transition-colors duration-150",
-          isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-        )}
+        style={{
+          display: "grid",
+          gap: "0.5rem",
+          transition: "box-shadow 150ms ease",
+          ...(isHighlighted ? getHighlightStyle(tokens) : null),
+        }}
       >
         <label
           htmlFor={field.id}
-          className="flex items-start gap-3"
-          style={{ opacity: isDisabled ? 0.76 : 1 }}
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.75rem",
+            opacity: isDisabled ? 0.76 : 1,
+          }}
         >
           <input
             id={field.id}
@@ -1441,8 +1598,12 @@ function FieldRenderer({
             disabled={isDisabled}
             aria-invalid={error ? true : undefined}
             aria-describedby={errorId}
-            className="mt-0.5 h-5 w-5 rounded border-2 border-input"
             style={{
+              marginTop: 2,
+              width: 20,
+              height: 20,
+              borderRadius: CONTROL_RADIUS,
+              border: `2px solid ${tokens.strongBorder}`,
               accentColor: tokens.primary,
               boxShadow: isFocused
                 ? `0 0 0 4px ${tokens.focusRing}`
@@ -1467,11 +1628,29 @@ function FieldRenderer({
         {error && (
           <div
             id={errorId}
-            className="mt-1.5 flex items-start gap-1.5 text-xs"
-            style={{ color: tokens.error }}
+            style={{
+              marginTop: 6,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.375rem",
+              color: tokens.error,
+              fontSize: "0.75rem",
+            }}
           >
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
             <span>{error}</span>
+          </div>
+        )}
+
+        {!error && helpText && (
+          <div
+            style={{
+              color: tokens.quietText,
+              fontSize: "0.75rem",
+              lineHeight: 1.5,
+            }}
+          >
+            {helpText}
           </div>
         )}
       </div>
@@ -1480,10 +1659,12 @@ function FieldRenderer({
 
   return (
     <div
-      className={cn(
-        "space-y-2 transition-colors duration-150",
-        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-      )}
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        transition: "box-shadow 150ms ease",
+        ...(isHighlighted ? getHighlightStyle(tokens) : null),
+      }}
     >
       <label
         htmlFor={field.id}
@@ -1501,7 +1682,7 @@ function FieldRenderer({
       </label>
 
       {field.type === "select" ? (
-        <div className="relative">
+        <div style={{ position: "relative" }}>
           <select
             id={field.id}
             value={String(value)}
@@ -1512,9 +1693,10 @@ function FieldRenderer({
             disabled={isDisabled}
             aria-invalid={error ? true : undefined}
             aria-describedby={errorId}
-            className="w-full appearance-none rounded-lg border bg-background px-4 py-3 pr-10 text-sm transition-colors duration-150"
             style={{
               ...sharedStyle,
+              appearance: "none",
+              paddingRight: 40,
               cursor: isDisabled ? "not-allowed" : "pointer",
             }}
           >
@@ -1528,8 +1710,15 @@ function FieldRenderer({
             ))}
           </select>
           <ChevronDown
-            className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2"
-            style={{ color: tokens.quietText }}
+            size={16}
+            style={{
+              pointerEvents: "none",
+              position: "absolute",
+              right: 16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: tokens.quietText,
+            }}
           />
         </div>
       ) : (
@@ -1552,15 +1741,15 @@ function FieldRenderer({
           aria-describedby={errorId}
           maxLength={maxLength}
           placeholder={resolvedPlaceholder}
-          className="w-full rounded-lg border bg-background px-4 py-3 text-sm placeholder:text-muted-foreground transition-colors duration-150"
           style={sharedStyle}
         />
       )}
 
       {typeof maxLength === "number" && (
         <div
-          className="text-right text-xs"
           style={{
+            textAlign: "right",
+            fontSize: "0.75rem",
             color:
               characterCount >= maxLength ? tokens.error : tokens.quietText,
           }}
@@ -1569,13 +1758,31 @@ function FieldRenderer({
         </div>
       )}
 
+      {!error && helpText && (
+        <div
+          style={{
+            color: tokens.quietText,
+            fontSize: "0.75rem",
+            lineHeight: 1.5,
+          }}
+        >
+          {helpText}
+        </div>
+      )}
+
       {error && (
         <div
           id={errorId}
-          className="mt-1.5 flex items-start gap-1.5 text-xs"
-          style={{ color: tokens.error }}
+          style={{
+            marginTop: 6,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.375rem",
+            color: tokens.error,
+            fontSize: "0.75rem",
+          }}
         >
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
           <span>{error}</span>
         </div>
       )}
@@ -1624,13 +1831,16 @@ function FileFieldRenderer({
     (item) => item.status === "uploaded",
   ).length;
   const remainingSlots = Math.max(0, maxFiles - activeItemCount);
+  const helpText = field.help_text?.trim();
 
   return (
     <div
-      className={cn(
-        "space-y-2 transition-colors duration-150",
-        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-      )}
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        transition: "box-shadow 150ms ease",
+        ...(isHighlighted ? getHighlightStyle(tokens) : null),
+      }}
     >
       <label
         htmlFor={field.id}
@@ -1648,15 +1858,26 @@ function FileFieldRenderer({
       </label>
 
       <div
-        className="space-y-4 rounded-lg border border-dashed p-4"
         style={{
+          display: "grid",
+          gap: "1rem",
+          borderRadius: CONTROL_RADIUS,
+          border: `1px dashed ${error ? tokens.error : tokens.strongBorder}`,
+          padding: 16,
           backgroundColor: tokens.fieldSurface,
-          borderColor: error ? tokens.error : tokens.strongBorder,
           opacity: isDisabled ? 0.76 : 1,
         }}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "0.75rem",
+          }}
+        >
+          <div style={{ display: "grid", gap: "0.25rem" }}>
             <p
               style={{
                 color: tokens.text,
@@ -1686,14 +1907,29 @@ function FileFieldRenderer({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={isDisabled || remainingSlots === 0}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+              minHeight: 40,
+              padding: "8px 12px",
+              borderRadius: CARD_RADIUS,
+              borderWidth: 1,
+              borderStyle: "solid",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              transition:
+                "background-color 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
               borderColor: tokens.strongBorder,
               backgroundColor: tokens.background,
               color: tokens.text,
+              cursor:
+                isDisabled || remainingSlots === 0 ? "not-allowed" : "pointer",
+              opacity: isDisabled || remainingSlots === 0 ? 0.6 : 1,
             }}
           >
-            <Upload className="h-4 w-4" />
+            <Upload size={16} />
             {activeItemCount === 0 ? "Choose files" : "Add files"}
           </button>
         </div>
@@ -1705,12 +1941,12 @@ function FileFieldRenderer({
             registerFieldRef(field.id, element);
           }}
           type="file"
-          className="sr-only"
           multiple={maxFiles > 1}
           accept={accept}
           disabled={isDisabled || remainingSlots === 0}
           aria-invalid={error ? true : undefined}
           aria-describedby={errorId}
+          style={getVisuallyHiddenStyle()}
           onChange={(event) => {
             onFilesSelected(event.target.files);
             event.currentTarget.value = "";
@@ -1718,7 +1954,7 @@ function FileFieldRenderer({
         />
 
         {uploadItems.length > 0 ? (
-          <div className="space-y-3">
+          <div style={{ display: "grid", gap: "0.75rem" }}>
             {uploadItems.map((item) => {
               const isUploading = item.status === "uploading";
               const isErrored = item.status === "error";
@@ -1726,36 +1962,61 @@ function FileFieldRenderer({
               return (
                 <div
                   key={item.uploadId}
-                  className="rounded-xl border px-3 py-3"
                   style={{
+                    borderRadius: CARD_RADIUS,
+                    borderWidth: 1,
+                    borderStyle: "solid",
+                    padding: "12px",
                     borderColor: isErrored ? tokens.error : tokens.subtleBorder,
                     backgroundColor: isErrored
                       ? tokens.errorSurface
                       : tokens.background,
                   }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        minWidth: 0,
+                        flex: 1,
+                        display: "grid",
+                        gap: "0.25rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
                         {isUploading ? (
                           <Loader2
-                            className="h-4 w-4 animate-spin"
+                            size={16}
                             style={{ color: tokens.quietText }}
                           />
                         ) : isErrored ? (
                           <AlertCircle
-                            className="h-4 w-4"
+                            size={16}
                             style={{ color: tokens.error }}
                           />
                         ) : (
                           <CheckCircle2
-                            className="h-4 w-4"
+                            size={16}
                             style={{ color: tokens.primary }}
                           />
                         )}
                         <p
-                          className="truncate"
                           style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
                             color: tokens.text,
                             fontSize: "0.9rem",
                             fontWeight: 500,
@@ -1784,11 +2045,22 @@ function FileFieldRenderer({
                       type="button"
                       onClick={() => onRemoveUpload(item.uploadId)}
                       disabled={isDisabled}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
                       style={{
+                        display: "inline-flex",
+                        width: 32,
+                        height: 32,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 999,
+                        borderWidth: 1,
+                        borderStyle: "solid",
+                        transition:
+                          "background-color 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
                         borderColor: tokens.subtleBorder,
                         backgroundColor: tokens.fieldSurface,
                         color: tokens.text,
+                        cursor: isDisabled ? "not-allowed" : "pointer",
+                        opacity: isDisabled ? 0.6 : 1,
                       }}
                       aria-label={
                         item.status === "uploading"
@@ -1796,16 +2068,49 @@ function FileFieldRenderer({
                           : "Remove file"
                       }
                     >
-                      <X className="h-4 w-4" />
+                      <X size={16} />
+
+                      {!error && helpText ? (
+                        <div
+                          style={{
+                            color: tokens.quietText,
+                            fontSize: "0.75rem",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {helpText}
+                        </div>
+                      ) : null}
                     </button>
                   </div>
 
                   {isUploading && (
-                    <div className="mt-3 space-y-2">
-                      <Progress value={item.progress} className="h-2" />
+                    <div
+                      style={{ marginTop: 12, display: "grid", gap: "0.5rem" }}
+                    >
+                      <LinearProgress
+                        determinate
+                        value={item.progress}
+                        sx={{
+                          height: 8,
+                          borderRadius: 999,
+                          backgroundColor: mixHex(
+                            tokens.background,
+                            tokens.text,
+                            0.08,
+                          ),
+                          "& .MuiLinearProgress-bar": {
+                            borderRadius: 999,
+                            backgroundColor: tokens.primary,
+                          },
+                        }}
+                      />
                       <p
-                        className="text-xs"
-                        style={{ color: tokens.quietText, margin: 0 }}
+                        style={{
+                          color: tokens.quietText,
+                          margin: 0,
+                          fontSize: "0.75rem",
+                        }}
                       >
                         {item.progress}% complete
                       </p>
@@ -1817,21 +2122,33 @@ function FileFieldRenderer({
           </div>
         ) : (
           <div
-            className="rounded-xl px-3 py-4 text-center"
             style={{
+              borderRadius: CARD_RADIUS,
+              padding: "16px 12px",
+              textAlign: "center",
               backgroundColor: mixHex(tokens.background, tokens.text, 0.03),
               color: tokens.quietText,
             }}
           >
-            <FileUp className="mx-auto mb-2 h-5 w-5" />
-            <p className="text-sm" style={{ margin: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 8,
+              }}
+            >
+              <FileUp size={20} />
+            </div>
+            <p style={{ margin: 0, fontSize: "0.875rem" }}>
               No files selected yet.
             </p>
           </div>
         )}
 
         {value.length > 0 && (
-          <p className="text-xs" style={{ color: tokens.quietText, margin: 0 }}>
+          <p
+            style={{ color: tokens.quietText, margin: 0, fontSize: "0.75rem" }}
+          >
             {value.length} of {maxFiles} file{maxFiles === 1 ? "" : "s"} ready
           </p>
         )}
@@ -1840,10 +2157,16 @@ function FileFieldRenderer({
       {error && (
         <div
           id={errorId}
-          className="mt-1.5 flex items-start gap-1.5 text-xs"
-          style={{ color: tokens.error }}
+          style={{
+            marginTop: 6,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.375rem",
+            color: tokens.error,
+            fontSize: "0.75rem",
+          }}
         >
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
           <span>{error}</span>
         </div>
       )}
@@ -1884,24 +2207,28 @@ function ConsentFieldRenderer({
 
   return (
     <div
-      className={cn(
-        "space-y-2 transition-colors duration-150",
-        isHighlighted && "rounded-xl ring-2 ring-primary/40 ring-offset-2",
-      )}
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        transition: "box-shadow 150ms ease",
+        ...(isHighlighted ? getHighlightStyle(tokens) : null),
+      }}
     >
       <div
-        className="space-y-3 rounded-lg border p-4"
         style={{
+          display: "grid",
+          gap: "0.75rem",
+          borderRadius: CONTROL_RADIUS,
+          borderWidth: 1,
+          borderStyle: "solid",
+          padding: 16,
           backgroundColor: tokens.consentSurface,
           borderColor: error ? tokens.error : tokens.consentBorder,
           boxShadow: isFocused ? `0 0 0 4px ${tokens.focusRing}` : undefined,
         }}
       >
-        <div className="flex items-center gap-2">
-          <ShieldCheck
-            className="h-4 w-4"
-            style={{ color: tokens.quietText }}
-          />
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <ShieldCheck size={16} style={{ color: tokens.quietText }} />
           <h3
             style={{
               color: tokens.text,
@@ -1916,8 +2243,13 @@ function ConsentFieldRenderer({
 
         <label
           htmlFor={field.id}
-          className="flex min-h-11 items-start gap-3"
-          style={{ opacity: isDisabled ? 0.76 : 1 }}
+          style={{
+            display: "flex",
+            minHeight: 44,
+            alignItems: "flex-start",
+            gap: "0.75rem",
+            opacity: isDisabled ? 0.76 : 1,
+          }}
         >
           <input
             id={field.id}
@@ -1933,8 +2265,12 @@ function ConsentFieldRenderer({
             disabled={isDisabled}
             aria-invalid={error ? true : undefined}
             aria-describedby={errorId}
-            className="mt-0.5 h-5 w-5 rounded border-2 border-input"
             style={{
+              marginTop: 2,
+              width: 20,
+              height: 20,
+              borderRadius: CONTROL_RADIUS,
+              border: `2px solid ${tokens.strongBorder}`,
               accentColor: tokens.primary,
               boxShadow: isFocused
                 ? `0 0 0 4px ${tokens.focusRing}`
@@ -1959,10 +2295,16 @@ function ConsentFieldRenderer({
       {error && (
         <div
           id={errorId}
-          className="mt-1.5 flex items-start gap-1.5 text-xs"
-          style={{ color: tokens.error }}
+          style={{
+            marginTop: 6,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.375rem",
+            color: tokens.error,
+            fontSize: "0.75rem",
+          }}
         >
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
           <span>{error}</span>
         </div>
       )}
@@ -1991,29 +2333,39 @@ function SuccessState({ mode, settings, tokens, onReset }: SuccessStateProps) {
 
   return (
     <div
-      className={cn(
-        "space-y-5 text-center transition-opacity duration-300",
-        isVisible ? "opacity-100" : "opacity-0",
-      )}
+      style={{
+        display: "grid",
+        gap: "1.25rem",
+        textAlign: "center",
+        transition: "opacity 300ms ease",
+        opacity: isVisible ? 1 : 0,
+      }}
     >
       <div
-        className="rounded-xl px-6 py-8"
         style={{
+          borderRadius: CARD_RADIUS,
+          padding: "32px 24px",
           backgroundColor: tokens.successSurface,
           border: `1px solid ${tokens.successBorder}`,
         }}
       >
         <div
-          className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
           style={{
+            width: 64,
+            height: 64,
+            margin: "0 auto 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 999,
             backgroundColor: toRgba(tokens.primary, 0.1),
             color: tokens.primary,
           }}
         >
-          <Check className="h-8 w-8" />
+          <Check size={32} />
         </div>
 
-        <div className="space-y-2">
+        <div style={{ display: "grid", gap: "0.5rem" }}>
           <h3
             style={{
               color: tokens.successText,
@@ -2059,8 +2411,16 @@ function SuccessState({ mode, settings, tokens, onReset }: SuccessStateProps) {
         <button
           type="button"
           onClick={onReset}
-          className="text-sm font-medium underline underline-offset-4"
-          style={{ color: tokens.mutedText }}
+          style={{
+            color: tokens.mutedText,
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            textDecoration: "underline",
+            textUnderlineOffset: 4,
+            background: "transparent",
+            border: 0,
+            cursor: "pointer",
+          }}
         >
           Reset preview
         </button>

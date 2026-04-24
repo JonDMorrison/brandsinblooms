@@ -116,6 +116,9 @@ const createPaletteRange = (
   solidDisabledBg: "var(--joy-palette-neutral-100)",
 });
 
+const createFocusRing = (channel: string, width = 2, alpha = 0.18) =>
+  `0 0 0 ${width}px rgba(${channel} / ${alpha})`;
+
 export const bloomPaletteScales = {
   primary: {
     50: "#F0FFFE",
@@ -218,9 +221,9 @@ export const bloomPaletteScales = {
 // These bridge tokens preserve the current semantic CSS variable behavior while
 // Joy becomes the source of truth for all new palette work.
 export const bloomLegacyBridgeTokens = {
-  "background-hsl": "120 25% 98%",
+  "background-hsl": "46 80% 97%",
   "foreground-hsl": "225 42% 32%",
-  "card-hsl": "120 25% 98%",
+  "card-hsl": "0 0% 100%",
   "card-foreground-hsl": "225 42% 32%",
   "popover-hsl": "0 0% 100%",
   "popover-foreground-hsl": "225 42% 32%",
@@ -262,6 +265,10 @@ export const bloomLegacyBridgeTokens = {
 
 const neutralPalette = {
   ...createPaletteRange("neutral", bloomPaletteScales.neutral, {
+    solidColor: "var(--joy-palette-common-white)",
+    solidBg: 700,
+    solidHoverBg: 800,
+    solidActiveBg: 900,
     plainColor: 700,
     outlinedColor: 700,
     softColor: 800,
@@ -275,18 +282,34 @@ const primaryPalette = createPaletteRange(
   "primary",
   bloomPaletteScales.primary,
   {
-    solidColor: "var(--joy-palette-brandNavy-900)",
-    plainColor: 600,
-    outlinedColor: 600,
+    solidColor: "var(--joy-palette-common-white)",
+    solidBg: 700,
+    solidHoverBg: 800,
+    solidActiveBg: 900,
+    plainColor: 700,
+    outlinedColor: 700,
     softColor: "var(--joy-palette-brandNavy-900)",
   },
 );
+
+const dangerPalette = createPaletteRange("danger", bloomPaletteScales.danger, {
+  solidColor: "var(--joy-palette-common-white)",
+  solidBg: 600,
+  solidHoverBg: 700,
+  solidActiveBg: 800,
+  plainColor: 700,
+  outlinedColor: 700,
+  softColor: 800,
+});
 
 const successPalette = createPaletteRange(
   "success",
   bloomPaletteScales.success,
   {
-    solidColor: "var(--joy-palette-brandNavy-900)",
+    solidColor: "var(--joy-palette-common-white)",
+    solidBg: 700,
+    solidHoverBg: 800,
+    solidActiveBg: 900,
     plainColor: 700,
     outlinedColor: 700,
     softColor: 800,
@@ -297,12 +320,25 @@ const warningPalette = createPaletteRange(
   "warning",
   bloomPaletteScales.warning,
   {
-    solidColor: "var(--joy-palette-brandNavy-900)",
-    plainColor: 700,
-    outlinedColor: 700,
-    softColor: 800,
+    solidColor: "var(--joy-palette-common-white)",
+    solidBg: 700,
+    solidHoverBg: 800,
+    solidActiveBg: 900,
+    plainColor: 800,
+    outlinedColor: 800,
+    softColor: 900,
   },
 );
+
+const infoPalette = createPaletteRange("info", bloomPaletteScales.info, {
+  solidColor: "var(--joy-palette-common-white)",
+  solidBg: 600,
+  solidHoverBg: 700,
+  solidActiveBg: 800,
+  plainColor: 700,
+  outlinedColor: 700,
+  softColor: 800,
+});
 
 const sandPalette = createPaletteRange("sand", bloomPaletteScales.sand, {
   solidColor: "var(--joy-palette-brandNavy-900)",
@@ -359,8 +395,53 @@ const joyBreakpoints = createBreakpoints({
   },
 });
 
+const interactiveTransition =
+  "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease";
+
+const primaryFocusRing = createFocusRing(
+  "var(--joy-palette-primary-mainChannel)",
+);
+
+const defaultFieldOutline = "2px solid var(--joy-palette-primary-400)";
+
+const focusRingStyles = {
+  outline: 0,
+  boxShadow: primaryFocusRing,
+};
+
+const controlSurfaceStyles = {
+  borderRadius: "var(--joy-radius-lg)",
+  borderColor: "var(--joy-palette-neutral-300)",
+  backgroundColor: "var(--joy-palette-background-surface)",
+  color: "var(--joy-palette-neutral-800)",
+  boxShadow: "none",
+  transition: interactiveTransition,
+};
+
+const controlFieldTextStyles = {
+  fontFamily: "var(--joy-fontFamily-body)",
+  fontSize: "var(--joy-fontSize-sm)",
+  fontWeight: "var(--joy-fontWeight-regular)",
+  lineHeight: "var(--joy-lineHeight-md)",
+  color: "var(--joy-palette-neutral-800)",
+};
+
+const disabledControlStyles = {
+  borderColor: "var(--joy-palette-neutral-200)",
+  backgroundColor: "var(--joy-palette-neutral-50)",
+  color: "var(--joy-palette-neutral-400)",
+};
+
 export const joyTheme = extendTheme({
   breakpoints: joyBreakpoints,
+  focus: {
+    thickness: "2px",
+    selector: "&.Mui-focusVisible, &:focus-visible",
+    default: {
+      outlineOffset: "1px",
+      outline: defaultFieldOutline,
+    },
+  },
   fontFamily: {
     body: "'Quicksand', system-ui, sans-serif",
     display: "'Inter', system-ui, sans-serif",
@@ -431,83 +512,325 @@ export const joyTheme = extendTheme({
   },
   typography: {
     h1: {
-      fontFamily: "var(--joy-fontFamily-display)",
-      fontSize: "var(--joy-fontSize-xl4)",
-      fontWeight: "var(--joy-fontWeight-extrabold)",
-      lineHeight: 1.15,
-      letterSpacing: "-0.02em",
-      color: "var(--joy-palette-text-primary)",
-    },
-    h2: {
-      fontFamily: "var(--joy-fontFamily-display)",
-      fontSize: "var(--joy-fontSize-xl3)",
+      fontFamily: "var(--joy-fontFamily-body)",
+      fontSize: "1.5rem",
       fontWeight: "var(--joy-fontWeight-bold)",
       lineHeight: 1.2,
       letterSpacing: "-0.02em",
-      color: "var(--joy-palette-text-primary)",
+      color: "var(--joy-palette-neutral-900)",
+    },
+    h2: {
+      fontFamily: "var(--joy-fontFamily-body)",
+      fontSize: "1.125rem",
+      fontWeight: "var(--joy-fontWeight-semibold)",
+      lineHeight: 1.2,
+      letterSpacing: "-0.01em",
+      color: "var(--joy-palette-neutral-800)",
     },
     h3: {
-      fontFamily: "var(--joy-fontFamily-display)",
-      fontSize: "var(--joy-fontSize-xl2)",
-      fontWeight: "var(--joy-fontWeight-semibold)",
-      lineHeight: 1.3,
-      color: "var(--joy-palette-text-primary)",
-    },
-    h4: {
-      fontFamily: "var(--joy-fontFamily-display)",
-      fontSize: "var(--joy-fontSize-xl)",
+      fontFamily: "var(--joy-fontFamily-body)",
+      fontSize: "1rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
       lineHeight: 1.4,
-      color: "var(--joy-palette-text-primary)",
+      color: "var(--joy-palette-neutral-800)",
+    },
+    h4: {
+      fontFamily: "var(--joy-fontFamily-body)",
+      fontSize: "var(--joy-fontSize-sm)",
+      fontWeight: "var(--joy-fontWeight-semibold)",
+      lineHeight: 1.4,
+      color: "var(--joy-palette-neutral-800)",
     },
     "title-lg": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-lg)",
+      fontSize: "1.125rem",
       fontWeight: "var(--joy-fontWeight-semibold)",
-      lineHeight: "var(--joy-lineHeight-lg)",
-      color: "var(--joy-palette-text-primary)",
+      lineHeight: 1.4,
+      color: "var(--joy-palette-neutral-800)",
     },
     "title-md": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-md)",
-      fontWeight: "var(--joy-fontWeight-medium)",
-      lineHeight: "var(--joy-lineHeight-lg)",
-      color: "var(--joy-palette-text-primary)",
+      fontSize: "1rem",
+      fontWeight: "var(--joy-fontWeight-semibold)",
+      lineHeight: 1.4,
+      color: "var(--joy-palette-neutral-800)",
     },
     "title-sm": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-sm)",
+      fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-medium)",
-      lineHeight: "var(--joy-lineHeight-lg)",
-      color: "var(--joy-palette-text-primary)",
+      lineHeight: 1.4,
+      color: "var(--joy-palette-neutral-700)",
     },
     "body-lg": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-lg)",
+      fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
-      lineHeight: "var(--joy-lineHeight-prose)",
-      color: "var(--joy-palette-text-secondary)",
+      lineHeight: 1.5,
+      color: "var(--joy-palette-neutral-700)",
     },
     "body-md": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-md)",
+      fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
-      lineHeight: "var(--joy-lineHeight-prose)",
-      color: "var(--joy-palette-text-secondary)",
+      lineHeight: 1.5,
+      color: "var(--joy-palette-neutral-700)",
     },
     "body-sm": {
       fontFamily: "var(--joy-fontFamily-body)",
-      fontSize: "var(--joy-fontSize-sm)",
+      fontSize: "0.875rem",
       fontWeight: "var(--joy-fontWeight-regular)",
-      lineHeight: "var(--joy-lineHeight-prose)",
-      color: "var(--joy-palette-text-secondary)",
+      lineHeight: 1.5,
+      color: "var(--joy-palette-neutral-700)",
     },
     "body-xs": {
       fontFamily: "var(--joy-fontFamily-body)",
       fontSize: "var(--joy-fontSize-xs)",
       fontWeight: "var(--joy-fontWeight-medium)",
-      lineHeight: "var(--joy-lineHeight-prose)",
-      color: "var(--joy-palette-text-tertiary)",
+      lineHeight: 1.5,
+      color: "var(--joy-palette-neutral-500)",
+    },
+  },
+  components: {
+    JoyButton: {
+      defaultProps: {
+        color: "primary",
+        size: "sm",
+        variant: "solid",
+      },
+      styleOverrides: {
+        root: {
+          borderRadius: "var(--joy-radius-lg)",
+          fontWeight: "var(--joy-fontWeight-medium)",
+          textTransform: "none",
+          transition: `${interactiveTransition}, transform 100ms ease`,
+          "&:active": {
+            transform: "scale(0.98)",
+          },
+          "&.Mui-focusVisible, &:focus-visible": focusRingStyles,
+        },
+      },
+    },
+    JoyChip: {
+      defaultProps: {
+        color: "neutral",
+        size: "sm",
+        variant: "soft",
+      },
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          fontWeight: "var(--joy-fontWeight-medium)",
+          textTransform: "none",
+          transition:
+            "background-color 100ms ease, color 100ms ease, box-shadow 150ms ease",
+        },
+      },
+    },
+    JoyIconButton: {
+      defaultProps: {
+        size: "sm",
+      },
+      styleOverrides: {
+        root: {
+          borderRadius: "var(--joy-radius-lg)",
+          transition: `${interactiveTransition}, transform 100ms ease`,
+          "&:active": {
+            transform: "scale(0.98)",
+          },
+          "&.Mui-focusVisible, &:focus-visible": focusRingStyles,
+        },
+      },
+    },
+    JoyInput: {
+      defaultProps: {
+        color: "neutral",
+        size: "sm",
+        variant: "outlined",
+      },
+      styleOverrides: {
+        root: {
+          ...controlSurfaceStyles,
+          minHeight: 36,
+          "--Input-gap": "0.625rem",
+          "--Input-paddingInline": "0.75rem",
+          "--Input-focusedThickness": "0px",
+          "--Input-placeholderColor": "var(--joy-palette-neutral-400)",
+          "--Input-placeholderOpacity": "1",
+          "--Input-decoratorColor": "var(--joy-palette-neutral-400)",
+          "&:hover:not([data-disabled='true'])": {
+            backgroundColor: "var(--joy-palette-background-surface)",
+            borderColor: "var(--joy-palette-neutral-400)",
+          },
+          "&:focus-within": {
+            borderColor: "var(--joy-palette-primary-400)",
+          },
+          "&.Mui-focusVisible, &:focus-visible": {
+            borderColor: "transparent",
+          },
+          "&[data-disabled='true'], &[aria-disabled='true']": {
+            ...disabledControlStyles,
+          },
+        },
+        input: {
+          ...controlFieldTextStyles,
+          "&::placeholder": {
+            color: "var(--joy-palette-neutral-400)",
+            opacity: 1,
+          },
+        },
+      },
+    },
+    JoyFormLabel: {
+      styleOverrides: {
+        root: {
+          color: "var(--joy-palette-neutral-600)",
+          fontSize: "0.8125rem",
+          fontWeight: "var(--joy-fontWeight-medium)",
+          lineHeight: 1.4,
+          marginBottom: "4px",
+        },
+      },
+    },
+    JoyFormHelperText: {
+      styleOverrides: {
+        root: {
+          marginTop: 0,
+          minHeight: 18,
+          color: "var(--joy-palette-neutral-500)",
+          fontSize: "var(--joy-fontSize-xs)",
+          fontWeight: "var(--joy-fontWeight-regular)",
+          lineHeight: 1.4,
+        },
+      },
+    },
+    JoyListItemButton: {
+      styleOverrides: {
+        root: {
+          "&.Mui-focusVisible, &:focus-visible": focusRingStyles,
+        },
+      },
+    },
+    JoyMenu: {
+      defaultProps: {
+        size: "sm",
+        variant: "plain",
+      },
+      styleOverrides: {
+        root: {
+          borderRadius: "var(--joy-radius-xl)",
+          borderColor: "var(--joy-palette-neutral-200)",
+          backgroundColor: "var(--joy-palette-background-popup)",
+          boxShadow: "var(--joy-shadow-lg)",
+          padding: "0.5rem",
+          "--List-padding": "0px",
+        },
+      },
+    },
+    JoyMenuButton: {
+      styleOverrides: {
+        root: {
+          "&.Mui-focusVisible, &:focus-visible": focusRingStyles,
+        },
+      },
+    },
+    JoyMenuItem: {
+      styleOverrides: {
+        root: {
+          minHeight: 36,
+          borderRadius: "var(--joy-radius-lg)",
+          fontSize: "13px",
+          fontWeight: "var(--joy-fontWeight-medium)",
+          transition:
+            "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease",
+          "&.Mui-focusVisible, &:focus-visible": focusRingStyles,
+        },
+      },
+    },
+    JoySelect: {
+      defaultProps: {
+        color: "neutral",
+        size: "sm",
+        variant: "outlined",
+      },
+      styleOverrides: {
+        button: {
+          ...controlSurfaceStyles,
+          minHeight: 36,
+          "--Select-focusedThickness": "0px",
+          "--Select-placeholderOpacity": "1",
+          "--Select-indicatorColor": "var(--joy-palette-neutral-400)",
+          paddingInline: "0.75rem",
+          fontSize: "var(--joy-fontSize-sm)",
+          fontWeight: "var(--joy-fontWeight-regular)",
+          lineHeight: "var(--joy-lineHeight-md)",
+          color: "var(--joy-palette-neutral-800)",
+          "--Select-decoratorColor": "var(--joy-palette-neutral-400)",
+          "&:hover:not([aria-disabled='true'])": {
+            backgroundColor: "var(--joy-palette-background-surface)",
+            borderColor: "var(--joy-palette-neutral-400)",
+          },
+          "&:focus-within": {
+            borderColor: "var(--joy-palette-primary-400)",
+          },
+          "&.Mui-focusVisible, &:focus-visible": {
+            borderColor: "transparent",
+          },
+          "&[aria-disabled='true']": {
+            ...disabledControlStyles,
+          },
+        },
+        listbox: {
+          padding: "0.5rem",
+          borderRadius: "var(--joy-radius-lg)",
+          borderColor: "var(--joy-palette-neutral-200)",
+          backgroundColor: "#FFFFFF",
+          boxShadow: "var(--joy-shadow-lg)",
+          zIndex: "var(--joy-zIndex-popup)",
+          "--List-padding": "0px",
+        },
+      },
+    },
+    JoyTextarea: {
+      defaultProps: {
+        color: "neutral",
+        size: "sm",
+        variant: "outlined",
+      },
+      styleOverrides: {
+        root: {
+          ...controlSurfaceStyles,
+          minHeight: 80,
+          "--Textarea-paddingBlock": "0.625rem",
+          "--Textarea-paddingInline": "0.75rem",
+          "--Textarea-focusedThickness": "0px",
+          "--Textarea-placeholderColor": "var(--joy-palette-neutral-400)",
+          "--Textarea-placeholderOpacity": "1",
+          "--Textarea-decoratorColor": "var(--joy-palette-neutral-400)",
+          "&:hover:not([data-disabled='true'])": {
+            backgroundColor: "var(--joy-palette-background-surface)",
+            borderColor: "var(--joy-palette-neutral-400)",
+          },
+          "&:focus-within": {
+            borderColor: "var(--joy-palette-primary-400)",
+          },
+          "&.Mui-focusVisible, &:focus-visible": {
+            borderColor: "transparent",
+          },
+          "&[data-disabled='true'], &[aria-disabled='true']": {
+            ...disabledControlStyles,
+          },
+        },
+        textarea: {
+          ...controlFieldTextStyles,
+          minHeight: 80,
+          resize: "vertical",
+          "&::placeholder": {
+            color: "var(--joy-palette-neutral-400)",
+            opacity: 1,
+          },
+        },
+      },
     },
   },
   colorSchemes: {
@@ -522,10 +845,10 @@ export const joyTheme = extendTheme({
         },
         primary: primaryPalette,
         neutral: neutralPalette,
-        danger: createPaletteRange("danger", bloomPaletteScales.danger),
+        danger: dangerPalette,
         success: successPalette,
         warning: warningPalette,
-        info: createPaletteRange("info", bloomPaletteScales.info),
+        info: infoPalette,
         brandNavy: createPaletteRange(
           "brandNavy",
           bloomPaletteScales.brandNavy,
@@ -539,17 +862,17 @@ export const joyTheme = extendTheme({
           icon: bloomPaletteScales.brandNavy[700],
         },
         background: {
-          body: "#fbfdfa",
-          surface: "#fbfdfa",
-          popup: "#FFFFFF",
-          level1: bloomPaletteScales.sand[50],
-          level2: bloomPaletteScales.neutral[100],
-          level3: bloomPaletteScales.neutral[200],
-          tooltip: bloomPaletteScales.neutral[700],
+          body: bloomPaletteScales.sand[50],
+          surface: "var(--joy-palette-common-white)",
+          popup: "var(--joy-palette-common-white)",
+          level1: "var(--joy-palette-common-white)",
+          level2: bloomPaletteScales.sand[50],
+          level3: bloomPaletteScales.neutral[100],
+          tooltip: bloomPaletteScales.neutral[800],
           backdrop: `rgba(${hexToRgbChannel(bloomPaletteScales.brandNavy[900])} / 0.24)`,
         },
-        divider: `rgba(${hexToRgbChannel(bloomPaletteScales.neutral[700])} / 0.16)`,
-        focusVisible: paletteVar("primary", 500),
+        divider: bloomPaletteScales.neutral[200],
+        focusVisible: `rgba(var(--joy-palette-primary-mainChannel) / 0.18)`,
       },
     },
   },

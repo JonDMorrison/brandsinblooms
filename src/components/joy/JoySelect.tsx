@@ -1,5 +1,4 @@
 import * as React from "react";
-import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRounded";
 import FormControl from "@mui/joy/FormControl";
 import FormHelperText from "@mui/joy/FormHelperText";
 import FormLabel from "@mui/joy/FormLabel";
@@ -9,6 +8,8 @@ import JoyBaseSelect, {
   type SelectProps as JoyBaseSelectProps,
 } from "@mui/joy/Select";
 import type { SxProps } from "@mui/joy/styles/types";
+import { ChevronDown } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export type JoySelectOption = {
   value: string;
@@ -29,37 +30,48 @@ export type JoySelectProps = Omit<
   formControlSx?: SxProps;
 };
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
-const createFocusShadow = (channel: string) =>
-  `0 0 0 4px rgba(${channel} / 0.14)`;
-
 const labelSx: SxProps = {
-  color: "var(--joy-palette-brandNavy-800)",
-  fontWeight: "var(--joy-fontWeight-md)",
+  color: "var(--joy-palette-neutral-600)",
+  fontSize: "0.8125rem",
+  fontWeight: "var(--joy-fontWeight-medium)",
+  lineHeight: 1.4,
 };
 
 const baseButtonSx: SxProps = {
-  minHeight: 40,
-  borderRadius: "var(--joy-radius-md)",
+  minHeight: 36,
+  borderRadius: "var(--joy-radius-lg)",
   borderColor: "neutral.300",
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "background.surface",
   boxShadow: "none",
+  "--Select-focusedThickness": "0px",
+  "--Select-placeholderOpacity": "1",
+  "--Select-indicatorColor": "var(--joy-palette-neutral-400)",
   px: 1.5,
-  "--Select-decoratorColor": "var(--joy-palette-neutral-500)",
+  fontSize: "var(--joy-fontSize-sm)",
+  fontWeight: "var(--joy-fontWeight-regular)",
+  lineHeight: "var(--joy-lineHeight-md)",
+  color: "var(--joy-palette-neutral-800)",
+  "--Select-decoratorColor": "var(--joy-palette-neutral-400)",
   transition:
-    "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
+    "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease",
   "&:hover:not([aria-disabled='true'])": {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "background.surface",
     borderColor: "neutral.400",
   },
+  "&:focus-within": {
+    borderColor: "primary.400",
+  },
   "&.Mui-focusVisible, &:focus-visible": {
-    borderColor: "primary.500",
-    boxShadow: createFocusShadow("var(--joy-palette-primary-mainChannel)"),
+    borderColor: "transparent",
+  },
+  "&[aria-disabled='true']": {
+    borderColor: "neutral.200",
+    backgroundColor: "neutral.50",
+    color: "neutral.400",
   },
   "& .MuiSelect-indicator": {
-    color: "neutral.500",
+    color: "neutral.400",
+    fontSize: "16px",
     transition: "transform 0.2s ease",
   },
   "&[aria-expanded='true'] .MuiSelect-indicator": {
@@ -71,7 +83,7 @@ const baseListboxSx: SxProps = {
   p: 0.5,
   borderRadius: "var(--joy-radius-lg)",
   borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "background.popup",
   boxShadow: "var(--joy-shadow-lg)",
   zIndex: "var(--joy-zIndex-popup)",
   "--List-padding": "0px",
@@ -149,7 +161,9 @@ export const JoySelect = React.forwardRef<HTMLButtonElement, JoySelectProps>(
     const generatedId = React.useId();
     const selectId = id ?? generatedId;
     const helperContent = errorMessage ?? helperText;
-    const helperColor = error ? "danger.600" : "neutral.600";
+    const helperColor = error ? "danger.600" : "neutral.500";
+    const isEmptyValue =
+      props.value === undefined || props.value === null || props.value === "";
     const buttonSlotProps =
       slotProps && typeof slotProps.button === "object"
         ? slotProps.button
@@ -160,23 +174,36 @@ export const JoySelect = React.forwardRef<HTMLButtonElement, JoySelectProps>(
         : undefined;
     const resolvedButtonSx = error
       ? {
-          borderColor: "danger.300",
+          borderColor: "danger.400",
           backgroundColor: "rgba(var(--joy-palette-danger-mainChannel) / 0.05)",
+          color: "var(--joy-palette-neutral-800)",
+          "&:hover:not([aria-disabled='true'])": {
+            borderColor: "danger.400",
+          },
+          "&:focus-within": {
+            borderColor: "danger.400",
+          },
           "&.Mui-focusVisible, &:focus-visible": {
-            borderColor: "danger.500",
-            boxShadow: createFocusShadow(
-              "var(--joy-palette-danger-mainChannel)",
-            ),
+            borderColor: "danger.400",
+            outline: "none",
+            outlineOffset: 0,
           },
         }
-      : undefined;
+      : {
+          color: isEmptyValue
+            ? "var(--joy-palette-neutral-400)"
+            : "var(--joy-palette-neutral-800)",
+        };
 
     return (
       <FormControl
         required={required}
         error={error}
         disabled={disabled}
-        sx={mergeSx({ width: "100%", gap: 0.75 }, formControlSx)}
+        sx={mergeSx(
+          { width: fullWidth === false ? undefined : "100%", gap: 0.75 },
+          formControlSx,
+        )}
       >
         {label ? (
           <FormLabel htmlFor={selectId} sx={labelSx}>
@@ -188,8 +215,7 @@ export const JoySelect = React.forwardRef<HTMLButtonElement, JoySelectProps>(
           ref={ref}
           disabled={disabled}
           color={error ? "danger" : (color ?? "neutral")}
-          fullWidth={fullWidth ?? true}
-          indicator={indicator ?? <KeyboardArrowDownRounded fontSize="small" />}
+          indicator={indicator ?? <ChevronDown size={16} strokeWidth={1.9} />}
           onChange={(event, newValue) => {
             onValueChange?.(newValue ?? "");
             onChange?.(event, newValue);
@@ -221,7 +247,14 @@ export const JoySelect = React.forwardRef<HTMLButtonElement, JoySelectProps>(
             : children}
         </JoyBaseSelect>
         {helperContent ? (
-          <FormHelperText sx={{ color: helperColor, minHeight: 20 }}>
+          <FormHelperText
+            sx={{
+              color: helperColor,
+              minHeight: 18,
+              fontSize: "var(--joy-fontSize-xs)",
+              fontWeight: "var(--joy-fontWeight-regular)",
+            }}
+          >
             {helperContent}
           </FormHelperText>
         ) : null}

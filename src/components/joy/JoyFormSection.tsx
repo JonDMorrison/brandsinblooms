@@ -1,6 +1,7 @@
 import * as React from "react";
 import Stack from "@mui/joy/Stack";
 import type { SxProps } from "@mui/joy/styles/types";
+import { mergeSx } from "@/components/joy/mergeSx";
 import {
   JoyCard,
   JoyCardContent,
@@ -19,9 +20,6 @@ export interface JoyFormSectionProps {
   contentSx?: SxProps;
   cardProps?: Omit<JoyCardProps, "children" | "sx">;
 }
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
 
 export const JoyFormSection = React.forwardRef<
   HTMLDivElement,

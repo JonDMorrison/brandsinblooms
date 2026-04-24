@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Box from "@mui/joy/Box";
+import IconButton from "@mui/joy/IconButton";
 import Skeleton from "@mui/joy/Skeleton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
@@ -7,10 +8,8 @@ import Typography from "@mui/joy/Typography";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  GripVertical,
   Image as ImageIcon,
   Plus,
-  Save,
   Star,
   Trash2,
   Upload,
@@ -45,6 +44,343 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Archived" },
 ];
 
+const STATUS_LABELS = {
+  active: "Active",
+  archived: "Archived",
+  draft: "Draft",
+} as const;
+
+const SOURCE_LABELS: Record<string, string> = {
+  import: "Import",
+  lightspeed: "Lightspeed",
+  platform: "Platform",
+  shopify: "Shopify",
+  square: "Square",
+  stripe: "Stripe",
+};
+
+function formatRelativeTime(value: string | null | undefined) {
+  if (!value) {
+    return "recently";
+  }
+
+  const target = new Date(value).getTime();
+
+  if (Number.isNaN(target)) {
+    return "recently";
+  }
+
+  const diffMs = target - Date.now();
+  const absMs = Math.abs(diffMs);
+
+  if (absMs < 60_000) {
+    return "just now";
+  }
+
+  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const units = [
+    { unit: "year", amount: 1000 * 60 * 60 * 24 * 365 },
+    { unit: "month", amount: 1000 * 60 * 60 * 24 * 30 },
+    { unit: "week", amount: 1000 * 60 * 60 * 24 * 7 },
+    { unit: "day", amount: 1000 * 60 * 60 * 24 },
+    { unit: "hour", amount: 1000 * 60 * 60 },
+    { unit: "minute", amount: 1000 * 60 },
+  ] as const;
+
+  for (const { unit, amount } of units) {
+    if (absMs >= amount) {
+      return rtf.format(Math.round(diffMs / amount), unit);
+    }
+  }
+
+  return "just now";
+}
+
+function getSourceLabel(source: string | null | undefined) {
+  if (!source) {
+    return "Unknown source";
+  }
+
+  return SOURCE_LABELS[source] ?? source.replace(/[_-]+/g, " ");
+}
+
+function formatCurrency(value: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+  }).format(value);
+}
+
+function FormFieldSkeleton({
+  height = 42,
+  labelWidth = 64,
+}: {
+  height?: number;
+  labelWidth?: number;
+}) {
+  return (
+    <Stack spacing={0.75}>
+      <Skeleton
+        variant="text"
+        animation="wave"
+        sx={{ width: labelWidth, height: 12 }}
+      />
+      <Skeleton
+        variant="rectangular"
+        animation="wave"
+        sx={{ height, borderRadius: "var(--joy-radius-lg)" }}
+      />
+    </Stack>
+  );
+}
+
+function SectionShellSkeleton({
+  children,
+  actionWidth,
+}: {
+  children: React.ReactNode;
+  actionWidth?: number;
+}) {
+  return (
+    <JoyFormSection
+      title={
+        <Skeleton
+          variant="text"
+          animation="wave"
+          sx={{ width: 140, height: 16 }}
+        />
+      }
+      description={
+        <Skeleton
+          variant="text"
+          animation="wave"
+          sx={{ width: 220, height: 12 }}
+        />
+      }
+      headerActions={
+        actionWidth ? (
+          <Skeleton
+            variant="rectangular"
+            animation="wave"
+            sx={{
+              width: actionWidth,
+              height: 36,
+              borderRadius: "var(--joy-radius-md)",
+            }}
+          />
+        ) : undefined
+      }
+    >
+      {children}
+    </JoyFormSection>
+  );
+}
+
+function ProductDetailPageSkeleton() {
+  return (
+    <Stack spacing={4.5}>
+      <Stack spacing={3}>
+        <Skeleton variant="circular" animation="wave" width={32} height={32} />
+
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", lg: "flex-start" }}
+        >
+          <Stack spacing={1}>
+            <Skeleton
+              variant="text"
+              animation="wave"
+              sx={{ width: 200, height: 24 }}
+            />
+            <Skeleton
+              variant="text"
+              animation="wave"
+              sx={{ width: 280, height: 14 }}
+            />
+            <Stack direction="row" spacing={0.75}>
+              <Skeleton
+                variant="rectangular"
+                animation="wave"
+                sx={{ width: 72, height: 24, borderRadius: "999px" }}
+              />
+              <Skeleton
+                variant="rectangular"
+                animation="wave"
+                sx={{ width: 72, height: 24, borderRadius: "999px" }}
+              />
+            </Stack>
+          </Stack>
+
+          <Stack direction="row" spacing={1}>
+            <Skeleton
+              variant="rectangular"
+              animation="wave"
+              sx={{
+                width: 120,
+                height: 36,
+                borderRadius: "var(--joy-radius-md)",
+              }}
+            />
+            <Skeleton
+              variant="rectangular"
+              animation="wave"
+              sx={{
+                width: 120,
+                height: 36,
+                borderRadius: "var(--joy-radius-md)",
+              }}
+            />
+          </Stack>
+        </Stack>
+      </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "2fr 1fr" },
+          gap: 3,
+        }}
+      >
+        <Stack spacing={3}>
+          <SectionShellSkeleton>
+            <FormFieldSkeleton labelWidth={52} />
+            <FormFieldSkeleton labelWidth={78} height={96} />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              <FormFieldSkeleton labelWidth={40} />
+              <FormFieldSkeleton labelWidth={60} />
+            </Box>
+          </SectionShellSkeleton>
+
+          <SectionShellSkeleton>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: "repeat(3, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              <FormFieldSkeleton labelWidth={40} />
+              <FormFieldSkeleton labelWidth={72} />
+              <FormFieldSkeleton labelWidth={40} />
+            </Box>
+          </SectionShellSkeleton>
+
+          <SectionShellSkeleton>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Stack spacing={0.5}>
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  sx={{ width: 112, height: 14 }}
+                />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  sx={{ width: 188, height: 12 }}
+                />
+              </Stack>
+              <Skeleton
+                variant="rectangular"
+                animation="wave"
+                sx={{ width: 42, height: 24, borderRadius: "999px" }}
+              />
+            </Stack>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "minmax(0, 1fr)",
+                  md: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              <FormFieldSkeleton labelWidth={112} />
+              <FormFieldSkeleton labelWidth={120} />
+            </Box>
+          </SectionShellSkeleton>
+        </Stack>
+
+        <Stack spacing={3}>
+          <SectionShellSkeleton>
+            <FormFieldSkeleton labelWidth={48} />
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Stack spacing={0.5}>
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  sx={{ width: 120, height: 14 }}
+                />
+                <Skeleton
+                  variant="text"
+                  animation="wave"
+                  sx={{ width: 180, height: 12 }}
+                />
+              </Stack>
+              <Skeleton
+                variant="rectangular"
+                animation="wave"
+                sx={{ width: 42, height: 24, borderRadius: "999px" }}
+              />
+            </Stack>
+          </SectionShellSkeleton>
+
+          <SectionShellSkeleton actionWidth={92}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 1.5,
+              }}
+            >
+              {Array.from({ length: 2 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  variant="rectangular"
+                  animation="wave"
+                  sx={{
+                    width: "100%",
+                    aspectRatio: "1 / 1",
+                    borderRadius: "var(--joy-radius-lg)",
+                  }}
+                />
+              ))}
+            </Box>
+          </SectionShellSkeleton>
+
+          <SectionShellSkeleton>
+            <FormFieldSkeleton labelWidth={56} />
+            <FormFieldSkeleton labelWidth={84} />
+          </SectionShellSkeleton>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
+
 export default function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
@@ -78,7 +414,7 @@ export default function ProductDetailPage() {
     meta_title: "",
     meta_description: "",
   });
-
+  const [hasInitializedForm, setHasInitializedForm] = useState(isNew);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showVariationDialog, setShowVariationDialog] = useState(false);
   const [newVariation, setNewVariation] = useState({
@@ -88,6 +424,8 @@ export default function ProductDetailPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [shouldRenderInventoryFields, setShouldRenderInventoryFields] =
+    useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = async (
@@ -135,9 +473,10 @@ export default function ProductDetailPage() {
         is_primary: product?.images?.length === 0,
         sort_order: (product?.images?.length || 0) + 1,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
       console.error("Upload error:", error);
-      toast.error(`Failed to upload image: ${error.message}`);
+      toast.error(`Failed to upload image: ${message}`);
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {
@@ -147,8 +486,12 @@ export default function ProductDetailPage() {
   };
 
   useEffect(() => {
+    setHasInitializedForm(isNew);
+  }, [isNew, productId]);
+
+  useEffect(() => {
     if (product && !isNew) {
-      setFormData({
+      const nextFormData: ProductFormData = {
         name: product.name,
         description: product.description || "",
         sku: product.sku || "",
@@ -167,9 +510,26 @@ export default function ProductDetailPage() {
         is_visible: product.is_visible,
         meta_title: product.meta_title || "",
         meta_description: product.meta_description || "",
-      });
+      };
+
+      setFormData(nextFormData);
+      setShouldRenderInventoryFields(Boolean(nextFormData.track_inventory));
+      setHasInitializedForm(true);
     }
   }, [product, isNew]);
+
+  useEffect(() => {
+    if (formData.track_inventory) {
+      setShouldRenderInventoryFields(true);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShouldRenderInventoryFields(false);
+    }, 200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [formData.track_inventory]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -210,135 +570,104 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (isLoading && !isNew) {
-    return (
-      <Stack spacing={3.5}>
-        <Skeleton variant="text" level="h2" sx={{ width: 240 }} />
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "minmax(0, 1fr)", lg: "2fr 1fr" },
-            gap: 3,
-          }}
-        >
-          <Stack spacing={3}>
-            <Skeleton
-              variant="rectangular"
-              sx={{ height: 220, borderRadius: "24px" }}
-            />
-            <Skeleton
-              variant="rectangular"
-              sx={{ height: 180, borderRadius: "24px" }}
-            />
-            <Skeleton
-              variant="rectangular"
-              sx={{ height: 180, borderRadius: "24px" }}
-            />
-          </Stack>
-          <Stack spacing={3}>
-            <Skeleton
-              variant="rectangular"
-              sx={{ height: 180, borderRadius: "24px" }}
-            />
-            <Skeleton
-              variant="rectangular"
-              sx={{ height: 280, borderRadius: "24px" }}
-            />
-          </Stack>
-        </Box>
-      </Stack>
-    );
+  if ((isLoading || !hasInitializedForm) && !isNew) {
+    return <ProductDetailPageSkeleton />;
   }
 
+  const subtitle = isNew
+    ? "Fill in the details to create a new product."
+    : product?.source !== "platform"
+      ? `Synced from ${getSourceLabel(product?.source)}`
+      : `Last updated ${formatRelativeTime(product?.updated_at)}`;
+
   return (
-    <Stack spacing={3.5}>
-      <Sheet
-        variant="plain"
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: "24px",
-          border: "1px solid",
-          borderColor: "neutral.200",
-          background:
-            "linear-gradient(135deg, rgba(15, 118, 110, 0.08) 0%, rgba(239, 246, 255, 0.88) 45%, rgba(255, 255, 255, 1) 100%)",
-        }}
-      >
+    <Stack spacing={4.5}>
+      <Stack spacing={3}>
+        <JoyButton
+          bloomVariant="ghost"
+          size="sm"
+          startDecorator={<ArrowLeft size={16} />}
+          onClick={() => navigate("/products")}
+          sx={{
+            alignSelf: "flex-start",
+            color: "neutral.500",
+            fontWeight: 500,
+            fontSize: "13px",
+            transition: "color 120ms ease",
+            "&:hover": {
+              color: "neutral.700",
+              backgroundColor: "transparent",
+            },
+          }}
+        >
+          Products
+        </JoyButton>
+
         <Stack
           direction={{ xs: "column", lg: "row" }}
           spacing={2}
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", lg: "center" }}
+          alignItems={{ xs: "flex-start", lg: "flex-start" }}
         >
-          <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <JoyButton
-                bloomVariant="ghost"
-                size="icon"
-                onClick={() => navigate("/products")}
-                aria-label="Back to products"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </JoyButton>
-              <div>
-                <Typography level="h1">
-                  {isNew ? "New Product" : product?.name}
-                </Typography>
-                {!isNew && product?.source !== "platform" ? (
-                  <Typography level="body-sm" color="neutral">
-                    Synced from {product?.source}
-                  </Typography>
-                ) : (
-                  <Typography level="body-sm" color="neutral">
-                    Manage pricing, inventory, images, and product visibility.
-                  </Typography>
-                )}
-              </div>
-            </Stack>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <JoyChip
-                color={
-                  formData.status === "active"
-                    ? "success"
-                    : formData.status === "draft"
-                      ? "warning"
-                      : "neutral"
-                }
-                variant="soft"
-              >
-                {formData.status}
-              </JoyChip>
-              {formData.is_visible ? (
-                <JoyChip color="primary" variant="soft">
-                  Visible on store
+          <Stack spacing={1} sx={{ minWidth: 0 }}>
+            <Typography
+              level="h2"
+              sx={{
+                fontSize: "20px",
+                fontWeight: 700,
+                color: "neutral.900",
+                lineHeight: 1.2,
+              }}
+            >
+              {isNew ? "New Product" : product?.name}
+            </Typography>
+            <Typography
+              level="body-sm"
+              sx={{
+                fontSize: "13px",
+                color: "neutral.500",
+              }}
+            >
+              {subtitle}
+            </Typography>
+
+            {!isNew ? (
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                <JoyChip
+                  variant="soft"
+                  color={
+                    formData.status === "active"
+                      ? "success"
+                      : formData.status === "draft"
+                        ? "warning"
+                        : "neutral"
+                  }
+                >
+                  {STATUS_LABELS[formData.status]}
                 </JoyChip>
-              ) : (
-                <JoyChip color="neutral" variant="soft">
-                  Hidden from store
+                <JoyChip variant="soft" color="neutral">
+                  {formData.is_visible ? "Visible" : "Hidden"}
                 </JoyChip>
-              )}
-            </Stack>
+              </Stack>
+            ) : null}
           </Stack>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             {!isNew ? (
               <JoyButton
-                bloomVariant="destructiveOutline"
+                bloomVariant="ghost"
+                color="danger"
                 onClick={() => setShowDeleteDialog(true)}
-                startDecorator={<Trash2 />}
               >
                 Delete
               </JoyButton>
             ) : null}
-            <JoyButton
-              onClick={handleSave}
-              loading={isSaving}
-              startDecorator={<Save />}
-            >
+            <JoyButton onClick={handleSave} loading={isSaving}>
               {isNew ? "Create Product" : "Save Changes"}
             </JoyButton>
           </Stack>
         </Stack>
-      </Sheet>
+      </Stack>
 
       <form
         id="product-detail-form"
@@ -357,15 +686,15 @@ export default function ProductDetailPage() {
           <Stack spacing={3}>
             <JoyFormSection
               title="Product Information"
-              description="Core customer-facing details for this product listing."
+              description="Name, description, and identifiers."
             >
               <JoyInput
-                label="Product Name"
+                label="Name"
                 value={formData.name}
                 onChange={(event) =>
                   setFormData({ ...formData, name: event.target.value })
                 }
-                placeholder="Enter product name"
+                placeholder="Product name"
                 required
               />
               <JoyTextarea
@@ -374,7 +703,7 @@ export default function ProductDetailPage() {
                 onChange={(event) =>
                   setFormData({ ...formData, description: event.target.value })
                 }
-                placeholder="Describe your product..."
+                placeholder="Add a description..."
                 rows={4}
               />
               <Box
@@ -393,7 +722,7 @@ export default function ProductDetailPage() {
                   onChange={(event) =>
                     setFormData({ ...formData, sku: event.target.value })
                   }
-                  placeholder="SKU-001"
+                  placeholder="e.g. SKU-001"
                 />
                 <JoyInput
                   label="Barcode"
@@ -401,14 +730,14 @@ export default function ProductDetailPage() {
                   onChange={(event) =>
                     setFormData({ ...formData, barcode: event.target.value })
                   }
-                  placeholder="123456789"
+                  placeholder="e.g. 012345678901"
                 />
               </Box>
             </JoyFormSection>
 
             <JoyFormSection
               title="Pricing"
-              description="Set the public price and optional compare-at or cost values."
+              description="Set the selling price and optional comparison values."
             >
               <Box
                 sx={{
@@ -434,7 +763,7 @@ export default function ProductDetailPage() {
                   required
                 />
                 <JoyInput
-                  label="Compare at Price"
+                  label="Compare at"
                   type="number"
                   value={formData.compare_at_price?.toString() || ""}
                   onChange={(event) =>
@@ -447,7 +776,7 @@ export default function ProductDetailPage() {
                   slotProps={{ input: { min: 0, step: 0.01 } }}
                 />
                 <JoyInput
-                  label="Cost Price"
+                  label="Cost"
                   type="number"
                   value={formData.cost_price?.toString() || ""}
                   onChange={(event) =>
@@ -464,18 +793,18 @@ export default function ProductDetailPage() {
 
             <JoyFormSection
               title="Inventory"
-              description="Track on-hand quantities and alert thresholds."
+              description="Stock tracking and low-stock alerts."
             >
               <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={2}
+                direction="row"
                 justifyContent="space-between"
-                alignItems={{ xs: "flex-start", md: "center" }}
+                alignItems="center"
+                spacing={2}
               >
-                <Stack spacing={0.5}>
-                  <Typography level="title-sm">Track Inventory</Typography>
-                  <Typography level="body-sm" color="neutral">
-                    Keep stock counts current inside the tenant catalog.
+                <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                  <Typography level="title-sm">Track inventory</Typography>
+                  <Typography level="body-xs" color="neutral">
+                    Keep stock counts updated automatically.
                   </Typography>
                 </Stack>
                 <JoySwitch
@@ -486,43 +815,53 @@ export default function ProductDetailPage() {
                 />
               </Stack>
 
-              {formData.track_inventory ? (
+              {shouldRenderInventoryFields ? (
                 <Box
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "minmax(0, 1fr)",
-                      md: "repeat(2, minmax(0, 1fr))",
-                    },
-                    gap: 2,
+                    overflow: "hidden",
+                    maxHeight: formData.track_inventory ? 160 : 0,
+                    opacity: formData.track_inventory ? 1 : 0,
+                    transition: "max-height 200ms ease, opacity 200ms ease",
                   }}
                 >
-                  <JoyInput
-                    label="Quantity in Stock"
-                    type="number"
-                    value={String(formData.inventory_count)}
-                    onChange={(event) =>
-                      setFormData({
-                        ...formData,
-                        inventory_count:
-                          Number.parseInt(event.target.value, 10) || 0,
-                      })
-                    }
-                    slotProps={{ input: { min: 0 } }}
-                  />
-                  <JoyInput
-                    label="Low Stock Alert"
-                    type="number"
-                    value={String(formData.low_stock_threshold)}
-                    onChange={(event) =>
-                      setFormData({
-                        ...formData,
-                        low_stock_threshold:
-                          Number.parseInt(event.target.value, 10) || 0,
-                      })
-                    }
-                    slotProps={{ input: { min: 0 } }}
-                  />
+                  <Box
+                    sx={{
+                      pt: 0.5,
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "minmax(0, 1fr)",
+                        md: "repeat(2, minmax(0, 1fr))",
+                      },
+                      gap: 2,
+                    }}
+                  >
+                    <JoyInput
+                      label="Quantity in stock"
+                      type="number"
+                      value={String(formData.inventory_count)}
+                      onChange={(event) =>
+                        setFormData({
+                          ...formData,
+                          inventory_count:
+                            Number.parseInt(event.target.value, 10) || 0,
+                        })
+                      }
+                      slotProps={{ input: { min: 0 } }}
+                    />
+                    <JoyInput
+                      label="Low stock threshold"
+                      type="number"
+                      value={String(formData.low_stock_threshold)}
+                      onChange={(event) =>
+                        setFormData({
+                          ...formData,
+                          low_stock_threshold:
+                            Number.parseInt(event.target.value, 10) || 0,
+                        })
+                      }
+                      slotProps={{ input: { min: 0 } }}
+                    />
+                  </Box>
                 </Box>
               ) : null}
             </JoyFormSection>
@@ -530,81 +869,109 @@ export default function ProductDetailPage() {
             {!isNew ? (
               <JoyFormSection
                 title="Variations"
-                description="Add size, color, or other sellable variants for this product."
+                description="Size, color, or other sellable variants."
                 headerActions={
                   <JoyButton
                     size="sm"
-                    bloomVariant="outline"
+                    bloomVariant="ghost"
                     onClick={() => setShowVariationDialog(true)}
-                    startDecorator={<Plus />}
+                    startDecorator={<Plus size={14} />}
                   >
-                    Add Variation
+                    Add
                   </JoyButton>
                 }
               >
                 {product?.variations?.length ? (
-                  <Stack spacing={1.25}>
+                  <Stack spacing={1}>
                     {product.variations.map((variation) => (
                       <Sheet
                         key={variation.id}
                         variant="outlined"
                         sx={{
-                          p: 1.75,
-                          borderRadius: "16px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: 2,
-                          flexWrap: "wrap",
+                          borderRadius: "var(--joy-radius-lg)",
+                          borderColor: "neutral.200",
+                          p: 2,
                         }}
                       >
                         <Stack
                           direction="row"
-                          spacing={1.25}
+                          justifyContent="space-between"
                           alignItems="center"
+                          spacing={2}
                         >
-                          <GripVertical className="h-4 w-4 text-slate-400" />
-                          <Stack spacing={0.35}>
-                            <Typography level="title-sm">
+                          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                color: "neutral.800",
+                                lineHeight: 1.35,
+                              }}
+                            >
                               {variation.name}
                             </Typography>
-                            <Typography level="body-xs" color="neutral">
-                              {variation.sku
-                                ? `SKU ${variation.sku}`
-                                : "No SKU override"}
+                            <Typography
+                              sx={{
+                                fontSize: "12px",
+                                color: "neutral.400",
+                              }}
+                            >
+                              {variation.sku || "No SKU"}
                             </Typography>
                           </Stack>
-                        </Stack>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          useFlexGap
-                          flexWrap="wrap"
-                        >
-                          {variation.price ? (
-                            <JoyChip color="primary" variant="soft">
-                              ${variation.price.toFixed(2)}
-                            </JoyChip>
-                          ) : null}
-                          <JoyChip color="neutral" variant="soft">
-                            {variation.inventory_count} in stock
-                          </JoyChip>
-                          <JoyButton
-                            bloomVariant="ghost"
-                            size="icon"
-                            onClick={() => deleteVariation.mutate(variation.id)}
-                            aria-label={`Delete ${variation.name}`}
+
+                          <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                            useFlexGap
+                            flexWrap="wrap"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </JoyButton>
+                            {variation.price != null ? (
+                              <JoyChip variant="soft" color="neutral" size="sm">
+                                {formatCurrency(
+                                  variation.price,
+                                  formData.currency,
+                                )}
+                              </JoyChip>
+                            ) : null}
+                            <JoyChip variant="soft" color="neutral" size="sm">
+                              {variation.inventory_count} in stock
+                            </JoyChip>
+                            <JoyButton
+                              bloomVariant="ghost"
+                              size="icon"
+                              color="neutral"
+                              onClick={() =>
+                                deleteVariation.mutate(variation.id)
+                              }
+                              aria-label={`Delete ${variation.name}`}
+                              sx={{
+                                color: "neutral.400",
+                                "&:hover": {
+                                  color: "danger.600",
+                                  backgroundColor:
+                                    "rgba(var(--joy-palette-danger-mainChannel) / 0.08)",
+                                },
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </JoyButton>
+                          </Stack>
                         </Stack>
                       </Sheet>
                     ))}
                   </Stack>
                 ) : (
-                  <Typography level="body-sm" color="neutral">
-                    No variations yet. Add variations like size or color.
+                  <Typography
+                    sx={{
+                      fontSize: "13px",
+                      color: "neutral.400",
+                      textAlign: "center",
+                      py: 3,
+                    }}
+                  >
+                    No variations yet.
                   </Typography>
                 )}
               </JoyFormSection>
@@ -614,10 +981,10 @@ export default function ProductDetailPage() {
           <Stack spacing={3}>
             <JoyFormSection
               title="Status"
-              description="Control publish state and storefront visibility."
+              description="Publish state and storefront visibility."
             >
               <JoySelect
-                label="Product Status"
+                label="Status"
                 value={formData.status}
                 onValueChange={(value) =>
                   setFormData({
@@ -628,16 +995,17 @@ export default function ProductDetailPage() {
                 options={STATUS_OPTIONS}
               />
               <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={2}
+                direction="row"
                 justifyContent="space-between"
-                alignItems={{ xs: "flex-start", md: "center" }}
+                alignItems="center"
+                spacing={2}
               >
-                <Stack spacing={0.5}>
-                  <Typography level="title-sm">Visible on Store</Typography>
-                  <Typography level="body-sm" color="neutral">
-                    Toggle whether this product appears in the published
-                    storefront.
+                <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                  <Typography level="title-sm">
+                    Storefront visibility
+                  </Typography>
+                  <Typography level="body-xs" color="neutral">
+                    Show this product in your store.
                   </Typography>
                 </Stack>
                 <JoySwitch
@@ -652,15 +1020,15 @@ export default function ProductDetailPage() {
             {!isNew ? (
               <JoyFormSection
                 title="Images"
-                description="Upload and manage primary product imagery."
+                description="Product photography and media."
                 headerActions={
                   <>
                     <JoyButton
                       size="sm"
-                      bloomVariant="outline"
+                      bloomVariant="ghost"
                       onClick={() => fileInputRef.current?.click()}
                       loading={isUploadingImage}
-                      startDecorator={<Upload />}
+                      startDecorator={<Upload size={14} />}
                     >
                       Upload
                     </JoyButton>
@@ -689,9 +1057,14 @@ export default function ProductDetailPage() {
                         sx={{
                           position: "relative",
                           aspectRatio: "1 / 1",
-                          borderRadius: "18px",
+                          borderRadius: "var(--joy-radius-lg)",
+                          borderColor: "neutral.200",
                           overflow: "hidden",
-                          backgroundColor: "neutral.100",
+                          backgroundColor: "neutral.50",
+                          "&:hover .product-image-overlay": {
+                            opacity: 1,
+                            pointerEvents: "auto",
+                          },
                         }}
                       >
                         {image.image_url ? (
@@ -712,48 +1085,84 @@ export default function ProductDetailPage() {
                               height: "100%",
                               display: "grid",
                               placeItems: "center",
+                              color: "neutral.300",
                             }}
                           >
-                            <ImageIcon className="h-6 w-6 text-slate-400" />
+                            <ImageIcon size={20} />
                           </Box>
                         )}
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          sx={{ position: "absolute", top: 10, right: 10 }}
+
+                        <Box
+                          className="product-image-overlay"
+                          sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            p: 1,
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 0.75,
+                            background:
+                              "linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 0%, transparent 60%)",
+                            opacity: 0,
+                            pointerEvents: "none",
+                            transition: "opacity 160ms ease",
+                          }}
                         >
-                          <JoyButton
-                            size="icon"
-                            bloomVariant="ghost"
-                            color="neutral"
+                          <IconButton
+                            size="sm"
+                            variant="plain"
                             onClick={() => setPrimaryImage.mutate(image.id)}
                             aria-label="Mark as primary"
+                            sx={{
+                              color: image.is_primary
+                                ? "#facc15"
+                                : "common.white",
+                              backgroundColor: "rgba(0, 0, 0, 0.24)",
+                              pointerEvents: "auto",
+                              "&:hover": {
+                                backgroundColor: "rgba(0, 0, 0, 0.36)",
+                              },
+                            }}
                           >
                             <Star
-                              className="h-4 w-4"
+                              size={15}
                               style={{
                                 fill: image.is_primary
                                   ? "#facc15"
                                   : "transparent",
-                                color: image.is_primary ? "#facc15" : undefined,
                               }}
                             />
-                          </JoyButton>
-                          <JoyButton
-                            size="icon"
-                            bloomVariant="destructive"
+                          </IconButton>
+                          <IconButton
+                            size="sm"
+                            variant="plain"
                             onClick={() => deleteImage.mutate(image.id)}
                             aria-label="Delete image"
+                            sx={{
+                              color: "common.white",
+                              backgroundColor: "rgba(0, 0, 0, 0.24)",
+                              pointerEvents: "auto",
+                              "&:hover": {
+                                backgroundColor: "rgba(0, 0, 0, 0.36)",
+                              },
+                            }}
                           >
-                            <X className="h-4 w-4" />
-                          </JoyButton>
-                        </Stack>
+                            <X size={15} />
+                          </IconButton>
+                        </Box>
+
                         {image.is_primary ? (
                           <JoyChip
-                            color="warning"
                             variant="solid"
+                            color="neutral"
                             size="sm"
-                            sx={{ position: "absolute", left: 10, bottom: 10 }}
+                            sx={{
+                              position: "absolute",
+                              left: 8,
+                              bottom: 8,
+                            }}
                           >
                             Primary
                           </JoyChip>
@@ -764,19 +1173,40 @@ export default function ProductDetailPage() {
                 ) : (
                   <Sheet
                     variant="outlined"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
                     sx={{
-                      minHeight: 220,
-                      borderRadius: "18px",
+                      minHeight: 180,
                       borderStyle: "dashed",
+                      borderColor: "neutral.200",
+                      borderRadius: "var(--joy-radius-lg)",
                       display: "grid",
                       placeItems: "center",
+                      cursor: "pointer",
                       textAlign: "center",
-                      color: "neutral.500",
+                      color: "neutral.400",
+                      transition:
+                        "border-color 150ms ease, background-color 150ms ease, color 150ms ease",
+                      "&:hover": {
+                        borderColor: "neutral.300",
+                        backgroundColor: "neutral.50",
+                      },
                     }}
                   >
                     <Stack spacing={1} alignItems="center">
-                      <ImageIcon className="h-8 w-8" />
-                      <Typography level="body-sm">No images yet</Typography>
+                      <Upload size={28} color="currentColor" />
+                      <Typography
+                        sx={{ fontSize: "13px", color: "neutral.400" }}
+                      >
+                        Drop images or click Upload
+                      </Typography>
                     </Stack>
                   </Sheet>
                 )}
@@ -785,7 +1215,7 @@ export default function ProductDetailPage() {
 
             <JoyFormSection
               title="Organization"
-              description="Keep catalog categories and merchandising buckets consistent."
+              description="Catalog categories for merchandising."
             >
               <JoyInput
                 label="Category"
@@ -793,7 +1223,7 @@ export default function ProductDetailPage() {
                 onChange={(event) =>
                   setFormData({ ...formData, category: event.target.value })
                 }
-                placeholder="e.g., Plants, Tools"
+                placeholder="e.g. Plants"
               />
               <JoyInput
                 label="Subcategory"
@@ -801,7 +1231,7 @@ export default function ProductDetailPage() {
                 onChange={(event) =>
                   setFormData({ ...formData, subcategory: event.target.value })
                 }
-                placeholder="e.g., Indoor, Outdoor"
+                placeholder="e.g. Indoor"
               />
             </JoyFormSection>
           </Stack>
@@ -823,51 +1253,40 @@ export default function ProductDetailPage() {
       <JoyDialog
         open={showVariationDialog}
         onClose={() => setShowVariationDialog(false)}
-        title="Add Variation"
-        description="Create a variant with its own SKU or price override."
+        title="Add variation"
+        description="Create a variant with optional SKU and price override."
       >
         <JoyDialogContent>
           <Stack spacing={2}>
             <JoyInput
-              label="Variation Name"
+              label="Name"
               value={newVariation.name}
               onChange={(event) =>
                 setNewVariation({ ...newVariation, name: event.target.value })
               }
-              placeholder="e.g., Large, Red"
+              placeholder="e.g. Large"
             />
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  md: "repeat(2, minmax(0, 1fr))",
-                },
-                gap: 2,
-              }}
-            >
-              <JoyInput
-                label="SKU"
-                value={newVariation.sku}
-                onChange={(event) =>
-                  setNewVariation({ ...newVariation, sku: event.target.value })
-                }
-                placeholder="Optional"
-              />
-              <JoyInput
-                label="Price Override"
-                type="number"
-                value={newVariation.price ? String(newVariation.price) : ""}
-                onChange={(event) =>
-                  setNewVariation({
-                    ...newVariation,
-                    price: Number.parseFloat(event.target.value) || 0,
-                  })
-                }
-                placeholder="Leave empty to use product price"
-                slotProps={{ input: { min: 0, step: 0.01 } }}
-              />
-            </Box>
+            <JoyInput
+              label="SKU"
+              value={newVariation.sku}
+              onChange={(event) =>
+                setNewVariation({ ...newVariation, sku: event.target.value })
+              }
+              placeholder="Optional"
+            />
+            <JoyInput
+              label="Price override"
+              type="number"
+              value={newVariation.price ? String(newVariation.price) : ""}
+              onChange={(event) =>
+                setNewVariation({
+                  ...newVariation,
+                  price: Number.parseFloat(event.target.value) || 0,
+                })
+              }
+              placeholder="Inherits product price"
+              slotProps={{ input: { min: 0, step: 0.01 } }}
+            />
           </Stack>
         </JoyDialogContent>
         <JoyDialogActions>
@@ -878,8 +1297,11 @@ export default function ProductDetailPage() {
           >
             Cancel
           </JoyButton>
-          <JoyButton onClick={handleAddVariation} disabled={!newVariation.name}>
-            Add Variation
+          <JoyButton
+            onClick={handleAddVariation}
+            disabled={!newVariation.name.trim()}
+          >
+            Add
           </JoyButton>
         </JoyDialogActions>
       </JoyDialog>

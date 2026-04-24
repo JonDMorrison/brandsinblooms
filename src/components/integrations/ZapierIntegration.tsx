@@ -1,3 +1,4 @@
+/** @deprecated — No longer route-connected. Superseded by the IntegrationDetailPage and detailPrimitives-based surfaces (INT-UI-006). */
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';

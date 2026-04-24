@@ -1,27 +1,31 @@
-import React, { useEffect, useState } from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import FormControl from "@mui/joy/FormControl";
+import FormHelperText from "@mui/joy/FormHelperText";
+import FormLabel from "@mui/joy/FormLabel";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Switch from "@mui/joy/Switch";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
 import {
   AlignLeft,
-  BellRing,
-  ChevronDown,
   Layout,
   Palette,
   RotateCcw,
-  Settings2,
+  Sparkles,
   Type,
-  X,
 } from "lucide-react";
-import { Button } from "@/components/ui-legacy/button";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui-legacy/collapsible";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
-import { RadioGroup, RadioGroupItem } from "@/components/ui-legacy/radio-group";
-import { Switch } from "@/components/ui-legacy/switch";
-import { Textarea } from "@/components/ui-legacy/textarea";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySelect } from "@/components/joy/JoySelect";
 import { useBrandColors } from "@/hooks/useBrandColors";
 import {
   FORM_BORDER_RADIUS_OPTIONS,
@@ -33,109 +37,238 @@ import {
   isValidHexColor,
   normalizeFormSettings,
 } from "@/lib/forms/designSettings";
-import { cn } from "@/lib/utils";
 import {
+  DEFAULT_FORM_COMPLIANCE,
   DEFAULT_FORM_SETTINGS,
-  FormButtonStyle,
-  FormInputStyle,
-  FormSettings,
+  type FormCompliance,
+  type FormField,
+  type FormSettings,
 } from "@/types/formBuilder";
+import { FormPreviewRenderer } from "./preview/FormPreviewRenderer";
 
 interface FormDesignTabProps {
   settings: FormSettings;
   onSettingsChange: (settings: FormSettings) => void;
+  fields?: FormField[];
+  compliance?: FormCompliance;
+  formName?: string;
+  uploadEmbedKey?: string;
 }
 
-type SectionKey =
-  | "header"
-  | "colors"
-  | "typography"
-  | "layout"
-  | "behavior"
-  | "notifications";
+const LABEL_POSITION_OPTIONS = [
+  { value: "top", label: "Labels above fields" },
+  { value: "left", label: "Labels beside fields" },
+] as const;
 
-const SECTION_DEFAULTS: Record<SectionKey, boolean> = {
-  header: true,
-  colors: true,
-  typography: true,
-  layout: true,
-  behavior: true,
-  notifications: true,
-};
+const COLUMN_OPTIONS = [
+  { value: "1", label: "Single column" },
+  { value: "2", label: "Two columns" },
+] as const;
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function OptionCardGroup({
+  label,
+  helperText,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  helperText: string;
+  value: string;
+  options: Array<{ value: string; label: string; description?: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <FormControl>
+      <FormLabel>{label}</FormLabel>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+          },
+          gap: 1,
+        }}
+      >
+        {options.map((option) => {
+          const selected = option.value === value;
+
+          return (
+            <Sheet
+              key={option.value}
+              variant={selected ? "soft" : "plain"}
+              color={selected ? "primary" : "neutral"}
+              onClick={() => onChange(option.value)}
+              sx={{
+                borderRadius: "lg",
+                border: "1px solid",
+                borderColor: selected ? "primary.300" : "neutral.200",
+                px: 2,
+                py: 1.5,
+                cursor: "pointer",
+                transition:
+                  "border-color 160ms ease, background-color 160ms ease",
+                "&:hover": {
+                  borderColor: selected ? "primary.400" : "neutral.300",
+                },
+              }}
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                  {option.label}
+                </Typography>
+                {option.description ? (
+                  <Typography level="body-xs" color="neutral">
+                    {option.description}
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Sheet>
+          );
+        })}
+      </Box>
+      <FormHelperText>{helperText}</FormHelperText>
+    </FormControl>
+  );
+}
+
+function ColorField({
+  label,
+  helperText,
+  value,
+  onChange,
+}: {
+  label: string;
+  helperText: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <FormControl>
+      <FormLabel>{label}</FormLabel>
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            borderRadius: "lg",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            backgroundColor: value,
+            overflow: "hidden",
+            position: "relative",
+            flexShrink: 0,
+          }}
+        >
+          <Box
+            component="input"
+            type="color"
+            value={isValidHexColor(value) ? value : "#000000"}
+            onChange={(event) => onChange(event.target.value)}
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              opacity: 0,
+              cursor: "pointer",
+            }}
+          />
+        </Box>
+        <JoyInput
+          value={value}
+          onValueChange={onChange}
+          placeholder="#22C55E"
+          helperText={helperText}
+        />
+      </Stack>
+    </FormControl>
+  );
+}
 
 export function FormDesignTab({
   settings,
   onSettingsChange,
+  fields = [],
+  compliance = DEFAULT_FORM_COMPLIANCE,
+  formName,
+  uploadEmbedKey,
 }: FormDesignTabProps) {
-  const normalizedSettings = normalizeFormSettings(settings);
+  const normalizedSettings = React.useMemo(
+    () => normalizeFormSettings(settings),
+    [settings],
+  );
   const { data: brandColors } = useBrandColors();
-  const [openSections, setOpenSections] =
-    useState<Record<SectionKey, boolean>>(SECTION_DEFAULTS);
-  const [pendingEmail, setPendingEmail] = useState("");
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [submitButtonTextDraft, setSubmitButtonTextDraft] = useState(
+  const [submitButtonTextDraft, setSubmitButtonTextDraft] = React.useState(
     normalizedSettings.submit_button_text,
   );
-  const [successMessageDraft, setSuccessMessageDraft] = useState(
+  const [successMessageDraft, setSuccessMessageDraft] = React.useState(
     normalizedSettings.success_message,
   );
-  const [successRedirectUrlDraft, setSuccessRedirectUrlDraft] = useState(
+  const [successRedirectUrlDraft, setSuccessRedirectUrlDraft] = React.useState(
     normalizedSettings.success_redirect_url ?? "",
   );
-  const [isSubmitButtonFocused, setIsSubmitButtonFocused] = useState(false);
-  const [isSuccessMessageFocused, setIsSuccessMessageFocused] = useState(false);
-  const [isSuccessRedirectFocused, setIsSuccessRedirectFocused] = useState(false);
+  const [isSubmitButtonFocused, setIsSubmitButtonFocused] =
+    React.useState(false);
+  const [isSuccessMessageFocused, setIsSuccessMessageFocused] =
+    React.useState(false);
+  const [isSuccessRedirectFocused, setIsSuccessRedirectFocused] =
+    React.useState(false);
 
-  const updateSettings = (updates: Partial<FormSettings>) => {
-    onSettingsChange(
-      normalizeFormSettings({
-        ...normalizedSettings,
-        ...updates,
-      }),
-    );
-  };
-
-  const updateRawSettings = (updates: Partial<FormSettings>) => {
-    onSettingsChange({
-      ...settings,
-      ...updates,
-    });
-  };
-
-  const updateTheme = (updates: Partial<FormSettings["theme"]>) => {
-    updateSettings({
-      theme: {
-        ...normalizedSettings.theme,
-        ...updates,
-      },
-    });
-  };
-
-  const toggleSection = (key: SectionKey, open: boolean) => {
-    setOpenSections((current) => ({ ...current, [key]: open }));
-  };
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isSubmitButtonFocused) {
       setSubmitButtonTextDraft(normalizedSettings.submit_button_text);
     }
   }, [isSubmitButtonFocused, normalizedSettings.submit_button_text]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isSuccessMessageFocused) {
       setSuccessMessageDraft(normalizedSettings.success_message);
     }
   }, [isSuccessMessageFocused, normalizedSettings.success_message]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isSuccessRedirectFocused) {
       setSuccessRedirectUrlDraft(normalizedSettings.success_redirect_url ?? "");
     }
   }, [isSuccessRedirectFocused, normalizedSettings.success_redirect_url]);
 
-  const handleResetBrandColors = () => {
+  const updateSettings = React.useCallback(
+    (updates: Partial<FormSettings>) => {
+      onSettingsChange(
+        normalizeFormSettings({
+          ...normalizedSettings,
+          ...updates,
+        }),
+      );
+    },
+    [normalizedSettings, onSettingsChange],
+  );
+
+  const updateRawSettings = React.useCallback(
+    (updates: Partial<FormSettings>) => {
+      onSettingsChange({
+        ...settings,
+        ...updates,
+      });
+    },
+    [onSettingsChange, settings],
+  );
+
+  const updateTheme = React.useCallback(
+    (updates: Partial<FormSettings["theme"]>) => {
+      updateSettings({
+        theme: {
+          ...normalizedSettings.theme,
+          ...updates,
+        },
+      });
+    },
+    [normalizedSettings.theme, updateSettings],
+  );
+
+  const handleResetBrandColors = React.useCallback(() => {
     updateTheme({
       primary_color:
         brandColors?.primary ?? DEFAULT_FORM_SETTINGS.theme.primary_color,
@@ -145,708 +278,453 @@ export function FormDesignTab({
       background_color:
         brandColors?.background ?? DEFAULT_FORM_SETTINGS.theme.background_color,
     });
-  };
-
-  const addNotificationEmail = () => {
-    const nextEmail = pendingEmail.trim().replace(/,+$/, "").toLowerCase();
-
-    if (!nextEmail) {
-      setEmailError(null);
-      return;
-    }
-
-    if (!EMAIL_REGEX.test(nextEmail)) {
-      setEmailError("Enter a valid email address before adding it.");
-      return;
-    }
-
-    if (normalizedSettings.notification_emails.includes(nextEmail)) {
-      setEmailError("That email is already in the notification list.");
-      return;
-    }
-
-    updateSettings({
-      notification_emails: [
-        ...normalizedSettings.notification_emails,
-        nextEmail,
-      ],
-    });
-    setPendingEmail("");
-    setEmailError(null);
-  };
-
-  const removeNotificationEmail = (email: string) => {
-    updateSettings({
-      notification_emails: normalizedSettings.notification_emails.filter(
-        (currentEmail) => currentEmail !== email,
-      ),
-    });
-  };
+  }, [brandColors, updateTheme]);
 
   return (
-    <div className="space-y-4">
-      <DesignSection
-        title="Header Content"
-        description="Control the hero copy and form introduction above the fields."
-        icon={AlignLeft}
-        open={openSections.header}
-        onOpenChange={(open) => toggleSection("header", open)}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="form_title">Form Title</Label>
-            <Input
-              id="form_title"
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: {
+          xs: "1fr",
+          xl: "minmax(0, 1.2fr) minmax(380px, 0.8fr)",
+        },
+        gap: 3,
+        alignItems: "start",
+      }}
+    >
+      <Stack spacing={3}>
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="neutral">
+                <AlignLeft size={18} />
+              </Avatar>
+            }
+            title="Header content"
+            description="Define the copy visitors see before they start filling in the form."
+          />
+          <JoyCardContent sx={{ pt: 3, gap: 2 }}>
+            <JoyInput
+              label="Form title"
               value={normalizedSettings.form_title ?? ""}
-              onChange={(event) =>
-                updateSettings({ form_title: event.target.value })
-              }
+              onValueChange={(form_title) => updateSettings({ form_title })}
               placeholder="Join our newsletter"
             />
-          </div>
-
-          <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="form_description">Form Description</Label>
-            <Textarea
-              id="form_description"
-              value={normalizedSettings.form_description ?? ""}
-              onChange={(event) =>
-                updateSettings({ form_description: event.target.value })
-              }
-              placeholder="Tell visitors what they get when they sign up."
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="form_headline">Form Headline</Label>
-            <Input
-              id="form_headline"
+            <FormControl>
+              <FormLabel>Form description</FormLabel>
+              <Textarea
+                minRows={3}
+                value={normalizedSettings.form_description ?? ""}
+                placeholder="Tell visitors what they get when they sign up."
+                onChange={(event) =>
+                  updateSettings({ form_description: event.target.value })
+                }
+                sx={{ borderRadius: "lg" }}
+              />
+            </FormControl>
+            <JoyInput
+              label="Headline"
               value={normalizedSettings.form_headline ?? ""}
-              onChange={(event) =>
-                updateSettings({ form_headline: event.target.value })
+              onValueChange={(form_headline) =>
+                updateSettings({ form_headline })
               }
               placeholder="Stay in the loop"
             />
-          </div>
-
-          <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="form_subheadline">Form Subheadline</Label>
-            <Input
-              id="form_subheadline"
+            <JoyInput
+              label="Subheadline"
               value={normalizedSettings.form_subheadline ?? ""}
-              onChange={(event) =>
-                updateSettings({ form_subheadline: event.target.value })
+              onValueChange={(form_subheadline) =>
+                updateSettings({ form_subheadline })
               }
               placeholder="Weekly updates, event reminders, and product launches."
             />
-          </div>
-        </div>
-      </DesignSection>
+          </JoyCardContent>
+        </JoyCard>
 
-      <DesignSection
-        title="Colors & Theme"
-        description="Set the palette used for buttons, text, accents, and the form surface."
-        icon={Palette}
-        open={openSections.colors}
-        onOpenChange={(open) => toggleSection("colors", open)}
-        action={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleResetBrandColors}
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="neutral">
+                <Palette size={18} />
+              </Avatar>
+            }
+            title="Colors and theme"
+            description="Control the palette used for buttons, accents, text, and the form surface."
+            actions={
+              <JoyButton
+                bloomVariant="ghost"
+                color="neutral"
+                startDecorator={<RotateCcw size={16} />}
+                onClick={handleResetBrandColors}
+              >
+                Reset to brand colors
+              </JoyButton>
+            }
+          />
+          <JoyCardContent
+            sx={{
+              pt: 3,
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 2,
+            }}
           >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Reset to Brand Colors
-          </Button>
-        }
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <ColorField
-            id="primary_color"
-            label="Primary Color"
-            value={
-              normalizedSettings.theme.primary_color ??
-              DEFAULT_FORM_SETTINGS.theme.primary_color ??
-              "#22C55E"
-            }
-            helperText="Buttons, focus rings, and active states."
-            onChange={(value) => updateTheme({ primary_color: value })}
-          />
-          <ColorField
-            id="secondary_color"
-            label="Secondary Color"
-            value={
-              normalizedSettings.theme.secondary_color ??
-              DEFAULT_FORM_SETTINGS.theme.secondary_color ??
-              "#1E40AF"
-            }
-            helperText="Accents and supportive emphasis."
-            onChange={(value) => updateTheme({ secondary_color: value })}
-          />
-          <ColorField
-            id="text_color"
-            label="Text Color"
-            value={
-              normalizedSettings.theme.text_color ??
-              DEFAULT_FORM_SETTINGS.theme.text_color ??
-              "#1F2937"
-            }
-            helperText="Labels, headings, descriptions, and body copy."
-            onChange={(value) => updateTheme({ text_color: value })}
-          />
-          <ColorField
-            id="background_color"
-            label="Background Color"
-            value={
-              normalizedSettings.theme.background_color ??
-              DEFAULT_FORM_SETTINGS.theme.background_color ??
-              "#FFFFFF"
-            }
-            helperText="The form container background."
-            onChange={(value) => updateTheme({ background_color: value })}
-          />
-        </div>
-      </DesignSection>
+            <ColorField
+              label="Primary"
+              helperText="Buttons, links, and focused states."
+              value={
+                normalizedSettings.theme.primary_color ??
+                DEFAULT_FORM_SETTINGS.theme.primary_color ??
+                "#22C55E"
+              }
+              onChange={(primary_color) => updateTheme({ primary_color })}
+            />
+            <ColorField
+              label="Secondary"
+              helperText="Secondary accents and supportive emphasis."
+              value={
+                normalizedSettings.theme.secondary_color ??
+                DEFAULT_FORM_SETTINGS.theme.secondary_color ??
+                "#1E40AF"
+              }
+              onChange={(secondary_color) => updateTheme({ secondary_color })}
+            />
+            <ColorField
+              label="Text"
+              helperText="Headings, labels, and body copy."
+              value={
+                normalizedSettings.theme.text_color ??
+                DEFAULT_FORM_SETTINGS.theme.text_color ??
+                "#1F2937"
+              }
+              onChange={(text_color) => updateTheme({ text_color })}
+            />
+            <ColorField
+              label="Surface"
+              helperText="The form container background color."
+              value={
+                normalizedSettings.theme.background_color ??
+                DEFAULT_FORM_SETTINGS.theme.background_color ??
+                "#FFFFFF"
+              }
+              onChange={(background_color) => updateTheme({ background_color })}
+            />
+          </JoyCardContent>
+        </JoyCard>
 
-      <DesignSection
-        title="Typography & Style"
-        description="Choose the font system, curvature, and input or button treatments."
-        icon={Type}
-        open={openSections.typography}
-        onOpenChange={(open) => toggleSection("typography", open)}
-      >
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="font_family">Font Family</Label>
-            <NativeSelect
-              label=""
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="neutral">
+                <Type size={18} />
+              </Avatar>
+            }
+            title="Typography and spacing"
+            description="Tune the typographic voice, curvature, and pacing of the form surface."
+          />
+          <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
+            <JoySelect
+              label="Font family"
               value={
                 normalizedSettings.theme.font_family ??
                 DEFAULT_FORM_SETTINGS.theme.font_family ??
                 "inter"
               }
-              onChange={(event) =>
-                updateTheme({
-                  font_family: event.target
-                    .value as FormSettings["theme"]["font_family"],
-                })
-              }
               options={FORM_FONT_FAMILY_OPTIONS.map((option) => ({
                 value: option.value,
                 label: option.label,
               }))}
-            />
-          </div>
-
-          <RadioCardGroup
-            title="Border Radius"
-            value={
-              normalizedSettings.theme.border_radius ??
-              DEFAULT_FORM_SETTINGS.theme.border_radius ??
-              "8px"
-            }
-            onValueChange={(value) =>
-              updateTheme({
-                border_radius: value as FormSettings["theme"]["border_radius"],
-              })
-            }
-            columns={5}
-            options={FORM_BORDER_RADIUS_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-          />
-
-          <RadioCardGroup
-            title="Button Style"
-            value={
-              normalizedSettings.theme.button_style ??
-              DEFAULT_FORM_SETTINGS.theme.button_style ??
-              "filled"
-            }
-            onValueChange={(value) =>
-              updateTheme({ button_style: value as FormButtonStyle })
-            }
-            columns={3}
-            options={FORM_BUTTON_STYLE_OPTIONS}
-          />
-
-          <RadioCardGroup
-            title="Input Style"
-            value={
-              normalizedSettings.theme.input_style ??
-              DEFAULT_FORM_SETTINGS.theme.input_style ??
-              "outlined"
-            }
-            onValueChange={(value) =>
-              updateTheme({ input_style: value as FormInputStyle })
-            }
-            columns={3}
-            options={FORM_INPUT_STYLE_OPTIONS}
-          />
-        </div>
-      </DesignSection>
-
-      <DesignSection
-        title="Layout"
-        description="Set the form width, field grid, and spacing density."
-        icon={Layout}
-        open={openSections.layout}
-        onOpenChange={(open) => toggleSection("layout", open)}
-      >
-        <div className="space-y-6">
-          <RadioCardGroup
-            title="Form Width"
-            value={
-              normalizedSettings.form_width ??
-              DEFAULT_FORM_SETTINGS.form_width ??
-              "medium"
-            }
-            onValueChange={(value) =>
-              updateSettings({
-                form_width: value as FormSettings["form_width"],
-              })
-            }
-            columns={4}
-            options={FORM_WIDTH_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label,
-              description: option.maxWidth,
-            }))}
-          />
-
-          <RadioCardGroup
-            title="Columns"
-            value={String(normalizedSettings.columns ?? 1)}
-            onValueChange={(value) =>
-              updateSettings({ columns: value === "2" ? 2 : 1 })
-            }
-            columns={2}
-            options={[
-              {
-                value: "1",
-                label: "1 Column",
-                description: "Stack fields in a single column",
-              },
-              {
-                value: "2",
-                label: "2 Columns",
-                description: "Use a two-column grid when space allows",
-              },
-            ]}
-          />
-
-          <RadioCardGroup
-            title="Spacing"
-            value={
-              normalizedSettings.theme.spacing ??
-              DEFAULT_FORM_SETTINGS.theme.spacing ??
-              "normal"
-            }
-            onValueChange={(value) =>
-              updateTheme({
-                spacing: value as FormSettings["theme"]["spacing"],
-              })
-            }
-            columns={3}
-            options={FORM_SPACING_OPTIONS.map((option) => ({
-              value: option.value,
-              label: option.label,
-              description: option.px,
-            }))}
-          />
-        </div>
-      </DesignSection>
-
-      <DesignSection
-        title="Behavior"
-        description="Control the submit action, confirmation message, redirect, and branding footer."
-        icon={Settings2}
-        open={openSections.behavior}
-        onOpenChange={(open) => toggleSection("behavior", open)}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="submit_button_text">Submit Button Text</Label>
-            <Input
-              id="submit_button_text"
-              value={submitButtonTextDraft}
-              onFocus={() => setIsSubmitButtonFocused(true)}
-              onChange={(event) => {
-                setSubmitButtonTextDraft(event.target.value);
-                updateRawSettings({ submit_button_text: event.target.value });
-              }}
-              onBlur={(event) => {
-                setIsSubmitButtonFocused(false);
-                const nextValue =
-                  event.target.value.trim() ||
-                  DEFAULT_FORM_SETTINGS.submit_button_text;
-                setSubmitButtonTextDraft(nextValue);
-                updateSettings({ submit_button_text: nextValue });
-              }}
-              placeholder="Submit"
-            />
-          </div>
-
-          <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="success_message">Success Message</Label>
-            <Textarea
-              id="success_message"
-              value={successMessageDraft}
-              onFocus={() => setIsSuccessMessageFocused(true)}
-              onChange={(event) => {
-                setSuccessMessageDraft(event.target.value);
-                updateRawSettings({ success_message: event.target.value });
-              }}
-              onBlur={(event) => {
-                setIsSuccessMessageFocused(false);
-                const nextValue =
-                  event.target.value.trim() ||
-                  DEFAULT_FORM_SETTINGS.success_message;
-                setSuccessMessageDraft(nextValue);
-                updateSettings({ success_message: nextValue });
-              }}
-              placeholder="Thank you for your submission!"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2 lg:col-span-2">
-            <Label htmlFor="success_redirect_url">Redirect URL</Label>
-            <Input
-              id="success_redirect_url"
-              value={successRedirectUrlDraft}
-              onFocus={() => setIsSuccessRedirectFocused(true)}
-              onChange={(event) => {
-                setSuccessRedirectUrlDraft(event.target.value);
-                updateRawSettings({ success_redirect_url: event.target.value });
-              }}
-              onBlur={(event) => {
-                setIsSuccessRedirectFocused(false);
-                const nextValue = event.target.value.trim();
-                setSuccessRedirectUrlDraft(nextValue);
-                updateSettings({
-                  success_redirect_url: nextValue || null,
-                });
-              }}
-              placeholder="https://example.com/thank-you"
-            />
-          </div>
-
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-muted/30 p-4 lg:col-span-2">
-            <div className="space-y-1">
-              <Label htmlFor="show_branding">Show Branding</Label>
-              <p className="text-sm text-muted-foreground">
-                Display a Powered by BloomSuite footer below the form.
-              </p>
-            </div>
-            <Switch
-              id="show_branding"
-              checked={normalizedSettings.show_branding}
-              onCheckedChange={(checked) =>
-                updateSettings({ show_branding: checked })
+              onValueChange={(font_family) =>
+                updateTheme({
+                  font_family:
+                    font_family as FormSettings["theme"]["font_family"],
+                })
               }
             />
-          </div>
-        </div>
-      </DesignSection>
+            <OptionCardGroup
+              label="Border radius"
+              helperText="Use tighter corners for a utilitarian feel or softer curves for a friendlier presentation."
+              value={
+                normalizedSettings.theme.border_radius ??
+                DEFAULT_FORM_SETTINGS.theme.border_radius ??
+                "8px"
+              }
+              options={FORM_BORDER_RADIUS_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onChange={(border_radius) =>
+                updateTheme({
+                  border_radius:
+                    border_radius as FormSettings["theme"]["border_radius"],
+                })
+              }
+            />
+            <OptionCardGroup
+              label="Spacing"
+              helperText="Controls vertical breathing room between blocks and fields."
+              value={
+                normalizedSettings.theme.spacing ??
+                DEFAULT_FORM_SETTINGS.theme.spacing ??
+                "normal"
+              }
+              options={FORM_SPACING_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                description: `${option.px}px rhythm`,
+              }))}
+              onChange={(spacing) =>
+                updateTheme({
+                  spacing: spacing as FormSettings["theme"]["spacing"],
+                })
+              }
+            />
+          </JoyCardContent>
+        </JoyCard>
 
-      <DesignSection
-        title="Notifications"
-        description="Store the recipients who should be notified when this form is submitted."
-        icon={BellRing}
-        open={openSections.notifications}
-        onOpenChange={(open) => toggleSection("notifications", open)}
-      >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="notification_emails">Notification Emails</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="notification_emails"
-                value={pendingEmail}
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="neutral">
+                <Layout size={18} />
+              </Avatar>
+            }
+            title="Layout and behavior"
+            description="Choose width, field density, button treatment, and success messaging."
+          />
+          <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
+            <OptionCardGroup
+              label="Form width"
+              helperText="Controls the overall reading measure for the public form."
+              value={
+                normalizedSettings.form_width ??
+                DEFAULT_FORM_SETTINGS.form_width ??
+                "medium"
+              }
+              options={FORM_WIDTH_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                description: option.description,
+              }))}
+              onChange={(form_width) =>
+                updateSettings({
+                  form_width: form_width as FormSettings["form_width"],
+                })
+              }
+            />
+
+            <OptionCardGroup
+              label="Button style"
+              helperText="Sets the visual weight of the primary submit action."
+              value={
+                normalizedSettings.theme.button_style ??
+                DEFAULT_FORM_SETTINGS.theme.button_style ??
+                "filled"
+              }
+              options={FORM_BUTTON_STYLE_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                description: option.description,
+              }))}
+              onChange={(button_style) =>
+                updateTheme({
+                  button_style:
+                    button_style as FormSettings["theme"]["button_style"],
+                })
+              }
+            />
+
+            <OptionCardGroup
+              label="Input style"
+              helperText="Controls field outlines and emphasis."
+              value={
+                normalizedSettings.theme.input_style ??
+                DEFAULT_FORM_SETTINGS.theme.input_style ??
+                "outlined"
+              }
+              options={FORM_INPUT_STYLE_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+                description: option.description,
+              }))}
+              onChange={(input_style) =>
+                updateTheme({
+                  input_style:
+                    input_style as FormSettings["theme"]["input_style"],
+                })
+              }
+            />
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(2, minmax(0, 1fr))",
+                },
+                gap: 2,
+              }}
+            >
+              <JoySelect
+                label="Label position"
+                value={normalizedSettings.label_position ?? "top"}
+                options={LABEL_POSITION_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+                onValueChange={(label_position) =>
+                  updateSettings({
+                    label_position:
+                      label_position as FormSettings["label_position"],
+                  })
+                }
+              />
+              <JoySelect
+                label="Columns"
+                value={String(normalizedSettings.columns ?? 1)}
+                options={COLUMN_OPTIONS.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+                onValueChange={(columns) =>
+                  updateSettings({
+                    columns: Number(columns) as FormSettings["columns"],
+                  })
+                }
+              />
+            </Box>
+
+            <JoyInput
+              label="Submit button label"
+              value={submitButtonTextDraft}
+              onFocus={() => setIsSubmitButtonFocused(true)}
+              onBlur={() => {
+                setIsSubmitButtonFocused(false);
+                updateSettings({ submit_button_text: submitButtonTextDraft });
+              }}
+              onValueChange={(submit_button_text) => {
+                setSubmitButtonTextDraft(submit_button_text);
+                updateRawSettings({ submit_button_text });
+              }}
+              placeholder="Subscribe"
+            />
+
+            <FormControl>
+              <FormLabel>Success message</FormLabel>
+              <Textarea
+                minRows={3}
+                value={successMessageDraft}
+                onFocus={() => setIsSuccessMessageFocused(true)}
+                onBlur={() => {
+                  setIsSuccessMessageFocused(false);
+                  updateSettings({ success_message: successMessageDraft });
+                }}
                 onChange={(event) => {
-                  setPendingEmail(event.target.value);
-                  if (emailError) {
-                    setEmailError(null);
-                  }
+                  const nextValue = event.target.value;
+                  setSuccessMessageDraft(nextValue);
+                  updateRawSettings({ success_message: nextValue });
                 }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === ",") {
-                    event.preventDefault();
-                    addNotificationEmail();
-                  }
-                }}
-                placeholder="team@example.com"
+                placeholder="Thanks for joining. Check your inbox for the next update."
+                sx={{ borderRadius: "lg" }}
               />
-              <Button type="button" onClick={addNotificationEmail}>
-                Add Email
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              FB-008 handles notification routing. This milestone stores the
-              list only.
-            </p>
-            {emailError && (
-              <p className="text-sm text-destructive">{emailError}</p>
-            )}
-          </div>
+            </FormControl>
 
-          {normalizedSettings.notification_emails.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {normalizedSettings.notification_emails.map((email) => (
-                <span
-                  key={email}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-sm"
-                >
-                  {email}
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => removeNotificationEmail(email)}
-                    aria-label={`Remove ${email}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </DesignSection>
-    </div>
-  );
-}
+            <JoyInput
+              label="Success redirect URL"
+              value={successRedirectUrlDraft}
+              onFocus={() => setIsSuccessRedirectFocused(true)}
+              onBlur={() => {
+                setIsSuccessRedirectFocused(false);
+                updateSettings({
+                  success_redirect_url: successRedirectUrlDraft || null,
+                });
+              }}
+              onValueChange={(success_redirect_url) => {
+                setSuccessRedirectUrlDraft(success_redirect_url);
+                updateRawSettings({ success_redirect_url });
+              }}
+              placeholder="https://example.com/thanks"
+              helperText="Optional. Leave blank to show the inline success state instead."
+            />
 
-interface DesignSectionProps {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}
-
-function DesignSection({
-  title,
-  description,
-  icon: Icon,
-  open,
-  onOpenChange,
-  action,
-  children,
-}: DesignSectionProps) {
-  return (
-    <Collapsible open={open} onOpenChange={onOpenChange}>
-      <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 px-4 py-4 sm:px-5">
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 2,
+                border: "1px solid",
+                borderColor: "neutral.200",
+                borderRadius: "lg",
+                p: 2,
+              }}
             >
-              <div className="rounded-xl bg-primary/10 p-2 text-primary">
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-base font-semibold text-foreground">
-                  {title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{description}</p>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                  open && "rotate-180",
-                )}
+              <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                  Show BloomSuite branding
+                </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Controls whether the public runtime shows the brand footer
+                  treatment.
+                </Typography>
+              </Stack>
+              <Switch
+                checked={normalizedSettings.show_branding}
+                onChange={(event) =>
+                  updateSettings({ show_branding: event.target.checked })
+                }
               />
-            </button>
-          </CollapsibleTrigger>
+            </Box>
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
 
-          {action && <div className="shrink-0">{action}</div>}
-        </div>
-
-        <CollapsibleContent>
-          <div className="px-4 py-4 sm:px-5">{children}</div>
-        </CollapsibleContent>
-      </section>
-    </Collapsible>
-  );
-}
-
-interface ColorFieldProps {
-  id: string;
-  label: string;
-  value: string;
-  helperText?: string;
-  onChange: (value: string) => void;
-}
-
-function ColorField({
-  id,
-  label,
-  value,
-  helperText,
-  onChange,
-}: ColorFieldProps) {
-  const [draft, setDraft] = useState(value);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDraft(value);
-    setError(null);
-  }, [value]);
-
-  const normalizedDraft = normalizeHexDraft(draft);
-  const previewColor = isValidHexColor(normalizedDraft)
-    ? normalizedDraft
-    : value;
-
-  const commitDraft = () => {
-    if (!draft.trim()) {
-      setDraft(value);
-      setError(null);
-      return;
-    }
-
-    if (!isValidHexColor(normalizedDraft)) {
-      setError("Use a valid hex color like #22C55E.");
-      return;
-    }
-
-    const nextValue = normalizedDraft.toUpperCase();
-    setDraft(nextValue);
-    setError(null);
-    onChange(nextValue);
-  };
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex items-center gap-3">
-        <span
-          className="h-10 w-10 shrink-0 rounded-xl border border-border shadow-inner"
-          style={{ backgroundColor: previewColor }}
-          aria-hidden="true"
-        />
-        <Input
-          id={id}
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            if (error) {
-              setError(null);
+      <Stack spacing={2} sx={{ position: { xl: "sticky" }, top: { xl: 24 } }}>
+        <JoyCard>
+          <JoyCardHeader
+            startDecorator={
+              <Avatar size="sm" variant="soft" color="primary">
+                <Sparkles size={18} />
+              </Avatar>
             }
-          }}
-          onBlur={commitDraft}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              commitDraft();
+            title="Live preview"
+            description={`The public runtime updates as you tune the design${formName ? ` for ${formName}` : ""}.`}
+            actions={
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <JoyChip size="sm" variant="soft" color="neutral">
+                  {normalizedSettings.form_width}
+                </JoyChip>
+                <JoyChip size="sm" variant="soft" color="neutral">
+                  {normalizedSettings.theme.button_style}
+                </JoyChip>
+              </Stack>
             }
-          }}
-          placeholder="#22C55E"
-        />
-        <Input
-          type="color"
-          value={previewColor}
-          onChange={(event) => {
-            const nextValue = event.target.value.toUpperCase();
-            setDraft(nextValue);
-            setError(null);
-            onChange(nextValue);
-          }}
-          className="h-10 w-14 shrink-0 cursor-pointer p-1"
-        />
-      </div>
-      {helperText && !error && (
-        <p className="text-sm text-muted-foreground">{helperText}</p>
-      )}
-      {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-interface RadioCardGroupProps {
-  title: string;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: Array<{
-    value: string;
-    label: string;
-    description?: string;
-  }>;
-  columns: 2 | 3 | 4 | 5;
-}
-
-function RadioCardGroup({
-  title,
-  value,
-  onValueChange,
-  options,
-  columns,
-}: RadioCardGroupProps) {
-  return (
-    <div className="space-y-3">
-      <Label>{title}</Label>
-      <RadioGroup
-        value={value}
-        onValueChange={onValueChange}
-        className={cn(
-          "grid gap-2",
-          columns === 2 && "sm:grid-cols-2",
-          columns === 3 && "sm:grid-cols-3",
-          columns === 4 && "sm:grid-cols-2 xl:grid-cols-4",
-          columns === 5 && "sm:grid-cols-2 xl:grid-cols-5",
-        )}
-      >
-        {options.map((option) => {
-          const optionId = `${title.replace(/\s+/g, "-").toLowerCase()}-${option.value}`;
-          const selected = value === option.value;
-
-          return (
-            <label
-              key={option.value}
-              htmlFor={optionId}
-              className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 transition-colors",
-                selected
-                  ? "border-primary bg-primary/5"
-                  : "border-border bg-background hover:border-primary/30 hover:bg-primary/5",
-              )}
+          />
+          <JoyCardContent sx={{ pt: 3, gap: 2 }}>
+            <Sheet
+              variant="plain"
+              sx={{
+                borderRadius: "xl",
+                p: { xs: 1.5, md: 2 },
+                background:
+                  "linear-gradient(180deg, rgba(15, 23, 42, 0.04) 0%, rgba(34, 197, 94, 0.06) 100%)",
+                maxHeight: { xl: "calc(100vh - 180px)" },
+                overflow: "auto",
+              }}
             >
-              <RadioGroupItem
-                id={optionId}
-                value={option.value}
-                className="mt-0.5"
+              <FormPreviewRenderer
+                fields={fields}
+                settings={normalizedSettings}
+                compliance={compliance}
+                uploadEmbedKey={uploadEmbedKey}
               />
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-foreground">
-                  {option.label}
-                </div>
-                {option.description && (
-                  <p className="text-xs text-muted-foreground">
-                    {option.description}
-                  </p>
-                )}
-              </div>
-            </label>
-          );
-        })}
-      </RadioGroup>
-    </div>
+            </Sheet>
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
+    </Box>
   );
-}
-
-function normalizeHexDraft(value: string): string {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return "";
-  }
-
-  return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
 }

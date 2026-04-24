@@ -1,28 +1,10 @@
-import {
-  ChangeEvent,
-  KeyboardEvent,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import BugReportRounded from "@mui/icons-material/BugReportRounded";
-import CampaignRounded from "@mui/icons-material/CampaignRounded";
-import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
-import CloseRounded from "@mui/icons-material/CloseRounded";
-import LogoutRounded from "@mui/icons-material/LogoutRounded";
-import MenuRounded from "@mui/icons-material/MenuRounded";
-import NotificationsRounded from "@mui/icons-material/NotificationsRounded";
-import PersonRounded from "@mui/icons-material/PersonRounded";
-import SearchRounded from "@mui/icons-material/SearchRounded";
-import SettingsRounded from "@mui/icons-material/SettingsRounded";
-import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import Avatar from "@mui/joy/Avatar";
 import Badge from "@mui/joy/Badge";
 import Box from "@mui/joy/Box";
 import Dropdown from "@mui/joy/Dropdown";
 import IconButton from "@mui/joy/IconButton";
-import Input from "@mui/joy/Input";
 import ListItemDecorator from "@mui/joy/ListItemDecorator";
 import Menu from "@mui/joy/Menu";
 import MenuButton from "@mui/joy/MenuButton";
@@ -30,12 +12,27 @@ import MenuItem from "@mui/joy/MenuItem";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
+import {
+  Bell,
+  Bug,
+  CheckCircle2,
+  ChevronDown,
+  LogOut,
+  Megaphone,
+  Menu as MenuIcon,
+  Search,
+  Settings,
+  TriangleAlert,
+  UserCircle2,
+  X,
+} from "lucide-react";
+import { JoySearchInput } from "@/components/joy/JoySearchInput";
 import { ReportProblemDialog } from "@/components/reportProblem/ReportProblemDialog";
 import { useDashboardShell } from "@/components/layout/DashboardShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutCompletely } from "@/integrations/supabase/client";
 
-export const DASHBOARD_TOPBAR_HEIGHT = 64;
+export const DASHBOARD_TOPBAR_HEIGHT = 56;
 
 const notificationItems = [
   {
@@ -43,61 +40,76 @@ const notificationItems = [
     title: "Newsletter ready to review",
     description: "Your April campaign draft finished processing.",
     timestamp: "2m ago",
-    icon: CampaignRounded,
+    icon: Megaphone,
   },
   {
     id: "analytics-sync",
     title: "Analytics sync completed",
     description: "Yesterday's store metrics are now available.",
     timestamp: "18m ago",
-    icon: CheckCircleRounded,
+    icon: CheckCircle2,
   },
   {
     id: "problem-reply",
     title: "Problem report updated",
     description: "Support replied to your most recent ticket.",
     timestamp: "1h ago",
-    icon: WarningAmberRounded,
+    icon: TriangleAlert,
   },
 ] as const;
 
+const focusRingSx = {
+  outline: 0,
+  boxShadow: "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
+} as const;
+
 const iconButtonSx = {
-  borderRadius: "12px",
-  color: "var(--joy-palette-brandNavy-700)",
+  width: 32,
+  height: 32,
+  minWidth: 32,
+  minHeight: 32,
+  borderRadius: "999px",
+  color: "neutral.500",
   bgcolor: "transparent",
-  transition: "background-color 160ms ease, color 160ms ease",
+  transition:
+    "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 100ms ease",
   "&:hover": {
-    bgcolor: "var(--joy-palette-neutral-100)",
-    color: "var(--joy-palette-brandNavy-800)",
+    bgcolor: "neutral.100",
+    color: "neutral.700",
   },
-  "&:focus-visible": {
-    outline: "2px solid var(--joy-palette-primary-500)",
-    outlineOffset: 2,
+  "&:active": {
+    transform: "scale(0.98)",
   },
+  "&.Mui-focusVisible, &:focus-visible": focusRingSx,
 } as const;
 
 const menuSx = {
   mt: 1,
-  p: 0.75,
+  p: 0.5,
   gap: 0.5,
   borderRadius: "16px",
-  borderColor: "var(--joy-palette-neutral-200)",
+  borderColor: "neutral.200",
   boxShadow: "var(--joy-shadow-lg)",
-  bgcolor: "#FFFFFF",
+  bgcolor: "background.popup",
   zIndex: "var(--joy-zIndex-popup)",
   "--List-padding": "0px",
 } as const;
 
 const menuItemSx = {
-  minHeight: 44,
+  minHeight: 36,
   borderRadius: "12px",
   px: 1.25,
-  py: 1,
+  py: 0.75,
   gap: 1.25,
-  "&:focus-visible": {
-    outline: "2px solid var(--joy-palette-primary-500)",
-    outlineOffset: -2,
+  fontSize: "13px",
+  fontWeight: 500,
+  color: "neutral.700",
+  transition:
+    "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 100ms ease",
+  "&:hover": {
+    bgcolor: "neutral.100",
   },
+  "&.Mui-focusVisible, &:focus-visible": focusRingSx,
 } as const;
 
 const resolveUserDisplayName = (
@@ -138,6 +150,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
   const { isMobile, isMobileSidebarOpen, toggleSidebar } = useDashboardShell();
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
   const [isReportProblemOpen, setIsReportProblemOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -169,9 +182,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
     setIsMobileSearchOpen(false);
   }, [pathname]);
 
-  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextQuery = event.target.value;
-
+  const handleSearchChange = (nextQuery: string) => {
     setSearchQuery(nextQuery);
     onSearch?.(nextQuery);
   };
@@ -193,11 +204,12 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
   };
 
   const renderSearchInput = (fullWidth = false) => (
-    <Input
+    <JoySearchInput
+      appearance="topbar"
       value={searchQuery}
-      onChange={handleSearchChange}
+      onValueChange={handleSearchChange}
+      clearable={false}
       placeholder="Search something..."
-      startDecorator={<SearchRounded fontSize="small" />}
       size="sm"
       slotProps={{
         input: {
@@ -205,26 +217,31 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
           autoComplete: "off",
           autoFocus: isMobile && isMobileSearchOpen,
           onKeyDown: handleSearchKeyDown,
+          onFocus: () => {
+            if (!isMobile && !fullWidth) {
+              setIsDesktopSearchFocused(true);
+            }
+          },
+          onBlur: () => {
+            if (!isMobile && !fullWidth) {
+              setIsDesktopSearchFocused(false);
+            }
+          },
         },
       }}
       sx={{
-        width: fullWidth ? "100%" : isMobile ? "100%" : "19rem",
+        width: fullWidth
+          ? "100%"
+          : isMobile
+            ? "100%"
+            : isDesktopSearchFocused
+              ? "22.5rem"
+              : "17.5rem",
         minWidth: 0,
-        borderRadius: "14px",
-        bgcolor: "var(--joy-palette-neutral-100)",
-        borderColor: "var(--joy-palette-neutral-200)",
-        boxShadow: "none",
+        maxWidth: "100%",
+        transition: "width 200ms ease",
         "--Input-paddingInline": "14px",
         "--Input-gap": "10px",
-        "&:hover": {
-          bgcolor: "#FFFFFF",
-          borderColor: "var(--joy-palette-neutral-300)",
-        },
-        "&:focus-within": {
-          bgcolor: "#FFFFFF",
-          borderColor: "var(--joy-palette-primary-500)",
-          boxShadow: "0 0 0 3px rgba(104, 190, 185, 0.18)",
-        },
       }}
     />
   );
@@ -241,7 +258,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
           minWidth: 0,
           height: `${DASHBOARD_TOPBAR_HEIGHT}px`,
           borderBottom: "1px solid var(--joy-palette-neutral-200)",
-          backgroundColor: "#FFFFFF",
+          backgroundColor: "background.surface",
           zIndex: "var(--joy-zIndex-header)",
         }}
       >
@@ -254,8 +271,8 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
               sx={{
                 position: "absolute",
                 inset: 0,
-                px: 2,
-                backgroundColor: "#FFFFFF",
+                px: 4,
+                backgroundColor: "background.surface",
                 zIndex: 2,
               }}
             >
@@ -268,7 +285,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                 onClick={() => setIsMobileSearchOpen(false)}
                 sx={iconButtonSx}
               >
-                <CloseRounded fontSize="small" />
+                <X size={18} strokeWidth={2} />
               </IconButton>
             </Stack>
           )}
@@ -282,7 +299,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
               alignItems: "center",
               gap: 2,
               height: "100%",
-              px: isMobile ? 2 : 3,
+              px: isMobile ? 4 : 6,
             }}
           >
             <Stack
@@ -303,9 +320,9 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                   sx={iconButtonSx}
                 >
                   {isMobileSidebarOpen ? (
-                    <CloseRounded fontSize="small" />
+                    <X size={18} strokeWidth={2} />
                   ) : (
-                    <MenuRounded fontSize="small" />
+                    <MenuIcon size={18} strokeWidth={2} />
                   )}
                 </IconButton>
               )}
@@ -319,7 +336,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                   onClick={() => setIsMobileSearchOpen(true)}
                   sx={iconButtonSx}
                 >
-                  <SearchRounded fontSize="small" />
+                  <Search size={18} strokeWidth={1.9} />
                 </IconButton>
               ) : (
                 renderSearchInput()
@@ -332,8 +349,9 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                   level="title-md"
                   noWrap
                   sx={{
-                    color: "var(--joy-palette-brandNavy-800)",
-                    fontWeight: "lg",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "neutral.700",
                   }}
                 >
                   {pageTitle}
@@ -365,14 +383,27 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                     color="danger"
                     size="sm"
                     variant="solid"
+                    slotProps={{
+                      badge: {
+                        sx: {
+                          minWidth: 16,
+                          height: 16,
+                          px: 0.5,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          boxShadow:
+                            "0 0 0 2px var(--joy-palette-background-surface)",
+                        },
+                      },
+                    }}
                   >
-                    <NotificationsRounded fontSize="small" />
+                    <Bell size={20} strokeWidth={1.9} />
                   </Badge>
                 </MenuButton>
                 <Menu
                   placement="bottom-end"
                   size="sm"
-                  variant="outlined"
+                  variant="plain"
                   sx={{ ...menuSx, minWidth: 320 }}
                 >
                   <Typography
@@ -381,7 +412,8 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                       px: 1.25,
                       pt: 0.5,
                       pb: 1,
-                      color: "var(--joy-palette-brandNavy-800)",
+                      color: "neutral.800",
+                      fontWeight: 600,
                     }}
                   >
                     Notifications
@@ -396,18 +428,18 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                       >
                         <ListItemDecorator
                           sx={{
-                            minInlineSize: 30,
+                            minInlineSize: 24,
                             mt: 0.125,
-                            color: "var(--joy-palette-brandNavy-600)",
+                            color: "neutral.500",
                           }}
                         >
-                          <Icon fontSize="small" />
+                          <Icon size={18} strokeWidth={1.9} />
                         </ListItemDecorator>
                         <Stack spacing={0.25} sx={{ minWidth: 0 }}>
                           <Typography
                             level="body-sm"
                             sx={{
-                              color: "var(--joy-palette-brandNavy-800)",
+                              color: "neutral.800",
                               fontWeight: 600,
                             }}
                           >
@@ -415,13 +447,13 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                           </Typography>
                           <Typography
                             level="body-xs"
-                            sx={{ color: "var(--joy-palette-neutral-700)" }}
+                            sx={{ color: "neutral.600" }}
                           >
                             {item.description}
                           </Typography>
                           <Typography
                             level="body-xs"
-                            sx={{ color: "var(--joy-palette-neutral-500)" }}
+                            sx={{ color: "neutral.500" }}
                           >
                             {item.timestamp}
                           </Typography>
@@ -439,20 +471,21 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                   size="sm"
                   variant="plain"
                   sx={{
-                    minHeight: 44,
+                    minHeight: 32,
                     px: isMobile ? 0.5 : 1,
                     borderRadius: "999px",
                     bgcolor: "transparent",
-                    gap: 1,
-                    color: "var(--joy-palette-brandNavy-800)",
-                    transition: "background-color 160ms ease, color 160ms ease",
+                    gap: 0.75,
+                    color: "neutral.700",
+                    transition:
+                      "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 100ms ease",
                     "&:hover": {
-                      bgcolor: "var(--joy-palette-neutral-100)",
+                      bgcolor: "neutral.50",
                     },
-                    "&:focus-visible": {
-                      outline: "2px solid var(--joy-palette-primary-500)",
-                      outlineOffset: 2,
+                    "&:active": {
+                      transform: "scale(0.98)",
                     },
+                    "&.Mui-focusVisible, &:focus-visible": focusRingSx,
                   }}
                 >
                   <Stack
@@ -466,9 +499,14 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                       src={avatarUrl}
                       alt={displayName}
                       sx={{
-                        bgcolor: "var(--joy-palette-primary-500)",
-                        color: "var(--joy-palette-brandNavy-800)",
-                        fontWeight: 700,
+                        width: 32,
+                        height: 32,
+                        bgcolor: "primary.600",
+                        color: "common.white",
+                        fontWeight: 600,
+                        "& img": {
+                          objectFit: "cover",
+                        },
                       }}
                     >
                       {userInitials}
@@ -479,32 +517,37 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                         noWrap
                         sx={{
                           maxWidth: 160,
-                          fontWeight: 600,
-                          color: "var(--joy-palette-brandNavy-800)",
+                          fontSize: "14px",
+                          fontWeight: 500,
+                          color: "neutral.700",
                         }}
                       >
                         {displayName}
                       </Typography>
+                    )}
+                    {!isMobile && (
+                      <ChevronDown
+                        size={12}
+                        strokeWidth={2}
+                        color="var(--joy-palette-neutral-400)"
+                      />
                     )}
                   </Stack>
                 </MenuButton>
                 <Menu
                   placement="bottom-end"
                   size="sm"
-                  variant="outlined"
+                  variant="plain"
                   sx={{ ...menuSx, minWidth: 240 }}
                 >
                   <Box sx={{ px: 1.25, pt: 0.5, pb: 1 }}>
                     <Typography
                       level="title-sm"
-                      sx={{ color: "var(--joy-palette-brandNavy-800)" }}
+                      sx={{ color: "neutral.800", fontWeight: 600 }}
                     >
                       {displayName}
                     </Typography>
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: "var(--joy-palette-neutral-600)" }}
-                    >
+                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                       {user?.email ??
                         (loading ? "Loading profile..." : "Signed in")}
                     </Typography>
@@ -513,10 +556,8 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                     onClick={() => navigate("/profile")}
                     sx={menuItemSx}
                   >
-                    <ListItemDecorator
-                      sx={{ color: "var(--joy-palette-brandNavy-600)" }}
-                    >
-                      <PersonRounded fontSize="small" />
+                    <ListItemDecorator sx={{ color: "currentColor" }}>
+                      <UserCircle2 size={16} strokeWidth={1.9} />
                     </ListItemDecorator>
                     Profile
                   </MenuItem>
@@ -524,10 +565,8 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                     onClick={() => navigate("/settings")}
                     sx={menuItemSx}
                   >
-                    <ListItemDecorator
-                      sx={{ color: "var(--joy-palette-brandNavy-600)" }}
-                    >
-                      <SettingsRounded fontSize="small" />
+                    <ListItemDecorator sx={{ color: "currentColor" }}>
+                      <Settings size={16} strokeWidth={1.9} />
                     </ListItemDecorator>
                     Settings
                   </MenuItem>
@@ -535,10 +574,8 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                     onClick={() => setIsReportProblemOpen(true)}
                     sx={menuItemSx}
                   >
-                    <ListItemDecorator
-                      sx={{ color: "var(--joy-palette-brandNavy-600)" }}
-                    >
-                      <BugReportRounded fontSize="small" />
+                    <ListItemDecorator sx={{ color: "currentColor" }}>
+                      <Bug size={16} strokeWidth={1.9} />
                     </ListItemDecorator>
                     Report a Problem
                   </MenuItem>
@@ -549,7 +586,7 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
                     sx={menuItemSx}
                   >
                     <ListItemDecorator sx={{ color: "currentColor" }}>
-                      <LogoutRounded fontSize="small" />
+                      <LogOut size={16} strokeWidth={1.9} />
                     </ListItemDecorator>
                     {isSigningOut ? "Logging Out..." : "Log Out"}
                   </MenuItem>

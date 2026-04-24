@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Check,
@@ -11,18 +11,26 @@ import {
   Users,
   type LucideProps,
 } from "lucide-react";
-import { toast } from "sonner";
-
-import { Badge } from "@/components/ui-legacy/badge";
-import { Button } from "@/components/ui-legacy/button";
-import { Checkbox } from "@/components/ui-legacy/checkbox";
-import { NativeSelect } from "@/components/ui-legacy/native-select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui-legacy/popover";
-import { cn } from "@/lib/utils";
+  Box,
+  Button,
+  ButtonGroup,
+  Chip,
+  Divider,
+  Drawer,
+  IconButton,
+  Input,
+  LinearProgress,
+  ModalClose,
+  Option,
+  Select,
+  Sheet as JoySheet,
+  Skeleton,
+  Stack,
+  Table,
+  Typography,
+} from "@mui/joy";
+import { toast } from "sonner";
 
 export type SortOption<T extends string> = {
   label: string;
@@ -226,7 +234,7 @@ export function TableSearchInput({
   placeholder,
   value,
   onChange,
-  className,
+  className: _className,
 }: {
   placeholder: string;
   value: string;
@@ -234,16 +242,15 @@ export function TableSearchInput({
   className?: string;
 }) {
   return (
-    <div className={cn("relative", className)}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-64 rounded-lg border border-gray-200 bg-white py-1.5 pl-8 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
-      />
-    </div>
+    <Input
+      size="sm"
+      value={value}
+      variant="outlined"
+      placeholder={placeholder}
+      startDecorator={<Search size={15} />}
+      sx={{ minWidth: { xs: 1, sm: 240 }, width: { xs: 1, sm: "auto" } }}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
 
@@ -251,7 +258,7 @@ export function ToolbarSelect<T extends string>({
   value,
   onChange,
   options,
-  className,
+  className: _className,
   ariaLabel,
 }: {
   value: T;
@@ -261,21 +268,24 @@ export function ToolbarSelect<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <NativeSelect
-      aria-label={ariaLabel}
+    <Select
+      size="sm"
       value={value}
-      onChange={(event) => onChange(event.target.value as T)}
-      className={cn(
-        "h-8 w-auto rounded-lg border-gray-200 bg-white py-1 text-sm",
-        className,
-      )}
+      variant="outlined"
+      slotProps={{ button: { "aria-label": ariaLabel } }}
+      sx={{ minWidth: 160 }}
+      onChange={(_, selectedValue) => {
+        if (selectedValue) {
+          onChange(selectedValue as T);
+        }
+      }}
     >
       {options.map((option) => (
-        <option key={option.value} value={option.value}>
+        <Option key={option.value} value={option.value}>
           {option.label}
-        </option>
+        </Option>
       ))}
-    </NativeSelect>
+    </Select>
   );
 }
 
@@ -289,27 +299,17 @@ export function StatusFilterPills<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-gray-50 p-0.5">
-      {options.map((option) => {
-        const isActive = option.value === value;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              isActive
-                ? "bg-white text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
+    <ButtonGroup size="sm" variant="outlined" color="neutral">
+      {options.map((option) => (
+        <Button
+          key={option.value}
+          variant={option.value === value ? "solid" : "outlined"}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </ButtonGroup>
   );
 }
 
@@ -322,75 +322,41 @@ export function CategoryMultiSelect({
   value: string[];
   onChange: (value: string[]) => void;
 }) {
-  const selectedCount = value.length;
+  const selectedMap = useMemo(() => new Set(value), [value]);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 border-gray-200 text-sm"
-        >
-          {selectedCount > 0 ? `${selectedCount} categories` : "All categories"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-2">
-        <div className="mb-2 flex items-center justify-between px-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Categories
-          </span>
-          {selectedCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => onChange([])}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
-        <div className="max-h-64 space-y-1 overflow-y-auto">
-          {categories.length > 0 ? (
-            categories.map((category) => {
-              const isChecked = value.includes(category);
+    <Select
+      multiple
+      size="sm"
+      value={value}
+      variant="outlined"
+      placeholder="All categories"
+      sx={{ minWidth: 180 }}
+      renderValue={(selected) => {
+        if (selected.length === 0) {
+          return "All categories";
+        }
 
-              return (
-                <label
-                  key={category}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-gray-50"
-                >
-                  <Checkbox
-                    checked={isChecked}
-                    onCheckedChange={(checked) => {
-                      const nextValue =
-                        checked === true
-                          ? [...value, category]
-                          : value.filter((entry) => entry !== category);
-                      onChange(nextValue);
-                    }}
-                  />
-                  <span className="min-w-0 truncate">{category}</span>
-                </label>
-              );
-            })
-          ) : (
-            <p className="px-2 py-4 text-sm text-muted-foreground">
-              No categories found
-            </p>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+        return `${selected.length} categories`;
+      }}
+      onChange={(_, selectedValue) => onChange((selectedValue as string[]) ?? [])}
+    >
+      {categories.map((category) => (
+        <Option key={category} value={category}>
+          <Box sx={{ fontWeight: selectedMap.has(category) ? 600 : 500 }}>
+            {category}
+          </Box>
+        </Option>
+      ))}
+    </Select>
   );
 }
 
-export function EmptyValue({ className }: { className?: string }) {
+export function EmptyValue({ className: _className }: { className?: string }) {
   return (
-    <span className={cn("text-sm italic text-muted-foreground", className)}>
+    <Typography level="body-sm" sx={{ color: "text.tertiary", fontStyle: "italic" }}>
       —
-    </span>
+    </Typography>
   );
 }
 
@@ -407,7 +373,7 @@ export function CopyValueButton({
     try {
       await navigator.clipboard.writeText(value);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1200);
+      window.setTimeout(() => setCopied(false), 1500);
       toast.success(`${label} copied.`);
     } catch {
       toast.error(`Unable to copy ${label.toLowerCase()}.`);
@@ -415,18 +381,15 @@ export function CopyValueButton({
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground"
+    <IconButton
+      size="sm"
+      variant="plain"
+      color={copied ? "success" : "neutral"}
       aria-label={`Copy ${label}`}
+      onClick={handleCopy}
     >
-      {copied ? (
-        <Check className="h-3.5 w-3.5 text-emerald-600" />
-      ) : (
-        <Copy className="h-3.5 w-3.5" />
-      )}
-    </button>
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </IconButton>
   );
 }
 
@@ -434,38 +397,59 @@ export function SlideOverField({
   label,
   value,
   copyable,
+  valueClassName: _valueClassName,
 }: {
   label: string;
-  value: string | null;
+  value: ReactNode;
   copyable?: boolean;
+  valueClassName?: string;
 }) {
+  const primitiveValue =
+    typeof value === "string" || typeof value === "number" ? String(value) : null;
+
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="w-28 flex-shrink-0 text-xs text-muted-foreground">
+    <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="flex-start">
+      <Typography level="body-xs" sx={{ color: "text.tertiary", minWidth: 120 }}>
         {label}
-      </span>
-      <div className="flex min-w-0 items-center gap-2">
-        <span
-          className={cn(
-            "truncate text-right text-sm",
-            value ? "text-foreground" : "italic text-muted-foreground",
-          )}
+      </Typography>
+      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+        <Typography
+          level="body-sm"
+          sx={{
+            textAlign: "right",
+            color: primitiveValue || typeof value === "number" ? "text.primary" : "text.tertiary",
+            fontStyle: primitiveValue ? "normal" : "italic",
+            wordBreak: "break-word",
+          }}
         >
           {value ?? "—"}
-        </span>
-        {copyable && value ? (
-          <CopyValueButton value={value} label={label} />
+        </Typography>
+        {copyable && primitiveValue ? (
+          <CopyValueButton value={primitiveValue} label={label} />
         ) : null}
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }
 
 export function RawDataPre({ value }: { value: unknown }) {
   return (
-    <pre className="mt-3 max-h-64 overflow-x-auto overflow-y-auto rounded-lg bg-gray-50 p-3 text-xs text-gray-700">
+    <Box
+      component="pre"
+      sx={{
+        mt: 1,
+        maxHeight: 260,
+        overflow: "auto",
+        borderRadius: "md",
+        bgcolor: "background.level1",
+        p: 1.5,
+        fontSize: "0.72rem",
+        fontFamily: "var(--joy-fontFamily-code)",
+        color: "text.secondary",
+      }}
+    >
       {JSON.stringify(value, null, 2)}
-    </pre>
+    </Box>
   );
 }
 
@@ -474,40 +458,33 @@ export function StockCountBadge({ count }: { count: number | null }) {
     return <EmptyValue />;
   }
 
-  const colorClass =
-    count === 0
-      ? "font-medium text-red-600"
-      : count <= 10
-        ? "font-medium text-amber-600"
-        : "text-foreground";
+  const color = count === 0 ? "danger" : count <= 10 ? "warning" : "success";
 
   return (
-    <span className={cn("text-sm tabular-nums", colorClass)}>{count}</span>
+    <Chip size="sm" color={color} variant="soft" sx={{ fontFamily: "var(--joy-fontFamily-code)" }}>
+      {count}
+    </Chip>
   );
 }
 
 export function TagList({ tags }: { tags: string[] }) {
-  const visibleTags = tags.slice(0, 2);
-  const overflow = tags.length - visibleTags.length;
-
   if (tags.length === 0) {
     return <EmptyValue />;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {visibleTags.map((tag) => (
-        <span
-          key={tag}
-          className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
-        >
+    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+      {tags.slice(0, 4).map((tag) => (
+        <Chip key={tag} size="sm" color="neutral" variant="soft">
           {tag}
-        </span>
+        </Chip>
       ))}
-      {overflow > 0 ? (
-        <span className="text-xs text-muted-foreground">+{overflow} more</span>
+      {tags.length > 4 ? (
+        <Chip size="sm" color="neutral" variant="outlined">
+          +{tags.length - 4}
+        </Chip>
       ) : null}
-    </div>
+    </Stack>
   );
 }
 
@@ -523,21 +500,32 @@ export function DataTabEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center px-8 py-16 text-center">
-      <Icon className="mb-4 h-10 w-10 text-gray-300" />
-      <p className="mb-1 text-sm font-medium text-foreground">{title}</p>
-      <p className="mb-5 text-sm text-muted-foreground">{description}</p>
+    <Stack
+      spacing={1.25}
+      alignItems="center"
+      justifyContent="center"
+      sx={{ minHeight: 280, px: 3, py: 4, textAlign: "center" }}
+    >
+      <Icon size={30} style={{ color: "var(--joy-palette-neutral-400)" }} />
+      <Typography level="title-md">{title}</Typography>
+      <Typography level="body-sm" sx={{ color: "text.tertiary", maxWidth: 520 }}>
+        {description}
+      </Typography>
       {action}
-    </div>
+    </Stack>
   );
 }
 
 export function DataTabPagination({
   pagination,
   onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [10, 25, 50, 100],
 }: {
   pagination: SharedPagination;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
+  pageSizeOptions?: number[];
 }) {
   const startRow =
     pagination.totalCount === 0
@@ -549,67 +537,110 @@ export function DataTabPagination({
       : Math.min(pagination.page * pagination.pageSize, pagination.totalCount);
 
   return (
-    <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
-      <span className="text-xs text-muted-foreground">
-        Showing {startRow.toLocaleString()}–{endRow.toLocaleString()} of{" "}
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={1.25}
+      justifyContent="space-between"
+      alignItems={{ xs: "flex-start", md: "center" }}
+      sx={{ borderTop: "1px solid", borderColor: "divider", px: 2, py: 1.5 }}
+    >
+      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+        Showing {startRow.toLocaleString()}–{endRow.toLocaleString()} of {" "}
         {pagination.totalCount.toLocaleString()}
-      </span>
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="ghost"
+      </Typography>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <ButtonGroup size="sm" variant="outlined" color="neutral">
+          <Button
+            disabled={pagination.page <= 1}
+            onClick={() => onPageChange(pagination.page - 1)}
+          >
+            <ChevronLeft size={14} />
+          </Button>
+          <Button disabled>
+            {pagination.page} / {Math.max(1, pagination.totalPages)}
+          </Button>
+          <Button
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => onPageChange(pagination.page + 1)}
+          >
+            <ChevronRight size={14} />
+          </Button>
+        </ButtonGroup>
+        <Select
           size="sm"
-          onClick={() => onPageChange(pagination.page - 1)}
-          disabled={pagination.page <= 1}
+          value={String(pagination.pageSize)}
+          variant="outlined"
+          sx={{ minWidth: 88 }}
+          disabled={!onPageSizeChange}
+          onChange={(_, next) => {
+            if (next && onPageSizeChange) {
+              onPageSizeChange(Number(next));
+            }
+          }}
         >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <span className="px-2 text-xs text-muted-foreground">
-          Page {pagination.page} of {pagination.totalPages}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => onPageChange(pagination.page + 1)}
-          disabled={pagination.page >= pagination.totalPages}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+          {pageSizeOptions.map((option) => (
+            <Option key={option} value={String(option)}>
+              {option}
+            </Option>
+          ))}
+        </Select>
+      </Stack>
+    </Stack>
+  );
+}
+
+export function DataTabLoadingState({ rows = 8 }: { rows?: number }) {
+  return (
+    <Stack spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: "md", overflow: "hidden" }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ p: 1.5 }}>
+        <Skeleton variant="rectangular" sx={{ height: 34, width: { xs: 1, sm: 240 }, borderRadius: "sm" }} />
+        <Skeleton variant="rectangular" sx={{ height: 34, width: 150, borderRadius: "sm" }} />
+        <Skeleton variant="rectangular" sx={{ height: 34, width: 124, borderRadius: "sm" }} />
+      </Stack>
+      <Divider />
+      <Box sx={{ p: 1.5 }}>
+        {Array.from({ length: rows }).map((_, index) => (
+          <Stack key={index} direction="row" spacing={2} sx={{ py: 1 }}>
+            <Skeleton variant="text" sx={{ width: "30%" }} />
+            <Skeleton variant="text" sx={{ width: "20%" }} />
+            <Skeleton variant="text" sx={{ width: "18%" }} />
+            <Skeleton variant="text" sx={{ width: "22%" }} />
+          </Stack>
+        ))}
+      </Box>
+    </Stack>
   );
 }
 
 export function SaleStatusBadge({ status }: { status: string }) {
   const normalizedStatus = status.toLowerCase();
-  const className =
+  const color =
     normalizedStatus === "completed"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "success"
       : normalizedStatus === "open"
-        ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-slate-200 bg-slate-50 text-slate-700";
+        ? "warning"
+        : "neutral";
 
   return (
-    <Badge className={className}>
+    <Chip size="sm" color={color} variant="soft">
       {normalizedStatus === "completed"
         ? "Completed"
         : normalizedStatus === "open"
           ? "Open"
           : status}
-    </Badge>
+    </Chip>
   );
 }
 
 export function SyncStatusBadge({ job }: { job: SyncStatusBadgeJob }) {
-  const className =
+  const color =
     job.status === "completed"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "success"
       : job.status === "failed" || job.status === "cancelled"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
+        ? "danger"
         : job.status === "in_progress"
-          ? "border-sky-200 bg-sky-50 text-sky-700"
-          : "border-slate-200 bg-slate-50 text-slate-700";
+          ? "primary"
+          : "neutral";
 
   const label =
     job.status === "in_progress"
@@ -622,39 +653,142 @@ export function SyncStatusBadge({ job }: { job: SyncStatusBadgeJob }) {
             ? "Cancelled"
             : job.status.replace(/_/g, " ");
 
-  return <Badge className={className}>{label}</Badge>;
+  return (
+    <Chip size="sm" color={color} variant="soft">
+      {label}
+    </Chip>
+  );
 }
 
 export function SyncTypeBadge({ job }: { job: SyncTypeBadgeJob }) {
   const config =
     job.normalizedSyncType === "customers"
       ? {
-          className: "bg-blue-50 text-blue-700",
+          color: "primary" as const,
           label: "customers",
           Icon: Users,
         }
-      : job.normalizedSyncType === "sales" ||
-          job.normalizedSyncType === "orders"
+      : job.normalizedSyncType === "sales" || job.normalizedSyncType === "orders"
         ? {
-            className: "bg-purple-50 text-purple-700",
+            color: "warning" as const,
             label: job.normalizedSyncType,
             Icon: ShoppingBag,
           }
         : {
-            className: "bg-amber-50 text-amber-700",
+            color: "neutral" as const,
             label: job.normalizedSyncType,
             Icon: Package,
           };
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-        config.className,
-      )}
+    <Chip
+      size="sm"
+      color={config.color}
+      variant="soft"
+      startDecorator={<config.Icon size={13} />}
+      sx={{ textTransform: "capitalize" }}
     >
-      <config.Icon className="h-3 w-3" />
       {config.label}
-    </span>
+    </Chip>
+  );
+}
+
+export function SyncProgressInline({ value }: { value: number }) {
+  return (
+    <Stack spacing={0.4} sx={{ minWidth: 100 }}>
+      <LinearProgress determinate size="sm" value={Math.max(0, Math.min(100, value))} />
+      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+        {Math.round(value)}%
+      </Typography>
+    </Stack>
+  );
+}
+
+export function Sheet({
+  open,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <Drawer anchor="right" open={open} onClose={() => onOpenChange(false)}>
+      {children}
+    </Drawer>
+  );
+}
+
+export function SheetContent({
+  className: _className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <JoySheet
+      variant="plain"
+      sx={{
+        width: { xs: "100vw", sm: 400 },
+        maxWidth: "100vw",
+        height: "100%",
+        overflowY: "auto",
+        p: 2,
+      }}
+    >
+      <ModalClose />
+      {children}
+    </JoySheet>
+  );
+}
+
+export function SheetHeader({
+  className: _className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Stack spacing={0.75} sx={{ pb: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
+      {children}
+    </Stack>
+  );
+}
+
+export function SheetTitle({ children }: { children: ReactNode }) {
+  return <Typography level="title-md">{children}</Typography>;
+}
+
+export function SheetDescription({
+  className: _className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+      {children}
+    </Typography>
+  );
+}
+
+export function JoyDataTable({ children }: { children: ReactNode }) {
+  return (
+    <Table
+      hoverRow
+      stripe="odd"
+      size="sm"
+      variant="outlined"
+      sx={{
+        "--TableCell-headBackground": "transparent",
+        "--TableHeaderUnderlineThickness": "1px",
+      }}
+    >
+      {children}
+    </Table>
   );
 }

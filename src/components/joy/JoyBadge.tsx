@@ -2,9 +2,7 @@ import JoyBaseBadge, {
   type BadgeProps as JoyBaseBadgeProps,
 } from "@mui/joy/Badge";
 import type { SxProps } from "@mui/joy/styles/types";
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export type JoyBadgeProps = JoyBaseBadgeProps;
 

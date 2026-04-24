@@ -1,18 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from "react";
+import { format } from "date-fns";
+import { CheckSquare, Trash2 } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@/components/ui-legacy/dialog';
-import { Button } from '@/components/ui-legacy/button';
-import { CalendarListView } from './CalendarListView';
-import { format } from 'date-fns';
-import { UnifiedCalendarEvent } from '@/hooks/useUnifiedCalendarData';
-import { X, Trash2, CheckSquare } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import type { UnifiedCalendarEvent } from "@/hooks/useUnifiedCalendarData";
+import { CalendarListView } from "./CalendarListView";
 
 interface DayEventsModalProps {
   isOpen: boolean;
@@ -20,7 +16,7 @@ interface DayEventsModalProps {
   date: Date | null;
   events: UnifiedCalendarEvent[];
   onEventClick: (event: UnifiedCalendarEvent) => void;
-  onDataUpdate?: () => void;
+  onDeleteSelected?: (taskIds: string[]) => Promise<void>;
 }
 
 export const DayEventsModal = ({
@@ -29,26 +25,33 @@ export const DayEventsModal = ({
   date,
   events,
   onEventClick,
-  onDataUpdate
+  onDeleteSelected,
 }: DayEventsModalProps) => {
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const dayEvents = useMemo(() => {
+    if (!date) {
+      return [];
+    }
+
+    return events.filter(
+      (event) =>
+        format(new Date(event.date), "yyyy-MM-dd") ===
+        format(date, "yyyy-MM-dd"),
+    );
+  }, [date, events]);
 
   if (!date) return null;
 
-  const formattedDate = format(date, 'EEEE, MMMM d, yyyy');
-  const dayEvents = events.filter(event => 
-    format(new Date(event.date), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-  );
+  const formattedDate = format(date, "EEEE, MMMM d, yyyy");
 
-  // Filter to only show task events that can be deleted
-  const deletableTasks = dayEvents.filter(event => event.type === 'task');
+  const deletableTasks = dayEvents.filter((event) => event.type === "task");
 
   const handleSelectAll = () => {
     if (selectedEvents.length === deletableTasks.length) {
       setSelectedEvents([]);
     } else {
-      setSelectedEvents(deletableTasks.map(e => e.id));
+      setSelectedEvents(deletableTasks.map((e) => e.id));
     }
   };
 
@@ -57,96 +60,76 @@ export const DayEventsModal = ({
 
     setIsDeleting(true);
     try {
-      await Promise.all(selectedEvents.map(async (eventId) => {
-        const { error } = await supabase
-          .from('content_tasks')
-          .delete()
-          .eq('id', eventId);
-        
-        if (error) throw error;
-      }));
-
-      toast.success(`Deleted ${selectedEvents.length} task${selectedEvents.length > 1 ? 's' : ''}`);
+      await onDeleteSelected?.(selectedEvents);
       setSelectedEvents([]);
-      onDataUpdate?.();
     } catch (error) {
-      console.error('Error deleting tasks:', error);
-      toast.error('Failed to delete tasks');
+      console.error("Error deleting tasks:", error);
     } finally {
       setIsDeleting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden p-6">
-        <DialogClose asChild>
-          <Button variant="ghost" size="icon" className="absolute right-4 top-4 h-6 w-6">
-            <X className="h-4 w-4" />
-          </Button>
-        </DialogClose>
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold pr-8">
-            Events for {formattedDate}
-          </DialogTitle>
-        </DialogHeader>
-        
-        {/* Bulk actions for deletable tasks */}
-        {deletableTasks.length > 0 && (
-          <div className="flex items-center justify-between gap-2 py-2 px-3 bg-muted/30 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSelectAll}
-                className="h-8"
-              >
-                <CheckSquare className="w-4 h-4 mr-2" />
-                {selectedEvents.length === deletableTasks.length ? 'Deselect All' : 'Select All Tasks'}
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {selectedEvents.length} of {deletableTasks.length} selected
-              </span>
-            </div>
-            {selectedEvents.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
+    <JoyDialog
+      open={isOpen}
+      onClose={() => onClose()}
+      title={`Events for ${formattedDate}`}
+      size="lg"
+      description="Everything scheduled on this day"
+    >
+      <JoyDialogContent>
+        {deletableTasks.length > 0 ? (
+          <JoyDialogActions sx={{ px: 0, pt: 0 }}>
+            <JoyButton
+              bloomVariant="outline"
+              color="neutral"
+              startDecorator={<CheckSquare size={14} />}
+              onClick={handleSelectAll}
+            >
+              {selectedEvents.length === deletableTasks.length
+                ? "Deselect All"
+                : "Select All Tasks"}
+            </JoyButton>
+            {selectedEvents.length > 0 ? (
+              <JoyButton
+                color="danger"
+                startDecorator={<Trash2 size={14} />}
+                loading={isDeleting}
                 onClick={handleDeleteSelected}
-                disabled={isDeleting}
-                className="h-8"
               >
-                {isDeleting ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
-                )}
                 Delete ({selectedEvents.length})
-              </Button>
-            )}
-          </div>
-        )}
-        
-        <div className="overflow-auto">
-          <CalendarListView 
+              </JoyButton>
+            ) : null}
+          </JoyDialogActions>
+        ) : null}
+
+        <div style={{ overflow: "auto" }}>
+          <CalendarListView
             events={dayEvents}
             onEventClick={onEventClick}
-            selectedEvents={selectedEvents}
-            onToggleSelect={(eventId) => {
-              setSelectedEvents(prev =>
+            selectionMode={true}
+            selectedTaskIds={selectedEvents}
+            onToggleTaskSelection={(eventId) => {
+              setSelectedEvents((prev) =>
                 prev.includes(eventId)
-                  ? prev.filter(id => id !== eventId)
-                  : [...prev, eventId]
+                  ? prev.filter((id) => id !== eventId)
+                  : [...prev, eventId],
               );
             }}
           />
           {dayEvents.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
+            <div
+              style={{
+                textAlign: "center",
+                padding: "2rem",
+                color: "var(--joy-palette-neutral-500)",
+              }}
+            >
               No events scheduled for this date.
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </JoyDialogContent>
+    </JoyDialog>
   );
 };

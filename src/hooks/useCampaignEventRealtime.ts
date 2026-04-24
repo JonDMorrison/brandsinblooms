@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { EmailTrackingEventRow, RealtimeBannerState } from "@/lib/crm/emailTrackingRealtime";
-import { normalizeTrackingEventType, toRecipientKey } from "@/lib/crm/emailTrackingRealtime";
+import type {
+  EmailTrackingEventRow,
+  RealtimeBannerState,
+} from "@/lib/crm/emailTrackingRealtime";
+import {
+  normalizeTrackingEventType,
+  toRecipientKey,
+} from "@/lib/crm/emailTrackingRealtime";
 
 type ConnectionState = "connecting" | "live" | "paused";
 
@@ -13,7 +19,10 @@ interface UseCampaignEventRealtimeOptions {
   providerMessageId?: string | null;
   enabled?: boolean;
   channelName: string;
-  onEvent?: (event: EmailTrackingEventRow, options: { animate: boolean }) => void;
+  onEvent?: (
+    event: EmailTrackingEventRow,
+    options: { animate: boolean },
+  ) => void;
 }
 
 interface UseCampaignEventRealtimeResult {
@@ -23,7 +32,12 @@ interface UseCampaignEventRealtimeResult {
   dismissBanner: () => void;
 }
 
-function buildFilter({ campaignId, tenantId, recipientEmail, providerMessageId }: UseCampaignEventRealtimeOptions) {
+function buildFilter({
+  campaignId,
+  tenantId,
+  recipientEmail,
+  providerMessageId,
+}: UseCampaignEventRealtimeOptions) {
   const filters = [`tenant_id=eq.${tenantId}`, `campaign_id=eq.${campaignId}`];
 
   const normalizedEmail = toRecipientKey(recipientEmail);
@@ -47,15 +61,34 @@ export function useCampaignEventRealtime({
   channelName,
   onEvent,
 }: UseCampaignEventRealtimeOptions): UseCampaignEventRealtimeResult {
-  const [connectionState, setConnectionState] = useState<ConnectionState>(enabled ? "connecting" : "paused");
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    enabled ? "connecting" : "paused",
+  );
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const queuedEventsRef = useRef<EmailTrackingEventRow[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const channelInstanceIdRef = useRef(Math.random().toString(36).slice(2));
 
   const filter = useMemo(() => {
     if (!enabled || !campaignId || !tenantId) return null;
-    return buildFilter({ campaignId, tenantId, recipientEmail, providerMessageId, enabled, channelName, onEvent });
-  }, [campaignId, tenantId, recipientEmail, providerMessageId, enabled, channelName, onEvent]);
+    return buildFilter({
+      campaignId,
+      tenantId,
+      recipientEmail,
+      providerMessageId,
+      enabled,
+      channelName,
+      onEvent,
+    });
+  }, [
+    campaignId,
+    tenantId,
+    recipientEmail,
+    providerMessageId,
+    enabled,
+    channelName,
+    onEvent,
+  ]);
 
   useEffect(() => {
     if (!enabled || !campaignId || !tenantId || !filter) {
@@ -85,9 +118,10 @@ export function useCampaignEventRealtime({
       }
 
       setConnectionState("connecting");
+      const subscriptionChannelName = `${channelName}-${channelInstanceIdRef.current}`;
 
       const channel = supabase
-        .channel(channelName)
+        .channel(subscriptionChannelName)
         .on(
           "postgres_changes",
           {
@@ -98,7 +132,9 @@ export function useCampaignEventRealtime({
           } as any,
           (payload) => {
             const nextEvent = payload.new as EmailTrackingEventRow;
-            const normalizedType = normalizeTrackingEventType(nextEvent.event_type);
+            const normalizedType = normalizeTrackingEventType(
+              nextEvent.event_type,
+            );
             if (normalizedType === "unknown") return;
 
             if (document.visibilityState !== "visible") {
@@ -118,7 +154,11 @@ export function useCampaignEventRealtime({
             return;
           }
 
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
             setConnectionState("paused");
             setBannerDismissed(false);
           }
@@ -144,7 +184,8 @@ export function useCampaignEventRealtime({
   return {
     connectionState,
     isLive: connectionState === "live",
-    bannerState: connectionState === "paused" && !bannerDismissed ? "paused" : "hidden",
+    bannerState:
+      connectionState === "paused" && !bannerDismissed ? "paused" : "hidden",
     dismissBanner: () => setBannerDismissed(true),
   };
 }

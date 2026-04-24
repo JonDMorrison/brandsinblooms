@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cleanupDuplicateCampaigns } from "@/utils/campaignCleanup";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 // Removed sonner import - using global toast replacement
-import { Trash2, RefreshCw } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 export const CampaignCleanupButton = () => {
   const { user } = useAuth();
@@ -50,12 +50,7 @@ export const CampaignCleanupButton = () => {
       loadingPosition="start"
       size="sm"
       startDecorator={<Trash2 className="w-4 h-4" />}
-      variant="outlined"
-      sx={{
-        "&:hover": {
-          backgroundColor: "var(--joy-palette-warning-50)",
-        },
-      }}
+      variant="soft"
     >
       {isCleaningUp ? "Cleaning up..." : "Cleanup Duplicates"}
     </JoyButton>

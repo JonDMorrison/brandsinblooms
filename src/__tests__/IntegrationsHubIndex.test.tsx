@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -123,7 +123,7 @@ describe("IntegrationsHubIndex", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders a flat sorted grid with the redesigned card actions and links", async () => {
+  it("renders the grouped Joy card catalog and card-click navigation", async () => {
     const user = userEvent.setup();
 
     renderPage();
@@ -142,7 +142,13 @@ describe("IntegrationsHubIndex", () => {
       screen
         .getAllByRole("heading", { level: 3 })
         .map((heading) => heading.textContent),
-    ).toEqual(["Square", "Meta", "Clover", "Email Infrastructure", "Slack"]);
+    ).toEqual(["Square", "Clover", "Meta", "Slack", "Email Infrastructure"]);
+
+    expect(
+      screen
+        .getAllByRole("heading", { level: 4 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Point of sale", "Social", "Automation", "Infrastructure"]);
 
     const squareCard = screen
       .getByRole("heading", { name: "Square" })
@@ -170,57 +176,17 @@ describe("IntegrationsHubIndex", () => {
       throw new Error("Expected all integration cards to render as articles.");
     }
 
+    expect(within(squareCard).getByText("POS")).toBeInTheDocument();
+    expect(within(slackCard).getByText("Coming soon")).toBeInTheDocument();
     expect(
-      within(squareCard).getByRole("link", { name: /squareup\.com/i }),
-    ).toHaveAttribute("href", "https://squareup.com");
-    expect(
-      within(infrastructureCard).getByRole("link", {
-        name: /bloomsuiteflowers\.com/i,
-      }),
-    ).toHaveAttribute("href", "https://bloomsuiteflowers.com");
-    expect(
-      within(slackCard).getByRole("link", { name: /slack\.com/i }),
-    ).toHaveAttribute("href", "https://slack.com");
-
-    expect(
-      within(squareCard).getByRole("link", { name: /^documentation$/i }),
-    ).toHaveAttribute("href", "/integrations/square/documentation");
-    expect(
-      within(infrastructureCard).getByRole("link", {
-        name: /^documentation$/i,
-      }),
-    ).toHaveAttribute(
-      "href",
-      "/integrations/email-infrastructure/documentation",
-    );
-    expect(
-      within(slackCard).getByRole("link", { name: /^documentation$/i }),
-    ).toHaveAttribute("href", "/integrations/slack/documentation");
-
-    expect(
-      within(squareCard).getByRole("button", { name: /manage/i }),
+      within(infrastructureCard).getByText("Featured"),
     ).toBeInTheDocument();
-    const cloverAddButton = within(cloverCard).getByRole("button", {
-      name: /add/i,
-    });
-    expect(cloverAddButton).toBeInTheDocument();
-    expect(cloverAddButton).toHaveTextContent("Add");
-    const infrastructureManageSettingsButton = within(
-      infrastructureCard,
-    ).getByRole("button", {
-      name: /manage settings/i,
-    });
-    expect(infrastructureManageSettingsButton).toBeInTheDocument();
-    expect(infrastructureManageSettingsButton).toHaveTextContent("");
-    expect(within(slackCard).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(slackCard).getByText("Upcoming")).toBeInTheDocument();
 
     expect(within(metaCard).getByText("Facebook")).toBeInTheDocument();
     expect(within(metaCard).getByText("Instagram")).toBeInTheDocument();
     expect(within(metaCard).getByText("Connected")).toBeInTheDocument();
-    expect(within(metaCard).getByText("Not connected")).toBeInTheDocument();
     expect(
-      squareCard.querySelector('img[src*="square.svg"]'),
+      squareCard.querySelector('img[src*="square-new.png"]'),
     ).toBeInTheDocument();
     expect(
       cloverCard.querySelector('img[src*="clover.svg"]'),
@@ -230,11 +196,9 @@ describe("IntegrationsHubIndex", () => {
     ).toBeInTheDocument();
     expect(infrastructureCard.querySelector("img")).toBeNull();
 
-    await user.click(
-      within(squareCard).getByRole("link", { name: /^documentation$/i }),
-    );
+    await user.click(squareCard);
     expect(screen.getByTestId("location-display")).toHaveTextContent(
-      "/integrations/square/documentation",
+      "/integrations/square",
     );
 
     const refreshedCloverCard = screen
@@ -245,13 +209,7 @@ describe("IntegrationsHubIndex", () => {
       throw new Error("Expected Clover card after documentation navigation.");
     }
 
-    const refreshedCloverAddButton = within(refreshedCloverCard).getByRole(
-      "button",
-      { name: /add/i },
-    );
-    expect(refreshedCloverAddButton).toHaveTextContent("Add");
-
-    await user.click(refreshedCloverAddButton);
+    await user.click(refreshedCloverCard);
     expect(screen.getByTestId("location-display")).toHaveTextContent(
       "/integrations/clover",
     );

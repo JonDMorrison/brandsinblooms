@@ -1,22 +1,23 @@
-import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui-legacy/dialog";
-import { Button } from "@/components/ui-legacy/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Badge } from "@/components/ui-legacy/badge";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import Grid from "@mui/joy/Grid";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { ArrowRight, FileText, Plus, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
+import {
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
 import {
   FORM_TEMPLATES,
   createFormFromTemplate,
@@ -44,7 +45,9 @@ export function FormTemplatesDialog({
 }: FormTemplatesDialogProps) {
   const handleSelect = (templateId: string) => {
     const template = FORM_TEMPLATES.find((item) => item.id === templateId);
-    if (!template) return;
+    if (!template) {
+      return;
+    }
 
     const formData = createFormFromTemplate(template);
     void onSelect({
@@ -54,143 +57,186 @@ export function FormTemplatesDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-        <div className="space-y-6 p-6">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Create a Form
-            </DialogTitle>
-            <DialogDescription>
-              Start from a lightweight starter form or choose a template
-              designed for common lead capture workflows.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div
-            className={cn(
-              "grid gap-4",
-              onStartFromScratch ? "md:grid-cols-2" : "md:grid-cols-1",
-            )}
-          >
-            {onStartFromScratch && (
-              <Card className="border-primary/20 bg-primary/5 shadow-sm">
-                <CardHeader className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-full bg-primary/10 p-2 text-primary">
-                        <Plus className="h-4 w-4" />
-                      </div>
-                      <CardTitle className="text-base">
-                        Start from Scratch
-                      </CardTitle>
-                    </div>
-                    <Badge variant="secondary">Recommended</Badge>
-                  </div>
-                  <CardDescription>
-                    Start with a clean form scaffold containing one required
-                    email field, then customize the rest in the editor.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="w-full gap-2"
-                    onClick={() => void onStartFromScratch()}
-                    disabled={isCreating}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {isCreating ? "Creating Form..." : "Start from Scratch"}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card className="shadow-sm">
-              <CardHeader className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="rounded-full bg-muted p-2 text-muted-foreground">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <CardTitle className="text-base">Use a Template</CardTitle>
-                </div>
-                <CardDescription>
-                  Choose from {FORM_TEMPLATES.length} starter templates below to
-                  launch faster with preconfigured fields and consent settings.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 text-sm">
-                  <span className="text-muted-foreground">
-                    Template library
-                  </span>
-                  <Badge variant="secondary">
-                    {FORM_TEMPLATES.length} templates
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Templates
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Pick a starting point and tailor it once you land in the
-                  editor.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {FORM_TEMPLATES.map((template) => (
-                <Card
-                  key={template.id}
-                  className="bg-card shadow-sm transition-shadow hover:shadow-md"
+    <JoyDialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      size="xl"
+      title="Create a form"
+      description="Start from scratch or pick a polished template for a common lead capture flow."
+      startDecorator={
+        <Avatar size="sm" variant="soft" color="primary">
+          <Sparkles size={18} />
+        </Avatar>
+      }
+    >
+      <JoyDialogContent sx={{ pt: 0 }}>
+        <Stack spacing={3}>
+          <Grid container spacing={2}>
+            {onStartFromScratch ? (
+              <Grid xs={12} md={4}>
+                <JoyCard
+                  interactive
+                  onClick={() => void onStartFromScratch()}
+                  sx={{
+                    minHeight: 228,
+                    borderStyle: "dashed",
+                    borderColor: "primary.200",
+                    backgroundColor: "primary.50",
+                    "&:hover": {
+                      borderColor: "primary.300",
+                    },
+                  }}
                 >
-                  <CardHeader className="space-y-3 pb-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-base">
-                            {template.name}
-                          </CardTitle>
-                          <Badge variant="outline">{template.category}</Badge>
-                        </div>
-                        <CardDescription>
-                          {template.description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-0">
-                    <div className="rounded-lg border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-                      {getTemplateFieldPreview(template)}
-                    </div>
-                    <Button
-                      className="w-full gap-2"
-                      onClick={() => handleSelect(template.id)}
+                  <JoyCardHeader
+                    startDecorator={
+                      <Avatar size="sm" variant="soft" color="primary">
+                        <Plus size={18} />
+                      </Avatar>
+                    }
+                    title="Start from scratch"
+                    description="Begin with a clean draft and a single required email field."
+                    actions={
+                      <JoyChip size="sm" variant="soft" color="primary">
+                        Recommended
+                      </JoyChip>
+                    }
+                  />
+                  <JoyCardContent sx={{ pt: 3, gap: 2, mt: "auto" }}>
+                    <Typography level="body-sm" color="neutral">
+                      Best when you already know the exact flow and want to
+                      tailor every field yourself.
+                    </Typography>
+                    <JoyButton
                       disabled={isCreating}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onStartFromScratch();
+                      }}
                     >
-                      <span>Use Template</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+                      {isCreating ? "Creating form..." : "Start from scratch"}
+                    </JoyButton>
+                  </JoyCardContent>
+                </JoyCard>
+              </Grid>
+            ) : null}
 
-          <div className="flex justify-end border-t px-6 py-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+            <Grid xs={12} md={onStartFromScratch ? 8 : 12}>
+              <JoyCard sx={{ minHeight: 228 }}>
+                <JoyCardHeader
+                  startDecorator={
+                    <Avatar size="sm" variant="soft" color="neutral">
+                      <FileText size={18} />
+                    </Avatar>
+                  }
+                  title="Template library"
+                  description="Choose a proven starting point, then refine the structure, design, and publishing settings in the editor."
+                  actions={
+                    <JoyChip size="sm" variant="outlined" color="neutral">
+                      {FORM_TEMPLATES.length} templates
+                    </JoyChip>
+                  }
+                />
+                <JoyCardContent sx={{ pt: 3, gap: 2 }}>
+                  <Typography level="body-sm" color="neutral">
+                    Templates include form structure, initial messaging, and
+                    consent defaults tuned for common CRM capture scenarios.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "repeat(3, minmax(0, 1fr))",
+                      },
+                      gap: 1.5,
+                    }}
+                  >
+                    {FORM_TEMPLATES.slice(0, 3).map((template) => (
+                      <Box
+                        key={template.id}
+                        sx={{
+                          border: "1px solid",
+                          borderColor: "neutral.200",
+                          borderRadius: "md",
+                          px: 2,
+                          py: 1.5,
+                        }}
+                      >
+                        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                          {template.name}
+                        </Typography>
+                        <Typography level="body-xs" color="neutral">
+                          {template.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </JoyCardContent>
+              </JoyCard>
+            </Grid>
+          </Grid>
+
+          <Divider />
+
+          <Stack spacing={1.5}>
+            <Typography level="title-sm">Templates</Typography>
+            <Grid container spacing={2}>
+              {FORM_TEMPLATES.map((template) => (
+                <Grid key={template.id} xs={12} md={6}>
+                  <JoyCard
+                    interactive
+                    onClick={() => handleSelect(template.id)}
+                    sx={{ minHeight: 228 }}
+                  >
+                    <JoyCardHeader
+                      title={template.name}
+                      description={template.description}
+                      actions={
+                        <JoyChip size="sm" variant="outlined" color="neutral">
+                          {template.category}
+                        </JoyChip>
+                      }
+                    />
+                    <JoyCardContent sx={{ pt: 3, gap: 2, mt: "auto" }}>
+                      <Box
+                        sx={{
+                          borderRadius: "md",
+                          backgroundColor: "neutral.50",
+                          px: 2,
+                          py: 1.5,
+                        }}
+                      >
+                        <Typography level="body-sm" color="neutral">
+                          {getTemplateFieldPreview(template)}
+                        </Typography>
+                      </Box>
+                      <JoyButton
+                        disabled={isCreating}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleSelect(template.id);
+                        }}
+                        endDecorator={<ArrowRight size={16} />}
+                      >
+                        Use template
+                      </JoyButton>
+                    </JoyCardContent>
+                  </JoyCard>
+                </Grid>
+              ))}
+            </Grid>
+          </Stack>
+        </Stack>
+      </JoyDialogContent>
+      <JoyDialogActions>
+        <JoyButton
+          bloomVariant="ghost"
+          color="neutral"
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </JoyButton>
+      </JoyDialogActions>
+    </JoyDialog>
   );
 }

@@ -1,16 +1,19 @@
-import React, { useMemo } from "react";
-import { Badge } from "@/components/ui-legacy/badge";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { ArrowRight, Tag, Users } from "lucide-react";
+import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Checkbox } from "@/components/ui-legacy/checkbox";
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { useCRMPersonas } from "@/hooks/useCRMPersonas";
 import { useCRMTags } from "@/hooks/useCRMTags";
-import { ArrowRight, Tag, Users, X } from "lucide-react";
 
 interface FormAudienceTabProps {
   audience: {
@@ -23,6 +26,120 @@ interface FormAudienceTabProps {
   }) => void;
 }
 
+interface SelectOption {
+  value: string;
+  label: string;
+  description?: string | null;
+}
+
+function AudienceSelectionCard({
+  title,
+  description,
+  emptyMessage,
+  helperText,
+  icon,
+  loading,
+  options,
+  value,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  emptyMessage: string;
+  helperText: string;
+  icon: React.ReactNode;
+  loading: boolean;
+  options: SelectOption[];
+  value: string[];
+  onChange: (nextValue: string[]) => void;
+}) {
+  const selectedOptions = options.filter((option) =>
+    value.includes(option.value),
+  );
+
+  return (
+    <JoyCard>
+      <JoyCardHeader
+        startDecorator={
+          <Avatar size="sm" variant="soft" color="neutral">
+            {icon}
+          </Avatar>
+        }
+        title={title}
+        description={description}
+        actions={
+          <JoyChip size="sm" variant="soft" color="neutral">
+            {selectedOptions.length} selected
+          </JoyChip>
+        }
+      />
+      <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
+        <JoyAutocomplete<SelectOption, true, false, false>
+          multiple
+          options={options}
+          loading={loading}
+          value={selectedOptions}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, selected) =>
+            option.value === selected.value
+          }
+          placeholder={loading ? "Loading options..." : emptyMessage}
+          noOptionsText={emptyMessage}
+          onValueChange={(nextValue) =>
+            onChange((nextValue ?? []).map((option) => option.value))
+          }
+          renderOption={(renderProps, option) => (
+            <Box component="li" {...renderProps}>
+              <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                  {option.label}
+                </Typography>
+                {option.description ? (
+                  <Typography level="body-xs" color="neutral">
+                    {option.description}
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Box>
+          )}
+          helperText={helperText}
+        />
+
+        {selectedOptions.length > 0 ? (
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            {selectedOptions.map((option) => (
+              <JoyChip
+                key={option.value}
+                size="sm"
+                variant="soft"
+                color="primary"
+                onClick={() =>
+                  onChange(value.filter((item) => item !== option.value))
+                }
+              >
+                {option.label}
+              </JoyChip>
+            ))}
+          </Stack>
+        ) : (
+          <Sheet
+            variant="soft"
+            sx={{
+              borderRadius: "lg",
+              px: 2,
+              py: 2,
+            }}
+          >
+            <Typography level="body-sm" color="neutral">
+              No selections yet.
+            </Typography>
+          </Sheet>
+        )}
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
 export function FormAudienceTab({
   audience,
   onAudienceChange,
@@ -30,286 +147,86 @@ export function FormAudienceTab({
   const { personas, loading: personasLoading } = useCRMPersonas();
   const { tags, loading: tagsLoading } = useCRMTags();
 
-  const sortedPersonas = useMemo(
+  const personaOptions = React.useMemo<SelectOption[]>(
     () =>
-      [...personas].sort((left, right) =>
-        left.persona_name.localeCompare(right.persona_name),
-      ),
+      [...personas]
+        .sort((left, right) =>
+          left.persona_name.localeCompare(right.persona_name),
+        )
+        .map((persona) => ({
+          value: persona.id,
+          label: persona.persona_name,
+          description: persona.persona_description,
+        })),
     [personas],
   );
 
-  const personaLookup = useMemo(
+  const tagOptions = React.useMemo<SelectOption[]>(
     () =>
-      new Map(
-        sortedPersonas.map((persona) => [
-          persona.id,
-          {
-            id: persona.id,
-            name: persona.persona_name,
-            description: persona.persona_description ?? null,
-          },
-        ]),
-      ),
-    [sortedPersonas],
-  );
-
-  const tagLookup = useMemo(
-    () => new Map(tags.map((tag) => [tag.id, tag])),
+      [...tags]
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((tag) => ({
+          value: tag.id,
+          label: tag.name,
+          description: "Apply this CRM tag after a successful submission.",
+        })),
     [tags],
   );
 
-  const selectedPersonas = useMemo(
-    () =>
-      (audience.assign_personas || []).map((personaId) => {
-        const persona = personaLookup.get(personaId);
-        return {
-          id: personaId,
-          label: persona?.name || "Unknown persona",
-          missing: !persona,
-        };
-      }),
-    [audience.assign_personas, personaLookup],
-  );
-
-  const selectedTags = useMemo(
-    () =>
-      (audience.assign_tags || []).map((tagId) => {
-        const tag = tagLookup.get(tagId);
-        return {
-          id: tagId,
-          label: tag?.name || "Unknown tag",
-          missing: !tag,
-        };
-      }),
-    [audience.assign_tags, tagLookup],
-  );
-
-  const togglePersona = (personaId: string) => {
-    const current = audience.assign_personas || [];
-    const updated = current.includes(personaId)
-      ? current.filter((id) => id !== personaId)
-      : [...current, personaId];
-
-    onAudienceChange({ ...audience, assign_personas: updated });
-  };
-
-  const toggleTag = (tagId: string) => {
-    const current = audience.assign_tags || [];
-    const updated = current.includes(tagId)
-      ? current.filter((id) => id !== tagId)
-      : [...current, tagId];
-
-    onAudienceChange({ ...audience, assign_tags: updated });
-  };
-
   return (
-    <div className="space-y-6">
-      <AudienceSection
-        title="Auto-Assign Personas"
-        description="Selected personas will be automatically assigned to customers who submit this form."
-        icon={Users}
-      >
-        {personasLoading ? (
-          <AudienceEmptyState message="Loading personas..." icon={Users} />
-        ) : sortedPersonas.length === 0 ? (
-          <AudienceEmptyState
-            message="No personas found. Create CRM personas first to use this automation."
-            icon={Users}
-          />
-        ) : (
-          <div className="space-y-3">
-            {sortedPersonas.map((persona) => (
-              <SelectableRow
-                key={persona.id}
-                checked={(audience.assign_personas || []).includes(persona.id)}
-                title={persona.persona_name}
-                description={
-                  persona.persona_description ?? "No description provided."
-                }
-                onSelect={() => togglePersona(persona.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        <SelectionBadgeList
-          title="Selected personas"
-          items={selectedPersonas}
-          icon={Users}
-          onRemove={togglePersona}
-        />
-      </AudienceSection>
-
-      <AudienceSection
-        title="Auto-Assign Tags"
-        description="Selected tags will be automatically applied to customers who submit this form."
-        icon={Tag}
-      >
-        {tagsLoading ? (
-          <AudienceEmptyState message="Loading tags..." icon={Tag} />
-        ) : tags.length === 0 ? (
-          <AudienceEmptyState
-            message="No tags available. Create tags in the CRM module to use them here."
-            icon={Tag}
-          />
-        ) : (
-          <div className="space-y-3">
-            {tags.map((tag) => (
-              <SelectableRow
-                key={tag.id}
-                checked={(audience.assign_tags || []).includes(tag.id)}
-                title={tag.name}
-                description="Apply this CRM tag automatically after a successful submission."
-                onSelect={() => toggleTag(tag.id)}
-              />
-            ))}
-          </div>
-        )}
-
-        <SelectionBadgeList
-          title="Selected tags"
-          items={selectedTags}
-          icon={Tag}
-          onRemove={toggleTag}
-        />
-      </AudienceSection>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ArrowRight className="h-5 w-5" />
-            Segment Evaluation
-          </CardTitle>
-          <CardDescription>
-            After each submission, BloomSuite automatically evaluates whether
-            the customer qualifies for any active segments.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Segment evaluation is always active. No additional configuration is
-            required in this tab.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-interface AudienceSectionProps {
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
-}
-
-function AudienceSection({
-  title,
-  description,
-  icon: Icon,
-  children,
-}: AudienceSectionProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className="h-5 w-5" />
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
-  );
-}
-
-interface SelectableRowProps {
-  checked: boolean;
-  title: string;
-  description: string;
-  onSelect: () => void;
-}
-
-function SelectableRow({
-  checked,
-  title,
-  description,
-  onSelect,
-}: SelectableRowProps) {
-  return (
-    <button
-      type="button"
-      className="flex w-full items-start gap-3 rounded-xl border border-border px-4 py-3 text-left transition-colors hover:bg-muted/40"
-      onClick={onSelect}
-    >
-      <Checkbox
-        checked={checked}
-        onCheckedChange={onSelect}
-        className="mt-0.5"
+    <Stack spacing={3}>
+      <AudienceSelectionCard
+        title="Assign CRM personas"
+        description="Attach personas to customers who submit this form so downstream workflows start with richer context."
+        emptyMessage="No personas found yet"
+        helperText="Selected personas are added automatically after a successful submission."
+        icon={<Users size={18} />}
+        loading={personasLoading}
+        options={personaOptions}
+        value={audience.assign_personas || []}
+        onChange={(assign_personas) =>
+          onAudienceChange({
+            ...audience,
+            assign_personas,
+          })
+        }
       />
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-    </button>
-  );
-}
 
-function AudienceEmptyState({
-  message,
-  icon: Icon,
-}: {
-  message: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-      <Icon className="mx-auto mb-2 h-8 w-8 opacity-50" />
-      <p>{message}</p>
-    </div>
-  );
-}
+      <AudienceSelectionCard
+        title="Assign CRM tags"
+        description="Pre-tag contacts captured through this form so reporting and follow-up sequences start in the right lane."
+        emptyMessage="No tags found yet"
+        helperText="Tags are stored in the form configuration today; downstream write behavior is still evolving."
+        icon={<Tag size={18} />}
+        loading={tagsLoading}
+        options={tagOptions}
+        value={audience.assign_tags || []}
+        onChange={(assign_tags) =>
+          onAudienceChange({
+            ...audience,
+            assign_tags,
+          })
+        }
+      />
 
-function SelectionBadgeList({
-  title,
-  items,
-  icon: Icon,
-  onRemove,
-}: {
-  title: string;
-  items: Array<{ id: string; label: string; missing: boolean }>;
-  icon: React.ComponentType<{ className?: string }>;
-  onRemove: (id: string) => void;
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {title}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <Badge
-            key={item.id}
-            variant={item.missing ? "outline" : "secondary"}
-            className="gap-1.5 rounded-full px-3 py-1.5"
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {item.label}
-            <button
-              type="button"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-              onClick={() => onRemove(item.id)}
-              aria-label={`Remove ${item.label}`}
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </Badge>
-        ))}
-      </div>
-    </div>
+      <JoyCard>
+        <JoyCardHeader
+          startDecorator={
+            <Avatar size="sm" variant="soft" color="primary">
+              <ArrowRight size={18} />
+            </Avatar>
+          }
+          title="Segment evaluation stays on"
+          description="Every accepted submission is still evaluated against active segments. There is no separate switch for that in this form workspace."
+        />
+        <JoyCardContent sx={{ pt: 2 }}>
+          <Typography level="body-sm" color="neutral">
+            Use personas and tags here to enrich the customer record
+            immediately. Segment qualification continues automatically in the
+            submission pipeline.
+          </Typography>
+        </JoyCardContent>
+      </JoyCard>
+    </Stack>
   );
 }

@@ -1,101 +1,193 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Button } from '@/components/ui-legacy/button';
-import { Facebook, Instagram, CheckCircle, RefreshCw, Settings } from 'lucide-react';
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { BarChart3, Calendar, Check, Send } from "lucide-react";
+
+import type { SocialConnection } from "@/components/analytics/SocialConnectionManager";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip } from "@/components/joy/JoyChip";
+import { PLATFORM_CONFIG } from "@/utils/platformConfig";
 
 interface MetaConnectionSuccessProps {
-  facebookConnection: any;
-  instagramConnection: any;
-  onSyncAnalytics: () => void;
-  onManageConnections: () => void;
+  facebookConnection?: SocialConnection;
+  instagramConnection?: SocialConnection;
+  onSyncAnalytics?: () => Promise<void> | void;
+  onOpenAnalytics?: () => void;
+  onOpenScheduling?: () => void;
+  onOpenPublishing?: () => void;
+  onManageConnections?: () => void;
 }
 
-export const MetaConnectionSuccess = ({ 
-  facebookConnection, 
+const MetaConnectionSuccess = ({
+  facebookConnection,
   instagramConnection,
   onSyncAnalytics,
-  onManageConnections
+  onOpenAnalytics,
+  onOpenScheduling,
+  onOpenPublishing,
+  onManageConnections,
 }: MetaConnectionSuccessProps) => {
+  void facebookConnection;
+  void instagramConnection;
+
+  const facebookLabel = PLATFORM_CONFIG.facebook.label;
+  const instagramLabel = PLATFORM_CONFIG.instagram.label;
+
   return (
-    <Card className="border-border bg-card">
-      <CardHeader className="text-center pb-4">
-        <CardTitle className="text-2xl font-bold text-gray-900">
-          Your Meta Accounts
-        </CardTitle>
-        <p className="text-gray-600 mt-2">
-          Manage your Facebook and Instagram connections
-        </p>
-      </CardHeader>
-      
-      <CardContent>
-        <div className="bg-background rounded-xl p-6 border border-border shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">Meta Platforms</h3>
-            <Badge className="bg-success/10 text-success hover:bg-success/10">
-              Both platforms connected!
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Facebook */}
-            <div className="flex items-start gap-3">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Facebook className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">Facebook</span>
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-600 font-medium">Connected</span>
-                </div>
-                <p className="text-sm text-gray-500">
-                  {facebookConnection?.platform_account_name || 'Connected'}
-                </p>
-              </div>
-            </div>
-            
-            {/* Instagram */}
-            <div className="flex items-start gap-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Instagram className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900">Instagram</span>
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-600 font-medium">Connected</span>
-                </div>
-                <p className="text-sm text-gray-500">
-                  {instagramConnection?.platform_account_name || 'Connected'}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-            <Button 
-              onClick={onSyncAnalytics}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Sync Data
-            </Button>
-            <Button 
-              onClick={onManageConnections}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Manage Connections
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <Stack spacing={3}>
+      <Stack spacing={1.5} alignItems="center">
+        <Typography level="title-lg" textAlign="center">
+          Meta Accounts Connected
+        </Typography>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          flexWrap="wrap"
+          justifyContent="center"
+        >
+          <JoyChip
+            color="success"
+            size="sm"
+            startDecorator={<Check size={12} />}
+            variant="soft"
+          >
+            {facebookLabel}
+          </JoyChip>
+          <JoyChip
+            color="success"
+            size="sm"
+            startDecorator={<Check size={12} />}
+            variant="soft"
+          >
+            {instagramLabel}
+          </JoyChip>
+        </Stack>
+      </Stack>
+
+      <Stack spacing={1.25}>
+        <Typography level="title-sm" sx={{ color: "text.secondary" }}>
+          What's next
+        </Typography>
+
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+          <Sheet
+            component="button"
+            type="button"
+            variant="outlined"
+            onClick={() => {
+              void onSyncAnalytics?.();
+              onOpenAnalytics?.();
+            }}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: "md",
+              p: 2,
+              bgcolor: "background.surface",
+              textAlign: "left",
+              cursor: "pointer",
+              appearance: "none",
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Stack spacing={0.75}>
+              <BarChart3
+                size={16}
+                style={{ color: "var(--joy-palette-text-secondary)" }}
+              />
+              <Typography level="body-sm" sx={{ fontWeight: "md" }}>
+                Review analytics
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Open the analytics tab to review performance across connected
+                accounts.
+              </Typography>
+            </Stack>
+          </Sheet>
+
+          <Sheet
+            component="button"
+            type="button"
+            variant="outlined"
+            onClick={onOpenScheduling}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: "md",
+              p: 2,
+              bgcolor: "background.surface",
+              textAlign: "left",
+              cursor: "pointer",
+              appearance: "none",
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Stack spacing={0.75}>
+              <Calendar
+                size={16}
+                style={{ color: "var(--joy-palette-text-secondary)" }}
+              />
+              <Typography level="body-sm" sx={{ fontWeight: "md" }}>
+                Configure scheduling
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Move into auto-scheduling to prepare the next set of optimized
+                posting windows.
+              </Typography>
+            </Stack>
+          </Sheet>
+
+          <Sheet
+            component="button"
+            type="button"
+            variant="outlined"
+            onClick={onOpenPublishing}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              borderRadius: "md",
+              p: 2,
+              bgcolor: "background.surface",
+              textAlign: "left",
+              cursor: "pointer",
+              appearance: "none",
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Stack spacing={0.75}>
+              <Send
+                size={16}
+                style={{ color: "var(--joy-palette-text-secondary)" }}
+              />
+              <Typography level="body-sm" sx={{ fontWeight: "md" }}>
+                Open publishing
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Jump to publishing when you are ready to turn connected channels
+                into outbound content.
+              </Typography>
+            </Stack>
+          </Sheet>
+        </Stack>
+      </Stack>
+
+      <Stack alignItems="flex-start">
+        <JoyButton
+          color="neutral"
+          size="sm"
+          variant="plain"
+          onClick={onManageConnections}
+        >
+          Back to connections
+        </JoyButton>
+      </Stack>
+    </Stack>
   );
 };
+
+export default MetaConnectionSuccess;

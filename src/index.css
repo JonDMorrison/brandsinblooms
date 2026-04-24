@@ -2,7 +2,6 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import './components/smart-time/smart-time.css';
-@import './styles/overrides/production-cleanup.css';
 @import './styles/mobile/campaign-creator.css';
 @import './styles/click-to-edit.css';
 @import './styles/newsletter-layouts.css';
@@ -29,6 +28,70 @@
 }
 
 /* Semantic CSS variables are sourced from joy-tailwind-bridge.css. */
+
+[data-sonner-toaster] {
+  --toast-gap: 12px;
+}
+
+.bloom-sonner-toast {
+  border: 1px solid var(--joy-palette-neutral-200);
+  border-radius: 16px;
+  background: var(--joy-palette-background-popup);
+  color: var(--joy-palette-neutral-800);
+  box-shadow: var(--joy-shadow-lg);
+  padding: 12px 14px;
+}
+
+.bloom-sonner-title {
+  font-family: var(--joy-fontFamily-body);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.bloom-sonner-description {
+  font-family: var(--joy-fontFamily-body);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--joy-palette-neutral-600);
+}
+
+.bloom-sonner-action {
+  border-radius: 999px;
+  font-family: var(--joy-fontFamily-body);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.bloom-sonner-toast--success {
+  border-color: rgba(var(--joy-palette-success-mainChannel) / 0.18);
+  background: rgba(var(--joy-palette-success-mainChannel) / 0.08);
+  color: var(--joy-palette-success-800);
+}
+
+.bloom-sonner-toast--error {
+  border-color: rgba(var(--joy-palette-danger-mainChannel) / 0.18);
+  background: rgba(var(--joy-palette-danger-mainChannel) / 0.08);
+  color: var(--joy-palette-danger-800);
+}
+
+.bloom-sonner-toast--info {
+  border-color: rgba(var(--joy-palette-primary-mainChannel) / 0.18);
+  background: rgba(var(--joy-palette-primary-mainChannel) / 0.08);
+  color: var(--joy-palette-primary-800);
+}
+
+.bloom-sonner-toast--warning {
+  border-color: rgba(var(--joy-palette-warning-mainChannel) / 0.22);
+  background: rgba(var(--joy-palette-warning-mainChannel) / 0.1);
+  color: var(--joy-palette-warning-800);
+}
+
+[data-sonner-toast] [data-icon] {
+  color: currentColor;
+}
 
 /* Premium glass morphism effects */
 .glass-coin {
@@ -268,25 +331,16 @@ body {
 }
 
 /* Enhanced button transitions */
-button {
+button:not([class*="Mui"]) {
   transition: colors 0.15s ease, brightness 0.15s ease, box-shadow 0.15s ease;
 }
 
-button:hover {
+button:not([class*="Mui"]):hover {
   filter: brightness(0.95);
 }
 
 /* Enhanced focus states */
-*:focus-visible {
-  @apply outline-none ring-2 ring-brand-teal ring-offset-2;
-}
-
-/* Input and interactive element focus enhancement */
-input:focus,
-textarea:focus,
-select:focus,
-[role="button"]:focus-visible,
-[role="menuitem"]:focus-visible {
+:where(a, button, [role="button"], [role="menuitem"]):focus-visible:not([class*="Mui"]) {
   @apply outline-none ring-2 ring-brand-teal ring-offset-2;
 }
 
@@ -374,7 +428,7 @@ a:hover {
 
 /* Fix dropdown/overlay scroll blocking */
 body[data-scroll-locked] {
-  overflow: hidden !important;
+  overflow: hidden;
 }
 
 /* Ensure main content containers don't get pointer-events: none */
@@ -383,21 +437,21 @@ main,
 .main-content,
 #root,
 #app {
-  pointer-events: auto !important;
+  pointer-events: auto;
 }
 
 /* Ensure dropdowns don't block page interactions */
 [data-radix-portal] {
-  pointer-events: auto !important;
+  pointer-events: auto;
 }
 
 /* Fix for dropdown menus specifically */
 [data-radix-dropdown-menu-content] {
-  pointer-events: auto !important;
-  position: fixed !important;
-  z-index: 9999 !important;
-  background: hsl(var(--popover)) !important;
-  border: 1px solid hsl(var(--border)) !important;
+  pointer-events: auto;
+  position: fixed;
+  z-index: 9999;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
 }
 
 /* Ensure the body maintains scroll capability - no conflicts with dropdowns */
@@ -412,7 +466,7 @@ body {
 [data-radix-dropdown-menu-content],
 [data-radix-select-content],
 [data-radix-popover-content] {
-  pointer-events: auto !important;
+  pointer-events: auto;
 }
 
 input:-webkit-autofill,

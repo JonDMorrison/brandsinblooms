@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -55,9 +54,5 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  return (
-    <OnboardingGuard>
-      {children}
-    </OnboardingGuard>
-  );
+  return <OnboardingGuard>{children}</OnboardingGuard>;
 };

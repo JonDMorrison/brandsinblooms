@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -18,6 +18,7 @@ export interface SenderConfig {
 export const useSenderConfiguration = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const channelInstanceIdRef = useRef(Math.random().toString(36).slice(2));
   const [senderConfig, setSenderConfig] = useState<SenderConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -179,8 +180,10 @@ export const useSenderConfiguration = () => {
   useEffect(() => {
     if (!tenant?.id) return;
 
+    const channelName = `sender-config-${tenant.id}-${channelInstanceIdRef.current}`;
+
     const channel = supabase
-      .channel(`sender-config-${tenant.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

@@ -5,6 +5,7 @@ import { useTenant } from "./useTenant";
 import { generateHolidayContent } from "@/components/homepage/HolidayGenerationService";
 // Removed sonner import - using global toast replacement
 import { filterExpiredHolidays, hasExpiredHolidays } from "@/utils/dateUtils";
+import { applyTenantUserScope } from "@/utils/tenantScope";
 
 interface Holiday {
   id: string;
@@ -30,6 +31,10 @@ export const useSeasonalHolidays = () => {
   >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHolidayContentState({});
+  }, [tenant?.id, user?.id]);
 
   // Fetch holidays for the full year to show annual holidays
   const fetchHolidays = useCallback(async () => {
@@ -87,38 +92,17 @@ export const useSeasonalHolidays = () => {
     try {
       const holidayIds = allHolidays.map((h) => h.id);
 
-      // Try tenant-based query first, then fallback to user-based
-      let tasks = null;
-      let error = null;
+      let query = supabase
+        .from("content_tasks")
+        .select("holiday_id, post_type, created_at")
+        .in("holiday_id", holidayIds);
 
-      if (tenant) {
-        const { data: tenantTasks, error: tenantError } = await supabase
-          .from("content_tasks")
-          .select("holiday_id, post_type, created_at")
-          .in("holiday_id", holidayIds)
-          .eq("tenant_id", tenant.id);
+      query = applyTenantUserScope(query, {
+        tenantId: tenant?.id,
+        userId: user.id,
+      });
 
-        if (tenantError) {
-        } else {
-          tasks = tenantTasks;
-        }
-      }
-
-      // Fallback to user-based query if tenant query failed or no tenant
-      if (!tasks) {
-        const { data: userTasks, error: userError } = await supabase
-          .from("content_tasks")
-          .select("holiday_id, post_type, created_at")
-          .in("holiday_id", holidayIds)
-          .eq("user_id", user.id);
-
-        if (userError) {
-          console.error("User-based query also failed:", userError);
-          error = userError;
-        } else {
-          tasks = userTasks;
-        }
-      }
+      const { data: tasks, error } = await query;
 
       if (error) {
         console.error("Error fetching holiday content state:", error);

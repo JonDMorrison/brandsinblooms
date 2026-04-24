@@ -8,6 +8,9 @@ export interface EmailDomain {
   id: string;
   tenant_id: string;
   domain: string;
+  default_from_email?: string | null;
+  default_from_name?: string | null;
+  default_reply_to?: string | null;
   resend_domain_id?: string;
   provider?: "domain_connect" | "cloudflare" | "manual";
   status:

@@ -1,102 +1,148 @@
-import React from 'react'
-import { Alert, AlertDescription } from '@/components/ui-legacy/alert'
-import { Badge } from '@/components/ui-legacy/badge'
-import { CheckCircle, AlertTriangle, XCircle, Lightbulb } from 'lucide-react'
-import { ImageValidationResult } from '@/lib/validation/imageValidation'
+import Alert from "@mui/joy/Alert";
+import Chip from "@mui/joy/Chip";
+import List from "@mui/joy/List";
+import ListItem from "@mui/joy/ListItem";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { AlertTriangle, CheckCircle2, Lightbulb, XCircle } from "lucide-react";
+import { ImageValidationResult } from "@/lib/validation/imageValidation";
 
 interface ValidationSummaryProps {
-  validation: ImageValidationResult
-  imageCount: number
-  showOptimizations?: boolean
-  className?: string
+  validation: ImageValidationResult;
+  imageCount: number;
+  showOptimizations?: boolean;
+  className?: string;
 }
 
-export function ValidationSummary({ 
-  validation, 
-  imageCount, 
+export function ValidationSummary({
+  validation,
+  imageCount,
   showOptimizations = true,
-  className = '' 
+  className = "",
 }: ValidationSummaryProps) {
-  const hasIssues = validation.errors.length > 0 || validation.warnings.length > 0
-  const hasOptimizations = validation.optimizations.length > 0
+  const hasErrors = validation.errors.length > 0;
+  const hasWarnings = validation.warnings.length > 0;
+  const hasOptimizations =
+    showOptimizations && validation.optimizations.length > 0;
 
-  if (!hasIssues && (!showOptimizations || !hasOptimizations)) {
+  if (!hasErrors && !hasWarnings && !hasOptimizations) {
     return (
-      <Alert className={`border-green-200 bg-green-50 ${className}`}>
-        <CheckCircle className="h-4 w-4 text-green-600" />
-        <AlertDescription className="text-green-800">
-          {imageCount === 0 
-            ? 'Ready to add images' 
-            : `${imageCount} image${imageCount !== 1 ? 's' : ''} validated successfully`
-          }
-        </AlertDescription>
+      <Alert
+        color="success"
+        variant="soft"
+        className={className}
+        sx={{ borderRadius: "18px" }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <CheckCircle2 size={18} />
+          <Typography level="body-sm">
+            {imageCount === 0
+              ? "Ready to add images"
+              : `${imageCount} image${imageCount === 1 ? "" : "s"} validated successfully`}
+          </Typography>
+        </Stack>
       </Alert>
-    )
+    );
   }
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {/* Errors */}
-      {validation.errors.length > 0 && (
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="space-y-1">
-              <div className="font-medium">
-                {validation.errors.length} error{validation.errors.length !== 1 ? 's' : ''} found:
-              </div>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                {validation.errors.map((error, index) => (
-                  <li key={index}>{error}</li>
+    <Stack spacing={1.25} className={className}>
+      {hasErrors ? (
+        <Alert
+          color="danger"
+          variant="soft"
+          sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+        >
+          <List sx={{ "--List-padding": "0px", gap: 0.5 }}>
+            <ListItem sx={{ px: 0, py: 0, alignItems: "flex-start" }}>
+              <ListItemDecorator
+                sx={{ minWidth: 24, color: "danger.600", mt: 0.2 }}
+              >
+                <XCircle size={16} />
+              </ListItemDecorator>
+              <Stack spacing={0.5}>
+                <Typography level="title-sm">
+                  {`${validation.errors.length} error${validation.errors.length === 1 ? "" : "s"} found`}
+                </Typography>
+                {validation.errors.map((error) => (
+                  <Typography key={error} level="body-sm">
+                    {error}
+                  </Typography>
                 ))}
-              </ul>
-            </div>
-          </AlertDescription>
+              </Stack>
+            </ListItem>
+          </List>
         </Alert>
-      )}
+      ) : null}
 
-      {/* Warnings */}
-      {validation.warnings.length > 0 && (
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            <div className="space-y-1">
-              <div className="font-medium">
-                {validation.warnings.length} warning{validation.warnings.length !== 1 ? 's' : ''}:
-              </div>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                {validation.warnings.map((warning, index) => (
-                  <li key={index}>{warning}</li>
+      {hasWarnings ? (
+        <Alert
+          color="warning"
+          variant="soft"
+          sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+        >
+          <List sx={{ "--List-padding": "0px", gap: 0.5 }}>
+            <ListItem sx={{ px: 0, py: 0, alignItems: "flex-start" }}>
+              <ListItemDecorator
+                sx={{ minWidth: 24, color: "warning.700", mt: 0.2 }}
+              >
+                <AlertTriangle size={16} />
+              </ListItemDecorator>
+              <Stack spacing={0.5}>
+                <Typography level="title-sm">
+                  {`${validation.warnings.length} warning${validation.warnings.length === 1 ? "" : "s"}`}
+                </Typography>
+                {validation.warnings.map((warning) => (
+                  <Typography key={warning} level="body-sm">
+                    {warning}
+                  </Typography>
                 ))}
-              </ul>
-            </div>
-          </AlertDescription>
+              </Stack>
+            </ListItem>
+          </List>
         </Alert>
-      )}
+      ) : null}
 
-      {/* Optimizations */}
-      {showOptimizations && validation.optimizations.length > 0 && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <Lightbulb className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            <div className="space-y-2">
-              <div className="font-medium">
-                Optimization suggestions:
-              </div>
-              <ul className="space-y-1 text-sm">
-                {validation.optimizations.map((optimization, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
-                      Tip
-                    </Badge>
-                    <span>{optimization}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </AlertDescription>
+      {hasOptimizations ? (
+        <Alert
+          color="primary"
+          variant="soft"
+          sx={{ borderRadius: "18px", alignItems: "flex-start" }}
+        >
+          <List sx={{ "--List-padding": "0px", gap: 0.5 }}>
+            <ListItem sx={{ px: 0, py: 0, alignItems: "flex-start" }}>
+              <ListItemDecorator
+                sx={{ minWidth: 24, color: "primary.600", mt: 0.2 }}
+              >
+                <Lightbulb size={16} />
+              </ListItemDecorator>
+              <Stack spacing={0.75}>
+                <Typography level="title-sm">
+                  Optimization suggestions
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  useFlexGap
+                  flexWrap="wrap"
+                >
+                  {validation.optimizations.map((optimization) => (
+                    <Chip
+                      key={optimization}
+                      size="sm"
+                      variant="soft"
+                      color="primary"
+                    >
+                      {optimization}
+                    </Chip>
+                  ))}
+                </Stack>
+              </Stack>
+            </ListItem>
+          </List>
         </Alert>
-      )}
-    </div>
-  )
+      ) : null}
+    </Stack>
+  );
 }

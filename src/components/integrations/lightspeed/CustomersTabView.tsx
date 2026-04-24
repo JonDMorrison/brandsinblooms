@@ -2,13 +2,7 @@ import { Link } from "react-router-dom";
 import { RefreshCw, UserCheck, Users } from "lucide-react";
 
 import { Button } from "@/components/ui-legacy/button";
-import {
-  SheetDescription,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui-legacy/sheet";
+
 import type {
   LightspeedCustomerSortField,
   LightspeedCustomerTableRow,
@@ -30,6 +24,13 @@ import {
   formatDateValue,
   formatRelativeTimestamp,
   getInitials,
+  DataTabLoadingState,
+  JoyDataTable,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type CustomerSortValue =
@@ -144,7 +145,7 @@ export function CustomersTabView({
         {rows.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse">
+              <JoyDataTable>
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th
@@ -256,7 +257,7 @@ export function CustomersTabView({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -265,11 +266,7 @@ export function CustomersTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading customers…
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {showEmptySyncState ? (
           <DataTabEmptyState

@@ -64,11 +64,11 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       .from("users")
       .select("tenant_id")
       .eq("id", user.id)
-      .limit(1);
+      .maybeSingle();
 
     if (userProfileError) throw userProfileError;
 
-    const userProfile = Array.isArray(userRows) ? userRows[0] : null;
+    const userProfile = userRows ?? null;
 
     if (!userProfile?.tenant_id) {
       throw new Error("User tenant not found");
@@ -184,14 +184,14 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
               .from("crm_campaigns")
               .select("id,user_id,tenant_id")
               .eq("id", campaignData.id)
-              .limit(1);
+              .maybeSingle();
 
             if (probeError) {
               campaignError = new Error(
                 "Campaign update failed (unable to verify ownership)",
               );
             } else {
-              const probed = Array.isArray(probeRows) ? probeRows[0] : null;
+              const probed = probeRows ?? null;
               if (!probed) {
                 campaignError = new Error(
                   "Campaign not found or you do not have access",
@@ -421,13 +421,9 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       }
     }
 
-    toast.success(`Campaign "${campaignData.name}" saved as draft`);
     return campaign;
   } catch (error) {
     console.error("Error saving campaign:", error);
-    toast.error(
-      `Failed to save campaign: ${(error as Error)?.message || "Unknown error"}`,
-    );
     throw error;
   }
 };
@@ -714,11 +710,11 @@ export const updateCampaignSchedule = async (
         .from("crm_campaigns")
         .select("status")
         .eq("id", campaignId)
-        .limit(1);
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
 
-      const campaign = Array.isArray(rows) ? rows[0] : null;
+      const campaign = rows ?? null;
 
       if (campaign?.status === "sending") {
         if (!options?.silent) {
@@ -935,11 +931,11 @@ export const unscheduleCampaign = async (
         .from("crm_campaigns")
         .select("status")
         .eq("id", campaignId)
-        .limit(1);
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
 
-      const campaign = Array.isArray(rows) ? rows[0] : null;
+      const campaign = rows ?? null;
 
       if (campaign?.status === "sending") {
         if (!options?.silent) {

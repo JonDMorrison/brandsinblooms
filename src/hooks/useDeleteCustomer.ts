@@ -1,8 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { logActivity } from '@/lib/activityLogger';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { logActivity } from "@/lib/activityLogger";
 
 export const useDeleteCustomer = () => {
   const queryClient = useQueryClient();
@@ -12,9 +12,9 @@ export const useDeleteCustomer = () => {
   return useMutation({
     mutationFn: async (customerId: string) => {
       const { data: customer, error: customerError } = await supabase
-        .from('crm_customers')
-        .select('id, tenant_id, first_name, last_name, email')
-        .eq('id', customerId)
+        .from("crm_customers")
+        .select("id, tenant_id, first_name, last_name, email")
+        .eq("id", customerId)
         .maybeSingle();
 
       if (customerError) throw customerError;
@@ -23,25 +23,28 @@ export const useDeleteCustomer = () => {
         await logActivity({
           tenantId: customer.tenant_id,
           customerId: customer.id,
-          actorType: 'user',
+          actorType: "user",
           actorId: user?.id ?? null,
-          source: 'ui',
-          activityType: 'customer.deleted',
-          status: 'success',
-          title: 'Customer deleted',
+          source: "ui",
+          activityType: "customer.deleted",
+          status: "success",
+          title: "Customer deleted",
           description: {
             parts: [
               {
-                type: 'text',
-                text: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
+                type: "text",
+                text:
+                  `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
+                  customer.email ||
+                  "Customer",
               },
             ],
           },
           metadata: {
             customer_name:
-              `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() ||
+              `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
               customer.email ||
-              'Customer',
+              "Customer",
             customer_first_name: customer.first_name ?? null,
             customer_last_name: customer.last_name ?? null,
           },
@@ -52,15 +55,16 @@ export const useDeleteCustomer = () => {
       }
 
       const { error } = await supabase
-        .from('crm_customers')
+        .from("crm_customers")
         .delete()
-        .eq('id', customerId);
+        .eq("id", customerId);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      queryClient.invalidateQueries({ queryKey: ["crm-customers"] });
+      queryClient.invalidateQueries({ queryKey: ["activity-feed"] });
       toast({
         title: "Customer deleted",
         description: "The customer has been permanently removed.",

@@ -3,9 +3,7 @@ import JoyBaseSwitch, {
   type SwitchProps as JoyBaseSwitchProps,
 } from "@mui/joy/Switch";
 import type { SxProps } from "@mui/joy/styles/types";
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export interface JoySwitchProps extends Omit<JoyBaseSwitchProps, "onChange"> {
   onCheckedChange?: (checked: boolean) => void;

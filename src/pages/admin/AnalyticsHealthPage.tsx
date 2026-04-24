@@ -323,63 +323,210 @@ const AnalyticsHealthPage = () => {
   };
 
   return (
-      <PageContainer fullWidth>
-        <Stack spacing={3}>
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            alignItems={{ xs: "flex-start", lg: "center" }}
-            justifyContent="space-between"
-            spacing={2}
-          >
-            <Stack spacing={0.5}>
-              <Typography level="h2">Analytics Health</Typography>
-              <Typography level="body-sm" color="neutral">
-                Monitor webhook processing, event ingestion, and deliverability
-                metrics
-              </Typography>
-            </Stack>
-            <JoyButton
-              bloomVariant="outline"
-              onClick={() => refetch()}
-              disabled={isLoading}
-              loading={isLoading}
-              loadingPosition="start"
-              startDecorator={<RefreshCw className="h-4 w-4" />}
-            >
-              Refresh
-            </JoyButton>
+    <PageContainer fullWidth>
+      <Stack spacing={3}>
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          alignItems={{ xs: "flex-start", lg: "center" }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Stack spacing={0.5}>
+            <Typography level="h2">Analytics Health</Typography>
+            <Typography level="body-sm" color="neutral">
+              Monitor webhook processing, event ingestion, and deliverability
+              metrics
+            </Typography>
           </Stack>
+          <JoyButton
+            bloomVariant="outline"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            loading={isLoading}
+            loadingPosition="start"
+            startDecorator={<RefreshCw className="h-4 w-4" />}
+          >
+            Refresh
+          </JoyButton>
+        </Stack>
 
-          {healthData?.alerts && healthData.alerts.length > 0 ? (
-            <JoyCard
-              sx={{ borderColor: "warning.200", backgroundColor: "warning.50" }}
-            >
+        {healthData?.alerts && healthData.alerts.length > 0 ? (
+          <JoyCard
+            sx={{ borderColor: "warning.200", backgroundColor: "warning.50" }}
+          >
+            <JoyCardHeader
+              title={`Active Alerts (${healthData.alerts.length})`}
+              startDecorator={<Bell className="h-5 w-5 text-yellow-700" />}
+            />
+            <JoyCardContent>
+              <Stack spacing={1.5}>
+                {healthData.alerts.map((alert) => (
+                  <Sheet
+                    key={alert.id}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: "var(--joy-radius-md)",
+                      backgroundColor:
+                        alert.severity === "critical"
+                          ? "danger.50"
+                          : "warning.100",
+                      borderColor:
+                        alert.severity === "critical"
+                          ? "danger.200"
+                          : "warning.200",
+                    }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", md: "row" }}
+                      alignItems={{ xs: "flex-start", md: "center" }}
+                      justifyContent="space-between"
+                      spacing={1.5}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        {alert.severity === "critical" ? (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        ) : (
+                          <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                        )}
+                        <Stack spacing={0.25}>
+                          <Typography level="title-sm">
+                            {alert.metric === "complaint_rate" &&
+                              "Complaint Rate Threshold"}
+                            {alert.metric === "bounce_rate" &&
+                              "Bounce Rate Threshold"}
+                            {alert.metric === "ingest_lag" &&
+                              "Ingest Lag Threshold"}
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            Current:{" "}
+                            {typeof alert.value === "number"
+                              ? alert.value.toFixed(2)
+                              : alert.value}
+                            {alert.metric.includes("rate") ? "%" : " min"}{" "}
+                            (Threshold: {alert.threshold}
+                            {alert.metric.includes("rate") ? "%" : " min"})
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                      <JoyStatusChip
+                        label={alert.severity}
+                        status={alert.severity}
+                      />
+                    </Stack>
+                  </Sheet>
+                ))}
+              </Stack>
+            </JoyCardContent>
+          </JoyCard>
+        ) : null}
+
+        <Grid container spacing={2}>
+          {isLoading
+            ? [...Array(4)].map((_, i) => (
+                <Grid key={i} xs={12} md={6} lg={3}>
+                  <JoyCard>
+                    <JoyCardContent sx={{ pt: 3 }}>
+                      <JoySkeleton sx={{ height: 64, width: "100%" }} />
+                    </JoyCardContent>
+                  </JoyCard>
+                </Grid>
+              ))
+            : metrics.map((metric, idx) => (
+                <Grid key={idx} xs={12} md={6} lg={3}>
+                  <JoyCard sx={getStatusCardSx(metric.status)}>
+                    <JoyCardContent sx={{ pt: 3 }}>
+                      <Stack
+                        direction="row"
+                        alignItems="flex-start"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Stack spacing={0.5}>
+                          <Typography level="body-sm" color="neutral">
+                            {metric.name}
+                          </Typography>
+                          <Typography level="h2">{metric.value}</Typography>
+                          <Typography level="body-xs" color="neutral">
+                            {metric.threshold}
+                          </Typography>
+                        </Stack>
+                        <Stack spacing={1} alignItems="flex-end">
+                          {metric.icon}
+                          {getStatusIcon(metric.status)}
+                        </Stack>
+                      </Stack>
+                    </JoyCardContent>
+                  </JoyCard>
+                </Grid>
+              ))}
+        </Grid>
+
+        <Grid container spacing={2}>
+          <Grid xs={12} lg={6}>
+            <JoyCard>
               <JoyCardHeader
-                title={`Active Alerts (${healthData.alerts.length})`}
-                startDecorator={<Bell className="h-5 w-5 text-yellow-700" />}
+                title="Webhook Status"
+                description="Real-time event ingestion from email providers"
+                startDecorator={<Webhook className="h-5 w-5" />}
               />
               <JoyCardContent>
                 <Stack spacing={1.5}>
-                  {healthData.alerts.map((alert) => (
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      spacing={2}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Activity className="h-4 w-4 text-green-600" />
+                        <Typography level="title-sm">Resend Webhook</Typography>
+                      </Stack>
+                      <JoyStatusChip status="active" />
+                    </Stack>
+                  </Sheet>
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                  >
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      spacing={2}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                        <Typography level="title-sm">
+                          Signature Verification
+                        </Typography>
+                      </Stack>
+                      <JoyStatusChip status="enabled" />
+                    </Stack>
+                  </Sheet>
+                  {healthData?.latestEventAt ? (
+                    <Typography level="body-sm" color="neutral">
+                      Last event:{" "}
+                      {formatDistanceToNow(new Date(healthData.latestEventAt), {
+                        addSuffix: true,
+                      })}
+                    </Typography>
+                  ) : null}
+                  {healthData?.lastPurgeAt ? (
                     <Sheet
-                      key={alert.id}
-                      variant="outlined"
-                      sx={{
-                        p: 1.5,
-                        borderRadius: "var(--joy-radius-md)",
-                        backgroundColor:
-                          alert.severity === "critical"
-                            ? "danger.50"
-                            : "warning.100",
-                        borderColor:
-                          alert.severity === "critical"
-                            ? "danger.200"
-                            : "warning.200",
-                      }}
+                      variant="soft"
+                      color="neutral"
+                      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
                     >
                       <Stack
-                        direction={{ xs: "column", md: "row" }}
-                        alignItems={{ xs: "flex-start", md: "center" }}
+                        direction={{ xs: "column", sm: "row" }}
+                        alignItems={{ xs: "flex-start", sm: "center" }}
                         justifyContent="space-between"
                         spacing={1.5}
                       >
@@ -388,269 +535,134 @@ const AnalyticsHealthPage = () => {
                           spacing={1.5}
                           alignItems="center"
                         >
-                          {alert.severity === "critical" ? (
-                            <XCircle className="h-5 w-5 text-red-600" />
-                          ) : (
-                            <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                          )}
-                          <Stack spacing={0.25}>
-                            <Typography level="title-sm">
-                              {alert.metric === "complaint_rate" &&
-                                "Complaint Rate Threshold"}
-                              {alert.metric === "bounce_rate" &&
-                                "Bounce Rate Threshold"}
-                              {alert.metric === "ingest_lag" &&
-                                "Ingest Lag Threshold"}
-                            </Typography>
-                            <Typography level="body-sm" color="neutral">
-                              Current:{" "}
-                              {typeof alert.value === "number"
-                                ? alert.value.toFixed(2)
-                                : alert.value}
-                              {alert.metric.includes("rate") ? "%" : " min"}{" "}
-                              (Threshold: {alert.threshold}
-                              {alert.metric.includes("rate") ? "%" : " min"})
-                            </Typography>
-                          </Stack>
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Typography level="title-sm">
+                            Last Retention Purge
+                          </Typography>
                         </Stack>
-                        <JoyStatusChip
-                          label={alert.severity}
-                          status={alert.severity}
-                        />
+                        <Typography level="body-sm" color="neutral">
+                          {formatDistanceToNow(
+                            new Date(healthData.lastPurgeAt),
+                            { addSuffix: true },
+                          )}
+                          {healthData.lastPurgeCount
+                            ? ` (${healthData.lastPurgeCount.toLocaleString()} events)`
+                            : ""}
+                        </Typography>
                       </Stack>
                     </Sheet>
-                  ))}
+                  ) : null}
                 </Stack>
               </JoyCardContent>
             </JoyCard>
-          ) : null}
-
-          <Grid container spacing={2}>
-            {isLoading
-              ? [...Array(4)].map((_, i) => (
-                  <Grid key={i} xs={12} md={6} lg={3}>
-                    <JoyCard>
-                      <JoyCardContent sx={{ pt: 3 }}>
-                        <JoySkeleton sx={{ height: 64, width: "100%" }} />
-                      </JoyCardContent>
-                    </JoyCard>
-                  </Grid>
-                ))
-              : metrics.map((metric, idx) => (
-                  <Grid key={idx} xs={12} md={6} lg={3}>
-                    <JoyCard sx={getStatusCardSx(metric.status)}>
-                      <JoyCardContent sx={{ pt: 3 }}>
-                        <Stack
-                          direction="row"
-                          alignItems="flex-start"
-                          justifyContent="space-between"
-                          spacing={2}
-                        >
-                          <Stack spacing={0.5}>
-                            <Typography level="body-sm" color="neutral">
-                              {metric.name}
-                            </Typography>
-                            <Typography level="h2">{metric.value}</Typography>
-                            <Typography level="body-xs" color="neutral">
-                              {metric.threshold}
-                            </Typography>
-                          </Stack>
-                          <Stack spacing={1} alignItems="flex-end">
-                            {metric.icon}
-                            {getStatusIcon(metric.status)}
-                          </Stack>
-                        </Stack>
-                      </JoyCardContent>
-                    </JoyCard>
-                  </Grid>
-                ))}
           </Grid>
 
-          <Grid container spacing={2}>
-            <Grid xs={12} lg={6}>
-              <JoyCard>
-                <JoyCardHeader
-                  title="Webhook Status"
-                  description="Real-time event ingestion from email providers"
-                  startDecorator={<Webhook className="h-5 w-5" />}
-                />
-                <JoyCardContent>
+          <Grid xs={12} lg={6}>
+            <JoyCard>
+              <JoyCardHeader
+                title="30-Day Summary"
+                description="Email delivery and engagement overview"
+              />
+              <JoyCardContent>
+                {isLoading ? (
+                  <JoySkeleton sx={{ height: 128, width: "100%" }} />
+                ) : (
                   <Stack spacing={1.5}>
-                    <Sheet
-                      variant="soft"
-                      color="neutral"
-                      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
                     >
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        spacing={2}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          alignItems="center"
-                        >
-                          <Activity className="h-4 w-4 text-green-600" />
-                          <Typography level="title-sm">
-                            Resend Webhook
-                          </Typography>
-                        </Stack>
-                        <JoyStatusChip status="active" />
-                      </Stack>
-                    </Sheet>
-                    <Sheet
-                      variant="soft"
-                      color="neutral"
-                      sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
-                    >
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        spacing={2}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={1.5}
-                          alignItems="center"
-                        >
-                          <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                          <Typography level="title-sm">
-                            Signature Verification
-                          </Typography>
-                        </Stack>
-                        <JoyStatusChip status="enabled" />
-                      </Stack>
-                    </Sheet>
-                    {healthData?.latestEventAt ? (
                       <Typography level="body-sm" color="neutral">
-                        Last event:{" "}
-                        {formatDistanceToNow(
-                          new Date(healthData.latestEventAt),
-                          { addSuffix: true },
-                        )}
+                        Emails Sent
                       </Typography>
-                    ) : null}
-                    {healthData?.lastPurgeAt ? (
-                      <Sheet
-                        variant="soft"
-                        color="neutral"
-                        sx={{ p: 1.5, borderRadius: "var(--joy-radius-md)" }}
-                      >
-                        <Stack
-                          direction={{ xs: "column", sm: "row" }}
-                          alignItems={{ xs: "flex-start", sm: "center" }}
-                          justifyContent="space-between"
-                          spacing={1.5}
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={1.5}
-                            alignItems="center"
-                          >
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <Typography level="title-sm">
-                              Last Retention Purge
-                            </Typography>
-                          </Stack>
-                          <Typography level="body-sm" color="neutral">
-                            {formatDistanceToNow(
-                              new Date(healthData.lastPurgeAt),
-                              { addSuffix: true },
-                            )}
-                            {healthData.lastPurgeCount
-                              ? ` (${healthData.lastPurgeCount.toLocaleString()} events)`
-                              : ""}
-                          </Typography>
-                        </Stack>
-                      </Sheet>
-                    ) : null}
-                  </Stack>
-                </JoyCardContent>
-              </JoyCard>
-            </Grid>
-
-            <Grid xs={12} lg={6}>
-              <JoyCard>
-                <JoyCardHeader
-                  title="30-Day Summary"
-                  description="Email delivery and engagement overview"
-                />
-                <JoyCardContent>
-                  {isLoading ? (
-                    <JoySkeleton sx={{ height: 128, width: "100%" }} />
-                  ) : (
-                    <Stack spacing={1.5}>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography level="body-sm" color="neutral">
-                          Emails Sent
-                        </Typography>
-                        <Typography level="title-sm">
-                          {healthData?.sentCount.toLocaleString()}
-                        </Typography>
-                      </Stack>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography level="body-sm" color="neutral">
-                          Complaints
-                        </Typography>
-                        <Typography
-                          level="title-sm"
-                          sx={{
-                            color:
-                              healthData?.complaintRate &&
-                              healthData.complaintRate > 0.1
-                                ? "danger.600"
-                                : undefined,
-                          }}
-                        >
-                          {healthData?.complaintCount}
-                        </Typography>
-                      </Stack>
-                      <Stack
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography level="body-sm" color="neutral">
-                          Bounces
-                        </Typography>
-                        <Typography
-                          level="title-sm"
-                          sx={{
-                            color:
-                              healthData?.bounceRate &&
-                              healthData.bounceRate > 2
-                                ? "warning.600"
-                                : undefined,
-                          }}
-                        >
-                          {healthData?.bounceCount}
-                        </Typography>
-                      </Stack>
+                      <Typography level="title-sm">
+                        {healthData?.sentCount.toLocaleString()}
+                      </Typography>
                     </Stack>
-                  )}
-                </JoyCardContent>
-              </JoyCard>
-            </Grid>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography level="body-sm" color="neutral">
+                        Complaints
+                      </Typography>
+                      <Typography
+                        level="title-sm"
+                        sx={{
+                          color:
+                            healthData?.complaintRate &&
+                            healthData.complaintRate > 0.1
+                              ? "danger.600"
+                              : undefined,
+                        }}
+                      >
+                        {healthData?.complaintCount}
+                      </Typography>
+                    </Stack>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography level="body-sm" color="neutral">
+                        Bounces
+                      </Typography>
+                      <Typography
+                        level="title-sm"
+                        sx={{
+                          color:
+                            healthData?.bounceRate && healthData.bounceRate > 2
+                              ? "warning.600"
+                              : undefined,
+                        }}
+                      >
+                        {healthData?.bounceCount}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                )}
+              </JoyCardContent>
+            </JoyCard>
           </Grid>
+        </Grid>
 
-          <JoyCard>
-            <JoyCardHeader
-              title="Recent Campaigns - Metric Freshness"
-              description="Campaigns with potentially stale analytics that may need recomputation"
-            />
-            <JoyCardContent>
-              {isLoading ? (
+        <JoyCard>
+          <JoyCardHeader
+            title="Recent Campaigns - Metric Freshness"
+            description="Campaigns with potentially stale analytics that may need recomputation"
+          />
+          <JoyCardContent>
+            {isLoading ? (
+              <JoyTable containerSx={{ minWidth: 720 }}>
+                <JoyTableHead>
+                  <JoyTableRow>
+                    <JoyTableHeaderCell>Campaign</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Last Refreshed</JoyTableHeaderCell>
+                    <JoyTableHeaderCell align="right">
+                      Actions
+                    </JoyTableHeaderCell>
+                  </JoyTableRow>
+                </JoyTableHead>
+                <JoyTableBody>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <JoyTableRow key={index}>
+                      {Array.from({ length: 3 }).map((__, cellIndex) => (
+                        <JoyTableCell key={cellIndex}>
+                          <JoySkeleton sx={{ height: 20, width: "100%" }} />
+                        </JoyTableCell>
+                      ))}
+                    </JoyTableRow>
+                  ))}
+                </JoyTableBody>
+              </JoyTable>
+            ) : healthData?.staleCampaigns &&
+              healthData.staleCampaigns.length > 0 ? (
+              <Sheet
+                variant="outlined"
+                sx={{ borderRadius: "var(--joy-radius-lg)" }}
+              >
                 <JoyTable containerSx={{ minWidth: 720 }}>
                   <JoyTableHead>
                     <JoyTableRow>
@@ -662,183 +674,151 @@ const AnalyticsHealthPage = () => {
                     </JoyTableRow>
                   </JoyTableHead>
                   <JoyTableBody>
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <JoyTableRow key={index}>
-                        {Array.from({ length: 3 }).map((__, cellIndex) => (
-                          <JoyTableCell key={cellIndex}>
-                            <JoySkeleton sx={{ height: 20, width: "100%" }} />
-                          </JoyTableCell>
-                        ))}
+                    {healthData.staleCampaigns.map((campaign: any) => (
+                      <JoyTableRow key={campaign.id}>
+                        <JoyTableCell
+                          sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                        >
+                          {campaign.name}
+                        </JoyTableCell>
+                        <JoyTableCell>
+                          {campaign.rollup_refreshed_at ? (
+                            formatDistanceToNow(
+                              new Date(campaign.rollup_refreshed_at),
+                              { addSuffix: true },
+                            )
+                          ) : (
+                            <Typography level="body-sm" color="neutral">
+                              Never
+                            </Typography>
+                          )}
+                        </JoyTableCell>
+                        <JoyTableCell sx={{ textAlign: "right" }}>
+                          <JoyDropdownMenu>
+                            <JoyDropdownMenuTrigger
+                              aria-label={`Actions for ${campaign.name}`}
+                              iconButtonSx={{
+                                width: 32,
+                                height: 32,
+                                ml: "auto",
+                              }}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </JoyDropdownMenuTrigger>
+                            <JoyDropdownMenuContent placement="bottom-end">
+                              <JoyDropdownMenuItem
+                                startDecorator={
+                                  <RefreshCw className="h-4 w-4" />
+                                }
+                                onClick={() =>
+                                  recomputeMutation.mutate(campaign.id)
+                                }
+                                disabled={recomputeMutation.isPending}
+                              >
+                                Recompute metrics
+                              </JoyDropdownMenuItem>
+                            </JoyDropdownMenuContent>
+                          </JoyDropdownMenu>
+                        </JoyTableCell>
                       </JoyTableRow>
                     ))}
                   </JoyTableBody>
                 </JoyTable>
-              ) : healthData?.staleCampaigns &&
-                healthData.staleCampaigns.length > 0 ? (
-                <Sheet
-                  variant="outlined"
-                  sx={{ borderRadius: "var(--joy-radius-lg)" }}
-                >
-                  <JoyTable containerSx={{ minWidth: 720 }}>
-                    <JoyTableHead>
-                      <JoyTableRow>
-                        <JoyTableHeaderCell>Campaign</JoyTableHeaderCell>
-                        <JoyTableHeaderCell>Last Refreshed</JoyTableHeaderCell>
-                        <JoyTableHeaderCell align="right">
-                          Actions
-                        </JoyTableHeaderCell>
-                      </JoyTableRow>
-                    </JoyTableHead>
-                    <JoyTableBody>
-                      {healthData.staleCampaigns.map((campaign: any) => (
-                        <JoyTableRow key={campaign.id}>
-                          <JoyTableCell
-                            sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
-                          >
-                            {campaign.name}
-                          </JoyTableCell>
-                          <JoyTableCell>
-                            {campaign.rollup_refreshed_at ? (
-                              formatDistanceToNow(
-                                new Date(campaign.rollup_refreshed_at),
-                                { addSuffix: true },
-                              )
-                            ) : (
-                              <Typography level="body-sm" color="neutral">
-                                Never
-                              </Typography>
-                            )}
-                          </JoyTableCell>
-                          <JoyTableCell sx={{ textAlign: "right" }}>
-                            <JoyDropdownMenu>
-                              <JoyDropdownMenuTrigger
-                                aria-label={`Actions for ${campaign.name}`}
-                                iconButtonSx={{
-                                  width: 32,
-                                  height: 32,
-                                  ml: "auto",
-                                }}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </JoyDropdownMenuTrigger>
-                              <JoyDropdownMenuContent placement="bottom-end">
-                                <JoyDropdownMenuItem
-                                  startDecorator={
-                                    <RefreshCw className="h-4 w-4" />
-                                  }
-                                  onClick={() =>
-                                    recomputeMutation.mutate(campaign.id)
-                                  }
-                                  disabled={recomputeMutation.isPending}
-                                >
-                                  Recompute metrics
-                                </JoyDropdownMenuItem>
-                              </JoyDropdownMenuContent>
-                            </JoyDropdownMenu>
-                          </JoyTableCell>
-                        </JoyTableRow>
-                      ))}
-                    </JoyTableBody>
-                  </JoyTable>
-                </Sheet>
-              ) : (
-                <Stack spacing={0.75} alignItems="center" sx={{ py: 5 }}>
-                  <Clock
-                    className="h-5 w-5"
-                    style={{ color: "var(--joy-palette-neutral-400)" }}
-                  />
-                  <Typography level="title-sm">
-                    No stale campaigns found
-                  </Typography>
-                  <Typography
-                    level="body-sm"
-                    color="neutral"
-                    textAlign="center"
-                  >
-                    Recent campaign analytics are up to date.
-                  </Typography>
-                </Stack>
-              )}
-            </JoyCardContent>
-          </JoyCard>
-
-          <JoyCard>
-            <JoyCardHeader title="Health Thresholds Reference" />
-            <JoyCardContent>
-              <Sheet
-                variant="outlined"
-                sx={{ borderRadius: "var(--joy-radius-lg)" }}
-              >
-                <JoyTable containerSx={{ minWidth: 720 }}>
-                  <JoyTableHead>
-                    <JoyTableRow>
-                      <JoyTableHeaderCell>Metric</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>Green</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>Yellow</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>Red</JoyTableHeaderCell>
-                      <JoyTableHeaderCell>Action</JoyTableHeaderCell>
-                    </JoyTableRow>
-                  </JoyTableHead>
-                  <JoyTableBody>
-                    <JoyTableRow>
-                      <JoyTableCell
-                        sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
-                      >
-                        Ingest Lag
-                      </JoyTableCell>
-                      <JoyTableCell>≤ 2 minutes</JoyTableCell>
-                      <JoyTableCell>2-10 minutes</JoyTableCell>
-                      <JoyTableCell>&gt; 10 minutes</JoyTableCell>
-                      <JoyTableCell sx={{ color: "neutral.500" }}>
-                        Check webhook delivery
-                      </JoyTableCell>
-                    </JoyTableRow>
-                    <JoyTableRow>
-                      <JoyTableCell
-                        sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
-                      >
-                        Complaint Rate
-                      </JoyTableCell>
-                      <JoyTableCell>≤ 0.1%</JoyTableCell>
-                      <JoyTableCell>0.1-0.3%</JoyTableCell>
-                      <JoyTableCell>&gt; 0.3%</JoyTableCell>
-                      <JoyTableCell sx={{ color: "neutral.500" }}>
-                        Review list hygiene
-                      </JoyTableCell>
-                    </JoyTableRow>
-                    <JoyTableRow>
-                      <JoyTableCell
-                        sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
-                      >
-                        Hard Bounce Rate
-                      </JoyTableCell>
-                      <JoyTableCell>≤ 2%</JoyTableCell>
-                      <JoyTableCell>2-5%</JoyTableCell>
-                      <JoyTableCell>&gt; 5%</JoyTableCell>
-                      <JoyTableCell sx={{ color: "neutral.500" }}>
-                        Clean email list
-                      </JoyTableCell>
-                    </JoyTableRow>
-                    <JoyTableRow>
-                      <JoyTableCell
-                        sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
-                      >
-                        Webhook 5xx Rate
-                      </JoyTableCell>
-                      <JoyTableCell>≤ 1%</JoyTableCell>
-                      <JoyTableCell>1-5%</JoyTableCell>
-                      <JoyTableCell>&gt; 5%</JoyTableCell>
-                      <JoyTableCell sx={{ color: "neutral.500" }}>
-                        Check edge function logs
-                      </JoyTableCell>
-                    </JoyTableRow>
-                  </JoyTableBody>
-                </JoyTable>
               </Sheet>
-            </JoyCardContent>
-          </JoyCard>
-        </Stack>
-      </PageContainer>
+            ) : (
+              <Stack spacing={0.75} alignItems="center" sx={{ py: 5 }}>
+                <Clock
+                  className="h-5 w-5"
+                  style={{ color: "var(--joy-palette-neutral-400)" }}
+                />
+                <Typography level="title-sm">
+                  No stale campaigns found
+                </Typography>
+                <Typography level="body-sm" color="neutral" textAlign="center">
+                  Recent campaign analytics are up to date.
+                </Typography>
+              </Stack>
+            )}
+          </JoyCardContent>
+        </JoyCard>
+
+        <JoyCard>
+          <JoyCardHeader title="Health Thresholds Reference" />
+          <JoyCardContent>
+            <Sheet
+              variant="outlined"
+              sx={{ borderRadius: "var(--joy-radius-lg)" }}
+            >
+              <JoyTable containerSx={{ minWidth: 720 }}>
+                <JoyTableHead>
+                  <JoyTableRow>
+                    <JoyTableHeaderCell>Metric</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Green</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Yellow</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Red</JoyTableHeaderCell>
+                    <JoyTableHeaderCell>Action</JoyTableHeaderCell>
+                  </JoyTableRow>
+                </JoyTableHead>
+                <JoyTableBody>
+                  <JoyTableRow>
+                    <JoyTableCell
+                      sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                    >
+                      Ingest Lag
+                    </JoyTableCell>
+                    <JoyTableCell>≤ 2 minutes</JoyTableCell>
+                    <JoyTableCell>2-10 minutes</JoyTableCell>
+                    <JoyTableCell>&gt; 10 minutes</JoyTableCell>
+                    <JoyTableCell sx={{ color: "neutral.500" }}>
+                      Check webhook delivery
+                    </JoyTableCell>
+                  </JoyTableRow>
+                  <JoyTableRow>
+                    <JoyTableCell
+                      sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                    >
+                      Complaint Rate
+                    </JoyTableCell>
+                    <JoyTableCell>≤ 0.1%</JoyTableCell>
+                    <JoyTableCell>0.1-0.3%</JoyTableCell>
+                    <JoyTableCell>&gt; 0.3%</JoyTableCell>
+                    <JoyTableCell sx={{ color: "neutral.500" }}>
+                      Review list hygiene
+                    </JoyTableCell>
+                  </JoyTableRow>
+                  <JoyTableRow>
+                    <JoyTableCell
+                      sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                    >
+                      Hard Bounce Rate
+                    </JoyTableCell>
+                    <JoyTableCell>≤ 2%</JoyTableCell>
+                    <JoyTableCell>2-5%</JoyTableCell>
+                    <JoyTableCell>&gt; 5%</JoyTableCell>
+                    <JoyTableCell sx={{ color: "neutral.500" }}>
+                      Clean email list
+                    </JoyTableCell>
+                  </JoyTableRow>
+                  <JoyTableRow>
+                    <JoyTableCell
+                      sx={{ fontWeight: "var(--joy-fontWeight-md)" }}
+                    >
+                      Webhook 5xx Rate
+                    </JoyTableCell>
+                    <JoyTableCell>≤ 1%</JoyTableCell>
+                    <JoyTableCell>1-5%</JoyTableCell>
+                    <JoyTableCell>&gt; 5%</JoyTableCell>
+                    <JoyTableCell sx={{ color: "neutral.500" }}>
+                      Check edge function logs
+                    </JoyTableCell>
+                  </JoyTableRow>
+                </JoyTableBody>
+              </JoyTable>
+            </Sheet>
+          </JoyCardContent>
+        </JoyCard>
+      </Stack>
+    </PageContainer>
   );
 };
 

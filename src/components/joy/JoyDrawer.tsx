@@ -6,10 +6,10 @@ import type { SxProps } from "@mui/joy/styles/types";
 import Typography from "@mui/joy/Typography";
 import { X } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { mergeSx } from "@/components/joy/mergeSx";
 import {
   bloomOverlayBackdropSx,
   bloomOverlayRootSx,
-  mergeSx,
   type JoyOverlayCloseReason,
 } from "@/components/joy/JoyDialog";
 
@@ -50,6 +50,8 @@ export const JoyDrawer = ({
   contentSx,
   disableClose = false,
   hideCloseButton = false,
+  slotProps,
+  sx,
   ...drawerProps
 }: JoyDrawerProps) => {
   const handleClose = React.useCallback(
@@ -68,12 +70,15 @@ export const JoyDrawer = ({
       onClose={handleClose}
       open={open}
       slotProps={{
+        ...slotProps,
         backdrop: {
-          sx: bloomOverlayBackdropSx,
+          ...(slotProps?.backdrop ?? {}),
+          sx: mergeSx(bloomOverlayBackdropSx, slotProps?.backdrop?.sx),
         },
         content: {
+          ...(slotProps?.content ?? {}),
           sx: {
-            backgroundColor: "#FFFFFF",
+            backgroundColor: "background.surface",
             boxShadow: "var(--joy-shadow-xl)",
             width: { xs: "100vw", sm: `${drawerWidthMap[size]}px` },
             maxWidth: "100vw",
@@ -81,10 +86,35 @@ export const JoyDrawer = ({
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",
+            animation:
+              anchor === "right"
+                ? "bloomDrawerEnterRight 200ms ease"
+                : "bloomDrawerEnterLeft 200ms ease",
+            "@keyframes bloomDrawerEnterRight": {
+              from: {
+                opacity: 0,
+                transform: "translateX(100%)",
+              },
+              to: {
+                opacity: 1,
+                transform: "translateX(0)",
+              },
+            },
+            "@keyframes bloomDrawerEnterLeft": {
+              from: {
+                opacity: 0,
+                transform: "translateX(-100%)",
+              },
+              to: {
+                opacity: 1,
+                transform: "translateX(0)",
+              },
+            },
+            ...(slotProps?.content?.sx ?? {}),
           },
         },
       }}
-      sx={bloomOverlayRootSx}
+      sx={mergeSx(bloomOverlayRootSx, sx)}
       {...drawerProps}
     >
       {title || description || startDecorator || !hideCloseButton ? (
@@ -129,7 +159,7 @@ export const JoyDrawer = ({
               onClick={() => onClose("closeClick")}
               size="icon"
             >
-              <X className="h-4 w-4" />
+              <X size={16} strokeWidth={1.9} />
             </JoyButton>
           ) : null}
         </Stack>

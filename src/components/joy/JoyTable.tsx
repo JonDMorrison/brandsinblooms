@@ -16,6 +16,7 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
+import { mergeSx } from "@/components/joy/mergeSx";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoySelect } from "@/components/joy/JoySelect";
 
@@ -59,19 +60,16 @@ export interface JoyTablePaginationProps {
   sx?: SxProps;
 }
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
 const tableRootSx: SxProps = {
   width: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "background.surface",
   "& thead th": {
     backgroundColor: "neutral.50",
   },
   "& tbody td": {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "background.surface",
   },
 };
 
@@ -81,9 +79,9 @@ const sectionSx: SxProps = {
 
 const rowSx = (clickable: boolean, hoverColor: string): SxProps => ({
   cursor: clickable ? "pointer" : "default",
-  transition: "background-color 0.16s ease",
+  transition: "background-color 0.1s ease",
   "& > th, & > td": {
-    transition: "background-color 0.16s ease, border-color 0.16s ease",
+    transition: "background-color 0.1s ease, border-color 0.1s ease",
   },
   ...(clickable
     ? {
@@ -96,9 +94,10 @@ const rowSx = (clickable: boolean, hoverColor: string): SxProps => ({
 
 const cellSx: SxProps = {
   px: 2,
-  py: 1.5,
+  py: 1.25,
   color: "neutral.700",
-  fontSize: "var(--joy-fontSize-sm)",
+  fontSize: "14px",
+  fontWeight: 400,
   lineHeight: 1.45,
   verticalAlign: "middle",
   borderBottom: "1px solid",
@@ -108,11 +107,13 @@ const cellSx: SxProps = {
 
 const headerCellSx: SxProps = {
   px: 2,
-  py: 1.5,
-  color: "neutral.600",
-  fontSize: "var(--joy-fontSize-sm)",
+  py: 1.25,
+  color: "neutral.500",
+  fontSize: "12px",
   fontWeight: "var(--joy-fontWeight-semibold)",
   lineHeight: 1.4,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
   textAlign: "left",
   verticalAlign: "middle",
   borderBottom: "1px solid",
@@ -138,6 +139,7 @@ const headerButtonSx = (align: string | undefined): SxProps => ({
   font: "inherit",
   cursor: "pointer",
   textAlign: align ?? "left",
+  transition: "color 150ms ease",
   "&:hover": {
     color: "primary.700",
   },
@@ -153,12 +155,15 @@ const headerButtonSx = (align: string | undefined): SxProps => ({
 });
 
 const paginationSurfaceSx: SxProps = {
-  mt: 2,
-  p: 2,
-  borderRadius: "var(--joy-radius-lg)",
-  borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
-  boxShadow: "var(--joy-shadow-sm)",
+  mt: 0,
+  px: 4,
+  py: 4,
+  borderRadius: 0,
+  borderColor: "transparent",
+  borderTop: "1px solid",
+  borderTopColor: "neutral.100",
+  backgroundColor: "transparent",
+  boxShadow: "none",
 };
 
 const getSortIcon = (sortDirection: JoyTableSortDirection) => {
@@ -330,16 +335,15 @@ export const JoyTableHeaderCell = React.forwardRef<
             sx={headerButtonSx(align)}
           >
             <Box component="span">{children}</Box>
-            <SortIcon
-              className="lucide"
-              style={{
-                width: 16,
-                height: 16,
-                color: isActive
-                  ? "var(--joy-palette-primary-600)"
-                  : "var(--joy-palette-neutral-400)",
+            <Box
+              component="span"
+              sx={{
+                display: "inline-flex",
+                color: isActive ? "primary.500" : "neutral.400",
               }}
-            />
+            >
+              <SortIcon size={12} strokeWidth={1.9} />
+            </Box>
           </Box>
         ) : (
           children
@@ -388,7 +392,7 @@ export const JoyTablePagination = ({
           spacing={2}
         >
           <Typography level="body-sm" color="neutral">
-            Showing {start}-{end} of {totalCount} results
+            Showing {start}-{end} of {totalCount}
           </Typography>
           {resolvedShowPageSizeSelector ? (
             <Stack direction="row" spacing={1} alignItems="center">
@@ -428,7 +432,7 @@ export const JoyTablePagination = ({
             disabled={disabled || currentPageIndex <= 0}
             onClick={() => onPageChange(currentPageIndex - 1 + pageIndexBase)}
           >
-            <ChevronLeft className="lucide" style={{ width: 16, height: 16 }} />
+            <ChevronLeft size={16} strokeWidth={1.9} />
           </IconButton>
 
           {visiblePages.map((pageIndex, index) => {
@@ -445,21 +449,24 @@ export const JoyTablePagination = ({
                     variant="plain"
                     color="neutral"
                     disabled
+                    sx={{ width: 28, height: 28, minWidth: 28, minHeight: 28 }}
                   >
-                    <MoreHorizontal
-                      className="lucide"
-                      style={{ width: 16, height: 16 }}
-                    />
+                    <MoreHorizontal size={16} strokeWidth={1.9} />
                   </IconButton>
                 ) : null}
                 <JoyButton
                   size="sm"
-                  variant={isActive ? "soft" : "plain"}
+                  variant={isActive ? "solid" : "plain"}
                   color={isActive ? "primary" : "neutral"}
                   onClick={() => onPageChange(pageNumber)}
                   disabled={disabled}
                   aria-current={isActive ? "page" : undefined}
-                  sx={{ minWidth: 36, px: 1.25 }}
+                  sx={{
+                    minWidth: 28,
+                    height: 28,
+                    px: 1,
+                    borderRadius: "var(--joy-radius-sm)",
+                  }}
                 >
                   {pageIndex + 1}
                 </JoyButton>
@@ -475,10 +482,7 @@ export const JoyTablePagination = ({
             disabled={disabled || currentPageIndex >= pageCount - 1}
             onClick={() => onPageChange(currentPageIndex + 1 + pageIndexBase)}
           >
-            <ChevronRight
-              className="lucide"
-              style={{ width: 16, height: 16 }}
-            />
+            <ChevronRight size={16} strokeWidth={1.9} />
           </IconButton>
         </Stack>
       </Stack>

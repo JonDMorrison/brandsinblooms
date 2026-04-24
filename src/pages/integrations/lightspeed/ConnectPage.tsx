@@ -1,15 +1,22 @@
-import { useState, useEffect } from "react";
-import { Card } from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plug, ArrowLeft } from "lucide-react";
-import { LightspeedOAuthOverlay } from "@/components/integrations/LightspeedOAuthOverlay";
-import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Plug } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
+import { LightspeedOAuthOverlay } from "@/components/integrations/LightspeedOAuthOverlay";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  FormHelperText,
+  Input,
+  Sheet,
+  Stack,
+  Typography,
+} from "@mui/joy";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function LightspeedConnectPage() {
   const [domainPrefix, setDomainPrefix] = useState("");
@@ -17,94 +24,64 @@ export default function LightspeedConnectPage() {
   const [loadingStep, setLoadingStep] = useState<
     "preparing" | "redirecting" | "completing"
   >("preparing");
+  const [domainError, setDomainError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Listen for OAuth completion via multiple channels (from callback tab)
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleOAuthResult = (data: any) => {
-      // Only process recent results (within 30 seconds)
       if (Date.now() - data.timestamp < 30000) {
         setLoading(false);
         localStorage.removeItem("lightspeed_oauth_result");
 
         if (data.status === "success") {
-          queryClient.invalidateQueries({
-            queryKey: ["lightspeed-connection"],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["lightspeed-connection-status"],
-          });
+          void queryClient.invalidateQueries({ queryKey: ["lightspeed-connection"] });
+          void queryClient.invalidateQueries({ queryKey: ["lightspeed-connection-status"] });
           toast({
             title: "✓ Lightspeed connected successfully",
-            description: data.retailerName
-              ? `Connected to ${data.retailerName}`
-              : undefined,
+            description: data.retailerName ? `Connected to ${data.retailerName}` : undefined,
           });
-          navigate("/integrations/lightspeed", { replace: true });
+          void navigate("/integrations/lightspeed", { replace: true });
         } else if (data.status === "error") {
           toast({
             title: "Connection failed",
-            description: getUserFacingIntegrationError(
-              data.message,
-              "The connection could not be completed. Please try again.",
-            ),
+            description: getUserFacingIntegrationError(data.message, "The connection could not be completed. Please try again."),
             variant: "destructive",
           });
         }
       }
     };
 
-    // Method 1: Check localStorage
     const checkLocalStorage = () => {
       const result = localStorage.getItem("lightspeed_oauth_result");
       if (result) {
-        try {
-          const data = JSON.parse(result);
-          handleOAuthResult(data);
-        } catch (error) {
-          console.error("[LS-Connect] Error processing OAuth result:", error);
-        }
+        try { handleOAuthResult(JSON.parse(result)); } catch { /* ignore */ }
       }
     };
 
-    // Method 2: Listen to BroadcastChannel
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel("lightspeed_oauth");
-      channel.onmessage = (event) => {
-        handleOAuthResult(event.data);
-      };
-    } catch (e) {}
+      channel.onmessage = (event) => handleOAuthResult(event.data);
+    } catch { /* ignore */ }
 
-    // Method 3: Listen to postMessage
     const handleMessage = (event: MessageEvent) => {
-      if (
-        event.origin === window.location.origin &&
-        event.data?.type === "lightspeed_oauth_result"
-      ) {
+      if (event.origin === window.location.origin && event.data?.type === "lightspeed_oauth_result") {
         handleOAuthResult(event.data.data);
       }
     };
     window.addEventListener("message", handleMessage);
-
-    // Check immediately
     checkLocalStorage();
-
-    // Listen for storage events from other tabs
     window.addEventListener("storage", checkLocalStorage);
-
-    // Poll more frequently while loading (every 500ms)
-    let interval: NodeJS.Timeout | null = null;
-    if (loading) {
-      interval = setInterval(checkLocalStorage, 500);
-    }
+    let interval: ReturnType<typeof setInterval> | null = null;
+    if (loading) interval = setInterval(checkLocalStorage, 500);
 
     return () => {
       window.removeEventListener("storage", checkLocalStorage);
       window.removeEventListener("message", handleMessage);
-      if (channel) channel.close();
+      channel?.close();
       if (interval) clearInterval(interval);
     };
   }, [queryClient, toast, loading, navigate]);
@@ -112,9 +89,7 @@ export default function LightspeedConnectPage() {
   const initiateOAuthFlow = async (prefix: string) => {
     setLoading(true);
     setLoadingStep("preparing");
-
     try {
-      // Clean up old pending connections first
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         const { data: user } = await supabase
@@ -122,7 +97,6 @@ export default function LightspeedConnectPage() {
           .select("tenant_id")
           .eq("id", userData.user.id)
           .single();
-
         if (user?.tenant_id) {
           await supabase
             .from("lightspeed_connections")
@@ -132,31 +106,19 @@ export default function LightspeedConnectPage() {
         }
       }
 
-      const redirectOrigin = window.location.origin;
+      const { data, error } = await supabase.functions.invoke("lightspeed-oauth-start", {
+        body: { domainPrefix: prefix, redirectOrigin: window.location.origin },
+      });
 
-      const { data, error } = await supabase.functions.invoke(
-        "lightspeed-oauth-start",
-        {
-          body: { domainPrefix: prefix, redirectOrigin },
-        },
-      );
-
-      if (error) {
-        throw new Error(error.message || "Failed to initiate OAuth");
-      }
-
-      if (!data?.authUrl) {
-        throw new Error("No authorization URL received");
+      if (error || !data?.authUrl) {
+        throw new Error(error?.message || "No authorization URL received");
       }
 
       setLoadingStep("redirecting");
-
-      // Clear any old OAuth results
       localStorage.removeItem("lightspeed_oauth_result");
 
-      // Open OAuth in a new tab
       const link = document.createElement("a");
-      link.href = data.authUrl;
+      link.href = data.authUrl as string;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       document.body.appendChild(link);
@@ -164,13 +126,10 @@ export default function LightspeedConnectPage() {
       document.body.removeChild(link);
 
       setLoadingStep("completing");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Connection failed",
-        description: getUserFacingIntegrationError(
-          error,
-          "Failed to start the connection. Please try again.",
-        ),
+        description: getUserFacingIntegrationError(error, "Failed to start the connection. Please try again."),
         variant: "destructive",
       });
       setLoading(false);
@@ -179,91 +138,77 @@ export default function LightspeedConnectPage() {
 
   const handleConnect = () => {
     const prefix = domainPrefix.trim();
-    if (!prefix) {
-      toast({ title: "Please enter a domain prefix", variant: "destructive" });
-      return;
-    }
-    if (!/^[a-z0-9-]+$/i.test(prefix)) {
-      toast({
-        title: "Invalid format",
-        description: "Use only letters, numbers, and dashes",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (prefix.length < 3 || prefix.length > 50) {
-      toast({
-        title: "Invalid length",
-        description: "Domain prefix must be 3-50 characters",
-        variant: "destructive",
-      });
-      return;
-    }
-    initiateOAuthFlow(prefix);
+    setDomainError(null);
+    if (!prefix) { setDomainError("Please enter a domain prefix."); return; }
+    if (!/^[a-z0-9-]+$/i.test(prefix)) { setDomainError("Use only letters, numbers, and dashes."); return; }
+    if (prefix.length < 3 || prefix.length > 50) { setDomainError("Domain prefix must be 3–50 characters."); return; }
+    void initiateOAuthFlow(prefix);
   };
 
   return (
     <>
-      <LightspeedOAuthOverlay
-        isVisible={loading}
-        step={loadingStep}
-        onCancel={() => setLoading(false)}
-      />
+      <LightspeedOAuthOverlay isVisible={loading} step={loadingStep} onCancel={() => setLoading(false)} />
 
-      <div className="p-6 max-w-lg mx-auto space-y-6">
-        <Link
-          to="/integrations/pos"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to POS Integrations
+      <Box sx={{ p: 3, maxWidth: 480, mx: "auto" }}>
+        <Link to="/integrations/pos" style={{ textDecoration: "none" }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" mb={2.5}>
+            <ArrowLeft style={{ width: 14, height: 14 }} />
+            <Typography level="body-sm" textColor="text.tertiary">Back to POS Integrations</Typography>
+          </Stack>
         </Link>
 
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <Plug className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold">
-                Connect Lightspeed X-Series
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Enter your store domain to get started
-              </p>
-            </div>
-          </div>
+        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 3, bgcolor: "background.surface" }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start" mb={3}>
+            <Box
+              sx={{
+                flexShrink: 0,
+                width: 48, height: 48, borderRadius: "xl",
+                bgcolor: "neutral.softBg",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <Plug style={{ width: 22, height: 22 }} />
+            </Box>
+            <Box>
+              <Typography level="title-md" fontWeight="xl">Connect Lightspeed X-Series</Typography>
+              <Typography level="body-sm" textColor="text.tertiary">Enter your store domain to get started</Typography>
+            </Box>
+          </Stack>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="domain">Domain Prefix</Label>
-              <div className="flex items-center gap-1">
-                <Input
-                  id="domain"
-                  placeholder="yourstore"
-                  value={domainPrefix}
-                  onChange={(e) => setDomainPrefix(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                  disabled={loading}
-                />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">
-                  .retail.lightspeed.app
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Find this in your Lightspeed back-office URL
-              </p>
-            </div>
+          <Stack spacing={2}>
+            <Box>
+              <Typography level="body-sm" fontWeight="md" mb={0.75}>Domain Prefix</Typography>
+              <Input
+                id="domain"
+                placeholder="yourstore"
+                value={domainPrefix}
+                disabled={loading}
+                endDecorator={
+                  <Typography level="body-xs" textColor="text.tertiary">.retail.lightspeed.app</Typography>
+                }
+                onChange={(e) => { setDomainPrefix(e.target.value); setDomainError(null); }}
+                onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+              />
+              {domainError ? (
+                <FormHelperText sx={{ color: "danger.500", mt: 0.5 }}>{domainError}</FormHelperText>
+              ) : (
+                <FormHelperText sx={{ mt: 0.5 }}>Find this in your Lightspeed back-office URL</FormHelperText>
+              )}
+            </Box>
 
             <Button
+              variant="solid"
+              color="neutral"
               onClick={handleConnect}
               disabled={loading || !domainPrefix.trim()}
-              className="w-full"
+              startDecorator={loading ? <CircularProgress size="sm" /> : null}
+              sx={{ width: "100%" }}
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {loading ? "Connecting..." : "Connect to Lightspeed"}
             </Button>
-          </div>
-        </Card>
-      </div>
+          </Stack>
+        </Sheet>
+      </Box>
     </>
   );
 }

@@ -1,11 +1,16 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
-import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { EmailNodeEditor } from './editors/EmailNodeEditor';
-import { SMSNodeEditor } from './editors/SMSNodeEditor';
-import { DelayNodeEditor } from './editors/DelayNodeEditor';
-import { TriggerNodeEditor } from './editors/TriggerNodeEditor';
-import { SplitNodeEditor } from './editors/SplitNodeEditor';
+import React from "react";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { X } from "lucide-react";
+import { EmailNodeEditor } from "./editors/EmailNodeEditor";
+import { SMSNodeEditor } from "./editors/SMSNodeEditor";
+import { DelayNodeEditor } from "./editors/DelayNodeEditor";
+import { TriggerNodeEditor } from "./editors/TriggerNodeEditor";
+import { SplitNodeEditor } from "./editors/SplitNodeEditor";
+import { JoyButton } from "@/components/joy/JoyButton";
 
 interface NodeEditorDialogProps {
   open: boolean;
@@ -24,8 +29,12 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
   nodeData,
   nodeId,
   automationId,
-  onSave
+  onSave,
 }) => {
+  if (!open || !nodeType || !nodeData) {
+    return null;
+  }
+
   const handleSave = (data: any) => {
     onSave(data);
     onOpenChange(false);
@@ -36,10 +45,8 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
   };
 
   const renderEditor = () => {
-    if (!nodeType || !nodeData) return null;
-
     switch (nodeType) {
-      case 'email':
+      case "email":
         return (
           <EmailNodeEditor
             data={nodeData}
@@ -49,7 +56,7 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
             onCancel={handleCancel}
           />
         );
-      case 'sms':
+      case "sms":
         return (
           <SMSNodeEditor
             data={nodeData}
@@ -57,7 +64,7 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
             onCancel={handleCancel}
           />
         );
-      case 'delay':
+      case "delay":
         return (
           <DelayNodeEditor
             data={nodeData}
@@ -65,7 +72,7 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
             onCancel={handleCancel}
           />
         );
-      case 'trigger':
+      case "trigger":
         return (
           <TriggerNodeEditor
             data={nodeData}
@@ -73,7 +80,7 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
             onCancel={handleCancel}
           />
         );
-      case 'split':
+      case "split":
         return (
           <SplitNodeEditor
             data={nodeData}
@@ -87,17 +94,72 @@ export const NodeEditorDialog: React.FC<NodeEditorDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 gap-0 max-w-none w-auto bg-transparent border-none shadow-none">
-        <VisuallyHidden.Root>
-          <DialogHeader>
-            <DialogTitle>
-              Edit {nodeType ? nodeType.charAt(0).toUpperCase() + nodeType.slice(1) : 'Node'}
-            </DialogTitle>
-          </DialogHeader>
-        </VisuallyHidden.Root>
+    <Sheet
+      variant="outlined"
+      sx={{
+        width: { xs: 320, xl: 380 },
+        borderRadius: 0,
+        borderTop: "none",
+        borderBottom: "none",
+        borderRight: "none",
+        backgroundColor: "background.surface",
+        display: { xs: "none", lg: "flex" },
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="flex-start"
+        justifyContent="space-between"
+        sx={{
+          px: 2,
+          py: 1.75,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box>
+          <Typography
+            level="body-xs"
+            sx={{
+              color: "neutral.500",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            Properties
+          </Typography>
+          <Typography level="title-md" sx={{ mt: 0.5 }}>
+            {formatNodeType(nodeType)}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip variant="soft" color="neutral" size="sm">
+            {nodeId?.slice(0, 8) ?? "node"}
+          </Chip>
+          <JoyButton
+            size="icon"
+            variant="plain"
+            color="neutral"
+            onClick={() => onOpenChange(false)}
+          >
+            <X size={16} />
+          </JoyButton>
+        </Stack>
+      </Stack>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {renderEditor()}
-      </DialogContent>
-    </Dialog>
+      </Box>
+    </Sheet>
   );
 };
+
+function formatNodeType(nodeType: string) {
+  if (nodeType === "split") {
+    return "Condition";
+  }
+
+  return nodeType.charAt(0).toUpperCase() + nodeType.slice(1);
+}

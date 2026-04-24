@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-interface GoogleAnalyticsData {
+export interface GoogleAnalyticsData {
   overview: {
     totalSessions: number;
     totalPageviews: number;
     totalUsers: number;
     avgSessionDuration: number;
+    bounceRate: number;
+    engagementRate: number;
   };
   dailyData: Array<{
     date: string;
@@ -26,16 +28,21 @@ interface GoogleAnalyticsData {
     source: string;
     sessions: number;
   }>;
+  isMockData: boolean;
+  lastUpdated: string | null;
 }
 
-export const useGoogleAnalytics = (propertyId?: string, dateRange: number = 30) => {
+export const useGoogleAnalytics = (
+  propertyId?: string,
+  dateRange: number = 30,
+) => {
   const [data, setData] = useState<GoogleAnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnalytics = async () => {
     if (!propertyId) {
-      setError('Property ID is required');
+      setError("Property ID is required");
       return;
     }
 
@@ -43,25 +50,56 @@ export const useGoogleAnalytics = (propertyId?: string, dateRange: number = 30) 
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase.functions.invoke('ga-report-data', {
-        body: {
-          propertyId,
-          dateRange
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "ga-report-data",
+        {
+          body: {
+            propertyId,
+            dateRange,
+          },
+        },
+      );
 
       if (error) {
-        throw new Error(error.message || 'Failed to fetch analytics data');
+        throw new Error(error.message || "Failed to fetch analytics data");
       }
 
       if (data?.success && data?.data) {
-        setData(data.data);
+        const responseData = data.data;
+
+        setData({
+          overview: {
+            totalUsers: responseData?.overview?.totalUsers ?? 0,
+            totalPageviews:
+              responseData?.overview?.totalPageviews ??
+              responseData?.overview?.pageViews ??
+              0,
+            totalSessions:
+              responseData?.overview?.totalSessions ??
+              responseData?.overview?.sessions ??
+              0,
+            avgSessionDuration: responseData?.overview?.avgSessionDuration ?? 0,
+            bounceRate: responseData?.overview?.bounceRate ?? 0,
+            engagementRate: responseData?.overview?.engagementRate ?? 0,
+          },
+          dailyData: (responseData?.dailyData ?? []).map((entry: any) => ({
+            date: entry.date,
+            sessions: entry.sessions ?? 0,
+            pageviews: entry.pageviews ?? entry.pageViews ?? 0,
+            users: entry.users ?? 0,
+          })),
+          topCountries: responseData?.topCountries ?? [],
+          deviceBreakdown: responseData?.deviceBreakdown ?? [],
+          trafficSources: responseData?.trafficSources ?? [],
+          isMockData: Boolean(responseData?.isMockData),
+          lastUpdated: responseData?.lastUpdated ?? null,
+        });
       } else {
-        throw new Error('Invalid response format');
+        throw new Error("Invalid response format");
       }
     } catch (error: any) {
-      console.error('Analytics fetch error:', error);
-      setError(error.message || 'Failed to fetch analytics data');
+      console.error("Analytics fetch error:", error);
+      setError(error.message || "Failed to fetch analytics data");
       setData(null);
     } finally {
       setLoading(false);
@@ -76,6 +114,6 @@ export const useGoogleAnalytics = (propertyId?: string, dateRange: number = 30) 
     data,
     loading,
     error,
-    refresh: fetchAnalytics
+    refresh: fetchAnalytics,
   };
 };

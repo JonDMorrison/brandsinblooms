@@ -125,7 +125,7 @@ export function DateStrip({ value, onDateSelect }: DateStripProps) {
               color="neutral"
               onClick={() => onDateSelect(addWeeks(value, -1))}
               size="sm"
-              variant="outlined"
+              variant="soft"
             >
               <ChevronLeft size={18} />
             </IconButton>
@@ -134,7 +134,7 @@ export function DateStrip({ value, onDateSelect }: DateStripProps) {
               color="neutral"
               onClick={() => onDateSelect(addWeeks(value, 1))}
               size="sm"
-              variant="outlined"
+              variant="soft"
             >
               <ChevronRight size={18} />
             </IconButton>

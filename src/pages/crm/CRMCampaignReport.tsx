@@ -1,667 +1,913 @@
-import React, { useState } from "react";
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
-import { Badge } from "@/components/ui-legacy/badge";
-import { Button } from "@/components/ui-legacy/button";
-import { CampaignDeliveryStatusCard } from "@/components/crm/CampaignDeliveryStatusCard";
+import { format } from "date-fns";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui-legacy/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { useParams, useNavigate } from "react-router-dom";
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
+  ChevronLeft,
+  Copy,
+  ExternalLink,
+  FileDown,
   Mail,
-  Eye,
-  MousePointer,
-  TrendingUp,
+  MoreHorizontal,
   Users,
-  AlertTriangle,
-  Loader2,
-  Trash2,
 } from "lucide-react";
-import { BouncedEmailsList } from "@/components/crm/BouncedEmailsList";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { BounceCleanupCard } from "@/components/crm/campaigns/BounceCleanupCard";
+import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeliverySummary";
+import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
+import { GovernanceHealthCard } from "@/components/crm/campaigns/GovernanceHealthCard";
+import { JoyButton } from "@/components/joy/JoyButton";
+import {
+  JoyCard,
+  JoyCardContent,
+  JoyCardHeader,
+} from "@/components/joy/JoyCard";
+import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
+import {
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import { PageContainer } from "@/components/joy/PageContainer";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
-import { CampaignGovernanceMetricsCard } from "@/components/crm/CampaignGovernanceMetricsCard";
 import {
   normalizeDerivedMetrics,
-  type DerivedMetrics,
+  useCampaignDerivedMetrics,
 } from "@/hooks/analytics/useCampaignDerivedMetrics";
+import { useCampaignCloning } from "@/hooks/useCampaignCloning";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchCampaignEditorRecord,
+  mapCampaignCatalogItem,
+  type CampaignCatalogItem,
+} from "@/lib/crm/campaignEditor";
 
-interface CampaignMetrics {
-  sent: number;
-  delivered: number;
-  successfulReach: number;
-  uniqueEngaged: number;
-  opened: number;
-  clicked: number;
-  bounced: number;
-  hardBounces: number;
-  unsubscribed: number;
-  reachScore: number;
-  interactionScore: number;
-  deliveryRate: number;
-  openRate: number;
-  clickRate: number;
-  clickToOpenRate: number;
+type TrackingEventRow = {
+  event_type: string;
+  customer_email: string | null;
+  created_at: string;
+};
+
+type ReportTimelinePoint = {
+  hour: number;
+  opens: number;
+  clicks: number;
+};
+
+type ReportSummary = {
+  campaign: CampaignCatalogItem;
+  tenantId: string | null;
+  sentAt: string | null;
+  subjectLine: string;
+  preheaderText: string;
+  content: string;
+  smsMessage: string;
+  metrics: ReturnType<typeof normalizeDerivedMetrics>;
+  timeline: ReportTimelinePoint[];
+  uniqueOpens: number;
+  totalOpens: number;
+  uniqueClicks: number;
+  totalClicks: number;
+  complaints: number;
+  unsubscribes: number;
+};
+
+function StatsStripSkeleton({ cells }: { cells: number }) {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        borderRadius: "lg",
+        display: "flex",
+        flexDirection: { xs: "column", md: "row" },
+        overflow: "hidden",
+      }}
+    >
+      {Array.from({ length: cells }).map((_, index) => (
+        <React.Fragment key={index}>
+          <Box sx={{ flex: 1, p: 2.25 }}>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Skeleton variant="circular" width={32} height={32} />
+              <Stack spacing={0.5} sx={{ flex: 1 }}>
+                <Skeleton width="45%" />
+                <Skeleton width="65%" height={22} />
+              </Stack>
+            </Stack>
+          </Box>
+          {index < cells - 1 ? (
+            <Divider
+              orientation={
+                index < cells - 1
+                  ? ({ xs: "horizontal", md: "vertical" } as never)
+                  : "vertical"
+              }
+            />
+          ) : null}
+        </React.Fragment>
+      ))}
+    </Sheet>
+  );
 }
 
-function toNumber(value: unknown, fallback = 0): number {
-  const n = typeof value === "string" ? Number(value) : (value as number);
-  return Number.isFinite(n) ? n : fallback;
+function formatDateTime(value: string | null) {
+  if (!value) return "Not sent yet";
+  return format(new Date(value), "PPp");
 }
 
-/**
- * Normalizes campaign.metrics which exists in two shapes:
- * - legacy flat: { sent, delivered, opened, clicked, bounced, unsubscribed }
- * - derived (current): { totals: {...}, scores: {...}, rates: {...} }
- */
-function normalizeCampaignMetrics(campaign: any): CampaignMetrics {
-  const derived = normalizeDerivedMetrics(campaign?.metrics);
+function normalizeCampaignNameForDisplay(name: string) {
+  return name.replace(/(?:\s*\(Resend\))+$/i, " (Resend)").trim();
+}
 
-  if (derived) {
-    return {
-      sent: derived.totals.sent,
-      delivered: derived.totals.delivered,
-      successfulReach: derived.totals.successful_reach,
-      uniqueEngaged: derived.totals.unique_engaged,
-      opened: derived.totals.opens,
-      clicked: derived.totals.clicks,
-      bounced: derived.totals.bounces,
-      hardBounces: derived.totals.hard_bounces,
-      unsubscribed: derived.totals.unsubscribes,
-      reachScore: derived.scores.reach,
-      interactionScore: derived.scores.interaction,
-      deliveryRate: derived.rates.delivery,
-      openRate: derived.rates.open_reported,
-      clickRate: derived.rates.click,
-      clickToOpenRate: derived.rates.click_to_open,
+function sanitizeEmailAddress(email: string | null | undefined) {
+  return (email || "").trim().toLowerCase();
+}
+
+function buildTimeline(
+  events: TrackingEventRow[],
+  sentAt: string | null,
+): {
+  timeline: ReportTimelinePoint[];
+  uniqueOpens: number;
+  totalOpens: number;
+  uniqueClicks: number;
+  totalClicks: number;
+  complaints: number;
+  unsubscribes: number;
+} {
+  const baseDate = sentAt ? new Date(sentAt) : null;
+  const points = Array.from({ length: 72 }, (_, hour) => ({
+    hour,
+    opens: 0,
+    clicks: 0,
+  }));
+  const openRecipients = new Set<string>();
+  const clickRecipients = new Set<string>();
+  let totalOpens = 0;
+  let totalClicks = 0;
+  let complaints = 0;
+  let unsubscribes = 0;
+
+  const openEvents = events
+    .filter((event) => ["open", "opened"].includes(event.event_type))
+    .sort(
+      (left, right) =>
+        new Date(left.created_at).getTime() -
+        new Date(right.created_at).getTime(),
+    );
+  const clickEvents = events
+    .filter((event) => ["click", "clicked"].includes(event.event_type))
+    .sort(
+      (left, right) =>
+        new Date(left.created_at).getTime() -
+        new Date(right.created_at).getTime(),
+    );
+
+  for (const event of events) {
+    if (["complained", "complaint"].includes(event.event_type)) {
+      complaints += 1;
+    }
+    if (["unsubscribed", "unsubscribe"].includes(event.event_type)) {
+      unsubscribes += 1;
+    }
+  }
+
+  let cumulativeOpens = 0;
+  let cumulativeClicks = 0;
+  let openIndex = 0;
+  let clickIndex = 0;
+
+  for (let hour = 0; hour < points.length; hour += 1) {
+    const windowEnd = baseDate
+      ? new Date(baseDate.getTime() + (hour + 1) * 60 * 60 * 1000)
+      : null;
+
+    while (openIndex < openEvents.length) {
+      const event = openEvents[openIndex];
+      if (
+        windowEnd &&
+        new Date(event.created_at).getTime() > windowEnd.getTime()
+      ) {
+        break;
+      }
+
+      const recipientKey = sanitizeEmailAddress(event.customer_email);
+      totalOpens += 1;
+      if (recipientKey && !openRecipients.has(recipientKey)) {
+        openRecipients.add(recipientKey);
+        cumulativeOpens += 1;
+      }
+      openIndex += 1;
+    }
+
+    while (clickIndex < clickEvents.length) {
+      const event = clickEvents[clickIndex];
+      if (
+        windowEnd &&
+        new Date(event.created_at).getTime() > windowEnd.getTime()
+      ) {
+        break;
+      }
+
+      const recipientKey = sanitizeEmailAddress(event.customer_email);
+      totalClicks += 1;
+      if (recipientKey && !clickRecipients.has(recipientKey)) {
+        clickRecipients.add(recipientKey);
+        cumulativeClicks += 1;
+      }
+      clickIndex += 1;
+    }
+
+    points[hour] = {
+      hour,
+      opens: cumulativeOpens,
+      clicks: cumulativeClicks,
     };
   }
 
-  const flat =
-    campaign?.metrics && typeof campaign.metrics === "object"
-      ? (campaign.metrics as any)
-      : {};
-  const sent = toNumber(flat.sent ?? campaign?.total_sent, 0);
-  const delivered = toNumber(flat.delivered, 0);
-  const opened = toNumber(
-    flat.opened || flat.opens || 0 || campaign?.total_opens,
-    0,
-  );
-  const clicked = toNumber(
-    flat.clicked || flat.clicks || 0 || campaign?.total_clicks,
-    0,
-  );
-  const hardBounces = toNumber(
-    flat.hard_bounces ?? flat.bounces ?? flat.bounced,
-    0,
-  );
-  const successfulReach = Math.max(delivered - hardBounces, 0);
-  const uniqueEngaged = Math.max(opened, clicked);
-
   return {
-    sent,
-    delivered,
-    successfulReach,
-    uniqueEngaged,
-    opened,
-    clicked,
-    bounced: toNumber(flat.bounced ?? flat.bounces, 0),
-    hardBounces,
-    unsubscribed: toNumber(flat.unsubscribed ?? flat.unsubscribes, 0),
-    reachScore: sent > 0 ? (successfulReach / sent) * 100 : 0,
-    interactionScore:
-      successfulReach > 0 ? (uniqueEngaged / successfulReach) * 100 : 0,
-    deliveryRate: sent > 0 ? (delivered / sent) * 100 : 0,
-    openRate: successfulReach > 0 ? (opened / successfulReach) * 100 : 0,
-    clickRate: successfulReach > 0 ? (clicked / successfulReach) * 100 : 0,
-    clickToOpenRate: opened > 0 ? (clicked / opened) * 100 : 0,
+    timeline: points,
+    uniqueOpens: openRecipients.size,
+    totalOpens,
+    uniqueClicks: clickRecipients.size,
+    totalClicks,
+    complaints,
+    unsubscribes,
   };
 }
 
-function campaignMetricsFromDerived(derived: DerivedMetrics): CampaignMetrics {
-  return {
-    sent: derived.totals.sent,
-    delivered: derived.totals.delivered,
-    successfulReach: derived.totals.successful_reach,
-    uniqueEngaged: derived.totals.unique_engaged,
-    opened: derived.totals.opens,
-    clicked: derived.totals.clicks,
-    bounced: derived.totals.bounces,
-    hardBounces: derived.totals.hard_bounces,
-    unsubscribed: derived.totals.unsubscribes,
-    reachScore: derived.scores.reach,
-    interactionScore: derived.scores.interaction,
-    deliveryRate: derived.rates.delivery,
-    openRate: derived.rates.open_reported,
-    clickRate: derived.rates.click,
-    clickToOpenRate: derived.rates.click_to_open,
-  };
-}
-
-interface Campaign {
-  id: string;
-  name: string;
-  subject_line: string;
-  status: string;
-  sent_at: string;
-  metrics: any; // Using any since it comes from JSON
-  send_reasoning: string;
-  auto_send_enabled: boolean;
-  predicted_segment_ids: string[];
-}
-
-const CRMCampaignReport: React.FC = () => {
-  const { campaignId } = useParams<{ campaignId: string }>();
-  const navigate = useNavigate();
-  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
-
-  const { unsuppressedCount, suppressAll, isSuppressing } = useCampaignBounces(
-    campaignId || "",
+function ChartCard({
+  title,
+  data,
+  dataKey,
+}: {
+  title: string;
+  data: ReportTimelinePoint[];
+  dataKey: "opens" | "clicks";
+}) {
+  return (
+    <JoyCard variant="outlined">
+      <JoyCardHeader title={title} />
+      <JoyCardContent>
+        <Box sx={{ height: 240 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient
+                  id={`${dataKey}-gradient`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor="var(--joy-palette-primary-500)"
+                    stopOpacity={0.24}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--joy-palette-primary-100)"
+                    stopOpacity={0.04}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                stroke="rgba(var(--joy-palette-neutral-mainChannel) / 0.12)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="hour"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "var(--joy-palette-neutral-500)", fontSize: 12 }}
+                tickFormatter={(value) => `${value}h`}
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "var(--joy-palette-neutral-500)", fontSize: 12 }}
+                allowDecimals={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 12,
+                  border: "1px solid var(--joy-palette-neutral-200)",
+                  background: "var(--joy-palette-background-surface)",
+                  boxShadow: "var(--joy-shadow-md)",
+                }}
+                formatter={(value: number) => [value.toLocaleString(), title]}
+                labelFormatter={(value) => `Hour ${value}`}
+              />
+              <Area
+                type="monotone"
+                dataKey={dataKey}
+                stroke="var(--joy-palette-primary-500)"
+                fill={`url(#${dataKey}-gradient)`}
+                strokeWidth={2.5}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Box>
+      </JoyCardContent>
+    </JoyCard>
   );
+}
 
-  const { data: campaign, isLoading: campaignLoading } = useQuery({
-    queryKey: ["campaign-report", campaignId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_campaigns")
-        .select("*")
-        .eq("id", campaignId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!campaignId,
-    staleTime: 0, // Always refetch on mount
-    refetchOnMount: "always",
-  });
-
-  const { data: segments = [] } = useQuery({
-    queryKey: ["campaign-report-segments", campaignId],
-    queryFn: async () => {
-      // First try the campaign_segments join table
-      const { data, error } = await supabase
-        .from("campaign_segments")
-        .select(
-          `
-          *,
-          crm_segments(*)
-        `,
-        )
-        .eq("campaign_id", campaignId);
-      if (error) throw error;
-      if (data && data.length > 0) return data;
-
-      // Fallback: check direct segment_id on crm_campaigns
-      const { data: campaignData } = await supabase
-        .from("crm_campaigns")
-        .select("segment_id")
-        .eq("id", campaignId!)
-        .maybeSingle();
-
-      if (campaignData?.segment_id) {
-        const { data: segmentData } = await supabase
-          .from("crm_segments")
-          .select("*")
-          .eq("id", campaignData.segment_id)
-          .maybeSingle();
-
-        if (segmentData) {
-          return [
-            {
-              id: campaignData.segment_id,
-              campaign_id: campaignId,
-              segment_id: campaignData.segment_id,
-              crm_segments: segmentData,
-            },
-          ];
-        }
-      }
-
-      return [];
-    },
-    enabled: !!campaignId,
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
-
-  const { data: liveDerivedMetrics } = useQuery({
-    queryKey: ["campaign-report-derived-metrics", campaignId],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "get_campaign_derived_metrics" as any,
-        {
-          p_campaign_id: campaignId,
-        },
-      );
-
-      if (error) throw error;
-      return normalizeDerivedMetrics(data);
-    },
-    enabled: !!campaignId,
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
-
-  const loading = campaignLoading;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  if (loading) {
+function renderPreviewContent(summary: ReportSummary) {
+  if (summary.campaign.channel === "sms") {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">
-                Loading campaign report...
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
+        <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
+          {summary.smsMessage || "No SMS preview available."}
+        </Typography>
+      </Sheet>
     );
   }
 
-  if (!campaign) {
+  if (!summary.content) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-12">
-            <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Campaign not found</h3>
-            <p className="text-muted-foreground">
-              The campaign you're looking for doesn't exist or you don't have
-              access to it.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
+        <Typography level="body-sm" color="neutral">
+          Rendered email preview is unavailable for this campaign. Open the
+          editor to inspect the current content blocks.
+        </Typography>
+      </Sheet>
     );
   }
-
-  const metrics = liveDerivedMetrics
-    ? campaignMetricsFromDerived(liveDerivedMetrics)
-    : normalizeCampaignMetrics(campaign);
-  const canViewRecipients = ["sent", "sending", "sent_with_errors"].includes(
-    campaign.status,
-  );
-
-  const bounceRate =
-    metrics.sent > 0 ? (metrics.hardBounces / metrics.sent) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              Campaign Report
-            </h1>
-            <p className="text-muted-foreground">{campaign.name}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {canViewRecipients && (
-              <Button
-                variant="outline"
+    <Box
+      sx={{
+        maxHeight: 480,
+        overflow: "auto",
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "md",
+        backgroundColor: "background.surface",
+        "&::-webkit-scrollbar": { width: 6 },
+        "&::-webkit-scrollbar-thumb": {
+          backgroundColor: "neutral.300",
+          borderRadius: 3,
+        },
+      }}
+    >
+      <Box
+        sx={{
+          p: 2,
+          minHeight: 240,
+          "& img": { maxWidth: "100%", height: "auto" },
+        }}
+        dangerouslySetInnerHTML={{ __html: summary.content }}
+      />
+    </Box>
+  );
+}
+
+function ReportFullPreviewDialog({
+  open,
+  onClose,
+  report,
+}: {
+  open: boolean;
+  onClose: () => void;
+  report: ReportSummary | null | undefined;
+}) {
+  return (
+    <JoyDialog
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title="Full Campaign Preview"
+      description={
+        report?.campaign.channel === "sms"
+          ? "Review the full SMS body exactly as it was sent."
+          : report?.subjectLine || "Review the full rendered email content."
+      }
+      dialogSx={{ maxWidth: 1120, width: "calc(100vw - 2rem)" }}
+    >
+      <JoyDialogContent sx={{ pt: 0 }}>
+        {report ? (
+          <Stack spacing={2}>
+            <Stack spacing={0.5}>
+              <Typography level="body-sm" fontWeight="md">
+                Subject: {report.subjectLine || "No subject line"}
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                {report.preheaderText || "No preheader text"}
+              </Typography>
+            </Stack>
+            {report.campaign.channel === "sms" ? (
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "lg", p: 2.5 }}
+              >
+                <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
+                  {report.smsMessage || "No SMS preview available."}
+                </Typography>
+              </Sheet>
+            ) : report.content ? (
+              <Box
+                sx={{
+                  minHeight: 560,
+                  overflow: "auto",
+                  border: "1px solid",
+                  borderColor: "neutral.200",
+                  borderRadius: "md",
+                  backgroundColor: "background.surface",
+                  "&::-webkit-scrollbar": { width: 6 },
+                  "&::-webkit-scrollbar-thumb": {
+                    backgroundColor: "neutral.300",
+                    borderRadius: 3,
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 2,
+                    "& img": { maxWidth: "100%", height: "auto" },
+                  }}
+                  dangerouslySetInnerHTML={{ __html: report.content }}
+                />
+              </Box>
+            ) : (
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "lg", p: 2.5 }}
+              >
+                <Typography level="body-sm" color="neutral">
+                  Rendered email preview is unavailable for this campaign.
+                </Typography>
+              </Sheet>
+            )}
+          </Stack>
+        ) : null}
+      </JoyDialogContent>
+      <JoyDialogActions>
+        <JoyButton variant="plain" color="neutral" onClick={onClose}>
+          Close
+        </JoyButton>
+      </JoyDialogActions>
+    </JoyDialog>
+  );
+}
+
+export default function CRMCampaignReport() {
+  const { campaignId } = useParams<{ campaignId: string }>();
+  const navigate = useNavigate();
+  const { cloneCampaign, isCloning } = useCampaignCloning();
+  const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
+  const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
+  const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
+
+  const reportQuery = useQuery({
+    queryKey: ["crm-campaign-report-dashboard", campaignId],
+    enabled: Boolean(campaignId),
+    queryFn: async (): Promise<ReportSummary> => {
+      const [
+        { data: campaignRow, error: campaignError },
+        { data: trackingEvents, error: eventsError },
+        editorRecord,
+      ] = await Promise.all([
+        supabase
+          .from("crm_campaigns")
+          .select("*")
+          .eq("id", campaignId)
+          .single(),
+        supabase
+          .from("email_tracking_events")
+          .select("event_type, customer_email, created_at")
+          .eq("campaign_id", campaignId)
+          .in("event_type", [
+            "open",
+            "opened",
+            "click",
+            "clicked",
+            "complained",
+            "complaint",
+            "unsubscribed",
+            "unsubscribe",
+          ]),
+        fetchCampaignEditorRecord(campaignId!),
+      ]);
+
+      if (campaignError) throw campaignError;
+      if (eventsError) throw eventsError;
+
+      const campaign = mapCampaignCatalogItem(campaignRow);
+      const timeline = buildTimeline(
+        (trackingEvents ?? []) as TrackingEventRow[],
+        campaignRow.sent_at,
+      );
+
+      return {
+        campaign,
+        tenantId: campaignRow.tenant_id ?? null,
+        sentAt: campaignRow.sent_at,
+        subjectLine: campaign.subjectLine,
+        preheaderText: campaign.preheaderText,
+        content: editorRecord.content || campaignRow.content || "",
+        smsMessage: editorRecord.smsMessage || campaignRow.content || "",
+        metrics: normalizeDerivedMetrics(campaignRow.metrics),
+        ...timeline,
+      };
+    },
+  });
+
+  const report = reportQuery.data;
+  const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
+
+  const handleDuplicate = React.useCallback(async () => {
+    if (!campaignId) return;
+    const clonedId = await cloneCampaign(campaignId, { clearScheduling: true });
+    if (clonedId) {
+      navigate(`/crm/campaigns/${clonedId}`);
+    }
+  }, [campaignId, cloneCampaign, navigate]);
+
+  const handleCopyLink = React.useCallback(async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    toast.success("Report link copied");
+  }, []);
+
+  const handleExportSummary = React.useCallback(() => {
+    if (!report || !metrics) return;
+
+    const rows = [
+      ["Campaign", report.campaign.name],
+      ["Status", report.campaign.status],
+      ["Sent At", formatDateTime(report.sentAt)],
+      ["Recipients", report.campaign.totalRecipients.toString()],
+      ["Delivered", metrics.totals.delivered.toString()],
+      [
+        "Bounced",
+        String(metrics.totals.bounces || metrics.totals.hard_bounces),
+      ],
+      ["Failed", "0"],
+      ["Skipped", metrics.totals.skipped.toString()],
+      ["Unique Opens", report.uniqueOpens.toString()],
+      ["Total Opens", report.totalOpens.toString()],
+      ["Unique Clicks", report.uniqueClicks.toString()],
+      ["Total Clicks", report.totalClicks.toString()],
+      ["Unsubscribes", report.unsubscribes.toString()],
+      ["Complaints", report.complaints.toString()],
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${report.campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-report.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [metrics, report]);
+
+  if (!campaignId) {
+    return null;
+  }
+
+  if (!reportQuery.isLoading && !report) {
+    return (
+      <PageContainer fullWidth>
+        <Typography level="title-lg">Campaign not found.</Typography>
+      </PageContainer>
+    );
+  }
+
+  const sent = metrics?.totals.sent ?? report?.campaign.totalRecipients ?? 0;
+  const delivered = metrics?.totals.delivered ?? 0;
+  const bounced = metrics?.totals.bounces ?? metrics?.totals.hard_bounces ?? 0;
+  const failed = 0;
+  const skipped = metrics?.totals.skipped ?? 0;
+  const displayCampaignName = report
+    ? normalizeCampaignNameForDisplay(report.campaign.name)
+    : "";
+
+  return (
+    <PageContainer fullWidth>
+      <Stack spacing={3} sx={{ pb: 4 }}>
+        <Sheet
+          variant="plain"
+          sx={{
+            borderBottom: "1px solid",
+            borderColor: "neutral.200",
+            py: 2,
+            px: { xs: 0, md: 0.5 },
+            mb: 0.5,
+          }}
+        >
+          <Typography
+            level="body-xs"
+            component={Link}
+            to="/crm/campaigns"
+            sx={{
+              color: "neutral.500",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.5,
+              "&:hover": { color: "neutral.700" },
+              mb: 1,
+            }}
+          >
+            <ChevronLeft size={14} />
+            Back to campaigns
+          </Typography>
+
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            alignItems={{ lg: "flex-start" }}
+            justifyContent="space-between"
+            spacing={2}
+          >
+            {reportQuery.isLoading ? (
+              <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
+                <Skeleton width={280} height={28} />
+                <Stack direction="row" spacing={1}>
+                  <Skeleton width={52} height={24} />
+                  <Skeleton width={88} height={24} />
+                  <Skeleton width={160} height={20} />
+                </Stack>
+              </Stack>
+            ) : (
+              <Stack
+                spacing={0.5}
+                sx={{ minWidth: 0, maxWidth: { xs: "100%", lg: "60%" } }}
+              >
+                <Typography
+                  level="title-lg"
+                  fontWeight="bold"
+                  title={report?.campaign.name}
+                  sx={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {displayCampaignName}
+                </Typography>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  flexWrap="wrap"
+                  useFlexGap
+                >
+                  <JoyChip variant="soft" color="neutral" size="sm">
+                    {report?.campaign.channel === "sms" ? "SMS" : "Email"}
+                  </JoyChip>
+                  <JoyStatusChip status={report?.campaign.status ?? "draft"} />
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Sent {formatDateTime(report?.sentAt ?? null)}
+                  </Typography>
+                </Stack>
+              </Stack>
+            )}
+
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+              justifyContent={{ xs: "flex-start", lg: "flex-end" }}
+            >
+              <JoyButton
+                variant="soft"
+                color="neutral"
                 size="sm"
+                startDecorator={<Users size={16} />}
                 onClick={() =>
-                  navigate(`/dashboard/campaigns/${campaignId}/recipients`)
+                  navigate(`/crm/campaigns/${campaignId}/recipients`)
                 }
               >
-                <Users className="mr-2 h-4 w-4" />
                 View Recipients
-              </Button>
-            )}
-            <Badge
-              variant={campaign.status === "sent" ? "secondary" : "default"}
-            >
-              {campaign.status}
-            </Badge>
-            {campaign.auto_send_enabled && (
-              <Badge variant="outline" className="border-primary text-primary">
-                Auto-Send
-              </Badge>
-            )}
-          </div>
-        </div>
+              </JoyButton>
+              <JoyDropdownMenu>
+                <JoyDropdownMenuTrigger
+                  variant="outlined"
+                  color="neutral"
+                  size="sm"
+                >
+                  <MoreHorizontal size={16} />
+                </JoyDropdownMenuTrigger>
+                <JoyDropdownMenuContent>
+                  <JoyDropdownMenuItem onClick={() => void handleDuplicate()}>
+                    {isCloning ? "Duplicating..." : "Duplicate Campaign"}
+                  </JoyDropdownMenuItem>
+                  <JoyDropdownMenuItem
+                    startDecorator={<Copy size={16} />}
+                    onClick={() => void handleCopyLink()}
+                  >
+                    Copy report link
+                  </JoyDropdownMenuItem>
+                  <JoyDropdownMenuItem
+                    startDecorator={<FileDown size={16} />}
+                    onClick={handleExportSummary}
+                  >
+                    Export summary CSV
+                  </JoyDropdownMenuItem>
+                </JoyDropdownMenuContent>
+              </JoyDropdownMenu>
+            </Stack>
+          </Stack>
+        </Sheet>
 
-        <CampaignDeliveryStatusCard campaignId={campaignId} />
-
-        {/* Campaign Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Subject Line
-                </label>
-                <p className="font-medium">{campaign.subject_line}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Sent Date
-                </label>
-                <p className="font-medium">
-                  {campaign.sent_at ? formatDate(campaign.sent_at) : "Not sent"}
-                </p>
-              </div>
-            </div>
-
-            {campaign.send_reasoning && (
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Smart Timing Reasoning
-                </label>
-                <p className="text-sm">{campaign.send_reasoning}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Total Sent
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.sent.toLocaleString()}
-                  </p>
-                </div>
-                <Mail className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Delivered
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.delivered.toLocaleString()}
-                  </p>
-                </div>
-                <Users className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Opened
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.opened.toLocaleString()}
-                  </p>
-                </div>
-                <Eye className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Clicked
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {metrics.clicked.toLocaleString()}
-                  </p>
-                </div>
-                <MousePointer className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Audience Segments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {segments.length > 0 ? (
-                <div className="space-y-3">
-                  {segments.map((segmentLink) => (
-                    <div
-                      key={segmentLink.id}
-                      className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          {segmentLink.crm_segments?.name || "Unknown Segment"}
-                        </span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {segmentLink.crm_segments?.customer_count?.toLocaleString() ||
-                          0}{" "}
-                        customers
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Users className="h-8 w-8 mx-auto mb-2" />
-                  <p>No segments selected</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <CampaignGovernanceMetricsCard campaignId={campaignId} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Supporting Diagnostics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {metrics.delivered.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Delivered</p>
-                <p className="text-xs text-muted-foreground">
-                  {metrics.deliveryRate.toFixed(1)}% delivery
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {metrics.uniqueEngaged.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Unique Engaged</p>
-              </div>
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {metrics.opened.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Opens</p>
-                <p className="text-xs text-muted-foreground">
-                  {metrics.openRate.toFixed(1)}% open rate
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {metrics.clicked.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Clicks</p>
-                <p className="text-xs text-muted-foreground">
-                  {metrics.clickRate.toFixed(1)}% click rate
-                </p>
-              </div>
-              <div className="rounded-lg bg-muted p-4 text-center">
-                <p className="text-2xl font-bold">
-                  {metrics.hardBounces.toLocaleString()}
-                </p>
-                <p className="text-sm text-muted-foreground">Hard Bounces</p>
-                <p className="text-xs text-muted-foreground">
-                  {bounceRate.toFixed(1)}% bounce rate
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Performance Insights */}
-        {campaign.status === "sent" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Performance Insights
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {metrics.reachScore > 70 ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="text-sm">
-                      Reach is strong. Most intended recipients were reached
-                      successfully.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-yellow-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">
-                      Reach is below target. Review delivery coverage and
-                      hard-bounce causes before optimizing engagement.
-                    </span>
-                  </div>
-                )}
-
-                {metrics.interactionScore > 35 ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <MousePointer className="h-4 w-4" />
-                    <span className="text-sm">
-                      Interaction is strong. The campaign content generated
-                      engagement after delivery.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-yellow-600">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">
-                      Interaction is trailing reach. Review content, calls to
-                      action, and audience targeting.
-                    </span>
-                  </div>
-                )}
-
-                {bounceRate > 2 && (
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <div className="flex items-center gap-2 text-destructive">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span className="text-sm">
-                        High bounce rate detected ({bounceRate.toFixed(1)}%).
-                        Consider cleaning your email list.
-                      </span>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate("/settings/email/suppression")}
-                      >
-                        View Suppression List
-                      </Button>
-                      {unsuppressedCount > 0 && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setShowCleanupDialog(true)}
-                        >
-                          Clean Bounces
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {reportQuery.isLoading ? (
+          <StatsStripSkeleton cells={5} />
+        ) : (
+          <CampaignDeliverySummary
+            sent={sent}
+            delivered={delivered}
+            bounced={bounced}
+            failed={failed}
+            skipped={skipped}
+          />
         )}
-      </div>
 
-      {/* Cleanup Dialog */}
-      <Dialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              Clean Bounced Emails
-            </DialogTitle>
-            <DialogDescription>
-              Review bounced emails from this campaign. Suppressing them will
-              prevent future sends to these addresses.
-            </DialogDescription>
-          </DialogHeader>
+        {reportQuery.isLoading ? (
+          <StatsStripSkeleton cells={4} />
+        ) : (
+          <CampaignEngagementMetrics
+            uniqueOpens={report?.uniqueOpens ?? 0}
+            totalOpens={report?.totalOpens ?? 0}
+            uniqueClicks={report?.uniqueClicks ?? 0}
+            totalClicks={report?.totalClicks ?? 0}
+            unsubscribes={report?.unsubscribes ?? 0}
+            complaints={report?.complaints ?? 0}
+            totalDelivered={Math.max(delivered, 1)}
+          />
+        )}
 
-          {campaignId && <BouncedEmailsList campaignId={campaignId} />}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", xl: "repeat(2, minmax(0, 1fr))" },
+            gap: 2,
+          }}
+        >
+          {reportQuery.isLoading ? (
+            <JoyCard variant="outlined">
+              <JoyCardHeader title="Opens Over Time" />
+              <JoyCardContent>
+                <Skeleton variant="rectangular" height={240} />
+              </JoyCardContent>
+            </JoyCard>
+          ) : (
+            <ChartCard
+              title="Opens Over Time"
+              data={report?.timeline ?? []}
+              dataKey="opens"
+            />
+          )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setShowCleanupDialog(false)}
+          {reportQuery.isLoading ? (
+            <JoyCard variant="outlined">
+              <JoyCardHeader title="Clicks Over Time" />
+              <JoyCardContent>
+                <Skeleton variant="rectangular" height={240} />
+              </JoyCardContent>
+            </JoyCard>
+          ) : (
+            <ChartCard
+              title="Clicks Over Time"
+              data={report?.timeline ?? []}
+              dataKey="clicks"
+            />
+          )}
+        </Box>
+
+        <JoyCard variant="outlined" sx={{ borderRadius: "lg" }}>
+          <JoyCardContent sx={{ p: 3 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              spacing={1.25}
+              useFlexGap
+              sx={{ mb: 2 }}
             >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                suppressAll();
-                setShowCleanupDialog(false);
-              }}
-              disabled={isSuppressing || unsuppressedCount === 0}
-            >
-              {isSuppressing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Suppressing...
-                </>
-              ) : (
-                `Suppress ${unsuppressedCount} Email${unsuppressedCount !== 1 ? "s" : ""}`
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+              <Typography level="title-sm" fontWeight="lg">
+                What was sent
+              </Typography>
+              {!reportQuery.isLoading ? (
+                <JoyButton
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                  startDecorator={<ExternalLink size={14} />}
+                  sx={{ flexShrink: 0 }}
+                  onClick={() => setFullPreviewOpen(true)}
+                >
+                  View full size
+                </JoyButton>
+              ) : null}
+            </Stack>
+
+            {reportQuery.isLoading ? (
+              <Stack spacing={1.25}>
+                <Skeleton width={220} height={22} />
+                <Skeleton width={320} height={18} />
+                <Skeleton variant="rectangular" height={260} />
+              </Stack>
+            ) : (
+              <Stack spacing={2}>
+                <Stack spacing={0.5}>
+                  <Typography level="body-sm" fontWeight="md">
+                    Subject: {report?.subjectLine || "No subject line"}
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {report?.preheaderText || "No preheader text"}
+                  </Typography>
+                </Stack>
+                {report ? renderPreviewContent(report) : null}
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.400", textAlign: "center" }}
+                >
+                  Scroll to see more · or click "View full size" for the
+                  complete{" "}
+                  {report?.campaign.channel === "sms" ? "message" : "email"}
+                </Typography>
+              </Stack>
+            )}
+          </JoyCardContent>
+        </JoyCard>
+
+        {!reportQuery.isLoading && bouncedEmails.length > 0 ? (
+          <BounceCleanupCard campaignId={campaignId} />
+        ) : null}
+
+        {!reportQuery.isLoading && report ? (
+          <GovernanceHealthCard
+            campaignId={campaignId}
+            tenantId={report.tenantId}
+          />
+        ) : null}
+
+        <JoyCard variant="outlined">
+          <JoyCardHeader title="Quick Navigation" />
+          <JoyCardContent>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <JoyButton
+                bloomVariant="secondary"
+                startDecorator={<Mail size={16} />}
+                onClick={() =>
+                  navigate(`/crm/campaigns/${campaignId}/recipients`)
+                }
+              >
+                View All Recipients
+              </JoyButton>
+              <JoyButton
+                onClick={() => void handleDuplicate()}
+                bloomVariant="secondary"
+                startDecorator={<Copy size={16} />}
+              >
+                Duplicate Campaign
+              </JoyButton>
+              <JoyButton
+                bloomVariant="secondary"
+                onClick={() => navigate("/crm/campaigns")}
+              >
+                Back to Campaigns
+              </JoyButton>
+            </Stack>
+          </JoyCardContent>
+        </JoyCard>
+
+        <ReportFullPreviewDialog
+          open={fullPreviewOpen}
+          onClose={() => setFullPreviewOpen(false)}
+          report={report}
+        />
+      </Stack>
+    </PageContainer>
   );
-};
-
-export default CRMCampaignReport;
+}

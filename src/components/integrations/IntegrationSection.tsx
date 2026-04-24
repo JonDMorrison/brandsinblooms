@@ -1,27 +1,61 @@
-import React from 'react';
+import type { ReactNode } from "react";
+import Box from "@mui/joy/Box";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 
 interface IntegrationSectionProps {
   title: string;
-  description?: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
+  description: string;
+  icon?: ReactNode;
+  children: ReactNode;
 }
 
-export function IntegrationSection({ title, description, icon, children }: IntegrationSectionProps) {
+export function IntegrationSection({
+  title,
+  description,
+  icon,
+  children,
+}: IntegrationSectionProps) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2 mb-4">
-        {icon}
-        <div>
-          <h2 className="text-xl font-semibold">{title}</h2>
-          {description && (
-            <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
-          )}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <Stack spacing={1.75}>
+      <Stack spacing={0.75}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          {icon ? (
+            <Box
+              sx={{
+                color: "text.secondary",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {icon}
+            </Box>
+          ) : null}
+          <Typography component="h4" level="title-lg" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+        </Stack>
+        <Typography
+          level="body-sm"
+          sx={{ color: "text.secondary", maxWidth: 720 }}
+        >
+          {description}
+        </Typography>
+      </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, minmax(0, 1fr))",
+            xl: "repeat(3, minmax(0, 1fr))",
+          },
+          gap: 2,
+        }}
+      >
         {children}
-      </div>
-    </section>
+      </Box>
+    </Stack>
   );
 }

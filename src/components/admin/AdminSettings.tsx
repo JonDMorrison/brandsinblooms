@@ -172,7 +172,7 @@ export const AdminSettings = () => {
           <JoyTabsTrigger value="settings">System Settings</JoyTabsTrigger>
         </JoyTabsList>
 
-        <JoyTabsContent value="resources" className="space-y-6">
+        <JoyTabsContent value="resources" sx={{ display: "grid", gap: 6 }}>
           <JoyCard>
             <JoyCardHeader
               title="Upload AI Generation Resources"
@@ -281,7 +281,7 @@ export const AdminSettings = () => {
                         </Stack>
                         <JoyButton
                           aria-label={`Delete resource ${resource.name}`}
-                          bloomVariant="destructiveOutline"
+                          bloomVariant="destructive"
                           onClick={() =>
                             handleDeleteResource(resource.id, resource.name)
                           }
@@ -299,7 +299,7 @@ export const AdminSettings = () => {
           </JoyCard>
         </JoyTabsContent>
 
-        <JoyTabsContent value="settings" className="space-y-6">
+        <JoyTabsContent value="settings" sx={{ display: "grid", gap: 6 }}>
           <JoyCard>
             <JoyCardHeader title="System Configuration" />
             <JoyCardContent>

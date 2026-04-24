@@ -7,6 +7,7 @@ import type { SxProps } from "@mui/joy/styles/types";
 import Typography from "@mui/joy/Typography";
 import { X } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export type JoyOverlayCloseReason =
   | "backdropClick"
@@ -20,7 +21,7 @@ export type JoyDialogActionsProps = BoxProps;
 
 export interface JoyDialogProps extends Omit<
   React.ComponentPropsWithoutRef<typeof Modal>,
-  "children" | "open" | "onClose"
+  "children" | "open" | "onClose" | "title"
 > {
   open: boolean;
   onClose: (reason?: JoyOverlayCloseReason) => void;
@@ -41,38 +42,52 @@ const dialogWidthMap: Record<JoyDialogSize, number> = {
   xl: 960,
 };
 
-export const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+export { mergeSx };
 
 export const bloomOverlayRootSx: SxProps = {
   zIndex: (theme) => theme.vars.zIndex.modal ?? theme.zIndex.modal,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  p: 1,
 };
 
 export const bloomOverlayBackdropSx: SxProps = {
-  backgroundColor: "rgba(0, 0, 0, 0.5)",
+  backgroundColor: "rgba(var(--joy-palette-brandNavy-darkChannel) / 0.24)",
   backdropFilter: "blur(4px)",
+  animation: "bloomDialogBackdropFadeIn 160ms ease-out",
+  "@keyframes bloomDialogBackdropFadeIn": {
+    from: {
+      opacity: 0,
+    },
+    to: {
+      opacity: 1,
+    },
+  },
 };
 
 export const bloomDialogSurfaceSx: SxProps = {
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "background.surface",
   borderRadius: "var(--joy-radius-lg)",
   boxShadow: "var(--joy-shadow-xl)",
   borderColor: "neutral.200",
   width: "calc(100vw - 2rem)",
   maxHeight: "calc(100vh - 2rem)",
+  m: "auto",
   p: 0,
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
-  animation: "bloomDialogEnter 180ms ease-out",
-  "@keyframes bloomDialogEnter": {
+  position: "relative",
+  inset: "auto",
+  transform: "none",
+  animation: "bloomDialogFadeIn 160ms ease-out",
+  "@keyframes bloomDialogFadeIn": {
     from: {
       opacity: 0,
-      transform: "scale(0.97)",
     },
     to: {
       opacity: 1,
-      transform: "scale(1)",
     },
   },
 };
@@ -110,7 +125,7 @@ export const JoyDialogActions = React.forwardRef<
         py: { xs: 2, sm: 3 },
         borderTop: "1px solid",
         borderColor: "neutral.200",
-        backgroundColor: "#FFFFFF",
+        backgroundColor: "background.surface",
       },
       sx,
     )}
@@ -171,6 +186,7 @@ export const JoyDialog = ({
       <ModalDialog
         aria-describedby={description ? descriptionId : undefined}
         aria-labelledby={title ? titleId : undefined}
+        layout="center"
         maxWidth={dialogWidthMap[size]}
         sx={mergeSx(bloomDialogSurfaceSx, dialogSx)}
       >
@@ -219,7 +235,7 @@ export const JoyDialog = ({
                 onClick={() => onClose("closeClick")}
                 size="icon"
               >
-                <X className="h-4 w-4" />
+                <X size={16} strokeWidth={1.9} />
               </JoyButton>
             ) : null}
           </Stack>

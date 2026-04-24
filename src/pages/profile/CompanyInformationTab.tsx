@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Stack from '@mui/joy/Stack';
 import { CompanyProfileForm } from '@/components/CompanyProfileForm';
 import { LocationVerificationCard } from '@/components/location/LocationVerificationCard';
 import { ClimateProfileCard } from '@/components/location/ClimateProfileCard';
+import { PageContainer } from '@/components/joy/PageContainer';
 import { useLocationVerification } from '@/hooks/useLocationVerification';
 import { useClimateProfile } from '@/hooks/useClimateProfile';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export const CompanyInformationTab = () => {
   const { user } = useAuth();
+  const hasResolvedInitialProfileLoadRef = useRef(false);
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -25,6 +28,7 @@ export const CompanyInformationTab = () => {
 
   const {
     climateProfile,
+    isLoading: isClimateLoading,
     isRefreshing: isRefreshingClimate,
     fetchClimateProfile,
     refreshClimateProfile,
@@ -32,13 +36,21 @@ export const CompanyInformationTab = () => {
 
   // Memoize the fetch function to prevent unnecessary re-renders
   const fetchProfile = useCallback(async () => {
+    const isInitialLoad = !hasResolvedInitialProfileLoadRef.current;
+
     if (!user?.id) {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        hasResolvedInitialProfileLoadRef.current = true;
+        setIsLoading(false);
+      }
       return;
     }
 
     try {
-      setIsLoading(true);
+      if (isInitialLoad) {
+        setIsLoading(true);
+      }
+
       const { data, error } = await supabase
         .from('company_profiles')
         .select('*')
@@ -56,7 +68,10 @@ export const CompanyInformationTab = () => {
       console.error('Error in fetchProfile:', error);
       setProfile(null);
     } finally {
-      setIsLoading(false);
+      if (isInitialLoad) {
+        hasResolvedInitialProfileLoadRef.current = true;
+        setIsLoading(false);
+      }
     }
   }, [user?.id]);
 
@@ -67,10 +82,10 @@ export const CompanyInformationTab = () => {
   }, [fetchProfile, fetchLocationData, fetchClimateProfile]);
 
   const handleToggleEdit = () => {
-    setIsEditing(!isEditing);
+    setIsEditing((current) => !current);
   };
 
-  const handleProfileUpdate = (updatedProfile) => {
+  const handleProfileUpdate = (updatedProfile: any) => {
     setProfile(updatedProfile);
     setIsEditing(false);
     // Refresh location and climate data in case it was updated
@@ -109,20 +124,41 @@ export const CompanyInformationTab = () => {
 
   // Only show climate card if location is confirmed
   const showClimateCard = locationData?.postalCode && !locationData?.needsConfirmation;
+  const hasPersistedProfile = Boolean(profile?.id);
+  const shouldRenderSecondarySections = isLoading || hasPersistedProfile;
+  const shouldRenderClimateSection =
+    shouldRenderSecondarySections &&
+    (isLoading || isLocationLoading || isClimateLoading || Boolean(showClimateCard));
+  const shouldShowPageEmptyState = !isLoading && !isEditing && !hasPersistedProfile;
 
-  if (isLoading) {
+  if (shouldShowPageEmptyState) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <PageContainer>
+        <CompanyProfileForm
+          profile={profile}
+          isEditing={isEditing}
+          isLoading={false}
+          onToggleEdit={handleToggleEdit}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Location Verification Card - shown prominently if needs confirmation */}
-      {!isLocationLoading && (
+    <PageContainer>
+      <Stack spacing={3}>
+        <CompanyProfileForm
+          profile={profile}
+          isEditing={isEditing}
+          isLoading={isLoading}
+          onToggleEdit={handleToggleEdit}
+          onProfileUpdate={handleProfileUpdate}
+        />
+
+        {shouldRenderSecondarySections ? (
         <LocationVerificationCard
+          isLoading={isLoading || isLocationLoading}
           postalCode={locationData?.postalCode}
           city={locationData?.city}
           stateProvince={locationData?.stateProvince}
@@ -137,11 +173,11 @@ export const CompanyInformationTab = () => {
           isRedetecting={isRedetecting}
           isSaving={isSaving}
         />
-      )}
+        ) : null}
 
-      {/* Climate Profile Card - shown only when location is confirmed */}
-      {showClimateCard && (
+        {shouldRenderClimateSection ? (
         <ClimateProfileCard
+          isLoading={isLoading || isLocationLoading || isClimateLoading}
           climateArchetype={climateProfile?.climateArchetype}
           climateLabel={climateProfile?.climateLabel}
           climateConfidence={climateProfile?.climateConfidence}
@@ -153,14 +189,8 @@ export const CompanyInformationTab = () => {
           onRefresh={handleRefreshClimate}
           isRefreshing={isRefreshingClimate}
         />
-      )}
-
-      <CompanyProfileForm 
-        profile={profile}
-        isEditing={isEditing}
-        onToggleEdit={handleToggleEdit}
-        onProfileUpdate={handleProfileUpdate}
-      />
-    </div>
+        ) : null}
+      </Stack>
+    </PageContainer>
   );
 };

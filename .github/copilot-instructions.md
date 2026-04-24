@@ -24,3 +24,37 @@ Auth and browser-test rules:
 - When updating Playwright auth flows, use the live auth selectors `#signin-email` and `#signin-password`.
 - Prefer deterministic onboarding completion for test users by updating profile state instead of driving the brittle browser onboarding flow unless the onboarding UI itself is under test.
 - If a change depends on Supabase browser auth or direct REST or Edge Function calls, prefer the publishable key constant from `src/integrations/supabase/config.ts` instead of hardcoded anon fallbacks.
+
+## Lazy Loading Rules
+
+All page components must be lazy-loaded. Do not add static page imports in `src/App.tsx`.
+
+### Adding a new page
+
+1. Prefer a default export for new page components under `src/pages/`.
+2. Add the lazy import in the matching section of `src/App.tsx`:
+
+```tsx
+const MyNewPage = lazyRetry(() => import("@/pages/MyNewPage"));
+```
+
+3. For named exports, use `lazyNamed`:
+
+```tsx
+const MyNewPage = lazyNamed(() => import("@/pages/MyNewPage"), "MyNewPage");
+```
+
+4. Mount the route inside the existing boundary pattern for that surface:
+   - Protected tenant routes that render inside `SidebarLayout` should use `renderProtectedSidebarLazyPage(...)`.
+   - `/admin/*` children stay under `AdminLazyBoundary`.
+   - `/integrations/*` children stay under `IntegrationsLazyBoundary`.
+   - Public and callback routes stay under `PublicLazyBoundary` or `CallbackLazyBoundary`.
+
+### Rules
+
+- Never add `import PageComponent from '@/pages/...';` or `import { PageComponent } from '@/pages/...';` as a static page import in `src/App.tsx`.
+- Always use `lazyRetry` for default exports or direct-file route modules.
+- Always use `lazyNamed` for named exports.
+- Prefer direct file imports over barrel imports when splitting related pages; for example, product pages should import `@/pages/products/ProductsPage` and `@/pages/products/ProductDetailPage` separately.
+- Keep layout shells, route guards, and provider wrappers static. `DashboardShell`, `SidebarLayout`, `ProtectedRoute`, `PublicRoute`, and data providers are not lazy-loaded because they own the suspense boundaries.
+- Do not move page components back into the main bundle by reintroducing static imports in route files.

@@ -1,18 +1,21 @@
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  useNodesState,
-  useEdgesState,
   addEdge,
-  Connection,
-  Edge,
-  Node,
+  type Connection,
+  type Node,
+  useEdgesState,
+  useNodesState,
 } from "@xyflow/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type {
+  AutomationFlowState,
+  AutomationNodeData,
+} from "@/components/automation/flow/automationBuilderTypes";
 
 export const useAutomationFlow = (
   automationId?: string,
-  initialFlowState?: { nodes: Node[]; edges: Edge[] },
+  initialFlowState?: AutomationFlowState,
 ) => {
   const { toast } = useToast();
   const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -24,49 +27,73 @@ export const useAutomationFlow = (
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
-  // Handle connections between nodes
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) =>
+      setEdges((currentEdges) =>
+        addEdge(
+          {
+            ...params,
+            id: `${params.source || "source"}-${params.target || "target"}-${Date.now()}`,
+            type: "smoothstep",
+            className: "automation-flow-edge automation-edge-flash",
+          },
+          currentEdges,
+        ),
+      ),
     [setEdges],
   );
 
-  // Generate unique node ID
   const generateNodeId = useCallback((type: string) => {
-    return `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }, []);
 
-  // Add new node to canvas
   const addNode = useCallback(
-    (nodeType: string, position: { x: number; y: number }) => {
-      setNodes((nds) => {
-        if (nodeType === "trigger" && nds.some((n) => n.type === "trigger")) {
+    (
+      nodeType: string,
+      position: { x: number; y: number },
+      dataOverrides?: Record<string, unknown>,
+    ) => {
+      let createdNodeId: string | null = null;
+
+      setNodes((currentNodes) => {
+        if (
+          nodeType === "trigger" &&
+          currentNodes.some((node) => node.type === "trigger")
+        ) {
           toast({
             title: "Trigger already exists",
             description: "Only one trigger is allowed per automation.",
             variant: "destructive",
           });
-          return nds;
+          return currentNodes;
         }
 
+        createdNodeId = generateNodeId(nodeType);
+
         const newNode: Node = {
-          id: generateNodeId(nodeType),
+          id: createdNodeId,
           type: nodeType,
           position,
-          data: getDefaultNodeData(nodeType),
+          className: "automation-node-enter",
+          data: {
+            ...getDefaultNodeData(nodeType),
+            ...(dataOverrides || {}),
+          },
         };
 
-        return [...nds, newNode];
+        return [...currentNodes, newNode];
       });
+
       setIsDirty(true);
+      return createdNodeId;
     },
     [generateNodeId, setNodes, toast],
   );
 
-  // Update node data
   const updateNode = useCallback(
-    (nodeId: string, newData: Partial<any>) => {
-      setNodes((nds) =>
-        nds.map((node) =>
+    (nodeId: string, newData: Partial<AutomationNodeData>) => {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) =>
           node.id === nodeId
             ? { ...node, data: { ...node.data, ...newData } }
             : node,
@@ -77,43 +104,55 @@ export const useAutomationFlow = (
     [setNodes],
   );
 
-  // Delete node and its connections
   const deleteNode = useCallback(
     (nodeId: string) => {
-      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+      setNodes((currentNodes) =>
+        currentNodes.filter((node) => node.id !== nodeId),
+      );
+      setEdges((currentEdges) =>
+        currentEdges.filter(
+          (edge) => edge.source !== nodeId && edge.target !== nodeId,
+        ),
       );
       setIsDirty(true);
     },
-    [setNodes, setEdges],
+    [setEdges, setNodes],
   );
 
-  // Auto-save to localStorage
   const autoSave = useCallback(() => {
-    if (isDirty && (nodes.length > 0 || edges.length > 0)) {
-      const flowState = { nodes, edges };
-      localStorage.setItem(
-        `automation-flow-${automationId || "new"}`,
-        JSON.stringify(flowState),
-      );
-      setIsDirty(false);
+    if (!isDirty) {
+      return;
     }
-  }, [nodes, edges, isDirty, automationId]);
 
-  // Save to database
+    const storageKey = `automation-flow-${automationId || "new"}`;
+
+    if (nodes.length > 0 || edges.length > 0) {
+      const flowState: AutomationFlowState = { nodes, edges };
+      localStorage.setItem(storageKey, JSON.stringify(flowState));
+    } else {
+      localStorage.removeItem(storageKey);
+    }
+
+    setIsDirty(false);
+  }, [automationId, edges, isDirty, nodes]);
+
   const saveToDatabase = useCallback(async () => {
-    if (!automationId) return;
+    if (!automationId) {
+      return;
+    }
 
     try {
-      const flowState = { nodes, edges };
+      const flowState: AutomationFlowState = { nodes, edges };
+
       // TODO: Update to use flow_state column once migrations are applied
       // const { error } = await supabase
-      //   .from('crm_automations')
+      //   .from("crm_automations")
       //   .update({ flow_state: flowState })
-      //   .eq('id', automationId);
-
+      //   .eq("id", automationId);
+      //
       // if (error) throw error;
+      void flowState;
+      void supabase;
 
       toast({
         title: "Success",
@@ -127,40 +166,46 @@ export const useAutomationFlow = (
         variant: "destructive",
       });
     }
-  }, [nodes, edges, automationId, toast]);
+  }, [automationId, edges, nodes, toast]);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    if (!initialFlowState && automationId) {
-      const savedFlow = localStorage.getItem(`automation-flow-${automationId}`);
-      if (savedFlow) {
-        try {
-          const { nodes: savedNodes, edges: savedEdges } =
-            JSON.parse(savedFlow);
-          setNodes(savedNodes || []);
-          setEdges(savedEdges || []);
-        } catch (error) {
-          console.error("Error loading saved flow:", error);
-        }
-      }
+    if (initialFlowState || !automationId) {
+      return;
     }
-  }, [automationId, initialFlowState, setNodes, setEdges]);
 
-  // Sync with initialFlowState changes (when automation data is loaded)
+    const savedFlow = localStorage.getItem(`automation-flow-${automationId}`);
+    if (!savedFlow) {
+      return;
+    }
+
+    try {
+      const parsedFlow = JSON.parse(savedFlow) as Partial<AutomationFlowState>;
+      setNodes(parsedFlow.nodes || []);
+      setEdges(parsedFlow.edges || []);
+    } catch (error) {
+      console.error("Error loading saved flow:", error);
+    }
+  }, [automationId, initialFlowState, setEdges, setNodes]);
+
   useEffect(() => {
+    if (!initialFlowState) {
+      return;
+    }
+
     if (
-      initialFlowState &&
-      (initialFlowState.nodes.length > 0 || initialFlowState.edges.length > 0)
+      initialFlowState.nodes.length === 0 &&
+      initialFlowState.edges.length === 0
     ) {
-      setNodes(initialFlowState.nodes);
-      setEdges(initialFlowState.edges);
+      return;
     }
-  }, [initialFlowState, setNodes, setEdges]);
 
-  // Auto-save periodically
+    setNodes(initialFlowState.nodes);
+    setEdges(initialFlowState.edges);
+  }, [initialFlowState, setEdges, setNodes]);
+
   useEffect(() => {
-    const interval = setInterval(autoSave, 5000); // Auto-save every 5 seconds
-    return () => clearInterval(interval);
+    const interval = window.setInterval(autoSave, 5000);
+    return () => window.clearInterval(interval);
   }, [autoSave]);
 
   return {
@@ -179,16 +224,14 @@ export const useAutomationFlow = (
   };
 };
 
-// Empty default flow - users will add their own nodes or select from presets
-function getDefaultWelcomeFlow(): { nodes: Node[]; edges: Edge[] } {
+function getDefaultWelcomeFlow(): AutomationFlowState {
   return {
     nodes: [],
     edges: [],
   };
 }
 
-// Default data for different node types
-function getDefaultNodeData(nodeType: string) {
+function getDefaultNodeData(nodeType: string): AutomationNodeData {
   switch (nodeType) {
     case "trigger":
       return {
@@ -212,12 +255,12 @@ function getDefaultNodeData(nodeType: string) {
     case "delay":
       return {
         delayValue: 1,
-        delayUnit: "hours" as const,
+        delayUnit: "hours",
         editable: true,
       };
     case "split":
       return {
-        splitType: "conditional" as const,
+        splitType: "conditional",
         conditions: [],
         editable: true,
       };

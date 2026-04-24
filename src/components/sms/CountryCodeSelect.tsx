@@ -1,35 +1,41 @@
-import React from "react";
+import * as React from "react";
+import type { SxProps } from "@mui/joy/styles/types";
 import { countryCodes } from "@/lib/data/countryCodes";
-import { cn } from "@/lib/utils";
+import { JoySelect, JoySelectOptionItem } from "@/components/joy/JoySelect";
 
 interface CountryCodeSelectProps {
   value: string;
   onChange: (dialCode: string) => void;
   disabled?: boolean;
-  className?: string;
+  sx?: SxProps;
 }
 
 export const CountryCodeSelect: React.FC<CountryCodeSelectProps> = ({
   value,
   onChange,
   disabled = false,
-  className,
+  sx,
 }) => {
   return (
-    <select
+    <JoySelect
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onValueChange={onChange}
       disabled={disabled}
-      className={cn(
-        "flex h-12 w-[148px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        className,
-      )}
+      sx={sx}
+      slotProps={{
+        button: {
+          sx: {
+            minHeight: 44,
+            borderRadius: "12px",
+          },
+        },
+      }}
     >
       {countryCodes.map((country) => (
-        <option key={country.code} value={country.dialCode}>
+        <JoySelectOptionItem key={country.code} value={country.dialCode}>
           {country.flag} {country.dialCode} {country.name}
-        </option>
+        </JoySelectOptionItem>
       ))}
-    </select>
+    </JoySelect>
   );
 };

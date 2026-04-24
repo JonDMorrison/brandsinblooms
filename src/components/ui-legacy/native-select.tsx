@@ -13,14 +13,14 @@ export interface NativeSelectProps extends React.SelectHTMLAttributes<HTMLSelect
 
 const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
   ({ className, children, label, options, placeholder, id, ...props }, ref) => {
-    const selectId =
-      id ?? `native-select-${Math.random().toString(36).slice(2, 11)}`;
+    const generatedId = React.useId();
+    const selectId = id ?? generatedId;
 
     return (
       <div className="space-y-1">
         {label && (
           <label
-            className="text-sm font-medium text-foreground"
+            className="text-[13px] font-medium leading-[1.4] text-slate-600"
             htmlFor={selectId}
           >
             {label}
@@ -28,7 +28,7 @@ const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
         )}
         <select
           className={cn(
-            "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-9 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal leading-6 text-slate-800 ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-normal transition-colors duration-200 hover:border-slate-400 focus:border-teal-400 focus:outline-none focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:opacity-100",
             className,
           )}
           ref={ref}

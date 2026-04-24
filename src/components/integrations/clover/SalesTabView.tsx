@@ -1,12 +1,6 @@
 import { Receipt } from "lucide-react";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui-legacy/sheet";
+
 import type {
   CloverSaleRow,
   CloverSalesSummary,
@@ -28,6 +22,13 @@ import {
   formatCurrency,
   formatDateTimeValue,
   parseSaleLineItems,
+  DataTabLoadingState,
+  JoyDataTable,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type SalesSortValue = "order_date:desc" | "total_amount:desc" | "status:asc";
@@ -224,7 +225,7 @@ export function SalesTabView({
         {rows.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1080px] border-collapse">
+              <JoyDataTable>
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th
@@ -293,7 +294,7 @@ export function SalesTabView({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </JoyDataTable>
             </div>
             <DataTabPagination
               pagination={pagination}
@@ -302,11 +303,7 @@ export function SalesTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? (
-          <div className="px-5 py-10 text-sm text-muted-foreground">
-            Loading Clover sales...
-          </div>
-        ) : null}
+        {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState

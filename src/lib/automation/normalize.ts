@@ -10,6 +10,7 @@ const LEGACY_TRIGGER_MAPPINGS: Record<string, string> = {
   newsletter_signup: "garden_tips_subscription",
   newsletter_opt_in: "garden_tips_subscription",
   new_customer: "loyalty_join",
+  "contact.created": "form_submitted",
   repeat_purchase_30d: "repeat_purchase_90d",
   repeat_purchase_180d: "repeat_purchase_90d",
   plant_care: "plant_care_reminder",

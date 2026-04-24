@@ -8,9 +8,7 @@ import JoyBaseTabPanel, {
 } from "@mui/joy/TabPanel";
 import JoyBaseTabs, { type TabsProps as JoyBaseTabsProps } from "@mui/joy/Tabs";
 import type { SxProps } from "@mui/joy/styles/types";
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+import { mergeSx } from "@/components/joy/mergeSx";
 
 export interface JoyTabsProps extends Omit<JoyBaseTabsProps, "onChange"> {
   onValueChange?: (value: string | number | null) => void;

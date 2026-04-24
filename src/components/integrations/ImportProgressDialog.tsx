@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Dialog,
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-} from "@/components/ui-legacy/dialog";
-import { Progress } from "@/components/ui-legacy/progress";
+  LinearProgress,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from "@mui/joy";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Button } from "@/components/ui-legacy/button";
 
 interface BatchStats {
   total_batches?: number;
@@ -82,10 +89,8 @@ export const ImportProgressDialog = ({
 
     completionNotifiedRef.current = false;
 
-    // Initial fetch
     fetchJobStatus();
 
-    // Subscribe to real-time updates
     const channelId = `${jobId}-${Date.now()}`;
     const channel = supabase
       .channel(`import-job-${channelId}`)
@@ -103,7 +108,6 @@ export const ImportProgressDialog = ({
       )
       .subscribe();
 
-    // Poll every 2 seconds as fallback
     const pollInterval = setInterval(fetchJobStatus, 2000);
     const heartbeatInterval = setInterval(() => {
       setNow(Date.now());
@@ -133,6 +137,7 @@ export const ImportProgressDialog = ({
     updateFromPayload(data);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateFromPayload = (data: any) => {
     setProgress(data.progress_percentage || 0);
     setStage(data.current_stage || "Processing...");
@@ -167,6 +172,7 @@ export const ImportProgressDialog = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizeErrors = (errorDetails: any, batchStats: any) => {
     const normalized = new Set<string>();
 
@@ -201,154 +207,162 @@ export const ImportProgressDialog = ({
     return Array.from(normalized);
   };
 
-  const getStatusIcon = () => {
-    if (status === "completed") {
-      return <CheckCircle2 className="h-12 w-12 text-green-500" />;
-    }
-    if (status === "failed") {
-      return <XCircle className="h-12 w-12 text-destructive" />;
-    }
-    return <Loader2 className="h-12 w-12 text-primary animate-spin" />;
+  const getStatusTitle = () => {
+    if (status === "completed") return "Import Completed";
+    if (status === "failed") return "Import Failed";
+    return "Importing Contacts";
   };
 
-  const getStatusText = () => {
-    if (status === "completed") return "Import Completed!";
-    if (status === "failed") return "Import Failed";
-    return "Importing Contacts...";
-  };
+  const showStats =
+    stats !== null || counts.fetchedRows > 0 || counts.insertedRows > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-center">{getStatusText()}</DialogTitle>
-        </DialogHeader>
+    <Modal open={open} onClose={() => status !== "running" && onClose()}>
+      <ModalDialog
+        variant="outlined"
+        sx={{ maxWidth: 520, borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
+      >
+        {status !== "running" && <ModalClose />}
 
-        <div className="space-y-6 py-4">
-          {/* Status Icon */}
-          <div className="flex justify-center">{getStatusIcon()}</div>
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
+          {status === "completed" ? (
+            <CheckCircle2 style={{ width: 22, height: 22, color: "var(--joy-palette-success-500)" }} />
+          ) : status === "failed" ? (
+            <XCircle style={{ width: 22, height: 22, color: "var(--joy-palette-danger-500)" }} />
+          ) : (
+            <CircularProgress size="sm" />
+          )}
+          <DialogTitle sx={{ p: 0 }}>{getStatusTitle()}</DialogTitle>
+        </Stack>
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">{stage}</span>
-              <span className="font-medium">{progress}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
+        <DialogContent sx={{ mt: 1.5 }}>
+          <Stack spacing={2}>
+            {/* Progress bar */}
+            <Box>
+              <Stack direction="row" justifyContent="space-between" mb={0.5}>
+                <Typography level="body-xs" textColor="text.tertiary">{stage}</Typography>
+                <Typography level="body-xs" fontWeight="md">{progress}%</Typography>
+              </Stack>
+              <LinearProgress
+                determinate
+                value={progress}
+                color={
+                  status === "completed"
+                    ? "success"
+                    : status === "failed"
+                      ? "danger"
+                      : "neutral"
+                }
+                size="lg"
+              />
+            </Box>
 
-          {isStale && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
-              <div className="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-200">
-                <AlertCircle className="mt-0.5 h-4 w-4" />
-                <div>
-                  <p className="font-medium">Progress updates look stale</p>
-                  <p>
+            {isStale && (
+              <Alert color="warning" variant="soft" size="sm">
+                <Box>
+                  <Typography level="body-sm" fontWeight="md">
+                    Progress updates look stale
+                  </Typography>
+                  <Typography level="body-xs" textColor="text.tertiary">
                     The import is still marked as running, but the last update
                     was{" "}
                     {formatDistanceToNow(lastUpdatedAt ?? new Date(), {
                       addSuffix: true,
                     })}
                     .
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+                  </Typography>
+                </Box>
+              </Alert>
+            )}
 
-          {/* Stats */}
-          {(stats || counts.fetchedRows > 0 || counts.insertedRows > 0) && (
-            <div className="grid grid-cols-2 gap-4 rounded-lg border bg-muted/50 p-4 md:grid-cols-3">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {counts.fetchedRows.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Fetched Rows</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {counts.insertedRows.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Inserted Rows</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {counts.skippedRows.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Skipped Rows</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-destructive">
-                  {counts.failedRows.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">Failed Rows</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {stats?.completed_batches || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Completed Batches
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">
-                  {scopeProgressLabel ?? "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Active Scope</p>
-              </div>
-            </div>
-          )}
+            {/* Stats grid */}
+            {showStats && (
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "lg", p: 2 }}
+              >
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 1.5,
+                  }}
+                >
+                  {[
+                    { label: "Fetched", value: counts.fetchedRows },
+                    { label: "Inserted", value: counts.insertedRows },
+                    { label: "Skipped", value: counts.skippedRows },
+                    { label: "Failed", value: counts.failedRows, danger: true },
+                    { label: "Batches", value: stats?.completed_batches ?? 0 },
+                    { label: "Scope", value: scopeProgressLabel ?? "—", raw: true },
+                  ].map(({ label, value, danger, raw }) => (
+                    <Box key={label} sx={{ textAlign: "center" }}>
+                      <Typography
+                        level="title-md"
+                        fontWeight="xl"
+                        textColor={danger && (value as number) > 0 ? "danger.500" : "text.primary"}
+                      >
+                        {raw ? value : (value as number).toLocaleString()}
+                      </Typography>
+                      <Typography level="body-xs" textColor="text.tertiary">
+                        {label}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Sheet>
+            )}
 
-          <div className="space-y-1 text-center text-sm text-muted-foreground">
-            {estimatedCompletion && status === "running" && (
-              <div className="flex items-center justify-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                <span>
+            {/* Timing */}
+            <Stack spacing={0.25} sx={{ textAlign: "center" }}>
+              {estimatedCompletion && status === "running" && (
+                <Typography level="body-xs" textColor="text.tertiary">
                   Estimated completion:{" "}
-                  {formatDistanceToNow(estimatedCompletion, {
-                    addSuffix: true,
-                  })}
-                </span>
-              </div>
-            )}
-            {lastUpdatedAt && (
-              <p>
-                Last update{" "}
-                {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}
-              </p>
-            )}
-          </div>
+                  {formatDistanceToNow(estimatedCompletion, { addSuffix: true })}
+                </Typography>
+              )}
+              {lastUpdatedAt && (
+                <Typography level="body-xs" textColor="text.tertiary">
+                  Last update{" "}
+                  {formatDistanceToNow(lastUpdatedAt, { addSuffix: true })}
+                </Typography>
+              )}
+            </Stack>
 
-          {/* Errors */}
-          {errors.length > 0 && (
-            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-              <p className="text-sm font-medium text-destructive mb-2">
-                {errors.length} Error(s) Encountered
-              </p>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
-                {errors.slice(0, 3).map((err: string, idx: number) => (
-                  <p key={idx} className="text-xs text-muted-foreground">
-                    {err}
-                  </p>
-                ))}
-                {errors.length > 3 && (
-                  <p className="text-xs text-muted-foreground">
-                    ...and {errors.length - 3} more
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
+            {/* Errors */}
+            {errors.length > 0 && (
+              <Alert color="danger" variant="soft" size="sm">
+                <Box>
+                  <Typography level="body-sm" fontWeight="md" mb={0.5}>
+                    {errors.length} Error{errors.length > 1 ? "s" : ""} Encountered
+                  </Typography>
+                  <Stack spacing={0.25}>
+                    {errors.slice(0, 3).map((err, idx) => (
+                      <Typography key={idx} level="body-xs" textColor="text.tertiary">
+                        {err}
+                      </Typography>
+                    ))}
+                    {errors.length > 3 && (
+                      <Typography level="body-xs" textColor="text.tertiary">
+                        …and {errors.length - 3} more
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
 
-          {/* Close Button */}
-          {status !== "running" && (
-            <Button onClick={onClose} className="w-full">
+        {status !== "running" && (
+          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+            <Button variant="solid" color="neutral" onClick={onClose} sx={{ width: "100%" }}>
               Close
             </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          </Box>
+        )}
+      </ModalDialog>
+    </Modal>
   );
 };

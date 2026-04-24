@@ -1,19 +1,8 @@
 import React from "react";
-import { useSearchParams } from "react-router-dom";
-import { CRMCampaignCreator } from "@/components/crm/CRMCampaignCreator";
+import { Navigate, useLocation } from "react-router-dom";
 
 export const CRMCampaignCreatorPage: React.FC = () => {
-  // The CRMCampaignCreator component will handle prefill data directly from URL params
-  // No need for localStorage handling in the page component anymore
+  const location = useLocation();
 
-  // Extract campaign slug and content task ID from URL params
-  const campaignSlug = searchParams.get("slug") || "new";
-  const contentTaskId = searchParams.get("contentTaskId") || undefined;
-
-  return (
-    <CRMCampaignCreator
-      campaignSlug={campaignSlug}
-      contentTaskId={contentTaskId}
-    />
-  );
+  return <Navigate replace to={`/crm/campaigns/new${location.search}`} />;
 };

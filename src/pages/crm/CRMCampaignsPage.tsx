@@ -1,422 +1,1359 @@
-import React, { useEffect, useState } from "react";
+import * as React from "react";
+import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
+import Checkbox from "@mui/joy/Checkbox";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
+import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Typography from "@mui/joy/Typography";
-import { useNavigate } from "react-router-dom";
-import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
-import { JoyButton } from "@/components/joy/JoyButton";
-import {
-  JoyCard,
-  JoyCardContent,
-  JoyCardHeader,
-} from "@/components/joy/JoyCard";
-import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
-import { JoyStatCard } from "@/components/joy/JoyStatCard";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
-  Calendar,
-  Eye,
+  Copy,
+  LayoutGrid,
+  List,
   Mail,
+  MessageSquare,
+  MoreHorizontal,
+  Newspaper,
+  Pause,
+  Play,
   Plus,
+  Search,
   Trash2,
   Users,
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { DomainHealthBanner } from "@/components/crm/email/DomainHealthBanner";
+import { formatDistanceToNow } from "date-fns";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
+import { JoyDebouncedInput } from "@/components/joy/JoyDebouncedInput";
+import {
+  JoyDialog,
+  JoyDialogActions,
+  JoyDialogContent,
+} from "@/components/joy/JoyDialog";
+import {
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { JoySelect } from "@/components/joy/JoySelect";
+import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTableRow,
+  type JoyTableSortDirection,
+} from "@/components/joy/JoyTable";
+import { useCampaignCloning } from "@/hooks/useCampaignCloning";
+import { useTenant } from "@/hooks/useTenant";
+import {
+  deleteCampaignById,
+  fetchCampaignCatalog,
+  updateCampaignStatus,
+  type CampaignCatalogItem,
+  type CampaignChannel,
+} from "@/lib/crm/campaignEditor";
 
-export const CRMCampaignsPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { user } = useAuth();
-  const { toast } = useToast();
+type ViewMode = "grid" | "table";
+type TypeFilter = "all" | CampaignChannel;
+type StatusFilter =
+  | "all"
+  | "draft"
+  | "scheduled"
+  | "sending"
+  | "sent"
+  | "failed"
+  | "paused";
+type SortOption =
+  | "newest"
+  | "oldest"
+  | "name-asc"
+  | "name-desc"
+  | "recipients-desc"
+  | "recipients-asc"
+  | "open-rate-desc"
+  | "open-rate-asc"
+  | "click-rate-desc"
+  | "click-rate-asc";
+type SortColumn =
+  | "campaign"
+  | "recipients"
+  | "open-rate"
+  | "click-rate"
+  | "date";
 
-  const fetchCRMCampaigns = async () => {
-    if (!user) return;
+const GRID_COLUMNS = {
+  xs: "1fr",
+  md: "repeat(2, minmax(0, 1fr))",
+  xl: "repeat(3, minmax(0, 1fr))",
+} as const;
 
-    setLoading(true);
-    try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", user.id)
-        .single();
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "name-asc", label: "Name A-Z" },
+  { value: "recipients-desc", label: "Most recipients" },
+  { value: "open-rate-desc", label: "Best open rate" },
+  { value: "click-rate-desc", label: "Best click rate" },
+];
 
-      if (userError) throw userError;
-      if (!userData?.tenant_id) {
-        setCampaigns([]);
-        return;
-      }
+const TYPE_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
+  { value: "all", label: "All types" },
+  { value: "email", label: "Email" },
+  { value: "sms", label: "SMS" },
+  { value: "newsletter", label: "Newsletter" },
+];
 
-      const { data, error } = await supabase
-        .from("crm_campaigns")
-        .select("*")
-        .eq("tenant_id", userData.tenant_id)
-        .order("created_at", { ascending: false });
+const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "all", label: "All statuses" },
+  { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "sending", label: "Sending" },
+  { value: "sent", label: "Sent" },
+  { value: "failed", label: "Failed" },
+  { value: "paused", label: "Paused" },
+];
 
-      if (error) throw error;
-      setCampaigns(data || []);
-    } catch (error) {
-      console.error("Error fetching CRM campaigns:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load campaigns",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+function getCampaignIcon(channel: CampaignChannel) {
+  switch (channel) {
+    case "sms":
+      return MessageSquare;
+    case "newsletter":
+      return Newspaper;
+    default:
+      return Mail;
+  }
+}
 
-  const handleDeleteClick = (campaign: any) => {
-    setCampaignToDelete(campaign);
-    setDeleteDialogOpen(true);
-  };
+function getCampaignSubject(campaign: CampaignCatalogItem) {
+  return campaign.subjectLine || campaign.preheaderText || "No subject yet";
+}
 
-  const handleDeleteConfirm = async () => {
-    if (!campaignToDelete) return;
+function isSentCampaign(campaign: CampaignCatalogItem) {
+  return ["sent", "sent_with_errors"].includes(campaign.status);
+}
 
-    // FIX: [issue #43] - Prevent deleting campaigns that are currently sending
-    if (campaignToDelete.status === "sending") {
-      toast({
-        title: "Cannot delete",
-        description:
-          "This campaign is currently sending and cannot be deleted.",
-        variant: "destructive",
-      });
-      setDeleteDialogOpen(false);
-      setCampaignToDelete(null);
-      return;
-    }
+function getDisplayDate(campaign: CampaignCatalogItem) {
+  const dateValue =
+    campaign.sentAt ||
+    campaign.scheduledAt ||
+    campaign.updatedAt ||
+    campaign.createdAt;
 
-    setIsDeleting(true);
-    try {
-      const { error } = await supabase
-        .from("crm_campaigns")
-        .delete()
-        .eq("id", campaignToDelete.id);
+  return dateValue
+    ? formatDistanceToNow(new Date(dateValue), { addSuffix: true })
+    : "No date";
+}
 
-      if (error) throw error;
+function getSortDate(campaign: CampaignCatalogItem) {
+  return new Date(
+    campaign.sentAt ||
+      campaign.scheduledAt ||
+      campaign.updatedAt ||
+      campaign.createdAt ||
+      0,
+  ).getTime();
+}
 
-      setCampaigns(campaigns.filter((c) => c.id !== campaignToDelete.id));
-      toast({
-        title: "Campaign deleted",
-        description: `${campaignToDelete.name} has been deleted successfully.`,
-      });
-      setDeleteDialogOpen(false);
-      setCampaignToDelete(null);
-    } catch (error) {
-      console.error("Error deleting campaign:", error);
-      toast({
-        title: "Error deleting campaign",
-        description:
-          "There was an error deleting the campaign. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+function getCampaignStatusTone(campaign: CampaignCatalogItem) {
+  switch (campaign.status) {
+    case "sent":
+      return "success" as const;
+    case "sent_with_errors":
+      return "warning" as const;
+    case "failed":
+      return "danger" as const;
+    case "scheduled":
+    case "queued":
+    case "partially_queued":
+    case "sending":
+      return "info" as const;
+    case "paused":
+      return "warning" as const;
+    default:
+      return "neutral" as const;
+  }
+}
 
-  useEffect(() => {
-    if (user) {
-      fetchCRMCampaigns();
-    }
-  }, [user]);
+function getCampaignStatusLabel(campaign: CampaignCatalogItem) {
+  if (campaign.status === "sent_with_errors") {
+    return "Sent w/ errors";
+  }
 
-  const activeCampaigns = campaigns.filter(
-    (c) => c.status === "active" || c.status === "sent",
-  ).length;
-  const scheduledCampaigns = campaigns.filter(
-    (c) => c.status === "scheduled",
-  ).length;
-  const draftCampaigns = campaigns.filter(
-    (c) => c.status === "draft" || !c.status,
-  ).length;
+  if (campaign.status === "partially_queued") {
+    return "Partially queued";
+  }
 
-  const canViewRecipients = (status: string | null | undefined) =>
-    ["sent", "sending", "sent_with_errors"].includes(status || "");
+  return undefined;
+}
 
-  const getStatusTone = (status: string | null | undefined) => {
-    switch (status) {
-      case "sent":
-        return "success" as const;
-      case "sending":
-      case "scheduled":
-        return "warning" as const;
-      case "draft":
-      default:
-        return "neutral" as const;
-    }
-  };
+function normalizeSortOption(value: string | null): SortOption {
+  switch (value) {
+    case "oldest":
+    case "name-asc":
+    case "name-desc":
+    case "recipients-desc":
+    case "recipients-asc":
+    case "open-rate-desc":
+    case "open-rate-asc":
+    case "click-rate-desc":
+    case "click-rate-asc":
+      return value;
+    case "name":
+      return "name-asc";
+    case "recipients":
+      return "recipients-desc";
+    case "open-rate":
+      return "open-rate-desc";
+    case "newest":
+    default:
+      return "newest";
+  }
+}
+
+function matchesStatusFilter(
+  campaign: CampaignCatalogItem,
+  status: StatusFilter,
+) {
+  if (status === "all") {
+    return true;
+  }
+
+  if (status === "sent") {
+    return isSentCampaign(campaign);
+  }
+
+  if (status === "scheduled") {
+    return ["scheduled", "queued", "partially_queued"].includes(
+      campaign.status,
+    );
+  }
+
+  if (status === "sending") {
+    return ["sending", "queued", "partially_queued"].includes(campaign.status);
+  }
+
+  return campaign.status === status;
+}
+
+function getColumnSortDirection(
+  sort: SortOption,
+  column: SortColumn,
+): JoyTableSortDirection {
+  switch (column) {
+    case "campaign":
+      if (sort === "name-asc") return "asc";
+      if (sort === "name-desc") return "desc";
+      return "none";
+    case "recipients":
+      if (sort === "recipients-asc") return "asc";
+      if (sort === "recipients-desc") return "desc";
+      return "none";
+    case "open-rate":
+      if (sort === "open-rate-asc") return "asc";
+      if (sort === "open-rate-desc") return "desc";
+      return "none";
+    case "click-rate":
+      if (sort === "click-rate-asc") return "asc";
+      if (sort === "click-rate-desc") return "desc";
+      return "none";
+    case "date":
+      if (sort === "oldest") return "asc";
+      if (sort === "newest") return "desc";
+      return "none";
+  }
+}
+
+function getNextSortOption(
+  current: SortOption,
+  column: SortColumn,
+): SortOption {
+  switch (column) {
+    case "campaign":
+      return current === "name-asc" ? "name-desc" : "name-asc";
+    case "recipients":
+      return current === "recipients-desc"
+        ? "recipients-asc"
+        : "recipients-desc";
+    case "open-rate":
+      return current === "open-rate-desc" ? "open-rate-asc" : "open-rate-desc";
+    case "click-rate":
+      return current === "click-rate-desc"
+        ? "click-rate-asc"
+        : "click-rate-desc";
+    case "date":
+      return current === "newest" ? "oldest" : "newest";
+  }
+}
+
+function CampaignStatsStrip({
+  items,
+}: {
+  items: Array<{ label: string; value: string; icon: React.ElementType }>;
+}) {
+  return (
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+      <Stack
+        direction={{ xs: "column", xl: "row" }}
+        divider={
+          <Divider
+            orientation="vertical"
+            sx={{ display: { xs: "none", xl: "block" } }}
+          />
+        }
+      >
+        {items.map((item) => (
+          <Box key={item.label} sx={{ flex: 1, p: 2 }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Avatar
+                color="neutral"
+                variant="soft"
+                sx={{ width: 32, height: 32 }}
+              >
+                <item.icon size={16} />
+              </Avatar>
+              <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  {item.label}
+                </Typography>
+                <Typography level="title-md" fontWeight="lg">
+                  {item.value}
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    </Sheet>
+  );
+}
+
+function StatsStripSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+      <Stack
+        direction={{ xs: "column", xl: "row" }}
+        divider={
+          <Divider
+            orientation="vertical"
+            sx={{ display: { xs: "none", xl: "block" } }}
+          />
+        }
+      >
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Box key={index} sx={{ flex: 1, p: 2 }}>
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Skeleton
+                variant="circular"
+                width={32}
+                height={32}
+                animation="wave"
+              />
+              <Stack spacing={0.5}>
+                <Skeleton
+                  variant="text"
+                  width={80}
+                  height={12}
+                  animation="wave"
+                />
+                <Skeleton
+                  variant="text"
+                  width={48}
+                  height={22}
+                  animation="wave"
+                />
+              </Stack>
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    </Sheet>
+  );
+}
+
+function CampaignCardSkeleton() {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{ borderRadius: "lg", p: 2, minHeight: 226, height: "100%" }}
+    >
+      <Stack spacing={2} sx={{ height: "100%" }}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Skeleton
+            variant="circular"
+            width={36}
+            height={36}
+            animation="wave"
+          />
+          <Stack spacing={0.5} sx={{ flex: 1 }}>
+            <Skeleton variant="text" width="65%" height={18} animation="wave" />
+            <Skeleton variant="text" width="85%" height={14} animation="wave" />
+          </Stack>
+          <Skeleton
+            variant="circular"
+            width={28}
+            height={28}
+            animation="wave"
+          />
+        </Stack>
+
+        <Box>
+          <Skeleton
+            variant="rectangular"
+            width={52}
+            height={22}
+            animation="wave"
+            sx={{ borderRadius: "sm" }}
+          />
+        </Box>
+
+        <Stack direction="row" spacing={3}>
+          <Skeleton variant="text" width={90} height={14} animation="wave" />
+          <Skeleton variant="text" width={70} height={14} animation="wave" />
+          <Skeleton variant="text" width={60} height={14} animation="wave" />
+        </Stack>
+
+        <Skeleton variant="text" width={120} height={12} animation="wave" />
+
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          sx={{ mt: "auto" }}
+        >
+          <Skeleton variant="text" width={80} height={14} animation="wave" />
+          <Skeleton variant="text" width={100} height={14} animation="wave" />
+        </Stack>
+      </Stack>
+    </Sheet>
+  );
+}
+
+function CampaignCard({
+  campaign,
+  onOpenDuplicate,
+  onOpenDelete,
+  onToggleStatus,
+  onNavigate,
+  onOpenRecipients,
+}: {
+  campaign: CampaignCatalogItem;
+  onOpenDuplicate: (campaign: CampaignCatalogItem) => void;
+  onOpenDelete: (campaign: CampaignCatalogItem) => void;
+  onToggleStatus: (campaign: CampaignCatalogItem) => void;
+  onNavigate: (campaign: CampaignCatalogItem) => void;
+  onOpenRecipients: (campaign: CampaignCatalogItem) => void;
+}) {
+  const Icon = getCampaignIcon(campaign.channel);
+  const sentCampaign = isSentCampaign(campaign);
 
   return (
-    <Stack spacing={3.5}>
-      <DomainHealthBanner />
-
-      <Sheet
-        variant="plain"
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: "24px",
-          border: "1px solid",
-          borderColor: "neutral.200",
-          background:
-            "linear-gradient(135deg, rgba(12, 74, 110, 0.08) 0%, rgba(255, 251, 235, 0.8) 45%, rgba(255, 255, 255, 1) 100%)",
-        }}
-      >
+    <Sheet
+      onClick={() => onNavigate(campaign)}
+      variant="outlined"
+      sx={{
+        borderRadius: "lg",
+        p: 2,
+        minHeight: 226,
+        height: "100%",
+        cursor: "pointer",
+        transition: "all 200ms ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: "md",
+        },
+      }}
+    >
+      <Stack spacing={2} sx={{ height: "100%" }}>
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
+          direction="row"
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", md: "center" }}
+          alignItems="center"
         >
-          <Stack spacing={1}>
-            <Typography level="h1">Campaigns</Typography>
-            <Typography level="body-md" color="neutral">
-              Review drafts, scheduled sends, and live campaign performance from
-              one Joy workspace.
-            </Typography>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <JoyChip color="primary" variant="soft">
-                CRM email
-              </JoyChip>
-              <JoyChip color="warning" variant="soft">
-                Tenant scoped
-              </JoyChip>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            sx={{ minWidth: 0, flex: 1 }}
+          >
+            <Avatar
+              color="neutral"
+              variant="soft"
+              sx={{ width: 36, height: 36 }}
+            >
+              <Icon size={18} />
+            </Avatar>
+            <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                level="title-sm"
+                fontWeight="lg"
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {campaign.name}
+              </Typography>
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: "neutral.500",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {getCampaignSubject(campaign)}
+              </Typography>
             </Stack>
           </Stack>
 
+          <JoyDropdownMenu>
+            <JoyDropdownMenuTrigger variant="plain" color="neutral" size="sm">
+              <MoreHorizontal size={16} />
+            </JoyDropdownMenuTrigger>
+            <JoyDropdownMenuContent>
+              <JoyDropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenDuplicate(campaign);
+                }}
+                startDecorator={<Copy size={16} />}
+              >
+                Duplicate
+              </JoyDropdownMenuItem>
+              <JoyDropdownMenuItem
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleStatus(campaign);
+                }}
+                startDecorator={
+                  campaign.status === "paused" ? (
+                    <Play size={16} />
+                  ) : (
+                    <Pause size={16} />
+                  )
+                }
+              >
+                {campaign.status === "paused" ? "Resume" : "Pause"}
+              </JoyDropdownMenuItem>
+              <JoyDropdownMenuItem
+                destructive
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenDelete(campaign);
+                }}
+                startDecorator={<Trash2 size={16} />}
+              >
+                Delete
+              </JoyDropdownMenuItem>
+            </JoyDropdownMenuContent>
+          </JoyDropdownMenu>
+        </Stack>
+
+        <Box>
+          <JoyStatusChip
+            size="sm"
+            status={campaign.status}
+            tone={getCampaignStatusTone(campaign)}
+            label={getCampaignStatusLabel(campaign)}
+          />
+        </Box>
+
+        <Stack direction="row" spacing={3} useFlexGap flexWrap="wrap">
+          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+            {campaign.totalRecipients.toLocaleString()} recipients
+          </Typography>
+          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+            {sentCampaign ? `${campaign.openRate.toFixed(1)}% open` : "-- open"}
+          </Typography>
+          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+            {sentCampaign
+              ? `${campaign.clickRate.toFixed(1)}% click`
+              : "-- click"}
+          </Typography>
+        </Stack>
+
+        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+          {getDisplayDate(campaign)}
+        </Typography>
+
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          sx={{ mt: "auto" }}
+        >
           <JoyButton
-            onClick={() => navigate("/crm/campaigns/new")}
-            startDecorator={<Plus />}
+            bloomVariant="link"
+            color="neutral"
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigate(campaign);
+            }}
           >
-            Create Campaign
+            {sentCampaign ? "View report" : "Continue editing"}
+          </JoyButton>
+          <JoyButton
+            bloomVariant="link"
+            color="primary"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (sentCampaign) {
+                onOpenRecipients(campaign);
+                return;
+              }
+              onOpenDuplicate(campaign);
+            }}
+          >
+            {sentCampaign ? "View recipients" : "Duplicate"}
           </JoyButton>
         </Stack>
-      </Sheet>
+      </Stack>
+    </Sheet>
+  );
+}
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            md: "repeat(3, minmax(0, 1fr))",
-          },
-          gap: 3,
-        }}
-      >
-        <JoyStatCard
-          icon={<Mail />}
-          iconColor="primary"
-          label="Active campaigns"
-          value={activeCampaigns}
-        />
-        <JoyStatCard
-          icon={<Calendar />}
-          iconColor="warning"
-          label="Scheduled"
-          value={scheduledCampaigns}
-        />
-        <JoyStatCard
-          icon={<BarChart3 />}
-          iconColor="neutral"
-          label="Draft campaigns"
-          value={draftCampaigns}
-        />
-      </Box>
+export function CRMCampaignsPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { tenant } = useTenant();
+  const { cloneCampaign, isCloning } = useCampaignCloning();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [deleteTarget, setDeleteTarget] =
+    React.useState<CampaignCatalogItem | null>(null);
+  const [duplicateTarget, setDuplicateTarget] =
+    React.useState<CampaignCatalogItem | null>(null);
+  const [duplicateName, setDuplicateName] = React.useState("");
 
-      {loading ? (
-        <JoyCard>
-          <JoyCardContent>
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ py: 4 }}
+  const query = searchParams.get("q") ?? "";
+  const type = (searchParams.get("type") as TypeFilter | null) ?? "all";
+  const status = (searchParams.get("status") as StatusFilter | null) ?? "all";
+  const sort = normalizeSortOption(searchParams.get("sort"));
+  const view = (searchParams.get("view") as ViewMode | null) ?? "grid";
+
+  const campaignsQuery = useQuery({
+    queryKey: ["crm-campaign-catalog", tenant?.id],
+    enabled: Boolean(tenant?.id),
+    queryFn: async () => fetchCampaignCatalog(tenant!.id),
+  });
+
+  const updateParams = React.useCallback(
+    (updates: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (
+          !value ||
+          value === "all" ||
+          (key === "view" && value === "grid") ||
+          (key === "sort" && value === "newest")
+        ) {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+      });
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const campaigns = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
+      if (type !== "all" && campaign.channel !== type) {
+        return false;
+      }
+
+      if (!matchesStatusFilter(campaign, status)) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return `${campaign.name} ${campaign.subjectLine} ${campaign.preheaderText}`
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+
+    filtered.sort((left, right) => {
+      switch (sort) {
+        case "oldest":
+          return getSortDate(left) - getSortDate(right);
+        case "name-asc":
+          return left.name.localeCompare(right.name);
+        case "name-desc":
+          return right.name.localeCompare(left.name);
+        case "recipients-asc":
+          return left.totalRecipients - right.totalRecipients;
+        case "recipients-desc":
+          return right.totalRecipients - left.totalRecipients;
+        case "open-rate-asc":
+          return left.openRate - right.openRate;
+        case "open-rate-desc":
+          return right.openRate - left.openRate;
+        case "click-rate-asc":
+          return left.clickRate - right.clickRate;
+        case "click-rate-desc":
+          return right.clickRate - left.clickRate;
+        case "newest":
+        default:
+          return getSortDate(right) - getSortDate(left);
+      }
+    });
+
+    return filtered;
+  }, [campaignsQuery.data, query, sort, status, type]);
+
+  const stats = React.useMemo(() => {
+    const sentThisMonth = (campaignsQuery.data ?? []).filter((campaign) => {
+      if (!campaign.sentAt) {
+        return false;
+      }
+
+      const sentDate = new Date(campaign.sentAt);
+      const now = new Date();
+      return (
+        sentDate.getMonth() === now.getMonth() &&
+        sentDate.getFullYear() === now.getFullYear()
+      );
+    }).length;
+
+    const sentCampaigns = (campaignsQuery.data ?? []).filter((campaign) =>
+      isSentCampaign(campaign),
+    );
+    const avgOpenRate = sentCampaigns.length
+      ? sentCampaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) /
+        sentCampaigns.length
+      : 0;
+    const avgClickRate = sentCampaigns.length
+      ? sentCampaigns.reduce((sum, campaign) => sum + campaign.clickRate, 0) /
+        sentCampaigns.length
+      : 0;
+    const totalRecipients = (campaignsQuery.data ?? []).reduce(
+      (sum, campaign) => sum + campaign.totalRecipients,
+      0,
+    );
+
+    return [
+      {
+        label: "Total campaigns",
+        value: (campaignsQuery.data ?? []).length.toLocaleString(),
+        icon: Mail,
+      },
+      {
+        label: "Sent this month",
+        value: sentThisMonth.toLocaleString(),
+        icon: BarChart3,
+      },
+      {
+        label: "Avg open rate",
+        value: `${avgOpenRate.toFixed(1)}%`,
+        icon: Search,
+      },
+      {
+        label: "Avg click rate",
+        value: `${avgClickRate.toFixed(1)}%`,
+        icon: Copy,
+      },
+      {
+        label: "Total recipients",
+        value: totalRecipients.toLocaleString(),
+        icon: Users,
+      },
+    ];
+  }, [campaignsQuery.data]);
+
+  const totalCount = campaignsQuery.data?.length ?? 0;
+  const draftCount = React.useMemo(
+    () =>
+      (campaignsQuery.data ?? []).filter(
+        (campaign) => campaign.status === "draft",
+      ).length,
+    [campaignsQuery.data],
+  );
+  const hasActiveFilters =
+    query.trim().length > 0 ||
+    type !== "all" ||
+    status !== "all" ||
+    sort !== "newest" ||
+    view !== "grid";
+
+  const invalidateCampaigns = React.useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["crm-campaign-catalog"] });
+  }, [queryClient]);
+
+  const handleNavigate = React.useCallback(
+    (campaign: CampaignCatalogItem) => {
+      if (isSentCampaign(campaign)) {
+        navigate(`/crm/campaigns/${campaign.id}/report`);
+        return;
+      }
+
+      navigate(`/crm/campaigns/${campaign.id}`);
+    },
+    [navigate],
+  );
+
+  const handleOpenRecipients = React.useCallback(
+    (campaign: CampaignCatalogItem) => {
+      navigate(`/crm/campaigns/${campaign.id}/recipients`);
+    },
+    [navigate],
+  );
+
+  const handleToggleStatus = React.useCallback(
+    async (campaign: CampaignCatalogItem) => {
+      await updateCampaignStatus(
+        campaign.id,
+        campaign.status === "paused" ? "scheduled" : "paused",
+        {
+          send_blocked_reason:
+            campaign.status === "paused" ? null : "paused_by_user",
+        },
+      );
+      await invalidateCampaigns();
+    },
+    [invalidateCampaigns],
+  );
+
+  const handleDelete = React.useCallback(async () => {
+    if (!deleteTarget) {
+      return;
+    }
+
+    await deleteCampaignById(deleteTarget.id);
+    setDeleteTarget(null);
+    await invalidateCampaigns();
+  }, [deleteTarget, invalidateCampaigns]);
+
+  const handleDuplicate = React.useCallback(async () => {
+    if (!duplicateTarget) {
+      return;
+    }
+
+    const duplicatedId = await cloneCampaign(duplicateTarget.id, {
+      newName: duplicateName.trim() || `${duplicateTarget.name} (Copy)`,
+      clearScheduling: true,
+    });
+
+    setDuplicateTarget(null);
+    setDuplicateName("");
+    await invalidateCampaigns();
+
+    if (duplicatedId) {
+      navigate(`/crm/campaigns/${duplicatedId}`);
+    }
+  }, [
+    cloneCampaign,
+    duplicateName,
+    duplicateTarget,
+    invalidateCampaigns,
+    navigate,
+  ]);
+
+  React.useEffect(() => {
+    if (duplicateTarget) {
+      setDuplicateName(`${duplicateTarget.name} (Copy)`);
+    }
+  }, [duplicateTarget]);
+
+  const isLoading = campaignsQuery.isLoading;
+
+  return (
+    <PageContainer>
+      <Stack spacing={3} sx={{ pb: 4 }}>
+        <JoyPageHeaderBand
+          title="Campaigns"
+          description="Build, schedule, and monitor email and SMS campaigns from one workflow."
+          metadata={
+            <>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {totalCount} total
+              </JoyChip>
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {draftCount} drafts
+              </JoyChip>
+            </>
+          }
+          actions={
+            <>
+              <JoyButton
+                size="sm"
+                variant="solid"
+                color="primary"
+                startDecorator={<Plus size={16} />}
+                onClick={() => navigate("/crm/campaigns/new?type=email")}
+              >
+                New Email Campaign
+              </JoyButton>
+              <JoyButton
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                startDecorator={<Plus size={16} />}
+                onClick={() => navigate("/crm/campaigns/new?type=sms")}
+              >
+                New SMS Campaign
+              </JoyButton>
+            </>
+          }
+          sx={{
+            px: 0,
+            py: 0,
+            borderRadius: 0,
+            background: "transparent",
+          }}
+        />
+
+        {isLoading ? (
+          <StatsStripSkeleton />
+        ) : (
+          <CampaignStatsStrip items={stats} />
+        )}
+
+        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 1.5 }}>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+          >
+            <JoyDebouncedInput
+              size="sm"
+              value={query}
+              debounceMs={250}
+              onDebouncedChange={(value) => updateParams({ q: value || null })}
+              placeholder="Search campaigns..."
+              startDecorator={<Search size={16} />}
+              sx={{ minWidth: 200, flex: 1, maxWidth: 320 }}
+            />
+
+            <JoySelect
+              size="sm"
+              value={type}
+              onValueChange={(value) => updateParams({ type: value || null })}
+              options={TYPE_OPTIONS}
+              formControlSx={{ width: "auto", minWidth: 120 }}
+            />
+
+            <JoySelect
+              size="sm"
+              value={status}
+              onValueChange={(value) => updateParams({ status: value || null })}
+              options={STATUS_OPTIONS}
+              formControlSx={{ width: "auto", minWidth: 136 }}
+            />
+
+            <JoySelect
+              size="sm"
+              value={sort}
+              onValueChange={(value) => updateParams({ sort: value || null })}
+              options={SORT_OPTIONS}
+              formControlSx={{ width: "auto", minWidth: 148 }}
+            />
+
+            <Box
+              sx={{
+                ml: { xs: 0, md: "auto" },
+                width: { xs: "100%", md: "auto" },
+                display: "flex",
+                justifyContent: { xs: "flex-start", md: "flex-end" },
+              }}
             >
-              <CircularProgress size="sm" />
-              <Typography level="body-md">Loading campaigns...</Typography>
-            </Stack>
-          </JoyCardContent>
-        </JoyCard>
-      ) : (
-        <>
-          {campaigns.length > 0 && (
-            <JoyCard>
-              <JoyCardHeader
-                title="Your CRM campaigns"
-                description="Current email campaigns and automation sends for this tenant."
-                startDecorator={
-                  <Box
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: "14px",
-                      display: "grid",
-                      placeItems: "center",
-                      backgroundColor: "primary.50",
-                      color: "primary.700",
-                    }}
-                  >
-                    <Mail className="h-5 w-5" />
-                  </Box>
+              <ToggleButtonGroup
+                size="sm"
+                color="neutral"
+                value={view}
+                onChange={(_event, value) =>
+                  value && updateParams({ view: value })
                 }
+              >
+                <IconButton
+                  value="grid"
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                >
+                  <LayoutGrid size={16} />
+                </IconButton>
+                <IconButton
+                  value="table"
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                >
+                  <List size={16} />
+                </IconButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {hasActiveFilters ? (
+              <JoyButton
+                variant="plain"
+                color="primary"
+                size="sm"
+                sx={{ minHeight: "auto", px: 0 }}
+                onClick={() =>
+                  setSearchParams(new URLSearchParams(), { replace: true })
+                }
+              >
+                Clear filters
+              </JoyButton>
+            ) : null}
+          </Stack>
+        </Sheet>
+
+        {isLoading ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: GRID_COLUMNS,
+              gap: 2,
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, index) => (
+              <CampaignCardSkeleton key={index} />
+            ))}
+          </Box>
+        ) : campaigns.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 10 }}>
+            <Avatar
+              color="neutral"
+              variant="soft"
+              sx={{ width: 56, height: 56 }}
+            >
+              <Mail size={24} />
+            </Avatar>
+            <Typography level="title-lg">Create your first campaign</Typography>
+            <Typography level="body-sm" color="neutral" textAlign="center">
+              Start with an email or SMS draft, then refine the audience and
+              content in the editor.
+            </Typography>
+            <JoyButton
+              onClick={() => navigate("/crm/campaigns/new?type=email")}
+            >
+              Create campaign
+            </JoyButton>
+          </Stack>
+        ) : view === "grid" ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: GRID_COLUMNS,
+              gap: 2,
+            }}
+          >
+            {campaigns.map((campaign) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onNavigate={handleNavigate}
+                onOpenRecipients={handleOpenRecipients}
+                onOpenDelete={setDeleteTarget}
+                onOpenDuplicate={setDuplicateTarget}
+                onToggleStatus={handleToggleStatus}
               />
-              <JoyCardContent>
-                <Stack spacing={2}>
-                  {campaigns.map((campaign) => (
-                    <Sheet
+            ))}
+          </Box>
+        ) : (
+          <Sheet
+            variant="outlined"
+            sx={{ borderRadius: "lg", overflow: "hidden" }}
+          >
+            <JoyTable>
+              <JoyTableHead>
+                <JoyTableRow>
+                  <JoyTableHeaderCell sx={{ width: 40, px: 1.5 }}>
+                    <Checkbox size="sm" />
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    sortable
+                    sortDirection={getColumnSortDirection(sort, "campaign")}
+                    onSort={() =>
+                      updateParams({
+                        sort: getNextSortOption(sort, "campaign"),
+                      })
+                    }
+                    sx={{ width: "34%" }}
+                  >
+                    Campaign
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell sx={{ width: 100 }}>
+                    Status
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    align="right"
+                    sortable
+                    sortDirection={getColumnSortDirection(sort, "recipients")}
+                    onSort={() =>
+                      updateParams({
+                        sort: getNextSortOption(sort, "recipients"),
+                      })
+                    }
+                    sx={{ width: 90 }}
+                  >
+                    Recipients
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    align="right"
+                    sortable
+                    sortDirection={getColumnSortDirection(sort, "open-rate")}
+                    onSort={() =>
+                      updateParams({
+                        sort: getNextSortOption(sort, "open-rate"),
+                      })
+                    }
+                    sx={{ width: 90 }}
+                  >
+                    Open Rate
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    align="right"
+                    sortable
+                    sortDirection={getColumnSortDirection(sort, "click-rate")}
+                    onSort={() =>
+                      updateParams({
+                        sort: getNextSortOption(sort, "click-rate"),
+                      })
+                    }
+                    sx={{ width: 90 }}
+                  >
+                    Click Rate
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    sortable
+                    sortDirection={getColumnSortDirection(sort, "date")}
+                    onSort={() =>
+                      updateParams({ sort: getNextSortOption(sort, "date") })
+                    }
+                    sx={{ width: 120 }}
+                  >
+                    Date
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    align="center"
+                    sx={{ width: 48, px: 1.5 }}
+                  >
+                    Actions
+                  </JoyTableHeaderCell>
+                </JoyTableRow>
+              </JoyTableHead>
+              <JoyTableBody>
+                {campaigns.map((campaign) => {
+                  const Icon = getCampaignIcon(campaign.channel);
+                  const sentCampaign = isSentCampaign(campaign);
+
+                  return (
+                    <JoyTableRow
                       key={campaign.id}
-                      variant="outlined"
-                      sx={{
-                        p: 2.5,
-                        borderRadius: "18px",
-                        borderColor: "neutral.200",
-                      }}
+                      clickable
+                      onClick={() => handleNavigate(campaign)}
                     >
-                      <Stack spacing={2}>
+                      <JoyTableCell
+                        sx={{ width: 40, px: 1.5, py: 1 }}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Checkbox size="sm" />
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1, minWidth: 0 }}>
                         <Stack
-                          direction={{ xs: "column", lg: "row" }}
-                          spacing={2}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "flex-start", lg: "center" }}
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
+                          sx={{ minWidth: 0 }}
                         >
-                          <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-                            <Typography level="title-md">
+                          <Avatar color="neutral" variant="soft" size="sm">
+                            <Icon size={16} />
+                          </Avatar>
+                          <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography
+                              level="body-sm"
+                              sx={{
+                                fontWeight: "var(--joy-fontWeight-md)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
                               {campaign.name}
                             </Typography>
-                            <Typography level="body-sm" color="neutral">
-                              {campaign.subject_line || "No subject line yet"}
+                            <Typography
+                              level="body-xs"
+                              sx={{
+                                color: "neutral.500",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {getCampaignSubject(campaign)}
                             </Typography>
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                            >
-                              <JoyStatusChip
-                                status={campaign.status || "draft"}
-                                tone={getStatusTone(campaign.status)}
-                              />
-                              <JoyChip color="neutral" variant="soft">
-                                Created{" "}
-                                {new Date(
-                                  campaign.created_at,
-                                ).toLocaleDateString()}
-                              </JoyChip>
-                            </Stack>
-                          </Stack>
-
-                          <Stack
-                            direction={{ xs: "column", sm: "row" }}
-                            spacing={1}
-                            useFlexGap
-                          >
-                            {campaign.status === "sent" && (
-                              <JoyButton
-                                bloomVariant="outline"
-                                size="sm"
-                                startDecorator={<BarChart3 />}
-                                onClick={() =>
-                                  navigate(
-                                    `/crm/campaigns/${campaign.id}/analytics`,
-                                  )
-                                }
-                              >
-                                Performance
-                              </JoyButton>
-                            )}
-                            {canViewRecipients(campaign.status) && (
-                              <JoyButton
-                                bloomVariant="outline"
-                                size="sm"
-                                startDecorator={<Users />}
-                                onClick={() =>
-                                  navigate(
-                                    `/dashboard/campaigns/${campaign.id}/recipients`,
-                                  )
-                                }
-                              >
-                                Recipients
-                              </JoyButton>
-                            )}
-                            <JoyButton
-                              bloomVariant="outline"
-                              size="sm"
-                              startDecorator={<Eye />}
-                              onClick={() =>
-                                navigate(`/crm/campaigns/${campaign.id}`)
-                              }
-                            >
-                              Edit
-                            </JoyButton>
-                            {campaign.status === "draft" && (
-                              <JoyButton
-                                bloomVariant="destructiveOutline"
-                                size="sm"
-                                onClick={() => handleDeleteClick(campaign)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </JoyButton>
-                            )}
                           </Stack>
                         </Stack>
-                      </Stack>
-                    </Sheet>
-                  ))}
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
-          )}
-
-          {campaigns.length === 0 && (
-            <JoyCard>
-              <JoyCardHeader
-                title="Campaign management"
-                description="Create, schedule, and monitor email campaigns for your customer lists."
-              />
-              <JoyCardContent>
-                <Stack spacing={2} alignItems="flex-start">
-                  <Typography level="body-sm" color="neutral">
-                    Build your first campaign to start sending newsletters,
-                    launches, and seasonal promotions.
-                  </Typography>
-                  <JoyButton
-                    bloomVariant="outline"
-                    onClick={() => navigate("/crm/campaigns/new")}
-                    startDecorator={<Plus />}
-                  >
-                    Get started with your first campaign
-                  </JoyButton>
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
-          )}
-        </>
-      )}
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1 }}>
+                        <JoyStatusChip
+                          size="sm"
+                          status={campaign.status}
+                          tone={getCampaignStatusTone(campaign)}
+                          label={getCampaignStatusLabel(campaign)}
+                        />
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
+                        <Typography level="body-sm">
+                          {campaign.totalRecipients.toLocaleString()}
+                        </Typography>
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
+                        <Typography
+                          level="body-sm"
+                          sx={{
+                            fontWeight:
+                              campaign.openRate > 0
+                                ? "var(--joy-fontWeight-md)"
+                                : "var(--joy-fontWeight-regular)",
+                          }}
+                        >
+                          {sentCampaign
+                            ? `${campaign.openRate.toFixed(1)}%`
+                            : "--"}
+                        </Typography>
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
+                        <Typography level="body-sm">
+                          {sentCampaign
+                            ? `${campaign.clickRate.toFixed(1)}%`
+                            : "--"}
+                        </Typography>
+                      </JoyTableCell>
+                      <JoyTableCell sx={{ py: 1 }}>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          {getDisplayDate(campaign)}
+                        </Typography>
+                      </JoyTableCell>
+                      <JoyTableCell
+                        sx={{ width: 48, px: 1.5, py: 1, textAlign: "center" }}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <JoyDropdownMenu>
+                          <JoyDropdownMenuTrigger
+                            variant="plain"
+                            color="neutral"
+                            size="sm"
+                          >
+                            <MoreHorizontal size={16} />
+                          </JoyDropdownMenuTrigger>
+                          <JoyDropdownMenuContent>
+                            <JoyDropdownMenuItem
+                              onClick={() => handleNavigate(campaign)}
+                              startDecorator={<BarChart3 size={16} />}
+                            >
+                              {sentCampaign
+                                ? "Open report"
+                                : "Continue editing"}
+                            </JoyDropdownMenuItem>
+                            {sentCampaign ? (
+                              <JoyDropdownMenuItem
+                                onClick={() => handleOpenRecipients(campaign)}
+                                startDecorator={<Users size={16} />}
+                              >
+                                View recipients
+                              </JoyDropdownMenuItem>
+                            ) : null}
+                            <JoyDropdownMenuItem
+                              onClick={() => setDuplicateTarget(campaign)}
+                              startDecorator={<Copy size={16} />}
+                            >
+                              Duplicate
+                            </JoyDropdownMenuItem>
+                            <JoyDropdownMenuItem
+                              onClick={() => void handleToggleStatus(campaign)}
+                              startDecorator={
+                                campaign.status === "paused" ? (
+                                  <Play size={16} />
+                                ) : (
+                                  <Pause size={16} />
+                                )
+                              }
+                            >
+                              {campaign.status === "paused"
+                                ? "Resume"
+                                : "Pause"}
+                            </JoyDropdownMenuItem>
+                            <JoyDropdownMenuItem
+                              destructive
+                              onClick={() => setDeleteTarget(campaign)}
+                              startDecorator={<Trash2 size={16} />}
+                            >
+                              Delete
+                            </JoyDropdownMenuItem>
+                          </JoyDropdownMenuContent>
+                        </JoyDropdownMenu>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  );
+                })}
+              </JoyTableBody>
+            </JoyTable>
+          </Sheet>
+        )}
+      </Stack>
 
       <JoyAlertDialog
-        open={deleteDialogOpen}
-        onClose={() => {
-          setDeleteDialogOpen(false);
-          setCampaignToDelete(null);
-        }}
-        title="Delete Campaign"
-        description={`Are you sure you want to delete "${campaignToDelete?.name}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onConfirm={handleDeleteConfirm}
-        loading={isDeleting}
-        variant="danger"
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete campaign"
+        description={`Delete ${deleteTarget?.name ?? "this campaign"}? This action cannot be undone.`}
       />
-    </Stack>
+
+      <JoyDialog
+        open={Boolean(duplicateTarget)}
+        onClose={() => setDuplicateTarget(null)}
+        size="sm"
+        title="Duplicate campaign"
+        description="Create a copy of this campaign and open it in the editor."
+      >
+        <JoyDialogContent>
+          <JoyInput
+            label="New campaign name"
+            onValueChange={setDuplicateName}
+            value={duplicateName}
+          />
+        </JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton
+            bloomVariant="ghost"
+            color="neutral"
+            onClick={() => setDuplicateTarget(null)}
+          >
+            Cancel
+          </JoyButton>
+          <JoyButton loading={isCloning} onClick={() => void handleDuplicate()}>
+            Duplicate campaign
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
+    </PageContainer>
   );
-};
+}
+
+export default CRMCampaignsPage;

@@ -15,6 +15,7 @@ import JoyBaseIconButton, {
   type IconButtonProps as JoyBaseIconButtonProps,
 } from "@mui/joy/IconButton";
 import type { SxProps } from "@mui/joy/styles/types";
+import { mergeSx } from "@/components/joy/mergeSx";
 
 type NativeJoyVariant = NonNullable<JoyBaseButtonProps["variant"]>;
 type NativeJoyColor = NonNullable<JoyBaseButtonProps["color"]>;
@@ -100,12 +101,9 @@ const LEGACY_VARIANTS = new Set<BloomButtonVariant>([
   "link",
 ]);
 
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
-
 const resolveNativeSize = (size: JoyButtonSize | undefined): NativeJoySize => {
   if (!size || size === "default" || size === "icon") {
-    return "md";
+    return "sm";
   }
 
   return size;
@@ -143,43 +141,43 @@ const resolveVariantConfig = (
     case "default":
       return {
         variant: "solid" as const,
-        color: "primary" as const,
+        color: (color ?? "primary") as const,
         sx: undefined,
       };
     case "outline":
       return {
-        variant: "outlined" as const,
-        color: "primary" as const,
+        variant: "soft" as const,
+        color: (color ?? "neutral") as const,
         sx: undefined,
       };
     case "secondary":
       return {
         variant: "soft" as const,
-        color: "neutral" as const,
+        color: (color ?? "neutral") as const,
         sx: undefined,
       };
     case "ghost":
       return {
         variant: "plain" as const,
-        color: "neutral" as const,
+        color: (color ?? "neutral") as const,
         sx: undefined,
       };
     case "destructive":
       return {
         variant: "solid" as const,
-        color: "danger" as const,
+        color: (color ?? "danger") as const,
         sx: undefined,
       };
     case "destructiveOutline":
       return {
-        variant: "outlined" as const,
-        color: "danger" as const,
+        variant: "solid" as const,
+        color: (color ?? "danger") as const,
         sx: undefined,
       };
     case "cta":
       return {
         variant: "solid" as const,
-        color: "primary" as const,
+        color: (color ?? "primary") as const,
         sx: {
           px: { xs: 3, sm: 4.5 },
           py: { xs: 1.5, sm: 1.75 },
@@ -194,7 +192,7 @@ const resolveVariantConfig = (
     case "link":
       return {
         variant: "plain" as const,
-        color: "primary" as const,
+        color: (color ?? "primary") as const,
         sx: {
           px: 0,
           minHeight: "auto",
@@ -312,9 +310,9 @@ const getSharedSx = (size: NativeJoySize, iconSize: number): SxProps => ({
   "&:active": {
     transform: "scale(0.98)",
   },
-  "&:focus-visible": {
-    outline: "2px solid var(--joy-palette-primary-500)",
-    outlineOffset: 2,
+  "&.Mui-focusVisible, &:focus-visible": {
+    outline: 0,
+    boxShadow: "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
   },
   "&.Mui-disabled, &:disabled, &[aria-disabled='true']": {
     opacity: 0.5,
@@ -336,7 +334,7 @@ export const JoyButton = forwardRef<HTMLElement, JoyButtonProps>(
       color,
       loading,
       loadingIndicator,
-      size = "md",
+      size = "default",
       startDecorator,
       endDecorator,
       sx,

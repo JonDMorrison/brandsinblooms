@@ -1,36 +1,33 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Badge } from '@/components/ui-legacy/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui-legacy/radio-group';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui-legacy/collapsible';
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
+import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import FormHelperText from "@mui/joy/FormHelperText";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui-legacy/alert-dialog';
-import { 
-  MapPin, 
-  AlertTriangle, 
-  CheckCircle, 
-  ChevronDown, 
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  MapPin,
   RefreshCw,
-  Info
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+} from "lucide-react";
+import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
+import { JoyInput } from "@/components/joy/JoyInput";
 
 interface LocationCandidate {
   postal_code: string;
   city?: string;
   state_province?: string;
-  country?: 'US' | 'CA';
+  country?: "US" | "CA";
   source?: string;
   snippet?: string;
 }
@@ -42,90 +39,241 @@ interface RedetectResult {
   currentPostalCode?: string;
 }
 
+const EMPTY_CANDIDATES: LocationCandidate[] = [];
+
 interface LocationVerificationCardProps {
+  isLoading?: boolean;
   // Current detected data
   postalCode?: string | null;
   city?: string | null;
   stateProvince?: string | null;
-  country?: 'US' | 'CA' | null;
-  source?: 'jsonld' | 'footer' | 'contact' | 'regex' | 'manual' | 'none' | null;
-  confidence?: 'high' | 'medium' | 'low' | null;
+  country?: "US" | "CA" | null;
+  source?: "jsonld" | "footer" | "contact" | "regex" | "manual" | "none" | null;
+  confidence?: "high" | "medium" | "low" | null;
   snippet?: string | null;
   candidates?: LocationCandidate[];
   needsConfirmation?: boolean;
-  
+
   // Callbacks
   onConfirm: (data: {
     postalCode: string;
     city?: string;
     stateProvince?: string;
-    country?: 'US' | 'CA';
+    country?: "US" | "CA";
   }) => Promise<void>;
   onRedetect?: () => Promise<RedetectResult>;
   onConfirmationChange?: (confirmed: boolean) => void; // Notify parent of confirmation state
-  
+
   // State
   isRedetecting?: boolean;
   isSaving?: boolean;
-  
+
   // Display options
   compact?: boolean;
 }
 
 // Validation patterns
 const US_ZIP_PATTERN = /^\d{5}(-\d{4})?$/;
-const CA_POSTAL_PATTERN = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s?\d[ABCEGHJ-NPRSTV-Z]\d$/i;
+const CA_POSTAL_PATTERN =
+  /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\s?\d[ABCEGHJ-NPRSTV-Z]\d$/i;
 
-const validatePostalCode = (value: string): { valid: boolean; country?: 'US' | 'CA'; normalized?: string } => {
+const validatePostalCode = (
+  value: string,
+): { valid: boolean; country?: "US" | "CA"; normalized?: string } => {
   const trimmed = value.trim();
-  
+
   if (US_ZIP_PATTERN.test(trimmed)) {
-    return { valid: true, country: 'US', normalized: trimmed };
+    return { valid: true, country: "US", normalized: trimmed };
   }
-  
+
   if (CA_POSTAL_PATTERN.test(trimmed)) {
     // Normalize Canadian postal code to "A1A 1A1" format
-    const cleaned = trimmed.replace(/\s/g, '').toUpperCase();
+    const cleaned = trimmed.replace(/\s/g, "").toUpperCase();
     const normalized = `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-    return { valid: true, country: 'CA', normalized };
+    return { valid: true, country: "CA", normalized };
   }
-  
+
   return { valid: false };
 };
 
-const getConfidenceBadge = (confidence: 'high' | 'medium' | 'low' | null | undefined) => {
+const getConfidenceChip = (
+  confidence: "high" | "medium" | "low" | null | undefined,
+) => {
   switch (confidence) {
-    case 'high':
-      return <Badge className="bg-green-100 text-green-800 border-green-200">High Confidence</Badge>;
-    case 'medium':
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Medium Confidence</Badge>;
-    case 'low':
-      return <Badge className="bg-red-100 text-red-800 border-red-200">Low Confidence</Badge>;
+    case "high":
+      return (
+        <Chip color="success" size="sm" variant="soft">
+          High Confidence
+        </Chip>
+      );
+    case "medium":
+      return (
+        <Chip color="warning" size="sm" variant="soft">
+          Medium Confidence
+        </Chip>
+      );
+    case "low":
+      return (
+        <Chip color="danger" size="sm" variant="soft">
+          Low Confidence
+        </Chip>
+      );
     default:
-      return <Badge variant="secondary">Unknown</Badge>;
+      return (
+        <Chip color="neutral" size="sm" variant="soft">
+          Unknown
+        </Chip>
+      );
   }
 };
 
 const getSourceLabel = (source: string | null | undefined) => {
   switch (source) {
-    case 'jsonld':
-      return 'Schema.org structured data';
-    case 'footer':
-      return 'Website footer';
-    case 'contact':
-      return 'Contact page';
-    case 'regex':
-      return 'Text pattern matching';
-    case 'manual':
-      return 'Manually confirmed';
-    case 'none':
-      return 'Not detected';
+    case "jsonld":
+      return "Schema.org structured data";
+    case "footer":
+      return "Website footer";
+    case "contact":
+      return "Contact page";
+    case "regex":
+      return "Text pattern matching";
+    case "manual":
+      return "Manually confirmed";
+    case "none":
+      return "Not detected";
     default:
-      return 'Unknown source';
+      return "Unknown source";
   }
 };
 
-export const LocationVerificationCard: React.FC<LocationVerificationCardProps> = ({
+const formatLocationLabel = (location: {
+  postalCode?: string | null;
+  city?: string | null;
+  stateProvince?: string | null;
+  country?: "US" | "CA" | null;
+}) => {
+  return [
+    location.postalCode,
+    [location.city, location.stateProvince].filter(Boolean).join(", "),
+    location.country,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+};
+
+function LocationVerificationSkeleton({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        p: compact ? 2.5 : { xs: 3, md: 3.5 },
+        borderRadius: "xl",
+        bgcolor: "background.surface",
+      }}
+    >
+      <Stack spacing={2.5}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          spacing={2}
+        >
+          <Stack spacing={1}>
+            <Skeleton
+              animation="wave"
+              sx={{ width: 160, height: 18 }}
+              variant="text"
+            />
+            <Skeleton
+              animation="wave"
+              sx={{ width: 260, height: 14 }}
+              variant="text"
+            />
+          </Stack>
+          <Skeleton
+            animation="wave"
+            sx={{ width: 112, height: 34, borderRadius: "lg" }}
+            variant="rectangular"
+          />
+        </Stack>
+
+        <Sheet variant="soft" sx={{ p: 2.25, borderRadius: "lg" }}>
+          <Stack spacing={1}>
+            <Skeleton
+              animation="wave"
+              sx={{ width: 220, height: 18 }}
+              variant="text"
+            />
+            <Skeleton
+              animation="wave"
+              sx={{ width: 180, height: 14 }}
+              variant="text"
+            />
+          </Stack>
+        </Sheet>
+
+        <Stack spacing={1.25}>
+          {Array.from({ length: 2 }).map((_, index) => (
+            <Sheet key={index} variant="soft" sx={{ p: 2, borderRadius: "lg" }}>
+              <Stack spacing={0.75}>
+                <Skeleton
+                  animation="wave"
+                  sx={{ width: 200, height: 16 }}
+                  variant="text"
+                />
+                <Skeleton
+                  animation="wave"
+                  sx={{ width: 120, height: 12 }}
+                  variant="text"
+                />
+              </Stack>
+            </Sheet>
+          ))}
+        </Stack>
+
+        <Divider />
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 1.5,
+          }}
+        >
+          <Skeleton
+            animation="wave"
+            sx={{ width: "100%", height: 56, borderRadius: "lg" }}
+            variant="rectangular"
+          />
+          <Skeleton
+            animation="wave"
+            sx={{ width: "100%", height: 56, borderRadius: "lg" }}
+            variant="rectangular"
+          />
+          <Skeleton
+            animation="wave"
+            sx={{ width: "100%", height: 56, borderRadius: "lg" }}
+            variant="rectangular"
+          />
+          <Skeleton
+            animation="wave"
+            sx={{ width: "100%", height: 56, borderRadius: "lg" }}
+            variant="rectangular"
+          />
+        </Box>
+      </Stack>
+    </Sheet>
+  );
+}
+
+export const LocationVerificationCard: React.FC<
+  LocationVerificationCardProps
+> = ({
+  isLoading = false,
   postalCode,
   city,
   stateProvince,
@@ -133,7 +281,7 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   source,
   confidence,
   snippet,
-  candidates = [],
+  candidates = EMPTY_CANDIDATES,
   needsConfirmation = false,
   onConfirm,
   onRedetect,
@@ -142,43 +290,125 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   isSaving = false,
   compact = false,
 }) => {
-  const [selectedCandidate, setSelectedCandidate] = useState<string>('current');
-  const [manualEntry, setManualEntry] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(
+    null,
+  );
+  const [showManualFields, setShowManualFields] = useState(false);
   const [formData, setFormData] = useState({
-    postalCode: postalCode || '',
-    city: city || '',
-    stateProvince: stateProvince || '',
-    country: country || undefined as 'US' | 'CA' | undefined,
+    postalCode: postalCode || "",
+    city: city || "",
+    stateProvince: stateProvince || "",
+    country: country || (undefined as "US" | "CA" | undefined),
   });
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isSnippetOpen, setIsSnippetOpen] = useState(false);
   const [showChangeDialog, setShowChangeDialog] = useState(false);
-  const [pendingCandidates, setPendingCandidates] = useState<LocationCandidate[]>([]);
+  const [pendingCandidates, setPendingCandidates] = useState<
+    LocationCandidate[]
+  >([]);
+  const latestOnConfirmationChange = useRef(onConfirmationChange);
+
+  latestOnConfirmationChange.current = onConfirmationChange;
 
   const hasDetectedLocation = postalCode || city || stateProvince;
-  const showWarning = needsConfirmation || confidence === 'low' || !postalCode;
-  const hasMultipleCandidates = candidates.length > 1;
-  const isManuallyConfirmed = source === 'manual' && confidence === 'high';
+  const candidateSignature = useMemo(
+    () =>
+      candidates
+        .map((candidate) =>
+          [
+            candidate.postal_code,
+            candidate.city ?? "",
+            candidate.state_province ?? "",
+            candidate.country ?? "",
+            candidate.source ?? "",
+            candidate.snippet ?? "",
+          ].join("|"),
+        )
+        .join("||"),
+    [candidates],
+  );
+  const availableCandidates = useMemo(
+    () => (pendingCandidates.length > 0 ? pendingCandidates : candidates),
+    [candidates, pendingCandidates],
+  );
+  const showWarning =
+    needsConfirmation ||
+    confidence === "low" ||
+    !postalCode ||
+    pendingCandidates.length > 0;
+  const isManuallyConfirmed = source === "manual" && confidence === "high";
+  const shouldShowEmptyState =
+    !isLoading &&
+    !hasDetectedLocation &&
+    availableCandidates.length === 0 &&
+    !showManualFields;
 
   // Calculate and notify parent of confirmation status
   const isConfirmed = Boolean(postalCode) && !needsConfirmation;
-  
+
   // Notify parent when confirmation status changes
-  React.useEffect(() => {
-    onConfirmationChange?.(isConfirmed);
-  }, [isConfirmed, onConfirmationChange]);
+  useEffect(() => {
+    latestOnConfirmationChange.current?.(isConfirmed);
+  }, [isConfirmed]);
+
+  useEffect(() => {
+    const nextFormData = {
+      postalCode: postalCode || "",
+      city: city || "",
+      stateProvince: stateProvince || "",
+      country: country || undefined,
+    };
+
+    setFormData((prev) =>
+      prev.postalCode === nextFormData.postalCode &&
+      prev.city === nextFormData.city &&
+      prev.stateProvince === nextFormData.stateProvince &&
+      prev.country === nextFormData.country
+        ? prev
+        : nextFormData,
+    );
+    setSelectedCandidate((prev) => (prev === null ? prev : null));
+    setValidationError((prev) => (prev === null ? prev : null));
+
+    if (
+      postalCode ||
+      city ||
+      stateProvince ||
+      needsConfirmation ||
+      candidates.length > 0
+    ) {
+      setShowManualFields((prev) => (prev ? false : prev));
+    }
+  }, [
+    postalCode,
+    city,
+    stateProvince,
+    country,
+    needsConfirmation,
+    candidateSignature,
+    candidates.length,
+  ]);
+
+  if (isLoading) {
+    return <LocationVerificationSkeleton compact={compact} />;
+  }
+
   const handleRedetectClick = async () => {
     if (!onRedetect) return;
-    
+
     const result = await onRedetect();
-    
+
     // If manually confirmed and new candidates found, show change dialog
-    if (result.success && result.hasNewCandidates && result.newCandidates && result.newCandidates.length > 0) {
+    if (
+      result.success &&
+      result.hasNewCandidates &&
+      result.newCandidates &&
+      result.newCandidates.length > 0
+    ) {
       // Check if any candidates differ from current postal code
       const hasDifferentCandidates = result.newCandidates.some(
-        c => c.postal_code !== postalCode
+        (c) => c.postal_code !== postalCode,
       );
-      
+
       if (hasDifferentCandidates) {
         setPendingCandidates(result.newCandidates);
         setShowChangeDialog(true);
@@ -194,71 +424,75 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
   const handleChangeLocation = () => {
     // Show the candidates in the main UI for selection
     setShowChangeDialog(false);
-    // Set manual entry to allow user to pick from new candidates
-    setManualEntry(true);
-    setSelectedCandidate('manual');
-    setFormData({
-      postalCode: '',
-      city: '',
-      stateProvince: '',
-      country: undefined,
-    });
+    setShowManualFields(true);
+    const nextCandidate = pendingCandidates[0];
+
+    if (nextCandidate) {
+      setSelectedCandidate(nextCandidate.postal_code);
+      setFormData({
+        postalCode: nextCandidate.postal_code,
+        city: nextCandidate.city || "",
+        stateProvince: nextCandidate.state_province || "",
+        country: nextCandidate.country || undefined,
+      });
+      setValidationError(null);
+      return;
+    }
+
+    setSelectedCandidate("manual");
   };
 
   const handlePostalCodeChange = (value: string) => {
-    setFormData(prev => ({ ...prev, postalCode: value }));
+    setFormData((prev) => ({ ...prev, postalCode: value, country: undefined }));
     setValidationError(null);
-    
+
     if (value.length >= 5) {
       const validation = validatePostalCode(value);
       if (!validation.valid) {
-        setValidationError('Please enter a valid US ZIP (12345) or Canadian postal code (A1A 1A1)');
+        setValidationError(
+          "Please enter a valid US ZIP (12345) or Canadian postal code (A1A 1A1)",
+        );
       } else {
-        setFormData(prev => ({ 
-          ...prev, 
+        setFormData((prev) => ({
+          ...prev,
           postalCode: validation.normalized || value,
-          country: validation.country 
+          country: validation.country,
         }));
       }
     }
   };
 
-  const handleCandidateSelect = (value: string) => {
-    setSelectedCandidate(value);
-    setManualEntry(value === 'manual');
-    
-    if (value === 'current') {
+  const handleCandidateSelect = (candidate: LocationCandidate) => {
+    setSelectedCandidate(candidate.postal_code);
+    setShowManualFields(true);
+    setFormData({
+      postalCode: candidate.postal_code,
+      city: candidate.city || "",
+      stateProvince: candidate.state_province || "",
+      country: candidate.country || undefined,
+    });
+    setValidationError(null);
+  };
+
+  const handleManualEntry = () => {
+    setSelectedCandidate("manual");
+    setShowManualFields(true);
+    setValidationError(null);
+
+    if (!hasDetectedLocation) {
       setFormData({
-        postalCode: postalCode || '',
-        city: city || '',
-        stateProvince: stateProvince || '',
-        country: country || undefined,
-      });
-    } else if (value !== 'manual') {
-      const candidate = candidates.find(c => c.postal_code === value);
-      if (candidate) {
-        setFormData({
-          postalCode: candidate.postal_code,
-          city: candidate.city || '',
-          stateProvince: candidate.state_province || '',
-          country: candidate.country || undefined,
-        });
-      }
-    } else {
-      setFormData({
-        postalCode: '',
-        city: '',
-        stateProvince: '',
+        postalCode: "",
+        city: "",
+        stateProvince: "",
         country: undefined,
       });
     }
-    setValidationError(null);
   };
 
   const handleConfirm = async () => {
     const validation = validatePostalCode(formData.postalCode);
     if (!validation.valid) {
-      setValidationError('Please enter a valid US ZIP or Canadian postal code');
+      setValidationError("Please enter a valid US ZIP or Canadian postal code");
       return;
     }
 
@@ -270,270 +504,544 @@ export const LocationVerificationCard: React.FC<LocationVerificationCardProps> =
     });
   };
 
-  // If location is confirmed and high confidence, show compact view
-  if (!needsConfirmation && confidence === 'high' && !compact) {
+  if (shouldShowEmptyState) {
     return (
-      <Card className="border-green-200 bg-green-50/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Detected Location
-            {getConfidenceBadge(confidence)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2 text-sm">
-            {postalCode && <span className="font-medium">{postalCode}</span>}
-            {city && <span>{city}</span>}
-            {stateProvince && <span>{stateProvince}</span>}
-            {country && <span>({country})</span>}
-          </div>
-          
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Info className="h-3 w-3" />
-            <span>Source: {getSourceLabel(source)}</span>
-          </div>
+      <Sheet
+        variant="outlined"
+        sx={{
+          p: { xs: 3, md: 4 },
+          borderRadius: "xl",
+          bgcolor: "background.surface",
+        }}
+      >
+        <JoyEmptyState
+          icon={<MapPin />}
+          title="Add your postal code"
+          description="Confirm a postal or ZIP code so local recommendations, climate guidance, and nearby growing context can be tailored correctly."
+          primaryAction={{
+            label: "Enter Manually",
+            onClick: handleManualEntry,
+            variant: "solid",
+          }}
+          secondaryAction={
+            onRedetect
+              ? {
+                  label: "Detect From Website",
+                  loading: isRedetecting,
+                  loadingPosition: "start",
+                  onClick: handleRedetectClick,
+                  startDecorator: !isRedetecting ? (
+                    <RefreshCw className="h-4 w-4" />
+                  ) : undefined,
+                  variant: "plain",
+                  color: "neutral",
+                }
+              : undefined
+          }
+        />
+      </Sheet>
+    );
+  }
 
-          {onRedetect && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRedetectClick}
-              disabled={isRedetecting}
-              className="mt-2"
+  if (isConfirmed && !showWarning) {
+    return (
+      <>
+        <Sheet
+          variant="outlined"
+          sx={{
+            p: compact ? 2.5 : { xs: 3, md: 3.5 },
+            borderRadius: "xl",
+            bgcolor: "background.surface",
+          }}
+        >
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              spacing={2}
             >
-              <RefreshCw className={cn("h-4 w-4 mr-2", isRedetecting && "animate-spin")} />
-              Re-detect from website
-            </Button>
-          )}
+              <Stack spacing={0.5}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  alignItems="center"
+                >
+                  <Typography level="title-lg">Detected Location</Typography>
+                  <Chip color="success" size="sm" variant="soft">
+                    Verified
+                  </Chip>
+                </Stack>
+                <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                  Source: {getSourceLabel(source)}
+                  {confidence ? ` • ${confidence} confidence` : ""}
+                </Typography>
+              </Stack>
 
-          {/* Change Location Dialog */}
-          <AlertDialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>New Locations Detected</AlertDialogTitle>
-                <AlertDialogDescription>
-                  We found {pendingCandidates.length} location{pendingCandidates.length > 1 ? 's' : ''} on your website that differ from your confirmed location ({postalCode}).
-                  <div className="mt-3 space-y-2">
-                    {pendingCandidates.map((c, i) => (
-                      <div key={i} className="text-sm font-medium text-foreground">
-                        • {c.postal_code} {c.city && `- ${c.city}`}{c.state_province && `, ${c.state_province}`}
-                      </div>
-                    ))}
-                  </div>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={handleKeepCurrent}>Keep Current</AlertDialogCancel>
-                <AlertDialogAction onClick={handleChangeLocation}>Change Location</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
+              {onRedetect ? (
+                <JoyButton
+                  color="neutral"
+                  loading={isRedetecting}
+                  loadingPosition="start"
+                  onClick={handleRedetectClick}
+                  startDecorator={
+                    !isRedetecting ? (
+                      <RefreshCw className="h-4 w-4" />
+                    ) : undefined
+                  }
+                  variant="plain"
+                >
+                  Re-detect from website
+                </JoyButton>
+              ) : null}
+            </Stack>
+
+            <Sheet variant="soft" sx={{ p: 2.25, borderRadius: "lg" }}>
+              <Stack spacing={0.75}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <MapPin className="h-4 w-4" />
+                  <Typography level="title-md">
+                    {formatLocationLabel({
+                      postalCode,
+                      city,
+                      stateProvince,
+                      country,
+                    })}
+                  </Typography>
+                </Stack>
+                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                  {isManuallyConfirmed
+                    ? "This location has been manually confirmed and will stay in place unless you choose a new one."
+                    : "This location is confirmed and ready to drive local recommendations."}
+                </Typography>
+              </Stack>
+            </Sheet>
+
+            {snippet ? (
+              <AccordionGroup
+                variant="plain"
+                sx={{ "--AccordionGroup-gap": "0.5rem" }}
+              >
+                <Accordion>
+                  <AccordionSummary>
+                    <Typography level="body-sm" fontWeight="md">
+                      Detection snippet
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Sheet
+                      variant="soft"
+                      sx={{
+                        p: 2,
+                        borderRadius: "lg",
+                        bgcolor: "background.surface",
+                      }}
+                    >
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: "neutral.600",
+                          whiteSpace: "pre-wrap",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {snippet}
+                      </Typography>
+                    </Sheet>
+                  </AccordionDetails>
+                </Accordion>
+              </AccordionGroup>
+            ) : null}
+          </Stack>
+        </Sheet>
+
+        <JoyAlertDialog
+          cancelLabel="Keep Current"
+          confirmLabel="Change Location"
+          onClose={() => setShowChangeDialog(false)}
+          onConfirm={handleChangeLocation}
+          open={showChangeDialog}
+          title="New locations detected"
+          variant="warning"
+        >
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            We found location candidates that differ from your confirmed postal
+            code {postalCode}.
+          </Typography>
+          <Stack spacing={1}>
+            {pendingCandidates.map((candidate) => (
+              <Sheet
+                key={`${candidate.postal_code}-${candidate.city ?? ""}`}
+                variant="soft"
+                sx={{ p: 1.5, borderRadius: "lg" }}
+              >
+                <Typography level="body-sm" fontWeight="md">
+                  {formatLocationLabel({
+                    postalCode: candidate.postal_code,
+                    city: candidate.city,
+                    stateProvince: candidate.state_province,
+                    country: candidate.country,
+                  })}
+                </Typography>
+              </Sheet>
+            ))}
+          </Stack>
+        </JoyAlertDialog>
+      </>
     );
   }
 
   return (
-    <Card className={cn(
-      "transition-colors",
-      showWarning ? "border-yellow-300 bg-yellow-50/30" : "border-border"
-    )}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <MapPin className="h-5 w-5 text-muted-foreground" />
-          Detected Location
-          {confidence && getConfidenceBadge(confidence)}
-        </CardTitle>
-        {showWarning && (
-          <CardDescription className="flex items-center gap-2 text-yellow-700 mt-2">
-            <AlertTriangle className="h-4 w-4" />
-            {!postalCode 
-              ? "We couldn't detect your postal/ZIP code. Please enter it below."
-              : hasMultipleCandidates
-                ? "We found multiple possible locations. Please select the correct one."
-                : "We couldn't confidently detect your location. Please confirm or correct."
-            }
-          </CardDescription>
-        )}
-      </CardHeader>
+    <>
+      <Sheet
+        variant="outlined"
+        sx={{
+          p: compact ? 2.5 : { xs: 3, md: 3.5 },
+          borderRadius: "xl",
+          bgcolor: "background.surface",
+        }}
+      >
+        <Stack spacing={2.5}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            spacing={2}
+          >
+            <Stack spacing={0.75}>
+              <Stack
+                direction="row"
+                spacing={1}
+                useFlexGap
+                flexWrap="wrap"
+                alignItems="center"
+              >
+                <Typography level="title-lg">Detected Location</Typography>
+                <Chip color="warning" size="sm" variant="soft">
+                  {postalCode ? "Needs Review" : "Missing Postal Code"}
+                </Chip>
+                {confidence ? getConfidenceChip(confidence) : null}
+              </Stack>
 
-      <CardContent className="space-y-4">
-        {/* Current detected info (if any) */}
-        {hasDetectedLocation && !hasMultipleCandidates && (
-          <div className="p-3 bg-muted/50 rounded-lg space-y-1">
-            <p className="text-sm font-medium">Currently detected:</p>
-            <div className="flex flex-wrap gap-2 text-sm">
-              {postalCode && <span className="font-medium">{postalCode}</span>}
-              {city && <span>{city}</span>}
-              {stateProvince && <span>{stateProvince}</span>}
-              {country && <span>({country})</span>}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Source: {getSourceLabel(source)}
-            </p>
-          </div>
-        )}
+              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                {!postalCode
+                  ? "We still need a postal or ZIP code before local recommendations can be trusted."
+                  : availableCandidates.length > 1
+                    ? "We found multiple possible matches. Choose the right location or correct it manually."
+                    : "Review the detected location and confirm or correct it before climate guidance is generated."}
+              </Typography>
+            </Stack>
 
-        {/* Detection snippet (expandable) */}
-        {snippet && (
-          <Collapsible open={isSnippetOpen} onOpenChange={setIsSnippetOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-between text-xs">
-                <span className="flex items-center gap-1">
-                  <Info className="h-3 w-3" />
-                  Why we detected this location
-                </span>
-                <ChevronDown className={cn(
-                  "h-4 w-4 transition-transform",
-                  isSnippetOpen && "rotate-180"
-                )} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="p-3 bg-muted/30 rounded-lg text-xs text-muted-foreground font-mono mt-2">
-                {snippet}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            {onRedetect ? (
+              <JoyButton
+                color="neutral"
+                loading={isRedetecting}
+                loadingPosition="start"
+                onClick={handleRedetectClick}
+                startDecorator={
+                  !isRedetecting ? <RefreshCw className="h-4 w-4" /> : undefined
+                }
+                variant="plain"
+              >
+                Re-detect from website
+              </JoyButton>
+            ) : null}
+          </Stack>
 
-        {/* Multiple candidates selection */}
-        {hasMultipleCandidates && (
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Select the correct location:</Label>
-            <RadioGroup value={selectedCandidate} onValueChange={handleCandidateSelect}>
-              {candidates.map((candidate, index) => (
-                <div key={candidate.postal_code} className="flex items-center space-x-2">
-                  <RadioGroupItem value={candidate.postal_code} id={`candidate-${index}`} />
-                  <Label htmlFor={`candidate-${index}`} className="text-sm font-normal cursor-pointer">
-                    <span className="font-medium">{candidate.postal_code}</span>
-                    {candidate.city && <span className="ml-1">{candidate.city}</span>}
-                    {candidate.state_province && <span>, {candidate.state_province}</span>}
-                    {candidate.country && <span className="text-muted-foreground ml-1">({candidate.country})</span>}
-                  </Label>
-                </div>
-              ))}
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="manual" id="candidate-manual" />
-                <Label htmlFor="candidate-manual" className="text-sm font-normal cursor-pointer">
-                  None of these — enter manually
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-        )}
+          {hasDetectedLocation ? (
+            <Sheet variant="soft" sx={{ p: 2.25, borderRadius: "lg" }}>
+              <Stack spacing={0.75}>
+                <Typography
+                  level="body-xs"
+                  sx={{
+                    color: "neutral.500",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Current Detection
+                </Typography>
+                <Typography level="title-sm">
+                  {formatLocationLabel({
+                    postalCode,
+                    city,
+                    stateProvince,
+                    country,
+                  })}
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                  Source: {getSourceLabel(source)}
+                </Typography>
+              </Stack>
+            </Sheet>
+          ) : null}
 
-        {/* Manual entry form */}
-        {(showWarning || manualEntry || !hasMultipleCandidates) && (
-          <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="postal-code" className="text-sm">
-                  Postal/ZIP Code <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="postal-code"
-                  placeholder="e.g., 97215 or V6B 1A1"
-                  value={formData.postalCode}
-                  onChange={(e) => handlePostalCodeChange(e.target.value)}
-                  className={cn(validationError && "border-red-300 focus:ring-red-200")}
-                />
-                {validationError && (
-                  <p className="text-xs text-red-600">{validationError}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="city" className="text-sm">City</Label>
-                <Input
-                  id="city"
-                  placeholder="e.g., Portland"
+          {snippet ? (
+            <AccordionGroup
+              variant="plain"
+              sx={{ "--AccordionGroup-gap": "0.5rem" }}
+            >
+              <Accordion>
+                <AccordionSummary>
+                  <Typography level="body-sm" fontWeight="md">
+                    Why this location was detected
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Sheet
+                    variant="soft"
+                    sx={{
+                      p: 2,
+                      borderRadius: "lg",
+                      bgcolor: "background.surface",
+                    }}
+                  >
+                    <Stack spacing={1}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Info className="h-4 w-4" />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          Source evidence
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: "neutral.600",
+                          whiteSpace: "pre-wrap",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {snippet}
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                </AccordionDetails>
+              </Accordion>
+            </AccordionGroup>
+          ) : null}
+
+          {availableCandidates.length > 0 ? (
+            <Stack spacing={1.25}>
+              <Typography level="title-sm">Possible Matches</Typography>
+              <Stack spacing={1}>
+                {availableCandidates.map((candidate) => {
+                  const candidateKey = `${candidate.postal_code}-${candidate.city ?? ""}-${candidate.state_province ?? ""}`;
+                  const isSelected =
+                    selectedCandidate === candidate.postal_code;
+
+                  return (
+                    <Sheet
+                      key={candidateKey}
+                      component="button"
+                      onClick={() => handleCandidateSelect(candidate)}
+                      sx={{
+                        p: 2,
+                        borderRadius: "lg",
+                        border: "1px solid",
+                        borderColor: isSelected ? "primary.400" : "neutral.200",
+                        bgcolor: isSelected
+                          ? "rgba(var(--joy-palette-primary-mainChannel) / 0.08)"
+                          : "background.surface",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition:
+                          "border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease",
+                        "&:hover": {
+                          borderColor: isSelected
+                            ? "primary.400"
+                            : "neutral.300",
+                          transform: "translateY(-1px)",
+                        },
+                      }}
+                      type="button"
+                    >
+                      <Stack spacing={0.5}>
+                        <Typography level="title-sm">
+                          {formatLocationLabel({
+                            postalCode: candidate.postal_code,
+                            city: candidate.city,
+                            stateProvince: candidate.state_province,
+                            country: candidate.country,
+                          })}
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          {candidate.source
+                            ? getSourceLabel(candidate.source)
+                            : "Candidate match"}
+                        </Typography>
+                        {candidate.snippet ? (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.600" }}
+                          >
+                            {candidate.snippet}
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                    </Sheet>
+                  );
+                })}
+              </Stack>
+            </Stack>
+          ) : null}
+
+          <Divider />
+
+          <Stack spacing={1.5}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              spacing={1}
+            >
+              <Typography level="title-sm">Confirm or Correct</Typography>
+              {!showManualFields ? (
+                <JoyButton
+                  color="neutral"
+                  onClick={handleManualEntry}
+                  variant="plain"
+                >
+                  Enter manually
+                </JoyButton>
+              ) : null}
+            </Stack>
+
+            {showManualFields ||
+            hasDetectedLocation ||
+            availableCandidates.length > 0 ? (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "repeat(2, minmax(0, 1fr))",
+                  },
+                  gap: 1.5,
+                }}
+              >
+                <Box>
+                  <JoyInput
+                    helperText={validationError ?? "Required"}
+                    label="Postal / ZIP Code"
+                    placeholder="97215 or V6B 1A1"
+                    value={formData.postalCode}
+                    onValueChange={handlePostalCodeChange}
+                    variant={validationError ? "error" : "outlined"}
+                  />
+                  {validationError ? (
+                    <FormHelperText sx={{ color: "danger.600" }}>
+                      {validationError}
+                    </FormHelperText>
+                  ) : null}
+                </Box>
+
+                <JoyInput
+                  label="City"
+                  placeholder="Portland"
                   value={formData.city}
-                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, city: value }))
+                  }
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="state-province" className="text-sm">State/Province</Label>
-                <Input
-                  id="state-province"
-                  placeholder="e.g., Oregon or BC"
+
+                <JoyInput
+                  label="State / Province"
+                  placeholder="Oregon or BC"
                   value={formData.stateProvince}
-                  onChange={(e) => setFormData(prev => ({ ...prev, stateProvince: e.target.value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, stateProvince: value }))
+                  }
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="country" className="text-sm">Country</Label>
-                <Input
-                  id="country"
-                  value={formData.country === 'US' ? 'United States' : formData.country === 'CA' ? 'Canada' : ''}
+
+                <JoyInput
                   disabled
+                  label="Country"
                   placeholder="Auto-detected from postal code"
-                  className="bg-muted"
+                  value={
+                    formData.country === "US"
+                      ? "United States"
+                      : formData.country === "CA"
+                        ? "Canada"
+                        : ""
+                  }
                 />
-              </div>
-            </div>
-          </div>
-        )}
+              </Box>
+            ) : null}
+          </Stack>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          {(showWarning || manualEntry) && (
-            <Button
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
+            <JoyButton
+              disabled={
+                !formData.postalCode || Boolean(validationError) || isSaving
+              }
+              loading={isSaving}
+              loadingPosition="start"
               onClick={handleConfirm}
-              disabled={!formData.postalCode || !!validationError || isSaving}
-              className="flex-1 sm:flex-none"
+              startDecorator={
+                !isSaving ? <CheckCircle2 className="h-4 w-4" /> : undefined
+              }
+              variant="solid"
             >
-              {isSaving ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirm Location
-                </>
-              )}
-            </Button>
-          )}
-          
-          {onRedetect && (
-            <Button
-              variant="outline"
-              onClick={handleRedetectClick}
-              disabled={isRedetecting}
-            >
-              <RefreshCw className={cn("h-4 w-4 mr-2", isRedetecting && "animate-spin")} />
-              Re-detect from website
-            </Button>
-          )}
-        </div>
+              Confirm Location
+            </JoyButton>
+            {onRedetect ? (
+              <JoyButton
+                color="neutral"
+                loading={isRedetecting}
+                loadingPosition="start"
+                onClick={handleRedetectClick}
+                startDecorator={
+                  !isRedetecting ? <RefreshCw className="h-4 w-4" /> : undefined
+                }
+                variant="plain"
+              >
+                Re-detect from website
+              </JoyButton>
+            ) : null}
+          </Stack>
+        </Stack>
+      </Sheet>
 
-        {/* Change Location Dialog */}
-        <AlertDialog open={showChangeDialog} onOpenChange={setShowChangeDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>New Locations Detected</AlertDialogTitle>
-              <AlertDialogDescription>
-                We found {pendingCandidates.length} location{pendingCandidates.length > 1 ? 's' : ''} on your website that differ from your confirmed location ({postalCode}).
-                <div className="mt-3 space-y-2">
-                  {pendingCandidates.map((c, i) => (
-                    <div key={i} className="text-sm font-medium text-foreground">
-                      • {c.postal_code} {c.city && `- ${c.city}`}{c.state_province && `, ${c.state_province}`}
-                    </div>
-                  ))}
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleKeepCurrent}>Keep Current</AlertDialogCancel>
-              <AlertDialogAction onClick={handleChangeLocation}>Change Location</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardContent>
-    </Card>
+      <JoyAlertDialog
+        cancelLabel="Keep Current"
+        confirmLabel="Change Location"
+        onClose={() => setShowChangeDialog(false)}
+        onConfirm={handleChangeLocation}
+        open={showChangeDialog}
+        title="New locations detected"
+        variant="warning"
+      >
+        <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+          We found location candidates that differ from your confirmed postal
+          code {postalCode}.
+        </Typography>
+        <Stack spacing={1}>
+          {pendingCandidates.map((candidate) => (
+            <Sheet
+              key={`${candidate.postal_code}-${candidate.city ?? ""}`}
+              variant="soft"
+              sx={{ p: 1.5, borderRadius: "lg" }}
+            >
+              <Typography level="body-sm" fontWeight="md">
+                {formatLocationLabel({
+                  postalCode: candidate.postal_code,
+                  city: candidate.city,
+                  stateProvince: candidate.state_province,
+                  country: candidate.country,
+                })}
+              </Typography>
+            </Sheet>
+          ))}
+        </Stack>
+      </JoyAlertDialog>
+    </>
   );
 };

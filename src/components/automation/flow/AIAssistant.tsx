@@ -1,18 +1,13 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui-legacy/button';
-import {
-  Drawer,
-  DrawerTrigger,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerClose,
-} from '@/components/ui-legacy/drawer';
-import { Lightbulb } from 'lucide-react';
-import { AIGuidancePanel } from './AIGuidancePanel';
-import { triggerRequiresAudience } from '@/lib/automation/triggerCatalog';
-import type { Node } from '@xyflow/react';
+import React, { useEffect, useMemo, useState } from "react";
+import Badge from "@mui/joy/Badge";
+import Box from "@mui/joy/Box";
+import Stack from "@mui/joy/Stack";
+import { Lightbulb } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyDrawer } from "@/components/joy/JoyDrawer";
+import { AIGuidancePanel } from "./AIGuidancePanel";
+import { triggerRequiresAudience } from "@/lib/automation/triggerCatalog";
+import type { Node } from "@xyflow/react";
 
 interface AIAssistantProps {
   nodes: Node[];
@@ -32,57 +27,62 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
   const [open, setOpen] = useState(false);
 
   const hasTrigger = useMemo(
-    () => nodes?.some((n: any) => n.type === 'trigger'),
-    [nodes]
+    () => nodes?.some((n: any) => n.type === "trigger"),
+    [nodes],
   );
   const hasActions = useMemo(
-    () => nodes?.some((n: any) => ['email', 'sms', 'delay'].includes(n.type)),
-    [nodes]
+    () => nodes?.some((n: any) => ["email", "sms", "delay"].includes(n.type)),
+    [nodes],
   );
-  
+
   // Get current trigger type to determine if audience is required
-  const triggerNode = nodes?.find((n: any) => n.type === 'trigger');
-  const currentTriggerType = triggerNode?.data?.triggerType as string || '';
-  const audienceRequired = !currentTriggerType || triggerRequiresAudience(currentTriggerType);
-  
+  const triggerNode = nodes?.find((n: any) => n.type === "trigger");
+  const currentTriggerType = (triggerNode?.data?.triggerType as string) || "";
+  const audienceRequired =
+    !currentTriggerType || triggerRequiresAudience(currentTriggerType);
+
   // Calculate completion based on whether audience is required
   const totalSteps = audienceRequired ? 3 : 2;
   const audienceComplete = !audienceRequired || hasAudience;
-  const completed = (hasTrigger ? 1 : 0) + (hasActions ? 1 : 0) + (audienceComplete && audienceRequired ? 1 : 0);
+  const completed =
+    (hasTrigger ? 1 : 0) +
+    (hasActions ? 1 : 0) +
+    (audienceComplete && audienceRequired ? 1 : 0);
 
   useEffect(() => {
-    const saved = localStorage.getItem('ai_assistant_open');
-    if (saved === 'true') setOpen(true);
+    const saved = localStorage.getItem("ai_assistant_open");
+    if (saved === "true") setOpen(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('ai_assistant_open', open ? 'true' : 'false');
+    localStorage.setItem("ai_assistant_open", open ? "true" : "false");
   }, [open]);
 
   return (
-    <Drawer open={open} onOpenChange={setOpen} shouldScaleBackground={false}>
-      <DrawerTrigger asChild>
-        <Button
-          aria-label="Open AI Assistant"
-          className="fixed bottom-5 right-5 rounded-full shadow-lg h-12 w-12 p-0 z-50"
-          variant="default"
-          size="icon"
-        >
-          <span className="sr-only">AI Assistant</span>
-          <Lightbulb className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 flex items-center justify-center h-5 min-w-[20px] rounded-full text-[10px] px-1 bg-primary text-primary-foreground">
-            {completed}/{totalSteps}
-          </span>
-        </Button>
-      </DrawerTrigger>
+    <>
+      <Box sx={{ position: "absolute", right: 16, bottom: 16, zIndex: 6 }}>
+        <Badge badgeContent={`${completed}/${totalSteps}`} color="primary">
+          <JoyButton
+            aria-label="Open AI Assistant"
+            variant="solid"
+            color="primary"
+            onClick={() => setOpen(true)}
+            startDecorator={<Lightbulb size={16} />}
+          >
+            AI Assistant
+          </JoyButton>
+        </Badge>
+      </Box>
 
-      <DrawerContent className="max-w-full md:max-w-md mx-auto bg-white dark:bg-gray-900">
-        <DrawerHeader>
-          <DrawerTitle className="text-foreground">AI Assistant</DrawerTitle>
-          <DrawerDescription className="text-muted-foreground">Guided steps to build your automation</DrawerDescription>
-        </DrawerHeader>
-
-        <div className="px-4 pb-6">
+      <JoyDrawer
+        open={open}
+        onClose={() => setOpen(false)}
+        title="AI Assistant"
+        description="Guided steps to build your automation."
+        anchor="right"
+        size="md"
+      >
+        <Stack spacing={2}>
           <AIGuidancePanel
             nodes={nodes as any}
             hasValidFlow={Boolean(nodes?.length)}
@@ -91,14 +91,16 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({
             onAddNode={onAddNode || (() => {})}
             onOpenAudienceSelector={onOpenAudienceSelector || (() => {})}
           />
-        </div>
 
-        <div className="px-4 pb-4">
-          <DrawerClose asChild>
-            <Button variant="secondary" className="w-full">Close</Button>
-          </DrawerClose>
-        </div>
-      </DrawerContent>
-    </Drawer>
+          <JoyButton
+            variant="outlined"
+            color="neutral"
+            onClick={() => setOpen(false)}
+          >
+            Close
+          </JoyButton>
+        </Stack>
+      </JoyDrawer>
+    </>
   );
 };

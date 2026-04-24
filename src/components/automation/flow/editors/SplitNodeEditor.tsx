@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Label } from '@/components/ui-legacy/label';
-import { Button } from '@/components/ui-legacy/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { NativeSelect } from '@/components/ui-legacy/native-select';
-import { Input } from '@/components/ui-legacy/input';
-import { Textarea } from '@/components/ui-legacy/textarea';
+import React, { useState } from "react";
+import Chip from "@mui/joy/Chip";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { GitBranch } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySelect } from "@/components/joy/JoySelect";
+import { JoyTextarea } from "@/components/joy/JoyTextarea";
 
 interface SplitNodeData {
-  splitType: 'conditional' | 'ab_test' | 'random';
+  splitType: "conditional" | "ab_test" | "random";
   conditions?: any[];
   percentage?: number;
   description?: string;
+  conditionField?: string;
+  conditionOperator?: string;
+  conditionValue?: string;
+  disclaimerAcknowledged?: boolean;
 }
 
 interface SplitNodeEditorProps {
@@ -19,149 +26,119 @@ interface SplitNodeEditorProps {
   onCancel: () => void;
 }
 
-const splitTypes = [
-  { 
-    value: 'conditional', 
-    label: 'Conditional Split',
-    description: 'Split based on customer conditions or behavior'
-  },
-  { 
-    value: 'ab_test', 
-    label: 'A/B Test Split',
-    description: 'Test different paths with percentage distribution'
-  },
-  { 
-    value: 'random', 
-    label: 'Random Split',
-    description: 'Randomly distribute customers between paths'
-  }
+const fieldOptions = [
+  { value: "total_spent", label: "Total spent" },
+  { value: "last_purchase_date", label: "Last purchase date" },
+  { value: "loyalty_status", label: "Loyalty status" },
+  { value: "tag", label: "Customer tag" },
+];
+
+const operatorOptions = [
+  { value: "equals", label: "Equals" },
+  { value: "contains", label: "Contains" },
+  { value: "greater_than", label: "Greater than" },
+  { value: "less_than", label: "Less than" },
 ];
 
 export const SplitNodeEditor: React.FC<SplitNodeEditorProps> = ({
   data,
   onSave,
-  onCancel
+  onCancel,
 }) => {
-  const [splitType, setSplitType] = useState<'conditional' | 'ab_test' | 'random'>(
-    data.splitType || 'conditional'
+  const [conditionField, setConditionField] = useState(
+    data.conditionField || "total_spent",
   );
-  const [percentage, setPercentage] = useState(data.percentage || 50);
-  const [description, setDescription] = useState(data.description || '');
-
-  useEffect(() => {
-    setSplitType(data.splitType || 'conditional');
-    setPercentage(data.percentage || 50);
-    setDescription(data.description || '');
-  }, [data]);
+  const [conditionOperator, setConditionOperator] = useState(
+    data.conditionOperator || "greater_than",
+  );
+  const [conditionValue, setConditionValue] = useState(
+    data.conditionValue || "100",
+  );
+  const [description, setDescription] = useState(data.description || "");
 
   const handleSave = () => {
-    const splitData: SplitNodeData = {
-      splitType,
-      conditions: data.conditions || [],
-      description
-    };
-
-    if (splitType === 'ab_test' || splitType === 'random') {
-      splitData.percentage = percentage;
-    }
-
-    onSave(splitData);
+    onSave({
+      ...data,
+      splitType: "conditional",
+      conditionField,
+      conditionOperator,
+      conditionValue,
+      description,
+      conditions: [
+        {
+          field: conditionField,
+          operator: conditionOperator,
+          value: conditionValue,
+        },
+      ],
+      disclaimerAcknowledged: true,
+    });
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onCancel();
-    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      handleSave();
-    }
-  };
-
-  const selectedSplit = splitTypes.find(s => s.value === splitType);
 
   return (
-    <Card className="w-full max-w-lg" onKeyDown={handleKeyDown}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          🔀 Edit Split Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="split-type">Split Type *</Label>
-          <NativeSelect
-            id="split-type"
-            value={splitType}
-            onChange={(e) => setSplitType(e.target.value as 'conditional' | 'ab_test' | 'random')}
-            autoFocus
-          >
-            {splitTypes.map((split) => (
-              <option key={split.value} value={split.value}>
-                {split.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
+    <Stack spacing={2} sx={{ p: 2 }}>
+      <Sheet variant="soft" color="warning" sx={{ p: 1.5, borderRadius: "lg" }}>
+        <Stack direction="row" spacing={1.25} alignItems="flex-start">
+          <GitBranch size={16} />
+          <Stack spacing={0.75}>
+            <Typography level="title-sm">Condition branch</Typography>
+            <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+              Branching is currently advisory in the compiler. Operators should
+              treat this as a clearly labeled condition note until full runtime
+              branching ships.
+            </Typography>
+            <Chip
+              variant="soft"
+              color="warning"
+              size="sm"
+              sx={{ alignSelf: "flex-start" }}
+            >
+              Advisory only in current executor
+            </Chip>
+          </Stack>
+        </Stack>
+      </Sheet>
 
-        {selectedSplit && (
-          <div className="bg-muted/50 rounded-lg p-3">
-            <p className="text-sm font-medium text-foreground mb-1">
-              {selectedSplit.label}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {selectedSplit.description}
-            </p>
-          </div>
-        )}
+      <JoySelect
+        label="Field"
+        value={conditionField}
+        options={fieldOptions}
+        onChange={(_event, value) => {
+          if (value) {
+            setConditionField(value);
+          }
+        }}
+      />
+      <JoySelect
+        label="Operator"
+        value={conditionOperator}
+        options={operatorOptions}
+        onChange={(_event, value) => {
+          if (value) {
+            setConditionOperator(value);
+          }
+        }}
+      />
+      <JoyInput
+        label="Value"
+        value={conditionValue}
+        onChange={(event) => setConditionValue(event.target.value)}
+        placeholder="100"
+      />
+      <JoyTextarea
+        label="Operator note"
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        minRows={4}
+        placeholder="Example: High-value customers go down the yes branch."
+      />
 
-        {(splitType === 'ab_test' || splitType === 'random') && (
-          <div className="space-y-2">
-            <Label htmlFor="percentage">Split Percentage</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="percentage"
-                type="number"
-                min="1"
-                max="99"
-                value={percentage}
-                onChange={(e) => setPercentage(parseInt(e.target.value) || 50)}
-                className="w-20"
-              />
-              <span className="text-sm text-muted-foreground">
-                % go to Path A, {100 - percentage}% go to Path B
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="description">Description (Optional)</Label>
-          <Textarea
-            id="description"
-            placeholder="Describe the purpose of this split..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="min-h-[80px]"
-          />
-        </div>
-
-        {splitType === 'conditional' && (
-          <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3">
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              💡 <strong>Note:</strong> Conditional logic setup will be available in advanced mode. 
-              For now, this creates a basic split node.
-            </p>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            Save Changes
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <Stack direction="row" spacing={1} justifyContent="flex-end">
+        <JoyButton variant="outlined" color="neutral" onClick={onCancel}>
+          Cancel
+        </JoyButton>
+        <JoyButton onClick={handleSave}>Save changes</JoyButton>
+      </Stack>
+    </Stack>
   );
 };

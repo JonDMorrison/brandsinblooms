@@ -1,138 +1,256 @@
-import React from "react";
-import { Card, CardContent } from "@/components/ui-legacy/card";
+import * as React from "react";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import IconButton from "@mui/joy/IconButton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import type { SxProps } from "@mui/joy/styles/types";
 import {
-  Clock,
+  Clock3,
   MessageSquare,
   MousePointerClick,
   TrendingUp,
   Users,
 } from "lucide-react";
 import type { SMSStats } from "@/hooks/useSMSStats";
-import { cn } from "@/lib/utils";
 
 interface SMSStatCardsProps {
   stats: SMSStats;
   onCardClick: (cardType: string) => void;
 }
 
+type StatCardConfig = {
+  key: string;
+  label: string;
+  value: number;
+  formatter: (value: number) => string;
+  subtitle: string;
+  color: "primary" | "success" | "warning" | "info" | "neutral";
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  iconSx?: SxProps;
+};
+
+const GRID_COLUMNS = {
+  xs: "1fr",
+  sm: "repeat(2, minmax(0, 1fr))",
+  md: "repeat(3, minmax(0, 1fr))",
+  xl: "repeat(5, minmax(0, 1fr))",
+} as const;
+
+function AnimatedStatValue({
+  value,
+  formatter,
+}: {
+  value: number;
+  formatter: (value: number) => string;
+}) {
+  const [displayValue, setDisplayValue] = React.useState(0);
+  const previousValueRef = React.useRef(0);
+
+  React.useEffect(() => {
+    const startValue = previousValueRef.current;
+    const delta = value - startValue;
+    const duration = 420;
+    let frameId = 0;
+    let startTime = 0;
+
+    const step = (timestamp: number) => {
+      if (!startTime) {
+        startTime = timestamp;
+      }
+
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const nextValue = startValue + delta * easedProgress;
+
+      setDisplayValue(nextValue);
+
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(step);
+      } else {
+        previousValueRef.current = value;
+      }
+    };
+
+    frameId = window.requestAnimationFrame(step);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [value]);
+
+  return <>{formatter(Math.round(displayValue))}</>;
+}
+
+function formatTrendDescriptor(
+  value: number | null | undefined,
+  fallback: string,
+) {
+  if (value === null || value === undefined || value === 0) {
+    return fallback;
+  }
+
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}% vs prior 30 days`;
+}
+
 export const SMSStatCards: React.FC<SMSStatCardsProps> = ({
   stats,
   onCardClick,
 }) => {
-  const formatTrend = (value: number | null | undefined) => {
-    if (value === null || value === undefined || value === 0) return null;
-    const sign = value > 0 ? "+" : "";
-    return `${sign}${value.toFixed(1)}%`;
-  };
-
-  const cards = [
+  const cards: StatCardConfig[] = [
     {
       key: "subscribers",
-      title: "Subscribers",
-      value: stats.subscribers.toLocaleString(),
-      description: "SMS opted-in audience",
+      label: "Subscribers",
+      value: stats.subscribers,
+      formatter: (value) => value.toLocaleString(),
+      subtitle: formatTrendDescriptor(
+        stats.subscribersGrowth,
+        "SMS opted-in audience",
+      ),
       icon: Users,
-      trend: formatTrend(stats.subscribersGrowth),
-      iconClassName: "text-blue-500",
-      iconSurfaceClassName: "bg-blue-50",
-      trendClassName: "bg-blue-50 text-blue-600",
+      color: "primary",
     },
     {
       key: "credits",
-      title: "Credits",
-      value: stats.credits.toLocaleString(),
-      description: `${stats.creditsUsed} used this month`,
+      label: "Credits",
+      value: stats.credits,
+      formatter: (value) => value.toLocaleString(),
+      subtitle: `${stats.creditsUsed.toLocaleString()} used this month`,
       icon: MessageSquare,
-      trend: null,
-      iconClassName: "text-emerald-500",
-      iconSurfaceClassName: "bg-emerald-50",
-      trendClassName: "bg-emerald-50 text-emerald-600",
+      color: "success",
     },
     {
       key: "deliverability",
-      title: "Deliverability",
-      value: `${stats.deliverability}%`,
-      description: "Messages delivered",
+      label: "Deliverability",
+      value: stats.deliverability,
+      formatter: (value) => `${value}%`,
+      subtitle: formatTrendDescriptor(
+        stats.deliverabilityGrowth,
+        "Messages delivered successfully",
+      ),
       icon: TrendingUp,
-      trend: formatTrend(stats.deliverabilityGrowth),
-      iconClassName: "text-purple-500",
-      iconSurfaceClassName: "bg-purple-50",
-      trendClassName: "bg-purple-50 text-purple-600",
+      color: "warning",
     },
     {
       key: "clicks",
-      title: "Clicks",
-      value: stats.clicks.toLocaleString(),
-      description: "Total link clicks",
+      label: "Clicks",
+      value: stats.clicks,
+      formatter: (value) => value.toLocaleString(),
+      subtitle: formatTrendDescriptor(stats.clicksGrowth, "Total link clicks"),
       icon: MousePointerClick,
-      trend: formatTrend(stats.clicksGrowth),
-      iconClassName: "text-amber-500",
-      iconSurfaceClassName: "bg-amber-50",
-      trendClassName: "bg-amber-50 text-amber-600",
+      color: "info",
+      iconSx: {
+        backgroundColor: "rgba(78, 186, 181, 0.14)",
+        color: "#1E8A85",
+        "&:hover": {
+          backgroundColor: "rgba(78, 186, 181, 0.18)",
+        },
+      },
     },
     {
       key: "queue",
-      title: "Queue",
-      value: stats.queuedMessages.toString(),
-      description: "Messages queued",
-      icon: Clock,
-      trend: null,
-      iconClassName: "text-gray-500",
-      iconSurfaceClassName: "bg-gray-50",
-      trendClassName: "bg-gray-100 text-gray-600",
+      label: "Queue",
+      value: stats.queuedMessages,
+      formatter: (value) => value.toLocaleString(),
+      subtitle:
+        stats.queuedMessages === 1
+          ? "1 message waiting to send"
+          : "Messages waiting to send",
+      icon: Clock3,
+      color: "neutral",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-      {cards.map((card, index) => {
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: GRID_COLUMNS,
+        gap: 2,
+      }}
+    >
+      {cards.map((card) => {
         const Icon = card.icon;
+
         return (
           <Card
             key={card.key}
-            className={cn(
-              "cursor-pointer rounded-[24px] border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
-              index === cards.length - 1 && "col-span-2 md:col-span-1",
-            )}
             onClick={() => onCardClick(card.key)}
+            variant="outlined"
+            sx={{
+              p: 2.5,
+              minHeight: 184,
+              borderRadius: "24px",
+              borderColor: "neutral.200",
+              backgroundColor: "background.surface",
+              cursor: "pointer",
+              transition:
+                "border-color 180ms ease-out, box-shadow 180ms ease-out, transform 180ms ease-out",
+              "&:hover": {
+                borderColor: "neutral.300",
+                boxShadow: "sm",
+                transform: "translateY(-2px)",
+              },
+            }}
           >
-            <CardContent className="space-y-4 p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-2">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-gray-400">
-                    {card.title}
-                  </p>
-                  <div className="text-3xl font-bold tracking-tight text-gray-900">
-                    {card.value}
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "flex h-11 w-11 items-center justify-center rounded-2xl",
-                    card.iconSurfaceClassName,
-                  )}
+            <Stack spacing={2.25} sx={{ height: "100%" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
+                <Typography
+                  level="body-xs"
+                  color="neutral"
+                  fontWeight="lg"
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "0.12em",
+                  }}
                 >
-                  <Icon className={cn("h-5 w-5", card.iconClassName)} />
-                </div>
-              </div>
+                  {card.label}
+                </Typography>
 
-              <div className="flex min-h-[32px] items-end justify-between gap-3">
-                <p className="text-xs text-gray-500">{card.description}</p>
-                {card.trend ? (
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                      card.trendClassName,
-                    )}
-                  >
-                    {card.trend}
-                  </span>
-                ) : null}
-              </div>
-            </CardContent>
+                <IconButton
+                  size="sm"
+                  variant="soft"
+                  color={card.color}
+                  aria-hidden="true"
+                  sx={{
+                    borderRadius: "999px",
+                    pointerEvents: "none",
+                    ...card.iconSx,
+                  }}
+                >
+                  <Icon size={18} />
+                </IconButton>
+              </Box>
+
+              <Typography
+                level="h2"
+                sx={{
+                  fontWeight: 700,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1,
+                }}
+              >
+                <AnimatedStatValue
+                  value={card.value}
+                  formatter={card.formatter}
+                />
+              </Typography>
+
+              <Typography level="body-xs" color="neutral">
+                {card.subtitle}
+              </Typography>
+            </Stack>
           </Card>
         );
       })}
-    </div>
+    </Box>
   );
 };

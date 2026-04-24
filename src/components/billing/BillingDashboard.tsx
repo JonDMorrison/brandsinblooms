@@ -1,28 +1,35 @@
-import React from 'react';
-import { SubscriptionCard } from './SubscriptionCard';
-import { UsageAnalytics } from './UsageAnalytics';
-import { PaymentMethods } from './PaymentMethods';
-import { BillingHistory } from './BillingHistory';
-import { AddOnSection } from './AddOnSection';
+import Box from "@mui/joy/Box";
+import Stack from "@mui/joy/Stack";
+import { AddOnSection } from "./AddOnSection";
+import { BillingHistory } from "./BillingHistory";
+import { PaymentMethods } from "./PaymentMethods";
+import { SubscriptionCard } from "./SubscriptionCard";
 
 export const BillingDashboard = () => {
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Hero Section - Subscription Status */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-2">
+    <Stack spacing={3} sx={{ width: "100%" }}>
+      <Box>
           <SubscriptionCard />
-        </div>
-        <div className="space-y-6">
+      </Box>
+
+      <Box
+        sx={{
+          display: "grid",
+          gap: 3,
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+        }}
+      >
+        <Box>
           <PaymentMethods />
-        </div>
-      </div>
+        </Box>
+        <Box>
+          <BillingHistory />
+        </Box>
+      </Box>
 
-      {/* Add-Ons Section */}
+      <Box>
       <AddOnSection />
-
-      {/* History Section */}
-      <BillingHistory />
-    </div>
+      </Box>
+    </Stack>
   );
 };

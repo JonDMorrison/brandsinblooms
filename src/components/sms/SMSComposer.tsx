@@ -1,29 +1,47 @@
-import React, { useCallback, useRef } from 'react'
-import { Textarea } from '@/components/ui-legacy/textarea'
-import { Badge } from '@/components/ui-legacy/badge'
-import { Alert, AlertDescription } from '@/components/ui-legacy/alert'
-import { ImageIcon } from 'lucide-react'
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage'
-import { MultiImageUpload } from './MultiImageUpload'
-import { CarrierStatus } from './CarrierStatus'
-import { MergeTagPicker } from '@/components/shared/MergeTagPicker'
+import * as React from "react";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Dropdown from "@mui/joy/Dropdown";
+import FormControl from "@mui/joy/FormControl";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import Menu from "@mui/joy/Menu";
+import MenuButton from "@mui/joy/MenuButton";
+import MenuItem from "@mui/joy/MenuItem";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
+import { ImageIcon, Sparkles } from "lucide-react";
+import { CarrierStatus } from "./CarrierStatus";
+import { MultiImageUpload } from "./MultiImageUpload";
+import { MediaSelectorImage } from "@/components/crm/MediaSelectorImage";
+import {
+  MERGE_TAG_DEFINITIONS,
+  formatTagWithDefault,
+} from "@/lib/mergeTagDefinitions";
+import {
+  countSmsSegments,
+  getSegmentDescription,
+} from "@/lib/sms/smsSegmentCounter";
 
 interface SMSComposerProps {
-  value: string
-  onChange: (value: string) => void
-  imageUrl?: string
-  onImageChange?: (imageUrl: string | null) => void
-  mediaUrls?: string[]
-  onMediaUrlsChange?: (urls: string[]) => void
-  maxLength?: number
-  placeholder?: string
-  showMergeTags?: boolean
-  showCharacterCount?: boolean
-  showMmsWarning?: boolean
-  showImageUpload?: boolean
-  enableMultiImage?: boolean
-  testPhoneNumber?: string
-  className?: string
+  value: string;
+  onChange: (value: string) => void;
+  imageUrl?: string;
+  onImageChange?: (imageUrl: string | null) => void;
+  mediaUrls?: string[];
+  onMediaUrlsChange?: (urls: string[]) => void;
+  maxLength?: number;
+  placeholder?: string;
+  showMergeTags?: boolean;
+  showCharacterCount?: boolean;
+  showMmsWarning?: boolean;
+  showImageUpload?: boolean;
+  enableMultiImage?: boolean;
+  testPhoneNumber?: string;
+  className?: string;
 }
 
 export function SMSComposer({
@@ -41,140 +59,207 @@ export function SMSComposer({
   showImageUpload = true,
   enableMultiImage = false,
   testPhoneNumber,
-  className = ""
+  className = "",
 }: SMSComposerProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const segmentInfo = React.useMemo(() => countSmsSegments(value), [value]);
+  const characterCount = value.length;
+  const isOverLimit = characterCount > maxLength;
+  const isNearLimit = characterCount > maxLength * 0.8;
+  const activeMediaUrls = enableMultiImage
+    ? mediaUrls
+    : imageUrl
+      ? [imageUrl]
+      : [];
 
-  const characterCount = value.length
-  const isOverLimit = characterCount > maxLength
-  const isNearLimit = characterCount > maxLength * 0.8
-  const segmentCount = Math.ceil(characterCount / 160) || 1
+  const handleInsertTag = React.useCallback(
+    (tagKey: string) => {
+      const tagValue = formatTagWithDefault(tagKey);
+      const textarea = textareaRef.current;
 
-  const handleInsertTag = useCallback((tag: string) => {
-    const textarea = textareaRef.current
-    if (!textarea) {
-      // Fallback: append to end
-      onChange(value + tag)
-      return
-    }
+      if (!textarea) {
+        onChange(`${value}${value ? " " : ""}${tagValue}`);
+        return;
+      }
 
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const newValue = value.substring(0, start) + tag + value.substring(end)
-    
-    onChange(newValue)
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const nextValue = `${value.slice(0, start)}${tagValue}${value.slice(end)}`;
+      onChange(nextValue);
 
-    // Restore cursor position after the inserted tag
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + tag.length, start + tag.length)
-    }, 0)
-  }, [value, onChange])
+      window.setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(
+          start + tagValue.length,
+          start + tagValue.length,
+        );
+      }, 0);
+    },
+    [onChange, value],
+  );
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      {/* SMS Input */}
-      <div className="relative">
-        <Textarea
-          ref={textareaRef}
-          data-sms-composer="true"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={`min-h-[120px] resize-none ${isOverLimit ? 'border-destructive' : ''}`}
-          maxLength={maxLength + 50} // Allow slight overflow for warning
-        />
-        
-        {/* Character Count & Status */}
-        {showCharacterCount && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-2">
-            <Badge 
-              variant={isOverLimit ? "destructive" : isNearLimit ? "secondary" : "outline"}
-              className="text-xs"
-            >
-              {characterCount}/{maxLength}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {segmentCount} SMS
-            </Badge>
-          </div>
-        )}
-      </div>
+    <Stack spacing={2} className={className}>
+      <Card
+        variant="outlined"
+        sx={{
+          borderRadius: "24px",
+          borderColor: isOverLimit ? "danger.300" : "neutral.200",
+          p: 2.25,
+        }}
+      >
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1}
+            justifyContent="space-between"
+            alignItems={{ md: "center" }}
+          >
+            <Stack spacing={0.35}>
+              <Typography level="title-sm">Message Composer</Typography>
+              <Typography level="body-sm" color="neutral">
+                Write the SMS copy and keep an eye on segments, character count,
+                and MMS behavior.
+              </Typography>
+            </Stack>
+            {showMergeTags ? (
+              <Dropdown>
+                <MenuButton
+                  slots={{ root: Button }}
+                  variant="soft"
+                  color="neutral"
+                  size="sm"
+                >
+                  Insert Merge Tag
+                </MenuButton>
+                <Menu
+                  placement="bottom-end"
+                  sx={{ maxHeight: 320, overflowY: "auto" }}
+                >
+                  {MERGE_TAG_DEFINITIONS.slice(0, 18).map((tag) => (
+                    <MenuItem
+                      key={tag.key}
+                      onClick={() => handleInsertTag(tag.key)}
+                    >
+                      <ListItemDecorator>
+                        <Sparkles size={14} />
+                      </ListItemDecorator>
+                      <Box>
+                        <Typography level="body-sm" fontWeight="md">
+                          {tag.label}
+                        </Typography>
+                        <Typography level="body-xs" color="neutral">
+                          {`${tag.example} • ${formatTagWithDefault(tag.key)}`}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </Dropdown>
+            ) : null}
+          </Stack>
 
-      {/* Merge Tags */}
-      {showMergeTags && (
-        <MergeTagPicker
-          onSelectTag={handleInsertTag}
-          size="sm"
-          excludeCategories={['system']} // SMS doesn't need unsubscribe links etc.
-        />
-      )}
-
-      {/* Image Upload */}
-      {showImageUpload && (
-        <div className="space-y-3">
-          {enableMultiImage ? (
-            <MultiImageUpload
-              value={mediaUrls}
-              onChange={(urls) => onMediaUrlsChange?.(urls)}
-              maxFiles={3}
-              maxSizePerFile={500}
+          <FormControl>
+            <Textarea
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              minRows={5}
+              maxRows={12}
+              placeholder={placeholder}
+              variant="outlined"
+              slotProps={{ textarea: { ref: textareaRef } }}
+              sx={{ borderRadius: "14px" }}
             />
-          ) : (
-            <>
-              <h4 className="text-sm font-medium">Add Image (MMS)</h4>
-              
-              <MediaSelectorImage
-                src={imageUrl || ''}
-                onChange={(imageUrl) => onImageChange?.(imageUrl)}
-                contentContext="SMS MMS image attachment"
-                className="h-32"
+          </FormControl>
+
+          {showCharacterCount ? (
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Chip
+                size="sm"
+                variant="soft"
+                color={
+                  isOverLimit ? "danger" : isNearLimit ? "warning" : "neutral"
+                }
+              >
+                {`${characterCount}/${maxLength}`}
+              </Chip>
+              <Chip size="sm" variant="soft" color="primary">
+                {`${Math.max(segmentInfo.segments, 1)} SMS segment${Math.max(segmentInfo.segments, 1) === 1 ? "" : "s"}`}
+              </Chip>
+              <Chip size="sm" variant="soft" color="neutral">
+                {getSegmentDescription(segmentInfo)}
+              </Chip>
+            </Stack>
+          ) : null}
+        </Stack>
+      </Card>
+
+      {showImageUpload ? (
+        <Card
+          variant="outlined"
+          sx={{ borderRadius: "24px", borderColor: "neutral.200", p: 2.25 }}
+        >
+          <Stack spacing={1.5}>
+            <Stack spacing={0.35}>
+              <Typography level="title-sm">MMS Image Attachments</Typography>
+              <Typography level="body-sm" color="neutral">
+                Add media when you want this message to send as MMS.
+              </Typography>
+            </Stack>
+
+            {enableMultiImage ? (
+              <MultiImageUpload
+                value={mediaUrls}
+                onChange={(urls) => onMediaUrlsChange?.(urls)}
+                maxFiles={3}
+                maxSizePerFile={500}
               />
-              
-              {imageUrl && (
-                <Badge variant="secondary" className="text-xs">
-                  <ImageIcon className="h-3 w-3 mr-1" />
-                  Will send as MMS
-                </Badge>
-              )}
-            </>
-          )}
-        </div>
-      )}
+            ) : (
+              <Stack spacing={1.25}>
+                <MediaSelectorImage
+                  src={imageUrl || ""}
+                  onChange={(nextImageUrl) => onImageChange?.(nextImageUrl)}
+                  contentContext="SMS MMS image attachment"
+                  className="h-32"
+                />
+                {imageUrl ? (
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    startDecorator={<ImageIcon size={12} />}
+                    sx={{ alignSelf: "flex-start" }}
+                  >
+                    Will send as MMS
+                  </Chip>
+                ) : null}
+              </Stack>
+            )}
 
-      {/* Carrier Status & Compatibility Check */}
-      {testPhoneNumber && (mediaUrls.length > 0 || imageUrl) && (
-        <CarrierStatus 
-          phoneNumber={testPhoneNumber}
-          mediaUrls={enableMultiImage ? mediaUrls : (imageUrl ? [imageUrl] : [])}
-        />
-      )}
+            {testPhoneNumber && activeMediaUrls.length > 0 ? (
+              <CarrierStatus
+                phoneNumber={testPhoneNumber}
+                mediaUrls={activeMediaUrls}
+              />
+            ) : null}
+          </Stack>
+        </Card>
+      ) : null}
 
-      {/* Warnings & Info */}
-      <div className="space-y-2">
-        {isOverLimit && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              Message exceeds {maxLength} characters. It will be split into {segmentCount} SMS messages.
-            </AlertDescription>
+      <Stack spacing={1.25}>
+        {isOverLimit ? (
+          <Alert color="danger" variant="soft" sx={{ borderRadius: "18px" }}>
+            {`This message exceeds ${maxLength} characters and will span ${Math.max(segmentInfo.segments, 1)} SMS segments.`}
           </Alert>
-        )}
+        ) : null}
 
-        {showMmsWarning && characterCount > 160 && (
-          <Alert>
-            <ImageIcon className="h-4 w-4" />
-            <AlertDescription>
-              Long messages may be converted to MMS on some carriers.
-            </AlertDescription>
+        {showMmsWarning && characterCount > 160 ? (
+          <Alert color="warning" variant="soft" sx={{ borderRadius: "18px" }}>
+            Long messages can increase costs and may be converted differently by
+            some carriers.
           </Alert>
-        )}
-
-        {segmentCount > 1 && !isOverLimit && (
-          <div className="text-sm text-muted-foreground">
-            This message will be sent as {segmentCount} SMS segments.
-          </div>
-        )}
-      </div>
-    </div>
-  )
+        ) : null}
+      </Stack>
+    </Stack>
+  );
 }

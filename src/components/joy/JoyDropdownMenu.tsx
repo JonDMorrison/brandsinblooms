@@ -8,32 +8,42 @@ import MenuButton, { type MenuButtonProps } from "@mui/joy/MenuButton";
 import MenuItem, { type MenuItemProps } from "@mui/joy/MenuItem";
 import Typography from "@mui/joy/Typography";
 import type { SxProps } from "@mui/joy/styles/types";
-
-const mergeSx = (...values: Array<SxProps | undefined>) =>
-  values.filter(Boolean) as SxProps[];
+import { mergeSx } from "@/components/joy/mergeSx";
 
 const createFocusOutline = (): SxProps => ({
-  outline: "2px solid var(--joy-palette-primary-500)",
-  outlineOffset: -2,
+  outline: 0,
+  boxShadow: "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
 });
 
 const triggerSx: SxProps = {
-  borderRadius: "12px",
-  color: "var(--joy-palette-brandNavy-700)",
+  width: 28,
+  height: 28,
+  minWidth: 28,
+  minHeight: 28,
+  padding: 0,
+  borderRadius: "999px",
+  color: "var(--joy-palette-neutral-400)",
   backgroundColor: "transparent",
   transition: "background-color 0.16s ease, color 0.16s ease",
   "&:hover": {
     backgroundColor: "var(--joy-palette-neutral-100)",
-    color: "var(--joy-palette-brandNavy-800)",
+    color: "var(--joy-palette-neutral-600)",
   },
   "&.Mui-focusVisible, &:focus-visible": createFocusOutline(),
+  "& .lucide": {
+    width: 16,
+    height: 16,
+  },
+  "& .MuiSvgIcon-root": {
+    fontSize: 16,
+  },
 };
 
 const menuSx: SxProps = {
   mt: 0.75,
   p: 0.5,
   gap: 0.25,
-  borderRadius: "var(--joy-radius-md)",
+  borderRadius: "var(--joy-radius-lg)",
   borderColor: "neutral.200",
   backgroundColor: "#FFFFFF",
   boxShadow: "var(--joy-shadow-lg)",
@@ -44,9 +54,13 @@ const menuSx: SxProps = {
 const itemSx: SxProps = {
   minHeight: 40,
   borderRadius: "var(--joy-radius-md)",
-  px: 1.25,
+  px: 1.5,
   py: 0.875,
-  gap: 1,
+  gap: 2,
+  alignItems: "center",
+  fontSize: "var(--joy-fontSize-sm)",
+  fontWeight: "var(--joy-fontWeight-medium)",
+  lineHeight: 1.2,
   "& .lucide": {
     width: 16,
     height: 16,
@@ -143,16 +157,22 @@ export const JoyDropdownMenuItem = React.forwardRef<
     <MenuItem
       ref={ref}
       color={destructive ? "danger" : (color ?? "neutral")}
-      startDecorator={
-        startDecorator ? (
-          <ListItemDecorator sx={{ minInlineSize: 20, color: "inherit" }}>
-            {startDecorator}
-          </ListItemDecorator>
-        ) : undefined
-      }
       sx={mergeSx(itemSx, sx)}
       {...props}
     >
+      {startDecorator ? (
+        <ListItemDecorator
+          sx={{
+            minInlineSize: 32,
+            justifyContent: "center",
+            alignSelf: "center",
+            color: "inherit",
+            opacity: 0.9,
+          }}
+        >
+          {startDecorator}
+        </ListItemDecorator>
+      ) : null}
       {children}
     </MenuItem>
   ),

@@ -21,6 +21,10 @@ import {
   deduplicateById,
   type FilterConfig,
 } from "@/utils/dataFilters";
+import {
+  buildRealtimeScopeFilter,
+  buildScopedStorageKey,
+} from "@/utils/tenantScope";
 import { Campaign } from "@/types/content";
 
 // Cache duration in milliseconds (5 minutes)
@@ -35,6 +39,7 @@ interface CachedData {
   approvedTasks: any[];
   timestamp: number;
   isStale: boolean;
+  scopeKey: string;
 }
 
 interface LoadingStates {
@@ -88,14 +93,18 @@ export const useGlobalData = () => {
 };
 
 // Session storage keys
-const CACHE_KEY = "globalDataCache";
-const ROUTE_STATES_KEY = "routeStates";
+const CACHE_KEY_PREFIX = "globalDataCache:v4";
+const ROUTE_STATES_KEY_PREFIX = "routeStates";
 
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
-  const { tenant, loading: tenantLoading } = useTenant();
+  const {
+    tenant,
+    loading: tenantLoading,
+    requiresTenantSelection,
+  } = useTenant();
 
   // Core data state
   const [cachedData, setCachedData] = useState<CachedData | null>(null);
@@ -109,49 +118,100 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Route state persistence
   const [routeStates, setRouteStates] = useState<Record<string, any>>({});
+  const [storageReady, setStorageReady] = useState(false);
 
   // TODO: Move developer check to a database role/flag instead of hardcoded email.
   const isDeveloper = user?.email === "jon@getclear.ca";
 
-  // Load cached data and route states from session storage on mount
+  const storageScope = useMemo(() => {
+    if (!user || tenantLoading || requiresTenantSelection) {
+      return null;
+    }
+
+    return {
+      cacheKey: buildScopedStorageKey(CACHE_KEY_PREFIX, {
+        userId: user.id,
+        tenantId: tenant?.id,
+      }),
+      routeStatesKey: buildScopedStorageKey(ROUTE_STATES_KEY_PREFIX, {
+        userId: user.id,
+        tenantId: tenant?.id,
+      }),
+    };
+  }, [requiresTenantSelection, tenant?.id, tenantLoading, user]);
+
+  // Load scoped cached data and route states from session storage.
   useEffect(() => {
+    if (!user || tenantLoading || !storageScope) {
+      setCachedData(null);
+      setRouteStates({});
+      setStorageReady(false);
+      return;
+    }
+
+    setStorageReady(false);
+
     try {
-      // Load cached data
-      const cached = sessionStorage.getItem(CACHE_KEY);
+      const cached = sessionStorage.getItem(storageScope.cacheKey);
       if (cached) {
         const parsedCache = JSON.parse(cached);
         const isStale = Date.now() - parsedCache.timestamp > CACHE_DURATION;
-        setCachedData({ ...parsedCache, isStale });
+        setCachedData({
+          ...parsedCache,
+          isStale,
+          scopeKey: storageScope.cacheKey,
+        });
+      } else {
+        setCachedData(null);
       }
 
-      // Load route states
-      const routeStatesData = sessionStorage.getItem(ROUTE_STATES_KEY);
+      const routeStatesData = sessionStorage.getItem(
+        storageScope.routeStatesKey,
+      );
       if (routeStatesData) {
         setRouteStates(JSON.parse(routeStatesData));
+      } else {
+        setRouteStates({});
       }
     } catch (error) {
       console.error("Error loading cached data:", error);
+      setCachedData(null);
+      setRouteStates({});
+    } finally {
+      setStorageReady(true);
     }
-  }, []);
+  }, [storageScope, tenantLoading, user]);
 
   // Save route states to session storage when they change
   useEffect(() => {
+    if (!storageScope || !storageReady) {
+      return;
+    }
+
     try {
-      sessionStorage.setItem(ROUTE_STATES_KEY, JSON.stringify(routeStates));
+      sessionStorage.setItem(
+        storageScope.routeStatesKey,
+        JSON.stringify(routeStates),
+      );
     } catch (error) {
       console.error("Error saving route states:", error);
     }
-  }, [routeStates]);
+  }, [routeStates, storageReady, storageScope]);
 
   const fetchData = useCallback(
     async (force = false) => {
-      if (!user || tenantLoading) {
+      if (!user || tenantLoading || requiresTenantSelection || !storageScope) {
         setLoadingStates((prev) => ({ ...prev, initial: false }));
         return;
       }
 
       // Check if we can use cached data (if not forced and cache is fresh)
-      if (!force && cachedData && !cachedData.isStale) {
+      if (
+        !force &&
+        cachedData &&
+        cachedData.scopeKey === storageScope.cacheKey &&
+        !cachedData.isStale
+      ) {
         setLoadingStates((prev) => ({ ...prev, initial: false }));
         return;
       }
@@ -247,13 +307,17 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
           approvedTasks: taskResult.approvedTasks,
           timestamp: Date.now(),
           isStale: false,
+          scopeKey: storageScope.cacheKey,
         };
 
         setCachedData(newCachedData);
 
         // Save to session storage
         try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(newCachedData));
+          sessionStorage.setItem(
+            storageScope.cacheKey,
+            JSON.stringify(newCachedData),
+          );
         } catch (error) {
           console.error("Error saving to session storage:", error);
         }
@@ -265,7 +329,15 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsRefreshing(false);
       }
     },
-    [user, tenant, tenantLoading, isDeveloper, cachedData?.isStale],
+    [
+      cachedData,
+      isDeveloper,
+      requiresTenantSelection,
+      storageScope,
+      tenant,
+      tenantLoading,
+      user,
+    ],
   );
 
   // Initial data fetch
@@ -275,20 +347,30 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Set up real-time subscriptions
   useEffect(() => {
-    if (!user) return;
+    if (!user || tenantLoading || requiresTenantSelection) return;
 
-    const channelId = `${user.id}-${Date.now()}`;
+    const channelId = `${user.id}-${tenant?.id ?? "personal"}-${Date.now()}`;
+    const scopedFilter = buildRealtimeScopeFilter({
+      tenantId: tenant?.id,
+      userId: user.id,
+    });
+
+    const markStaleAndRefresh = () => {
+      setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
+      void fetchData(true);
+    };
 
     const campaignSubscription = supabase
       .channel(`global-campaigns-channel-${channelId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "campaigns" },
-        () => {
-          // Mark cache as stale and trigger background refresh
-          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
-          fetchData(false);
+        {
+          event: "*",
+          schema: "public",
+          table: "campaigns",
+          ...(scopedFilter ? { filter: scopedFilter } : {}),
         },
+        markStaleAndRefresh,
       )
       .subscribe();
 
@@ -296,12 +378,13 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
       .channel(`global-content-tasks-channel-${channelId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "content_tasks" },
-        () => {
-          // Mark cache as stale and trigger background refresh
-          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
-          fetchData(false);
+        {
+          event: "*",
+          schema: "public",
+          table: "content_tasks",
+          ...(scopedFilter ? { filter: scopedFilter } : {}),
         },
+        markStaleAndRefresh,
       )
       .subscribe();
 
@@ -311,11 +394,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "master_campaign_templates" },
-        () => {
-          // Mark cache as stale and trigger background refresh
-          setCachedData((prev) => (prev ? { ...prev, isStale: true } : null));
-          fetchData(false);
-        },
+        markStaleAndRefresh,
       )
       .subscribe();
 
@@ -324,7 +403,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
       supabase.removeChannel(taskSubscription);
       supabase.removeChannel(templateSubscription);
     };
-  }, [user, fetchData]);
+  }, [fetchData, requiresTenantSelection, tenant?.id, tenantLoading, user]);
 
   // Route state management
   const saveRouteState = useCallback((route: string, state: any) => {
@@ -359,11 +438,13 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const invalidateCache = useCallback(() => {
     setCachedData(null);
     try {
-      sessionStorage.removeItem(CACHE_KEY);
+      if (storageScope) {
+        sessionStorage.removeItem(storageScope.cacheKey);
+      }
     } catch (error) {
       console.error("Error clearing cache:", error);
     }
-  }, []);
+  }, [storageScope]);
 
   // Memoized computed values
   const value = useMemo(

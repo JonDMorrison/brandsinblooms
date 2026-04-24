@@ -1,83 +1,89 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ReactFlow,
+  type Connection,
   MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-  Connection,
-  Edge,
-  Node,
-  NodeTypes,
-  BackgroundVariant,
+  type Node,
+  ReactFlow,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-
+import Box from "@mui/joy/Box";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
+import {
+  Grid3x3,
+  Keyboard,
+  Map,
+  Maximize2,
+  Minus,
+  Plus,
+  Users,
+  Workflow,
+} from "lucide-react";
 import TriggerNode from "./nodes/TriggerNode";
 import EmailNode from "./nodes/EmailNode";
 import SMSNode from "./nodes/SMSNode";
 import DelayNode from "./nodes/DelayNode";
 import SplitNode from "./nodes/SplitNode";
-import { FloatingToolbar } from "./FloatingToolbar";
-import { FlowValidation, FlowStatusBadge } from "./FlowValidation";
-import { AIAssistant } from "./AIAssistant";
+import { validateFlow } from "./flowValidationUtils";
 import { ReviewLaunchModal } from "./ReviewLaunchModal";
-import { NodeEditorDialog } from "./NodeEditorDialog";
+import { NodePalette } from "./NodePalette";
+import { AutomationBuilderInspector } from "./AutomationBuilderInspector";
 import { useAutomationFlow } from "../hooks/useAutomationFlow";
-import { Button } from "@/components/ui-legacy/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui-legacy/tooltip";
-
+import type {
+  AutomationFlowState,
+  AutomationLaunchPayload,
+  EmailNodeData,
+  TriggerNodeData,
+} from "./automationBuilderTypes";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { JoyDialog, JoyDialogActions } from "@/components/joy/JoyDialog";
 import { AudienceSelector } from "@/components/crm/AudienceSelector";
-import { useSegmentSelector } from "@/hooks/useSegmentSelector";
-import { Play, Save, Users, Map, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  TargetingPersona,
+  TargetingSegment,
+} from "@/hooks/usePersonaSegmentIntegration";
+import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
 import { compileFlow } from "@/lib/automation/compiler";
 import { normalizeTriggerId } from "@/lib/automation/normalize";
-import { triggerRequiresAudience } from "@/lib/automation/triggerCatalog";
-
-const nodeTypes: NodeTypes = {
-  trigger: TriggerNode,
-  email: EmailNode,
-  sms: SMSNode,
-  delay: DelayNode,
-  split: SplitNode,
-};
+import {
+  getTriggerById,
+  triggerRequiresAudience,
+} from "@/lib/automation/triggerCatalog";
 
 interface AutomationFlowCanvasProps {
   automationId?: string;
-  initialFlowState?: {
-    nodes: Node[];
-    edges: Edge[];
-  };
-  onSave?: (flowState: { nodes: Node[]; edges: Edge[] }) => void;
-  onLaunch?: (automationData: any) => void;
+  initialFlowState?: AutomationFlowState;
+  onSave?: (flowState: AutomationFlowState) => void;
+  onLaunch?: (automationData: AutomationLaunchPayload) => void | Promise<void>;
   onSaveDraft?: () => void;
-  onReviewLaunch?: () => void;
   automationName?: string;
   triggerType?: string;
   className?: string;
-  selectedPersonas?: any[];
-  selectedSegments?: any[];
-  onPersonasChange?: (personas: any[]) => void;
-  onSegmentsChange?: (segments: any[]) => void;
+  selectedPersonas?: TargetingPersona[];
+  selectedSegments?: TargetingSegment[];
+  onPersonasChange?: (personas: TargetingPersona[]) => void;
+  onSegmentsChange?: (segments: TargetingSegment[]) => void;
+  reviewRequestKey?: number;
+  tenantId?: string | null;
 }
+
+type TestEmailResponse = {
+  usedFrom?: string;
+};
 
 export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   automationId,
   initialFlowState,
   onSave,
   onLaunch,
-  onSaveDraft,
-  onReviewLaunch,
   automationName = "",
   triggerType = "",
   className,
@@ -85,6 +91,8 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
   selectedSegments = [],
   onPersonasChange,
   onSegmentsChange,
+  reviewRequestKey,
+  tenantId,
 }) => {
   const {
     nodes,
@@ -99,112 +107,178 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
     setSelectedNode,
     autoSave,
   } = useAutomationFlow(automationId, initialFlowState);
-
-  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [reactFlowInstance, setReactFlowInstance] =
+    useState<ReactFlowInstance | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isLaunchLoading, setIsLaunchLoading] = useState(false);
-  const [editingNode, setEditingNode] = useState<{
-    id: string;
-    type: string;
-    data: any;
-  } | null>(null);
+  const [isTestSending, setIsTestSending] = useState(false);
   const [showAudienceSelector, setShowAudienceSelector] = useState(false);
   const [showMinimap, setShowMinimap] = useState(() => {
     const saved = localStorage.getItem("automation.showMinimap");
-    return saved ? JSON.parse(saved) : false;
+    return saved ? JSON.parse(saved) : true;
   });
+  const [showGrid, setShowGrid] = useState(() => {
+    const saved = localStorage.getItem("automation.showGrid");
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [audienceContactCount, setAudienceContactCount] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [pendingDeleteNodeId, setPendingDeleteNodeId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     localStorage.setItem("automation.showMinimap", JSON.stringify(showMinimap));
   }, [showMinimap]);
 
-  const { toast } = useToast();
+  useEffect(() => {
+    localStorage.setItem("automation.showGrid", JSON.stringify(showGrid));
+  }, [showGrid]);
 
-  // Stable callback for editing nodes
-  const handleEditNode = useCallback((id: string, type: string, data: any) => {
-    setEditingNode({ id, type, data });
-  }, []);
+  useEffect(() => {
+    if (reviewRequestKey) {
+      setShowReviewModal(true);
+    }
+  }, [reviewRequestKey]);
 
-  // Stable callback for deleting nodes
-  const handleDeleteNode = useCallback(
-    (id: string) => {
-      deleteNode(id);
-    },
-    [deleteNode],
-  );
+  useEffect(() => {
+    let isActive = true;
 
-  // Memoized nodeTypes with stable callbacks
-  const memoizedNodeTypes = useMemo(
+    void computeAudienceRecipientCount({
+      tenantId,
+      segmentIds: selectedSegments.map((segment) => String(segment.id)),
+      personaIds: selectedPersonas.map((persona) => String(persona.id)),
+    })
+      .then((count) => {
+        if (isActive) {
+          setAudienceContactCount(count);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to compute automation audience reach:", error);
+        if (isActive) {
+          setAudienceContactCount(0);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedPersonas, selectedSegments, tenantId]);
+
+  useEffect(() => {
+    if (selectedNode && !nodes.some((node) => node.id === selectedNode)) {
+      setSelectedNode(null);
+    }
+  }, [nodes, selectedNode, setSelectedNode]);
+
+  const selectedAudience = useMemo(
     () => ({
-      trigger: (props: any) => (
-        <TriggerNode
-          {...props}
-          onEdit={handleEditNode}
-          onDelete={handleDeleteNode}
-        />
-      ),
-      email: (props: any) => (
-        <EmailNode
-          {...props}
-          onEdit={handleEditNode}
-          onDelete={handleDeleteNode}
-        />
-      ),
-      sms: (props: any) => (
-        <SMSNode
-          {...props}
-          onEdit={handleEditNode}
-          onDelete={handleDeleteNode}
-        />
-      ),
-      delay: (props: any) => (
-        <DelayNode
-          {...props}
-          onEdit={handleEditNode}
-          onDelete={handleDeleteNode}
-        />
-      ),
-      split: (props: any) => (
-        <SplitNode
-          {...props}
-          onEdit={handleEditNode}
-          onDelete={handleDeleteNode}
-        />
-      ),
+      personas: selectedPersonas,
+      segments: selectedSegments,
+      totalContacts: audienceContactCount,
     }),
-    [handleEditNode, handleDeleteNode],
+    [audienceContactCount, selectedPersonas, selectedSegments],
   );
 
-  // Calculate total audience
-  const totalAudienceContacts = selectedSegments.reduce(
-    (total, segment) => total + (segment.customer_count || 0),
-    0,
+  const triggerNode = nodes.find((node) => node.type === "trigger") ?? null;
+  const activeNode = nodes.find((node) => node.id === selectedNode) ?? null;
+  const triggerNodeData = (triggerNode?.data ?? {}) as Partial<TriggerNodeData>;
+  const currentTriggerType = triggerNodeData.triggerType || "";
+  const audienceRequired =
+    !!currentTriggerType && triggerRequiresAudience(currentTriggerType);
+  const validation = validateFlow(
+    nodes,
+    edges,
+    selectedSegments,
+    selectedPersonas,
   );
+  const hasValidationErrors = validation.errors.length > 0;
+  const compilation = useMemo(() => {
+    try {
+      return compileFlow({ nodes, edges });
+    } catch (error) {
+      console.error("Failed to compile automation flow for review:", error);
+      return null;
+    }
+  }, [edges, nodes]);
 
-  // Handle node selection
-  const handleNodeClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      setSelectedNode(node.id);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      autoSave();
+      onSave?.({ nodes, edges });
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [autoSave, edges, nodes, onSave]);
+
+  const handleInspectNode = useCallback(
+    (nodeId: string) => {
+      setSelectedNode(nodeId);
     },
     [setSelectedNode],
   );
 
-  // Handle connection validation
+  const handleRequestDeleteNode = useCallback((nodeId: string) => {
+    setPendingDeleteNodeId(nodeId);
+  }, []);
+
+  const memoizedNodeTypes = useMemo(
+    () => ({
+      trigger: (props: React.ComponentProps<typeof TriggerNode>) => (
+        <TriggerNode
+          {...props}
+          onEdit={handleInspectNode}
+          onDelete={handleRequestDeleteNode}
+        />
+      ),
+      email: (props: React.ComponentProps<typeof EmailNode>) => (
+        <EmailNode
+          {...props}
+          onEdit={handleInspectNode}
+          onDelete={handleRequestDeleteNode}
+        />
+      ),
+      sms: (props: React.ComponentProps<typeof SMSNode>) => (
+        <SMSNode
+          {...props}
+          onEdit={handleInspectNode}
+          onDelete={handleRequestDeleteNode}
+        />
+      ),
+      delay: (props: React.ComponentProps<typeof DelayNode>) => (
+        <DelayNode
+          {...props}
+          onEdit={handleInspectNode}
+          onDelete={handleRequestDeleteNode}
+        />
+      ),
+      split: (props: React.ComponentProps<typeof SplitNode>) => (
+        <SplitNode
+          {...props}
+          onEdit={handleInspectNode}
+          onDelete={handleRequestDeleteNode}
+        />
+      ),
+    }),
+    [handleInspectNode, handleRequestDeleteNode],
+  );
+
   const isValidConnection = useCallback(
     (connection: Connection) => {
-      // Don't allow connections to trigger nodes
       if (
         connection.target &&
-        nodes.find((n) => n.id === connection.target)?.type === "trigger"
+        nodes.find((node) => node.id === connection.target)?.type === "trigger"
       ) {
         return false;
       }
 
-      // Don't allow multiple inputs to non-split nodes
-      const targetNode = nodes.find((n) => n.id === connection.target);
+      const targetNode = nodes.find((node) => node.id === connection.target);
       if (targetNode && targetNode.type !== "split") {
         const existingConnections = edges.filter(
-          (e) => e.target === connection.target,
+          (edge) => edge.target === connection.target,
         );
         if (existingConnections.length > 0) {
           return false;
@@ -213,75 +287,97 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
       return true;
     },
-    [nodes, edges],
+    [edges, nodes],
   );
 
-  // Auto-save when flow changes (debounced to prevent excessive saves)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (nodes.length > 0 || edges.length > 0) {
-        autoSave();
-        onSave?.({ nodes, edges });
-      }
-    }, 100); // 100ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [nodes, edges, autoSave, onSave]);
+  const handleNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      setSelectedNode(node.id);
+    },
+    [setSelectedNode],
+  );
 
   const handleAddNode = useCallback(
-    (nodeType: string, position?: { x: number; y: number }) => {
-      const defaultPosition = position || {
-        x: Math.random() * 300 + 100,
-        y: Math.random() * 300 + 100,
-      };
+    (
+      nodeType: string,
+      paletteTriggerType?: string,
+      position?: { x: number; y: number },
+    ) => {
+      const defaultPosition =
+        position ||
+        (reactFlowInstance
+          ? reactFlowInstance.screenToFlowPosition({ x: 560, y: 280 })
+          : { x: 280, y: 180 });
 
-      addNode(nodeType, defaultPosition);
+      const dataOverrides =
+        nodeType === "trigger" && paletteTriggerType
+          ? {
+              triggerType: paletteTriggerType,
+              label:
+                getTriggerById(paletteTriggerType)
+                  ?.label.replace(/^[^\p{L}\p{N}]+/u, "")
+                  .trim() || "Trigger",
+              description: getTriggerById(paletteTriggerType)?.description,
+            }
+          : undefined;
+
+      const createdNodeId = addNode(nodeType, defaultPosition, dataOverrides);
+      if (createdNodeId) {
+        setSelectedNode(createdNodeId);
+      }
     },
-    [addNode],
+    [addNode, reactFlowInstance, setSelectedNode],
   );
 
-  const handleReviewAndLaunch = useCallback(() => {
-    if (onReviewLaunch) {
-      onReviewLaunch();
-    } else {
-      setShowReviewModal(true);
-    }
-  }, [onReviewLaunch]);
+  const handleCanvasDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const nodeType = event.dataTransfer.getData("application/reactflow-type");
+      const droppedTriggerType = event.dataTransfer.getData(
+        "application/reactflow-trigger",
+      );
+
+      if (!nodeType || !reactFlowInstance) {
+        return;
+      }
+
+      const position = reactFlowInstance.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      handleAddNode(nodeType, droppedTriggerType || undefined, position);
+    },
+    [handleAddNode, reactFlowInstance],
+  );
 
   const handleLaunch = useCallback(async () => {
-    if (!onLaunch) return;
+    if (!onLaunch || hasValidationErrors) {
+      return;
+    }
 
     setIsLaunchLoading(true);
     try {
-      // Compile flow state to workflow steps
-      const compilation = compileFlow({ nodes, edges });
-      const triggerNode = nodes.find((n) => n.type === "trigger");
-      const normalizedTrigger = triggerNode
-        ? normalizeTriggerId(
-            String(triggerNode.data?.triggerType) || "loyalty_join",
-          )
-        : "loyalty_join";
-
+      const nextCompilation = compilation ?? compileFlow({ nodes, edges });
       const automationData = {
         name: automationName,
-        triggerType: normalizedTrigger,
-        flowSteps: nodes.filter((n) => n.type !== "trigger"),
-        workflowSteps: compilation.steps,
-        selectedAudience: {
-          personas: selectedPersonas,
-          segments: selectedSegments,
-          totalContacts: totalAudienceContacts,
-        },
+        triggerType: normalizeTriggerId(
+          String(
+            triggerNode?.data?.triggerType || triggerType || "loyalty_join",
+          ),
+        ),
+        flowSteps: nodes.filter((node) => node.type !== "trigger"),
+        workflowSteps: nextCompilation.steps,
+        selectedAudience,
         flowState: { nodes, edges },
-        compilation,
+        compilation: nextCompilation,
       };
 
       await onLaunch(automationData);
       setShowReviewModal(false);
-
       toast({
         title: "Automation Activated",
-        description: `${automationName} is now running and will process new customers automatically.`,
+        description: `${automationName || "Automation"} is now running.`,
       });
     } catch (error) {
       console.error("Launch error:", error);
@@ -295,18 +391,17 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
       setIsLaunchLoading(false);
     }
   }, [
-    onLaunch,
     automationName,
-    nodes,
+    compilation,
     edges,
-    selectedPersonas,
-    selectedSegments,
-    totalAudienceContacts,
+    hasValidationErrors,
+    nodes,
+    onLaunch,
+    selectedAudience,
     toast,
+    triggerNode?.data?.triggerType,
+    triggerType,
   ]);
-
-  const { user } = useAuth();
-  const [isTestSending, setIsTestSending] = useState(false);
 
   const handleTestSend = useCallback(
     async (recipientEmail?: string) => {
@@ -316,8 +411,6 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
 
       try {
         setIsTestSending(true);
-
-        // Check if user is authenticated
         if (!user?.email) {
           toast({
             title: "Authentication Required",
@@ -327,17 +420,15 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           return;
         }
 
-        // Try different field names for email content
         const emailNodes = nodes.filter((node) => {
           if (node.type !== "email") return false;
-          const hasSubject = !!node.data?.subject;
-          const hasContent = !!(
-            node.data?.body ||
-            node.data?.content ||
-            node.data?.message
+          const emailData = (node.data ?? {}) as Partial<EmailNodeData>;
+          return (
+            !!emailData.subject &&
+            !!(emailData.body || emailData.content || emailData.message)
           );
-          return hasSubject && hasContent;
         });
+
         if (emailNodes.length === 0) {
           toast({
             title: "No Email Content",
@@ -348,47 +439,42 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           return;
         }
 
-        // Use the first email node for testing
         const firstEmailNode = emailNodes[0];
-        const subject = firstEmailNode.data?.subject;
-        const content =
-          firstEmailNode.data?.body ||
-          firstEmailNode.data?.content ||
-          firstEmailNode.data?.message;
-
+        const firstEmailData = (firstEmailNode.data ??
+          {}) as Partial<EmailNodeData>;
         const targetEmail = recipientEmail?.trim() || user.email;
 
-        // Send test email using the Supabase edge function
-        const { data, error } = await supabase.functions.invoke(
-          "send-test-email",
-          {
-            body: {
-              email: targetEmail,
-              subject: subject,
-              content: content,
-              testName: user.user_metadata?.full_name || "Test User",
-              campaignId: `automation-${automationName?.replace(/\s+/g, "-").toLowerCase()}`,
+        const { data, error } =
+          await supabase.functions.invoke<TestEmailResponse>(
+            "send-test-email",
+            {
+              body: {
+                email: targetEmail,
+                subject: firstEmailData.subject,
+                content:
+                  firstEmailData.body ||
+                  firstEmailData.content ||
+                  firstEmailData.message,
+                testName: user.user_metadata?.full_name || "Test User",
+                campaignId: `automation-${automationName
+                  ?.replace(/\s+/g, "-")
+                  .toLowerCase()}`,
+              },
             },
-          },
-        );
+          );
+
         if (error) {
-          try {
-            const server = await (error as any)?.context?.response?.json();
-            const reason = server?.reason || server?.error || error.message;
-            const hint = server?.hint ? ` — ${server.hint}` : "";
-            throw new Error(`${reason}${hint}`);
-          } catch (e) {
-            throw new Error(
-              (error as any)?.message || "Failed to send test email",
-            );
-          }
+          throw new Error(getErrorMessage(error));
         }
+
         toast({
-          title: "Test Email Sent! 📧",
-          description: `Sent to ${targetEmail}${(data as any)?.usedFrom ? ` — From: ${(data as any).usedFrom}` : ""}`,
+          title: "Test Email Sent",
+          description: `Sent to ${targetEmail}${
+            data?.usedFrom ? ` from ${data.usedFrom}` : ""
+          }.`,
         });
       } catch (error) {
-        console.error("❌ Test send error:", error);
+        console.error("Test send error:", error);
         toast({
           title: "Test Send Failed",
           description:
@@ -401,52 +487,104 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
         setIsTestSending(false);
       }
     },
-    [nodes, automationName, user, toast, isTestSending],
+    [automationName, isTestSending, nodes, toast, user],
   );
 
-  const handleSaveDraft = useCallback(() => {
-    if (onSaveDraft) {
-      onSaveDraft();
-    } else {
-      autoSave();
-      toast({
-        title: "Draft Saved",
-        description: "Your automation has been saved as a draft.",
-      });
+  const handleDeleteConfirmed = useCallback(() => {
+    if (!pendingDeleteNodeId) {
+      return;
     }
-  }, [onSaveDraft, autoSave, toast]);
 
-  // Check if automation is ready to launch
-  const selectedAudience = {
-    personas: selectedPersonas,
-    segments: selectedSegments,
-    totalContacts: totalAudienceContacts,
-  };
+    deleteNode(pendingDeleteNodeId);
+    if (selectedNode === pendingDeleteNodeId) {
+      setSelectedNode(null);
+    }
+    setPendingDeleteNodeId(null);
+  }, [deleteNode, pendingDeleteNodeId, selectedNode, setSelectedNode]);
 
-  // Get current trigger type to determine if audience is required
-  const triggerNode = nodes.find((n) => n.type === "trigger");
-  const currentTriggerType = (triggerNode?.data?.triggerType as string) || "";
-  const audienceRequired =
-    !currentTriggerType || triggerRequiresAudience(currentTriggerType);
-
-  const hasValidFlow =
-    nodes.some((n) => n.type === "trigger") &&
-    nodes.some((n) => n.type === "email" || n.type === "sms");
-  const hasAudience =
-    selectedPersonas.length > 0 || selectedSegments.length > 0;
-  // For event-based triggers, audience is not required
-  const isReadyToLaunch = hasValidFlow && (!audienceRequired || hasAudience);
+  const builderStatusTone = hasValidationErrors
+    ? "danger"
+    : validation.warnings.length > 0
+      ? "warning"
+      : "success";
+  const builderStatusMessage =
+    validation.errors[0] ||
+    validation.warnings[0] ||
+    "Canvas is structurally ready";
 
   return (
-    <div
-      className={`relative w-full h-full flex flex-col overflow-hidden ${className}`}
+    <Sheet
+      variant="outlined"
+      className={className}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+        flex: 1,
+        overflow: "hidden",
+        borderRadius: "xl",
+        backgroundColor: "background.surface",
+      }}
     >
-      <section
-        role="region"
-        aria-label="Automation canvas"
-        className="w-full flex-1 min-h-0 overflow-hidden"
-      >
-        <div className="w-full h-full rounded-lg bg-muted/30">
+      <Stack direction="row" sx={{ flex: 1, minHeight: 0 }}>
+        <NodePalette onAddNode={handleAddNode} />
+
+        <Box
+          sx={{
+            position: "relative",
+            flex: 1,
+            minWidth: 400,
+            overflow: "hidden",
+            backgroundColor: "background.surface",
+            backgroundImage: showGrid
+              ? "radial-gradient(circle, var(--joy-palette-neutral-200) 1px, transparent 1px)"
+              : "none",
+            backgroundSize: "20px 20px",
+            "& .react-flow__pane": {
+              backgroundColor: "transparent",
+            },
+            "& .react-flow__node": {
+              transition: "filter 0.15s ease",
+            },
+            "& .react-flow__node:hover": {
+              filter: "brightness(1.015)",
+            },
+            "& .react-flow__edge-path": {
+              transition: "stroke 0.2s ease, stroke-dasharray 0.2s ease",
+            },
+            "& .automation-flow-edge .react-flow__edge-path": {
+              stroke: "var(--joy-palette-neutral-300)",
+              strokeWidth: 2,
+            },
+            "& .react-flow__edge:hover .react-flow__edge-path": {
+              strokeDasharray: "6 4",
+              animation: "automationEdgeDash 0.8s linear infinite",
+            },
+            "& .automation-edge-flash .react-flow__edge-path": {
+              stroke: "var(--joy-palette-primary-400)",
+              animation: "automationEdgeFlash 0.85s ease",
+            },
+            "@keyframes automationEdgeDash": {
+              from: {
+                strokeDashoffset: 0,
+              },
+              to: {
+                strokeDashoffset: -24,
+              },
+            },
+            "@keyframes automationEdgeFlash": {
+              "0%": {
+                stroke: "var(--joy-palette-primary-400)",
+                strokeDasharray: "6 4",
+              },
+              "100%": {
+                stroke: "var(--joy-palette-neutral-300)",
+                strokeDasharray: "0 0",
+              },
+            },
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -454,150 +592,319 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeClick={handleNodeClick}
+            onPaneClick={() => setSelectedNode(null)}
+            onDrop={handleCanvasDrop}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+            }}
+            onInit={(instance) => {
+              setReactFlowInstance(instance);
+              setZoomLevel(instance.getZoom());
+            }}
+            onViewportChange={(viewport) => setZoomLevel(viewport.zoom)}
             isValidConnection={isValidConnection}
             nodeTypes={memoizedNodeTypes}
             fitView
-            fitViewOptions={{
-              padding: 50,
-              minZoom: 0.5,
-              maxZoom: 1.2,
-              includeHiddenNodes: false,
+            fitViewOptions={{ padding: 0.24, minZoom: 0.55, maxZoom: 1.4 }}
+            minZoom={0.35}
+            maxZoom={1.65}
+            defaultEdgeOptions={{
+              type: "smoothstep",
+              className: "automation-flow-edge",
+              style: {
+                stroke: "var(--joy-palette-neutral-300)",
+                strokeWidth: 2,
+              },
+            }}
+            connectionLineType="smoothstep"
+            connectionLineStyle={{
+              stroke: "var(--joy-palette-primary-400)",
+              strokeWidth: 2,
+              strokeDasharray: "5 5",
             }}
             attributionPosition="bottom-left"
-            className="bg-background"
-            minZoom={0.2}
-            maxZoom={2}
+            proOptions={{ hideAttribution: true }}
+            className="automation-flow-surface"
           >
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            {showMinimap && (
+            {showMinimap ? (
               <MiniMap
-                nodeStrokeColor="#374151"
-                nodeColor="#f3f4f6"
-                nodeBorderRadius={8}
-                maskColor="rgba(0, 0, 0, 0.05)"
-                position="top-left"
+                position="top-right"
+                nodeStrokeColor="var(--joy-palette-neutral-300)"
+                nodeColor="var(--joy-palette-background-surface)"
+                maskColor="rgba(var(--joy-palette-neutral-mainChannel) / 0.08)"
+                nodeBorderRadius={12}
                 style={{
-                  width: 160,
-                  height: 100,
-                  borderRadius: 8,
-                  left: 16,
+                  width: 180,
+                  height: 110,
+                  borderRadius: 12,
                   top: 16,
+                  right: 16,
                 }}
-                pannable={false}
-                zoomable={false}
               />
-            )}
-
-            {/* Canvas Controls - Top corners */}
-            <div className="absolute top-4 left-4 z-10">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowMinimap(!showMinimap)}
-                className="w-8 h-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background/90"
-                aria-label={showMinimap ? "Hide minimap" : "Show minimap"}
-              >
-                <Map className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Stacked Controls - Top Right */}
-            <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleAddNode("email")}
-                      className="w-8 h-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background/90"
-                      aria-label="Add new node"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Add new step</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {/* Only show audience selector when required by trigger type */}
-              {audienceRequired && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowAudienceSelector(true)}
-                        className="flex items-center gap-2 bg-background backdrop-blur-sm hover:bg-teal-600 hover:text-white focus:bg-teal-600 focus:text-white focus:ring-2 focus:ring-teal-600 focus:outline-none mt-2"
-                      >
-                        <Users className="w-4 h-4" />
-                        <span className="hidden sm:inline">
-                          {selectedPersonas.length > 0 ||
-                          selectedSegments.length > 0
-                            ? `${selectedPersonas.length + selectedSegments.length} Selected`
-                            : "Select Audience"}
-                        </span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Choose target audience for this automation
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+            ) : null}
           </ReactFlow>
-        </div>
-      </section>
 
-      {/* Audience Selector Modal */}
-      {showAudienceSelector && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-6 border-b bg-white flex-shrink-0">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Configure Target Audience
-              </h3>
-            </div>
-            <div className="flex-1 overflow-y-auto min-h-0">
-              <AudienceSelector
-                selectedPersonas={selectedPersonas}
-                selectedSegments={selectedSegments}
-                onPersonasChange={onPersonasChange || (() => {})}
-                onSegmentsChange={onSegmentsChange || (() => {})}
-                maxPersonas={3}
-                maxSegments={5}
-                onClose={() => setShowAudienceSelector(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+          {nodes.length === 0 ? (
+            <Stack
+              spacing={2}
+              alignItems="center"
+              justifyContent="center"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                pointerEvents: "none",
+                textAlign: "center",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: "50%",
+                  backgroundColor: "neutral.50",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "neutral.200",
+                }}
+              >
+                <Workflow size={64} />
+              </Box>
+              <Stack spacing={0.75} alignItems="center">
+                <Typography level="title-md">
+                  Start building your automation
+                </Typography>
+                <Typography
+                  level="body-sm"
+                  sx={{ color: "neutral.500", maxWidth: 320 }}
+                >
+                  Drag a trigger from the left panel to begin, or drop any node
+                  onto the canvas.
+                </Typography>
+              </Stack>
+            </Stack>
+          ) : null}
 
-      {/* Floating Toolbar */}
-      <FloatingToolbar
-        onAddNode={handleAddNode}
-        selectedNodeId={selectedNode}
-        onToggleAISuggestions={() => setShowAISuggestions(!showAISuggestions)}
-        showAISuggestions={showAISuggestions}
-        isModalOpen={showAudienceSelector}
-        hasTrigger={nodes.some((n) => n.type === "trigger")}
-      />
+          <Sheet
+            variant="outlined"
+            sx={{
+              position: "absolute",
+              left: "50%",
+              bottom: 16,
+              transform: "translateX(-50%)",
+              zIndex: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              p: 0.5,
+              borderRadius: "12px",
+              boxShadow: "md",
+              backgroundColor: "background.surface",
+            }}
+          >
+            <Tooltip title="Zoom out">
+              <IconButton
+                size="sm"
+                variant="plain"
+                color="neutral"
+                onClick={() =>
+                  void reactFlowInstance?.zoomOut({ duration: 140 })
+                }
+              >
+                <Minus size={16} />
+              </IconButton>
+            </Tooltip>
 
-      {/* AI Suggestions Panel */}
-      {showAISuggestions && selectedNode && (
-        <div className="absolute top-4 right-4 w-80 bg-white rounded-lg shadow-lg border p-4 z-50">
-          <h3 className="font-semibold mb-2">AI Suggestions</h3>
-          <p className="text-sm text-muted-foreground">
-            Intelligent suggestions will appear here based on your selected
-            node.
-          </p>
-        </div>
-      )}
+            <Typography
+              level="body-xs"
+              sx={{ minWidth: 44, textAlign: "center", fontWeight: 600 }}
+            >
+              {Math.round(zoomLevel * 100)}%
+            </Typography>
 
-      {/* Review & Launch Modal */}
+            <Tooltip title="Zoom in">
+              <IconButton
+                size="sm"
+                variant="plain"
+                color="neutral"
+                onClick={() =>
+                  void reactFlowInstance?.zoomIn({ duration: 140 })
+                }
+              >
+                <Plus size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Divider orientation="vertical" sx={{ mx: 0.25, height: 20 }} />
+
+            <Tooltip title="Fit canvas">
+              <IconButton
+                size="sm"
+                variant="plain"
+                color="neutral"
+                onClick={() =>
+                  void reactFlowInstance?.fitView({
+                    padding: 0.24,
+                    duration: 180,
+                  })
+                }
+              >
+                <Maximize2 size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Toggle minimap">
+              <IconButton
+                size="sm"
+                variant={showMinimap ? "soft" : "plain"}
+                color="neutral"
+                onClick={() => setShowMinimap((current) => !current)}
+              >
+                <Map size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Toggle grid">
+              <IconButton
+                size="sm"
+                variant={showGrid ? "soft" : "plain"}
+                color="neutral"
+                onClick={() => setShowGrid((current) => !current)}
+              >
+                <Grid3x3 size={16} />
+              </IconButton>
+            </Tooltip>
+
+            <Divider orientation="vertical" sx={{ mx: 0.25, height: 20 }} />
+
+            <Tooltip
+              placement="top"
+              title={
+                <Stack spacing={0.5} sx={{ py: 0.25 }}>
+                  <Typography level="body-xs">Ctrl S: Save draft</Typography>
+                  <Typography level="body-xs">Ctrl Z: Undo</Typography>
+                  <Typography level="body-xs">
+                    Delete: Delete selected node
+                  </Typography>
+                  <Typography level="body-xs">Ctrl + / Ctrl -: Zoom</Typography>
+                  <Typography level="body-xs">Ctrl 0: Fit to screen</Typography>
+                </Stack>
+              }
+            >
+              <IconButton size="sm" variant="plain" color="neutral">
+                <Keyboard size={16} />
+              </IconButton>
+            </Tooltip>
+          </Sheet>
+        </Box>
+
+        <AutomationBuilderInspector
+          activeNode={activeNode}
+          nodes={nodes}
+          edges={edges}
+          selectedPersonas={selectedPersonas}
+          selectedSegments={selectedSegments}
+          audienceContactCount={audienceContactCount}
+          onUpdateNode={updateNode}
+          onDeleteNodeRequest={handleRequestDeleteNode}
+          onOpenAudienceSelector={() => setShowAudienceSelector(true)}
+        />
+      </Stack>
+
+      <Sheet
+        component="footer"
+        sx={{
+          px: 3,
+          py: 1,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: "background.surface",
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box
+            sx={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              backgroundColor:
+                builderStatusTone === "success"
+                  ? "success.500"
+                  : builderStatusTone === "warning"
+                    ? "warning.500"
+                    : "danger.500",
+            }}
+          />
+          <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+            {builderStatusMessage}
+          </Typography>
+        </Stack>
+
+        <JoyButton
+          variant="plain"
+          color="neutral"
+          size="sm"
+          startDecorator={<Users size={14} />}
+          onClick={() => setShowAudienceSelector(true)}
+          sx={{
+            minHeight: "auto",
+            px: 0,
+            color: "neutral.500",
+            "&:hover": {
+              backgroundColor: "transparent",
+              color: "neutral.700",
+              textDecoration: "underline",
+            },
+          }}
+        >
+          {selectedPersonas.length + selectedSegments.length} audience filters
+          selected
+        </JoyButton>
+      </Sheet>
+
+      <JoyDialog
+        open={showAudienceSelector}
+        onClose={() => setShowAudienceSelector(false)}
+        title="Configure target audience"
+        description="Choose the personas or segments that this automation should target when an audience is required."
+        size="xl"
+      >
+        <AudienceSelector
+          selectedPersonas={selectedPersonas}
+          selectedSegments={selectedSegments}
+          onPersonasChange={onPersonasChange || (() => {})}
+          onSegmentsChange={onSegmentsChange || (() => {})}
+          maxPersonas={3}
+          maxSegments={5}
+          onClose={() => setShowAudienceSelector(false)}
+        />
+      </JoyDialog>
+
+      <JoyDialog
+        open={!!pendingDeleteNodeId}
+        onClose={() => setPendingDeleteNodeId(null)}
+        title="Delete node?"
+        description="This will remove the selected node and any connections attached to it."
+        size="sm"
+      >
+        <JoyDialogActions>
+          <JoyButton
+            variant="outlined"
+            color="neutral"
+            onClick={() => setPendingDeleteNodeId(null)}
+          >
+            Cancel
+          </JoyButton>
+          <JoyButton color="danger" onClick={handleDeleteConfirmed}>
+            Delete node
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
+
       <ReviewLaunchModal
         open={showReviewModal}
         onOpenChange={setShowReviewModal}
@@ -605,43 +912,34 @@ export const AutomationFlowCanvas: React.FC<AutomationFlowCanvasProps> = ({
           name: automationName,
           triggerType: normalizeTriggerId(
             String(
-              nodes.find((n) => n.type === "trigger")?.data?.triggerType ||
-                triggerType ||
-                "loyalty_join",
+              triggerNode?.data?.triggerType || triggerType || "loyalty_join",
             ),
           ),
-          flowSteps: nodes.filter((n) => n.type !== "trigger"),
+          flowSteps: nodes.filter((node) => node.type !== "trigger"),
           selectedAudience,
+          compilation,
+          validation,
         }}
         onLaunch={handleLaunch}
         onTestSend={handleTestSend}
         isLoading={isLaunchLoading}
         isTestSending={isTestSending}
       />
-
-      {/* Node Editor Dialog */}
-      <NodeEditorDialog
-        open={!!editingNode}
-        onOpenChange={(open) => !open && setEditingNode(null)}
-        nodeType={editingNode?.type || null}
-        nodeData={editingNode?.data || null}
-        nodeId={editingNode?.id}
-        automationId={automationId}
-        onSave={(data) => {
-          if (editingNode) {
-            updateNode(editingNode.id, data);
-            setEditingNode(null);
-          }
-        }}
-      />
-
-      <AIAssistant
-        nodes={nodes}
-        hasAudience={hasAudience}
-        isReadyToLaunch={isReadyToLaunch}
-        onAddNode={handleAddNode}
-        onOpenAudienceSelector={() => setShowAudienceSelector(true)}
-      />
-    </div>
+    </Sheet>
   );
 };
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = error.message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+
+  return "Failed to send test email";
+}

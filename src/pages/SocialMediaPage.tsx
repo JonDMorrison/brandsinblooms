@@ -1,174 +1,290 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
+import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
+import Tab, { tabClasses } from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
+import { X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { PostPerformanceTracker } from "@/components/analytics/PostPerformanceTracker";
-import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
+
+import PostPerformanceTracker from "@/components/analytics/PostPerformanceTracker";
+import SocialConnectionManager, {
+  type SocialConnection,
+} from "@/components/analytics/SocialConnectionManager";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { JoyChip } from "@/components/joy/JoyChip";
-import {
-  JoyTabs,
-  JoyTabsContent,
-  JoyTabsList,
-  JoyTabsTrigger,
-} from "@/components/joy/JoyTabs";
-import { AutoScheduler } from "@/components/scheduling/AutoScheduler";
-import {
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  Link as LinkIcon,
-  TrendingUp,
-} from "lucide-react";
+import AutoScheduler from "@/components/scheduling/AutoScheduler";
+import { resolvePlatformKey } from "@/utils/platformConfig";
+
+const AVAILABLE_PLATFORM_COUNT = 3;
+
+type ConnectionSnapshot = {
+  connections: SocialConnection[];
+  loading: boolean;
+};
+
+const HeaderStat = ({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) => {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        minWidth: 108,
+        borderRadius: "sm",
+        px: 1.5,
+        py: 1,
+        bgcolor: "background.surface",
+        boxShadow: "none",
+      }}
+    >
+      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+        {label}
+      </Typography>
+      <Typography level="title-sm" sx={{ color: valueColor ?? "text.primary" }}>
+        {value}
+      </Typography>
+    </Sheet>
+  );
+};
 
 const SocialMediaPage = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [activeTab, setActiveTab] = useState("connections");
+  const [connectionSnapshot, setConnectionSnapshot] =
+    useState<ConnectionSnapshot>({
+      connections: [],
+      loading: true,
+    });
 
+  const justConnected = searchParams.get("connected");
   const returnTo = searchParams.get("returnTo");
-  const justConnected = searchParams.get("connected") === "true";
 
   useEffect(() => {
-    if (justConnected) {
-      setShowSuccessMessage(true);
-
-      // Clean up URL parameters
-      setSearchParams({});
-
-      // Auto-redirect back to the original page after a delay
-      if (returnTo) {
-        const timer = setTimeout(() => {
-          navigate(returnTo);
-        }, 3000);
-
-        return () => clearTimeout(timer);
-      }
+    if (!justConnected) {
+      return;
     }
-  }, [justConnected, returnTo, navigate, setSearchParams]);
+
+    setShowSuccessMessage(true);
+    setSearchParams({}, { replace: true });
+
+    const timer = window.setTimeout(() => {
+      setShowSuccessMessage(false);
+
+      if (returnTo) {
+        navigate(returnTo);
+      }
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [justConnected, navigate, returnTo, setSearchParams]);
+
+  const handleConnectionsChange = useCallback(
+    (connections: SocialConnection[], loading: boolean) => {
+      setConnectionSnapshot({ connections, loading });
+    },
+    [],
+  );
+
+  const connectionStats = useMemo(() => {
+    const activePlatforms = new Set(
+      connectionSnapshot.connections
+        .filter((connection) => connection.is_active)
+        .map(
+          (connection) =>
+            resolvePlatformKey(connection.platform) ?? connection.platform,
+        ),
+    );
+
+    if (connectionSnapshot.loading) {
+      return {
+        connectedCount: "-",
+        platformCount: String(AVAILABLE_PLATFORM_COUNT),
+        healthLabel: "-",
+        healthColor: "text.primary",
+      };
+    }
+
+    const connectedCount = activePlatforms.size;
+    const healthLabel =
+      connectedCount === AVAILABLE_PLATFORM_COUNT
+        ? "Healthy"
+        : "Needs attention";
+
+    return {
+      connectedCount: String(connectedCount),
+      platformCount: String(AVAILABLE_PLATFORM_COUNT),
+      healthLabel,
+      healthColor:
+        connectedCount === AVAILABLE_PLATFORM_COUNT
+          ? "success.plainColor"
+          : "warning.plainColor",
+    };
+  }, [connectionSnapshot.connections, connectionSnapshot.loading]);
 
   return (
     <ProtectedPageWrapper>
-      <Stack spacing={3.5}>
-        {showSuccessMessage && (
-          <Sheet
-            variant="soft"
-            color="success"
-            sx={{
-              p: 2,
-              borderRadius: "18px",
-              border: "1px solid",
-              borderColor: "success.200",
-            }}
-          >
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <CheckCircle className="h-4 w-4" />
-              <Typography level="body-sm" color="success">
-                Social account connected successfully!
-                {returnTo && (
-                  <Box component="span" sx={{ ml: 0.5 }}>
-                    Redirecting you back in a moment...
-                  </Box>
-                )}
-              </Typography>
-            </Stack>
-          </Sheet>
-        )}
+      <Box sx={{ py: 3 }}>
+        <Stack spacing={3}>
+          <Box>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", lg: "row" },
+                justifyContent: "space-between",
+                alignItems: { xs: "flex-start", lg: "flex-start" },
+                gap: 2,
+              }}
+            >
+              <Stack spacing={0.5} sx={{ maxWidth: 720 }}>
+                <Typography level="h3" sx={{ fontWeight: "lg" }}>
+                  Social Media
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                  Connect, monitor, and automate your social presence.
+                </Typography>
+              </Stack>
 
-        <Sheet
-          variant="plain"
-          sx={{
-            p: { xs: 3, md: 4 },
-            borderRadius: "24px",
-            border: "1px solid",
-            borderColor: "neutral.200",
-            background:
-              "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(240, 249, 255, 0.9) 50%, rgba(255, 255, 255, 1) 100%)",
-          }}
-        >
-          <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
                 sx={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "18px",
-                  display: "grid",
-                  placeItems: "center",
-                  backgroundColor: "primary.50",
-                  color: "primary.700",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 1,
+                  justifyContent: { xs: "flex-start", lg: "flex-end" },
+                  width: { xs: "100%", lg: "auto" },
                 }}
               >
-                <TrendingUp className="h-6 w-6" />
+                <HeaderStat
+                  label="Connected"
+                  value={connectionStats.connectedCount}
+                />
+                <HeaderStat
+                  label="Platforms"
+                  value={connectionStats.platformCount}
+                />
+                <HeaderStat
+                  label="Health"
+                  value={connectionStats.healthLabel}
+                  valueColor={connectionStats.healthColor}
+                />
               </Box>
-              <div>
-                <Typography level="h1">Social Media Management</Typography>
-                <Typography level="body-md" color="neutral">
-                  Manage connections, performance, and scheduling from one
-                  tenant dashboard page.
-                </Typography>
-              </div>
-            </Stack>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              <JoyChip color="primary" variant="soft">
-                Social analytics
-              </JoyChip>
-              <JoyChip color="success" variant="soft">
-                Scheduling tools
-              </JoyChip>
-            </Stack>
-          </Stack>
-        </Sheet>
+            </Box>
 
-        <JoyTabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(String(value))}
-        >
-          <JoyTabsList
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                md: "repeat(3, minmax(0, 1fr))",
-              },
+            <Typography
+              level="body-xs"
+              sx={{ mt: 1.5, color: "text.tertiary" }}
+            >
+              Keep connections current, monitor real performance, and manage
+              scheduling from this workspace.
+            </Typography>
+          </Box>
+
+          {showSuccessMessage ? (
+            <Alert
+              color="success"
+              size="sm"
+              variant="soft"
+              endDecorator={
+                <IconButton
+                  color="neutral"
+                  size="sm"
+                  variant="plain"
+                  onClick={() => setShowSuccessMessage(false)}
+                >
+                  <X size={14} />
+                </IconButton>
+              }
+              sx={{ alignItems: "center" }}
+            >
+              Social account connected successfully.
+            </Alert>
+          ) : null}
+
+          <Tabs
+            aria-label="Social account tabs"
+            value={activeTab}
+            onChange={(_event, value) => {
+              if (typeof value === "string") {
+                setActiveTab(value);
+              }
             }}
+            sx={{ bgcolor: "transparent" }}
           >
-            <JoyTabsTrigger value="connections">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LinkIcon className="h-4 w-4" />
-                <span>Connections</span>
-              </Stack>
-            </JoyTabsTrigger>
-            <JoyTabsTrigger value="analytics">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <BarChart3 className="h-4 w-4" />
-                <span>Analytics</span>
-              </Stack>
-            </JoyTabsTrigger>
-            <JoyTabsTrigger value="scheduling">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Calendar className="h-4 w-4" />
-                <span>Auto-Scheduling</span>
-              </Stack>
-            </JoyTabsTrigger>
-          </JoyTabsList>
+            <Box
+              sx={{
+                mb: 3,
+                p: 0.75,
+                borderRadius: "xl",
+                bgcolor: "neutral.100",
+                width: "fit-content",
+              }}
+            >
+              <TabList
+                disableUnderline
+                sx={{
+                  p: 0.5,
+                  gap: 0.5,
+                  borderRadius: "lg",
+                  bgcolor: "transparent",
+                  width: "fit-content",
+                  [`& .${tabClasses.root}`]: {
+                    borderRadius: "lg",
+                    minHeight: 36,
+                    px: 2,
+                    color: "neutral.600",
+                  },
+                  [`& .${tabClasses.root}[aria-selected="true"]`]: {
+                    boxShadow: "sm",
+                    bgcolor: "common.white",
+                    color: "neutral.800",
+                  },
+                }}
+              >
+                <Tab disableIndicator value="connections">
+                  Connections
+                </Tab>
+                <Tab disableIndicator value="analytics">
+                  Analytics
+                </Tab>
+                <Tab disableIndicator value="scheduling">
+                  Auto-Scheduling
+                </Tab>
+              </TabList>
+            </Box>
 
-          <JoyTabsContent value="connections">
-            <SocialConnectionManager />
-          </JoyTabsContent>
+            <TabPanel value="connections" sx={{ px: 0 }}>
+              <SocialConnectionManager
+                onConnectionsChange={handleConnectionsChange}
+                onOpenAnalyticsTab={() => setActiveTab("analytics")}
+                onOpenSchedulingTab={() => setActiveTab("scheduling")}
+                onOpenPublishingSurface={() => navigate("/crm/campaigns")}
+              />
+            </TabPanel>
 
-          <JoyTabsContent value="analytics">
-            <PostPerformanceTracker />
-          </JoyTabsContent>
+            <TabPanel value="analytics" sx={{ px: 0 }}>
+              <PostPerformanceTracker />
+            </TabPanel>
 
-          <JoyTabsContent value="scheduling">
-            <AutoScheduler />
-          </JoyTabsContent>
-        </JoyTabs>
-      </Stack>
+            <TabPanel value="scheduling" sx={{ px: 0 }}>
+              <AutoScheduler />
+            </TabPanel>
+          </Tabs>
+        </Stack>
+      </Box>
     </ProtectedPageWrapper>
   );
 };
