@@ -4629,19 +4629,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 </tr>
               </table>
             `;
-            } else {
-              // No image at all — render a visible placeholder so the block isn't invisible
-              html += `
-              <!-- Graphic Hero: Missing image placeholder -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td align="center" style="padding: 40px 20px; background-color: #f1f5f9; border-radius: 8px;">
-                    <p style="margin: 0; font-size: 14px; color: #94a3b8; font-family: sans-serif;">Add your graphic hero image</p>
-                  </td>
-                </tr>
-              </table>
-            `;
             }
+            // No image = skip block entirely in sent email (placeholder only in builder)
             break;
 
           case "image":
@@ -4778,6 +4767,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
 
             // Only render single-column image block if it has an imageUrl
             if (safeImageUrl) {
+
+              // Skip standalone image blocks with no image and no text content
+              if (!safeImageUrl && !blockHeadline && !blockBody) break;
 
               const imgAlign = block.textAlign || "center";
               const imgTextColor = companyInfo?.brandTextColor || "#475569";
