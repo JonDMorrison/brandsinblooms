@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui-legacy/button";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Input } from "@/components/ui-legacy/input";
 import { Separator } from "@/components/ui-legacy/separator";
-import { Search, Users, Lightbulb, X, Plus, Check, Lock } from "lucide-react";
+import { Search, Users, Lightbulb, X, Plus, Check, Lock, Loader2 } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { SegmentChip } from "./SegmentChip";
 import { SegmentPicker } from "./segments/SegmentPicker";
@@ -18,6 +18,12 @@ import { toast } from "@/utils/toast";
 import { useScrollGuard } from "@/hooks/useScrollGuard";
 import { useNavigate } from "react-router-dom";
 import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui-legacy/dialog";
+import { ScrollArea } from "@/components/ui-legacy/scroll-area";
+import { Label } from "@/components/ui-legacy/label";
 
 const AUDIENCE_RECALC_MS = 300;
 
@@ -62,9 +68,27 @@ export const AudienceSelector = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [showSegmentModal, setShowSegmentModal] = useState(false);
+  const [showManualSegmentModal, setShowManualSegmentModal] = useState(false);
   const [isStableLoading, setIsStableLoading] = useState(true);
   const [fadeIn, setFadeIn] = useState(false);
   const [totalAudienceCount, setTotalAudienceCount] = useState(0);
+  const { user } = useAuth();
+
+  // Total contact count for "All Contacts" display
+  const { data: totalContactCount } = useQuery({
+    queryKey: ["total-contact-count", tenant?.id],
+    queryFn: async () => {
+      if (!tenant?.id) return 0;
+      const { count } = await supabase
+        .from("crm_customers")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenant.id)
+        .not("email", "is", null);
+      return count || 0;
+    },
+    enabled: !!tenant?.id,
+    staleTime: 60_000,
+  });
 
   // Prevent scroll locks from persisting
   useScrollGuard();
@@ -509,15 +533,26 @@ export const AudienceSelector = ({
                 {selectedSegments.length}/{maxSegments}
               </Badge>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSegmentModal(true)}
-              className="h-8"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add New
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowManualSegmentModal(true)}
+                className="h-8"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Create from List
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSegmentModal(true)}
+                className="h-8"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Smart
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2 max-h-96 overflow-y-auto scroll-container border border-border rounded-lg p-3">
@@ -552,7 +587,7 @@ export const AudienceSelector = ({
                     variant="outline"
                     className="text-xs bg-green-100 text-green-800"
                   >
-                    Entire List
+                    {totalContactCount?.toLocaleString() || "All"}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -599,9 +634,41 @@ export const AudienceSelector = ({
                 ))}
               </div>
             ) : null}
+
+            {availableSegments.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground">
+                <Users className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No segments have been built yet.</p>
+                <p className="text-xs mt-1">You can send to All Contacts above, or create a custom segment.</p>
+              </div>
+            )}
+
+            {availableSegments.length > 0 && availableSegments.every((s) => s.customer_count === 0) && (
+              <div className="text-center py-3 text-muted-foreground bg-amber-50 rounded-lg border border-amber-200 mt-2">
+                <p className="text-xs text-amber-700">All segments are empty — connect a POS or import contacts to populate them.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Manual Segment Creator Modal */}
+      <ManualSegmentModal
+        open={showManualSegmentModal}
+        onClose={() => setShowManualSegmentModal(false)}
+        tenantId={tenant?.id || ""}
+        userId={user?.id || ""}
+        onCreated={(newSegment) => {
+          setShowManualSegmentModal(false);
+          const mapped: Segment = {
+            id: newSegment.id,
+            name: newSegment.name,
+            customer_count: newSegment.customer_count,
+            type: "custom",
+          };
+          onSegmentsChange([...selectedSegments, mapped]);
+        }}
+      />
 
       {/* Save & Close Button */}
       <div className="flex justify-end pt-4 border-t flex-shrink-0">
@@ -626,3 +693,195 @@ export const AudienceSelector = ({
     </div>
   );
 };
+
+// ── Manual Segment Creator Modal ──────────────────────────────────
+
+interface ManualSegmentModalProps {
+  open: boolean;
+  onClose: () => void;
+  tenantId: string;
+  userId: string;
+  onCreated: (segment: { id: string; name: string; customer_count: number }) => void;
+}
+
+function ManualSegmentModal({ open, onClose, tenantId, userId, onCreated }: ManualSegmentModalProps) {
+  const [segmentName, setSegmentName] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [creating, setCreating] = useState(false);
+
+  const { data: contacts, isLoading } = useQuery({
+    queryKey: ["manual-segment-contacts", tenantId],
+    queryFn: async () => {
+      if (!tenantId) return [];
+      const { data } = await supabase
+        .from("crm_customers")
+        .select("id, first_name, last_name, email")
+        .eq("tenant_id", tenantId)
+        .not("email", "is", null)
+        .order("last_name")
+        .limit(5000);
+      return data || [];
+    },
+    enabled: open && !!tenantId,
+    staleTime: 30_000,
+  });
+
+  const filtered = useMemo(() => {
+    if (!contacts) return [];
+    if (!contactSearch.trim()) return contacts;
+    const q = contactSearch.toLowerCase();
+    return contacts.filter(
+      (c) =>
+        (c.first_name || "").toLowerCase().includes(q) ||
+        (c.last_name || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q),
+    );
+  }, [contacts, contactSearch]);
+
+  const toggleAll = useCallback(() => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((c) => c.id)));
+    }
+  }, [filtered, selectedIds.size]);
+
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleCreate = async () => {
+    if (!segmentName.trim() || selectedIds.size === 0 || !tenantId) return;
+    setCreating(true);
+    try {
+      const { data: seg, error: segErr } = await supabase
+        .from("crm_segments")
+        .insert({
+          tenant_id: tenantId,
+          user_id: userId || null,
+          name: segmentName.trim(),
+          description: `Manually selected ${selectedIds.size} contacts`,
+          conditions: {},
+          customer_count: selectedIds.size,
+          auto_update: false,
+          is_system_segment: false,
+          status: "active",
+        })
+        .select("id")
+        .single();
+
+      if (segErr || !seg) throw new Error(segErr?.message || "Failed to create segment");
+
+      const ids = [...selectedIds];
+      for (let i = 0; i < ids.length; i += 500) {
+        const batch = ids.slice(i, i + 500).map((cid) => ({
+          customer_id: cid,
+          segment_id: seg.id,
+          assigned_at: new Date().toISOString(),
+          assigned_by_user_id: userId || null,
+        }));
+        const { error: memErr } = await supabase
+          .from("customer_segments")
+          .upsert(batch, { onConflict: "customer_id,segment_id", ignoreDuplicates: true });
+        if (memErr) console.error("Membership insert error:", memErr.message);
+      }
+
+      toast.success(`Segment "${segmentName.trim()}" created with ${selectedIds.size} contacts`);
+      onCreated({ id: seg.id, name: segmentName.trim(), customer_count: selectedIds.size });
+      setSegmentName("");
+      setSelectedIds(new Set());
+      setContactSearch("");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to create segment");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Create Segment from Contact List</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 flex-shrink-0">
+          <div className="space-y-1.5">
+            <Label htmlFor="seg-name">Segment Name</Label>
+            <Input
+              id="seg-name"
+              value={segmentName}
+              onChange={(e) => setSegmentName(e.target.value)}
+              placeholder="e.g. Spring Sale VIPs"
+            />
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search contacts..."
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <button type="button" onClick={toggleAll} className="text-primary hover:underline">
+              {selectedIds.size === filtered.length && filtered.length > 0 ? "Deselect All" : "Select All"}
+            </button>
+            <span>{selectedIds.size} selected of {filtered.length}</span>
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1 min-h-0 border rounded-lg">
+          <div className="p-1">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              filtered.map((c) => (
+                <label
+                  key={c.id}
+                  className="flex items-center gap-2 px-3 py-2 rounded hover:bg-muted/50 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={selectedIds.has(c.id)}
+                    onCheckedChange={() => toggleOne(c.id)}
+                  />
+                  <span className="text-sm truncate">
+                    {c.first_name || ""} {c.last_name || ""}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-auto truncate">
+                    {c.email}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+
+        <div className="flex justify-end gap-2 pt-2 flex-shrink-0">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleCreate}
+            disabled={creating || !segmentName.trim() || selectedIds.size === 0}
+          >
+            {creating ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" />Creating...</>
+            ) : (
+              `Create Segment (${selectedIds.size})`
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
