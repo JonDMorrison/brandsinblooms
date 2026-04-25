@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Receipt } from "lucide-react";
-
-import { Badge } from "@/components/ui-legacy/badge";
+import Chip from "@mui/joy/Chip";
 
 import type {
   LightspeedPagination,
@@ -13,6 +12,7 @@ import type {
 
 import {
   CopyValueButton,
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
@@ -20,12 +20,12 @@ import {
   SlideOverField,
   StatusFilterPills,
   TableSearchInput,
+  TableSkeleton,
   ToolbarSelect,
   formatCurrency,
   formatDateTimeValue,
   formatDateValue,
   parseSaleLineItems,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -98,22 +98,22 @@ function getActivePreset(startDate: string, endDate: string) {
   return null;
 }
 
-function getStatusBadgeClass(status?: string | null) {
+function getStatusChipColor(status?: string | null) {
   const normalized = (status ?? "unknown").toLowerCase();
 
   if (normalized === "paid" || normalized === "fulfilled") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "success";
   }
 
   if (normalized === "pending" || normalized === "partially_fulfilled") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
+    return "warning";
   }
 
   if (normalized === "refunded" || normalized === "cancelled") {
-    return "border-rose-200 bg-rose-50 text-rose-700";
+    return "danger";
   }
 
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  return "neutral";
 }
 
 export function OrdersTabView({
@@ -159,10 +159,15 @@ export function OrdersTabView({
   const sortValue = getSortValue(sortField, sortDirection);
   const activePreset = getActivePreset(startDate, endDate);
   const lineItems = parseSaleLineItems(selectedOrder?.line_items);
+  const showLoadingState = isLoading || (isFetching && rows.length === 0);
+
+  if (showLoadingState) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search orders..."
@@ -293,22 +298,22 @@ export function OrdersTabView({
                         {formatCurrency(Number(order.total_price ?? 0))}
                       </td>
                       <td className="px-5 py-3 text-sm text-foreground">
-                        <Badge
-                          className={getStatusBadgeClass(
-                            order.financial_status,
-                          )}
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={getStatusChipColor(order.financial_status)}
                         >
                           {order.financial_status ?? "unknown"}
-                        </Badge>
+                        </Chip>
                       </td>
                       <td className="px-5 py-3 text-sm text-foreground">
-                        <Badge
-                          className={getStatusBadgeClass(
-                            order.fulfillment_status,
-                          )}
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={getStatusChipColor(order.fulfillment_status)}
                         >
                           {order.fulfillment_status ?? "unfulfilled"}
-                        </Badge>
+                        </Chip>
                       </td>
                       <td className="px-5 py-3 text-sm text-foreground">
                         {order.customerDisplayName ?? order.email ?? (
@@ -330,8 +335,6 @@ export function OrdersTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState
             icon={Receipt}
@@ -339,7 +342,7 @@ export function OrdersTabView({
             description="Adjust the status, date range, or search term to inspect a different slice of synced Shopify orders."
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedOrder)}

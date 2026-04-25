@@ -4,21 +4,12 @@ import Chip from "@mui/joy/Chip";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
-import Tab from "@mui/joy/Tab";
+import Tab, { tabClasses } from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
-import {
-  Bug,
-  CreditCard,
-  HelpCircle,
-  Settings,
-  Globe,
-  Link2,
-  Shield,
-  Store,
-} from "lucide-react";
+import { Globe, Mail, type LucideIcon, Share2, Store } from "lucide-react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { ConnectionsSettings } from "./ConnectionsSettings";
 import { AccountBillingSettings } from "./AccountBillingSettings";
@@ -32,55 +23,40 @@ import { useDomains } from "@/hooks/useDomains";
 import { SettingsInlineError } from "./SettingsSurface";
 
 type SettingsTabId = "connections" | "account" | "compliance" | "support";
+type StatusChipColor = "success" | "warning" | "neutral";
+type StatusChipVariant = "soft" | "outlined";
+
+interface StatusDescriptor {
+  color: StatusChipColor;
+  label: string;
+  variant: StatusChipVariant;
+}
 
 const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
   { id: "connections", label: "Connections" },
   { id: "account", label: "Account & Billing" },
-  { id: "compliance", label: "Compliance & Privacy" },
+  { id: "compliance", label: "Compliance" },
   { id: "support", label: "Support" },
 ];
 
-const validTabs = new Set<SettingsTabId>(
-  SETTINGS_TABS.map((tab) => tab.id),
-);
+const validTabs = new Set<SettingsTabId>(SETTINGS_TABS.map((tab) => tab.id));
 
 const statusItemSx = {
-  width: "100%",
-  minHeight: 96,
-  p: 2,
-  borderRadius: "18px",
-  border: "1px solid",
-  borderColor: "neutral.200",
-  bgcolor: "background.level1",
-  textAlign: "left",
+  minWidth: { xs: "100%", sm: 180 },
+  flex: "1 1 180px",
+  display: "flex",
+  alignItems: "center",
+  gap: 1.5,
+  p: 0,
+  border: 0,
+  bgcolor: "transparent",
   textDecoration: "none",
   color: "inherit",
-  transition: "border-color 150ms ease, background-color 150ms ease, transform 150ms ease",
+  textAlign: "left",
   cursor: "pointer",
-  "&:hover": {
-    borderColor: "neutral.300",
-    bgcolor: "background.surface",
-    transform: "translateY(-1px)",
+  "&:hover .settings-status-icon": {
+    bgcolor: "background.level2",
   },
-};
-
-const toDisplayLabel = (value: string) =>
-  value
-    .split(/[_-]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
-const formatDomainStatusLabel = (status?: string | null) => {
-  if (!status) {
-    return "Setup required";
-  }
-
-  if (status === "active") {
-    return "Verified";
-  }
-
-  return toDisplayLabel(status);
 };
 
 const normalizeTab = (value: string | null): SettingsTabId => {
@@ -91,39 +67,125 @@ const normalizeTab = (value: string | null): SettingsTabId => {
   return value as SettingsTabId;
 };
 
-const StatusValue = ({
-  loading,
-  color,
+const getNeutralStatus = (label: string): StatusDescriptor => ({
+  color: "neutral",
   label,
-}: {
-  loading: boolean;
-  color: "success" | "warning" | "danger" | "neutral";
-  label: string;
-}) => {
-  if (loading) {
-    return (
-      <Skeleton
-        animation="wave"
-        variant="rectangular"
-        sx={{ width: 96, height: 26, borderRadius: "999px" }}
-      />
-    );
-  }
+  variant: "outlined",
+});
 
+const SettingsPanelSkeleton = () => {
   return (
-    <Chip color={color} size="sm" variant="soft">
-      {label}
-    </Chip>
+    <Stack spacing={3}>
+      <Stack spacing={0.75}>
+        <Skeleton variant="text" width={200} />
+        <Skeleton variant="text" level="body-sm" width={350} />
+      </Stack>
+      <Skeleton variant="rectangular" height={200} sx={{ borderRadius: "lg" }} />
+
+      <Stack spacing={0.75}>
+        <Skeleton variant="text" width={180} />
+        <Skeleton variant="text" level="body-sm" width={300} />
+      </Stack>
+      <Skeleton variant="rectangular" height={160} sx={{ borderRadius: "lg" }} />
+    </Stack>
   );
 };
 
-const StatusStripContent = ({
-  onOpenPosWizard,
-  onOpenConnections,
+const SettingsPageSkeleton = () => {
+  return (
+    <Stack spacing={3}>
+      <Box>
+        <Skeleton variant="text" level="h3" width="120px" />
+        <Skeleton variant="text" level="body-sm" width="380px" />
+      </Box>
+
+      <Sheet
+        variant="outlined"
+        sx={{
+          borderRadius: "lg",
+          bgcolor: "background.surface",
+          p: 2,
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          flexWrap: { xs: "nowrap", sm: "wrap" },
+          gap: 3,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton
+            key={index}
+            variant="rectangular"
+            width={180}
+            height={52}
+            sx={{ borderRadius: "md", maxWidth: "100%" }}
+          />
+        ))}
+      </Sheet>
+
+      <Skeleton variant="rectangular" width={420} height={40} sx={{ borderRadius: "xl" }} />
+      <SettingsPanelSkeleton />
+    </Stack>
+  );
+};
+
+const SettingsStatusItem = ({
+  icon: Icon,
+  label,
+  status,
+  component = "button",
+  onClick,
+  to,
 }: {
-  onOpenPosWizard: () => void;
-  onOpenConnections: () => void;
+  icon: LucideIcon;
+  label: string;
+  status: StatusDescriptor;
+  component?: React.ElementType;
+  onClick?: () => void;
+  to?: string;
 }) => {
+  return (
+    <Box
+      component={component}
+      onClick={onClick}
+      sx={statusItemSx}
+      to={to}
+      type={component === "button" ? "button" : undefined}
+    >
+      <Box
+        className="settings-status-icon"
+        sx={{
+          width: 36,
+          height: 36,
+          borderRadius: "md",
+          bgcolor: "background.level1",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          transition: "background-color 150ms ease",
+        }}
+      >
+        <Icon size={18} style={{ color: "var(--joy-palette-text-tertiary)" }} />
+      </Box>
+
+      <Stack spacing={0.25}>
+        <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+          {label}
+        </Typography>
+        <Chip color={status.color} size="sm" variant={status.variant}>
+          {status.label}
+        </Chip>
+      </Stack>
+    </Box>
+  );
+};
+
+export const SettingsHub = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("connections");
+  const [showPOSWizard, setShowPOSWizard] = useState(false);
+  const tabParam = searchParams.get("tab");
+
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
   const {
     data: socialConnections = [],
@@ -134,160 +196,93 @@ const StatusStripContent = ({
   const { senderConfig, loading: senderLoading } = useSenderConfiguration();
   const { domains, emailSenders, loading: domainsLoading } = useDomains();
 
-  const activeDomains = useMemo(
+  const verifiedDomains = useMemo(
     () => domains.filter((domain) => domain.status === "active"),
+    [domains],
+  );
+  const pendingDomains = useMemo(
+    () => domains.filter((domain) => domain.status !== "active"),
     [domains],
   );
   const verifiedSenders = useMemo(
     () => emailSenders.filter((sender) => sender.verified),
     [emailSenders],
   );
-
-  const socialLabel = socialConnections.length
-    ? `${socialConnections.length} connected`
-    : "Not connected";
-  const socialColor = socialConnections.length ? "success" : "warning";
-
-  const hasDomainSetup = activeDomains.length > 0 || verifiedSenders.length > 0;
-  const domainLabel = senderConfig?.isVerified
-    ? "Verified"
-    : hasDomainSetup
-      ? "Configured"
-      : formatDomainStatusLabel(senderConfig?.domainStatus);
-  const domainColor = senderConfig?.isVerified || hasDomainSetup
-    ? "success"
-    : senderConfig?.domainStatus
-      ? "warning"
-      : "warning";
-
-  const legacyEmailLabel = senderConfig?.isVerified
-    ? "Domain verified"
-    : formatDomainStatusLabel(senderConfig?.domainStatus);
-  const legacyEmailColor = senderConfig?.isVerified ? "success" : "warning";
-
-  return (
-    <Stack spacing={1.5}>
-      <Sheet
-        variant="outlined"
-        sx={{
-          borderRadius: "24px",
-          borderColor: "neutral.200",
-          boxShadow: "none",
-          bgcolor: "background.surface",
-          p: 1,
-        }}
-      >
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "minmax(0, 1fr)",
-              sm: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(4, minmax(0, 1fr))",
-            },
-            gap: 1,
-          }}
-        >
-          <Box component="button" onClick={onOpenPosWizard} sx={statusItemSx} type="button">
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Store size={16} />
-                <Typography level="body-sm" fontWeight="lg">
-                  POS Connections
-                </Typography>
-              </Stack>
-              <StatusValue
-                color={hasPOSConnection ? "success" : "warning"}
-                label={hasPOSConnection ? "Connected" : "Setup required"}
-                loading={posLoading}
-              />
-            </Stack>
-          </Box>
-
-          <Box component="button" onClick={onOpenConnections} sx={statusItemSx} type="button">
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Link2 size={16} />
-                <Typography level="body-sm" fontWeight="lg">
-                  Social Accounts
-                </Typography>
-              </Stack>
-              <StatusValue
-                color={socialError ? "danger" : socialColor}
-                label={socialError ? "Unavailable" : socialLabel}
-                loading={socialLoading}
-              />
-            </Stack>
-          </Box>
-
-          <Box component={RouterLink} to="/domains" sx={statusItemSx}>
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Globe size={16} />
-                <Typography level="body-sm" fontWeight="lg">
-                  Domain Status
-                </Typography>
-              </Stack>
-              <StatusValue
-                color={domainColor}
-                label={domainLabel}
-                loading={domainsLoading || senderLoading}
-              />
-            </Stack>
-          </Box>
-
-          <Box component={RouterLink} to="/crm/settings/email-auth" sx={statusItemSx}>
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Bug size={16} />
-                <Typography level="body-sm" fontWeight="lg">
-                  Legacy Email
-                </Typography>
-              </Stack>
-              <StatusValue
-                color={legacyEmailColor}
-                label={legacyEmailLabel}
-                loading={senderLoading}
-              />
-            </Stack>
-          </Box>
-        </Box>
-      </Sheet>
-
-      {socialError ? (
-        <SettingsInlineError
-          message="Social account status could not be loaded."
-          onRetry={() => {
-            void refetchSocial();
-          }}
-        />
-      ) : null}
-    </Stack>
+  const pendingSenders = useMemo(
+    () => emailSenders.filter((sender) => !sender.verified),
+    [emailSenders],
   );
-};
 
-export const SettingsHub = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("connections");
-  const [showPOSWizard, setShowPOSWizard] = useState(false);
-  const tabParam = searchParams.get("tab");
+  const socialStatus = useMemo<StatusDescriptor>(() => {
+    if (socialError) {
+      return {
+        color: "warning",
+        label: "Unavailable",
+        variant: "soft",
+      };
+    }
+
+    if (socialConnections.length > 0) {
+      return {
+        color: "success",
+        label: `${socialConnections.length} connected`,
+        variant: "soft",
+      };
+    }
+
+    return getNeutralStatus("Not connected");
+  }, [socialConnections.length, socialError]);
+
+  const domainStatus = useMemo<StatusDescriptor>(() => {
+    if (senderConfig?.isVerified || verifiedDomains.length > 0 || verifiedSenders.length > 0) {
+      return {
+        color: "success",
+        label: "Verified",
+        variant: "soft",
+      };
+    }
+
+    if (
+      (senderConfig?.domainStatus && senderConfig.domainStatus !== "active") ||
+      pendingDomains.length > 0 ||
+      pendingSenders.length > 0
+    ) {
+      return {
+        color: "warning",
+        label: "Pending",
+        variant: "soft",
+      };
+    }
+
+    return getNeutralStatus("Not configured");
+  }, [pendingDomains.length, pendingSenders.length, senderConfig, verifiedDomains.length, verifiedSenders.length]);
+
+  const emailStatus = useMemo<StatusDescriptor>(() => {
+    if (senderConfig?.isVerified || verifiedSenders.length > 0) {
+      return {
+        color: "success",
+        label: "Configured",
+        variant: "soft",
+      };
+    }
+
+    return getNeutralStatus("Not configured");
+  }, [senderConfig?.isVerified, verifiedSenders.length]);
+
+  const isHubDataLoading = posLoading || socialLoading || domainsLoading || senderLoading;
 
   useEffect(() => {
     if (tabParam && !validTabs.has(tabParam as SettingsTabId)) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set("tab", "connections");
       setSearchParams(nextParams, { replace: true });
-      if (activeTab !== "connections") {
-        setActiveTab("connections");
-      }
+      setActiveTab("connections");
       return;
     }
 
     const nextTab = normalizeTab(tabParam);
-    if (activeTab !== nextTab) {
-      setActiveTab(nextTab);
-    }
-  }, [activeTab, searchParams, setSearchParams, tabParam]);
+    setActiveTab((currentTab) => (currentTab === nextTab ? currentTab : nextTab));
+  }, [searchParams, setSearchParams, tabParam]);
 
   const handleTabChange = (newTab: SettingsTabId) => {
     setActiveTab(newTab);
@@ -296,97 +291,141 @@ export const SettingsHub = () => {
     setSearchParams(nextParams, { replace: true });
   };
 
+  if (isHubDataLoading) {
+    return <SettingsPageSkeleton />;
+  }
+
   return (
     <Stack spacing={3}>
-      <Stack spacing={0.75}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: "16px",
-              display: "grid",
-              placeItems: "center",
-              bgcolor: "background.level1",
-              color: "text.secondary",
-            }}
-          >
-            <Settings size={20} />
-          </Box>
-          <Typography level="h2" sx={{ fontSize: { xs: "1.75rem", md: "2rem" } }}>
-            Settings
-          </Typography>
-        </Stack>
-
-        <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 760 }}>
-          Manage connected systems, account billing, compliance defaults, and
-          support from one tenant-facing settings console.
+      <Box>
+        <Typography level="h3">Settings</Typography>
+        <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>
+          Manage connections, billing, compliance, and support from one place.
         </Typography>
+      </Box>
+
+      <Stack spacing={1.5}>
+        <Sheet
+          variant="outlined"
+          sx={{
+            borderRadius: "lg",
+            bgcolor: "background.surface",
+            p: 2,
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            flexWrap: { xs: "nowrap", sm: "wrap" },
+            gap: 3,
+          }}
+        >
+          <SettingsStatusItem
+            icon={Store}
+            label="POS"
+            onClick={() => setShowPOSWizard(true)}
+            status={
+              hasPOSConnection
+                ? { color: "success", label: "Connected", variant: "soft" }
+                : getNeutralStatus("Not connected")
+            }
+          />
+          <SettingsStatusItem
+            icon={Share2}
+            label="Social"
+            onClick={() => handleTabChange("connections")}
+            status={socialStatus}
+          />
+          <SettingsStatusItem
+            component={RouterLink}
+            icon={Globe}
+            label="Domains"
+            status={domainStatus}
+            to="/domains"
+          />
+          <SettingsStatusItem
+            component={RouterLink}
+            icon={Mail}
+            label="Email"
+            status={emailStatus}
+            to="/crm/settings/email-auth"
+          />
+        </Sheet>
+
+        {socialError ? (
+          <SettingsInlineError
+            message="Social account status could not be loaded."
+            onRetry={() => {
+              void refetchSocial();
+            }}
+          />
+        ) : null}
       </Stack>
 
-      <StatusStripContent
-        onOpenConnections={() => handleTabChange("connections")}
-        onOpenPosWizard={() => setShowPOSWizard(true)}
-      />
-
       <Tabs
+        aria-label="Settings sections"
         value={activeTab}
-        onChange={(_, value) => {
-          if (typeof value === "string" && validTabs.has(value as SettingsTabId)) {
-            handleTabChange(value as SettingsTabId);
+        onChange={(_, newValue) => {
+          if (typeof newValue === "string" && validTabs.has(newValue as SettingsTabId)) {
+            handleTabChange(newValue as SettingsTabId);
           }
         }}
         sx={{ bgcolor: "transparent" }}
       >
         <TabList
+          disableUnderline
           sx={{
             p: 0.5,
             gap: 0.5,
-            borderRadius: "24px",
-            border: "1px solid",
-            borderColor: "neutral.200",
+            borderRadius: "xl",
             bgcolor: "background.level1",
-            flexWrap: "wrap",
+            width: "fit-content",
+            maxWidth: "100%",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            flexWrap: "nowrap",
+            [`& .${tabClasses.root}`]: {
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              fontSize: "sm",
+              fontWeight: "md",
+              px: 2,
+              py: 0.75,
+              borderRadius: "lg",
+              transition: "all 150ms ease",
+              [`&[aria-selected="true"]`]: {
+                bgcolor: "background.surface",
+                boxShadow: "sm",
+                fontWeight: "lg",
+              },
+              [`&:not([aria-selected="true"]):hover`]: {
+                bgcolor: "background.level2",
+              },
+            },
           }}
-          variant="plain"
         >
           {SETTINGS_TABS.map((tab) => (
-            <Tab
-              disableIndicator={false}
-              indicatorInset
-              key={tab.id}
-              sx={{
-                flex: 1,
-                minWidth: { xs: "calc(50% - 4px)", md: 0 },
-                borderRadius: "18px",
-                py: 1.25,
-                fontWeight: 600,
-              }}
-              value={tab.id}
-            >
+            <Tab disableIndicator key={tab.id} value={tab.id}>
               {tab.label}
             </Tab>
           ))}
         </TabList>
 
-        <TabPanel sx={{ px: 0, pt: 3 }} value="connections">
+        <TabPanel value="connections" sx={{ p: 0, pt: 2.5 }}>
           <ConnectionsSettings />
         </TabPanel>
 
-        <TabPanel sx={{ px: 0, pt: 3 }} value="account">
+        <TabPanel value="account" sx={{ p: 0, pt: 2.5 }}>
           <AccountBillingSettings />
         </TabPanel>
 
-        <TabPanel sx={{ px: 0, pt: 3 }} value="compliance">
+        <TabPanel value="compliance" sx={{ p: 0, pt: 2.5 }}>
           <ComplianceSettings onUpdate={() => undefined} />
         </TabPanel>
 
-        <TabPanel sx={{ px: 0, pt: 3 }} value="support">
+        <TabPanel value="support" sx={{ p: 0, pt: 2.5 }}>
           <SupportSettings />
         </TabPanel>
       </Tabs>
 
-      {showPOSWizard && (
+      {showPOSWizard ? (
         <POSSetupWizard
           platform="square"
           onSuccess={() => {
@@ -395,7 +434,7 @@ export const SettingsHub = () => {
           }}
           onCancel={() => setShowPOSWizard(false)}
         />
-      )}
+      ) : null}
     </Stack>
   );
 };

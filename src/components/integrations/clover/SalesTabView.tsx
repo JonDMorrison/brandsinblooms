@@ -1,6 +1,5 @@
 import { Receipt } from "lucide-react";
 
-
 import type {
   CloverSaleRow,
   CloverSalesSummary,
@@ -10,6 +9,7 @@ import type {
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
@@ -18,11 +18,11 @@ import {
   SlideOverField,
   StatusFilterPills,
   TableSearchInput,
+  TableSkeleton,
   ToolbarSelect,
   formatCurrency,
   formatDateTimeValue,
   parseSaleLineItems,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -140,9 +140,13 @@ export function SalesTabView({
   const activePreset = getActivePreset(startDate, endDate);
   const lineItems = parseSaleLineItems(selectedSale?.items);
 
+  if (isLoading || (isFetching && rows.length === 0)) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
+
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search Clover orders..."
@@ -303,8 +307,6 @@ export function SalesTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState
             icon={Receipt}
@@ -312,7 +314,7 @@ export function SalesTabView({
             description="Adjust the search, status, or date range to browse synced Clover order data."
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedSale)}

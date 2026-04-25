@@ -1,6 +1,5 @@
 import { Package } from "lucide-react";
-
-import { Button } from "@/components/ui-legacy/button";
+import Button from "@mui/joy/Button";
 import type {
   LightspeedPagination,
   LightspeedSortDirection,
@@ -10,16 +9,17 @@ import type {
 
 import {
   CategoryMultiSelect,
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
   StockCountBadge,
   TableSearchInput,
+  TableSkeleton,
   TagList,
   ToolbarSelect,
   formatCurrency,
   formatRelativeTimestamp,
-  DataTabLoadingState,
   JoyDataTable,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
@@ -83,8 +83,12 @@ export function ProductsTabView({
 }) {
   const sortValue = getSortValue(sortField, sortDirection);
 
+  if (isLoading || (isFetching && rows.length === 0)) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <DataTabCard>
       <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
         <TableSearchInput
           placeholder="Search Square products..."
@@ -99,7 +103,8 @@ export function ProductsTabView({
           />
           <Button
             type="button"
-            variant={inStockOnly ? "default" : "outline"}
+            variant={inStockOnly ? "solid" : "outlined"}
+            color="neutral"
             size="sm"
             className="h-8"
             onClick={() => onInStockOnlyChange(!inStockOnly)}
@@ -219,8 +224,6 @@ export function ProductsTabView({
         </>
       ) : null}
 
-      {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState
           icon={Package}
@@ -228,6 +231,6 @@ export function ProductsTabView({
           description="Adjust the search, category filter, or stock toggle to browse synced Square catalog data."
         />
       ) : null}
-    </div>
+    </DataTabCard>
   );
 }

@@ -1,7 +1,6 @@
 import { FlaskConical } from "lucide-react";
-import { Chip, Typography } from "@mui/joy";
-
-import { Button } from "@/components/ui-legacy/button";
+import Button from "@mui/joy/Button";
+import { Chip, Sheet, Typography } from "@mui/joy";
 import type {
   CloverConnectionTestHistoryRow,
   CloverConnectionTestReport,
@@ -9,26 +8,43 @@ import type {
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
-  DataTabLoadingState,
   DataTabPagination,
   JoyDataTable,
   formatDateTimeValue,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
+import { CardSkeleton } from "@/components/integrations/shared/detailPrimitives";
 
 import { CloverTestReport } from "./CloverTestReport";
 
-function StatusChip({ status }: { status: CloverConnectionTestReport["status"] }) {
+function StatusChip({
+  status,
+}: {
+  status: CloverConnectionTestReport["status"];
+}) {
   if (status === "success") {
-    return <Chip size="sm" color="success" variant="soft">Success</Chip>;
+    return (
+      <Chip size="sm" color="success" variant="soft">
+        Success
+      </Chip>
+    );
   }
 
   if (status === "partial") {
-    return <Chip size="sm" color="warning" variant="soft">Partial</Chip>;
+    return (
+      <Chip size="sm" color="warning" variant="soft">
+        Partial
+      </Chip>
+    );
   }
 
-  return <Chip size="sm" color="danger" variant="soft">Failed</Chip>;
+  return (
+    <Chip size="sm" color="danger" variant="soft">
+      Failed
+    </Chip>
+  );
 }
 
 export function ConnectionTestTabView({
@@ -54,22 +70,45 @@ export function ConnectionTestTabView({
 }) {
   const hasRows = rows.length > 0;
 
+  if (isLoading || (isFetching && !hasRows && !latestReport)) {
+    return <CardSkeleton titleWidth="220px" rows={6} />;
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <Sheet
+        variant="outlined"
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          gap: 2,
+          alignItems: { sm: "center" },
+          justifyContent: "space-between",
+          borderRadius: "lg",
+          p: 2.5,
+          bgcolor: "background.surface",
+        }}
+      >
         <div>
           <div className="text-sm font-semibold text-foreground">
             Clover connection diagnostics
           </div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            Run the existing Clover diagnostics harness to verify merchant access and endpoint coverage.
+            Run the existing Clover diagnostics harness to verify merchant
+            access and endpoint coverage.
           </p>
         </div>
-        <Button type="button" onClick={onRunTest} disabled={isRunning}>
-          <FlaskConical className="mr-2 h-4 w-4" />
+        <Button
+          type="button"
+          color="neutral"
+          size="sm"
+          startDecorator={<FlaskConical size={16} />}
+          onClick={onRunTest}
+          disabled={isRunning}
+        >
           {isRunning ? "Running test..." : "Run Connection Test"}
         </Button>
-      </div>
+      </Sheet>
 
       {latestReport ? (
         <CloverTestReport
@@ -80,7 +119,7 @@ export function ConnectionTestTabView({
         />
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
           <p className="text-sm font-semibold">Recent test runs</p>
           <span className="text-xs text-muted-foreground">
@@ -114,21 +153,36 @@ export function ConnectionTestTabView({
                         </Typography>
                       </td>
                       <td>
-                        <Typography level="body-sm" sx={{ fontFamily: "var(--joy-fontFamily-code)" }}>
+                        <Typography
+                          level="body-sm"
+                          sx={{ fontFamily: "var(--joy-fontFamily-code)" }}
+                        >
                           {row.merchant_id}
                         </Typography>
                       </td>
                       <td>
-                        <Typography level="body-sm" color={row.report.errors.length > 0 ? "danger" : "neutral"}>
+                        <Typography
+                          level="body-sm"
+                          color={
+                            row.report.errors.length > 0 ? "danger" : "neutral"
+                          }
+                        >
                           {row.report.errors.length}
                         </Typography>
                       </td>
                       <td>
-                        <Typography level="body-sm">{row.report.duration_ms}ms</Typography>
+                        <Typography level="body-sm">
+                          {row.report.duration_ms}ms
+                        </Typography>
                       </td>
                       <td>
-                        <Typography level="body-sm">{formatRelativeTimestamp(row.created_at)}</Typography>
-                        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                        <Typography level="body-sm">
+                          {formatRelativeTimestamp(row.created_at)}
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "text.tertiary" }}
+                        >
                           {formatDateTimeValue(row.created_at)}
                         </Typography>
                       </td>
@@ -144,8 +198,6 @@ export function ConnectionTestTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {!isLoading && !isFetching && !hasRows ? (
           <DataTabEmptyState
             icon={FlaskConical}
@@ -154,17 +206,18 @@ export function ConnectionTestTabView({
             action={
               <Button
                 type="button"
-                variant="outline"
+                variant="outlined"
+                color="neutral"
                 size="sm"
+                startDecorator={<FlaskConical size={14} />}
                 onClick={onRunTest}
               >
-                <FlaskConical className="mr-1.5 h-3.5 w-3.5" />
                 Run first test
               </Button>
             }
           />
         ) : null}
-      </div>
+      </DataTabCard>
     </div>
   );
 }

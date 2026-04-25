@@ -1,5 +1,9 @@
 import React from "react";
 import type { LucideIcon } from "lucide-react";
+import Box from "@mui/joy/Box";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 
 import { cn } from "@/lib/utils";
 
@@ -29,46 +33,73 @@ export function CRMMetricCard({
   className,
 }: CRMMetricCardProps) {
   return (
-    <div
-      className={cn(
-        "group flex h-full min-h-[152px] flex-col rounded-2xl border border-border/70 px-4 py-4 shadow-sm transition-all duration-200",
-        appearance === "default"
-          ? "bg-gradient-to-br from-white via-white to-slate-50/70 hover:-translate-y-0.5 hover:shadow-md"
-          : "bg-white",
-        className,
-      )}
+    <Sheet
+      variant="outlined"
+      className={className}
+      sx={{
+        height: "100%",
+        minHeight: 152,
+        borderRadius: "lg",
+        bgcolor: "background.surface",
+        p: 2.5,
+      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          {label}
-        </div>
-        <span
-          className={cn(
-            "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border",
-            iconWrapClassName,
+      <Stack spacing={1.5} sx={{ height: "100%" }}>
+        <Stack direction="row" justifyContent="space-between" spacing={2}>
+          <Typography
+            level="body-xs"
+            sx={{
+              color: "text.tertiary",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              fontWeight: 700,
+            }}
+          >
+            {label}
+          </Typography>
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "text.tertiary",
+              flexShrink: 0,
+            }}
+          >
+            <Icon size={20} className={cn(iconClassName, iconWrapClassName)} />
+          </Box>
+        </Stack>
+
+        <Box sx={{ flex: 1 }}>
+          {React.isValidElement(value) ? (
+            value
+          ) : (
+            <Typography
+              level="h3"
+              className={valueClassName}
+              sx={{
+                color:
+                  value === null || value === undefined || value === ""
+                    ? "text.disabled"
+                    : "text.primary",
+                wordBreak: "break-word",
+              }}
+            >
+              {value || "—"}
+            </Typography>
           )}
-        >
-          <Icon className={cn("h-4.5 w-4.5", iconClassName)} />
-        </span>
-      </div>
-      <div
-        className={cn(
-          "mt-4 line-clamp-2 break-words text-3xl font-semibold tracking-tight text-foreground",
-          valueClassName,
-        )}
-      >
-        {value}
-      </div>
-      {subtitle ? (
-        <div
-          className={cn(
-            "mt-1.5 line-clamp-2 text-sm text-muted-foreground",
-            subtitleClassName,
-          )}
-        >
-          {subtitle}
-        </div>
-      ) : null}
-    </div>
+        </Box>
+
+        {subtitle ? (
+          <Typography
+            level="body-xs"
+            className={subtitleClassName}
+            sx={{ color: "text.tertiary" }}
+          >
+            {subtitle}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Sheet>
   );
 }

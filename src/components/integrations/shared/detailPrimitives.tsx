@@ -6,6 +6,7 @@ import {
   Bell,
   Check,
   CheckCircle2,
+  CircleAlert,
   Copy,
   Info,
   MoreHorizontal,
@@ -16,6 +17,7 @@ import Box from "@mui/joy/Box";
 import Breadcrumbs from "@mui/joy/Breadcrumbs";
 import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import Dropdown from "@mui/joy/Dropdown";
 import IconButton from "@mui/joy/IconButton";
@@ -28,6 +30,7 @@ import Skeleton from "@mui/joy/Skeleton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Tab from "@mui/joy/Tab";
+import { tabClasses } from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
@@ -47,13 +50,13 @@ import { getIntegrationToneClasses } from "./tokens";
 
 function formatRelativeTimestamp(timestamp?: string | null) {
   if (!timestamp) {
-    return "Not available";
+    return "—";
   }
 
   try {
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   } catch {
-    return "Not available";
+    return "—";
   }
 }
 
@@ -71,7 +74,7 @@ function formatExactTimestamp(timestamp?: string | null) {
 
 function formatCount(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) {
-    return "0";
+    return "—";
   }
 
   return value.toLocaleString();
@@ -96,11 +99,8 @@ function formatRelativePlusAbsolute(
 
 function EmptyFieldValue() {
   return (
-    <Typography
-      level="body-sm"
-      sx={{ color: "text.tertiary", fontStyle: "italic" }}
-    >
-      -
+    <Typography level="body-sm" sx={{ color: "text.disabled" }}>
+      —
     </Typography>
   );
 }
@@ -125,6 +125,57 @@ function StatusDot({ tone }: { tone: IntegrationDetailTone }) {
         bgcolor: classes.dotColor,
       }}
     />
+  );
+}
+
+export function CardSkeleton({
+  titleWidth = "200px",
+  rows = 4,
+  hasSubtitle = true,
+}: {
+  titleWidth?: string;
+  rows?: number;
+  hasSubtitle?: boolean;
+}) {
+  return (
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+      <Skeleton
+        variant="text"
+        level="title-sm"
+        width={titleWidth}
+        sx={{ mb: hasSubtitle ? 0.5 : 2 }}
+      />
+      {hasSubtitle ? (
+        <Skeleton variant="text" level="body-sm" width="70%" sx={{ mb: 2 }} />
+      ) : null}
+      {Array.from({ length: rows }).map((_, index) => (
+        <Box
+          key={index}
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: index < rows - 1 ? 1 : 0,
+          }}
+        >
+          <Skeleton variant="text" level="body-sm" width="30%" />
+          <Skeleton variant="text" level="body-sm" width="40%" />
+        </Box>
+      ))}
+    </Sheet>
+  );
+}
+
+export function StatCardSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1.5 }}>
+        <Skeleton variant="text" level="body-xs" width="120px" />
+        <Skeleton variant="circular" width={20} height={20} />
+      </Box>
+      <Skeleton variant="text" level="h3" width="60px" sx={{ mb: 1 }} />
+      <Skeleton variant="text" level="body-xs" width="100px" />
+    </Sheet>
   );
 }
 
@@ -160,7 +211,7 @@ export function DetailStatusBadge({
 
 export function DetailHealthRows({ rows }: { rows: IntegrationDetailRow[] }) {
   return (
-    <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+    <Stack divider={<Divider sx={{ my: 1.5 }} />} spacing={0}>
       {rows.map((row) => (
         <HealthFieldRow
           key={`${row.label}-${row.value}-${row.timestamp ?? "none"}`}
@@ -254,14 +305,15 @@ export function SectionCard({
       variant="outlined"
       sx={{
         borderRadius: "lg",
-        borderColor: "neutral.200",
-        boxShadow: "sm",
         p: 2.5,
+        bgcolor: "background.surface",
       }}
     >
       <Stack spacing={2}>
-        <Stack spacing={0.75}>
-          <Typography level="title-md">{title}</Typography>
+        <Stack spacing={0.75} sx={{ mb: 2 }}>
+          <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
           <Typography level="body-sm" sx={{ color: "text.secondary" }}>
             {description}
           </Typography>
@@ -488,7 +540,7 @@ export function DetailFieldRows({
   onCopy?: (value: string | null | undefined, label: string) => void;
 }) {
   return (
-    <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+    <Stack divider={<Divider sx={{ my: 1.5 }} />} spacing={0}>
       {rows.map((row) => (
         <FieldRow
           key={row.label}
@@ -526,12 +578,14 @@ export function OverviewPanel({
     <Sheet
       color="neutral"
       variant="outlined"
-      sx={{ borderRadius: "lg", borderColor: "neutral.200", p: 2.5 }}
+      sx={{ borderRadius: "lg", p: 2.5, bgcolor: "background.surface" }}
     >
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" spacing={2}>
-          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-            <Typography level="title-sm">{title}</Typography>
+          <Stack spacing={0.5} sx={{ minWidth: 0, mb: 2 }}>
+            <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+              {title}
+            </Typography>
             {description ? (
               <Typography level="body-sm" sx={{ color: "text.secondary" }}>
                 {description}
@@ -587,7 +641,7 @@ export function FieldRow({
       spacing={{ xs: 0.75, sm: 2 }}
       alignItems={{ xs: "stretch", sm: "flex-start" }}
       justifyContent="space-between"
-      sx={{ py: 1.25 }}
+      sx={{ py: 1 }}
     >
       <Typography
         level="body-sm"
@@ -678,7 +732,7 @@ export function HealthFieldRow({
       direction={{ xs: "column", sm: "row" }}
       spacing={{ xs: 0.75, sm: 2 }}
       justifyContent="space-between"
-      sx={{ py: 1.25 }}
+      sx={{ py: 1 }}
     >
       <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
         <Typography level="body-sm">{label}</Typography>
@@ -769,7 +823,13 @@ export function IntegrationStatusBanner({
   banner: IntegrationShellBanner;
 }) {
   const icon =
-    banner.tone === "danger" ? <AlertTriangle size={16} /> : <Info size={16} />;
+    banner.tone === "danger" ? (
+      <CircleAlert size={18} />
+    ) : banner.tone === "warning" ? (
+      <AlertTriangle size={18} />
+    ) : (
+      <Info size={18} />
+    );
 
   return (
     <Alert
@@ -780,17 +840,12 @@ export function IntegrationStatusBanner({
             ? "warning"
             : "neutral"
       }
+      size="lg"
       startDecorator={icon}
       endDecorator={
         banner.actionLabel && banner.onAction ? (
           <Button
-            color={
-              banner.tone === "danger"
-                ? "danger"
-                : banner.tone === "warning"
-                  ? "warning"
-                  : "neutral"
-            }
+            color="neutral"
             size="sm"
             variant="solid"
             onClick={banner.onAction}
@@ -800,10 +855,10 @@ export function IntegrationStatusBanner({
         ) : undefined
       }
       variant="soft"
-      sx={{ alignItems: "center", borderRadius: "lg" }}
+      sx={{ alignItems: "flex-start", borderRadius: "lg" }}
     >
-      <Stack spacing={0.25}>
-        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+      <Stack spacing={0.5}>
+        <Typography level="title-sm" sx={{ fontWeight: 700 }}>
           {banner.title}
         </Typography>
         <Typography level="body-sm">{banner.description}</Typography>
@@ -815,6 +870,7 @@ export function IntegrationStatusBanner({
 type HeroAction = {
   label: string;
   disabled?: boolean;
+  loading?: boolean;
   onClick: () => void;
   variant?: "solid" | "outlined";
   icon?: LucideIcon;
@@ -921,13 +977,21 @@ export function IntegrationDetailHero({
   const ActionIcon = primaryAction?.icon;
 
   return (
-    <Sheet color="neutral" variant="plain" sx={{ pb: 2.5 }}>
-      <Stack spacing={2}>
+    <Sheet
+      color="neutral"
+      variant="outlined"
+      sx={{
+        borderRadius: "xl",
+        p: { xs: 2.5, md: 3 },
+        bgcolor: "background.surface",
+      }}
+    >
+      <Stack spacing={1.5}>
         <Breadcrumbs separator="/" size="sm">
-          <Link href={hubPath} underline="hover">
+          <Link href={hubPath} level="body-sm" underline="hover">
             Integrations
           </Link>
-          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+          <Typography level="body-sm" sx={{ color: "text.primary" }}>
             {providerName}
           </Typography>
         </Breadcrumbs>
@@ -949,14 +1013,23 @@ export function IntegrationDetailHero({
               size="lg"
               src={logoSrc ?? undefined}
               variant="outlined"
+              sx={{ bgcolor: "background.surface" }}
             >
               {providerName.slice(0, 1).toUpperCase()}
             </Avatar>
 
             <Stack spacing={1} sx={{ minWidth: 0 }}>
-              <Stack spacing={0.75}>
-                <Typography level="h3">{providerName}</Typography>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              <Stack spacing={1}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  alignItems={{ xs: "flex-start", sm: "center" }}
+                  useFlexGap
+                  flexWrap="wrap"
+                >
+                  <Typography level="h4" sx={{ fontWeight: 700 }}>
+                    {providerName}
+                  </Typography>
                   <Chip color="neutral" size="sm" variant="soft">
                     {categoryLabel}
                   </Chip>
@@ -967,7 +1040,7 @@ export function IntegrationDetailHero({
               {summary ? (
                 <Typography
                   level="body-sm"
-                  sx={{ color: "text.secondary", maxWidth: 860 }}
+                  sx={{ color: "text.tertiary", maxWidth: 600 }}
                 >
                   {summary}
                 </Typography>
@@ -989,7 +1062,11 @@ export function IntegrationDetailHero({
                 disabled={primaryAction.disabled}
                 size="sm"
                 startDecorator={
-                  ActionIcon ? <ActionIcon size={16} /> : undefined
+                  primaryAction.loading ? (
+                    <CircularProgress color="neutral" size="sm" />
+                  ) : ActionIcon ? (
+                    <ActionIcon size={16} />
+                  ) : undefined
                 }
                 variant={primaryAction.variant ?? "solid"}
                 onClick={primaryAction.onClick}
@@ -1001,7 +1078,6 @@ export function IntegrationDetailHero({
           </Stack>
         </Stack>
       </Stack>
-      <Divider sx={{ mt: 2.5 }} />
     </Sheet>
   );
 }
@@ -1027,6 +1103,7 @@ export function IntegrationDetailTabs<T extends string>({
 }) {
   return (
     <Tabs
+      aria-label="Integration tabs"
       value={value}
       onChange={(_, nextValue) => {
         if (typeof nextValue === "string") {
@@ -1039,32 +1116,34 @@ export function IntegrationDetailTabs<T extends string>({
       }}
     >
       <TabList
+        disableUnderline
         sx={{
-          p: 0,
-          gap: 0.75,
-          borderBottom: "1px solid",
-          borderColor: "divider",
-          bgcolor: "transparent",
-          borderRadius: 0,
+          p: 0.5,
+          gap: 0.5,
+          borderRadius: "xl",
+          bgcolor: "background.level1",
+          [`& .${tabClasses.root}[aria-selected="true"]`]: {
+            boxShadow: "sm",
+            bgcolor: "background.surface",
+          },
         }}
         variant="plain"
       >
         {items.map((item) => (
           <Tab
             key={item.value}
-            disableIndicator={false}
+            disableIndicator
             disabled={item.disabled}
-            indicatorInset
             sx={{
-              px: 1.25,
-              py: 1.25,
-              borderRadius: 0,
-              bgcolor: "transparent",
-              color: "text.secondary",
-              fontWeight: 500,
-              "&[aria-selected='true']": {
+              fontWeight: "md",
+              fontSize: "sm",
+              px: 2,
+              py: 0.75,
+              borderRadius: "lg",
+              color: "text.tertiary",
+              [`&.${tabClasses.selected}`]: {
                 color: "text.primary",
-                fontWeight: 700,
+                fontWeight: "lg",
               },
             }}
             value={item.value}
@@ -1072,16 +1151,21 @@ export function IntegrationDetailTabs<T extends string>({
             <Stack direction="row" spacing={0.75} alignItems="center">
               <Typography level="body-sm">{item.label}</Typography>
               {typeof item.count === "number" ? (
-                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color="neutral"
+                  sx={{ ml: 0.75, minWidth: 20, height: 20 }}
+                >
                   {item.count.toLocaleString()}
-                </Typography>
+                </Chip>
               ) : null}
               {item.isActive ? <StatusDot tone="success" /> : null}
             </Stack>
           </Tab>
         ))}
       </TabList>
-      <Box sx={{ pt: 2.5 }}>{children}</Box>
+      {children}
     </Tabs>
   );
 }
@@ -1094,8 +1178,8 @@ export function IntegrationDetailTabPanel({
   children: ReactNode;
 }) {
   return (
-    <TabPanel sx={{ p: 0 }} value={value}>
-      {children}
+    <TabPanel sx={{ p: 0, pt: 3 }} value={value}>
+      <Stack spacing={2.5}>{children}</Stack>
     </TabPanel>
   );
 }
@@ -1116,48 +1200,68 @@ export function DangerZone({
     return null;
   }
 
+  const toDangerActionButtonLabel = (label: string) => {
+    if (/disconnect|remove\s+.+connection/i.test(label)) {
+      return "Disconnect";
+    }
+
+    return label;
+  };
+
   return (
     <Sheet
       color="danger"
       variant="outlined"
-      sx={{ borderRadius: "lg", p: 2.5, borderColor: "danger.outlinedBorder" }}
+      sx={{
+        borderRadius: "lg",
+        p: 3,
+        borderColor: "danger.outlinedBorder",
+        bgcolor: "background.surface",
+      }}
     >
       <Stack spacing={2}>
-        <Stack spacing={0.5}>
+        <Stack spacing={0.5} sx={{ mb: 2.5 }}>
           <Typography level="title-md" sx={{ color: "danger.plainColor" }}>
             Danger Zone
           </Typography>
-          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
             Destructive actions immediately affect the active integration
             connection.
           </Typography>
         </Stack>
 
-        <Stack divider={<Divider sx={{ my: 0.5 }} />} spacing={0}>
+        <Stack divider={<Divider sx={{ my: 2 }} />} spacing={0}>
           {actions.map((action) => (
             <Stack
               key={action.label}
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-              alignItems={{ xs: "stretch", sm: "center" }}
+              direction="row"
+              spacing={2}
+              alignItems="center"
               justifyContent="space-between"
               sx={{ py: 1.25 }}
             >
-              <Stack spacing={0.4} sx={{ minWidth: 0 }}>
-                <Typography level="body-sm">{action.label}</Typography>
-                <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              <Stack spacing={0.4} sx={{ minWidth: 0, flex: 1 }}>
+                <Typography level="body-md" sx={{ fontWeight: "lg" }}>
+                  {action.label}
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
                   {action.description}
                 </Typography>
               </Stack>
-              <Button
-                color="danger"
-                disabled={action.disabled || action.loading}
-                size="sm"
-                variant="outlined"
-                onClick={action.onClick}
-              >
-                {action.loading ? "Working..." : action.buttonLabel}
-              </Button>
+              <Box sx={{ flexShrink: 0, ml: 3 }}>
+                <Button
+                  color="danger"
+                  disabled={action.disabled || action.loading}
+                  size="sm"
+                  variant="outlined"
+                  sx={{ whiteSpace: "nowrap", minWidth: "fit-content" }}
+                  onClick={action.onClick}
+                >
+                  {action.loading
+                    ? "Working..."
+                    : toDangerActionButtonLabel(action.buttonLabel)}
+                </Button>
+              </Box>
             </Stack>
           ))}
         </Stack>
@@ -1182,56 +1286,76 @@ export function LoadingShell({ rows = 3 }: { rows?: number }) {
 
           <Sheet
             color="neutral"
-            variant="plain"
+            variant="outlined"
             sx={{
               borderRadius: "xl",
-              borderBottom: "1px solid",
               borderColor: "divider",
-              pb: 2.5,
+              bgcolor: "background.surface",
+              p: { xs: 2.5, md: 3 },
             }}
           >
-            <Stack
-              direction={{ xs: "column", lg: "row" }}
-              spacing={2}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", lg: "center" }}
-            >
-              <Stack direction="row" spacing={2} alignItems="flex-start">
-                <Skeleton
-                  sx={{ width: 48, height: 48, borderRadius: "50%" }}
-                  variant="circular"
-                />
-                <Stack spacing={1}>
+            <Stack spacing={1.5}>
+              <Skeleton
+                sx={{ width: 180, height: 16, borderRadius: 999 }}
+                variant="rectangular"
+              />
+              <Stack
+                direction={{ xs: "column", lg: "row" }}
+                spacing={2}
+                justifyContent="space-between"
+                alignItems={{ xs: "flex-start", lg: "center" }}
+              >
+                <Stack direction="row" spacing={2} alignItems="flex-start">
                   <Skeleton
-                    sx={{ width: 220, height: 36, borderRadius: "md" }}
-                    variant="rectangular"
+                    sx={{ width: 48, height: 48, borderRadius: "50%" }}
+                    variant="circular"
                   />
-                  <Skeleton
-                    sx={{ width: 360, height: 16, borderRadius: 999 }}
-                    variant="rectangular"
-                  />
-                  <Stack direction="row" spacing={1}>
+                  <Stack spacing={1}>
                     <Skeleton
-                      sx={{ width: 118, height: 28, borderRadius: 999 }}
+                      sx={{ width: 220, height: 32, borderRadius: "md" }}
                       variant="rectangular"
                     />
+                    <Stack direction="row" spacing={1}>
+                      <Skeleton
+                        sx={{ width: 118, height: 28, borderRadius: 999 }}
+                        variant="rectangular"
+                      />
+                      <Skeleton
+                        sx={{ width: 124, height: 28, borderRadius: 999 }}
+                        variant="rectangular"
+                      />
+                    </Stack>
                     <Skeleton
-                      sx={{ width: 124, height: 28, borderRadius: 999 }}
+                      sx={{ width: 360, height: 16, borderRadius: 999 }}
                       variant="rectangular"
                     />
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      useFlexGap
+                      flexWrap="wrap"
+                    >
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton
+                          key={index}
+                          sx={{ width: 132, height: 12, borderRadius: 999 }}
+                          variant="rectangular"
+                        />
+                      ))}
+                    </Stack>
                   </Stack>
                 </Stack>
-              </Stack>
 
-              <Stack direction="row" spacing={1}>
-                <Skeleton
-                  sx={{ width: 152, height: 36, borderRadius: "md" }}
-                  variant="rectangular"
-                />
-                <Skeleton
-                  sx={{ width: 36, height: 36, borderRadius: "md" }}
-                  variant="rectangular"
-                />
+                <Stack direction="row" spacing={1}>
+                  <Skeleton
+                    sx={{ width: 152, height: 36, borderRadius: "md" }}
+                    variant="rectangular"
+                  />
+                  <Skeleton
+                    sx={{ width: 36, height: 36, borderRadius: "md" }}
+                    variant="rectangular"
+                  />
+                </Stack>
               </Stack>
             </Stack>
           </Sheet>
@@ -1248,43 +1372,100 @@ export function LoadingShell({ rows = 3 }: { rows?: number }) {
         </Stack>
 
         <Stack spacing={2.5}>
-          {Array.from({ length: rows }).map((_, index) => (
-            <Sheet
-              key={index}
-              color="neutral"
-              variant="outlined"
-              sx={{ borderRadius: "lg", borderColor: "neutral.200", p: 2.5 }}
-            >
-              <Stack spacing={2}>
-                <Skeleton
-                  sx={{ width: 190, height: 18, borderRadius: 999 }}
-                  variant="rectangular"
-                />
-                <Skeleton
-                  sx={{ width: "74%", height: 14, borderRadius: 999 }}
-                  variant="rectangular"
-                />
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: "repeat(3, minmax(0, 1fr))",
-                    },
-                    gap: 1.5,
-                  }}
-                >
-                  {Array.from({ length: 3 }).map((__, cellIndex) => (
-                    <Skeleton
-                      key={cellIndex}
-                      sx={{ height: 96, borderRadius: "lg" }}
-                      variant="rectangular"
-                    />
-                  ))}
-                </Box>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 2,
+            }}
+          >
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Sheet
+                key={index}
+                variant="outlined"
+                sx={{
+                  borderRadius: "lg",
+                  p: 2.5,
+                  bgcolor: "background.surface",
+                }}
+              >
+                <Stack spacing={1.25}>
+                  <Skeleton
+                    sx={{ width: 90, height: 12, borderRadius: 999 }}
+                    variant="rectangular"
+                  />
+                  <Skeleton
+                    sx={{ width: 96, height: 34, borderRadius: "md" }}
+                    variant="rectangular"
+                  />
+                  <Skeleton
+                    sx={{ width: 140, height: 12, borderRadius: 999 }}
+                    variant="rectangular"
+                  />
+                </Stack>
+              </Sheet>
+            ))}
+          </Box>
+
+          <Sheet
+            variant="outlined"
+            sx={{ borderRadius: "lg", p: 2.5, bgcolor: "background.surface" }}
+          >
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1.5}>
+                {Array.from({ length: rows }).map((_, index) => (
+                  <Skeleton
+                    key={index}
+                    sx={{ width: 92, height: 18, borderRadius: 999 }}
+                    variant="rectangular"
+                  />
+                ))}
               </Stack>
-            </Sheet>
-          ))}
+              <Stack spacing={2}>
+                {Array.from({ length: rows }).map((_, index) => (
+                  <Sheet
+                    key={index}
+                    color="neutral"
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "lg",
+                      borderColor: "neutral.200",
+                      p: 2.5,
+                    }}
+                  >
+                    <Stack spacing={2}>
+                      <Skeleton
+                        sx={{ width: 190, height: 18, borderRadius: 999 }}
+                        variant="rectangular"
+                      />
+                      <Skeleton
+                        sx={{ width: "74%", height: 14, borderRadius: 999 }}
+                        variant="rectangular"
+                      />
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: {
+                            xs: "1fr",
+                            md: "repeat(3, minmax(0, 1fr))",
+                          },
+                          gap: 1.5,
+                        }}
+                      >
+                        {Array.from({ length: 3 }).map((__, cellIndex) => (
+                          <Skeleton
+                            key={cellIndex}
+                            sx={{ height: 96, borderRadius: "lg" }}
+                            variant="rectangular"
+                          />
+                        ))}
+                      </Box>
+                    </Stack>
+                  </Sheet>
+                ))}
+              </Stack>
+            </Stack>
+          </Sheet>
         </Stack>
       </Stack>
     </PageContainer>

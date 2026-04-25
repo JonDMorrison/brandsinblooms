@@ -1,22 +1,27 @@
 import { Fragment, useState } from "react";
 import { ScrollText } from "lucide-react";
-import { Box, Button as JoyButton, LinearProgress, Typography } from "@mui/joy";
-
-import { Button } from "@/components/ui-legacy/button";
+import {
+  Alert,
+  Box,
+  Button as JoyButton,
+  LinearProgress,
+  Typography,
+} from "@mui/joy";
 import type {
   LightspeedPagination,
   ShopifySyncLogRow,
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
-  DataTabLoadingState,
   DataTabPagination,
   JoyDataTable,
   RawDataPre,
   StatusFilterPills,
   SyncStatusBadge,
   SyncTypeBadge,
+  TableSkeleton,
   formatDuration,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
@@ -53,7 +58,10 @@ export function SyncLogsTabView({
   onRefresh: () => void;
   trackedJobIds: string[];
 }) {
-  const [expandedFailures, setExpandedFailures] = useState<Record<string, boolean>>({});
+  const [expandedFailures, setExpandedFailures] = useState<
+    Record<string, boolean>
+  >({});
+  const showLoadingState = isLoading || (isFetching && rows.length === 0);
 
   const hasVisibleUntrackedActiveJob = rows.some(
     (job) => job.status === "in_progress" && !trackedJobIds.includes(job.id),
@@ -63,8 +71,12 @@ export function SyncLogsTabView({
     setExpandedFailures((current) => ({ ...current, [id]: !current[id] }));
   };
 
+  if (showLoadingState) {
+    return <TableSkeleton columns={5} rows={8} />;
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <DataTabCard>
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <p className="text-sm font-semibold">Sync history</p>
         <StatusFilterPills
@@ -75,16 +87,34 @@ export function SyncLogsTabView({
       </div>
 
       {hasVisibleUntrackedActiveJob ? (
-        <div className="border-b border-border/70 bg-brand-teal/5 px-5 py-2.5 text-xs text-slate-700">
-          Refresh to see latest status.{" "}
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="font-medium underline underline-offset-2"
+        <Alert
+          color="neutral"
+          variant="soft"
+          sx={{ mx: 2.5, mt: 2, mb: 0, borderRadius: "md" }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              width: "100%",
+              flexWrap: "wrap",
+            }}
           >
-            Refresh now
-          </button>
-        </div>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              Refresh to see latest status.
+            </Typography>
+            <JoyButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={onRefresh}
+            >
+              Refresh now
+            </JoyButton>
+          </Box>
+        </Alert>
       ) : null}
 
       {rows.length > 0 ? (
@@ -113,7 +143,9 @@ export function SyncLogsTabView({
                   const progressPercent = showProgress
                     ? Math.min(
                         100,
-                        Math.round(((job.inserted_rows ?? 0) / job.estimated_rows) * 100),
+                        Math.round(
+                          ((job.inserted_rows ?? 0) / job.estimated_rows) * 100,
+                        ),
                       )
                     : job.progressPercent;
                   const isFailureOpen = Boolean(expandedFailures[job.id]);
@@ -133,16 +165,25 @@ export function SyncLogsTabView({
                               <LinearProgress
                                 determinate
                                 size="sm"
-                                color={job.status === "failed" ? "danger" : "success"}
+                                color={
+                                  job.status === "failed" ? "danger" : "success"
+                                }
                                 value={progressPercent}
                               />
-                              <Typography level="body-xs" sx={{ color: "text.tertiary", mt: 0.5 }}>
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "text.tertiary", mt: 0.5 }}
+                              >
                                 {(job.inserted_rows ?? 0).toLocaleString()} / ~
-                                {job.estimated_rows?.toLocaleString()} ({progressPercent}%)
+                                {job.estimated_rows?.toLocaleString()} (
+                                {progressPercent}%)
                               </Typography>
                             </Box>
                           ) : (
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "text.tertiary" }}
+                            >
                               —
                             </Typography>
                           )}
@@ -151,7 +192,10 @@ export function SyncLogsTabView({
                           <Typography
                             level="body-sm"
                             sx={{
-                              color: job.status === "failed" ? "danger.600" : "text.secondary",
+                              color:
+                                job.status === "failed"
+                                  ? "danger.600"
+                                  : "text.secondary",
                               maxWidth: 320,
                             }}
                           >
@@ -159,11 +203,17 @@ export function SyncLogsTabView({
                           </Typography>
                         </td>
                         <td>
-                          <Typography level="body-sm">{formatRelativeTimestamp(job.created_at)}</Typography>
+                          <Typography level="body-sm">
+                            {formatRelativeTimestamp(job.created_at)}
+                          </Typography>
                         </td>
                         <td>
-                          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
-                            {formatDuration(job.created_at, job.completed_at) ?? "—"}
+                          <Typography
+                            level="body-sm"
+                            sx={{ color: "text.tertiary" }}
+                          >
+                            {formatDuration(job.created_at, job.completed_at) ??
+                              "—"}
                           </Typography>
                         </td>
                         <td className="text-right">
@@ -179,20 +229,24 @@ export function SyncLogsTabView({
                               </JoyButton>
                             ) : null}
                             {job.status === "failed" ? (
-                              <Button
+                              <JoyButton
                                 type="button"
-                                variant="ghost"
+                                variant="plain"
+                                color="neutral"
                                 size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => onRetrySync(job.normalizedSyncType)}
+                                onClick={() =>
+                                  onRetrySync(job.normalizedSyncType)
+                                }
                               >
                                 Retry
-                              </Button>
+                              </JoyButton>
                             ) : null}
                           </div>
                         </td>
                       </tr>
-                      {job.status === "failed" && job.last_error && isFailureOpen ? (
+                      {job.status === "failed" &&
+                      job.last_error &&
+                      isFailureOpen ? (
                         <tr key={`${job.id}-error`}>
                           <td colSpan={7}>
                             <RawDataPre
@@ -210,11 +264,12 @@ export function SyncLogsTabView({
               </tbody>
             </JoyDataTable>
           </div>
-          <DataTabPagination pagination={pagination} onPageChange={onPageChange} />
+          <DataTabPagination
+            pagination={pagination}
+            onPageChange={onPageChange}
+          />
         </>
       ) : null}
-
-      {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState
@@ -223,6 +278,6 @@ export function SyncLogsTabView({
           description="Sync activity will appear here after your first Shopify sync."
         />
       ) : null}
-    </div>
+    </DataTabCard>
   );
 }

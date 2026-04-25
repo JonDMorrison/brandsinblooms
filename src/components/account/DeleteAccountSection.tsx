@@ -1,48 +1,79 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 import Alert from "@mui/joy/Alert";
-import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
 import DialogTitle from "@mui/joy/DialogTitle";
+import Divider from "@mui/joy/Divider";
+import FormControl from "@mui/joy/FormControl";
 import Input from "@mui/joy/Input";
 import Modal from "@mui/joy/Modal";
 import ModalClose from "@mui/joy/ModalClose";
 import ModalDialog from "@mui/joy/ModalDialog";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle, Trash2 } from "lucide-react";
-import { JoyButton } from "@/components/joy/JoyButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 
-const destructiveCardSx = {
-  borderRadius: "24px",
-  borderColor: "danger.200",
-  boxShadow: "none",
-  bgcolor: "rgba(var(--joy-palette-danger-mainChannel) / 0.04)",
-  p: { xs: 2.5, md: 3 },
-};
+const dangerCardSx = {
+  bgcolor: "background.surface",
+  borderRadius: "md",
+  p: 3,
+  borderColor: "danger.outlinedBorder",
+} as const;
+
+function DangerSectionSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={dangerCardSx}>
+      <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+        <Skeleton variant="circular" width={20} height={20} />
+        <Skeleton variant="text" width={120} />
+      </Stack>
+      <Skeleton variant="text" width={250} sx={{ mb: 1.5 }} />
+      <Divider sx={{ mb: 3 }} />
+      <Skeleton variant="text" width={110} sx={{ mb: 1 }} />
+      <Skeleton variant="text" width="100%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="88%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="92%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="76%" sx={{ mb: 2 }} />
+      <Skeleton
+        variant="rectangular"
+        width={132}
+        height={36}
+        sx={{ borderRadius: "sm" }}
+      />
+    </Sheet>
+  );
+}
 
 export const DeleteAccountSection = () => {
   const { user, signOut } = useAuth();
-  const { subscription } = useSubscription();
+  const { subscription, loading } = useSubscription();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const hasActiveSubscription = Boolean(
-    subscription &&
-      subscription.plan !== "free_trial" &&
-      new Date(subscription.end_date) > new Date(),
+  const hasActiveSubscription = useMemo(
+    () =>
+      Boolean(
+        subscription &&
+          subscription.plan !== "free_trial" &&
+          new Date(subscription.end_date) > new Date(),
+      ),
+    [subscription],
   );
 
-  const resetDialog = () => {
+  const closeModalAndReset = () => {
+    if (isLoading) {
+      return;
+    }
+
     setIsModalOpen(false);
     setConfirmText("");
-    setErrorMessage(null);
   };
 
   const handleDeleteAccount = async () => {
@@ -51,9 +82,6 @@ export const DeleteAccountSection = () => {
     }
 
     setIsLoading(true);
-    setErrorMessage(null);
-
-    let deleted = false;
 
     try {
       const { error } = await supabase.functions.invoke("delete-account", {
@@ -64,153 +92,146 @@ export const DeleteAccountSection = () => {
         throw error;
       }
 
-      deleted = true;
       await signOut();
     } catch (error) {
       console.error("Unexpected error:", error);
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete this account right now.",
-      );
     } finally {
       setIsLoading(false);
-
-      if (deleted) {
-        resetDialog();
-      }
+      setIsModalOpen(false);
+      setConfirmText("");
     }
   };
 
+  if (loading) {
+    return <DangerSectionSkeleton />;
+  }
+
   return (
     <>
-      <Sheet variant="outlined" sx={destructiveCardSx}>
-        <Stack spacing={2.5}>
-          <Stack spacing={0.75}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <AlertTriangle size={18} color="var(--joy-palette-danger-600)" />
-              <Typography level="title-lg" sx={{ color: "danger.700" }}>
-                Danger Zone
-              </Typography>
-            </Stack>
-            <Typography level="body-sm" sx={{ color: "danger.700" }}>
-              Permanently delete your BloomSuite account and all associated
-              data. This action cannot be undone after 30 days.
-            </Typography>
-          </Stack>
-
-          <Stack spacing={0.75}>
-            {[
-              "All your content and campaigns will be deleted",
-              "Social media connections will be revoked",
-              "Analytics data will be permanently lost",
-              "Active subscriptions will be cancelled",
-            ].map((item) => (
-              <Stack key={item} direction="row" spacing={1} alignItems="flex-start">
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: "danger.500",
-                    mt: 0.875,
-                    flexShrink: 0,
-                  }}
-                />
-                <Typography level="body-sm" sx={{ color: "danger.700" }}>
-                  {item}
-                </Typography>
-              </Stack>
-            ))}
-          </Stack>
-
-          {hasActiveSubscription ? (
-            <Alert color="warning" size="sm" variant="soft">
-              You have an active subscription. Please cancel your subscription first before deleting your account.
-            </Alert>
-          ) : null}
-
-          {errorMessage ? (
-            <Alert color="danger" size="sm" variant="soft">
-              {errorMessage}
-            </Alert>
-          ) : null}
-
-          <JoyButton
-            color="danger"
-            disabled={hasActiveSubscription || isLoading}
-            onClick={() => setIsModalOpen(true)}
-            startDecorator={<Trash2 size={16} />}
-            variant="destructive"
-          >
-            Delete Account
-          </JoyButton>
+      <Sheet variant="outlined" sx={dangerCardSx}>
+        <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+          <AlertTriangle size={20} style={{ color: "var(--joy-palette-danger-500)" }} />
+          <Typography level="title-md" fontWeight={600} color="danger">
+            Danger Zone
+          </Typography>
         </Stack>
+
+        <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 1.5 }}>
+          Irreversible and destructive actions.
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+
+        <Typography level="title-sm" fontWeight={600} sx={{ mb: 1 }}>
+          Delete Account
+        </Typography>
+
+        <Stack spacing={0.75} sx={{ mb: 2 }}>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            All your content and campaigns will be deleted
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Social media connections will be revoked
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Analytics data will be permanently lost
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Active subscriptions will be cancelled
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            This action cannot be undone
+          </Typography>
+        </Stack>
+
+        {hasActiveSubscription ? (
+          <Alert
+            variant="soft"
+            color="warning"
+            size="sm"
+            startDecorator={<AlertTriangle size={18} />}
+            sx={{ mb: 2 }}
+          >
+            You have an active subscription. Please cancel your subscription before deleting your account.
+          </Alert>
+        ) : null}
+
+        <Button
+          variant="solid"
+          color="danger"
+          size="sm"
+          startDecorator={<Trash2 size={16} />}
+          disabled={hasActiveSubscription || isLoading}
+          onClick={() => setIsModalOpen(true)}
+        >
+          Delete Account
+        </Button>
       </Sheet>
 
-      <Modal onClose={resetDialog} open={isModalOpen}>
+      <Modal open={isModalOpen} onClose={closeModalAndReset}>
         <ModalDialog
-          sx={{
-            maxWidth: 520,
-            width: "calc(100vw - 32px)",
-            borderRadius: "24px",
-            bgcolor: "background.surface",
-          }}
           variant="outlined"
+          layout="center"
+          sx={{
+            bgcolor: "background.surface",
+            maxWidth: 480,
+            p: 3,
+            borderRadius: "md",
+          }}
         >
           <ModalClose />
+
           <DialogTitle>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AlertTriangle size={18} color="var(--joy-palette-danger-600)" />
-              <span>Delete Account Confirmation</span>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <AlertTriangle
+                size={20}
+                style={{ color: "var(--joy-palette-danger-500)" }}
+              />
+              Delete Account Confirmation
             </Stack>
           </DialogTitle>
-          <DialogContent>
-            <Stack spacing={2.5}>
-              <Alert color="danger" size="sm" variant="soft">
-                <Stack spacing={0.75}>
-                  <Typography level="body-sm" fontWeight="lg">
-                    This action is irreversible after 30 days.
-                  </Typography>
-                  <Typography level="body-sm">
-                    All account data, connected content, and analytics history will be permanently removed.
-                  </Typography>
-                </Stack>
-              </Alert>
 
-              {errorMessage ? (
-                <Alert color="danger" size="sm" variant="soft">
-                  {errorMessage}
-                </Alert>
-              ) : null}
+          <DialogContent sx={{ pt: 1 }}>
+            <Typography level="body-sm" sx={{ color: "text.secondary", mb: 2 }}>
+              This action is permanent and cannot be undone. All your data,
+              content, connections, and settings will be permanently deleted.
+            </Typography>
 
-              <Stack spacing={1}>
-                <Typography level="body-sm">
-                  To confirm deletion, type <strong>DELETE</strong> in the field below.
-                </Typography>
-                <Input
-                  onChange={(event) => setConfirmText(event.target.value)}
-                  placeholder="Type DELETE to confirm"
-                  sx={{ fontFamily: "var(--joy-fontFamily-code)" }}
-                  value={confirmText}
-                />
-              </Stack>
-            </Stack>
+            <Typography level="body-sm" fontWeight={600} sx={{ mb: 1 }}>
+              Type DELETE to confirm:
+            </Typography>
+
+            <FormControl>
+              <Input
+                placeholder="Type DELETE to confirm"
+                value={confirmText}
+                onChange={(event) => setConfirmText(event.target.value)}
+                color={confirmText === "DELETE" ? "danger" : "neutral"}
+                autoFocus
+              />
+            </FormControl>
           </DialogContent>
-          <DialogActions sx={{ justifyContent: "space-between", gap: 1.5 }}>
-            <JoyButton color="neutral" disabled={isLoading} onClick={resetDialog} variant="outline">
-              Cancel
-            </JoyButton>
-            <JoyButton
+
+          <Divider sx={{ my: 2 }} />
+
+          <DialogActions sx={{ pt: 0 }}>
+            <Button
+              variant="solid"
               color="danger"
-              disabled={confirmText !== "DELETE" || isLoading}
+              size="sm"
               loading={isLoading}
+              disabled={confirmText !== "DELETE" || isLoading}
               onClick={() => void handleDeleteAccount()}
-              startDecorator={!isLoading ? <Trash2 size={16} /> : undefined}
-              variant="destructive"
             >
-              {isLoading ? "Deleting..." : "Delete Account"}
-            </JoyButton>
+              Permanently Delete Account
+            </Button>
+            <Button
+              variant="plain"
+              color="neutral"
+              size="sm"
+              onClick={closeModalAndReset}
+            >
+              Cancel
+            </Button>
           </DialogActions>
         </ModalDialog>
       </Modal>

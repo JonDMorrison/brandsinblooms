@@ -5,18 +5,23 @@ import {
   Alert,
   Box,
   Button as JoyButton,
+  Chip as JoyChip,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Input as JoyInput,
   LinearProgress,
   Modal,
   ModalDialog,
+  Skeleton,
   Sheet,
   Stack,
   Table as JoyTable,
   Typography,
 } from "@mui/joy";
+import { tabClasses } from "@mui/joy/Tab";
+import { tabListClasses } from "@mui/joy/TabList";
 import {
   Activity,
   AlertTriangle,
@@ -69,7 +74,6 @@ import {
   IntegrationDetailTabs,
   IntegrationStatusBanner,
   KeyValueGrid,
-  LoadingShell,
   OverviewPanel,
   SectionCard,
   SyncTypeRow,
@@ -146,13 +150,13 @@ const SHOPIFY_DIAGNOSTICS_PATH = "/integrations/shopify/debug";
 
 function formatRelativeTimestamp(timestamp?: string | null) {
   if (!timestamp) {
-    return "Not available";
+    return "—";
   }
 
   try {
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   } catch {
-    return "Not available";
+    return "—";
   }
 }
 
@@ -233,7 +237,7 @@ function MetricAppearance({ tone }: { tone: IntegrationDetailTone }) {
 
 function formatCount(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) {
-    return "0";
+    return "—";
   }
 
   return value.toLocaleString();
@@ -258,7 +262,7 @@ function getEffectiveImportedCount(
 
 function formatEnvironmentLabel(environment?: string | null) {
   if (!environment) {
-    return "Environment pending";
+    return "—";
   }
 
   return environment
@@ -269,7 +273,7 @@ function formatEnvironmentLabel(environment?: string | null) {
 
 function formatTokenType(tokenType?: string | null) {
   if (!tokenType) {
-    return "Not available";
+    return "—";
   }
 
   return tokenType
@@ -280,7 +284,7 @@ function formatTokenType(tokenType?: string | null) {
 
 function formatRegionLabel(region?: string | null) {
   if (!region) {
-    return "Not available";
+    return "—";
   }
 
   return region.toUpperCase();
@@ -289,7 +293,7 @@ function formatRegionLabel(region?: string | null) {
 function renderCloverRegionBadge(region?: string | null) {
   const label = formatRegionLabel(region);
 
-  if (label === "Not available") {
+  if (label === "—") {
     return label;
   }
 
@@ -309,10 +313,7 @@ function renderCloverRegionBadge(region?: string | null) {
   );
 }
 
-function formatTimestampOrFallback(
-  timestamp?: string | null,
-  fallback = "Not available",
-) {
+function formatTimestampOrFallback(timestamp?: string | null, fallback = "—") {
   if (!timestamp) {
     return fallback;
   }
@@ -700,6 +701,189 @@ function MetaAssetList({
   );
 }
 
+function DetailPageSkeleton() {
+  return (
+    <PageContainer
+      fullWidth
+      sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 2.5,
+          minHeight: "calc(100vh - 120px)",
+        }}
+      >
+        <Sheet variant="outlined" sx={{ borderRadius: "xl", p: 3 }}>
+          <Skeleton
+            variant="text"
+            level="body-sm"
+            width="160px"
+            sx={{ mb: 1.5 }}
+          />
+
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}
+          >
+            <Skeleton variant="circular" width={48} height={48} />
+            <Skeleton variant="text" level="h4" width="180px" />
+            <Skeleton
+              variant="rectangular"
+              width={90}
+              height={24}
+              sx={{ borderRadius: "xl" }}
+            />
+            <Skeleton
+              variant="rectangular"
+              width={110}
+              height={24}
+              sx={{ borderRadius: "xl" }}
+            />
+
+            <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+              <Skeleton
+                variant="rectangular"
+                width={100}
+                height={36}
+                sx={{ borderRadius: "md" }}
+              />
+              <Skeleton variant="circular" width={36} height={36} />
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Skeleton variant="text" level="body-xs" width="100px" />
+            <Skeleton variant="text" level="body-xs" width="120px" />
+            <Skeleton variant="text" level="body-xs" width="140px" />
+            <Skeleton variant="text" level="body-xs" width="100px" />
+          </Box>
+        </Sheet>
+
+        <Skeleton
+          variant="rectangular"
+          height={64}
+          sx={{ borderRadius: "lg" }}
+        />
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "repeat(2, 1fr)",
+              md: "repeat(4, 1fr)",
+            },
+            gap: 2,
+          }}
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <Sheet
+              key={i}
+              variant="outlined"
+              sx={{ borderRadius: "lg", p: 2.5 }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  mb: 1.5,
+                }}
+              >
+                <Skeleton variant="text" level="body-xs" width="120px" />
+                <Skeleton variant="circular" width={20} height={20} />
+              </Box>
+              <Skeleton variant="text" level="h3" width="60px" sx={{ mb: 1 }} />
+              <Skeleton variant="text" level="body-xs" width="100px" />
+            </Sheet>
+          ))}
+        </Box>
+
+        <Skeleton
+          variant="rectangular"
+          height={40}
+          width={{ xs: "100%", md: "480px" }}
+          sx={{ borderRadius: "xl" }}
+        />
+
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}>
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+            <Skeleton
+              variant="text"
+              level="title-sm"
+              width="200px"
+              sx={{ mb: 2 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="100%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="100%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="80%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton variant="text" level="body-sm" width="60%" />
+          </Sheet>
+
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+            <Skeleton
+              variant="text"
+              level="title-sm"
+              width="180px"
+              sx={{ mb: 2 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="100%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="90%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton variant="text" level="body-sm" width="70%" />
+          </Sheet>
+
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+            <Skeleton
+              variant="text"
+              level="title-sm"
+              width="160px"
+              sx={{ mb: 2 }}
+            />
+            <Skeleton
+              variant="text"
+              level="body-sm"
+              width="100%"
+              sx={{ mb: 1 }}
+            />
+            <Skeleton variant="text" level="body-sm" width="75%" />
+          </Sheet>
+        </Box>
+      </Box>
+    </PageContainer>
+  );
+}
+
 export default function IntegrationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -974,46 +1158,42 @@ export default function IntegrationDetailPage() {
     return <NotFound />;
   }
 
-  if (detail.isLoading) {
-    return <LoadingShell />;
+  const hasDetail = Boolean(detail.item && detail.model);
+  const showSkeleton = detail.isLoading && !hasDetail;
+
+  if (showSkeleton) {
+    return <DetailPageSkeleton />;
   }
 
-  if (detail.isError && (!detail.item || !detail.model)) {
+  if (detail.isError && !hasDetail) {
     return (
       <PageContainer
         fullWidth
         sx={{ px: { xs: 2, md: 3 }, py: { xs: 4, md: 6 } }}
       >
-        <Sheet
-          color="neutral"
-          variant="outlined"
+        <Box
           sx={{
-            maxWidth: 540,
-            mx: "auto",
-            borderRadius: "xl",
-            borderColor: "neutral.200",
-            p: { xs: 3, md: 4 },
-            textAlign: "center",
+            minHeight: "calc(100vh - 220px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            py: 8,
+            gap: 2,
           }}
         >
-          <Stack spacing={1.25} alignItems="center">
-            <Typography level="title-lg">Something went wrong</Typography>
-            <Typography level="body-md" sx={{ color: "text.tertiary" }}>
-              {getUserFacingIntegrationError(
-                detail.error,
-                "An unexpected error occurred while loading this integration.",
-              )}
-            </Typography>
-            <JoyButton
-              color="neutral"
-              size="sm"
-              variant="outlined"
-              onClick={() => void detail.refetch()}
-            >
-              Try Again
-            </JoyButton>
-          </Stack>
-        </Sheet>
+          <Typography level="title-lg">Something went wrong</Typography>
+          <Typography level="body-md" sx={{ color: "text.tertiary" }}>
+            Could not load integration details. Please try again.
+          </Typography>
+          <JoyButton
+            color="neutral"
+            variant="outlined"
+            onClick={() => void detail.refetch()}
+          >
+            Try Again
+          </JoyButton>
+        </Box>
       </PageContainer>
     );
   }
@@ -1061,6 +1241,7 @@ export default function IntegrationDetailPage() {
               ? null
               : mailchimpImportProgress
           }
+          isRefreshingOverview={detail.isFetching}
           canDisconnect={detail.canDisconnect}
           isDisconnecting={detail.isDisconnecting}
           onDisconnect={detail.disconnect}
@@ -2280,6 +2461,143 @@ export default function IntegrationDetailPage() {
                       ]
                     : model.metadata;
 
+  const parseMetadataEntries = (entries: string[]) => {
+    return entries
+      .map((entry, index) => {
+        const separatorIndex = entry.indexOf(":");
+
+        if (separatorIndex > 0) {
+          return {
+            label: entry.slice(0, separatorIndex).trim(),
+            value: entry.slice(separatorIndex + 1).trim() || "—",
+          };
+        }
+
+        return {
+          label: index === 0 ? "Detail" : `Detail ${index + 1}`,
+          value: entry.trim() || "—",
+        };
+      })
+      .filter((entry) => entry.value.length > 0);
+  };
+
+  const heroMetadataItems =
+    isComingSoonPage && comingSoonDetail
+      ? parseMetadataEntries(comingSoonDetail.metadata)
+      : isEmailInfrastructure && emailInfrastructureDetail
+        ? parseMetadataEntries(emailInfrastructureDetail.metadata)
+        : isSquare && squareDetail
+          ? [
+              {
+                label: "Merchant",
+                value: squareDetail.merchantName?.trim() || "—",
+              },
+              {
+                label: "Location",
+                value: squareDetail.locationId?.trim() || "—",
+              },
+              {
+                label: "Connected",
+                value: formatTimestampOrFallback(squareDetail.connectedAt),
+              },
+              {
+                label: "Last synced",
+                value: formatTimestampOrFallback(squareDetail.lastSyncedAt),
+              },
+            ]
+          : isClover && cloverDetail
+            ? [
+                {
+                  label: "Region",
+                  value: formatRegionLabel(cloverDetail.region),
+                },
+                {
+                  label: "Merchant",
+                  value: cloverDetail.merchantName?.trim() || "—",
+                },
+                {
+                  label: "Connected",
+                  value: formatTimestampOrFallback(cloverDetail.connectedAt),
+                },
+                {
+                  label: "Last synced",
+                  value: formatTimestampOrFallback(cloverDetail.lastSyncedAt),
+                },
+              ]
+            : isLightspeed && lightspeedDetail
+              ? [
+                  {
+                    label: "Store",
+                    value:
+                      lightspeedDetail.storeUrl?.replace("https://", "") || "—",
+                  },
+                  {
+                    label: "Retailer",
+                    value: lightspeedDetail.retailerName?.trim() || "—",
+                  },
+                  {
+                    label: "Connected",
+                    value: formatTimestampOrFallback(
+                      lightspeedDetail.connectedAt,
+                    ),
+                  },
+                  {
+                    label: "Last synced",
+                    value: formatTimestampOrFallback(
+                      lightspeedDetail.lastSyncedAt,
+                    ),
+                  },
+                ]
+              : isMeta && metaDetail
+                ? [
+                    {
+                      label: "Assets",
+                      value: formatCount(metaDetail.totalAssetCount),
+                    },
+                    {
+                      label: "Authorization",
+                      value:
+                        metaPageStatus?.label ?? metaDetail.authorizationLabel,
+                    },
+                    {
+                      label: "Last activity",
+                      value: formatTimestampOrFallback(metaLatestActivityAt),
+                    },
+                  ]
+                : isGa4 && ga4Detail
+                  ? [
+                      {
+                        label: "Property",
+                        value:
+                          ga4Detail.propertyName ?? ga4Detail.propertyId ?? "—",
+                      },
+                      {
+                        label: "Status",
+                        value:
+                          ga4PageStatus?.label ?? ga4Detail.connectionLabel,
+                      },
+                      {
+                        label: "Last pull",
+                        value: formatTimestampOrFallback(ga4Detail.lastPullAt),
+                      },
+                    ]
+                  : isMarketingImport && marketingImportDetail
+                    ? [
+                        {
+                          label: "Mode",
+                          value: marketingImportDetail.importOnlyLabel,
+                        },
+                        {
+                          label: "Provider",
+                          value: marketingImportDetail.providerLabel,
+                        },
+                        {
+                          label: "Account",
+                          value: marketingImportDetail.accountName || "—",
+                        },
+                      ]
+                    : parseMetadataEntries(metadataEntries);
+
   const squareMetricCards =
     isSquare && squareDetail
       ? [
@@ -2365,9 +2683,19 @@ export default function IntegrationDetailPage() {
           {
             key: "shopify-webhooks",
             label: "Webhook Topics",
-            value: shopifyConnection.webhooks_subscribed
-              ? "11 / 11"
-              : "Needs review",
+            value: (
+              <JoyChip
+                size="sm"
+                color={
+                  shopifyConnection.webhooks_subscribed ? "success" : "warning"
+                }
+                variant="soft"
+              >
+                {shopifyConnection.webhooks_subscribed
+                  ? "11 / 11 Verified"
+                  : "Needs review"}
+              </JoyChip>
+            ),
             subtitle: shopifyConnection.webhooks_subscribed
               ? "All required Shopify webhook topics are verified"
               : "One or more required Shopify webhook topics needs attention",
@@ -2416,7 +2744,15 @@ export default function IntegrationDetailPage() {
           {
             key: "clover-webhook-mode",
             label: "Webhook Mode",
-            value: cloverDetail.webhooksSubscribed ? "Real-time" : "Sync only",
+            value: (
+              <JoyChip
+                size="sm"
+                color={cloverDetail.webhooksSubscribed ? "success" : "warning"}
+                variant="soft"
+              >
+                {cloverDetail.webhooksSubscribed ? "Real-time" : "Sync only"}
+              </JoyChip>
+            ),
             subtitle: cloverDetail.webhooksSubscribed
               ? "App-level webhook traffic detected"
               : "Operating without verified app-level webhook traffic",
@@ -2465,7 +2801,23 @@ export default function IntegrationDetailPage() {
           {
             key: "lightspeed-webhook-mode",
             label: "Webhook Mode",
-            value: lightspeedWebhookMode.label,
+            value: (
+              <JoyChip
+                size="sm"
+                color={
+                  lightspeedWebhookMode.tone === "success"
+                    ? "success"
+                    : lightspeedWebhookMode.tone === "warning"
+                      ? "warning"
+                      : lightspeedWebhookMode.tone === "danger"
+                        ? "danger"
+                        : "neutral"
+                }
+                variant="soft"
+              >
+                {lightspeedWebhookMode.label}
+              </JoyChip>
+            ),
             subtitle: lightspeedWebhookMode.subtitle,
             icon: Webhook,
             tone: lightspeedWebhookMode.tone,
@@ -3362,10 +3714,30 @@ export default function IntegrationDetailPage() {
     (isEmailInfrastructure && emailInfrastructureDetail
       ? emailInfrastructureDetail.readinessSummary
       : (item.detailSummary ?? item.description));
+  const shellPrimaryActionLoading = isComingSoonPage
+    ? detail.isSubmittingComingSoonInterest
+    : isShopify
+      ? detail.isShopifySyncing || detail.isVerifyingShopifyWebhooks
+      : isEmailInfrastructure
+        ? detail.isRunningEmailInfrastructureHealthCheck
+        : isMeta
+          ? detail.isMetaReauthorizing || detail.isRefreshingMetaAssets
+          : isGa4
+            ? detail.isGa4ConnectionTesting || detail.isGa4Reauthorizing
+            : isSquare
+              ? detail.isSquareSyncing || detail.isVerifyingSquareWebhooks
+              : isClover
+                ? detail.isCloverSyncing || detail.isCloverConnectionTesting
+                : isLightspeed
+                  ? detail.isLightspeedSyncing
+                  : isMarketingImport
+                    ? detail.isValidatingMarketingImportConnection
+                    : false;
   const shellPrimaryActionProps = shellPrimaryAction
     ? {
         label: shellPrimaryAction.label,
         disabled: shellPrimaryAction.disabled,
+        loading: shellPrimaryActionLoading,
         onClick: shellPrimaryAction.onClick,
         variant:
           "variant" in shellPrimaryAction &&
@@ -3545,74 +3917,142 @@ export default function IntegrationDetailPage() {
       : isMarketingImport && marketingImportDetail
         ? `Imported CRM data is not deleted. You can reconnect ${marketingImportDetail.providerLabel} later to restore previews and imports.`
         : null;
+  const showLegacySummaryShells = false;
   const showLegacyDetailShell = item.slug === "__legacy-shell-disabled__";
 
   return (
     <TooltipProvider>
       <PageContainer
         fullWidth
-        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
+        sx={{
+          px: { xs: 2, md: 3 },
+          py: { xs: 2.5, md: 3.5 },
+          [`& .${tabListClasses.root}`]: {
+            p: 0.5,
+            gap: 0.5,
+            borderRadius: "xl",
+            bgcolor: "background.level1",
+            [`& .${tabClasses.root}[aria-selected=\"true\"]`]: {
+              boxShadow: "sm",
+              bgcolor: "background.surface",
+            },
+          },
+          [`& .${tabClasses.root}`]: {
+            fontWeight: "md",
+            fontSize: "sm",
+            px: 2,
+            py: 0.75,
+            borderRadius: "lg",
+            color: "text.tertiary",
+            transition: "background-color 0.15s ease, color 0.15s ease",
+            "&:hover": {
+              bgcolor: "background.level2",
+            },
+            [`&.${tabClasses.selected}`]: {
+              color: "text.primary",
+              fontWeight: "lg",
+              bgcolor: "background.surface",
+              boxShadow: "sm",
+            },
+            [`&.${tabClasses.selected}:hover`]: {
+              bgcolor: "background.surface",
+              boxShadow: "sm",
+            },
+          },
+        }}
       >
-        <Stack spacing={3}>
-          <IntegrationDetailHero
-            actionSections={heroActionSections}
-            categoryLabel={item.categoryLabel}
-            hubPath="/integrations"
-            logoSrc={providerLogoSrc}
-            metadata={
-              <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  {metadataEntries.map((entry, index) => (
-                    <Typography
-                      key={`${entry}-${index}`}
-                      level="body-xs"
-                      sx={{ color: "text.tertiary" }}
-                    >
-                      {entry}
+        <Stack spacing={0}>
+          <Box sx={{ mb: 2 }}>
+            <IntegrationDetailHero
+              actionSections={heroActionSections}
+              categoryLabel={item.categoryLabel}
+              hubPath="/integrations"
+              logoSrc={providerLogoSrc}
+              metadata={
+                <Stack spacing={1} sx={{ alignItems: "flex-start" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      rowGap: 0.75,
+                    }}
+                  >
+                    {heroMetadataItems.map((entry, index) => (
+                      <Box
+                        key={`${entry.label}-${index}`}
+                        sx={{ display: "flex", alignItems: "center" }}
+                      >
+                        {index > 0 ? (
+                          <Divider
+                            orientation="vertical"
+                            sx={{ height: 12, mx: 1.5, alignSelf: "center" }}
+                          />
+                        ) : null}
+                        <Stack
+                          direction="row"
+                          spacing={0.75}
+                          alignItems="baseline"
+                        >
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "text.tertiary" }}
+                          >
+                            {entry.label}
+                          </Typography>
+                          <Typography
+                            level="body-xs"
+                            sx={{
+                              color:
+                                entry.value === "—"
+                                  ? "text.disabled"
+                                  : "text.secondary",
+                            }}
+                          >
+                            {entry.value}
+                          </Typography>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Box>
+                  {detail.isFetching ? (
+                    <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+                      Refreshing details…
                     </Typography>
-                  ))}
-                </Box>
-                {detail.isFetching ? (
-                  <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-                    Refreshing details...
-                  </Typography>
-                ) : null}
-              </Stack>
-            }
-            primaryAction={shellPrimaryActionProps}
-            providerName={item.name}
-            statusLabel={shellStatusLabel}
-            statusTone={shellStatusTone}
-            summary={shellSummary}
-          />
+                  ) : null}
+                </Stack>
+              }
+              primaryAction={shellPrimaryActionProps}
+              providerName={item.name}
+              statusLabel={shellStatusLabel}
+              statusTone={shellStatusTone}
+              summary={shellSummary}
+            />
+          </Box>
 
           {prioritizedBanner ? (
-            <IntegrationStatusBanner banner={prioritizedBanner} />
+            <Box sx={{ mt: 2, mb: 2.5 }}>
+              <IntegrationStatusBanner banner={prioritizedBanner} />
+            </Box>
           ) : null}
 
-          {isShopify ? <ConnectShopifyHint /> : null}
+          {isShopify ? (
+            <Box sx={{ mb: 2.5 }}>
+              <ConnectShopifyHint />
+            </Box>
+          ) : null}
 
           {!isComingSoonPage ? (
-            <div
-              className={cn(
-                "grid gap-4",
-                isSquare ||
-                  isClover ||
-                  isLightspeed ||
-                  isMeta ||
-                  isGa4 ||
-                  isEmailInfrastructure ||
-                  isMarketingImport
-                  ? "md:grid-cols-2 xl:grid-cols-4"
-                  : "md:grid-cols-3",
-              )}
+            <Box
+              sx={{
+                mb: 3,
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
+                },
+                gap: 2,
+              }}
             >
               {metricsToRender.map((metric) => {
                 const appearance = MetricAppearance({ tone: metric.tone });
@@ -3647,10 +4087,10 @@ export default function IntegrationDetailPage() {
                   />
                 );
               })}
-            </div>
+            </Box>
           ) : null}
 
-          {showLegacyDetailShell ? (
+          {showLegacySummaryShells && showLegacyDetailShell ? (
             <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
               <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-4">
@@ -3846,7 +4286,10 @@ export default function IntegrationDetailPage() {
             </section>
           ) : null}
 
-          {isClover && cloverDetail && cloverPageStatus ? (
+          {showLegacySummaryShells &&
+          isClover &&
+          cloverDetail &&
+          cloverPageStatus ? (
             <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
               <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-4">
@@ -4055,7 +4498,7 @@ export default function IntegrationDetailPage() {
             </section>
           ) : null}
 
-          {isLightspeed && lightspeedDetail ? (
+          {showLegacySummaryShells && isLightspeed && lightspeedDetail ? (
             <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
               <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-4">
@@ -4319,7 +4762,10 @@ export default function IntegrationDetailPage() {
             </section>
           ) : null}
 
-          {isShopify && shopifyConnection && shopifyPageStatus ? (
+          {showLegacySummaryShells &&
+          isShopify &&
+          shopifyConnection &&
+          shopifyPageStatus ? (
             <section className="space-y-5 rounded-[1.75rem] border border-border/70 bg-white/95 p-6 shadow-sm shadow-brand-navy/5">
               <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-4">
@@ -4544,7 +4990,8 @@ export default function IntegrationDetailPage() {
             </section>
           ) : null}
 
-          {!(
+          {showLegacySummaryShells &&
+          !(
             (isLightspeed && lightspeedDetail) ||
             (isSquare && squareDetail) ||
             (isClover && cloverDetail) ||
@@ -8745,7 +9192,7 @@ export default function IntegrationDetailPage() {
 
                 {isLightspeed ? (
                   detail.canAccessLightspeedAdminFeatures ? (
-                    <div className="mt-12 border-t border-gray-100 pt-8">
+                    <div className="mt-4 border-t border-gray-100 pt-8">
                       <DangerZone
                         actions={[
                           {
@@ -8769,18 +9216,20 @@ export default function IntegrationDetailPage() {
                     </div>
                   ) : null
                 ) : (
-                  <DangerZone
-                    actions={[
-                      {
-                        label: disconnectActionLabel,
-                        description: disconnectActionDescription,
-                        buttonLabel: disconnectActionLabel,
-                        disabled: !detail.canDisconnect,
-                        loading: detail.isDisconnecting,
-                        onClick: () => setDisconnectOpen(true),
-                      },
-                    ]}
-                  />
+                  <Box sx={{ mt: 4 }}>
+                    <DangerZone
+                      actions={[
+                        {
+                          label: disconnectActionLabel,
+                          description: disconnectActionDescription,
+                          buttonLabel: disconnectActionLabel,
+                          disabled: !detail.canDisconnect,
+                          loading: detail.isDisconnecting,
+                          onClick: () => setDisconnectOpen(true),
+                        },
+                      ]}
+                    />
+                  </Box>
                 )}
               </div>
             </div>
