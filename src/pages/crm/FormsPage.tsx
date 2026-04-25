@@ -64,7 +64,11 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { useForms } from "@/hooks/useForms";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
-import { createStarterForm } from "@/lib/formTemplates";
+import {
+  createFormFromTemplate,
+  createStarterForm,
+  getTemplateById,
+} from "@/lib/formTemplates";
 import { getPublicFormUrl } from "@/lib/forms/share";
 import type {
   FormCompliance,
@@ -262,6 +266,7 @@ export default function FormsPage() {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
   const [searchParams, setSearchParams] = useSearchParams();
+  const handledTemplateRef = React.useRef<string | null>(null);
   const {
     forms,
     isLoading,
@@ -382,6 +387,65 @@ export default function FormsPage() {
     },
     [createForm, navigate],
   );
+
+  const handleTemplatesDialogOpenChange = React.useCallback(
+    (nextOpen: boolean) => {
+      setTemplatesDialogOpen(nextOpen);
+
+      if (nextOpen) {
+        return;
+      }
+
+      const nextParams = new URLSearchParams(searchParams);
+      const hadParams = nextParams.has("create") || nextParams.has("template");
+      nextParams.delete("create");
+      nextParams.delete("template");
+
+      if (hadParams) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
+
+  React.useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setTemplatesDialogOpen(true);
+    }
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    const templateId = searchParams.get("template");
+
+    if (!templateId) {
+      handledTemplateRef.current = null;
+      return;
+    }
+
+    if (handledTemplateRef.current === templateId || isCreating) {
+      return;
+    }
+
+    const template = getTemplateById(templateId);
+
+    if (!template) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("template");
+      setSearchParams(nextParams, { replace: true });
+      toast.error("That form template is no longer available.");
+      return;
+    }
+
+    handledTemplateRef.current = templateId;
+    const templatePayload = createFormFromTemplate(template);
+
+    void handleCreateFromPayload({
+      name: template.name,
+      fields_json: templatePayload.fields_json,
+      settings_json: templatePayload.settings_json,
+      compliance_json: templatePayload.compliance_json,
+    });
+  }, [handleCreateFromPayload, isCreating, searchParams, setSearchParams]);
 
   const handleCopyPublicLink = React.useCallback(
     async (form: FormWithStats) => {
@@ -1082,7 +1146,7 @@ export default function FormsPage() {
 
       <FormTemplatesDialog
         open={templatesDialogOpen}
-        onOpenChange={setTemplatesDialogOpen}
+        onOpenChange={handleTemplatesDialogOpenChange}
         isCreating={isCreating}
         onStartFromScratch={() => void handleStartFromScratch()}
         onSelect={(templateData) => void handleCreateFromPayload(templateData)}

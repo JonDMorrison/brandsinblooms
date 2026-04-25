@@ -110,6 +110,34 @@ export const EmailCampaignComposer: React.FC = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    const handleCommandPaletteTestEmail = (event: Event) => {
+      const customEvent = event as CustomEvent<{ campaignRoute?: string }>;
+      const requestedCampaignRoute = customEvent.detail?.campaignRoute;
+
+      if (
+        requestedCampaignRoute &&
+        !window.location.pathname.startsWith(requestedCampaignRoute)
+      ) {
+        return;
+      }
+
+      setShowTestEmailModal(true);
+    };
+
+    window.addEventListener(
+      "command-palette:send-test-email",
+      handleCommandPaletteTestEmail as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "command-palette:send-test-email",
+        handleCommandPaletteTestEmail as EventListener,
+      );
+    };
+  }, []);
+
   const loadSegments = async () => {
     try {
       const { data: userData } = await supabase

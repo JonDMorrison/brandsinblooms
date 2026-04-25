@@ -14,6 +14,7 @@ import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { ConnectionsSettings } from "./ConnectionsSettings";
 import { AccountBillingSettings } from "./AccountBillingSettings";
 import { ComplianceSettings } from "./ComplianceSettings";
+import { DebugSettings } from "./DebugSettings";
 import { SupportSettings } from "./SupportSettings";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
@@ -22,7 +23,7 @@ import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
 import { SettingsInlineError } from "./SettingsSurface";
 
-type SettingsTabId = "connections" | "account" | "compliance" | "support";
+type SettingsTabId = "connections" | "account" | "compliance" | "debug" | "support";
 type StatusChipColor = "success" | "warning" | "neutral";
 type StatusChipVariant = "soft" | "outlined";
 
@@ -36,6 +37,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
   { id: "connections", label: "Connections" },
   { id: "account", label: "Account & Billing" },
   { id: "compliance", label: "Compliance" },
+  { id: "debug", label: "Debug" },
   { id: "support", label: "Support" },
 ];
 
@@ -300,7 +302,7 @@ export const SettingsHub = () => {
       <Box>
         <Typography level="h3">Settings</Typography>
         <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>
-          Manage connections, billing, compliance, and support from one place.
+          Manage connections, billing, compliance, support, and diagnostics from one place.
         </Typography>
       </Box>
 
@@ -418,6 +420,10 @@ export const SettingsHub = () => {
 
         <TabPanel value="compliance" sx={{ p: 0, pt: 2.5 }}>
           <ComplianceSettings onUpdate={() => undefined} />
+        </TabPanel>
+
+        <TabPanel value="debug" sx={{ p: 0, pt: 2.5 }}>
+          <DebugSettings />
         </TabPanel>
 
         <TabPanel value="support" sx={{ p: 0, pt: 2.5 }}>

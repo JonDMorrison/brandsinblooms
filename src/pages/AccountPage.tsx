@@ -25,6 +25,7 @@ import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle, Building2, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { BillingDashboard } from "@/components/billing/BillingDashboard";
 import { UsageAnalytics } from "@/components/billing/UsageAnalytics";
@@ -57,6 +58,18 @@ const ACCOUNT_TABS: Array<{ value: AccountTabValue; label: string; danger?: bool
   { value: "usage", label: "Usage" },
   { value: "danger", label: "Danger Zone", danger: true },
 ];
+
+const validAccountTabs = new Set<AccountTabValue>(
+  ACCOUNT_TABS.map((tab) => tab.value),
+);
+
+const normalizeAccountTab = (value: string | null): AccountTabValue => {
+  if (!value || !validAccountTabs.has(value as AccountTabValue)) {
+    return "general";
+  }
+
+  return value as AccountTabValue;
+};
 
 const TIMEZONE_OPTIONS = [
   { value: "America/New_York", label: "Eastern Time (EST/EDT)" },
@@ -241,6 +254,7 @@ const getUserDisplayName = (fullName: unknown) =>
 const AccountPage = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const { tenant } = useTenant();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     subscription: deletionSubscription,
     loading: isLoadingDeletionSubscription,
@@ -254,6 +268,9 @@ const AccountPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [activeTab, setActiveTab] = useState<AccountTabValue>(() =>
+    normalizeAccountTab(searchParams.get("tab")),
+  );
   const [profileData, setProfileData] = useState<ProfileData>({
     displayName: "",
     timezone: DEFAULT_TIMEZONE,
@@ -389,6 +406,25 @@ const AccountPage = () => {
       setBusinessStatus("ready");
     }
   }, [tenant?.name, user?.id]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+
+    if (tabParam && !validAccountTabs.has(tabParam as AccountTabValue)) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("tab", "general");
+      setSearchParams(nextParams, { replace: true });
+      setActiveTab("general");
+      return;
+    }
+
+    const nextTab = normalizeAccountTab(tabParam);
+    setActiveTab((currentTab) => (currentTab === nextTab ? currentTab : nextTab));
+
+    if (nextTab === "business" && businessStatus === "idle") {
+      void loadBusinessData();
+    }
+  }, [businessStatus, loadBusinessData, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!tenant?.name) {
@@ -632,11 +668,22 @@ const AccountPage = () => {
 
   const handleTabChange = useCallback(
     (_event: React.SyntheticEvent | null, value: string | number | null) => {
-      if (value === "business" && businessStatus === "idle") {
+      if (!value || !validAccountTabs.has(value as AccountTabValue)) {
+        return;
+      }
+
+      const nextTab = value as AccountTabValue;
+      setActiveTab(nextTab);
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("tab", nextTab);
+      setSearchParams(nextParams, { replace: true });
+
+      if (nextTab === "business" && businessStatus === "idle") {
         void loadBusinessData();
       }
     },
-    [businessStatus, loadBusinessData],
+    [businessStatus, loadBusinessData, searchParams, setSearchParams],
   );
 
   if (!hasMounted || authLoading) {
@@ -655,7 +702,7 @@ const AccountPage = () => {
 
         <Tabs
           aria-label="Account settings"
-          defaultValue="general"
+          value={activeTab}
           onChange={handleTabChange}
           sx={{ bgcolor: "transparent" }}
         >

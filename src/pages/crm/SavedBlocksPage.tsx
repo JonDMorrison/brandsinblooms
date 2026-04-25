@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';
 import { Input } from '@/components/ui-legacy/input';
@@ -51,6 +51,7 @@ interface SavedBlock {
 
 export const SavedBlocksPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [blocks, setBlocks] = useState<SavedBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,10 +59,32 @@ export const SavedBlocksPage: React.FC = () => {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [blockToRename, setBlockToRename] = useState<SavedBlock | null>(null);
   const [newBlockName, setNewBlockName] = useState('');
+  const highlightedBlockId = searchParams.get('highlight');
 
   useEffect(() => {
     loadBlocks();
   }, []);
+
+  useEffect(() => {
+    if (!highlightedBlockId || blocks.length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const blockElement = document.querySelector<HTMLElement>(
+        `[data-saved-block-id="${highlightedBlockId}"]`,
+      );
+
+      blockElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [blocks, highlightedBlockId]);
 
   const loadBlocks = async () => {
     setLoading(true);
@@ -285,11 +308,17 @@ export const SavedBlocksPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBlocks.map(block => {
             const IconComponent = getBlockIcon(block.block_type);
+            const isHighlighted = highlightedBlockId === block.id;
 
             return (
               <Card
                 key={block.id}
-                className="group hover:shadow-lg transition-all duration-200"
+                data-saved-block-id={block.id}
+                className={`group transition-all duration-200 ${
+                  isHighlighted
+                    ? 'ring-2 ring-primary shadow-lg bg-primary/5'
+                    : 'hover:shadow-lg'
+                }`}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -301,9 +330,14 @@ export const SavedBlocksPage: React.FC = () => {
                         <CardTitle className="text-base font-semibold">
                           {block.name}
                         </CardTitle>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {block.block_type}
-                        </Badge>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">
+                            {block.block_type}
+                          </Badge>
+                          {isHighlighted && (
+                            <Badge className="text-xs">Highlighted</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

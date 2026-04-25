@@ -1,10 +1,12 @@
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { KeyboardEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/joy/Avatar";
 import Badge from "@mui/joy/Badge";
 import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
 import Dropdown from "@mui/joy/Dropdown";
 import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
 import ListItemDecorator from "@mui/joy/ListItemDecorator";
 import Menu from "@mui/joy/Menu";
 import MenuButton from "@mui/joy/MenuButton";
@@ -26,9 +28,9 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
-import { JoySearchInput } from "@/components/joy/JoySearchInput";
 import { ReportProblemDialog } from "@/components/reportProblem/ReportProblemDialog";
 import { useDashboardShell } from "@/components/layout/DashboardShell";
+import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutCompletely } from "@/integrations/supabase/client";
 
@@ -140,17 +142,24 @@ const resolveInitials = (displayName: string) => {
 
 interface DashboardTopBarProps {
   pageTitle?: string;
-  onSearch?: (query: string) => void;
+  onOpenCommandPalette?: (source: SearchOpenSource) => void;
 }
 
-export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
+const getCommandPaletteShortcutLabel = () => {
+  if (typeof navigator === "undefined") {
+    return "Ctrl K";
+  }
+
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? "⌘K" : "Ctrl K";
+};
+
+export function DashboardTopBar({
+  pageTitle,
+  onOpenCommandPalette,
+}: DashboardTopBarProps) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const { user, loading } = useAuth();
   const { isMobile, isMobileSidebarOpen, toggleSidebar } = useDashboardShell();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
   const [isReportProblemOpen, setIsReportProblemOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -171,25 +180,19 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
     [displayName],
   );
   const showCenteredTitle = Boolean(pageTitle && !isMobile);
+  const commandPaletteShortcutLabel = useMemo(
+    () => getCommandPaletteShortcutLabel(),
+    [],
+  );
 
-  useEffect(() => {
-    if (!isMobile || isMobileSidebarOpen) {
-      setIsMobileSearchOpen(false);
-    }
-  }, [isMobile, isMobileSidebarOpen]);
-
-  useEffect(() => {
-    setIsMobileSearchOpen(false);
-  }, [pathname]);
-
-  const handleSearchChange = (nextQuery: string) => {
-    setSearchQuery(nextQuery);
-    onSearch?.(nextQuery);
+  const openCommandPalette = () => {
+    onOpenCommandPalette?.("click");
   };
 
-  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape" && isMobileSearchOpen) {
-      setIsMobileSearchOpen(false);
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpenCommandPalette?.("keyboard");
     }
   };
 
@@ -202,49 +205,6 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
       setIsSigningOut(false);
     }
   };
-
-  const renderSearchInput = (fullWidth = false) => (
-    <JoySearchInput
-      appearance="topbar"
-      value={searchQuery}
-      onValueChange={handleSearchChange}
-      clearable={false}
-      placeholder="Search something..."
-      size="sm"
-      slotProps={{
-        input: {
-          "aria-label": "Search something...",
-          autoComplete: "off",
-          autoFocus: isMobile && isMobileSearchOpen,
-          onKeyDown: handleSearchKeyDown,
-          onFocus: () => {
-            if (!isMobile && !fullWidth) {
-              setIsDesktopSearchFocused(true);
-            }
-          },
-          onBlur: () => {
-            if (!isMobile && !fullWidth) {
-              setIsDesktopSearchFocused(false);
-            }
-          },
-        },
-      }}
-      sx={{
-        width: fullWidth
-          ? "100%"
-          : isMobile
-            ? "100%"
-            : isDesktopSearchFocused
-              ? "22.5rem"
-              : "17.5rem",
-        minWidth: 0,
-        maxWidth: "100%",
-        transition: "width 200ms ease",
-        "--Input-paddingInline": "14px",
-        "--Input-gap": "10px",
-      }}
-    />
-  );
 
   return (
     <>
@@ -263,33 +223,6 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
         }}
       >
         <Box sx={{ position: "relative", height: "100%" }}>
-          {isMobile && isMobileSearchOpen && (
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={1}
-              sx={{
-                position: "absolute",
-                inset: 0,
-                px: 4,
-                backgroundColor: "background.surface",
-                zIndex: 2,
-              }}
-            >
-              {renderSearchInput(true)}
-              <IconButton
-                aria-label="Close search"
-                color="neutral"
-                size="sm"
-                variant="plain"
-                onClick={() => setIsMobileSearchOpen(false)}
-                sx={iconButtonSx}
-              >
-                <X size={18} strokeWidth={2} />
-              </IconButton>
-            </Stack>
-          )}
-
           <Box
             sx={{
               display: "grid",
@@ -329,17 +262,71 @@ export function DashboardTopBar({ pageTitle, onSearch }: DashboardTopBarProps) {
 
               {isMobile ? (
                 <IconButton
-                  aria-label="Open search"
+                  aria-label="Open command palette"
                   color="neutral"
                   size="sm"
                   variant="plain"
-                  onClick={() => setIsMobileSearchOpen(true)}
+                  onClick={openCommandPalette}
                   sx={iconButtonSx}
                 >
                   <Search size={18} strokeWidth={1.9} />
                 </IconButton>
               ) : (
-                renderSearchInput()
+                <Input
+                  size="sm"
+                  onClick={openCommandPalette}
+                  placeholder="Search customers, campaigns, settings…"
+                  readOnly
+                  startDecorator={<Search size={18} strokeWidth={1.9} />}
+                  endDecorator={
+                    <Chip
+                      size="sm"
+                      variant="outlined"
+                      sx={{
+                        display: { xs: "none", md: "inline-flex" },
+                        borderRadius: "999px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "neutral.600",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {commandPaletteShortcutLabel}
+                    </Chip>
+                  }
+                  slotProps={{
+                    input: {
+                      "aria-label": "Open command palette",
+                      onKeyDown: handleTriggerKeyDown,
+                      readOnly: true,
+                    },
+                  }}
+                  sx={{
+                    width: "17.5rem",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    cursor: "pointer",
+                    borderRadius: "var(--joy-radius-lg)",
+                    borderColor: "transparent",
+                    backgroundColor: "neutral.100",
+                    "--Input-paddingInline": "14px",
+                    "--Input-gap": "10px",
+                    transition:
+                      "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease",
+                    "&:hover": {
+                      backgroundColor: "neutral.50",
+                    },
+                    "&:focus-within": {
+                      borderColor: "primary.400",
+                      boxShadow:
+                        "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
+                    },
+                    "& .MuiInput-input": {
+                      fontSize: "14px",
+                      cursor: "pointer",
+                    },
+                  }}
+                />
               )}
             </Stack>
 

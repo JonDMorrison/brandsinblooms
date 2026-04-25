@@ -1,6 +1,9 @@
 import {
   createContext,
+  lazy,
+  Suspense,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,6 +12,7 @@ import {
 } from "react";
 import { useLocation } from "react-router-dom";
 import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -25,9 +29,24 @@ import {
   type DashboardShellMode,
   type DashboardShellContentWidth,
 } from "@/components/navigation/sidebarNavigation";
+import { getStaticSearchItemForPathname } from "@/components/search/staticSearchRegistry";
 import { TrialBanner } from "@/components/TrialBanner";
+import ChunkErrorBoundary from "@/components/loading/ChunkErrorBoundary";
+import { CommandPaletteErrorBoundary } from "@/components/search/CommandPaletteErrorBoundary";
+import {
+  recordRecentItem,
+  recordRecentItemRemote,
+} from "@/components/search/searchHistory";
+import type { SearchOpenSource } from "@/components/search/searchAnalytics";
+import { useAuth } from "@/contexts/AuthContext";
 import { HelpWidget } from "@/components/ui/HelpWidget";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
+
+const LazyCommandPalette = lazy(() =>
+  import("@/components/search/CommandPalette").then((module) => ({
+    default: module.CommandPalette,
+  })),
+);
 
 const SIDEBAR_EXPANDED_WIDTH = 260;
 const SIDEBAR_COLLAPSED_WIDTH = 72;
@@ -88,6 +107,7 @@ export function DashboardShell({
   mode = "admin",
 }: DashboardShellProps) {
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useMediaQuery("(max-width: 767.95px)");
   const isTablet = useMediaQuery(
@@ -101,6 +121,11 @@ export function DashboardShell({
     storedPreferenceRef.current ?? false,
   );
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [commandPaletteOpenSource, setCommandPaletteOpenSource] =
+    useState<SearchOpenSource>("click");
+  const [hasRequestedCommandPalette, setHasRequestedCommandPalette] =
+    useState(false);
   const { isBlocked: isLocationBlocked, isLoading: isLocationLoading } =
     useLocationBlockingGuard();
   const activeTitle = useMemo(
@@ -111,6 +136,13 @@ export function DashboardShell({
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
   );
+
+  const openCommandPalette = useCallback((source: SearchOpenSource = "click") => {
+    setIsMobileSidebarOpen(false);
+    setCommandPaletteOpenSource(source);
+    setHasRequestedCommandPalette(true);
+    setIsCommandPaletteOpen(true);
+  }, []);
 
   useEffect(() => {
     if (storedPreferenceRef.current !== null) {
@@ -133,7 +165,40 @@ export function DashboardShell({
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setIsMobileSidebarOpen(false);
-  }, [pathname]);
+    setIsCommandPaletteOpen(false);
+
+    const currentStaticItem = getStaticSearchItemForPathname(pathname);
+
+    if (currentStaticItem) {
+      recordRecentItem(user?.id, currentStaticItem);
+      void recordRecentItemRemote(user?.id, currentStaticItem);
+    }
+  }, [pathname, user?.id]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+        return;
+      }
+
+      if (event.key.toLowerCase() !== "k") {
+        return;
+      }
+
+      event.preventDefault();
+      openCommandPalette("keyboard");
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openCommandPalette]);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -196,7 +261,10 @@ export function DashboardShell({
         }}
       >
         {!isMobile && <DashboardSidebarSlot mode={mode} />}
-        <DashboardTopBar pageTitle={activeTitle} />
+        <DashboardTopBar
+          pageTitle={activeTitle}
+          onOpenCommandPalette={openCommandPalette}
+        />
         <Box
           component="main"
           ref={contentRef}
@@ -265,8 +333,64 @@ export function DashboardShell({
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
       </Box>
+      {hasRequestedCommandPalette ? (
+        <ChunkErrorBoundary>
+          <CommandPaletteErrorBoundary
+            onClose={() => setIsCommandPaletteOpen(false)}
+            open={isCommandPaletteOpen}
+            resetKey={`${String(isCommandPaletteOpen)}:${pathname}`}
+          >
+            <Suspense
+              fallback={
+                isCommandPaletteOpen ? <CommandPaletteLoadingOverlay /> : null
+              }
+            >
+              <LazyCommandPalette
+                open={isCommandPaletteOpen}
+                openSource={commandPaletteOpenSource}
+                onClose={() => setIsCommandPaletteOpen(false)}
+              />
+            </Suspense>
+          </CommandPaletteErrorBoundary>
+        </ChunkErrorBoundary>
+      ) : null}
       <HelpWidget />
     </DashboardShellContext.Provider>
+  );
+}
+
+function CommandPaletteLoadingOverlay() {
+  return (
+    <Box
+      sx={{
+        position: "fixed",
+        inset: 0,
+        zIndex: "var(--joy-zIndex-modal)",
+        display: "grid",
+        placeItems: "start center",
+        pt: { xs: "16px", md: "max(20vh, 72px)" },
+        px: 2,
+        backgroundColor: "rgba(15, 23, 42, 0.28)",
+        backdropFilter: "blur(12px)",
+      }}
+    >
+      <Sheet
+        variant="solid"
+        sx={{
+          width: "min(680px, calc(100vw - 16px))",
+          py: 3,
+          px: 3,
+          borderRadius: "var(--joy-radius-lg)",
+          boxShadow: "var(--joy-shadow-lg)",
+          display: "grid",
+          placeItems: "center",
+          gap: 1,
+          backgroundColor: "background.surface",
+        }}
+      >
+        <CircularProgress size="sm" />
+      </Sheet>
+    </Box>
   );
 }
 

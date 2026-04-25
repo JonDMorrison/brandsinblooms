@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
@@ -21,6 +21,24 @@ const GuidedAutomationBuilder = lazy(() =>
   })),
 );
 
+const AUTOMATION_PRESET_METADATA: Record<
+  string,
+  { id: string; title: string; description: string }
+> = {
+  customer_loyalty_program: {
+    id: "customer_loyalty_program",
+    title: "Customer Loyalty Program: Ongoing Nurture Series",
+    description:
+      "Welcome new loyalty members, reward them, and keep them engaged over 30 days.",
+  },
+  welcome_new_customers: {
+    id: "welcome_new_customers",
+    title: "Welcome New Customers",
+    description:
+      "Simple 2-step welcome sequence for new customers and loyalty program members.",
+  },
+};
+
 export const CRMAutomationGuidePage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -29,10 +47,12 @@ export const CRMAutomationGuidePage: React.FC = () => {
   const location = useLocation();
   const [showPresets, setShowPresets] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<any>(null);
+  const handledPresetRef = useRef<string | null>(null);
 
   // Check for guided mode
-  const isGuidedMode =
-    new URLSearchParams(location.search).get("mode") === "guided";
+  const searchParams = new URLSearchParams(location.search);
+  const isGuidedMode = searchParams.get("mode") === "guided";
+  const presetId = searchParams.get("preset");
 
   useEffect(() => {
     document.title = "Build Your Custom Automation – Guide";
@@ -116,6 +136,21 @@ export const CRMAutomationGuidePage: React.FC = () => {
       setShowPresets(false);
     }
   };
+
+  useEffect(() => {
+    if (!presetId || handledPresetRef.current === presetId) {
+      return;
+    }
+
+    const preset = AUTOMATION_PRESET_METADATA[presetId];
+
+    if (!preset) {
+      return;
+    }
+
+    handledPresetRef.current = presetId;
+    void handlePresetSelection(preset);
+  }, [presetId]);
 
   const handleGuideComplete = async (config?: any) => {
     if (!user) {

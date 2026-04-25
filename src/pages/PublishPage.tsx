@@ -5,7 +5,7 @@
 // - Maps useDashboardData tasks to PublishItem format
 // - Functional "Publish Now" and "Schedule" buttons via drawer
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -28,6 +28,8 @@ import PostCard from "@/components/publish/PostCard";
 import ComposerDrawer, {
   ComposerMode,
 } from "@/components/publish/ComposerDrawer";
+import { useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type {
   PublishItem,
   PublishNowInput,
@@ -51,18 +53,24 @@ interface GeneratedContent {
 }
 
 const PublishPage = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { publishNow, schedule } = usePublishActions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const highlightedTaskId = searchParams.get("highlight");
+  const highlightedTab = searchParams.get("tab") === "published" ? "published" : "ready";
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // State for content and prefill logic
   const [content, setContent] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefillDone, setPrefillDone] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<"ready" | "published">(highlightedTab);
+  const [activeHighlightTaskId, setActiveHighlightTaskId] = useState<string | null>(highlightedTaskId);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -189,6 +197,45 @@ const PublishPage = () => {
         item.accountName?.toLowerCase().includes(term),
     );
   }, [publishedItems, searchTerm]);
+
+  useEffect(() => {
+    setActiveTab(highlightedTab);
+  }, [highlightedTab]);
+
+  useEffect(() => {
+    if (!highlightedTaskId) {
+      return;
+    }
+
+    setActiveHighlightTaskId(highlightedTaskId);
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveHighlightTaskId((currentValue) =>
+        currentValue === highlightedTaskId ? null : currentValue,
+      );
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [highlightedTaskId]);
+
+  useEffect(() => {
+    if (!highlightedTaskId) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      cardRefs.current[highlightedTaskId]?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [activeTab, filteredPublishedItems, filteredReadyItems, highlightedTaskId]);
 
   // Prefill logic (unchanged from original)
   useEffect(() => {
@@ -495,7 +542,7 @@ const PublishPage = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="ready" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ready" | "published")} className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 p-1 rounded-lg">
           <TabsTrigger
             value="ready"
@@ -532,14 +579,25 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredReadyItems.map((item) => (
-                <PostCard
+                <div
                   key={`ready-${item.taskId}-${filteredReadyItems.length}`}
-                  item={item}
-                  onEdit={(item) => handleOpenDrawer(item, "edit")}
-                  onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                  onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                  onDelete={handleDelete}
-                />
+                  ref={(element) => {
+                    cardRefs.current[item.taskId] = element;
+                  }}
+                  className={cn(
+                    "transition-all duration-300 rounded-[28px]",
+                    activeHighlightTaskId === item.taskId &&
+                      "ring-2 ring-primary ring-offset-2 shadow-lg",
+                  )}
+                >
+                  <PostCard
+                    item={item}
+                    onEdit={(item) => handleOpenDrawer(item, "edit")}
+                    onPublishNow={(item) => handleOpenDrawer(item, "edit")}
+                    onSchedule={(item) => handleOpenDrawer(item, "schedule")}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))
             )}
           </div>
@@ -566,15 +624,26 @@ const PublishPage = () => {
               </Card>
             ) : (
               filteredPublishedItems.map((item) => (
-                <PostCard
+                <div
                   key={`published-${item.taskId}-${filteredPublishedItems.length}`}
-                  item={item}
-                  publishedAt={item.publishedAt}
-                  onEdit={(item) => handleOpenDrawer(item, "edit")}
-                  onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                  onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                  onDelete={handleDelete}
-                />
+                  ref={(element) => {
+                    cardRefs.current[item.taskId] = element;
+                  }}
+                  className={cn(
+                    "transition-all duration-300 rounded-[28px]",
+                    activeHighlightTaskId === item.taskId &&
+                      "ring-2 ring-primary ring-offset-2 shadow-lg",
+                  )}
+                >
+                  <PostCard
+                    item={item}
+                    publishedAt={item.publishedAt}
+                    onEdit={(item) => handleOpenDrawer(item, "edit")}
+                    onPublishNow={(item) => handleOpenDrawer(item, "edit")}
+                    onSchedule={(item) => handleOpenDrawer(item, "schedule")}
+                    onDelete={handleDelete}
+                  />
+                </div>
               ))
             )}
           </div>

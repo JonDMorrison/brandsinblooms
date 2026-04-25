@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -887,6 +887,7 @@ function DetailPageSkeleton() {
 export default function IntegrationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [disconnectConfirmationValue, setDisconnectConfirmationValue] =
     useState("");
@@ -929,6 +930,14 @@ export default function IntegrationDetailPage() {
     useState<SquareSaleRow | null>(null);
   const [selectedCloverSale, setSelectedCloverSale] =
     useState<CloverSaleRow | null>(null);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+
+    if (requestedTab === "sync-logs" || requestedTab === "connection-test") {
+      setLightspeedTab(requestedTab);
+    }
+  }, [searchParams]);
   const [productsSearchInput, setProductsSearchInput] = useState("");
   const [productsPage, setProductsPage] = useState(1);
   const [productsCategories, setProductsCategories] = useState<string[]>([]);

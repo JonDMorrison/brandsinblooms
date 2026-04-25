@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { Camera, Sparkles } from 'lucide-react';
 import { UGCGallery } from '@/components/community/UGCGallery';
@@ -6,10 +6,23 @@ import { UGCUploadForm } from '@/components/community/UGCUploadForm';
 import { StaffPrompts } from '@/components/community/StaffPrompts';
 import { PromptsAdmin } from '@/components/community/PromptsAdmin';
 import { useAuth } from '@/hooks/useAuth';
+import { useSearchParams } from 'react-router-dom';
 
 export const CommunityPage = () => {
-  const [activeTab, setActiveTab] = useState('gallery');
+  const [searchParams] = useSearchParams();
+  const highlightedStoryId = searchParams.get('storyId');
+  const requestedTab = searchParams.get('tab') || 'gallery';
+  const [activeTab, setActiveTab] = useState(requestedTab);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (highlightedStoryId) {
+      setActiveTab('gallery');
+      return;
+    }
+
+    setActiveTab(requestedTab);
+  }, [highlightedStoryId, requestedTab]);
   
   // Check if user is admin (simplified - in production, check from user_roles table)
   const isAdmin = user?.email?.includes('admin') || user?.email?.includes('jeff') || user?.email?.includes('jon');
@@ -40,7 +53,7 @@ export const CommunityPage = () => {
         </TabsList>
 
         <TabsContent value="gallery" className="space-y-6">
-          <UGCGallery />
+          <UGCGallery highlightedSubmissionId={highlightedStoryId} />
         </TabsContent>
 
         <TabsContent value="upload" className="space-y-6">

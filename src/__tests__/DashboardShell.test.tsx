@@ -43,6 +43,10 @@ vi.mock("@/components/TrialBanner", () => ({
   TrialBanner: () => <div data-testid="trial-banner">Trial banner</div>,
 }));
 
+vi.mock("@/components/ui/HelpWidget", () => ({
+  HelpWidget: () => <div data-testid="help-widget">Help widget</div>,
+}));
+
 vi.mock("@/components/location/LocationBlockingBanner", () => ({
   LocationBlockingBanner: () => (
     <div data-testid="location-blocking-banner">Location blocking banner</div>
@@ -168,9 +172,7 @@ describe("DashboardShell", () => {
     });
     expect(screen.getByTestId("dashboard-shell-topbar")).toBeInTheDocument();
     expect(screen.getAllByText("Admin Hub")).toHaveLength(2);
-    expect(
-      screen.getByPlaceholderText("Search something..."),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Open command palette")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Admin Hub" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Admin Tools" }),
@@ -256,18 +258,52 @@ describe("DashboardShell", () => {
     });
   });
 
-  it("expands the mobile search overlay when requested", () => {
+  it("opens the command palette from the desktop trigger", async () => {
+    setViewportWidth(1440);
+
+    renderShell();
+
+    fireEvent.click(screen.getByLabelText("Open command palette"));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Command palette" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Search across BloomSuite")).toBeInTheDocument();
+  });
+
+  it("opens and closes the command palette with the keyboard shortcut", async () => {
+    setViewportWidth(1440);
+
+    renderShell();
+
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+
+    expect(
+      await screen.findByRole("dialog", { name: "Command palette" }),
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(screen.getByLabelText("Search across BloomSuite"), {
+      key: "Escape",
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Command palette" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("opens the command palette from the mobile search affordance", async () => {
     setViewportWidth(480);
 
     renderShell();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open search" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open command palette" }),
+    );
 
     expect(
-      screen.getByPlaceholderText("Search something..."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Close search" }),
+      await screen.findByRole("dialog", { name: "Command palette" }),
     ).toBeInTheDocument();
   });
 
