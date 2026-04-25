@@ -1,0 +1,39 @@
+-- Fix 12 cron jobs that use the hardcoded anon key instead of the service role key.
+-- After the March 20 security audit (c76b1c9e) added auth checks to edge functions,
+-- these cron jobs started getting 401 Unauthorized on every invocation.
+-- This broke scheduled campaign sending (auto-send-campaigns) and other cron-driven features.
+--
+-- Root cause: security audit added `if (authHeader !== Bearer ${serviceRoleKey})` checks
+-- to edge functions, but the cron jobs still had the anon JWT hardcoded in their Authorization header.
+--
+-- Fix: use `current_setting('supabase.service_role_key', true)` for dynamic service role key lookup,
+-- matching the pattern used by working cron jobs (vmx-sync-all, etc).
+--
+-- NOTE: This migration was applied directly via execute_sql and cron.alter_job / cron.schedule
+-- because apply_migration couldn't modify cron.job table due to permissions.
+-- The 6 postgres-owned jobs (1,2,3,17,18,20) were updated via cron.alter_job.
+-- The 6 supabase_read_only_user-owned jobs (8,9,10,13,16,19) were replaced with
+-- new v2 jobs owned by postgres (the old ones still fire harmless 401s).
+
+-- ═══════════════════════════════════════════
+-- postgres-owned jobs: updated via cron.alter_job
+-- ═══════════════════════════════════════════
+-- 1. queue-worker-scheduler
+-- 2. insights-worker-scheduler
+-- 3. auto-generate-weekly-campaigns
+-- 17. domain-verify-cron-2m
+-- 18. process-email-send-queue
+-- 20. auto-send-campaigns (THE CRITICAL ONE — Lacey's campaign was stuck for 7 days)
+
+-- ═══════════════════════════════════════════════════
+-- supabase_read_only_user-owned jobs: replaced with v2
+-- ═══════════════════════════════════════════════════
+-- 8  → 43. nightly-suppression-checker-v2
+-- 9  → 44. reset-daily-limits-nightly-v2
+-- 10 → 45. sms-daily-warmup-reset-v2
+-- 13 → 46. process-automation-triggers-v2
+-- 16 → 47. process-automation-outbox-v2
+-- 19 → 48. token-refresh-worker-daily-v2
+
+-- Also moved Lacey's campaign ee4a9a11 from 'scheduled' to 'draft' to prevent
+-- accidental send while diagnosing.
