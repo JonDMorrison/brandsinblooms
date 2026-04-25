@@ -45,12 +45,20 @@ export const OnboardingStatusProvider = ({
 }: OnboardingStatusProviderProps) => {
   const { user } = useAuth();
 
+  // Hardcoded bypass emails — these users are always considered completed
+  const bypassEmails = ["jon@getclear.ca"];
+  const isBypassUser = !!(
+    user?.email && bypassEmails.includes(user.email.toLowerCase())
+  );
+
   // Initialize hasEverCompleted SYNCHRONOUSLY from localStorage so it's
   // available on the very first render — before any useEffect runs.
   // This prevents the OnboardingGuard from redirecting during the first
   // render cycle when the DB query hasn't resolved yet.
   const [hasEverCompleted, setHasEverCompleted] = useState(() => {
     if (!user) return false;
+    // Bypass users are always considered completed
+    if (isBypassUser) return true;
     // Check current key format
     if (localStorage.getItem(`${CACHE_KEY_PREFIX}${user.id}`) === "1") return true;
     // Check legacy key format
@@ -124,7 +132,7 @@ export const OnboardingStatusProvider = ({
         }
 
         const completed = !!(
-          (profile.onboarding_completed_at && profile.company_name) ||
+          profile.onboarding_completed_at ||
           profile.first_content_generated
         );
 

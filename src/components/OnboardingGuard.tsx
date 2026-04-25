@@ -150,6 +150,12 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
+  // Hardcoded bypass — never lock out the owner
+  const bypassEmails = ["jon@getclear.ca"];
+  if (user?.email && bypassEmails.includes(user.email.toLowerCase())) {
+    return <>{children}</>;
+  }
+
   // hasEverCompleted (from localStorage) is the authoritative signal.
   // Once set, the user completed onboarding — even if the background
   // edge function hasn't written onboarding_completed_at to the DB yet.
@@ -172,6 +178,14 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   if (error) {
     debug("Error checking onboarding status — allowing access", { error });
     return <>{children}</>;
+  }
+
+  // CRITICAL: Do NOT redirect while the DB check is still in flight.
+  // Without this, the guard redirects before the async query resolves
+  // because hasEverCompleted (localStorage) can be empty on a fresh session.
+  if (onboardingLoading) {
+    debug("DB check still loading — waiting before redirect decision");
+    return null;
   }
 
   // Onboarding genuinely not complete — redirect
