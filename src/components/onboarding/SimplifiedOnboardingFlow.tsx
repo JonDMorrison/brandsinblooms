@@ -88,26 +88,28 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   const handleComplete = async () => {
     // FIX: H4 - Add isCompletingOnboarding to early return guard to prevent double-submit
     if (!extractedData || !websiteUrl || !user || !isLocationConfirmed || isCompletingOnboarding) return;
-    
+
     try {
       setIsCompletingOnboarding(true);
-      
-      // Prepare the data for the parent completion handler
-      const finalData = {
-        aboutBusiness: `${extractedData.businessName ? extractedData.businessName + '. ' : ''}${extractedData.aboutBusiness}${extractedData.location ? ' Located in ' + extractedData.location + '.' : ''}${extractedData.services ? ' Services: ' + extractedData.services : ''}`,
-        toneSamples: extractedData.brandVoice,
-        annualEvents: extractedData.annualEvents,
-        websiteUrl: websiteUrl
-      };
-      
-      // FIX: H5 - Clear persisted progress on completion
-      if (user) {
+
+      const clearProgress = () => {
         localStorage.removeItem(`${PROGRESS_KEY_PREFIX}${user.id}`);
         localStorage.removeItem(`onboarding-progress-${user.id}`);
-      }
-      
-      // Call the parent completion handler - no navigation here
-      onComplete(finalData);
+      };
+
+      // Call the full completion pipeline:
+      // 1. markAsCompleted() sets localStorage synchronously (prevents guard redirect)
+      // 2. saveOnboardingResponse writes to DB
+      // 3. createCompanyProfileFromOnboarding starts background content generation
+      // 4. onComplete notifies the parent to advance to the "generating" step
+      await completeOnboarding(
+        extractedData,
+        websiteUrl,
+        user.id,
+        onComplete,
+        markAsCompleted,
+        clearProgress,
+      );
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
       setIsCompletingOnboarding(false);

@@ -44,6 +44,7 @@ const OnboardingPage = () => {
     hasEverCompleted,
     isLoading: onboardingLoading,
     refreshStatus,
+    markAsCompleted,
   } = useOnboardingStatus();
   const navigate = useNavigate();
 
@@ -170,12 +171,11 @@ const OnboardingPage = () => {
         JSON.stringify(data),
       );
 
-      // FIX: H2 - Do NOT call markAsCompleted() here (sets localStorage before DB write).
-      // The background CompanyProfileCreator calls finalize-onboarding which sets the DB flag.
-      // OnboardingStatusContext will pick it up on next refetch. We only set the cache
-      // after refreshStatus confirms DB completion.
-      await refreshStatus();
-      // If DB says complete after refresh, the context auto-sets localStorage (line 114-118 in OnboardingStatusContext)
+      // Safety net: markAsCompleted sets localStorage synchronously so the
+      // OnboardingGuard never redirects back. The DB flag (onboarding_completed_at)
+      // is set asynchronously by the finalize-onboarding edge function called
+      // from createCompanyProfileFromOnboarding in the background.
+      markAsCompleted();
 
       // Move to generating step — content is being created in the background
       setStep("generating");
@@ -359,6 +359,7 @@ const OnboardingPage = () => {
           <Button
             className="w-full"
             onClick={() => {
+              markAsCompleted();
               navigate("/dashboard", { replace: true });
             }}
           >
