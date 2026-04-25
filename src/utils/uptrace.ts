@@ -32,14 +32,7 @@ function getSupabaseIgnoreUrls(): Array<string | RegExp> {
   }
 }
 
-/**
- * Initialize Uptrace for the frontend
- * Should be called once in main.tsx
- */
-export function initUptrace() {
-  // Temporary kill-switch for debugging.
-  // - Build-time: set VITE_DISABLE_TELEMETRY=true
-  // - Runtime: append ?telemetry=off
+export function isTelemetryDisabled() {
   try {
     const envDisabled =
       String(import.meta.env.VITE_DISABLE_TELEMETRY || "").toLowerCase() ===
@@ -48,11 +41,22 @@ export function initUptrace() {
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("telemetry") === "off";
 
-    if (envDisabled || urlDisabled) {
-      return;
-    }
+    return envDisabled || urlDisabled;
   } catch {
-    // ignore
+    return false;
+  }
+}
+
+/**
+ * Initialize Uptrace for the frontend
+ * Should be called once in main.tsx
+ */
+export function initUptrace() {
+  // Temporary kill-switch for debugging.
+  // - Build-time: set VITE_DISABLE_TELEMETRY=true
+  // - Runtime: append ?telemetry=off
+  if (isTelemetryDisabled()) {
+    return;
   }
 
   const uptraceDsn = import.meta.env.VITE_UPTRACE_DSN;

@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';
 import { Badge } from '@/components/ui-legacy/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
-import { Check, X, Eye, Trash2, ExternalLink } from 'lucide-react';
+import { Check, X, Trash2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
 interface UGCSubmission {
   id: string;
@@ -20,12 +20,17 @@ interface UGCSubmission {
   customer_consent: boolean;
 }
 
-export const UGCGallery = () => {
+interface UGCGalleryProps {
+  highlightedSubmissionId?: string | null;
+}
+
+export const UGCGallery = ({ highlightedSubmissionId = null }: UGCGalleryProps) => {
   const [submissions, setSubmissions] = useState<UGCSubmission[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(highlightedSubmissionId);
+  const submissionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const fetchSubmissions = async () => {
     try {
@@ -51,6 +56,42 @@ export const UGCGallery = () => {
   useEffect(() => {
     fetchSubmissions();
   }, [filter]);
+
+  useEffect(() => {
+    if (!highlightedSubmissionId) {
+      return;
+    }
+
+    setFilter('all');
+    setActiveHighlightId(highlightedSubmissionId);
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveHighlightId((currentValue) =>
+        currentValue === highlightedSubmissionId ? null : currentValue,
+      );
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [highlightedSubmissionId]);
+
+  useEffect(() => {
+    if (!highlightedSubmissionId || submissions.length === 0) {
+      return;
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      submissionRefs.current[highlightedSubmissionId]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [highlightedSubmissionId, submissions]);
 
   const updateStatus = async (id: string, status: string) => {
     try {
@@ -121,89 +162,101 @@ export const UGCGallery = () => {
           </div>
         ) : (
           submissions.map((submission) => (
-            <Card key={submission.id} className="overflow-hidden">
-              {submission.image_url && (
-                <img
-                  src={submission.image_url}
-                  alt={submission.customer_name || 'Customer story'}
-                  className="w-full h-48 object-cover"
-                />
+            <div
+              key={submission.id}
+              ref={(element) => {
+                submissionRefs.current[submission.id] = element;
+              }}
+              className={cn(
+                'overflow-hidden transition-shadow duration-300',
+                activeHighlightId === submission.id &&
+                  'ring-2 ring-primary ring-offset-2 shadow-lg',
               )}
-              {submission.video_url && !submission.image_url && (
-                <video
-                  src={submission.video_url}
-                  className="w-full h-48 object-cover"
-                  controls
-                />
-              )}
-              
-              <div className="p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold">{submission.customer_name}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {submission.caption_text}
-                    </p>
-                  </div>
-                  {getStatusBadge(submission.status)}
-                </div>
-
-                {submission.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {submission.tags.map((tag, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
+            >
+              <Card className="overflow-hidden">
+                {submission.image_url && (
+                  <img
+                    src={submission.image_url}
+                    alt={submission.customer_name || 'Customer story'}
+                    className="w-full h-48 object-cover"
+                  />
+                )}
+                {submission.video_url && !submission.image_url && (
+                  <video
+                    src={submission.video_url}
+                    className="w-full h-48 object-cover"
+                    controls
+                  />
                 )}
 
-                {submission.status === 'pending_review' && (
-                  <div className="flex gap-2 pt-2">
+                <div className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold">{submission.customer_name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {submission.caption_text}
+                      </p>
+                    </div>
+                    {getStatusBadge(submission.status)}
+                  </div>
+
+                  {submission.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {submission.tags.map((tag, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {submission.status === 'pending_review' && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatus(submission.id, 'approved')}
+                        className="flex-1"
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => updateStatus(submission.id, 'rejected')}
+                        className="flex-1"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+
+                  {submission.status === 'approved' && (
                     <Button
                       size="sm"
-                      onClick={() => updateStatus(submission.id, 'approved')}
-                      className="flex-1"
+                      onClick={() => updateStatus(submission.id, 'published')}
+                      className="w-full"
                     >
-                      <Check className="w-4 h-4 mr-1" />
-                      Approve
+                      <ExternalLink className="w-4 h-4 mr-1" />
+                      Publish
                     </Button>
+                  )}
+
+                  <div className="flex gap-2 pt-2 border-t">
                     <Button
                       size="sm"
-                      variant="destructive"
-                      onClick={() => updateStatus(submission.id, 'rejected')}
+                      variant="ghost"
+                      onClick={() => deleteSubmission(submission.id)}
                       className="flex-1"
                     >
-                      <X className="w-4 h-4 mr-1" />
-                      Reject
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
                     </Button>
                   </div>
-                )}
-
-                {submission.status === 'approved' && (
-                  <Button
-                    size="sm"
-                    onClick={() => updateStatus(submission.id, 'published')}
-                    className="w-full"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-1" />
-                    Publish
-                  </Button>
-                )}
-
-                <div className="flex gap-2 pt-2 border-t">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => deleteSubmission(submission.id)}
-                    className="flex-1"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           ))
         )}
       </div>

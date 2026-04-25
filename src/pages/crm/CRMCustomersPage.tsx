@@ -30,7 +30,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CatalogStatsStrip,
   CatalogStatsStripSkeleton,
@@ -75,6 +75,7 @@ const CUSTOMER_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
 
 export const CRMCustomersPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -114,6 +115,27 @@ export const CRMCustomersPage: React.FC = () => {
   const { tenant, loading: isTenantLoading } = useTenant();
   const { segments: allSegments = [], loading: isSegmentsLoading } =
     useAllSegments();
+
+  useEffect(() => {
+    if (searchParams.get("import") === "1") {
+      setShowImportDialog(true);
+    }
+  }, [searchParams]);
+
+  const handleImportDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setShowImportDialog(nextOpen);
+
+      if (nextOpen || searchParams.get("import") !== "1") {
+        return;
+      }
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("import");
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const {
     data: customerHeaderStats,
@@ -853,7 +875,7 @@ export const CRMCustomersPage: React.FC = () => {
 
         <EnhancedSegmentImportDialog
           open={showImportDialog}
-          onOpenChange={setShowImportDialog}
+          onOpenChange={handleImportDialogOpenChange}
           onImportComplete={handleImportComplete}
         />
 

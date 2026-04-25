@@ -11,7 +11,14 @@ export interface AnalyticsEvent {
     | "form_share_method_selected"
     | "form_share_copy"
     | "form_docs_toc_selected"
-    | "form_docs_markdown_copied";
+    | "form_docs_markdown_copied"
+    | "search_opened"
+    | "search_query_changed"
+    | "search_result_selected"
+    | "search_action_used"
+    | "search_command_used"
+    | "search_no_results"
+    | "search_closed";
   campaign_id?: string;
   automation_id?: string;
   contact_id?: string;
