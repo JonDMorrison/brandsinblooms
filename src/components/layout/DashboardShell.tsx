@@ -26,6 +26,7 @@ import {
   type DashboardShellContentWidth,
 } from "@/components/navigation/sidebarNavigation";
 import { TrialBanner } from "@/components/TrialBanner";
+import { HelpWidget } from "@/components/ui/HelpWidget";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 
 const SIDEBAR_EXPANDED_WIDTH = 260;
@@ -264,6 +265,7 @@ export function DashboardShell({
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
       </Box>
+      <HelpWidget />
     </DashboardShellContext.Provider>
   );
 }
