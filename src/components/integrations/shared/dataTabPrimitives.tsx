@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import {
   Check,
@@ -86,14 +92,6 @@ export function formatCurrency(value?: number | null) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
-}
-
-export function formatCount(value?: number | null) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return "0";
-  }
-
-  return value.toLocaleString();
 }
 
 export function formatRelativeTimestamp(
@@ -339,7 +337,9 @@ export function CategoryMultiSelect({
 
         return `${selected.length} categories`;
       }}
-      onChange={(_, selectedValue) => onChange((selectedValue as string[]) ?? [])}
+      onChange={(_, selectedValue) =>
+        onChange((selectedValue as string[]) ?? [])
+      }
     >
       {categories.map((category) => (
         <Option key={category} value={category}>
@@ -354,9 +354,24 @@ export function CategoryMultiSelect({
 
 export function EmptyValue({ className: _className }: { className?: string }) {
   return (
-    <Typography level="body-sm" sx={{ color: "text.tertiary", fontStyle: "italic" }}>
+    <Typography level="body-sm" sx={{ color: "text.disabled" }}>
       —
     </Typography>
+  );
+}
+
+export function DataTabCard({ children }: { children: ReactNode }) {
+  return (
+    <JoySheet
+      variant="outlined"
+      sx={{
+        overflow: "hidden",
+        borderRadius: "lg",
+        bgcolor: "background.surface",
+      }}
+    >
+      {children}
+    </JoySheet>
   );
 }
 
@@ -405,19 +420,37 @@ export function SlideOverField({
   valueClassName?: string;
 }) {
   const primitiveValue =
-    typeof value === "string" || typeof value === "number" ? String(value) : null;
+    typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : null;
 
   return (
-    <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="flex-start">
-      <Typography level="body-xs" sx={{ color: "text.tertiary", minWidth: 120 }}>
+    <Stack
+      direction="row"
+      spacing={1.5}
+      justifyContent="space-between"
+      alignItems="flex-start"
+    >
+      <Typography
+        level="body-xs"
+        sx={{ color: "text.tertiary", minWidth: 120 }}
+      >
         {label}
       </Typography>
-      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+      <Stack
+        direction="row"
+        spacing={0.5}
+        alignItems="center"
+        sx={{ minWidth: 0 }}
+      >
         <Typography
           level="body-sm"
           sx={{
             textAlign: "right",
-            color: primitiveValue || typeof value === "number" ? "text.primary" : "text.tertiary",
+            color:
+              primitiveValue || typeof value === "number"
+                ? "text.primary"
+                : "text.tertiary",
             fontStyle: primitiveValue ? "normal" : "italic",
             wordBreak: "break-word",
           }}
@@ -461,7 +494,12 @@ export function StockCountBadge({ count }: { count: number | null }) {
   const color = count === 0 ? "danger" : count <= 10 ? "warning" : "success";
 
   return (
-    <Chip size="sm" color={color} variant="soft" sx={{ fontFamily: "var(--joy-fontFamily-code)" }}>
+    <Chip
+      size="sm"
+      color={color}
+      variant="soft"
+      sx={{ fontFamily: "var(--joy-fontFamily-code)" }}
+    >
       {count}
     </Chip>
   );
@@ -500,19 +538,29 @@ export function DataTabEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Stack
-      spacing={1.25}
-      alignItems="center"
-      justifyContent="center"
-      sx={{ minHeight: 280, px: 3, py: 4, textAlign: "center" }}
+    <JoySheet
+      variant="outlined"
+      sx={{ borderRadius: "lg", bgcolor: "background.surface" }}
     >
-      <Icon size={30} style={{ color: "var(--joy-palette-neutral-400)" }} />
-      <Typography level="title-md">{title}</Typography>
-      <Typography level="body-sm" sx={{ color: "text.tertiary", maxWidth: 520 }}>
-        {description}
-      </Typography>
-      {action}
-    </Stack>
+      <Stack
+        spacing={1.25}
+        alignItems="center"
+        justifyContent="center"
+        sx={{ minHeight: 280, px: 3, py: 4, textAlign: "center" }}
+      >
+        <Icon size={30} style={{ color: "var(--joy-palette-neutral-400)" }} />
+        <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+          {title}
+        </Typography>
+        <Typography
+          level="body-sm"
+          sx={{ color: "text.tertiary", maxWidth: 520 }}
+        >
+          {description}
+        </Typography>
+        {action}
+      </Stack>
+    </JoySheet>
   );
 }
 
@@ -545,7 +593,7 @@ export function DataTabPagination({
       sx={{ borderTop: "1px solid", borderColor: "divider", px: 2, py: 1.5 }}
     >
       <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-        Showing {startRow.toLocaleString()}–{endRow.toLocaleString()} of {" "}
+        Showing {startRow.toLocaleString()}–{endRow.toLocaleString()} of{" "}
         {pagination.totalCount.toLocaleString()}
       </Typography>
       <Stack direction="row" spacing={1} alignItems="center">
@@ -589,27 +637,130 @@ export function DataTabPagination({
   );
 }
 
-export function DataTabLoadingState({ rows = 8 }: { rows?: number }) {
+export function TableSkeleton({
+  columns = 5,
+  rows = 8,
+}: {
+  columns?: number;
+  rows?: number;
+}) {
   return (
-    <Stack spacing={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: "md", overflow: "hidden" }}>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ p: 1.5 }}>
-        <Skeleton variant="rectangular" sx={{ height: 34, width: { xs: 1, sm: 240 }, borderRadius: "sm" }} />
-        <Skeleton variant="rectangular" sx={{ height: 34, width: 150, borderRadius: "sm" }} />
-        <Skeleton variant="rectangular" sx={{ height: 34, width: 124, borderRadius: "sm" }} />
-      </Stack>
-      <Divider />
-      <Box sx={{ p: 1.5 }}>
-        {Array.from({ length: rows }).map((_, index) => (
-          <Stack key={index} direction="row" spacing={2} sx={{ py: 1 }}>
-            <Skeleton variant="text" sx={{ width: "30%" }} />
-            <Skeleton variant="text" sx={{ width: "20%" }} />
-            <Skeleton variant="text" sx={{ width: "18%" }} />
-            <Skeleton variant="text" sx={{ width: "22%" }} />
-          </Stack>
-        ))}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1.5,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
+        <Skeleton
+          variant="rectangular"
+          width={240}
+          height={32}
+          sx={{ borderRadius: "md" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          width={120}
+          height={32}
+          sx={{ borderRadius: "md" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          width={120}
+          height={32}
+          sx={{ borderRadius: "md" }}
+        />
+        <Box sx={{ ml: "auto" }}>
+          <Skeleton variant="text" level="body-xs" width="80px" />
+        </Box>
       </Box>
-    </Stack>
+
+      <JoySheet
+        variant="outlined"
+        sx={{ borderRadius: "lg", overflow: "hidden" }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            px: 2,
+            py: 1.5,
+            bgcolor: "background.level1",
+          }}
+        >
+          {Array.from({ length: columns }).map((_, index) => (
+            <Skeleton
+              key={`header-${index}`}
+              variant="text"
+              level="body-xs"
+              width={index === 0 ? "25%" : `${Math.max(10, 20 - index * 3)}%`}
+            />
+          ))}
+        </Box>
+
+        {Array.from({ length: rows }).map((_, rowIndex) => (
+          <Box
+            key={`row-${rowIndex}`}
+            sx={{
+              display: "flex",
+              gap: 2,
+              px: 2,
+              py: 1.25,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            {Array.from({ length: columns }).map((__, colIndex) => (
+              <Skeleton
+                key={`cell-${rowIndex}-${colIndex}`}
+                variant="text"
+                level="body-sm"
+                width={
+                  colIndex === 0 ? "25%" : `${Math.max(8, 18 - colIndex * 2)}%`
+                }
+              />
+            ))}
+          </Box>
+        ))}
+      </JoySheet>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <Skeleton variant="text" level="body-xs" width="140px" />
+        <Box sx={{ display: "flex", gap: 0.5 }}>
+          <Skeleton
+            variant="rectangular"
+            width={32}
+            height={32}
+            sx={{ borderRadius: "md" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            width={32}
+            height={32}
+            sx={{ borderRadius: "md" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            width={32}
+            height={32}
+            sx={{ borderRadius: "md" }}
+          />
+        </Box>
+      </Box>
+    </Box>
   );
+}
+
+export function DataTabLoadingState({ rows = 8 }: { rows?: number }) {
+  return <TableSkeleton rows={rows} />;
 }
 
 export function SaleStatusBadge({ status }: { status: string }) {
@@ -668,7 +819,8 @@ export function SyncTypeBadge({ job }: { job: SyncTypeBadgeJob }) {
           label: "customers",
           Icon: Users,
         }
-      : job.normalizedSyncType === "sales" || job.normalizedSyncType === "orders"
+      : job.normalizedSyncType === "sales" ||
+          job.normalizedSyncType === "orders"
         ? {
             color: "warning" as const,
             label: job.normalizedSyncType,
@@ -696,7 +848,11 @@ export function SyncTypeBadge({ job }: { job: SyncTypeBadgeJob }) {
 export function SyncProgressInline({ value }: { value: number }) {
   return (
     <Stack spacing={0.4} sx={{ minWidth: 100 }}>
-      <LinearProgress determinate size="sm" value={Math.max(0, Math.min(100, value))} />
+      <LinearProgress
+        determinate
+        size="sm"
+        value={Math.max(0, Math.min(100, value))}
+      />
       <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
         {Math.round(value)}%
       </Typography>
@@ -729,13 +885,15 @@ export function SheetContent({
 }) {
   return (
     <JoySheet
-      variant="plain"
+      variant="outlined"
       sx={{
         width: { xs: "100vw", sm: 400 },
         maxWidth: "100vw",
         height: "100%",
         overflowY: "auto",
-        p: 2,
+        p: 3,
+        bgcolor: "background.surface",
+        borderRadius: { xs: 0, sm: "xl" },
       }}
     >
       <ModalClose />
@@ -752,7 +910,10 @@ export function SheetHeader({
   children: ReactNode;
 }) {
   return (
-    <Stack spacing={0.75} sx={{ pb: 1.25, borderBottom: "1px solid", borderColor: "divider" }}>
+    <Stack
+      spacing={0.75}
+      sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}
+    >
       {children}
     </Stack>
   );
@@ -786,6 +947,19 @@ export function JoyDataTable({ children }: { children: ReactNode }) {
       sx={{
         "--TableCell-headBackground": "transparent",
         "--TableHeaderUnderlineThickness": "1px",
+        "--TableRow-hoverBackground": "var(--joy-palette-neutral-softHoverBg)",
+        bgcolor: "background.surface",
+        "& thead th": {
+          color: "text.secondary",
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        },
+        "& tbody td": {
+          color: "text.primary",
+          verticalAlign: "top",
+        },
       }}
     >
       {children}

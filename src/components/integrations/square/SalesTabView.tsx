@@ -1,6 +1,5 @@
 import { Receipt } from "lucide-react";
-
-import { Badge } from "@/components/ui-legacy/badge";
+import Chip from "@mui/joy/Chip";
 
 import type {
   LightspeedPagination,
@@ -11,6 +10,7 @@ import type {
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
@@ -19,12 +19,12 @@ import {
   SlideOverField,
   StatusFilterPills,
   TableSearchInput,
+  TableSkeleton,
   ToolbarSelect,
   formatCurrency,
   formatDateTimeValue,
   formatDateValue,
   parseSaleLineItems,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -142,9 +142,13 @@ export function SalesTabView({
   const activePreset = getActivePreset(startDate, endDate);
   const lineItems = parseSaleLineItems(selectedSale?.items);
 
+  if (isLoading || (isFetching && rows.length === 0)) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
+
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search Square orders..."
@@ -309,16 +313,13 @@ export function SalesTabView({
                         )}
                       </td>
                       <td className="px-5 py-3 text-sm text-foreground">
-                        <Badge
-                          variant="outline"
-                          className={
-                            sale.automationFired
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-slate-200 text-slate-500"
-                          }
+                        <Chip
+                          size="sm"
+                          variant="soft"
+                          color={sale.automationFired ? "success" : "neutral"}
                         >
                           {sale.automationFired ? "Triggered" : "Pending"}
-                        </Badge>
+                        </Chip>
                       </td>
                     </tr>
                   ))}
@@ -332,8 +333,6 @@ export function SalesTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState
             icon={Receipt}
@@ -341,7 +340,7 @@ export function SalesTabView({
             description="Adjust the status, date range, or search term to inspect synced Square orders."
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedSale)}

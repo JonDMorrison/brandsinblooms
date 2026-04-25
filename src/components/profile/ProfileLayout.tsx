@@ -1,53 +1,70 @@
-import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
+import React from "react";
+import Tab, { tabClasses } from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import Tabs from "@mui/joy/Tabs";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+
+const profileTabs = [
+  { label: "Company Information", path: "/profile/company" },
+  { label: "Contact & Footer", path: "/profile/contact-footer" },
+  { label: "Brand Colors", path: "/profile/brand-colors" },
+  { label: "Typography", path: "/profile/typography" },
+];
 
 export const ProfileLayout = () => {
   const location = useLocation();
-  
-  // Determine active tab from current path
-  const getActiveTab = () => {
-    if (location.pathname.includes('/brand-colors')) return 'brand-colors';
-    if (location.pathname.includes('/typography')) return 'typography';
-    if (location.pathname.includes('/contact-footer')) return 'contact-footer';
-    return 'company';
-  };
+  const navigate = useNavigate();
+
+  const activeTabIndex = profileTabs.findIndex(
+    (tab) => location.pathname === tab.path,
+  );
 
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Profile Settings</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Profile Settings
+          </h1>
           <p className="text-muted-foreground mt-2">
             Manage your business information and preferences
           </p>
         </div>
 
         {/* Tab Navigation */}
-        <Tabs value={getActiveTab()} className="w-full">
-          <TabsList className="w-full justify-start">
-            <Link to="/profile/company">
-              <TabsTrigger value="company">
-                Company Information
-              </TabsTrigger>
-            </Link>
-            <Link to="/profile/contact-footer">
-              <TabsTrigger value="contact-footer">
-                Contact & Footer
-              </TabsTrigger>
-            </Link>
-            <Link to="/profile/brand-colors">
-              <TabsTrigger value="brand-colors">
-                Brand Colors
-              </TabsTrigger>
-            </Link>
-            <Link to="/profile/typography">
-              <TabsTrigger value="typography">
-                Typography
-              </TabsTrigger>
-            </Link>
-          </TabsList>
+        <Tabs
+          aria-label="Profile settings tabs"
+          value={activeTabIndex === -1 ? 0 : activeTabIndex}
+          onChange={(_event, newValue) => {
+            navigate(profileTabs[newValue as number].path);
+          }}
+          sx={{ bgcolor: "transparent" }}
+        >
+          <TabList
+            disableUnderline
+            sx={{
+              p: 0.5,
+              gap: 0.5,
+              width: "fit-content",
+              borderRadius: "xl",
+              bgcolor: "background.level1",
+              [`& .${tabClasses.root}[aria-selected="true"]`]: {
+                boxShadow: "sm",
+                bgcolor: "#e5e7eb",
+              },
+              [`& .${tabClasses.root}:not([aria-selected="true"]):hover`]: {
+                bgcolor: "background.level2",
+                borderRadius: "lg",
+              },
+            }}
+          >
+            {profileTabs.map((tab) => (
+              <Tab key={tab.path} disableIndicator>
+                {tab.label}
+              </Tab>
+            ))}
+          </TabList>
         </Tabs>
 
         {/* Tab Content */}

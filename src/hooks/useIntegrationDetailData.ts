@@ -16,7 +16,7 @@ import {
   type IntegrationDefinition,
   type IntegrationStatus,
 } from "@/components/integrations/integrationsHubConfig";
-import { formatCount } from "@/components/integrations/shared/dataTabPrimitives";
+import { formatCount } from "@/components/integrations/shared/formatCount";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -3832,8 +3832,8 @@ export function useIntegrationDetailData(
   const { data: isSuperAdmin = false } = useIsSuperAdmin();
   const queryClient = useQueryClient();
   const seed = slug ? getIntegrationSeed(slug) : null;
-  const isMailchimpBootstrapPending =
-    seed?.slug === "mailchimp" && (authLoading || tenantLoading);
+  const isDetailBootstrapPending =
+    Boolean(seed) && (authLoading || tenantLoading);
   const [submittedInterestKey, setSubmittedInterestKey] = useState<
     string | null
   >(null);
@@ -3854,7 +3854,7 @@ export function useIntegrationDetailData(
       tenant?.id ?? null,
       user?.id ?? null,
     ],
-    enabled: Boolean(seed) && !isMailchimpBootstrapPending,
+    enabled: Boolean(seed) && !isDetailBootstrapPending,
     queryFn: async (): Promise<DetailResult | null> => {
       if (!seed) {
         return null;
@@ -4560,7 +4560,7 @@ export function useIntegrationDetailData(
   });
 
   const resolved = useMemo(() => {
-    if (isMailchimpBootstrapPending) {
+    if (isDetailBootstrapPending || (query.isLoading && !query.data)) {
       return null;
     }
 
@@ -4610,7 +4610,13 @@ export function useIntegrationDetailData(
     }
 
     return base;
-  }, [query.data, seed, isSuperAdmin, isMailchimpBootstrapPending]);
+  }, [
+    query.data,
+    query.isLoading,
+    seed,
+    isSuperAdmin,
+    isDetailBootstrapPending,
+  ]);
 
   const lightspeedDashboardOptions = useMemo(
     () => ({
@@ -8133,8 +8139,7 @@ export function useIntegrationDetailData(
       ) ||
         isSuperAdmin),
     ),
-    isLoading:
-      Boolean(seed) && (query.isLoading || isMailchimpBootstrapPending),
+    isLoading: Boolean(seed) && (query.isLoading || isDetailBootstrapPending),
     isFetching: Boolean(seed) && query.isFetching,
     isError: query.isError,
     error: query.error,

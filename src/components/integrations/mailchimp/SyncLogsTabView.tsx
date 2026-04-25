@@ -23,11 +23,12 @@ import Typography from "@mui/joy/Typography";
 import {
   DataTabEmptyState,
   StatusFilterPills,
-  formatCount,
+  TableSkeleton,
   formatDateTimeValue,
   formatDuration,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
+import { formatCount } from "@/components/integrations/shared/formatCount";
 import {
   type MailchimpSyncLogEntry,
   type MailchimpSyncLogsDatePreset,
@@ -66,7 +67,8 @@ function getProgressColor(
 ): "success" | "danger" | "warning" | "primary" | "neutral" {
   if (status === "failed") return "danger";
   if (status === "completed") return "success";
-  if (status === "pending" || status === "paused" || status === "cancelled") return "neutral";
+  if (status === "pending" || status === "paused" || status === "cancelled")
+    return "neutral";
   return "primary";
 }
 
@@ -125,18 +127,29 @@ function SummaryMetric({
   tone?: "default" | "danger";
 }) {
   return (
-    <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", px: 1.5, py: 1 }}>
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{ borderRadius: "sm", px: 1.5, py: 1 }}
+    >
       <Typography
         level="body-xs"
         fontWeight="lg"
-        sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary" }}
+        sx={{
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+          color: "text.tertiary",
+        }}
       >
         {label}
       </Typography>
       <Typography
         level="body-sm"
         fontWeight="lg"
-        sx={{ mt: 0.5, color: tone === "danger" ? "danger.600" : "text.primary" }}
+        sx={{
+          mt: 0.5,
+          color: tone === "danger" ? "danger.600" : "text.primary",
+        }}
       >
         {value}
       </Typography>
@@ -155,7 +168,13 @@ function DetailSection({
 }) {
   return (
     <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
-      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1.5 }}
+      >
         <Typography level="title-sm">{title}</Typography>
         {action}
       </Stack>
@@ -213,22 +232,35 @@ function JobCard({
           >
             <Stack spacing={1.5} sx={{ minWidth: 0, flex: 1 }}>
               <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-                <Chip size="sm" variant="soft" color={getStatusChipColor(entry.status)}>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color={getStatusChipColor(entry.status)}
+                >
                   {getStatusLabel(entry.status)}
                 </Chip>
                 <Chip size="sm" variant="outlined" color="neutral">
                   {entry.scopeSummary}
                 </Chip>
                 {entry.status === "running" ? (
-                  <Typography level="body-xs" fontWeight="lg" sx={{ color: "primary.600", alignSelf: "center" }}>
+                  <Typography
+                    level="body-xs"
+                    fontWeight="lg"
+                    sx={{ color: "primary.600", alignSelf: "center" }}
+                  >
                     Live
                   </Typography>
                 ) : null}
                 {entry.errorCount > 0 ? (
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     <AlertTriangle size={13} />
-                    <Typography level="body-xs" fontWeight="lg" sx={{ color: "danger.600" }}>
-                      {entry.errorCount} issue{entry.errorCount === 1 ? "" : "s"}
+                    <Typography
+                      level="body-xs"
+                      fontWeight="lg"
+                      sx={{ color: "danger.600" }}
+                    >
+                      {entry.errorCount} issue
+                      {entry.errorCount === 1 ? "" : "s"}
                     </Typography>
                   </Stack>
                 ) : null}
@@ -241,9 +273,18 @@ function JobCard({
                   gap: 1,
                 }}
               >
-                <SummaryMetric label="Started" value={formatDateTimeValue(entry.createdAt)} />
-                <SummaryMetric label="Duration" value={formatDurationLabel(entry)} />
-                <SummaryMetric label="Imported" value={formatCount(entry.insertedRows)} />
+                <SummaryMetric
+                  label="Started"
+                  value={formatDateTimeValue(entry.createdAt)}
+                />
+                <SummaryMetric
+                  label="Duration"
+                  value={formatDurationLabel(entry)}
+                />
+                <SummaryMetric
+                  label="Imported"
+                  value={formatCount(entry.insertedRows)}
+                />
                 <SummaryMetric
                   label="Skipped / Failed"
                   value={`${formatCount(entry.skippedRows)} / ${formatCount(entry.failedRows)}`}
@@ -252,9 +293,17 @@ function JobCard({
               </Box>
 
               <Stack spacing={0.75}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>{entry.currentStage}</Typography>
-                  <Typography level="body-xs" fontWeight="lg">{progressValue}%</Typography>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                    {entry.currentStage}
+                  </Typography>
+                  <Typography level="body-xs" fontWeight="lg">
+                    {progressValue}%
+                  </Typography>
                 </Stack>
                 <LinearProgress
                   determinate
@@ -266,7 +315,11 @@ function JobCard({
               </Stack>
             </Stack>
 
-            <Stack spacing={0.5} alignItems={{ xs: "flex-start", lg: "flex-end" }} sx={{ flexShrink: 0, minWidth: 160 }}>
+            <Stack
+              spacing={0.5}
+              alignItems={{ xs: "flex-start", lg: "flex-end" }}
+              sx={{ flexShrink: 0, minWidth: 160 }}
+            >
               <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                 Created {formatRelativeTimestamp(entry.createdAt)}
               </Typography>
@@ -284,7 +337,10 @@ function JobCard({
       </AccordionSummary>
 
       <AccordionDetails sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
-        <Stack spacing={2} sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}>
+        <Stack
+          spacing={2}
+          sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}
+        >
           <DetailSection title="Selected audience">
             <Box
               sx={{
@@ -293,11 +349,20 @@ function JobCard({
                 gap: 1.5,
               }}
             >
-              <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", p: 1.5 }}>
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "sm", p: 1.5 }}
+              >
                 <Typography
                   level="body-xs"
                   fontWeight="lg"
-                  sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary", mb: 1 }}
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    color: "text.tertiary",
+                    mb: 1,
+                  }}
                 >
                   Lists
                 </Typography>
@@ -314,18 +379,30 @@ function JobCard({
                       </Chip>
                     ))
                   ) : (
-                    <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "text.secondary" }}
+                    >
                       No specific lists were saved for this import.
                     </Typography>
                   )}
                 </Stack>
               </Sheet>
 
-              <Sheet variant="soft" color="neutral" sx={{ borderRadius: "sm", p: 1.5 }}>
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "sm", p: 1.5 }}
+              >
                 <Typography
                   level="body-xs"
                   fontWeight="lg"
-                  sx={{ textTransform: "uppercase", letterSpacing: "0.1em", color: "text.tertiary", mb: 1 }}
+                  sx={{
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    color: "text.tertiary",
+                    mb: 1,
+                  }}
                 >
                   Segments
                 </Typography>
@@ -342,7 +419,10 @@ function JobCard({
                       </Chip>
                     ))
                   ) : (
-                    <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "text.secondary" }}
+                    >
                       No specific segments were saved for this import.
                     </Typography>
                   )}
@@ -354,18 +434,38 @@ function JobCard({
           <DetailSection title="Import activity">
             <Stack spacing={0}>
               {entry.timeline.map((item) => (
-                <Stack key={item.id} direction="row" spacing={1.5} sx={{ pb: 2 }}>
+                <Stack
+                  key={item.id}
+                  direction="row"
+                  spacing={1.5}
+                  sx={{ pb: 2 }}
+                >
                   <Stack alignItems="center" sx={{ flexShrink: 0 }}>
                     <TimelineDot state={item.state} />
-                    <Box sx={{ flex: 1, width: "1px", bgcolor: "divider", mt: 0.5 }} />
+                    <Box
+                      sx={{
+                        flex: 1,
+                        width: "1px",
+                        bgcolor: "divider",
+                        mt: 0.5,
+                      }}
+                    />
                   </Stack>
                   <Box sx={{ pb: 0.5 }}>
-                    <Typography level="body-sm" fontWeight="lg">{item.label}</Typography>
-                    <Typography level="body-sm" sx={{ mt: 0.5, color: "text.secondary" }}>
+                    <Typography level="body-sm" fontWeight="lg">
+                      {item.label}
+                    </Typography>
+                    <Typography
+                      level="body-sm"
+                      sx={{ mt: 0.5, color: "text.secondary" }}
+                    >
                       {item.description}
                     </Typography>
                     {item.timestamp ? (
-                      <Typography level="body-xs" sx={{ mt: 0.5, color: "text.tertiary" }}>
+                      <Typography
+                        level="body-xs"
+                        sx={{ mt: 0.5, color: "text.tertiary" }}
+                      >
                         {formatDateTimeValue(item.timestamp)}
                       </Typography>
                     ) : null}
@@ -399,20 +499,38 @@ function JobCard({
                 mb: 1.5,
               }}
             >
-              <SummaryMetric label="Imported" value={formatCount(entry.reportSummary.contactsImported)} />
-              <SummaryMetric label="Skipped" value={formatCount(entry.reportSummary.contactsSkipped)} />
+              <SummaryMetric
+                label="Imported"
+                value={formatCount(entry.reportSummary.contactsImported)}
+              />
+              <SummaryMetric
+                label="Skipped"
+                value={formatCount(entry.reportSummary.contactsSkipped)}
+              />
               <SummaryMetric
                 label="Failed"
                 value={formatCount(entry.reportSummary.contactsFailed)}
-                tone={entry.reportSummary.contactsFailed > 0 ? "danger" : "default"}
+                tone={
+                  entry.reportSummary.contactsFailed > 0 ? "danger" : "default"
+                }
               />
-              <SummaryMetric label="Segments created" value={formatCount(entry.reportSummary.segmentsCreated)} />
-              <SummaryMetric label="Tags created" value={formatCount(entry.reportSummary.tagsCreated)} />
-              <SummaryMetric label="Consents recorded" value={formatCount(entry.reportSummary.consentsRecorded)} />
+              <SummaryMetric
+                label="Segments created"
+                value={formatCount(entry.reportSummary.segmentsCreated)}
+              />
+              <SummaryMetric
+                label="Tags created"
+                value={formatCount(entry.reportSummary.tagsCreated)}
+              />
+              <SummaryMetric
+                label="Consents recorded"
+                value={formatCount(entry.reportSummary.consentsRecorded)}
+              />
             </Box>
             {entry.report ? (
               <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                A downloadable report is available for this import if you need to review the final details outside this page.
+                A downloadable report is available for this import if you need
+                to review the final details outside this page.
               </Typography>
             ) : (
               <Typography level="body-sm" sx={{ color: "text.secondary" }}>
@@ -445,7 +563,8 @@ function JobCard({
                   </Stack>
                 ) : (
                   <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                    This import stopped before it could finish. Retry it when you are ready.
+                    This import stopped before it could finish. Retry it when
+                    you are ready.
                   </Typography>
                 )}
               </Stack>
@@ -490,6 +609,10 @@ export function SyncLogsTabView({
     datePreset,
     focusedJobId,
   });
+
+  if (loading && rows.length === 0) {
+    return <TableSkeleton columns={5} rows={8} />;
+  }
   const primaryActionLabel = isConnected ? "Start Import" : "Connect Mailchimp";
   const handlePrimaryAction = isConnected
     ? onOpenImportDialog
@@ -522,7 +645,12 @@ export function SyncLogsTabView({
     <Sheet variant="outlined" sx={{ borderRadius: "xl", overflow: "hidden" }}>
       <Stack
         spacing={2}
-        sx={{ px: 2.5, py: 2.5, borderBottom: "1px solid", borderColor: "divider" }}
+        sx={{
+          px: 2.5,
+          py: 2.5,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
       >
         <Stack
           direction={{ xs: "column", lg: "row" }}
@@ -536,7 +664,8 @@ export function SyncLogsTabView({
               {loading ? <CircularProgress size="sm" /> : null}
             </Stack>
             <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-              Review recent Mailchimp imports and open any run for a cleaner summary of what happened.
+              Review recent Mailchimp imports and open any run for a cleaner
+              summary of what happened.
             </Typography>
           </Stack>
 
@@ -575,7 +704,12 @@ export function SyncLogsTabView({
             />
           </Stack>
 
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: "wrap" }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            alignItems="center"
+            sx={{ flexWrap: "wrap" }}
+          >
             <Stack direction="row" spacing={0.5} alignItems="center">
               <Clock3 size={13} />
               <Typography level="body-xs" sx={{ color: "text.secondary" }}>
@@ -606,7 +740,8 @@ export function SyncLogsTabView({
 
         {focusedJobExcluded ? (
           <Alert size="sm" color="warning" variant="soft">
-            The selected job is hidden by the current filters. Clear or widen the filters to view it.
+            The selected job is hidden by the current filters. Clear or widen
+            the filters to view it.
           </Alert>
         ) : null}
 
@@ -623,16 +758,20 @@ export function SyncLogsTabView({
           title="No Mailchimp sync logs yet"
           description="Import activity will appear here after the first Mailchimp sync runs."
           action={
-            <Button onClick={handlePrimaryAction}>
-              {primaryActionLabel}
-            </Button>
+            <Button onClick={handlePrimaryAction}>{primaryActionLabel}</Button>
           }
         />
       ) : null}
 
       {rows.length > 0 ? (
         <Stack spacing={0}>
-          <AccordionGroup sx={{ "--AccordionGroup-separator": "1px solid", "--joy-palette-divider": "var(--joy-palette-neutral-outlinedBorder)" }}>
+          <AccordionGroup
+            sx={{
+              "--AccordionGroup-separator": "1px solid",
+              "--joy-palette-divider":
+                "var(--joy-palette-neutral-outlinedBorder)",
+            }}
+          >
             {rows.map((entry) => (
               <JobCard
                 key={entry.id}
@@ -652,10 +791,16 @@ export function SyncLogsTabView({
             justifyContent="space-between"
             alignItems="center"
             spacing={2}
-            sx={{ px: 2.5, py: 2, borderTop: "1px solid", borderColor: "divider" }}
+            sx={{
+              px: 2.5,
+              py: 2,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
           >
             <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-              Showing {rows.length.toLocaleString()} of {totalCount.toLocaleString()} jobs
+              Showing {rows.length.toLocaleString()} of{" "}
+              {totalCount.toLocaleString()} jobs
             </Typography>
             {hasMore ? (
               <Button
@@ -664,19 +809,14 @@ export function SyncLogsTabView({
                 color="neutral"
                 onClick={() => void loadMore()}
                 disabled={loadingMore}
-                startDecorator={loadingMore ? <CircularProgress size="sm" /> : null}
+                startDecorator={
+                  loadingMore ? <CircularProgress size="sm" /> : null
+                }
               >
                 Load More
               </Button>
             ) : null}
           </Stack>
-        </Stack>
-      ) : null}
-
-      {loading && rows.length === 0 ? (
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 6 }}>
-          <CircularProgress size="sm" />
-          <Typography level="body-sm" sx={{ color: "text.secondary" }}>Loading sync logs\u2026</Typography>
         </Stack>
       ) : null}
     </Sheet>

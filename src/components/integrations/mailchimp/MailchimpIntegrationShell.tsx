@@ -36,6 +36,7 @@ import ModalDialog from "@mui/joy/ModalDialog";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Tab from "@mui/joy/Tab";
+import { tabClasses } from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
@@ -43,7 +44,10 @@ import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
-import { SectionCard } from "@/components/integrations/shared/detailPrimitives";
+import {
+  CardSkeleton,
+  SectionCard,
+} from "@/components/integrations/shared/detailPrimitives";
 import type { IntegrationDefinition } from "@/components/integrations/integrationsHubConfig";
 import type { MarketingImportDetailData } from "@/hooks/useIntegrationDetailData";
 import type { MailchimpImportProgressState } from "@/hooks/useMailchimpImportProgress";
@@ -292,6 +296,7 @@ export function MailchimpIntegrationShell({
   item,
   marketingImportDetail,
   importProgress,
+  isRefreshingOverview = false,
   canDisconnect,
   isDisconnecting,
   onDisconnect,
@@ -304,6 +309,7 @@ export function MailchimpIntegrationShell({
   item: IntegrationDefinition;
   marketingImportDetail: MarketingImportDetailData;
   importProgress?: MailchimpImportProgressState | null;
+  isRefreshingOverview?: boolean;
   canDisconnect: boolean;
   isDisconnecting: boolean;
   onDisconnect: () => Promise<unknown>;
@@ -645,32 +651,80 @@ export function MailchimpIntegrationShell({
         <Tabs
           value={currentTab}
           onChange={(_, val) => val && setTab(val as string)}
-          sx={{ background: "transparent" }}
+          sx={{ bgcolor: "transparent" }}
         >
           <TabList
+            disableUnderline
             sx={{
-              maxWidth: "max-content",
-              background: "var(--joy-palette-background-surface)",
-              borderRadius: "xl",
-              border: "1px solid",
-              borderColor: "divider",
               p: 0.5,
               gap: 0.5,
+              borderRadius: "xl",
+              bgcolor: "background.level1",
+              maxWidth: "max-content",
+              [`& .${tabClasses.root}[aria-selected=\"true\"]`]: {
+                boxShadow: "sm",
+                bgcolor: "background.surface",
+              },
             }}
           >
-            <Tab value="overview" sx={{ borderRadius: "lg" }}>
+            <Tab
+              disableIndicator
+              value="overview"
+              sx={{
+                fontWeight: "md",
+                fontSize: "sm",
+                px: 2,
+                py: 0.75,
+                borderRadius: "lg",
+                color: "text.tertiary",
+                [`&.${tabClasses.selected}`]: {
+                  color: "text.primary",
+                  fontWeight: "lg",
+                },
+              }}
+            >
               Overview
             </Tab>
-            <Tab value="logs" sx={{ borderRadius: "lg" }}>
+            <Tab
+              disableIndicator
+              value="logs"
+              sx={{
+                fontWeight: "md",
+                fontSize: "sm",
+                px: 2,
+                py: 0.75,
+                borderRadius: "lg",
+                color: "text.tertiary",
+                [`&.${tabClasses.selected}`]: {
+                  color: "text.primary",
+                  fontWeight: "lg",
+                },
+              }}
+            >
               Sync Logs
             </Tab>
-            <Tab value="data" sx={{ borderRadius: "lg" }}>
+            <Tab
+              disableIndicator
+              value="data"
+              sx={{
+                fontWeight: "md",
+                fontSize: "sm",
+                px: 2,
+                py: 0.75,
+                borderRadius: "lg",
+                color: "text.tertiary",
+                [`&.${tabClasses.selected}`]: {
+                  color: "text.primary",
+                  fontWeight: "lg",
+                },
+              }}
+            >
               Imported Data
             </Tab>
           </TabList>
 
-          <TabPanel value="overview" sx={{ px: 0, pt: 2 }}>
-            <Stack spacing={3}>
+          <TabPanel value="overview" sx={{ px: 0, pt: 3 }}>
+            <Stack spacing={2.5}>
               {shouldShowImportStatusCard ? (
                 <Sheet
                   variant="outlined"
@@ -1008,36 +1062,47 @@ export function MailchimpIntegrationShell({
                   gap: 2,
                 }}
               >
-                <MetricCard
-                  icon={Database}
-                  label="Lists Available"
-                  value={formatCount(marketingImportDetail.listCount)}
-                  subtitle={
-                    marketingImportDetail.segmentCount > 0
-                      ? `${formatCount(marketingImportDetail.segmentCount)} audience segments available`
-                      : "Preview lists to refresh available Mailchimp audiences"
-                  }
-                />
-                <MetricCard
-                  icon={Users}
-                  label="Contacts Imported"
-                  value={formatCount(
-                    marketingImportDetail.contactsImportedAllTime,
-                  )}
-                  subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
-                />
-                <MetricCard
-                  icon={Clock3}
-                  label="Last Import"
-                  value={lastImportValue}
-                  subtitle={lastImportSubtitle}
-                />
-                <MetricCard
-                  icon={KeyRound}
-                  label="Connection"
-                  value={marketingImportDetail.connectionState.label}
-                  subtitle={marketingImportDetail.connectionState.subtitle}
-                />
+                {isRefreshingOverview ? (
+                  <>
+                    <CardSkeleton titleWidth="120px" rows={2} />
+                    <CardSkeleton titleWidth="150px" rows={2} />
+                    <CardSkeleton titleWidth="110px" rows={2} />
+                    <CardSkeleton titleWidth="100px" rows={2} />
+                  </>
+                ) : (
+                  <>
+                    <MetricCard
+                      icon={Database}
+                      label="Lists Available"
+                      value={formatCount(marketingImportDetail.listCount)}
+                      subtitle={
+                        marketingImportDetail.segmentCount > 0
+                          ? `${formatCount(marketingImportDetail.segmentCount)} audience segments available`
+                          : "Preview lists to refresh available Mailchimp audiences"
+                      }
+                    />
+                    <MetricCard
+                      icon={Users}
+                      label="Contacts Imported"
+                      value={formatCount(
+                        marketingImportDetail.contactsImportedAllTime,
+                      )}
+                      subtitle={`Across ${formatCount(marketingImportDetail.importJobCount)} completed import${marketingImportDetail.importJobCount === 1 ? "" : "s"}`}
+                    />
+                    <MetricCard
+                      icon={Clock3}
+                      label="Last Import"
+                      value={lastImportValue}
+                      subtitle={lastImportSubtitle}
+                    />
+                    <MetricCard
+                      icon={KeyRound}
+                      label="Connection"
+                      value={marketingImportDetail.connectionState.label}
+                      subtitle={marketingImportDetail.connectionState.subtitle}
+                    />
+                  </>
+                )}
               </Box>
 
               <Box
@@ -1054,91 +1119,107 @@ export function MailchimpIntegrationShell({
                   title="Connection"
                   description="Current Mailchimp connection status for this workspace."
                 >
-                  <Stack spacing={2}>
-                    <Sheet
-                      variant="soft"
-                      color="neutral"
-                      sx={{ borderRadius: "lg", p: 2 }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        sx={{ flexWrap: "wrap" }}
+                  {isRefreshingOverview ? (
+                    <Stack spacing={1.5}>
+                      <CardSkeleton titleWidth="88px" rows={2} />
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                          gap: 1.5,
+                        }}
                       >
-                        <Typography level="body-sm" fontWeight="lg">
-                          Status
-                        </Typography>
-                        <Chip
-                          size="sm"
-                          variant="soft"
-                          color={
-                            marketingImportDetail.connectionState.tone ===
-                            "success"
-                              ? "success"
-                              : marketingImportDetail.connectionState.tone ===
-                                  "danger"
-                                ? "danger"
+                        <CardSkeleton titleWidth="140px" rows={2} />
+                        <CardSkeleton titleWidth="120px" rows={2} />
+                      </Box>
+                    </Stack>
+                  ) : (
+                    <Stack spacing={2}>
+                      <Sheet
+                        variant="soft"
+                        color="neutral"
+                        sx={{ borderRadius: "lg", p: 2 }}
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          sx={{ flexWrap: "wrap" }}
+                        >
+                          <Typography level="body-sm" fontWeight="lg">
+                            Status
+                          </Typography>
+                          <Chip
+                            size="sm"
+                            variant="soft"
+                            color={
+                              marketingImportDetail.connectionState.tone ===
+                              "success"
+                                ? "success"
                                 : marketingImportDetail.connectionState.tone ===
-                                    "warning"
-                                  ? "warning"
-                                  : "neutral"
-                          }
+                                    "danger"
+                                  ? "danger"
+                                  : marketingImportDetail.connectionState
+                                        .tone === "warning"
+                                    ? "warning"
+                                    : "neutral"
+                            }
+                          >
+                            {marketingImportDetail.connectionState.label}
+                          </Chip>
+                        </Stack>
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "text.secondary", mt: 1 }}
                         >
-                          {marketingImportDetail.connectionState.label}
-                        </Chip>
-                      </Stack>
-                      <Typography
-                        level="body-sm"
-                        sx={{ color: "text.secondary", mt: 1 }}
-                      >
-                        {marketingImportDetail.connectionState.subtitle}
-                      </Typography>
-                    </Sheet>
+                          {marketingImportDetail.connectionState.subtitle}
+                        </Typography>
+                      </Sheet>
 
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                        gap: 1.5,
-                      }}
-                    >
-                      {connectionDetails.map((row) => (
-                        <Sheet
-                          key={row.label}
-                          variant="outlined"
-                          sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
-                        >
-                          <Typography
-                            level="body-xs"
-                            fontWeight="lg"
-                            sx={{
-                              textTransform: "uppercase",
-                              letterSpacing: "0.12em",
-                              color: "text.tertiary",
-                            }}
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                          gap: 1.5,
+                        }}
+                      >
+                        {connectionDetails.map((row) => (
+                          <Sheet
+                            key={row.label}
+                            variant="outlined"
+                            sx={{ borderRadius: "lg", px: 2, py: 1.5 }}
                           >
-                            {row.label}
-                          </Typography>
-                          <Typography
-                            level="body-sm"
-                            fontWeight="lg"
-                            sx={{ mt: 0.5, color: "text.primary" }}
-                          >
-                            {row.value}
-                          </Typography>
-                          {row.description ? (
                             <Typography
                               level="body-xs"
-                              sx={{ mt: 0.5, color: "text.secondary" }}
+                              fontWeight="lg"
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: "0.12em",
+                                color: "text.tertiary",
+                              }}
                             >
-                              {row.description}
+                              {row.label}
                             </Typography>
-                          ) : null}
-                        </Sheet>
-                      ))}
-                    </Box>
-                  </Stack>
+                            <Typography
+                              level="body-sm"
+                              fontWeight="lg"
+                              sx={{ mt: 0.5, color: "text.primary" }}
+                            >
+                              {row.value}
+                            </Typography>
+                            {row.description ? (
+                              <Typography
+                                level="body-xs"
+                                sx={{ mt: 0.5, color: "text.secondary" }}
+                              >
+                                {row.description}
+                              </Typography>
+                            ) : null}
+                          </Sheet>
+                        ))}
+                      </Box>
+                    </Stack>
+                  )}
                 </SectionCard>
 
                 <SectionCard
@@ -1202,7 +1283,9 @@ export function MailchimpIntegrationShell({
                 title="Recent Import"
                 description="Summary of the most recent completed Mailchimp import."
               >
-                {recentImportSummary ? (
+                {isRefreshingOverview ? (
+                  <CardSkeleton titleWidth="130px" rows={3} />
+                ) : recentImportSummary ? (
                   <Sheet
                     variant="soft"
                     color="neutral"
@@ -1346,7 +1429,7 @@ export function MailchimpIntegrationShell({
             </Stack>
           </TabPanel>
 
-          <TabPanel value="logs" sx={{ px: 0, pt: 2 }}>
+          <TabPanel value="logs" sx={{ px: 0, pt: 3 }}>
             <SyncLogsTabView
               focusedJobId={focusedJobId}
               isConnected={isConnected}
@@ -1355,7 +1438,7 @@ export function MailchimpIntegrationShell({
             />
           </TabPanel>
 
-          <TabPanel value="data" sx={{ px: 0, pt: 2 }}>
+          <TabPanel value="data" sx={{ px: 0, pt: 3 }}>
             <ImportedDataTabView
               isConnected={isConnected}
               onOpenConnectDialog={onOpenConnectDialog}

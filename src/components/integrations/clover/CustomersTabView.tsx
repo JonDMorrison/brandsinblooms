@@ -1,6 +1,5 @@
 import { RefreshCw, Users } from "lucide-react";
-
-import { Button } from "@/components/ui-legacy/button";
+import Button from "@mui/joy/Button";
 
 import type {
   CloverCustomerTableRow,
@@ -10,17 +9,18 @@ import type {
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
   RawDataPre,
   SlideOverField,
   TableSearchInput,
+  TableSkeleton,
   TagList,
   ToolbarSelect,
   formatDateTimeValue,
   getInitials,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -108,9 +108,13 @@ export function CustomersTabView({
   const showFilteredEmptyState =
     rows.length === 0 && !showEmptySyncState && !isLoading && !isFetching;
 
+  if (isLoading || (isFetching && rows.length === 0)) {
+    return <TableSkeleton columns={5} rows={8} />;
+  }
+
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search Clover customers..."
@@ -230,16 +234,19 @@ export function CustomersTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {showEmptySyncState ? (
           <DataTabEmptyState
             icon={Users}
             title="No Clover customers synced yet"
             description="Run a Clover sync to import customer records into this integration view."
             action={
-              <Button variant="outline" size="sm" onClick={onTriggerSync}>
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              <Button
+                variant="outlined"
+                color="neutral"
+                size="sm"
+                startDecorator={<RefreshCw size={14} />}
+                onClick={onTriggerSync}
+              >
                 Sync now
               </Button>
             }
@@ -253,7 +260,7 @@ export function CustomersTabView({
             description="Adjust the search or sort to browse a different slice of synced Clover customers."
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedCustomer)}

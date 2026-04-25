@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import Chip from "@mui/joy/Chip";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
 import DialogTitle from "@mui/joy/DialogTitle";
@@ -20,17 +19,17 @@ import Select from "@mui/joy/Select";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
-import Tab from "@mui/joy/Tab";
+import Tab, { tabClasses } from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
-import { AlertTriangle, Building2 } from "lucide-react";
+import { AlertTriangle, Building2, Trash2 } from "lucide-react";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { BillingDashboard } from "@/components/billing/BillingDashboard";
 import { UsageAnalytics } from "@/components/billing/UsageAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSubscription as useLegacySubscription } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -51,6 +50,14 @@ interface BusinessData {
 
 const DEFAULT_TIMEZONE = "America/New_York";
 
+const ACCOUNT_TABS: Array<{ value: AccountTabValue; label: string; danger?: boolean }> = [
+  { value: "general", label: "General" },
+  { value: "business", label: "Business" },
+  { value: "billing", label: "Billing" },
+  { value: "usage", label: "Usage" },
+  { value: "danger", label: "Danger Zone", danger: true },
+];
+
 const TIMEZONE_OPTIONS = [
   { value: "America/New_York", label: "Eastern Time (EST/EDT)" },
   { value: "America/Chicago", label: "Central Time (CST/CDT)" },
@@ -58,17 +65,20 @@ const TIMEZONE_OPTIONS = [
   { value: "America/Los_Angeles", label: "Pacific Time (PST/PDT)" },
   { value: "America/Anchorage", label: "Alaska Time (AKST/AKDT)" },
   { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
-  { value: "America/Vancouver", label: "Pacific Time - Canada (PST/PDT)" },
-  { value: "America/Toronto", label: "Eastern Time - Canada (EST/EDT)" },
+  { value: "America/Vancouver", label: "Pacific Time - Vancouver" },
+  { value: "America/Toronto", label: "Eastern Time - Toronto" },
   { value: "UTC", label: "UTC" },
 ] as const;
 
-const panelSheetSx = {
+const cardSx = {
   bgcolor: "background.surface",
   borderRadius: "md",
-  borderColor: "divider",
-  p: { xs: 2.5, sm: 3 },
-  boxShadow: "none",
+  p: 3,
+} as const;
+
+const dangerCardSx = {
+  ...cardSx,
+  borderColor: "danger.outlinedBorder",
 } as const;
 
 const fieldSx = {
@@ -76,44 +86,15 @@ const fieldSx = {
   "--Select-focusedThickness": "0px",
 } as const;
 
-const helperTextSx = {
-  color: "neutral.500",
+const tertiaryTextSx = {
+  color: "text.tertiary",
 } as const;
-
-function FieldSkeleton({ labelWidth = 88 }: { labelWidth?: number }) {
-  return (
-    <Stack spacing={1}>
-      <Skeleton
-        variant="rectangular"
-        width={labelWidth}
-        height={14}
-        sx={{ borderRadius: "sm" }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width="100%"
-        height={40}
-        sx={{ borderRadius: "sm" }}
-      />
-    </Stack>
-  );
-}
 
 function AccountHeaderSkeleton() {
   return (
-    <Stack spacing={1.5}>
-      <Skeleton
-        variant="rectangular"
-        width={240}
-        height={34}
-        sx={{ borderRadius: "sm" }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={320}
-        height={18}
-        sx={{ borderRadius: "sm" }}
-      />
+    <Stack spacing={0.75}>
+      <Skeleton variant="text" width={140} />
+      <Skeleton variant="text" width={360} />
     </Stack>
   );
 }
@@ -122,44 +103,22 @@ function AccountTabsSkeleton() {
   return (
     <Box
       sx={{
-        display: "flex",
-        gap: 1.5,
-        pb: 1.5,
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        overflowX: "auto",
+        display: "inline-flex",
+        p: 0.5,
+        gap: 0.5,
+        borderRadius: "xl",
+        bgcolor: "background.level1",
       }}
     >
-      <Skeleton
-        variant="rectangular"
-        width={84}
-        height={24}
-        sx={{ borderRadius: "sm", flexShrink: 0 }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={132}
-        height={24}
-        sx={{ borderRadius: "sm", flexShrink: 0 }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={112}
-        height={24}
-        sx={{ borderRadius: "sm", flexShrink: 0 }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={96}
-        height={24}
-        sx={{ borderRadius: "sm", flexShrink: 0 }}
-      />
-      <Skeleton
-        variant="rectangular"
-        width={108}
-        height={24}
-        sx={{ borderRadius: "sm", flexShrink: 0 }}
-      />
+      {[92, 98, 82, 76, 120].map((width) => (
+        <Skeleton
+          key={width}
+          variant="rectangular"
+          width={width}
+          height={36}
+          sx={{ borderRadius: "lg" }}
+        />
+      ))}
     </Box>
   );
 }
@@ -167,59 +126,37 @@ function AccountTabsSkeleton() {
 function GeneralPanelSkeleton() {
   return (
     <Stack spacing={3}>
-      <Sheet variant="outlined" sx={panelSheetSx}>
-        <Stack spacing={3}>
-          <Stack spacing={1.5}>
-            <Skeleton
-              variant="rectangular"
-              width={180}
-              height={24}
-              sx={{ borderRadius: "sm" }}
-            />
-            <Skeleton
-              variant="rectangular"
-              width={280}
-              height={16}
-              sx={{ borderRadius: "sm" }}
-            />
-          </Stack>
-          <Divider />
-          <Grid container spacing={2}>
-            <Grid xs={12} sm={6}>
-              <FieldSkeleton labelWidth={80} />
-            </Grid>
-            <Grid xs={12} sm={6}>
-              <FieldSkeleton labelWidth={92} />
-            </Grid>
+      <Sheet variant="outlined" sx={cardSx}>
+        <Skeleton variant="text" width={180} sx={{ mb: 0.5 }} />
+        <Skeleton variant="text" width={280} sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 3 }} />
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid xs={12} sm={6}>
+            <Skeleton variant="text" width={60} sx={{ mb: 1 }} />
+            <Skeleton variant="rectangular" height={40} />
           </Grid>
-          <FieldSkeleton labelWidth={84} />
-          <Stack direction="row" justifyContent="flex-end">
-            <Skeleton
-              variant="rectangular"
-              width={120}
-              height={36}
-              sx={{ borderRadius: "sm" }}
-            />
-          </Stack>
+          <Grid xs={12} sm={6}>
+            <Skeleton variant="text" width={100} sx={{ mb: 1 }} />
+            <Skeleton variant="rectangular" height={40} />
+          </Grid>
+        </Grid>
+        <Skeleton variant="text" width={70} sx={{ mb: 1 }} />
+        <Skeleton variant="rectangular" height={40} sx={{ mb: 3 }} />
+        <Divider sx={{ mb: 2 }} />
+        <Stack direction="row" justifyContent="flex-end">
+          <Skeleton
+            variant="rectangular"
+            width={120}
+            height={36}
+            sx={{ borderRadius: "sm" }}
+          />
         </Stack>
       </Sheet>
 
-      <Sheet variant="outlined" sx={panelSheetSx}>
-        <Stack spacing={2.5}>
-          <Skeleton
-            variant="rectangular"
-            width={200}
-            height={24}
-            sx={{ borderRadius: "sm" }}
-          />
-          <Divider />
-          <Skeleton
-            variant="rectangular"
-            width={264}
-            height={16}
-            sx={{ borderRadius: "sm" }}
-          />
-        </Stack>
+      <Sheet variant="outlined" sx={cardSx}>
+        <Skeleton variant="text" width={190} sx={{ mb: 1.5 }} />
+        <Divider sx={{ my: 1.5 }} />
+        <Skeleton variant="text" width={220} />
       </Sheet>
     </Stack>
   );
@@ -227,103 +164,31 @@ function GeneralPanelSkeleton() {
 
 function BusinessPanelSkeleton() {
   return (
-    <Sheet variant="outlined" sx={panelSheetSx}>
-      <Stack spacing={3}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Skeleton variant="circular" width={20} height={20} />
-            <Skeleton
-              variant="rectangular"
-              width={168}
-              height={24}
-              sx={{ borderRadius: "sm" }}
-            />
-          </Stack>
-          <Skeleton
-            variant="rectangular"
-            width={300}
-            height={16}
-            sx={{ borderRadius: "sm" }}
-          />
-        </Stack>
-        <Divider />
-        <Stack spacing={1}>
-          <FieldSkeleton labelWidth={112} />
-          <Skeleton
-            variant="rectangular"
-            width={280}
-            height={14}
-            sx={{ borderRadius: "sm" }}
-          />
-        </Stack>
-        <Grid container spacing={2}>
-          <Grid xs={12} sm={6}>
-            <FieldSkeleton labelWidth={96} />
-          </Grid>
-          <Grid xs={12} sm={6}>
-            <FieldSkeleton labelWidth={92} />
-          </Grid>
-        </Grid>
-        <Divider />
-        <Stack direction="row" justifyContent="flex-end">
-          <Skeleton
-            variant="rectangular"
-            width={168}
-            height={36}
-            sx={{ borderRadius: "sm" }}
-          />
-        </Stack>
+    <Sheet variant="outlined" sx={cardSx}>
+      <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+        <Skeleton variant="circular" width={20} height={20} />
+        <Skeleton variant="text" width={140} />
       </Stack>
-    </Sheet>
-  );
-}
-
-function DangerPanelSkeleton() {
-  return (
-    <Sheet
-      variant="outlined"
-      sx={{ ...panelSheetSx, borderColor: "danger.200" }}
-    >
-      <Stack spacing={3}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Skeleton variant="circular" width={20} height={20} />
-            <Skeleton
-              variant="rectangular"
-              width={144}
-              height={24}
-              sx={{ borderRadius: "sm" }}
-            />
-          </Stack>
-          <Skeleton
-            variant="rectangular"
-            width={320}
-            height={16}
-            sx={{ borderRadius: "sm" }}
-          />
-        </Stack>
-        <Divider />
+      <Skeleton variant="text" width={320} sx={{ mb: 1.5 }} />
+      <Divider sx={{ mb: 3 }} />
+      <Skeleton variant="text" width={100} sx={{ mb: 1 }} />
+      <Skeleton variant="rectangular" height={40} sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width={300} sx={{ mb: 3 }} />
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid xs={12} sm={6}>
+          <Skeleton variant="text" width={110} sx={{ mb: 1 }} />
+          <Skeleton variant="rectangular" height={40} />
+        </Grid>
+        <Grid xs={12} sm={6}>
+          <Skeleton variant="text" width={110} sx={{ mb: 1 }} />
+          <Skeleton variant="rectangular" height={40} />
+        </Grid>
+      </Grid>
+      <Divider sx={{ mb: 2 }} />
+      <Stack direction="row" justifyContent="flex-end">
         <Skeleton
           variant="rectangular"
-          width={112}
-          height={20}
-          sx={{ borderRadius: "sm" }}
-        />
-        <Skeleton
-          variant="rectangular"
-          width="100%"
-          height={14}
-          sx={{ borderRadius: "sm" }}
-        />
-        <Skeleton
-          variant="rectangular"
-          width="86%"
-          height={14}
-          sx={{ borderRadius: "sm" }}
-        />
-        <Skeleton
-          variant="rectangular"
-          width={148}
+          width={150}
           height={36}
           sx={{ borderRadius: "sm" }}
         />
@@ -332,14 +197,40 @@ function DangerPanelSkeleton() {
   );
 }
 
+function DangerPanelSkeleton() {
+  return (
+    <Sheet variant="outlined" sx={dangerCardSx}>
+      <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+        <Skeleton variant="circular" width={20} height={20} />
+        <Skeleton variant="text" width={120} />
+      </Stack>
+      <Skeleton variant="text" width={250} sx={{ mb: 1.5 }} />
+      <Divider sx={{ mb: 3 }} />
+      <Skeleton variant="text" width={110} sx={{ mb: 1 }} />
+      <Skeleton variant="text" width="100%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="88%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="92%" sx={{ mb: 0.5 }} />
+      <Skeleton variant="text" width="76%" sx={{ mb: 2 }} />
+      <Skeleton
+        variant="rectangular"
+        width={132}
+        height={36}
+        sx={{ borderRadius: "sm" }}
+      />
+    </Sheet>
+  );
+}
+
 function AccountPageInitialSkeleton() {
   return (
     <ProtectedPageWrapper>
-      <Stack spacing={4} sx={{ width: "100%" }}>
-        <AccountHeaderSkeleton />
-        <AccountTabsSkeleton />
-        <GeneralPanelSkeleton />
-      </Stack>
+      <Box sx={{ maxWidth: 900, mx: "auto", py: 4, px: { xs: 2, sm: 3 } }}>
+        <Stack spacing={3}>
+          <AccountHeaderSkeleton />
+          <AccountTabsSkeleton />
+          <GeneralPanelSkeleton />
+        </Stack>
+      </Box>
     </ProtectedPageWrapper>
   );
 }
@@ -353,10 +244,9 @@ const AccountPage = () => {
   const {
     subscription: deletionSubscription,
     loading: isLoadingDeletionSubscription,
-  } = useLegacySubscription();
+  } = useSubscription();
 
   const [hasMounted, setHasMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<AccountTabValue>("general");
   const [profileStatus, setProfileStatus] = useState<LoadStatus>("loading");
   const [businessStatus, setBusinessStatus] = useState<LoadStatus>("idle");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -501,12 +391,6 @@ const AccountPage = () => {
   }, [tenant?.name, user?.id]);
 
   useEffect(() => {
-    if (activeTab === "business" && businessStatus === "idle") {
-      void loadBusinessData();
-    }
-  }, [activeTab, businessStatus, loadBusinessData]);
-
-  useEffect(() => {
     if (!tenant?.name) {
       return;
     }
@@ -566,10 +450,8 @@ const AccountPage = () => {
         (existingProfile?.feature_flags as Record<string, unknown> | null) ??
         {};
       const currentComplianceSettings =
-        (existingProfile?.compliance_settings as Record<
-          string,
-          unknown
-        > | null) ?? {};
+        (existingProfile?.compliance_settings as Record<string, unknown> | null) ??
+        {};
 
       const updatedFeatureFlags = {
         ...currentFeatureFlags,
@@ -712,7 +594,7 @@ const AccountPage = () => {
     );
   }, [deletionSubscription]);
 
-  const handleCloseDeleteModal = useCallback(() => {
+  const closeModalAndReset = useCallback(() => {
     if (isDeletingAccount) {
       return;
     }
@@ -748,279 +630,216 @@ const AccountPage = () => {
     }
   }, [confirmText, signOut, user?.id]);
 
+  const handleTabChange = useCallback(
+    (_event: React.SyntheticEvent | null, value: string | number | null) => {
+      if (value === "business" && businessStatus === "idle") {
+        void loadBusinessData();
+      }
+    },
+    [businessStatus, loadBusinessData],
+  );
+
   if (!hasMounted || authLoading) {
     return <AccountPageInitialSkeleton />;
   }
 
   return (
     <ProtectedPageWrapper>
-      <Stack spacing={4} sx={{ width: "100%" }}>
-        <Stack spacing={1.5} sx={{ mb: 0.5 }}>
-          <Typography
-            level="h3"
-            sx={{ fontWeight: 700, letterSpacing: "-0.02em" }}
-          >
-            Account
-          </Typography>
-          <Typography level="body-sm" color="neutral">
-            Manage your profile, business details, billing, and account
-            settings.
-          </Typography>
-        </Stack>
+      <Box sx={{ maxWidth: 900, mx: "auto", py: 4, px: { xs: 2, sm: 3 } }}>
+        <Typography level="h3" fontWeight={700} sx={{ mb: 0.5 }}>
+          Account
+        </Typography>
+        <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 3 }}>
+          Manage your profile, business details, billing, and account settings.
+        </Typography>
 
         <Tabs
-          value={activeTab}
-          onChange={(_event, value) => {
-            if (typeof value === "string") {
-              setActiveTab(value as AccountTabValue);
-            }
-          }}
-          variant="plain"
-          color="neutral"
-          sx={{ width: "100%" }}
+          aria-label="Account settings"
+          defaultValue="general"
+          onChange={handleTabChange}
+          sx={{ bgcolor: "transparent" }}
         >
           <TabList
-            variant="plain"
+            disableUnderline
             sx={{
-              p: 0,
-              gap: 0,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              borderRadius: 0,
-              bgcolor: "transparent",
-              overflowX: "auto",
+              p: 0.5,
+              gap: 0.5,
+              borderRadius: "xl",
+              bgcolor: "background.level1",
+              [`& .${tabClasses.root}[aria-selected="true"]`]: {
+                boxShadow: "sm",
+                bgcolor: "background.surface",
+              },
             }}
           >
-            {[
-              { value: "general", label: "General" },
-              { value: "business", label: "Business" },
-              { value: "billing", label: "Billing" },
-              { value: "usage", label: "Usage" },
-              { value: "danger", label: "Danger Zone", danger: true },
-            ].map((tab) => (
+            {ACCOUNT_TABS.map((tab) => (
               <Tab
                 key={tab.value}
-                value={tab.value}
                 disableIndicator
-                color={tab.danger ? "danger" : "neutral"}
-                sx={{
-                  flex: "0 0 auto",
-                  px: 0,
-                  py: 1.5,
-                  mr: { xs: 2.5, sm: 3.5 },
-                  minHeight: "unset",
-                  borderRadius: 0,
-                  borderBottom: "2px solid transparent",
-                  bgcolor: "transparent",
-                  color: tab.danger ? "danger.600" : "neutral.600",
-                  fontWeight: 500,
-                  boxShadow: "none",
-                  "&:hover": {
-                    bgcolor: "transparent",
-                    color: tab.danger ? "danger.700" : "neutral.800",
-                  },
-                  "&.Mui-selected": {
-                    bgcolor: "transparent",
-                    color: tab.danger ? "danger.700" : "neutral.900",
-                    borderBottomColor: tab.danger
-                      ? "danger.600"
-                      : "neutral.800",
-                    fontWeight: 600,
-                    boxShadow: "none",
-                  },
-                }}
+                value={tab.value}
+                sx={tab.danger ? { color: "danger.500" } : undefined}
               >
                 {tab.label}
               </Tab>
             ))}
           </TabList>
 
-          <TabPanel value="general" sx={{ px: 0, pt: 3, pb: 0 }}>
+          <TabPanel value="general" sx={{ p: 0, pt: 3 }}>
             {profileStatus !== "ready" ? (
               <GeneralPanelSkeleton />
             ) : (
               <Stack spacing={3}>
-                <Sheet variant="outlined" sx={panelSheetSx}>
-                  <Stack spacing={3}>
-                    <Stack spacing={1}>
-                      <Typography level="title-md">
-                        Profile Information
-                      </Typography>
-                      <Typography level="body-sm" color="neutral">
-                        Update your personal information and preferences.
-                      </Typography>
-                    </Stack>
+                <Sheet variant="outlined" sx={cardSx}>
+                  <Typography level="title-md" fontWeight={600}>
+                    Profile Information
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 1.5 }}>
+                    Update your personal information and preferences.
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
 
-                    <Divider />
-
-                    <Grid container spacing={2}>
-                      <Grid xs={12} sm={6}>
-                        <FormControl>
-                          <FormLabel>Email</FormLabel>
-                          <Input
-                            type="email"
-                            value={user?.email || ""}
-                            disabled
-                            variant="soft"
-                            sx={fieldSx}
-                          />
-                          <FormHelperText sx={helperTextSx}>
-                            Your sign-in email is managed through
-                            authentication.
-                          </FormHelperText>
-                        </FormControl>
-                      </Grid>
-
-                      <Grid xs={12} sm={6}>
-                        <FormControl>
-                          <FormLabel>Display Name</FormLabel>
-                          <Input
-                            type="text"
-                            placeholder="Enter your display name"
-                            value={profileData.displayName}
-                            onChange={(event) =>
-                              handleProfileFieldChange(
-                                "displayName",
-                                event.target.value,
-                              )
-                            }
-                            sx={fieldSx}
-                          />
-                        </FormControl>
-                      </Grid>
-                    </Grid>
-
-                    <FormControl>
-                      <FormLabel>Timezone</FormLabel>
-                      <Select
-                        value={profileData.timezone}
-                        onChange={(_event, newValue) => {
-                          if (newValue) {
-                            handleProfileFieldChange("timezone", newValue);
-                          }
-                        }}
-                        sx={fieldSx}
-                      >
-                        {TIMEZONE_OPTIONS.map((timezone) => (
-                          <Option key={timezone.value} value={timezone.value}>
-                            {timezone.label}
-                          </Option>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Divider />
-
-                    <Stack direction="row" justifyContent="flex-end">
-                      <Button
-                        variant="solid"
-                        color="neutral"
-                        size="sm"
-                        loading={isSavingProfile}
-                        onClick={handleSaveProfile}
-                      >
-                        Save Changes
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Sheet>
-
-                <Sheet variant="outlined" sx={panelSheetSx}>
-                  <Stack spacing={2.5}>
-                    <Typography level="title-md">
-                      Notification Preferences
-                    </Typography>
-                    <Divider />
-                    <Typography level="body-sm" color="neutral">
-                      Notification settings coming soon...
-                    </Typography>
-                  </Stack>
-                </Sheet>
-              </Stack>
-            )}
-          </TabPanel>
-
-          <TabPanel value="business" sx={{ px: 0, pt: 3, pb: 0 }}>
-            {businessStatus !== "ready" ? (
-              <BusinessPanelSkeleton />
-            ) : (
-              <Sheet variant="outlined" sx={panelSheetSx}>
-                <Stack spacing={3}>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Building2
-                        size={20}
-                        color="var(--joy-palette-neutral-600)"
-                      />
-                      <Typography level="title-md">Business Profile</Typography>
-                    </Stack>
-                    <Typography level="body-sm" color="neutral">
-                      Keep your sender details up to date so campaigns feel
-                      polished, consistent, and unmistakably yours.
-                    </Typography>
-                  </Stack>
-
-                  <Divider />
-
-                  <FormControl>
-                    <FormLabel>Business Name</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Enter your business name"
-                      value={businessData.companyName}
-                      onChange={(event) =>
-                        handleBusinessFieldChange(
-                          "companyName",
-                          event.target.value,
-                        )
-                      }
-                      sx={fieldSx}
-                    />
-                    <FormHelperText sx={helperTextSx}>
-                      This name will appear as the sender on your email
-                      campaigns.
-                    </FormHelperText>
-                  </FormControl>
-
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid xs={12} sm={6}>
                       <FormControl>
-                        <FormLabel>Business Phone</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <Input
-                          type="tel"
-                          placeholder="(555) 123-4567"
-                          value={businessData.companyPhone}
-                          onChange={(event) =>
-                            handleBusinessFieldChange(
-                              "companyPhone",
-                              event.target.value,
-                            )
-                          }
+                          value={user?.email || ""}
+                          disabled
+                          variant="soft"
                           sx={fieldSx}
                         />
+                        <FormHelperText sx={tertiaryTextSx}>
+                          Your sign-in email is managed through authentication.
+                        </FormHelperText>
                       </FormControl>
                     </Grid>
-
                     <Grid xs={12} sm={6}>
                       <FormControl>
-                        <FormLabel>Business Email</FormLabel>
+                        <FormLabel>Display Name</FormLabel>
                         <Input
-                          type="email"
-                          placeholder="hello@yourbusiness.com"
-                          value={businessData.companyEmail}
+                          value={profileData.displayName}
                           onChange={(event) =>
-                            handleBusinessFieldChange(
-                              "companyEmail",
-                              event.target.value,
-                            )
+                            handleProfileFieldChange("displayName", event.target.value)
                           }
+                          placeholder="Enter your display name"
                           sx={fieldSx}
                         />
                       </FormControl>
                     </Grid>
                   </Grid>
 
-                  <Divider />
+                  <FormControl sx={{ mb: 3 }}>
+                    <FormLabel>Timezone</FormLabel>
+                    <Select
+                      value={profileData.timezone}
+                      onChange={(_event, newValue) => {
+                        if (newValue) {
+                          handleProfileFieldChange("timezone", newValue);
+                        }
+                      }}
+                      sx={fieldSx}
+                    >
+                      {TIMEZONE_OPTIONS.map((timezone) => (
+                        <Option key={timezone.value} value={timezone.value}>
+                          {timezone.label}
+                        </Option>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Divider sx={{ mb: 2 }} />
+
+                  <Stack direction="row" justifyContent="flex-end">
+                    <Button
+                      variant="solid"
+                      color="neutral"
+                      size="sm"
+                      loading={isSavingProfile}
+                      onClick={handleSaveProfile}
+                    >
+                      Save Changes
+                    </Button>
+                  </Stack>
+                </Sheet>
+
+                <Sheet variant="outlined" sx={cardSx}>
+                  <Typography level="title-md" fontWeight={600}>
+                    Notification Preferences
+                  </Typography>
+                  <Divider sx={{ my: 1.5 }} />
+                  <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+                    Notification settings coming soon.
+                  </Typography>
+                </Sheet>
+              </Stack>
+            )}
+          </TabPanel>
+
+          <TabPanel value="business" sx={{ p: 0, pt: 3 }}>
+            {businessStatus !== "ready" ? (
+              <BusinessPanelSkeleton />
+            ) : (
+              <Stack spacing={3}>
+                <Sheet variant="outlined" sx={cardSx}>
+                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+                    <Building2 size={20} style={{ color: "var(--joy-palette-text-secondary)" }} />
+                    <Typography level="title-md" fontWeight={600}>
+                      Business Profile
+                    </Typography>
+                  </Stack>
+
+                  <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 1.5 }}>
+                    This information is used across your store and email campaigns.
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+
+                  <FormControl sx={{ mb: 3 }}>
+                    <FormLabel>Business Name</FormLabel>
+                    <Input
+                      value={businessData.companyName}
+                      onChange={(event) =>
+                        handleBusinessFieldChange("companyName", event.target.value)
+                      }
+                      placeholder="Enter your business name"
+                      sx={fieldSx}
+                    />
+                    <FormHelperText sx={tertiaryTextSx}>
+                      This name will appear as the sender on your email campaigns.
+                    </FormHelperText>
+                  </FormControl>
+
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    <Grid xs={12} sm={6}>
+                      <FormControl>
+                        <FormLabel>Business Phone</FormLabel>
+                        <Input
+                          type="tel"
+                          value={businessData.companyPhone}
+                          onChange={(event) =>
+                            handleBusinessFieldChange("companyPhone", event.target.value)
+                          }
+                          placeholder="(555) 123-4567"
+                          sx={fieldSx}
+                        />
+                      </FormControl>
+                    </Grid>
+                    <Grid xs={12} sm={6}>
+                      <FormControl>
+                        <FormLabel>Business Email</FormLabel>
+                        <Input
+                          type="email"
+                          value={businessData.companyEmail}
+                          onChange={(event) =>
+                            handleBusinessFieldChange("companyEmail", event.target.value)
+                          }
+                          placeholder="hello@yourbusiness.com"
+                          sx={fieldSx}
+                        />
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+
+                  <Divider sx={{ mb: 2 }} />
 
                   <Stack direction="row" justifyContent="flex-end">
                     <Button
@@ -1034,176 +853,165 @@ const AccountPage = () => {
                       Save Business Profile
                     </Button>
                   </Stack>
-                </Stack>
-              </Sheet>
+                </Sheet>
+              </Stack>
             )}
           </TabPanel>
 
-          <TabPanel value="billing" sx={{ px: 0, pt: 3, pb: 0 }}>
+          <TabPanel value="billing" sx={{ p: 0, pt: 3 }}>
             <BillingDashboard />
           </TabPanel>
 
-          <TabPanel value="usage" sx={{ px: 0, pt: 3, pb: 0 }}>
+          <TabPanel value="usage" sx={{ p: 0, pt: 3 }}>
             <UsageAnalytics />
           </TabPanel>
 
-          <TabPanel value="danger" sx={{ px: 0, pt: 3, pb: 0 }}>
+          <TabPanel value="danger" sx={{ p: 0, pt: 3 }}>
             {isLoadingDeletionSubscription ? (
               <DangerPanelSkeleton />
             ) : (
-              <Sheet
-                variant="outlined"
-                sx={{
-                  ...panelSheetSx,
-                  borderColor: "danger.200",
-                }}
-              >
-                <Stack spacing={3}>
-                  <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <AlertTriangle
-                        size={20}
-                        color="var(--joy-palette-danger-500)"
-                      />
-                      <Typography level="title-md" color="danger">
-                        Danger Zone
-                      </Typography>
-                      <Chip size="sm" variant="soft" color="danger">
-                        Permanent
-                      </Chip>
-                    </Stack>
-                    <Typography level="body-sm" color="neutral">
-                      Sensitive actions that permanently affect access, history,
-                      and connected services.
+              <Stack spacing={3}>
+                <Sheet variant="outlined" sx={dangerCardSx}>
+                  <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
+                    <AlertTriangle size={20} style={{ color: "var(--joy-palette-danger-500)" }} />
+                    <Typography level="title-md" fontWeight={600} color="danger">
+                      Danger Zone
                     </Typography>
                   </Stack>
 
-                  <Divider />
+                  <Typography level="body-sm" sx={{ color: "text.tertiary", mb: 1.5 }}>
+                    Irreversible and destructive actions.
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
 
-                  <Stack spacing={2}>
-                    <Typography level="title-sm">Delete Account</Typography>
-                    <Typography level="body-sm" color="neutral">
-                      Permanently delete your BloomSuite account and all
-                      associated data. This action cannot be undone after 30
-                      days.
+                  <Typography level="title-sm" fontWeight={600} sx={{ mb: 1 }}>
+                    Delete Account
+                  </Typography>
+                  <Box
+                    component="ul"
+                    sx={{
+                      m: 0,
+                      pl: 2.5,
+                      mb: 2,
+                      color: "text.secondary",
+                      display: "grid",
+                      gap: 0.75,
+                    }}
+                  >
+                    <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
+                      All your content and campaigns will be deleted
                     </Typography>
-                    <Box
-                      component="ul"
-                      sx={{
-                        m: 0,
-                        pl: 2.5,
-                        display: "grid",
-                        gap: 0.75,
-                        color: "neutral.600",
-                        typography: "body-sm",
-                      }}
-                    >
-                      <li>All your content and campaigns will be deleted.</li>
-                      <li>Social media connections will be revoked.</li>
-                      <li>Analytics data will be permanently lost.</li>
-                      <li>Active subscriptions will be cancelled.</li>
-                    </Box>
-                  </Stack>
+                    <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
+                      Social media connections will be revoked
+                    </Typography>
+                    <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
+                      Analytics data will be permanently lost
+                    </Typography>
+                    <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
+                      Active subscriptions will be cancelled
+                    </Typography>
+                    <Typography component="li" level="body-sm" sx={{ color: "text.secondary" }}>
+                      This action cannot be undone
+                    </Typography>
+                  </Box>
 
                   {hasActiveSubscription ? (
                     <Alert
                       variant="soft"
                       color="warning"
+                      size="sm"
                       startDecorator={<AlertTriangle size={18} />}
+                      sx={{ mb: 2 }}
                     >
-                      You have an active subscription. Please cancel your
-                      subscription first before deleting your account.
+                      You have an active subscription. Please cancel your subscription before deleting your account.
                     </Alert>
                   ) : null}
 
-                  <Stack direction="row" justifyContent="flex-start">
-                    <Button
-                      variant="solid"
-                      color="danger"
-                      size="sm"
-                      disabled={hasActiveSubscription || isDeletingAccount}
-                      onClick={() => setIsDeleteModalOpen(true)}
-                    >
-                      Delete Account
-                    </Button>
-                  </Stack>
-                </Stack>
-              </Sheet>
+                  <Button
+                    variant="solid"
+                    color="danger"
+                    size="sm"
+                    startDecorator={<Trash2 size={16} />}
+                    disabled={hasActiveSubscription || isDeletingAccount}
+                    onClick={() => setIsDeleteModalOpen(true)}
+                  >
+                    Delete Account
+                  </Button>
+                </Sheet>
+              </Stack>
             )}
           </TabPanel>
         </Tabs>
 
-        <Modal open={isDeleteModalOpen} onClose={handleCloseDeleteModal}>
+        <Modal open={isDeleteModalOpen} onClose={closeModalAndReset}>
           <ModalDialog
             variant="outlined"
             layout="center"
             sx={{
               bgcolor: "background.surface",
               maxWidth: 480,
-              width: "calc(100vw - 32px)",
-              borderColor: "danger.200",
+              p: 3,
               borderRadius: "md",
             }}
           >
-            {!isDeletingAccount ? <ModalClose /> : null}
+            <ModalClose />
+
             <DialogTitle>
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack direction="row" alignItems="center" gap={1}>
                 <AlertTriangle
-                  size={18}
-                  color="var(--joy-palette-danger-500)"
+                  size={20}
+                  style={{ color: "var(--joy-palette-danger-500)" }}
                 />
-                <span>Delete Account Confirmation</span>
+                Delete Account Confirmation
               </Stack>
             </DialogTitle>
 
-            <DialogContent>
-              <Stack spacing={2.5}>
-                <Typography level="body-sm" color="neutral">
-                  This action is irreversible after 30 days. Deleting your
-                  account removes access to your content, campaigns, connected
-                  channels, and subscription history.
-                </Typography>
-                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                  Type DELETE to confirm.
-                </Typography>
+            <DialogContent sx={{ pt: 1 }}>
+              <Typography level="body-sm" sx={{ color: "text.secondary", mb: 2 }}>
+                This action is permanent and cannot be undone. All your data,
+                content, connections, and settings will be permanently deleted.
+              </Typography>
 
-                <FormControl>
-                  <FormLabel>Confirmation</FormLabel>
-                  <Input
-                    value={confirmText}
-                    placeholder="Type DELETE to confirm"
-                    color={confirmText === "DELETE" ? "danger" : "neutral"}
-                    onChange={(event) => setConfirmText(event.target.value)}
-                    sx={fieldSx}
-                  />
-                </FormControl>
-              </Stack>
+              <Typography level="body-sm" fontWeight={600} sx={{ mb: 1 }}>
+                Type DELETE to confirm:
+              </Typography>
+
+              <FormControl>
+                <Input
+                  placeholder="Type DELETE to confirm"
+                  value={confirmText}
+                  onChange={(event) => setConfirmText(event.target.value)}
+                  color={confirmText === "DELETE" ? "danger" : "neutral"}
+                  autoFocus
+                />
+              </FormControl>
             </DialogContent>
 
-            <Divider />
+            <Divider sx={{ my: 2 }} />
 
-            <DialogActions>
-              <Button
-                variant="plain"
-                color="neutral"
-                disabled={isDeletingAccount}
-                onClick={handleCloseDeleteModal}
-              >
-                Cancel
-              </Button>
+            <DialogActions sx={{ pt: 0 }}>
               <Button
                 variant="solid"
                 color="danger"
+                size="sm"
                 loading={isDeletingAccount}
-                disabled={confirmText !== "DELETE"}
+                disabled={confirmText !== "DELETE" || isDeletingAccount}
                 onClick={handleDeleteAccount}
               >
                 Permanently Delete Account
               </Button>
+              <Button
+                variant="plain"
+                color="neutral"
+                size="sm"
+                onClick={closeModalAndReset}
+              >
+                Cancel
+              </Button>
             </DialogActions>
           </ModalDialog>
         </Modal>
-      </Stack>
+      </Box>
     </ProtectedPageWrapper>
   );
 };

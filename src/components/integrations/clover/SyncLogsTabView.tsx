@@ -1,22 +1,27 @@
 import { Fragment, useState } from "react";
 import { ScrollText } from "lucide-react";
-import { Box, Button as JoyButton, LinearProgress, Typography } from "@mui/joy";
-
-import { Button } from "@/components/ui-legacy/button";
+import {
+  Alert,
+  Box,
+  Button as JoyButton,
+  LinearProgress,
+  Typography,
+} from "@mui/joy";
 import type {
   CloverSyncLogRow,
   LightspeedPagination,
 } from "@/hooks/useIntegrationDetailData";
 
 import {
+  DataTabCard,
   DataTabEmptyState,
-  DataTabLoadingState,
   DataTabPagination,
   JoyDataTable,
   RawDataPre,
   StatusFilterPills,
   SyncStatusBadge,
   SyncTypeBadge,
+  TableSkeleton,
   formatDuration,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
@@ -53,15 +58,21 @@ export function SyncLogsTabView({
   onRetrySync: (syncType: CloverSyncLogRow["normalizedSyncType"]) => void;
   onRefresh: () => void;
 }) {
-  const [expandedFailures, setExpandedFailures] = useState<Record<string, boolean>>({});
+  const [expandedFailures, setExpandedFailures] = useState<
+    Record<string, boolean>
+  >({});
   const hasVisibleActiveJob = rows.some((job) => job.status === "in_progress");
+
+  if (isLoading || (isFetching && rows.length === 0)) {
+    return <TableSkeleton columns={5} rows={8} />;
+  }
 
   const toggleFailedRow = (id: string) => {
     setExpandedFailures((current) => ({ ...current, [id]: !current[id] }));
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <DataTabCard>
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
         <p className="text-sm font-semibold">Clover sync history</p>
         <StatusFilterPills
@@ -72,16 +83,34 @@ export function SyncLogsTabView({
       </div>
 
       {hasVisibleActiveJob ? (
-        <div className="border-b border-border/70 bg-brand-teal/5 px-5 py-2.5 text-xs text-slate-700">
-          Refresh to see the latest Clover sync status.{" "}
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="font-medium underline underline-offset-2"
+        <Alert
+          color="neutral"
+          variant="soft"
+          sx={{ mx: 2.5, mt: 2, mb: 0, borderRadius: "md" }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+              width: "100%",
+              flexWrap: "wrap",
+            }}
           >
-            Refresh now
-          </button>
-        </div>
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              Refresh to see the latest Clover sync status.
+            </Typography>
+            <JoyButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={onRefresh}
+            >
+              Refresh now
+            </JoyButton>
+          </Box>
+        </Alert>
       ) : null}
 
       {rows.length > 0 ? (
@@ -110,7 +139,9 @@ export function SyncLogsTabView({
                   const progressPercent = showProgress
                     ? Math.min(
                         100,
-                        Math.round(((job.inserted_rows ?? 0) / job.estimated_rows) * 100),
+                        Math.round(
+                          ((job.inserted_rows ?? 0) / job.estimated_rows) * 100,
+                        ),
                       )
                     : job.progressPercent;
                   const isFailureOpen = Boolean(expandedFailures[job.id]);
@@ -118,56 +149,108 @@ export function SyncLogsTabView({
                   return (
                     <Fragment key={job.id}>
                       <tr>
-                        <td><SyncTypeBadge job={job} /></td>
-                        <td><SyncStatusBadge job={job} /></td>
+                        <td>
+                          <SyncTypeBadge job={job} />
+                        </td>
+                        <td>
+                          <SyncStatusBadge job={job} />
+                        </td>
                         <td>
                           {showProgress ? (
                             <Box sx={{ minWidth: 150 }}>
-                              <LinearProgress determinate size="sm" color={job.status === "failed" ? "danger" : "success"} value={progressPercent} />
-                              <Typography level="body-xs" sx={{ color: "text.tertiary", mt: 0.5 }}>
-                                {(job.inserted_rows ?? 0).toLocaleString()} / ~{job.estimated_rows?.toLocaleString()} ({progressPercent}%)
+                              <LinearProgress
+                                determinate
+                                size="sm"
+                                color={
+                                  job.status === "failed" ? "danger" : "success"
+                                }
+                                value={progressPercent}
+                              />
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "text.tertiary", mt: 0.5 }}
+                              >
+                                {(job.inserted_rows ?? 0).toLocaleString()} / ~
+                                {job.estimated_rows?.toLocaleString()} (
+                                {progressPercent}%)
                               </Typography>
                             </Box>
                           ) : (
-                            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>—</Typography>
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "text.tertiary" }}
+                            >
+                              —
+                            </Typography>
                           )}
                         </td>
                         <td>
-                          <Typography level="body-sm" sx={{ color: job.status === "failed" ? "danger.600" : "text.secondary", maxWidth: 320 }}>
+                          <Typography
+                            level="body-sm"
+                            sx={{
+                              color:
+                                job.status === "failed"
+                                  ? "danger.600"
+                                  : "text.secondary",
+                              maxWidth: 320,
+                            }}
+                          >
                             {job.progress_message ?? "Queued"}
                           </Typography>
                         </td>
-                        <td><Typography level="body-sm">{formatRelativeTimestamp(job.created_at)}</Typography></td>
                         <td>
-                          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
-                            {formatDuration(job.created_at, job.completed_at) ?? "—"}
+                          <Typography level="body-sm">
+                            {formatRelativeTimestamp(job.created_at)}
+                          </Typography>
+                        </td>
+                        <td>
+                          <Typography
+                            level="body-sm"
+                            sx={{ color: "text.tertiary" }}
+                          >
+                            {formatDuration(job.created_at, job.completed_at) ??
+                              "—"}
                           </Typography>
                         </td>
                         <td className="text-right">
                           <div className="flex justify-end gap-2">
                             {job.status === "failed" && job.last_error ? (
-                              <JoyButton size="sm" variant="outlined" color="danger" onClick={() => toggleFailedRow(job.id)}>
+                              <JoyButton
+                                size="sm"
+                                variant="outlined"
+                                color="danger"
+                                onClick={() => toggleFailedRow(job.id)}
+                              >
                                 {isFailureOpen ? "Hide error" : "View error"}
                               </JoyButton>
                             ) : null}
                             {job.status === "failed" ? (
-                              <Button
+                              <JoyButton
                                 type="button"
-                                variant="ghost"
+                                variant="plain"
+                                color="neutral"
                                 size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => onRetrySync(job.normalizedSyncType)}
+                                onClick={() =>
+                                  onRetrySync(job.normalizedSyncType)
+                                }
                               >
                                 Retry
-                              </Button>
+                              </JoyButton>
                             ) : null}
                           </div>
                         </td>
                       </tr>
-                      {job.status === "failed" && job.last_error && isFailureOpen ? (
+                      {job.status === "failed" &&
+                      job.last_error &&
+                      isFailureOpen ? (
                         <tr key={`${job.id}-error`}>
                           <td colSpan={7}>
-                            <RawDataPre value={{ last_error: job.last_error, metadata: job.metadata }} />
+                            <RawDataPre
+                              value={{
+                                last_error: job.last_error,
+                                metadata: job.metadata,
+                              }}
+                            />
                           </td>
                         </tr>
                       ) : null}
@@ -177,11 +260,12 @@ export function SyncLogsTabView({
               </tbody>
             </JoyDataTable>
           </div>
-          <DataTabPagination pagination={pagination} onPageChange={onPageChange} />
+          <DataTabPagination
+            pagination={pagination}
+            onPageChange={onPageChange}
+          />
         </>
       ) : null}
-
-      {isLoading || isFetching ? <DataTabLoadingState /> : null}
 
       {!isLoading && !isFetching && rows.length === 0 ? (
         <DataTabEmptyState
@@ -190,6 +274,6 @@ export function SyncLogsTabView({
           description="Sync activity will appear here after your first Clover sync."
         />
       ) : null}
-    </div>
+    </DataTabCard>
   );
 }

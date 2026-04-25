@@ -17,16 +17,20 @@ import Table from "@mui/joy/Table";
 import Typography from "@mui/joy/Typography";
 import Alert from "@mui/joy/Alert";
 
-import { SectionCard } from "@/components/integrations/shared/detailPrimitives";
+import {
+  SectionCard,
+  StatCardSkeleton,
+} from "@/components/integrations/shared/detailPrimitives";
 import {
   DataTabEmptyState,
   DataTabPagination,
   TableSearchInput,
+  TableSkeleton,
   ToolbarSelect,
-  formatCount,
   formatDateTimeValue,
   formatRelativeTimestamp,
 } from "@/components/integrations/shared/dataTabPrimitives";
+import { formatCount } from "@/components/integrations/shared/formatCount";
 import {
   type MailchimpImportedSection,
   useMailchimpCompliancePage,
@@ -91,7 +95,10 @@ function renderNameList(values: string[], emptyLabel = "\u2014") {
         </Chip>
       ))}
       {overflow > 0 ? (
-        <Typography level="body-xs" sx={{ color: "text.secondary", alignSelf: "center" }}>
+        <Typography
+          level="body-xs"
+          sx={{ color: "text.secondary", alignSelf: "center" }}
+        >
           +{overflow} more
         </Typography>
       ) : null}
@@ -105,7 +112,11 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
       <Typography
         level="body-xs"
         fontWeight="lg"
-        sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+        sx={{
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          color: "text.tertiary",
+        }}
       >
         {label}
       </Typography>
@@ -122,7 +133,11 @@ function DetailField({ label, value }: { label: string; value: string }) {
       <Typography
         level="body-xs"
         fontWeight="lg"
-        sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+        sx={{
+          textTransform: "uppercase",
+          letterSpacing: "0.12em",
+          color: "text.tertiary",
+        }}
       >
         {label}
       </Typography>
@@ -252,7 +267,7 @@ export function ImportedDataTabView({
   };
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
       <SectionCard
         title="Imported Data"
         description="Browse the CRM records Mailchimp has already written into BloomSuite."
@@ -261,30 +276,46 @@ export function ImportedDataTabView({
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(3, 1fr)", xl: "repeat(5, 1fr)" },
+              gridTemplateColumns: {
+                xs: "1fr 1fr",
+                md: "repeat(3, 1fr)",
+                xl: "repeat(5, 1fr)",
+              },
               gap: 1.5,
             }}
           >
-            <SummaryStat
-              label="Mailchimp Customers"
-              value={summaryQuery.data.totalCustomers}
-            />
-            <SummaryStat
-              label="Mailchimp Segments"
-              value={summaryQuery.data.totalSegments}
-            />
-            <SummaryStat
-              label="Associated Tags"
-              value={summaryQuery.data.totalTags}
-            />
-            <SummaryStat
-              label="Active Consent Records"
-              value={summaryQuery.data.activeConsentRecords}
-            />
-            <SummaryStat
-              label="Active Suppressions"
-              value={summaryQuery.data.activeSuppressions}
-            />
+            {summaryQuery.loading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <SummaryStat
+                  label="Mailchimp Customers"
+                  value={summaryQuery.data.totalCustomers}
+                />
+                <SummaryStat
+                  label="Mailchimp Segments"
+                  value={summaryQuery.data.totalSegments}
+                />
+                <SummaryStat
+                  label="Associated Tags"
+                  value={summaryQuery.data.totalTags}
+                />
+                <SummaryStat
+                  label="Active Consent Records"
+                  value={summaryQuery.data.activeConsentRecords}
+                />
+                <SummaryStat
+                  label="Active Suppressions"
+                  value={summaryQuery.data.activeSuppressions}
+                />
+              </>
+            )}
           </Box>
 
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
@@ -300,7 +331,15 @@ export function ImportedDataTabView({
                   color={isActive ? "neutral" : "neutral"}
                   onClick={() => setSection(option.value)}
                   startDecorator={<Icon size={14} />}
-                  sx={isActive ? { bgcolor: "neutral.900", color: "common.white", "&:hover": { bgcolor: "neutral.800" } } : {}}
+                  sx={
+                    isActive
+                      ? {
+                          bgcolor: "neutral.900",
+                          color: "common.white",
+                          "&:hover": { bgcolor: "neutral.800" },
+                        }
+                      : {}
+                  }
                 >
                   {option.label}
                 </Button>
@@ -345,15 +384,27 @@ export function ImportedDataTabView({
               title="Customers"
               description="Search Mailchimp-sourced CRM customers, then expand a row to inspect the linked CRM details."
             >
-              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+              <Sheet
+                variant="outlined"
+                sx={{ borderRadius: "lg", overflow: "hidden" }}
+              >
                 <Stack
                   direction={{ xs: "column", lg: "row" }}
                   spacing={1.5}
                   alignItems={{ lg: "center" }}
                   justifyContent="space-between"
-                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                  sx={{
+                    px: 2.5,
+                    py: 2,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                  }}
                 >
-                  <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ flexWrap: "wrap" }}
+                  >
                     <TableSearchInput
                       placeholder="Search by email, first name, or last name\u2026"
                       value={customerSearch}
@@ -391,8 +442,14 @@ export function ImportedDataTabView({
                       }
                     />
                   </Stack>
-                  <Typography level="body-xs" sx={{ color: "text.secondary", whiteSpace: "nowrap" }}>
-                    {(customerQuery.data?.pagination.totalCount ?? 0).toLocaleString()} records
+                  <Typography
+                    level="body-xs"
+                    sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
+                  >
+                    {(
+                      customerQuery.data?.pagination.totalCount ?? 0
+                    ).toLocaleString()}{" "}
+                    records
                   </Typography>
                 </Stack>
 
@@ -401,7 +458,13 @@ export function ImportedDataTabView({
                     direction="row"
                     spacing={1}
                     alignItems="center"
-                    sx={{ flexWrap: "wrap", px: 2.5, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                    sx={{
+                      flexWrap: "wrap",
+                      px: 2.5,
+                      py: 1.5,
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                    }}
                   >
                     {customerSegmentFilter ? (
                       <Chip size="sm" variant="soft" color="primary">
@@ -430,9 +493,7 @@ export function ImportedDataTabView({
                 ) : null}
 
                 {customerQuery.isLoading ? (
-                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
-                    Loading imported customers\u2026
-                  </Typography>
+                  <TableSkeleton columns={5} rows={8} />
                 ) : null}
 
                 {(customerQuery.data?.rows.length ?? 0) > 0 ? (
@@ -465,7 +526,11 @@ export function ImportedDataTabView({
                                   }
                                 >
                                   <td>
-                                    <Stack direction="row" spacing={0.75} alignItems="center">
+                                    <Stack
+                                      direction="row"
+                                      spacing={0.75}
+                                      alignItems="center"
+                                    >
                                       {isExpanded ? (
                                         <ChevronDown size={14} />
                                       ) : (
@@ -477,7 +542,9 @@ export function ImportedDataTabView({
                                   <td>{row.firstName || "\u2014"}</td>
                                   <td>{row.lastName || "\u2014"}</td>
                                   <td>{formatPhoneNumber(row.phone)}</td>
-                                  <td>{formatRelativeTimestamp(row.importedAt)}</td>
+                                  <td>
+                                    {formatRelativeTimestamp(row.importedAt)}
+                                  </td>
                                   <td>
                                     {renderNameList(
                                       row.segments.map(
@@ -497,20 +564,32 @@ export function ImportedDataTabView({
                                       <Box
                                         sx={{
                                           display: "grid",
-                                          gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" },
+                                          gridTemplateColumns: {
+                                            xs: "1fr",
+                                            lg: "1fr 1fr",
+                                          },
                                           gap: 2.5,
                                           p: 2.5,
                                           bgcolor: "background.level1",
                                         }}
                                       >
-                                        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
-                                          <Typography level="title-sm" sx={{ mb: 1.5 }}>
+                                        <Sheet
+                                          variant="outlined"
+                                          sx={{ borderRadius: "lg", p: 2 }}
+                                        >
+                                          <Typography
+                                            level="title-sm"
+                                            sx={{ mb: 1.5 }}
+                                          >
                                             Customer Details
                                           </Typography>
                                           <Box
                                             sx={{
                                               display: "grid",
-                                              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                              gridTemplateColumns: {
+                                                xs: "1fr",
+                                                sm: "1fr 1fr",
+                                              },
                                               gap: 2,
                                             }}
                                           >
@@ -520,11 +599,15 @@ export function ImportedDataTabView({
                                             />
                                             <DetailField
                                               label="Phone"
-                                              value={formatPhoneNumber(row.phone)}
+                                              value={formatPhoneNumber(
+                                                row.phone,
+                                              )}
                                             />
                                             <DetailField
                                               label="Imported At"
-                                              value={formatDateTimeValue(row.importedAt)}
+                                              value={formatDateTimeValue(
+                                                row.importedAt,
+                                              )}
                                             />
                                             <DetailField
                                               label="Mailchimp Source ID"
@@ -535,7 +618,11 @@ export function ImportedDataTabView({
                                             <Typography
                                               level="body-xs"
                                               fontWeight="lg"
-                                              sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                              sx={{
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.12em",
+                                                color: "text.tertiary",
+                                              }}
                                             >
                                               Linked Segments
                                             </Typography>
@@ -552,7 +639,11 @@ export function ImportedDataTabView({
                                             <Typography
                                               level="body-xs"
                                               fontWeight="lg"
-                                              sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                              sx={{
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.12em",
+                                                color: "text.tertiary",
+                                              }}
                                             >
                                               Linked Tags
                                             </Typography>
@@ -565,14 +656,23 @@ export function ImportedDataTabView({
                                           </Box>
                                         </Sheet>
 
-                                        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
-                                          <Typography level="title-sm" sx={{ mb: 1.5 }}>
+                                        <Sheet
+                                          variant="outlined"
+                                          sx={{ borderRadius: "lg", p: 2 }}
+                                        >
+                                          <Typography
+                                            level="title-sm"
+                                            sx={{ mb: 1.5 }}
+                                          >
                                             Compliance Snapshot
                                           </Typography>
                                           <Box
                                             sx={{
                                               display: "grid",
-                                              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                                              gridTemplateColumns: {
+                                                xs: "1fr",
+                                                sm: "1fr 1fr",
+                                              },
                                               gap: 2,
                                             }}
                                           >
@@ -616,11 +716,19 @@ export function ImportedDataTabView({
                                               <Typography
                                                 level="body-xs"
                                                 fontWeight="lg"
-                                                sx={{ textTransform: "uppercase", letterSpacing: "0.12em", color: "text.tertiary" }}
+                                                sx={{
+                                                  textTransform: "uppercase",
+                                                  letterSpacing: "0.12em",
+                                                  color: "text.tertiary",
+                                                }}
                                               >
                                                 Active Suppressions
                                               </Typography>
-                                              <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap" }}>
+                                              <Stack
+                                                direction="row"
+                                                spacing={0.5}
+                                                sx={{ mt: 1, flexWrap: "wrap" }}
+                                              >
                                                 {row.allSuppressions.map(
                                                   (suppression) => (
                                                     <Chip
@@ -629,7 +737,8 @@ export function ImportedDataTabView({
                                                       variant="outlined"
                                                       color="neutral"
                                                     >
-                                                      {suppression.channel}: {suppression.reason}
+                                                      {suppression.channel}:{" "}
+                                                      {suppression.reason}
                                                     </Chip>
                                                   ),
                                                 )}
@@ -682,23 +791,31 @@ export function ImportedDataTabView({
               title="Segments"
               description="Review the Mailchimp-backed CRM segments created by imports and jump into the linked customers."
             >
-              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+              <Sheet
+                variant="outlined"
+                sx={{ borderRadius: "lg", overflow: "hidden" }}
+              >
                 <Stack
                   direction="row"
                   alignItems="center"
                   justifyContent="space-between"
-                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                  sx={{
+                    px: 2.5,
+                    py: 2,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                  }}
                 >
-                  <Typography level="body-sm" fontWeight="lg">Mailchimp segments</Typography>
+                  <Typography level="body-sm" fontWeight="lg">
+                    Mailchimp segments
+                  </Typography>
                   <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                     {(segmentsQuery.data?.length ?? 0).toLocaleString()} records
                   </Typography>
                 </Stack>
 
                 {segmentsQuery.isLoading ? (
-                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
-                    Loading imported segments\u2026
-                  </Typography>
+                  <TableSkeleton columns={5} rows={8} />
                 ) : null}
 
                 {(segmentsQuery.data?.length ?? 0) > 0 ? (
@@ -727,7 +844,11 @@ export function ImportedDataTabView({
                                 }
                               >
                                 <td>
-                                  <Stack direction="row" spacing={0.75} alignItems="center">
+                                  <Stack
+                                    direction="row"
+                                    spacing={0.75}
+                                    alignItems="center"
+                                  >
                                     {isExpanded ? (
                                       <ChevronDown size={14} />
                                     ) : (
@@ -738,7 +859,9 @@ export function ImportedDataTabView({
                                 </td>
                                 <td>{segment.sourceId ?? "\u2014"}</td>
                                 <td>{segment.memberCount.toLocaleString()}</td>
-                                <td>{formatDateTimeValue(segment.createdAt)}</td>
+                                <td>
+                                  {formatDateTimeValue(segment.createdAt)}
+                                </td>
                               </tr>
                               {isExpanded ? (
                                 <tr>
@@ -746,13 +869,19 @@ export function ImportedDataTabView({
                                     <Box
                                       sx={{
                                         display: "grid",
-                                        gridTemplateColumns: { xs: "1fr", lg: "1.1fr 1fr" },
+                                        gridTemplateColumns: {
+                                          xs: "1fr",
+                                          lg: "1.1fr 1fr",
+                                        },
                                         gap: 2.5,
                                         p: 2.5,
                                         bgcolor: "background.level1",
                                       }}
                                     >
-                                      <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
+                                      <Sheet
+                                        variant="outlined"
+                                        sx={{ borderRadius: "lg", p: 2 }}
+                                      >
                                         <Box
                                           sx={{
                                             display: "grid",
@@ -763,7 +892,9 @@ export function ImportedDataTabView({
                                         >
                                           <DetailField
                                             label="Parent List"
-                                            value={segment.parentListName ?? "\u2014"}
+                                            value={
+                                              segment.parentListName ?? "\u2014"
+                                            }
                                           />
                                           <DetailField
                                             label="Member Count"
@@ -784,8 +915,14 @@ export function ImportedDataTabView({
                                           View All Customers
                                         </Button>
                                       </Sheet>
-                                      <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
-                                        <Typography level="title-sm" sx={{ mb: 1.5 }}>
+                                      <Sheet
+                                        variant="outlined"
+                                        sx={{ borderRadius: "lg", p: 2 }}
+                                      >
+                                        <Typography
+                                          level="title-sm"
+                                          sx={{ mb: 1.5 }}
+                                        >
                                           First 10 Member Emails
                                         </Typography>
                                         <SegmentMembersPreview
@@ -821,23 +958,31 @@ export function ImportedDataTabView({
               title="Tags"
               description="Review tags attached to Mailchimp-sourced customers and jump into the tagged customer set."
             >
-              <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+              <Sheet
+                variant="outlined"
+                sx={{ borderRadius: "lg", overflow: "hidden" }}
+              >
                 <Stack
                   direction="row"
                   alignItems="center"
                   justifyContent="space-between"
-                  sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                  sx={{
+                    px: 2.5,
+                    py: 2,
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                  }}
                 >
-                  <Typography level="body-sm" fontWeight="lg">Associated tags</Typography>
+                  <Typography level="body-sm" fontWeight="lg">
+                    Associated tags
+                  </Typography>
                   <Typography level="body-xs" sx={{ color: "text.secondary" }}>
                     {(tagsQuery.data?.length ?? 0).toLocaleString()} records
                   </Typography>
                 </Stack>
 
                 {tagsQuery.isLoading ? (
-                  <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
-                    Loading imported tags\u2026
-                  </Typography>
+                  <TableSkeleton columns={5} rows={8} />
                 ) : null}
 
                 {(tagsQuery.data?.length ?? 0) > 0 ? (
@@ -888,7 +1033,7 @@ export function ImportedDataTabView({
           ) : null}
 
           {section === "compliance" ? (
-            <Stack spacing={3}>
+            <Stack spacing={2.5}>
               <SectionCard
                 title="Consents"
                 description="Current consent records for Mailchimp-sourced customers, grouped by channel and status."
@@ -897,7 +1042,10 @@ export function ImportedDataTabView({
                   <Box
                     sx={{
                       display: "grid",
-                      gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+                      gridTemplateColumns: {
+                        xs: "1fr 1fr",
+                        md: "repeat(4, 1fr)",
+                      },
                       gap: 1.5,
                     }}
                   >
@@ -912,23 +1060,37 @@ export function ImportedDataTabView({
                     )}
                   </Box>
 
-                  <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                  <Sheet
+                    variant="outlined"
+                    sx={{ borderRadius: "lg", overflow: "hidden" }}
+                  >
                     <Stack
                       direction="row"
                       alignItems="center"
                       justifyContent="space-between"
-                      sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                      sx={{
+                        px: 2.5,
+                        py: 2,
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                      }}
                     >
-                      <Typography level="body-sm" fontWeight="lg">Consent records</Typography>
-                      <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                        {(complianceQuery.data?.consentRows.length ?? 0).toLocaleString()} records
+                      <Typography level="body-sm" fontWeight="lg">
+                        Consent records
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {(
+                          complianceQuery.data?.consentRows.length ?? 0
+                        ).toLocaleString()}{" "}
+                        records
                       </Typography>
                     </Stack>
 
                     {complianceQuery.isLoading ? (
-                      <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
-                        Loading consent records\u2026
-                      </Typography>
+                      <TableSkeleton columns={5} rows={8} />
                     ) : null}
 
                     {(consentPageState.rows.length ?? 0) > 0 ? (
@@ -949,7 +1111,11 @@ export function ImportedDataTabView({
                                   <td>{row.email}</td>
                                   <td>{row.channel}</td>
                                   <td>
-                                    <Chip size="sm" variant="soft" color="neutral">
+                                    <Chip
+                                      size="sm"
+                                      variant="soft"
+                                      color="neutral"
+                                    >
                                       {row.statusLabel}
                                     </Chip>
                                   </td>
@@ -990,23 +1156,37 @@ export function ImportedDataTabView({
                     />
                   </Box>
 
-                  <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+                  <Sheet
+                    variant="outlined"
+                    sx={{ borderRadius: "lg", overflow: "hidden" }}
+                  >
                     <Stack
                       direction="row"
                       alignItems="center"
                       justifyContent="space-between"
-                      sx={{ px: 2.5, py: 2, borderBottom: "1px solid", borderColor: "divider" }}
+                      sx={{
+                        px: 2.5,
+                        py: 2,
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                      }}
                     >
-                      <Typography level="body-sm" fontWeight="lg">Suppression records</Typography>
-                      <Typography level="body-xs" sx={{ color: "text.secondary" }}>
-                        {(complianceQuery.data?.suppressionRows.length ?? 0).toLocaleString()} records
+                      <Typography level="body-sm" fontWeight="lg">
+                        Suppression records
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {(
+                          complianceQuery.data?.suppressionRows.length ?? 0
+                        ).toLocaleString()}{" "}
+                        records
                       </Typography>
                     </Stack>
 
                     {complianceQuery.isLoading ? (
-                      <Typography level="body-sm" sx={{ px: 2.5, py: 5, color: "text.secondary" }}>
-                        Loading suppression records\u2026
-                      </Typography>
+                      <TableSkeleton columns={5} rows={8} />
                     ) : null}
 
                     {(suppressionPageState.rows.length ?? 0) > 0 ? (
@@ -1028,7 +1208,9 @@ export function ImportedDataTabView({
                                   <td>{row.email ?? row.phone ?? "\u2014"}</td>
                                   <td>{row.channel}</td>
                                   <td>{row.reason}</td>
-                                  <td>{formatDateTimeValue(row.suppressedAt)}</td>
+                                  <td>
+                                    {formatDateTimeValue(row.suppressedAt)}
+                                  </td>
                                   <td>
                                     <Chip
                                       size="sm"

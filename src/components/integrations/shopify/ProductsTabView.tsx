@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Package, RefreshCw } from "lucide-react";
-
-import { Button } from "@/components/ui-legacy/button";
+import Button from "@mui/joy/Button";
 
 import type {
   LightspeedPagination,
@@ -13,16 +12,17 @@ import type {
 import {
   CategoryMultiSelect,
   CopyValueButton,
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   RawDataPre,
   SlideOverField,
   StockCountBadge,
   TableSearchInput,
+  TableSkeleton,
   TagList,
   ToolbarSelect,
   formatDateTimeValue,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -95,10 +95,15 @@ export function ProductsTabView({
     useState<ShopifyProductTableRow | null>(null);
   const sortValue = getSortValue(sortField, sortDirection);
   const showFilteredEmptyState = rows.length === 0 && !isLoading && !isFetching;
+  const showLoadingState = isLoading || (isFetching && rows.length === 0);
+
+  if (showLoadingState) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search products..."
@@ -113,7 +118,8 @@ export function ProductsTabView({
             />
             <Button
               type="button"
-              variant={inStockOnly ? "default" : "outline"}
+              variant={inStockOnly ? "solid" : "outlined"}
+              color="neutral"
               size="sm"
               className="h-8"
               onClick={() => onInStockOnlyChange(!inStockOnly)}
@@ -212,8 +218,6 @@ export function ProductsTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {showFilteredEmptyState ? (
           <DataTabEmptyState
             icon={Package}
@@ -221,15 +225,20 @@ export function ProductsTabView({
             description="Adjust the search, category filter, or stock toggle to inspect a different slice of synced Shopify catalog data."
             action={
               pagination.totalCount === 0 ? (
-                <Button variant="outline" size="sm" onClick={onTriggerSync}>
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                <Button
+                  variant="outlined"
+                  color="neutral"
+                  size="sm"
+                  startDecorator={<RefreshCw size={14} />}
+                  onClick={onTriggerSync}
+                >
                   Sync now
                 </Button>
               ) : undefined
             }
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedProduct)}

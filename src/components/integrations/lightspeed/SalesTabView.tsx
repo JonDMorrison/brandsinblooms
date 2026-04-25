@@ -1,7 +1,5 @@
 import { Receipt } from "lucide-react";
 
-import { Button } from "@/components/ui-legacy/button";
-
 import type {
   LightspeedPagination,
   LightspeedSaleRow,
@@ -12,6 +10,7 @@ import type {
 
 import {
   CopyValueButton,
+  DataTabCard,
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
@@ -20,12 +19,12 @@ import {
   SlideOverField,
   StatusFilterPills,
   TableSearchInput,
+  TableSkeleton,
   ToolbarSelect,
   formatCurrency,
   formatDateTimeValue,
   formatDateValue,
   parseSaleLineItems,
-  DataTabLoadingState,
   JoyDataTable,
   Sheet,
   SheetContent,
@@ -142,10 +141,15 @@ export function SalesTabView({
   const sortValue = getSortValue(sortField, sortDirection);
   const activePreset = getActivePreset(startDate, endDate);
   const lineItems = parseSaleLineItems(selectedSale?.line_items);
+  const showLoadingState = isLoading || (isFetching && rows.length === 0);
+
+  if (showLoadingState) {
+    return <TableSkeleton columns={6} rows={8} />;
+  }
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <DataTabCard>
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
           <TableSearchInput
             placeholder="Search sales..."
@@ -332,8 +336,6 @@ export function SalesTabView({
           </>
         ) : null}
 
-        {isLoading || isFetching ? <DataTabLoadingState /> : null}
-
         {!isLoading && !isFetching && rows.length === 0 ? (
           <DataTabEmptyState
             icon={Receipt}
@@ -341,7 +343,7 @@ export function SalesTabView({
             description="Adjust the status, date range, or search term to see synced Lightspeed sales."
           />
         ) : null}
-      </div>
+      </DataTabCard>
 
       <Sheet
         open={Boolean(selectedSale)}
