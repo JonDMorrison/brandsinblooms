@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
+import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
 
 const panelSurfaceSx = {
   borderRadius: "12px",
@@ -550,6 +551,7 @@ export const BloomSuiteDashboard = () => {
 
   return (
     <Stack spacing={3}>
+      <SetupNextStepsBanner />
       <Sheet
         variant="plain"
         sx={{
