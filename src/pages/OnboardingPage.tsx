@@ -356,7 +356,41 @@ const OnboardingPage = () => {
               in a few minutes.
             </div>
           )}
+          {/* Domain setup prompt — nudge before navigating to dashboard */}
+          <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg text-left space-y-2">
+            <p className="text-sm font-semibold text-teal-900">
+              One more thing: connect your sending domain
+            </p>
+            <p className="text-xs text-teal-700">
+              This is required to send emails to your customers. Takes about 5
+              minutes to set up.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="bg-teal-600 hover:bg-teal-700 text-white"
+                onClick={() => {
+                  markAsCompleted();
+                  navigate("/settings/domain", { replace: true });
+                }}
+              >
+                Set up my domain now
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-teal-600"
+                onClick={() => {
+                  markAsCompleted();
+                  navigate("/dashboard", { replace: true });
+                }}
+              >
+                I'll do this later
+              </Button>
+            </div>
+          </div>
           <Button
+            variant="outline"
             className="w-full"
             onClick={() => {
               markAsCompleted();
