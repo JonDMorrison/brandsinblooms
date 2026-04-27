@@ -6,6 +6,11 @@ import {
 } from "@/utils/blockFieldMapping";
 import { logDevError, logSupabaseError } from "@/utils/devErrorLogger";
 import { ContentBlock } from "@/types/emailBuilder";
+import {
+  CAMPAIGN_STATUS,
+  getCampaignStatusLabel,
+  isLockedCampaignStatus,
+} from "@/constants/campaignStatuses";
 
 // FIX: [issue #62] - TODO: Replace console.log statements with a proper logging service for production
 
@@ -468,6 +473,33 @@ export const claimCampaignForSend = async (
   }
 };
 
+const recoverPersistedQueueState = async (campaignId: string) => {
+  const { data: campaignState, error } = await supabase
+    .from("crm_campaigns")
+    .select("status, total_recipients")
+    .eq("id", campaignId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to inspect persisted campaign queue state:", error);
+    return { handled: false, queuedRecipients: 0, status: null as string | null };
+  }
+
+  const status = campaignState?.status || null;
+  if (
+    status === CAMPAIGN_STATUS.QUEUED
+    || status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+  ) {
+    return {
+      handled: true,
+      queuedRecipients: Number(campaignState?.total_recipients || 0),
+      status,
+    };
+  }
+
+  return { handled: false, queuedRecipients: 0, status };
+};
+
 export const sendCampaign = async (campaignData: CampaignData) => {
   try {
     // First save as draft
@@ -491,6 +523,14 @@ export const sendCampaign = async (campaignData: CampaignData) => {
 
       if (sendError) {
         console.error("Edge function send error:", sendError);
+        const recovered = await recoverPersistedQueueState(campaign.id);
+        if (recovered.handled) {
+          const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+            ? "Campaign queue build partially completed. The queue will resume automatically."
+            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+          toast.warning(message);
+          return campaign;
+        }
         // Mark as failed since we already claimed it
         await supabase
           .from("crm_campaigns")
@@ -506,6 +546,14 @@ export const sendCampaign = async (campaignData: CampaignData) => {
 
       if (sendResult?.error) {
         console.error("Send result error:", sendResult.error);
+        const recovered = await recoverPersistedQueueState(campaign.id);
+        if (recovered.handled) {
+          const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+            ? "Campaign queue build partially completed. The queue will resume automatically."
+            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+          toast.warning(message);
+          return campaign;
+        }
         await supabase
           .from("crm_campaigns")
           .update({
@@ -516,8 +564,9 @@ export const sendCampaign = async (campaignData: CampaignData) => {
         throw new Error(sendResult.error);
       }
 
+      const queuedRecipients = Number(sendResult?.total_recipients || 0);
       toast.success(
-        `Campaign "${campaignData.name}" sent to ${sendResult?.metrics?.sent || 0} customers!`,
+        `Campaign queued - sending to ${queuedRecipients} recipients`,
       );
       return campaign;
     }
@@ -716,14 +765,14 @@ export const updateCampaignSchedule = async (
 
       const campaign = rows ?? null;
 
-      if (campaign?.status === "sending") {
+      if (campaign?.status === CAMPAIGN_STATUS.SENDING) {
         if (!options?.silent) {
           toast.error("Cannot reschedule a campaign that is currently sending");
         }
         return false;
       }
 
-      if (campaign?.status === "sent") {
+      if (campaign?.status === CAMPAIGN_STATUS.SENT) {
         if (!options?.silent) {
           toast.error(
             "Cannot reschedule a campaign that has already been sent",
@@ -735,7 +784,7 @@ export const updateCampaignSchedule = async (
 
     const baseUpdate = {
       scheduled_at: scheduledAt,
-      status: "scheduled",
+      status: CAMPAIGN_STATUS.SCHEDULED,
       // Reset any previous send attempt state so the scheduler can try again
       send_started_at: null,
       send_error: null,
@@ -747,7 +796,7 @@ export const updateCampaignSchedule = async (
     // (like metadata/send_error) haven't been deployed yet.
     const minimalUpdate = {
       scheduled_at: scheduledAt,
-      status: "scheduled",
+      status: CAMPAIGN_STATUS.SCHEDULED,
       updated_at: new Date().toISOString(),
     };
 
@@ -768,8 +817,8 @@ export const updateCampaignSchedule = async (
         .eq("id", campaignId)
         // Also guard at the DB update level to prevent rescheduling while sending/sent
         // even if we couldn't read status due to RLS.
-        .neq("status", "sending")
-        .neq("status", "sent")
+        .neq("status", CAMPAIGN_STATUS.SENDING)
+        .neq("status", CAMPAIGN_STATUS.SENT)
         // IMPORTANT: do not use (maybe)Single() here.
         // If 0 rows are updated (RLS denial or locked status), PostgREST will throw:
         // "JSON object requested, multiple (or no) rows returned".
@@ -937,14 +986,14 @@ export const unscheduleCampaign = async (
 
       const campaign = rows ?? null;
 
-      if (campaign?.status === "sending") {
+      if (campaign?.status === CAMPAIGN_STATUS.SENDING) {
         if (!options?.silent) {
           toast.error("Cannot unschedule a campaign that is currently sending");
         }
         return false;
       }
 
-      if (campaign?.status === "sent") {
+      if (campaign?.status === CAMPAIGN_STATUS.SENT) {
         if (!options?.silent) {
           toast.error(
             "Cannot unschedule a campaign that has already been sent",
@@ -956,7 +1005,7 @@ export const unscheduleCampaign = async (
 
     const baseUpdate = {
       scheduled_at: null,
-      status: "draft",
+      status: CAMPAIGN_STATUS.DRAFT,
       send_started_at: null,
       send_error: null,
       updated_at: new Date().toISOString(),
@@ -964,7 +1013,7 @@ export const unscheduleCampaign = async (
 
     const minimalUpdate = {
       scheduled_at: null,
-      status: "draft",
+      status: CAMPAIGN_STATUS.DRAFT,
       updated_at: new Date().toISOString(),
     };
 
@@ -981,8 +1030,8 @@ export const unscheduleCampaign = async (
         .from("crm_campaigns")
         .update(payload)
         .eq("id", campaignId)
-        .neq("status", "sending")
-        .neq("status", "sent")
+        .neq("status", CAMPAIGN_STATUS.SENDING)
+        .neq("status", CAMPAIGN_STATUS.SENT)
         .select("id");
     };
 
@@ -1093,10 +1142,18 @@ export const sendScheduledCampaignNow = async (
 
     if (sendError) {
       console.error("Edge function send error:", sendError);
+      const recovered = await recoverPersistedQueueState(campaignId);
+      if (recovered.handled) {
+        const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+          ? "Campaign queue build partially completed. The queue will resume automatically."
+          : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+        toast.warning(message);
+        return { success: true };
+      }
       await supabase
         .from("crm_campaigns")
         .update({
-          status: "failed",
+          status: CAMPAIGN_STATUS.FAILED,
           send_error: sendError.message,
         })
         .eq("id", campaignId);
@@ -1106,10 +1163,18 @@ export const sendScheduledCampaignNow = async (
 
     if (sendResult?.error) {
       console.error("Send result error:", sendResult.error);
+      const recovered = await recoverPersistedQueueState(campaignId);
+      if (recovered.handled) {
+        const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+          ? "Campaign queue build partially completed. The queue will resume automatically."
+          : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+        toast.warning(message);
+        return { success: true };
+      }
       await supabase
         .from("crm_campaigns")
         .update({
-          status: "failed",
+          status: CAMPAIGN_STATUS.FAILED,
           send_error: sendResult.error,
         })
         .eq("id", campaignId);
@@ -1117,8 +1182,8 @@ export const sendScheduledCampaignNow = async (
       return { success: false, error: sendResult.error };
     }
 
-    const sentCount = sendResult?.metrics?.sent || 0;
-    toast.success(`Campaign sent to ${sentCount} customers!`);
+    const queuedRecipients = Number(sendResult?.total_recipients || 0);
+    toast.success(`Campaign queued - sending to ${queuedRecipients} recipients`);
 
     return { success: true };
   } catch (error: any) {
@@ -1142,51 +1207,63 @@ export const getCampaignStatusInfo = (
   isLocked: boolean;
 } => {
   const isPastDue =
-    status === "scheduled" && scheduledAt && new Date(scheduledAt) < new Date();
-  const isLocked = ["scheduled", "sending", "sent"].includes(status);
+    status === CAMPAIGN_STATUS.SCHEDULED &&
+    scheduledAt &&
+    new Date(scheduledAt) < new Date();
+  const isLocked = isLockedCampaignStatus(status);
 
   switch (status) {
-    case "draft":
+    case CAMPAIGN_STATUS.DRAFT:
       return {
-        label: "Draft",
+        label: getCampaignStatusLabel(status),
         variant: "secondary",
         isPastDue: false,
         isLocked: false,
       };
-    case "scheduled":
+    case CAMPAIGN_STATUS.SCHEDULED:
       return {
-        label: "Scheduled",
+        label: getCampaignStatusLabel(status),
         variant: "default",
         isPastDue,
         isLocked: true,
       };
-    case "sending":
+    case CAMPAIGN_STATUS.QUEUED:
+    case CAMPAIGN_STATUS.PARTIALLY_QUEUED:
+    case CAMPAIGN_STATUS.SENDING:
       return {
-        label: "Sending",
+        label: getCampaignStatusLabel(status),
         variant: "default",
         isPastDue: false,
         isLocked: true,
       };
-    case "sent":
+    case CAMPAIGN_STATUS.PAUSED:
       return {
-        label: "Sent",
+        label: getCampaignStatusLabel(status),
         variant: "outline",
         isPastDue: false,
         isLocked: true,
       };
-    case "failed":
+    case CAMPAIGN_STATUS.SENT:
       return {
-        label: "Failed",
+        label: getCampaignStatusLabel(status),
+        variant: "outline",
+        isPastDue: false,
+        isLocked: true,
+      };
+    case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
+    case CAMPAIGN_STATUS.FAILED:
+      return {
+        label: getCampaignStatusLabel(status),
         variant: "destructive",
         isPastDue: false,
-        isLocked: false,
+        isLocked,
       };
     default:
       return {
-        label: status,
+        label: getCampaignStatusLabel(status),
         variant: "secondary",
         isPastDue: false,
-        isLocked: false,
+        isLocked,
       };
   }
 };

@@ -11,6 +11,10 @@ export function SenderVerificationDialog({
 }) {
   const { senderConfig } = useSenderConfiguration();
 
+  if (!open) {
+    return null;
+  }
+
   return (
     <SenderVerificationModal
       open={open}

@@ -2689,17 +2689,24 @@ export type Database = {
           metrics: Json | null;
           metrics_parity_snapshot: Json | null;
           name: string;
+          messages_failed: number;
+          messages_sent: number;
+          messages_skipped: number;
           open_rate: number | null;
           persona_ids: string[] | null;
           predicted_segment_ids: string[] | null;
           preheader: string | null;
           preheader_text: string | null;
+          queue_completed_at: string | null;
+          queue_started_at: string | null;
+          queued_at: string | null;
           rollup_refreshed_at: string | null;
           scheduled_at: string | null;
           segment_id: string | null;
           send_attempts: number | null;
           send_blocked_reason: string | null;
           send_error: string | null;
+          send_completed_at: string | null;
           send_reasoning: string | null;
           send_started_at: string | null;
           sender_display_name: string | null;
@@ -2709,16 +2716,21 @@ export type Database = {
           sent_at: string | null;
           source_campaign_id: string | null;
           source_content_task_id: string | null;
+          stall_count: number;
           status: string | null;
           subject_line: string | null;
           synced_from: string | null;
           template_id: string | null;
           tenant_id: string | null;
+          total_batches: number | null;
           total_clicks: number | null;
           total_opens: number | null;
+          total_recipients: number | null;
           total_sent: number | null;
           updated_at: string | null;
           user_id: string | null;
+          worker_heartbeat_at: string | null;
+          estimated_completion_at: string | null;
         };
         Insert: {
           actual_sender_email?: string | null;
@@ -2735,17 +2747,24 @@ export type Database = {
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
           name: string;
+          messages_failed?: number;
+          messages_sent?: number;
+          messages_skipped?: number;
           open_rate?: number | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          queue_completed_at?: string | null;
+          queue_started_at?: string | null;
+          queued_at?: string | null;
           rollup_refreshed_at?: string | null;
           scheduled_at?: string | null;
           segment_id?: string | null;
           send_attempts?: number | null;
           send_blocked_reason?: string | null;
           send_error?: string | null;
+          send_completed_at?: string | null;
           send_reasoning?: string | null;
           send_started_at?: string | null;
           sender_display_name?: string | null;
@@ -2755,16 +2774,21 @@ export type Database = {
           sent_at?: string | null;
           source_campaign_id?: string | null;
           source_content_task_id?: string | null;
+          stall_count?: number;
           status?: string | null;
           subject_line?: string | null;
           synced_from?: string | null;
           template_id?: string | null;
           tenant_id?: string | null;
+          total_batches?: number | null;
           total_clicks?: number | null;
           total_opens?: number | null;
+          total_recipients?: number | null;
           total_sent?: number | null;
           updated_at?: string | null;
           user_id?: string | null;
+          worker_heartbeat_at?: string | null;
+          estimated_completion_at?: string | null;
         };
         Update: {
           actual_sender_email?: string | null;
@@ -2781,17 +2805,24 @@ export type Database = {
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
           name?: string;
+          messages_failed?: number;
+          messages_sent?: number;
+          messages_skipped?: number;
           open_rate?: number | null;
           persona_ids?: string[] | null;
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          queue_completed_at?: string | null;
+          queue_started_at?: string | null;
+          queued_at?: string | null;
           rollup_refreshed_at?: string | null;
           scheduled_at?: string | null;
           segment_id?: string | null;
           send_attempts?: number | null;
           send_blocked_reason?: string | null;
           send_error?: string | null;
+          send_completed_at?: string | null;
           send_reasoning?: string | null;
           send_started_at?: string | null;
           sender_display_name?: string | null;
@@ -2801,16 +2832,21 @@ export type Database = {
           sent_at?: string | null;
           source_campaign_id?: string | null;
           source_content_task_id?: string | null;
+          stall_count?: number;
           status?: string | null;
           subject_line?: string | null;
           synced_from?: string | null;
           template_id?: string | null;
           tenant_id?: string | null;
+          total_batches?: number | null;
           total_clicks?: number | null;
           total_opens?: number | null;
+          total_recipients?: number | null;
           total_sent?: number | null;
           updated_at?: string | null;
           user_id?: string | null;
+          worker_heartbeat_at?: string | null;
+          estimated_completion_at?: string | null;
         };
         Relationships: [
           {
@@ -15452,10 +15488,44 @@ export type Database = {
         }[];
       };
       ensure_jobs_for_queued_email_messages: {
-        Args: { p_batch_size?: number; p_campaign_id: string };
+        Args: {
+          p_activate_sending?: boolean;
+          p_batch_size?: number;
+          p_campaign_id: string;
+          p_immediate_job_count?: number;
+          p_jobs_per_minute?: number;
+        };
         Returns: {
           jobs_created: number;
           queued_count: number;
+        }[];
+      };
+      campaign_health_check: {
+        Args: { p_stale_queue_minutes?: number; p_stale_worker_minutes?: number };
+        Returns: {
+          events_logged: number;
+          orphaned_jobs_released: number;
+          partially_queued_campaigns: number;
+          stale_messages_reset: number;
+          stalled_campaigns: number;
+        }[];
+      };
+      record_campaign_send_progress: {
+        Args: {
+          p_campaign_id: string;
+          p_failed_delta?: number;
+          p_sent_delta?: number;
+          p_skipped_delta?: number;
+          p_worker_heartbeat_at?: string;
+        };
+        Returns: {
+          estimated_completion_at: string | null;
+          messages_failed: number;
+          messages_sent: number;
+          messages_skipped: number;
+          send_started_at: string | null;
+          total_recipients: number | null;
+          worker_heartbeat_at: string | null;
         }[];
       };
       ensure_org_usage_initialized: {

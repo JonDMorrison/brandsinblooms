@@ -1,7 +1,6 @@
 import * as React from "react";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
-import IconButton from "@mui/joy/IconButton";
 import LinearProgress from "@mui/joy/LinearProgress";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
@@ -28,6 +27,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { toast } from "sonner";
+import { RecipientStatusChip, normalizeRecipientStatus } from "@/components/crm/campaigns/RecipientStatusChip";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
@@ -35,7 +35,7 @@ import {
   JoyCardContent,
   JoyCardHeader,
 } from "@/components/joy/JoyCard";
-import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
+import { JoyChip } from "@/components/joy/JoyChip";
 import { JoySelect } from "@/components/joy/JoySelect";
 import {
   JoyTable,
@@ -84,6 +84,7 @@ interface CampaignDetail {
   subject_line: string | null;
   content: string | null;
   status: string;
+  queued_at: string | null;
   scheduled_at: string | null;
   sent_at: string | null;
   created_at: string;
@@ -196,7 +197,6 @@ interface CustomerProfileCard {
   first_name: string | null;
   last_name: string | null;
   email: string;
-  lifecycle_stage: string | null;
   lifetime_value: number | null;
   total_spent: number | null;
   order_history: unknown;
@@ -251,6 +251,15 @@ function getDeliveryLabel(status: string) {
     default:
       return status || "Unknown";
   }
+}
+
+function getRecipientDetailStatus(recipient: RecipientDetail | null) {
+  if (!recipient) return "unknown";
+  const latest = normalizeRecipientStatus(recipient.latest_event);
+  if (latest !== "unknown") return latest;
+  const delivery = normalizeRecipientStatus(recipient.delivery_status);
+  if (delivery !== "unknown") return delivery;
+  return recipient.send_status || "unknown";
 }
 
 function getEventLabel(event: string) {
@@ -543,7 +552,7 @@ function TimelineEventItem({
         {!isLast ? (
           <Box
             sx={{
-              width: 1,
+              width: "1px",
               flex: 1,
               backgroundColor: "neutral.200",
               mt: 0.5,
@@ -917,6 +926,8 @@ export default function CRMCampaignRecipientDetailPage() {
     };
   }, []);
 
+  const [detailPollingEnabled, setDetailPollingEnabled] = React.useState(false);
+
   const detailQuery = useQuery({
     queryKey: [
       "campaign-recipient-detail",
@@ -931,26 +942,44 @@ export default function CRMCampaignRecipientDetailPage() {
       searchParams.get("direction") ?? "desc",
     ],
     enabled: Boolean(campaignId && recipientId),
+    refetchInterval: detailPollingEnabled ? 10_000 : false,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "get_campaign_recipient_detail" as any,
-        {
-          p_campaign_id: campaignId,
-          p_recipient_id: recipientId,
-          p_search: filterState.searchQuery || null,
-          p_event_filter: filterState.compositeFilter,
-          p_sort_column: searchParams.get("sort") ?? "event_time",
-          p_sort_direction: searchParams.get("direction") ?? "desc",
-          p_event_filters: filterState.selectedEvents.length
-            ? filterState.selectedEvents
-            : null,
-          p_time_range: filterState.timeRange,
-          p_delivery_filter: filterState.deliveryFilter,
-        } as any,
-      );
+      const [{ data, error }, { data: campaignMeta, error: campaignMetaError }] =
+        await Promise.all([
+          supabase.rpc("get_campaign_recipient_detail" as any, {
+            p_campaign_id: campaignId,
+            p_recipient_id: recipientId,
+            p_search: filterState.searchQuery || null,
+            p_event_filter: filterState.compositeFilter,
+            p_sort_column: searchParams.get("sort") ?? "event_time",
+            p_sort_direction: searchParams.get("direction") ?? "desc",
+            p_event_filters: filterState.selectedEvents.length
+              ? filterState.selectedEvents
+              : null,
+            p_time_range: filterState.timeRange,
+            p_delivery_filter: filterState.deliveryFilter,
+          } as any),
+          supabase
+            .from("crm_campaigns")
+            .select("queued_at")
+            .eq("id", campaignId)
+            .maybeSingle(),
+        ]);
 
       if (error) throw error;
-      return (data ?? null) as CampaignRecipientDetailResponse | null;
+      if (campaignMetaError && import.meta.env.DEV) {
+        console.warn("Unable to load campaign queue metadata", campaignMetaError);
+      }
+
+      const response = (data ?? null) as CampaignRecipientDetailResponse | null;
+      if (response?.campaign) {
+        response.campaign = {
+          ...response.campaign,
+          queued_at: response.campaign.queued_at ?? campaignMeta?.queued_at ?? null,
+        };
+      }
+
+      return response;
     },
   });
 
@@ -994,7 +1023,7 @@ export default function CRMCampaignRecipientDetailPage() {
       const { data, error } = await supabase
         .from("crm_customers")
         .select(
-          "id, first_name, last_name, email, lifecycle_stage, lifetime_value, total_spent, order_history",
+          "id, first_name, last_name, email, lifetime_value, total_spent, order_history",
         )
         .eq("id", liveRecipient?.customer_id)
         .maybeSingle();
@@ -1204,9 +1233,9 @@ export default function CRMCampaignRecipientDetailPage() {
     onEvent: handleRealtimeEvent,
   });
 
-  const handleRefresh = React.useCallback(async () => {
-    await detailQuery.refetch();
-  }, [detailQuery]);
+  React.useEffect(() => {
+    setDetailPollingEnabled(realtime.connectionState === "paused");
+  }, [realtime.connectionState]);
 
   const handleMarkdownExport = React.useCallback(() => {
     if (!campaign || !liveRecipient) return;
@@ -1218,7 +1247,7 @@ export default function CRMCampaignRecipientDetailPage() {
       `- Name: ${campaign.name}`,
       `- Subject: ${campaign.subject_line || "No subject line"}`,
       `- Status: ${campaign.status}`,
-      `- Sent At: ${formatExactTimestamp(campaign.sent_at || campaign.scheduled_at || campaign.created_at, campaign.tenant_timezone)}`,
+      `- Sent At: ${formatExactTimestamp(campaign.sent_at || campaign.queued_at || campaign.scheduled_at || campaign.created_at, campaign.tenant_timezone)}`,
       "",
       "## Recipient",
       `- Name: ${liveRecipient.customer_name || "Unknown"}`,
@@ -1286,14 +1315,14 @@ export default function CRMCampaignRecipientDetailPage() {
           queryKey: ["campaign-recipients-page", campaignId],
         }),
       ]);
-      await handleRefresh();
+      await detailQuery.refetch();
     } catch (error) {
       console.error("Failed to retry recipient", error);
       toast.error("Unable to queue a retry for this recipient");
     } finally {
       setIsRetrying(false);
     }
-  }, [campaignId, handleRefresh, queryClient, recipientId]);
+  }, [campaignId, detailQuery, queryClient, recipientId]);
 
   const handleSuppressRecipient = React.useCallback(async () => {
     if (!tenant?.id || !liveRecipient) return;
@@ -1542,20 +1571,16 @@ export default function CRMCampaignRecipientDetailPage() {
                 {detailQuery.isLoading ? (
                   <Skeleton width={140} height={34} />
                 ) : (
-                  <JoyStatusChip
-                    status={getDeliveryLabel(
-                      liveRecipient?.delivery_status ||
-                        liveRecipient?.latest_event ||
-                        "unknown",
-                    )}
-                    tone={getStatusTone(
-                      liveRecipient?.delivery_status ||
-                        liveRecipient?.latest_event ||
-                        "unknown",
-                    )}
+                  <RecipientStatusChip
+                    status={getRecipientDetailStatus(liveRecipient)}
                     size="lg"
                   />
                 )}
+                {realtime.connectionState !== "live" ? (
+                  <JoyChip variant="soft" color="neutral" size="sm">
+                    Reconnecting...
+                  </JoyChip>
+                ) : null}
                 {liveRecipient?.has_hard_bounce ? (
                   <JoyChip variant="soft" color="warning" size="sm">
                     {liveRecipient.hard_bounce_reason || "Hard bounce"}
@@ -1609,6 +1634,14 @@ export default function CRMCampaignRecipientDetailPage() {
                     Retry
                   </JoyButton>
                 ) : null}
+                <JoyButton
+                  bloomVariant="ghost"
+                  color="neutral"
+                  onClick={() => handleSetTab("content")}
+                >
+                  <Mail size={16} />
+                  View Email Content
+                </JoyButton>
                 {liveRecipient?.customer_id ? (
                   <JoyButton
                     bloomVariant="ghost"
@@ -1629,52 +1662,10 @@ export default function CRMCampaignRecipientDetailPage() {
                   <ShieldBan size={16} />
                   Suppress
                 </JoyButton>
-                <IconButton
-                  color="neutral"
-                  variant="plain"
-                  onClick={() => void handleRefresh()}
-                >
-                  <RefreshCw size={18} />
-                </IconButton>
               </Stack>
             </Stack>
           </JoyCardContent>
         </JoyCard>
-
-        {realtime.bannerState === "paused" ? (
-          <Sheet
-            variant="soft"
-            color="warning"
-            sx={{ borderRadius: "md", px: 2, py: 1.5 }}
-          >
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1.5}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", sm: "center" }}
-            >
-              <Typography level="body-sm">
-                Live updates paused. Refresh to load the latest recipient
-                activity.
-              </Typography>
-              <Stack direction="row" spacing={1}>
-                <JoyButton
-                  bloomVariant="secondary"
-                  onClick={() => void handleRefresh()}
-                >
-                  Refresh
-                </JoyButton>
-                <JoyButton
-                  bloomVariant="ghost"
-                  color="neutral"
-                  onClick={realtime.dismissBanner}
-                >
-                  Dismiss
-                </JoyButton>
-              </Stack>
-            </Stack>
-          </Sheet>
-        ) : null}
 
         <Box sx={{ display: { xs: "block", md: "none" } }}>
           <JoySelect
@@ -1784,17 +1775,6 @@ export default function CRMCampaignRecipientDetailPage() {
                           {customerProfileQuery.data?.email ||
                             liveRecipient.customer_email}
                         </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          useFlexGap
-                          flexWrap="wrap"
-                        >
-                          <JoyChip variant="soft" color="neutral">
-                            {customerProfileQuery.data?.lifecycle_stage ||
-                              "Lifecycle stage unavailable"}
-                          </JoyChip>
-                        </Stack>
                       </Stack>
                       <Stack
                         direction={{ xs: "column", sm: "row" }}

@@ -7,6 +7,11 @@ import { CampaignPerformanceCard } from "./CampaignPerformanceCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useCRMAccess } from "@/hooks/useCRMAccess";
 import {
+  CAMPAIGN_STATUS,
+  getCampaignStatusLabel,
+  isDeliveredCampaignStatus,
+} from "@/constants/campaignStatuses";
+import {
   Search,
   Filter,
   BarChart3,
@@ -21,8 +26,10 @@ import { toast } from "sonner";
 interface Campaign {
   id: string;
   name: string;
-  sent_at: string;
-  status: "draft" | "scheduled" | "sending" | "sent" | "completed";
+  sent_at: string | null;
+  queued_at: string | null;
+  activity_at: string;
+  status: string;
   metrics: {
     sent: number;
     delivered: number;
@@ -61,8 +68,11 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
       const processedCampaigns: Campaign[] = (data || []).map((campaign) => ({
         id: campaign.id,
         name: campaign.name,
-        sent_at: campaign.sent_at || campaign.created_at,
-        status: campaign.status as Campaign["status"],
+        sent_at: campaign.sent_at,
+        queued_at: campaign.queued_at,
+        activity_at:
+          campaign.sent_at || campaign.queued_at || campaign.created_at,
+        status: campaign.status,
         metrics:
           typeof campaign.metrics === "object" && campaign.metrics !== null
             ? (campaign.metrics as Campaign["metrics"])
@@ -91,7 +101,9 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
 
   const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
     if (sortBy === "recent") {
-      return new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime();
+      return (
+        new Date(b.activity_at).getTime() - new Date(a.activity_at).getTime()
+      );
     } else {
       // Sort by performance (open rate)
       const aOpenRate = a.metrics
@@ -108,7 +120,7 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
 
   const calculateOverallStats = () => {
     const sentCampaigns = campaigns.filter(
-      (c) => c.metrics && c.status !== "draft",
+      (c) => c.metrics && isDeliveredCampaignStatus(c.status),
     );
     if (sentCampaigns.length === 0) return null;
 
@@ -142,10 +154,17 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
   const overallStats = calculateOverallStats();
 
   const exportCampaignData = () => {
+    if (campaigns.length === 0) {
+      toast.info("No campaign data to export");
+      return;
+    }
+
     const csvData = campaigns.map((campaign) => ({
       name: campaign.name,
       status: campaign.status,
-      sent_date: campaign.sent_at,
+      queued_date: campaign.queued_at || "",
+      sent_date: campaign.sent_at || "",
+      activity_date: campaign.activity_at,
       sent: campaign.metrics?.sent || 0,
       delivered: campaign.metrics?.delivered || 0,
       opened: campaign.metrics?.opened || 0,
@@ -232,7 +251,12 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
                 {overallStats.totalCampaigns}
               </div>
               <p className="text-xs text-muted-foreground">
-                {campaigns.filter((c) => c.status === "draft").length} drafts
+                {
+                  campaigns.filter(
+                    (c) => c.status === CAMPAIGN_STATUS.DRAFT,
+                  ).length
+                }{" "}
+                drafts
               </p>
             </CardContent>
           </Card>
@@ -309,10 +333,34 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
           className="w-48"
           options={[
             { value: "all", label: "All Statuses" },
-            { value: "draft", label: "Draft" },
-            { value: "scheduled", label: "Scheduled" },
-            { value: "sent", label: "Sent" },
-            { value: "completed", label: "Completed" },
+            {
+              value: CAMPAIGN_STATUS.DRAFT,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.DRAFT),
+            },
+            {
+              value: CAMPAIGN_STATUS.SCHEDULED,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.SCHEDULED),
+            },
+            {
+              value: CAMPAIGN_STATUS.QUEUED,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.QUEUED),
+            },
+            {
+              value: CAMPAIGN_STATUS.SENDING,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.SENDING),
+            },
+            {
+              value: CAMPAIGN_STATUS.SENT,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.SENT),
+            },
+            {
+              value: CAMPAIGN_STATUS.SENT_WITH_ERRORS,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.SENT_WITH_ERRORS),
+            },
+            {
+              value: CAMPAIGN_STATUS.FAILED,
+              label: getCampaignStatusLabel(CAMPAIGN_STATUS.FAILED),
+            },
           ]}
         />
 
@@ -358,7 +406,7 @@ export const CampaignAnalyticsDashboard: React.FC = () => {
               <CampaignPerformanceCard
                 key={campaign.id}
                 campaignName={campaign.name}
-                sentDate={campaign.sent_at}
+                sentDate={campaign.sent_at ?? campaign.activity_at}
                 status={campaign.status}
                 metrics={campaign.metrics || undefined}
                 onViewDetails={() => {

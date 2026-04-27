@@ -312,10 +312,12 @@ export const SenderVerificationModal: React.FC<
       </Dialog>
 
       {/* Entri-based Domain Connect Wizard */}
-      <DomainConnectWizard
-        open={showDomainWizard}
-        onClose={handleDomainWizardClose}
-      />
+      {showDomainWizard ? (
+        <DomainConnectWizard
+          open={showDomainWizard}
+          onClose={handleDomainWizardClose}
+        />
+      ) : null}
     </>
   );
 };

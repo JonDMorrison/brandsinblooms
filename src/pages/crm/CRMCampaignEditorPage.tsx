@@ -3,13 +3,11 @@ import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import ButtonGroup from "@mui/joy/ButtonGroup";
-import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import FormControl from "@mui/joy/FormControl";
 import FormLabel from "@mui/joy/FormLabel";
 import Grid from "@mui/joy/Grid";
 import IconButton from "@mui/joy/IconButton";
-import LinearProgress from "@mui/joy/LinearProgress";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
@@ -36,7 +34,6 @@ import {
   Minus,
   Monitor,
   MousePointerClick,
-  Pause,
   Pencil,
   Play,
   Plus,
@@ -51,6 +48,8 @@ import {
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CleanEmailBlockEditor } from "@/components/crm/CleanEmailBlockEditor";
+import { CampaignActiveSendView } from "@/components/crm/campaign-editor/CampaignActiveSendView";
+import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLockedView";
 import {
   CampaignEditorProvider,
   useCampaignEditor,
@@ -76,6 +75,12 @@ import { useEmailDomains } from "@/hooks/useEmailDomains";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
+import {
+  CAMPAIGN_STATUS,
+  isDeliveredCampaignStatus,
+  isLockedCampaignStatus,
+  isQueuedCampaignStatus,
+} from "@/constants/campaignStatuses";
 import type {
   CampaignCatalogItem,
   CampaignPersonaSummary,
@@ -101,21 +106,10 @@ type PreflightCheck = {
   status: PreflightStatus;
 };
 
-const READ_ONLY_STATUSES = new Set<CampaignStatus>([
-  "scheduled",
-  "queued",
-  "partially_queued",
-  "sending",
-  "sent",
-  "sent_with_errors",
-  "paused",
-  "failed",
-]);
-
 const EDITOR_MAX_WIDTH = 1200;
 
 function isReadOnlyStatus(status: CampaignStatus) {
-  return READ_ONLY_STATUSES.has(status);
+  return isLockedCampaignStatus(status);
 }
 
 function hasEmailContent(blocks: ContentBlock[]) {
@@ -279,15 +273,15 @@ function createManualBlock(kind: string): ContentBlock {
 
 function getStatusBannerColor(status: CampaignStatus) {
   switch (status) {
-    case "sent":
+    case CAMPAIGN_STATUS.SENT:
       return "success" as const;
-    case "sent_with_errors":
+    case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
       return "warning" as const;
-    case "failed":
+    case CAMPAIGN_STATUS.FAILED:
       return "danger" as const;
-    case "paused":
+    case CAMPAIGN_STATUS.PAUSED:
       return "warning" as const;
-    case "scheduled":
+    case CAMPAIGN_STATUS.SCHEDULED:
       return "primary" as const;
     default:
       return "neutral" as const;
@@ -802,15 +796,10 @@ function CampaignEditorScreen() {
     lastSavedAt,
     isSaving,
     isLoading,
-    sendBlockedReason,
     updateSetup,
     updateAudience,
     updateContent,
     updateSchedule,
-    activate,
-    pause,
-    resume,
-    cancel,
   } = useCampaignEditor();
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
@@ -1197,6 +1186,13 @@ function CampaignEditorScreen() {
   const sendButtonLabel = sendImmediately
     ? `Send to ~${(audienceCount ?? 0).toLocaleString()} Recipients`
     : `Schedule for ${sendAt?.toLocaleString() ?? "later"}`;
+  const showActiveSendView =
+    isQueuedCampaignStatus(status) || status === CAMPAIGN_STATUS.SENDING;
+  const showStateLayoutView =
+    status === CAMPAIGN_STATUS.SCHEDULED ||
+    status === CAMPAIGN_STATUS.PAUSED ||
+    status === CAMPAIGN_STATUS.FAILED ||
+    isDeliveredCampaignStatus(status);
 
   const focusNameField = React.useCallback(() => {
     const element = headerNameRef.current;
@@ -1259,7 +1255,7 @@ function CampaignEditorScreen() {
   );
 
   const renderHeaderActions = () => {
-    if (status === "draft") {
+    if (status === CAMPAIGN_STATUS.DRAFT) {
       return (
         <Stack
           spacing={1}
@@ -1295,7 +1291,7 @@ function CampaignEditorScreen() {
       );
     }
 
-    if (status === "sent" || status === "sent_with_errors") {
+    if (isDeliveredCampaignStatus(status)) {
       return (
         <Stack
           spacing={1}
@@ -1303,42 +1299,15 @@ function CampaignEditorScreen() {
           sx={{ mt: 0.5 }}
         >
           <Typography level="body-sm" sx={{ color: "neutral.500" }}>
-            Sent to ~{(audienceCount ?? 0).toLocaleString()} recipients
-            {sendAt ? ` on ${sendAt.toLocaleString()}` : ""}
+            Completion details and next actions are shown below.
           </Typography>
-          <Stack direction="row" spacing={1}>
-            {campaignId ? (
-              <JoyButton
-                variant="soft"
-                color="neutral"
-                size="sm"
-                onClick={() => navigate(`/crm/campaigns/${campaignId}/report`)}
-              >
-                View Report
-              </JoyButton>
-            ) : null}
-            {campaignId ? (
-              <JoyButton
-                variant="soft"
-                color="neutral"
-                size="sm"
-                onClick={() =>
-                  navigate(`/crm/campaigns/${campaignId}/recipients`)
-                }
-              >
-                View Recipients
-              </JoyButton>
-            ) : null}
-          </Stack>
         </Stack>
       );
     }
 
-    if (
-      status === "sending" ||
-      status === "queued" ||
-      status === "partially_queued"
-    ) {
+    if (status === CAMPAIGN_STATUS.SENDING || isQueuedCampaignStatus(status)) {
+      const isQueued = isQueuedCampaignStatus(status);
+
       return (
         <Stack
           spacing={1}
@@ -1346,25 +1315,18 @@ function CampaignEditorScreen() {
           sx={{ mt: 0.5 }}
         >
           <Stack direction="row" spacing={1} alignItems="center">
-            <CircularProgress size="sm" />
-            <Typography level="body-sm">Sending...</Typography>
-            <JoyButton
-              variant="soft"
-              color="warning"
-              size="sm"
-              onClick={() => void pause()}
-            >
-              Pause
-            </JoyButton>
+            <Typography level="body-sm">
+              {isQueued ? "Queued..." : "Sending..."}
+            </Typography>
           </Stack>
           <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-            Sending to ~{(audienceCount ?? 0).toLocaleString()} recipients
+            Live progress and controls are shown below.
           </Typography>
         </Stack>
       );
     }
 
-    if (status === "scheduled") {
+    if (status === CAMPAIGN_STATUS.SCHEDULED) {
       return (
         <Stack
           spacing={1}
@@ -1372,21 +1334,14 @@ function CampaignEditorScreen() {
           sx={{ mt: 0.5 }}
         >
           <Typography level="body-sm" sx={{ color: "neutral.500" }}>
-            Scheduled for {sendAt?.toLocaleString() ?? "later"}
+            Scheduled for {sendAt?.toLocaleString() ?? "later"}. Controls are
+            shown below.
           </Typography>
-          <JoyButton
-            variant="soft"
-            color="danger"
-            size="sm"
-            onClick={() => void cancel()}
-          >
-            Cancel
-          </JoyButton>
         </Stack>
       );
     }
 
-    if (status === "paused") {
+    if (status === CAMPAIGN_STATUS.PAUSED) {
       return (
         <Stack
           spacing={1}
@@ -1394,31 +1349,13 @@ function CampaignEditorScreen() {
           sx={{ mt: 0.5 }}
         >
           <Typography level="body-sm" sx={{ color: "neutral.500" }}>
-            Campaign is paused.
+            Campaign is paused. Resume and report options are shown below.
           </Typography>
-          <Stack direction="row" spacing={1}>
-            <JoyButton
-              variant="soft"
-              color="neutral"
-              size="sm"
-              onClick={() => void resume()}
-            >
-              Resume
-            </JoyButton>
-            <JoyButton
-              variant="soft"
-              color="danger"
-              size="sm"
-              onClick={() => void cancel()}
-            >
-              Cancel
-            </JoyButton>
-          </Stack>
         </Stack>
       );
     }
 
-    if (status === "failed") {
+    if (status === CAMPAIGN_STATUS.FAILED) {
       return (
         <Stack
           spacing={1}
@@ -1433,17 +1370,8 @@ function CampaignEditorScreen() {
               textAlign: { lg: "right" },
             }}
           >
-            {sendBlockedReason ||
-              "This campaign failed before it could complete."}
+            Recovery options are shown below.
           </Typography>
-          <JoyButton
-            variant="soft"
-            color="neutral"
-            size="sm"
-            onClick={() => setSendConfirmOpen(true)}
-          >
-            Retry
-          </JoyButton>
         </Stack>
       );
     }
@@ -1577,70 +1505,784 @@ function CampaignEditorScreen() {
 
       <Divider sx={{ mb: 3 }} />
 
-      <Stack
-        spacing={2}
-        sx={{ maxWidth: EDITOR_MAX_WIDTH, width: "100%", mx: "auto" }}
-      >
-        <SectionCard title="Campaign Setup">
-          <Stack spacing={2.5}>
-            <JoyInput
-              label="Campaign name"
-              value={name}
-              disabled={isReadOnly}
-              onValueChange={(value) => updateSetup({ name: value })}
-              placeholder="e.g., Spring Sale Newsletter"
-            />
-
-            <FormControl size="sm">
-              <FormLabel sx={{ fontWeight: "md" }}>Campaign type</FormLabel>
-              <CampaignTypeToggle
-                value={campaignType}
-                onChange={(value) => updateSetup({ campaignType: value })}
-                disabled={typeLocked}
+      {showActiveSendView ? (
+        <CampaignActiveSendView onPreview={() => setPreviewOpen(true)} />
+      ) : showStateLayoutView ? (
+        <CampaignLockedView
+          onPreview={() => setPreviewOpen(true)}
+          onReschedule={() => setScheduleOpen(true)}
+        />
+      ) : (
+        <Stack
+          spacing={2}
+          sx={{ maxWidth: EDITOR_MAX_WIDTH, width: "100%", mx: "auto" }}
+        >
+          <SectionCard title="Campaign Setup">
+            <Stack spacing={2.5}>
+              <JoyInput
+                label="Campaign name"
+                value={name}
+                disabled={isReadOnly}
+                onValueChange={(value) => updateSetup({ name: value })}
+                placeholder="e.g., Spring Sale Newsletter"
               />
-              {typeLocked ? (
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.400", mt: 0.5 }}
-                >
-                  Type is locked once content exists.
-                </Typography>
-              ) : null}
-            </FormControl>
 
-            {campaignType === "email" ? (
-              <Stack spacing={0.75}>
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={1}
-                  alignItems={{ md: "center" }}
-                >
-                  <Box sx={{ flex: 1 }}>
-                    <JoyInput
-                      label="Subject line"
-                      value={subjectLine}
+              <FormControl size="sm">
+                <FormLabel sx={{ fontWeight: "md" }}>Campaign type</FormLabel>
+                <CampaignTypeToggle
+                  value={campaignType}
+                  onChange={(value) => updateSetup({ campaignType: value })}
+                  disabled={typeLocked}
+                />
+                {typeLocked ? (
+                  <Typography
+                    level="body-xs"
+                    sx={{ color: "neutral.400", mt: 0.5 }}
+                  >
+                    Type is locked once content exists.
+                  </Typography>
+                ) : null}
+              </FormControl>
+
+              {campaignType === "email" ? (
+                <Stack spacing={0.75}>
+                  <Stack
+                    direction={{ xs: "column", md: "row" }}
+                    spacing={1}
+                    alignItems={{ md: "center" }}
+                  >
+                    <Box sx={{ flex: 1 }}>
+                      <JoyInput
+                        label="Subject line"
+                        value={subjectLine}
+                        disabled={isReadOnly}
+                        onValueChange={(value) =>
+                          updateSetup({ subjectLine: value })
+                        }
+                        placeholder="What will your recipients see?"
+                      />
+                    </Box>
+                    <JoyButton
+                      variant="plain"
+                      color="primary"
+                      size="sm"
+                      startDecorator={<Sparkles size={16} />}
+                      onClick={() => setAiSubjectOpen(true)}
                       disabled={isReadOnly}
-                      onValueChange={(value) =>
-                        updateSetup({ subjectLine: value })
+                    >
+                      Suggest
+                    </JoyButton>
+                  </Stack>
+                  <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                    {subjectLine.length} characters
+                  </Typography>
+                </Stack>
+              ) : (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ borderRadius: "md", p: 1.5 }}
+                >
+                  <Typography level="body-sm">
+                    SMS campaigns keep setup light. Subject line and preheader
+                    aren’t required.
+                  </Typography>
+                </Sheet>
+              )}
+
+              <Box>
+                <JoyButton
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                  endDecorator={
+                    showAdvanced ? (
+                      <ChevronUp size={14} />
+                    ) : (
+                      <ChevronDown size={14} />
+                    )
+                  }
+                  onClick={() => setShowAdvanced((current) => !current)}
+                  sx={{ px: 0, fontWeight: "md", color: "neutral.600" }}
+                >
+                  Advanced setup
+                </JoyButton>
+
+                <Box
+                  sx={{
+                    overflow: "hidden",
+                    maxHeight: showAdvanced ? 640 : 0,
+                    opacity: showAdvanced ? 1 : 0,
+                    transition: "max-height 220ms ease, opacity 160ms ease",
+                  }}
+                >
+                  <Stack spacing={2.5} sx={{ pt: showAdvanced ? 2 : 0 }}>
+                    {campaignType === "email" ? (
+                      <>
+                        <Stack spacing={0.75}>
+                          <JoyInput
+                            label="Preheader"
+                            value={preheaderText}
+                            disabled={isReadOnly}
+                            onValueChange={(value) =>
+                              updateSetup({ preheaderText: value })
+                            }
+                            placeholder="Preview text shown in email clients"
+                          />
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.400" }}
+                          >
+                            Appears after the subject line in the inbox preview.
+                          </Typography>
+                        </Stack>
+
+                        <Grid container spacing={2}>
+                          <Grid xs={12} md={6}>
+                            <JoyInput
+                              label="Sender name"
+                              value={senderName}
+                              disabled={isReadOnly}
+                              onValueChange={(value) =>
+                                updateSetup({ senderName: value })
+                              }
+                            />
+                          </Grid>
+                          <Grid xs={12} md={6}>
+                            <JoySelect
+                              label="Sender email"
+                              value={senderEmail}
+                              disabled={isReadOnly}
+                              onValueChange={(value) =>
+                                updateSetup({ senderEmail: value })
+                              }
+                              options={activeDomains.map((domain) => ({
+                                value:
+                                  domain.default_from_email ||
+                                  `mail@${domain.domain}`,
+                                label:
+                                  domain.default_from_email ||
+                                  `mail@${domain.domain}`,
+                              }))}
+                              placeholder={
+                                activeDomains.length === 0
+                                  ? "Select verified domain"
+                                  : undefined
+                              }
+                            />
+                            {activeDomains.length === 0 ? (
+                              <Typography
+                                level="body-xs"
+                                sx={{
+                                  color: "primary.600",
+                                  mt: 0.75,
+                                  cursor: "pointer",
+                                  width: "fit-content",
+                                }}
+                                onClick={() => setVerificationOpen(true)}
+                              >
+                                Verify a sender domain
+                              </Typography>
+                            ) : null}
+                          </Grid>
+                        </Grid>
+
+                        <JoyInput
+                          label="Reply-to"
+                          type="email"
+                          value={replyTo}
+                          disabled={isReadOnly}
+                          onValueChange={(value) =>
+                            updateSetup({ replyTo: value })
+                          }
+                          placeholder="Defaults to sender email"
+                        />
+                      </>
+                    ) : null}
+                  </Stack>
+                </Box>
+              </Box>
+            </Stack>
+          </SectionCard>
+
+          <SectionCard
+            title="Audience"
+            endDecorator={
+              <JoyChip size="sm" variant="soft" color="neutral">
+                {isAudienceLoading
+                  ? "Calculating"
+                  : `~${(audienceCount ?? 0).toLocaleString()}`}
+              </JoyChip>
+            }
+          >
+            <Grid container spacing={3} alignItems="start">
+              <Grid xs={12} md={7}>
+                <Stack spacing={2.5}>
+                  <JoyAutocomplete
+                    multiple
+                    disabled={isReadOnly}
+                    loading={segmentOptionsQuery.isLoading}
+                    options={segmentOptions}
+                    value={selectedSegments}
+                    label="Target segments"
+                    placeholder="Search segments..."
+                    onInputChange={(_event, value) => setSegmentSearch(value)}
+                    filterOptions={(options) => options}
+                    noOptionsText={
+                      segmentSearch.trim()
+                        ? "No segments found"
+                        : "Type to search..."
+                    }
+                    getOptionLabel={(option) =>
+                      `${option.name} (${option.customer_count.toLocaleString()})`
+                    }
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    renderTags={(value, getTagProps) =>
+                      value.map((segment, index) => (
+                        <JoyChip
+                          key={segment.id}
+                          size="sm"
+                          variant="soft"
+                          color="neutral"
+                          endDecorator={<XCircle size={12} />}
+                          {...getTagProps({ index })}
+                        >
+                          {segment.name}
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.400", ml: 0.5 }}
+                          >
+                            ({segment.customer_count.toLocaleString()})
+                          </Typography>
+                        </JoyChip>
+                      ))
+                    }
+                    onChange={(_event, value) =>
+                      updateAudience({ selectedSegments: value })
+                    }
+                  />
+
+                  <JoyAutocomplete
+                    multiple
+                    disabled={isReadOnly}
+                    loading={personaOptionsQuery.isLoading}
+                    options={personaOptions}
+                    value={selectedPersonas}
+                    label="Target personas"
+                    placeholder="Search personas..."
+                    onInputChange={(_event, value) => setPersonaSearch(value)}
+                    filterOptions={(options) => options}
+                    noOptionsText={
+                      personaSearch.trim()
+                        ? "No personas found"
+                        : "Type to search..."
+                    }
+                    getOptionLabel={(option) => option.name}
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    renderTags={(value, getTagProps) =>
+                      value.map((persona, index) => (
+                        <JoyChip
+                          key={persona.id}
+                          size="sm"
+                          variant="soft"
+                          color="neutral"
+                          endDecorator={<XCircle size={12} />}
+                          {...getTagProps({ index })}
+                        >
+                          {persona.name}
+                        </JoyChip>
+                      ))
+                    }
+                    onChange={(_event, value) =>
+                      updateAudience({ selectedPersonas: value })
+                    }
+                  />
+
+                  <Box>
+                    <JoyButton
+                      variant="plain"
+                      color="neutral"
+                      size="sm"
+                      endDecorator={
+                        showExclusions ? (
+                          <ChevronUp size={14} />
+                        ) : (
+                          <ChevronDown size={14} />
+                        )
                       }
-                      placeholder="What will your recipients see?"
-                    />
+                      onClick={() => setShowExclusions((current) => !current)}
+                      sx={{ px: 0 }}
+                    >
+                      Exclusions
+                    </JoyButton>
+                    {showExclusions ? (
+                      <Box sx={{ mt: 1.5 }}>
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          Exclusion targeting is preserved for a follow-on
+                          milestone. Current sends still respect platform
+                          suppressions and opt-outs.
+                        </Typography>
+                      </Box>
+                    ) : null}
                   </Box>
+                </Stack>
+              </Grid>
+
+              <Grid xs={12} md={5}>
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{
+                    borderRadius: "lg",
+                    p: 2.5,
+                    position: { md: "sticky" },
+                    top: { md: 88 },
+                  }}
+                >
+                  <Stack spacing={2}>
+                    <Box>
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{ mb: 0.5 }}
+                      >
+                        <Users
+                          size={16}
+                          style={{ color: "var(--joy-palette-neutral-500)" }}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "neutral.500" }}
+                        >
+                          Audience Preview
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        level="h2"
+                        fontWeight="bold"
+                        sx={{
+                          color:
+                            (audienceCount ?? 0) === 0
+                              ? "warning.600"
+                              : "neutral.800",
+                        }}
+                      >
+                        {isAudienceLoading ? (
+                          <Skeleton width={72} height={38} />
+                        ) : (
+                          `~${(audienceCount ?? 0).toLocaleString()}`
+                        )}
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        Deduped recipients across selected segments and
+                        personas.
+                      </Typography>
+                    </Box>
+
+                    <Divider />
+
+                    <Stack spacing={0.75}>
+                      {[
+                        {
+                          label: "Segment reach",
+                          value: segmentReach.toLocaleString(),
+                        },
+                        {
+                          label: "Personas",
+                          value: selectedPersonas.length.toLocaleString(),
+                        },
+                        {
+                          label: "Overlap removed",
+                          value: overlapRemoved.toLocaleString(),
+                        },
+                        {
+                          label: "Suppressed",
+                          value: suppressedEstimate.toLocaleString(),
+                        },
+                      ].map(({ label, value }) => (
+                        <Stack
+                          key={label}
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                        >
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            {label}
+                          </Typography>
+                          <Typography level="body-xs" fontWeight="md">
+                            {value}
+                          </Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
+
+                    {(audienceCount ?? 0) === 0 &&
+                    !isAudienceLoading &&
+                    hasAudienceSelection ? (
+                      <>
+                        <Divider />
+                        <Sheet
+                          variant="soft"
+                          color="warning"
+                          sx={{ borderRadius: "md", p: 1.5 }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="flex-start"
+                          >
+                            <AlertTriangle
+                              size={14}
+                              style={{
+                                color: "var(--joy-palette-warning-600)",
+                                flexShrink: 0,
+                                marginTop: 2,
+                              }}
+                            />
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "warning.700" }}
+                            >
+                              No recipients currently match this audience.
+                            </Typography>
+                          </Stack>
+                        </Sheet>
+                      </>
+                    ) : null}
+
+                    {sampleCustomers.length > 0 ? (
+                      <>
+                        <Divider />
+                        <Box>
+                          <Typography
+                            level="body-xs"
+                            fontWeight="md"
+                            sx={{ mb: 1 }}
+                          >
+                            Sample recipients
+                          </Typography>
+                          <Stack spacing={0.75}>
+                            {sampleCustomers.slice(0, 5).map((customer) => {
+                              const label = displayName(customer);
+                              return (
+                                <Stack
+                                  key={customer.id}
+                                  direction="row"
+                                  spacing={1.5}
+                                  alignItems="center"
+                                >
+                                  <Avatar
+                                    sx={{
+                                      "--Avatar-size": "24px",
+                                      fontSize: "0.65rem",
+                                    }}
+                                  >
+                                    {label.charAt(0).toUpperCase() || "?"}
+                                  </Avatar>
+                                  <Stack spacing={0}>
+                                    <Typography
+                                      level="body-xs"
+                                      fontWeight="md"
+                                      sx={{ lineHeight: 1.2 }}
+                                    >
+                                      {label}
+                                    </Typography>
+                                    <Typography
+                                      level="body-xs"
+                                      sx={{
+                                        color: "neutral.400",
+                                        lineHeight: 1.2,
+                                      }}
+                                    >
+                                      {customer.email}
+                                    </Typography>
+                                  </Stack>
+                                </Stack>
+                              );
+                            })}
+                          </Stack>
+                        </Box>
+                      </>
+                    ) : null}
+                  </Stack>
+                </Sheet>
+              </Grid>
+            </Grid>
+          </SectionCard>
+
+          <JoyCard
+            variant="outlined"
+            sx={{
+              borderRadius: "lg",
+              overflow: "hidden",
+              borderColor: "neutral.200",
+              mt: 2,
+            }}
+          >
+            <Box
+              sx={{
+                px: 2.5,
+                py: 1.25,
+                borderBottom: "1px solid",
+                borderColor: "neutral.100",
+                backgroundColor: "neutral.50",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                flexWrap: "nowrap",
+                minHeight: 44,
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{
+                  flexShrink: 0,
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  level="title-sm"
+                  fontWeight="lg"
+                  sx={{ flexShrink: 0 }}
+                >
+                  Content
+                </Typography>
+              </Stack>
+
+              <Stack
+                direction="row"
+                spacing={0.5}
+                alignItems="center"
+                sx={{
+                  flexShrink: 0,
+                  minWidth: 0,
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  scrollbarWidth: "none",
+                  "&::-webkit-scrollbar": { display: "none" },
+                }}
+              >
+                {campaignType === "email" ? (
                   <JoyButton
-                    variant="plain"
+                    variant="solid"
                     color="primary"
                     size="sm"
                     startDecorator={<Sparkles size={16} />}
-                    onClick={() => setAiSubjectOpen(true)}
+                    onClick={handleGenerateStarterContent}
+                    sx={{
+                      fontWeight: "lg",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                      ml: 0.75,
+                      boxShadow: "sm",
+                    }}
                     disabled={isReadOnly}
                   >
-                    Suggest
+                    AI Writer
                   </JoyButton>
-                </Stack>
-                <Typography level="body-xs" sx={{ color: "neutral.400" }}>
-                  {subjectLine.length} characters
-                </Typography>
+                ) : null}
+                {campaignType === "sms" ? (
+                  <JoyButton
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    startDecorator={<Eye size={16} />}
+                    onClick={() => setPreviewOpen(true)}
+                    sx={{
+                      fontWeight: "md",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    Preview
+                  </JoyButton>
+                ) : null}
+                {campaignType === "email" ? (
+                  <ToggleButtonGroup
+                    size="sm"
+                    value={previewViewport}
+                    onChange={(_event, value) =>
+                      value && setPreviewViewport(value)
+                    }
+                    sx={{
+                      flexShrink: 0,
+                      "--ToggleButtonGroup-radius": "8px",
+                      "--ToggleButtonGroup-gap": "0px",
+                      backgroundColor: "background.surface",
+                      border: "1px solid",
+                      borderColor: "neutral.200",
+                      p: "2px",
+                    }}
+                  >
+                    <IconButton value="desktop" sx={PREVIEW_TOGGLE_BUTTON_SX}>
+                      <Monitor size={14} />
+                    </IconButton>
+                    <IconButton value="mobile" sx={PREVIEW_TOGGLE_BUTTON_SX}>
+                      <Smartphone size={14} />
+                    </IconButton>
+                  </ToggleButtonGroup>
+                ) : null}
               </Stack>
+            </Box>
+
+            <Box sx={{ p: 3 }}>
+              {campaignType === "email" ? (
+                contentBlocks.length === 0 ? (
+                  <Box
+                    sx={{
+                      py: 8,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1.5,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: "12px",
+                        backgroundColor: "neutral.100",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <LayoutTemplate
+                        size={24}
+                        style={{ color: "var(--joy-palette-neutral-400)" }}
+                      />
+                    </Box>
+                    <Typography level="body-sm" fontWeight="md">
+                      Start building your email
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{
+                        color: "neutral.500",
+                        textAlign: "center",
+                        maxWidth: 280,
+                      }}
+                    >
+                      Choose a block layout to begin designing your campaign
+                      content.
+                    </Typography>
+                    <JoyButton
+                      variant="solid"
+                      color="primary"
+                      size="sm"
+                      startDecorator={<Plus size={16} />}
+                      onClick={() => openBlockPicker()}
+                      sx={{ mt: 1 }}
+                      disabled={isReadOnly}
+                    >
+                      Add your first block
+                    </JoyButton>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: "flex", justifyContent: "center" }}>
+                    <Box
+                      sx={{
+                        width:
+                          previewViewport === "mobile"
+                            ? "min(420px, 100%)"
+                            : "100%",
+                        transition: "width 160ms ease",
+                        ...(isReadOnly
+                          ? {
+                              pointerEvents: "none",
+                              opacity: 0.72,
+                            }
+                          : {}),
+                      }}
+                    >
+                      <CleanEmailBlockEditor
+                        blocks={contentBlocks}
+                        campaignId={campaignId ?? undefined}
+                        campaignName={name}
+                        onRequestAddBlock={openBlockPicker}
+                        onBlocksChange={(blocks) =>
+                          updateContent({ contentBlocks: blocks })
+                        }
+                      />
+                    </Box>
+                  </Box>
+                )
+              ) : (
+                <Stack spacing={2}>
+                  <JoyTextarea
+                    label="SMS message"
+                    minRows={8}
+                    disabled={isReadOnly}
+                    value={smsMessage}
+                    onValueChange={(value) =>
+                      updateContent({ smsMessage: value })
+                    }
+                  />
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ borderRadius: "lg", p: 2 }}
+                  >
+                    <Stack spacing={0.75}>
+                      <Typography level="body-sm">
+                        Characters: {smsMessage.length}
+                      </Typography>
+                      <Typography level="body-sm">
+                        SMS segments: {computeSmsSegments(smsMessage)}
+                      </Typography>
+                      <Typography level="body-sm">
+                        Opt-out reminder: include STOP instructions where
+                        required.
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                </Stack>
+              )}
+            </Box>
+          </JoyCard>
+
+          <SectionCard title="Review & Send">
+            <Stack spacing={1.25}>
+              {preflightChecks.map((check) => (
+                <PreflightRow key={check.id} check={check} />
+              ))}
+            </Stack>
+
+            <Divider />
+
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              {sendImmediately
+                ? "Send immediately"
+                : `Scheduled for ${sendAt?.toLocaleString() ?? "later"}`}
+            </Typography>
+
+            {!isReadOnly ? (
+              <JoyButton
+                variant="solid"
+                color="primary"
+                size="lg"
+                fullWidth
+                startDecorator={<Send size={18} />}
+                onClick={() => setSendConfirmOpen(true)}
+                disabled={!allChecksPassed}
+              >
+                {sendButtonLabel}
+              </JoyButton>
             ) : (
               <Sheet
                 variant="soft"
@@ -1648,707 +2290,13 @@ function CampaignEditorScreen() {
                 sx={{ borderRadius: "md", p: 1.5 }}
               >
                 <Typography level="body-sm">
-                  SMS campaigns keep setup light. Subject line and preheader
-                  aren’t required.
+                  This campaign is locked for editing while it remains {status}.
                 </Typography>
               </Sheet>
             )}
-
-            <Box>
-              <JoyButton
-                variant="plain"
-                color="neutral"
-                size="sm"
-                endDecorator={
-                  showAdvanced ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )
-                }
-                onClick={() => setShowAdvanced((current) => !current)}
-                sx={{ px: 0, fontWeight: "md", color: "neutral.600" }}
-              >
-                Advanced setup
-              </JoyButton>
-
-              <Box
-                sx={{
-                  overflow: "hidden",
-                  maxHeight: showAdvanced ? 640 : 0,
-                  opacity: showAdvanced ? 1 : 0,
-                  transition: "max-height 220ms ease, opacity 160ms ease",
-                }}
-              >
-                <Stack spacing={2.5} sx={{ pt: showAdvanced ? 2 : 0 }}>
-                  {campaignType === "email" ? (
-                    <>
-                      <Stack spacing={0.75}>
-                        <JoyInput
-                          label="Preheader"
-                          value={preheaderText}
-                          disabled={isReadOnly}
-                          onValueChange={(value) =>
-                            updateSetup({ preheaderText: value })
-                          }
-                          placeholder="Preview text shown in email clients"
-                        />
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "neutral.400" }}
-                        >
-                          Appears after the subject line in the inbox preview.
-                        </Typography>
-                      </Stack>
-
-                      <Grid container spacing={2}>
-                        <Grid xs={12} md={6}>
-                          <JoyInput
-                            label="Sender name"
-                            value={senderName}
-                            disabled={isReadOnly}
-                            onValueChange={(value) =>
-                              updateSetup({ senderName: value })
-                            }
-                          />
-                        </Grid>
-                        <Grid xs={12} md={6}>
-                          <JoySelect
-                            label="Sender email"
-                            value={senderEmail}
-                            disabled={isReadOnly}
-                            onValueChange={(value) =>
-                              updateSetup({ senderEmail: value })
-                            }
-                            options={activeDomains.map((domain) => ({
-                              value:
-                                domain.default_from_email ||
-                                `mail@${domain.domain}`,
-                              label:
-                                domain.default_from_email ||
-                                `mail@${domain.domain}`,
-                            }))}
-                            placeholder={
-                              activeDomains.length === 0
-                                ? "Select verified domain"
-                                : undefined
-                            }
-                          />
-                          {activeDomains.length === 0 ? (
-                            <Typography
-                              level="body-xs"
-                              sx={{
-                                color: "primary.600",
-                                mt: 0.75,
-                                cursor: "pointer",
-                                width: "fit-content",
-                              }}
-                              onClick={() => setVerificationOpen(true)}
-                            >
-                              Verify a sender domain
-                            </Typography>
-                          ) : null}
-                        </Grid>
-                      </Grid>
-
-                      <JoyInput
-                        label="Reply-to"
-                        type="email"
-                        value={replyTo}
-                        disabled={isReadOnly}
-                        onValueChange={(value) =>
-                          updateSetup({ replyTo: value })
-                        }
-                        placeholder="Defaults to sender email"
-                      />
-                    </>
-                  ) : null}
-                </Stack>
-              </Box>
-            </Box>
-          </Stack>
-        </SectionCard>
-
-        <SectionCard
-          title="Audience"
-          endDecorator={
-            <JoyChip size="sm" variant="soft" color="neutral">
-              {isAudienceLoading
-                ? "Calculating"
-                : `~${(audienceCount ?? 0).toLocaleString()}`}
-            </JoyChip>
-          }
-        >
-          <Grid container spacing={3} alignItems="start">
-            <Grid xs={12} md={7}>
-              <Stack spacing={2.5}>
-                <JoyAutocomplete
-                  multiple
-                  disabled={isReadOnly}
-                  loading={segmentOptionsQuery.isLoading}
-                  options={segmentOptions}
-                  value={selectedSegments}
-                  label="Target segments"
-                  placeholder="Search segments..."
-                  onInputChange={(_event, value) => setSegmentSearch(value)}
-                  filterOptions={(options) => options}
-                  noOptionsText={
-                    segmentSearch.trim()
-                      ? "No segments found"
-                      : "Type to search..."
-                  }
-                  getOptionLabel={(option) =>
-                    `${option.name} (${option.customer_count.toLocaleString()})`
-                  }
-                  isOptionEqualToValue={(option, value) =>
-                    option.id === value.id
-                  }
-                  renderTags={(value, getTagProps) =>
-                    value.map((segment, index) => (
-                      <JoyChip
-                        key={segment.id}
-                        size="sm"
-                        variant="soft"
-                        color="neutral"
-                        endDecorator={<XCircle size={12} />}
-                        {...getTagProps({ index })}
-                      >
-                        {segment.name}
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "neutral.400", ml: 0.5 }}
-                        >
-                          ({segment.customer_count.toLocaleString()})
-                        </Typography>
-                      </JoyChip>
-                    ))
-                  }
-                  onChange={(_event, value) =>
-                    updateAudience({ selectedSegments: value })
-                  }
-                />
-
-                <JoyAutocomplete
-                  multiple
-                  disabled={isReadOnly}
-                  loading={personaOptionsQuery.isLoading}
-                  options={personaOptions}
-                  value={selectedPersonas}
-                  label="Target personas"
-                  placeholder="Search personas..."
-                  onInputChange={(_event, value) => setPersonaSearch(value)}
-                  filterOptions={(options) => options}
-                  noOptionsText={
-                    personaSearch.trim()
-                      ? "No personas found"
-                      : "Type to search..."
-                  }
-                  getOptionLabel={(option) => option.name}
-                  isOptionEqualToValue={(option, value) =>
-                    option.id === value.id
-                  }
-                  renderTags={(value, getTagProps) =>
-                    value.map((persona, index) => (
-                      <JoyChip
-                        key={persona.id}
-                        size="sm"
-                        variant="soft"
-                        color="neutral"
-                        endDecorator={<XCircle size={12} />}
-                        {...getTagProps({ index })}
-                      >
-                        {persona.name}
-                      </JoyChip>
-                    ))
-                  }
-                  onChange={(_event, value) =>
-                    updateAudience({ selectedPersonas: value })
-                  }
-                />
-
-                <Box>
-                  <JoyButton
-                    variant="plain"
-                    color="neutral"
-                    size="sm"
-                    endDecorator={
-                      showExclusions ? (
-                        <ChevronUp size={14} />
-                      ) : (
-                        <ChevronDown size={14} />
-                      )
-                    }
-                    onClick={() => setShowExclusions((current) => !current)}
-                    sx={{ px: 0 }}
-                  >
-                    Exclusions
-                  </JoyButton>
-                  {showExclusions ? (
-                    <Box sx={{ mt: 1.5 }}>
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        Exclusion targeting is preserved for a follow-on
-                        milestone. Current sends still respect platform
-                        suppressions and opt-outs.
-                      </Typography>
-                    </Box>
-                  ) : null}
-                </Box>
-              </Stack>
-            </Grid>
-
-            <Grid xs={12} md={5}>
-              <Sheet
-                variant="soft"
-                color="neutral"
-                sx={{
-                  borderRadius: "lg",
-                  p: 2.5,
-                  position: { md: "sticky" },
-                  top: { md: 88 },
-                }}
-              >
-                <Stack spacing={2}>
-                  <Box>
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      spacing={1}
-                      sx={{ mb: 0.5 }}
-                    >
-                      <Users
-                        size={16}
-                        style={{ color: "var(--joy-palette-neutral-500)" }}
-                      />
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        Audience Preview
-                      </Typography>
-                    </Stack>
-                    <Typography
-                      level="h2"
-                      fontWeight="bold"
-                      sx={{
-                        color:
-                          (audienceCount ?? 0) === 0
-                            ? "warning.600"
-                            : "neutral.800",
-                      }}
-                    >
-                      {isAudienceLoading ? (
-                        <Skeleton width={72} height={38} />
-                      ) : (
-                        `~${(audienceCount ?? 0).toLocaleString()}`
-                      )}
-                    </Typography>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                      Deduped recipients across selected segments and personas.
-                    </Typography>
-                  </Box>
-
-                  <Divider />
-
-                  <Stack spacing={0.75}>
-                    {[
-                      {
-                        label: "Segment reach",
-                        value: segmentReach.toLocaleString(),
-                      },
-                      {
-                        label: "Personas",
-                        value: selectedPersonas.length.toLocaleString(),
-                      },
-                      {
-                        label: "Overlap removed",
-                        value: overlapRemoved.toLocaleString(),
-                      },
-                      {
-                        label: "Suppressed",
-                        value: suppressedEstimate.toLocaleString(),
-                      },
-                    ].map(({ label, value }) => (
-                      <Stack
-                        key={label}
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "neutral.500" }}
-                        >
-                          {label}
-                        </Typography>
-                        <Typography level="body-xs" fontWeight="md">
-                          {value}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-
-                  {(audienceCount ?? 0) === 0 &&
-                  !isAudienceLoading &&
-                  hasAudienceSelection ? (
-                    <>
-                      <Divider />
-                      <Sheet
-                        variant="soft"
-                        color="warning"
-                        sx={{ borderRadius: "md", p: 1.5 }}
-                      >
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="flex-start"
-                        >
-                          <AlertTriangle
-                            size={14}
-                            style={{
-                              color: "var(--joy-palette-warning-600)",
-                              flexShrink: 0,
-                              marginTop: 2,
-                            }}
-                          />
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "warning.700" }}
-                          >
-                            No recipients currently match this audience.
-                          </Typography>
-                        </Stack>
-                      </Sheet>
-                    </>
-                  ) : null}
-
-                  {sampleCustomers.length > 0 ? (
-                    <>
-                      <Divider />
-                      <Box>
-                        <Typography
-                          level="body-xs"
-                          fontWeight="md"
-                          sx={{ mb: 1 }}
-                        >
-                          Sample recipients
-                        </Typography>
-                        <Stack spacing={0.75}>
-                          {sampleCustomers.slice(0, 5).map((customer) => {
-                            const label = displayName(customer);
-                            return (
-                              <Stack
-                                key={customer.id}
-                                direction="row"
-                                spacing={1.5}
-                                alignItems="center"
-                              >
-                                <Avatar
-                                  sx={{
-                                    "--Avatar-size": "24px",
-                                    fontSize: "0.65rem",
-                                  }}
-                                >
-                                  {label.charAt(0).toUpperCase() || "?"}
-                                </Avatar>
-                                <Stack spacing={0}>
-                                  <Typography
-                                    level="body-xs"
-                                    fontWeight="md"
-                                    sx={{ lineHeight: 1.2 }}
-                                  >
-                                    {label}
-                                  </Typography>
-                                  <Typography
-                                    level="body-xs"
-                                    sx={{
-                                      color: "neutral.400",
-                                      lineHeight: 1.2,
-                                    }}
-                                  >
-                                    {customer.email}
-                                  </Typography>
-                                </Stack>
-                              </Stack>
-                            );
-                          })}
-                        </Stack>
-                      </Box>
-                    </>
-                  ) : null}
-                </Stack>
-              </Sheet>
-            </Grid>
-          </Grid>
-        </SectionCard>
-
-        <JoyCard
-          variant="outlined"
-          sx={{
-            borderRadius: "lg",
-            overflow: "hidden",
-            borderColor: "neutral.200",
-            mt: 2,
-          }}
-        >
-          <Box
-            sx={{
-              px: 2.5,
-              py: 1.25,
-              borderBottom: "1px solid",
-              borderColor: "neutral.100",
-              backgroundColor: "neutral.50",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              flexWrap: "nowrap",
-              minHeight: 44,
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{
-                flexShrink: 0,
-                minWidth: 0,
-              }}
-            >
-              <Typography
-                level="title-sm"
-                fontWeight="lg"
-                sx={{ flexShrink: 0 }}
-              >
-                Content
-              </Typography>
-            </Stack>
-
-            <Stack
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
-              sx={{
-                flexShrink: 0,
-                minWidth: 0,
-                overflowX: "auto",
-                overflowY: "hidden",
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": { display: "none" },
-              }}
-            >
-              {campaignType === "email" ? (
-                <JoyButton
-                  variant="solid"
-                  color="primary"
-                  size="sm"
-                  startDecorator={<Sparkles size={16} />}
-                  onClick={handleGenerateStarterContent}
-                  sx={{
-                    fontWeight: "lg",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                    ml: 0.75,
-                    boxShadow: "sm",
-                  }}
-                  disabled={isReadOnly}
-                >
-                  AI Writer
-                </JoyButton>
-              ) : null}
-              {campaignType === "sms" ? (
-                <JoyButton
-                  variant="plain"
-                  color="neutral"
-                  size="sm"
-                  startDecorator={<Eye size={16} />}
-                  onClick={() => setPreviewOpen(true)}
-                  sx={{ fontWeight: "md", whiteSpace: "nowrap", flexShrink: 0 }}
-                >
-                  Preview
-                </JoyButton>
-              ) : null}
-              {campaignType === "email" ? (
-                <ToggleButtonGroup
-                  size="sm"
-                  value={previewViewport}
-                  onChange={(_event, value) =>
-                    value && setPreviewViewport(value)
-                  }
-                  sx={{
-                    flexShrink: 0,
-                    "--ToggleButtonGroup-radius": "8px",
-                    "--ToggleButtonGroup-gap": "0px",
-                    backgroundColor: "background.surface",
-                    border: "1px solid",
-                    borderColor: "neutral.200",
-                    p: "2px",
-                  }}
-                >
-                  <IconButton value="desktop" sx={PREVIEW_TOGGLE_BUTTON_SX}>
-                    <Monitor size={14} />
-                  </IconButton>
-                  <IconButton value="mobile" sx={PREVIEW_TOGGLE_BUTTON_SX}>
-                    <Smartphone size={14} />
-                  </IconButton>
-                </ToggleButtonGroup>
-              ) : null}
-            </Stack>
-          </Box>
-
-          <Box sx={{ p: 3 }}>
-            {campaignType === "email" ? (
-              contentBlocks.length === 0 ? (
-                <Box
-                  sx={{
-                    py: 8,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 1.5,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: "12px",
-                      backgroundColor: "neutral.100",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <LayoutTemplate
-                      size={24}
-                      style={{ color: "var(--joy-palette-neutral-400)" }}
-                    />
-                  </Box>
-                  <Typography level="body-sm" fontWeight="md">
-                    Start building your email
-                  </Typography>
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: "neutral.500",
-                      textAlign: "center",
-                      maxWidth: 280,
-                    }}
-                  >
-                    Choose a block layout to begin designing your campaign
-                    content.
-                  </Typography>
-                  <JoyButton
-                    variant="solid"
-                    color="primary"
-                    size="sm"
-                    startDecorator={<Plus size={16} />}
-                    onClick={() => openBlockPicker()}
-                    sx={{ mt: 1 }}
-                    disabled={isReadOnly}
-                  >
-                    Add your first block
-                  </JoyButton>
-                </Box>
-              ) : (
-                <Box sx={{ display: "flex", justifyContent: "center" }}>
-                  <Box
-                    sx={{
-                      width:
-                        previewViewport === "mobile"
-                          ? "min(420px, 100%)"
-                          : "100%",
-                      transition: "width 160ms ease",
-                      ...(isReadOnly
-                        ? {
-                            pointerEvents: "none",
-                            opacity: 0.72,
-                          }
-                        : {}),
-                    }}
-                  >
-                    <CleanEmailBlockEditor
-                      blocks={contentBlocks}
-                      campaignId={campaignId ?? undefined}
-                      campaignName={name}
-                      onRequestAddBlock={openBlockPicker}
-                      onBlocksChange={(blocks) =>
-                        updateContent({ contentBlocks: blocks })
-                      }
-                    />
-                  </Box>
-                </Box>
-              )
-            ) : (
-              <Stack spacing={2}>
-                <JoyTextarea
-                  label="SMS message"
-                  minRows={8}
-                  disabled={isReadOnly}
-                  value={smsMessage}
-                  onValueChange={(value) =>
-                    updateContent({ smsMessage: value })
-                  }
-                />
-                <Sheet
-                  variant="soft"
-                  color="neutral"
-                  sx={{ borderRadius: "lg", p: 2 }}
-                >
-                  <Stack spacing={0.75}>
-                    <Typography level="body-sm">
-                      Characters: {smsMessage.length}
-                    </Typography>
-                    <Typography level="body-sm">
-                      SMS segments: {computeSmsSegments(smsMessage)}
-                    </Typography>
-                    <Typography level="body-sm">
-                      Opt-out reminder: include STOP instructions where
-                      required.
-                    </Typography>
-                  </Stack>
-                </Sheet>
-              </Stack>
-            )}
-          </Box>
-        </JoyCard>
-
-        <SectionCard title="Review & Send">
-          <Stack spacing={1.25}>
-            {preflightChecks.map((check) => (
-              <PreflightRow key={check.id} check={check} />
-            ))}
-          </Stack>
-
-          <Divider />
-
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            {sendImmediately
-              ? "Send immediately"
-              : `Scheduled for ${sendAt?.toLocaleString() ?? "later"}`}
-          </Typography>
-
-          {!isReadOnly ? (
-            <JoyButton
-              variant="solid"
-              color="primary"
-              size="lg"
-              fullWidth
-              startDecorator={<Send size={18} />}
-              onClick={() => setSendConfirmOpen(true)}
-              disabled={!allChecksPassed}
-            >
-              {sendButtonLabel}
-            </JoyButton>
-          ) : (
-            <Sheet
-              variant="soft"
-              color="neutral"
-              sx={{ borderRadius: "md", p: 1.5 }}
-            >
-              <Typography level="body-sm">
-                This campaign is locked for editing while it remains {status}.
-              </Typography>
-            </Sheet>
-          )}
-        </SectionCard>
-      </Stack>
+          </SectionCard>
+        </Stack>
+      )}
 
       <JoyDialog
         open={blockPickerOpen}

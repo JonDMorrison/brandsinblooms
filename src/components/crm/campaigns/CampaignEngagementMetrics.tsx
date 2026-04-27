@@ -104,17 +104,17 @@ export function CampaignEngagementMetrics({
         overflow: "hidden",
       }}
     >
-      {items.map((item, index) => (
-        <React.Fragment key={item.key}>
+      {items.map(({ key, ...item }, index) => (
+        <React.Fragment key={key}>
           <EngagementCell {...item} />
           {index < items.length - 1 ? (
-            <Divider
-              orientation={
-                index < items.length - 1
-                  ? ({ xs: "horizontal", lg: "vertical" } as never)
-                  : "vertical"
-              }
-            />
+            <>
+              <Divider sx={{ display: { xs: "block", lg: "none" } }} />
+              <Divider
+                orientation="vertical"
+                sx={{ display: { xs: "none", lg: "block" } }}
+              />
+            </>
           ) : null}
         </React.Fragment>
       ))}

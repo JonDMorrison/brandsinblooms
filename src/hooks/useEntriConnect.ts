@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { emailDomainsConfig } from "@/lib/config/emailDomainsConfig";
@@ -44,6 +44,16 @@ interface EntriError {
   code?: string;
 }
 
+interface LoadEntriScriptResult {
+  loaded: boolean;
+  errorMessage?: string;
+}
+
+interface OpenEntriSetupResult {
+  opened: boolean;
+  errorMessage?: string;
+}
+
 // Entri browser callback event payload (CustomEvent.detail)
 interface EntriBrowserEventDetail {
   domain?: string;
@@ -63,6 +73,9 @@ interface EntriBrowserEventDetail {
 // Entri configuration from centralized config
 const ENTRI_APPLICATION_ID = emailDomainsConfig.entriAppId;
 const ENTRI_SCRIPT_URL = emailDomainsConfig.entriScriptUrl;
+const ENTRI_SCRIPT_TIMEOUT_MS = 10000;
+const ENTRI_UNAVAILABLE_MESSAGE =
+  "Domain verification tool unavailable — try again later.";
 
 // Fetch JWT token from server-side edge function
 async function fetchEntriToken(): Promise<{
@@ -94,47 +107,101 @@ async function fetchEntriToken(): Promise<{
 export const useEntriConnect = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [scriptError, setScriptError] = useState<string | null>(null);
 
   // Load Entri script dynamically
-  const loadEntriScript = useCallback(async (): Promise<boolean> => {
-    if (window.entri) {
-      setIsScriptLoaded(true);
-      return true;
-    }
-
-    return new Promise((resolve) => {
-      const existingScript = document.querySelector(
-        `script[src="${ENTRI_SCRIPT_URL}"]`,
-      );
-      if (existingScript) {
-        existingScript.addEventListener("load", () => {
-          setIsScriptLoaded(true);
-          resolve(true);
-        });
-        return;
+  const loadEntriScript =
+    useCallback(async (): Promise<LoadEntriScriptResult> => {
+      if (window.entri) {
+        setIsScriptLoaded(true);
+        setScriptError(null);
+        return { loaded: true };
       }
 
-      const script = document.createElement("script");
-      script.src = ENTRI_SCRIPT_URL;
-      script.async = true;
-      script.onload = () => {
-        setIsScriptLoaded(true);
-        resolve(true);
-      };
-      script.onerror = () => {
-        console.error("Failed to load Entri script");
-        resolve(false);
-      };
-      document.head.appendChild(script);
-    });
-  }, []);
+      if (!emailDomainsConfig.isEntriConfigured()) {
+        const errorMessage =
+          "Entri integration not configured. Please contact support.";
+        setIsScriptLoaded(false);
+        setScriptError(errorMessage);
+        return { loaded: false, errorMessage };
+      }
 
-  // Pre-load script on mount only if Entri is configured
-  useEffect(() => {
-    if (emailDomainsConfig.isEntriConfigured()) {
-      loadEntriScript();
-    }
-  }, [loadEntriScript]);
+      return new Promise((resolve) => {
+        const existingScript = document.querySelector(
+          `script[src="${ENTRI_SCRIPT_URL}"]`,
+        ) as HTMLScriptElement | null;
+        const script = existingScript ?? document.createElement("script");
+        let settled = false;
+        let timeoutId: number | null = null;
+
+        const cleanup = () => {
+          script.removeEventListener("load", handleLoad);
+          script.removeEventListener("error", handleError);
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId);
+          }
+        };
+
+        const finalize = (loaded: boolean, errorMessage?: string) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          cleanup();
+
+          if (loaded) {
+            script.dataset.entriLoaded = "true";
+            setIsScriptLoaded(true);
+            setScriptError(null);
+            resolve({ loaded: true });
+            return;
+          }
+
+          if (!existingScript && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+
+          setIsScriptLoaded(false);
+          setScriptError(errorMessage ?? ENTRI_UNAVAILABLE_MESSAGE);
+          resolve({
+            loaded: false,
+            errorMessage: errorMessage ?? ENTRI_UNAVAILABLE_MESSAGE,
+          });
+        };
+
+        const handleLoad = () => {
+          if (window.entri) {
+            finalize(true);
+            return;
+          }
+
+          finalize(false, ENTRI_UNAVAILABLE_MESSAGE);
+        };
+
+        const handleError = () => {
+          finalize(false, ENTRI_UNAVAILABLE_MESSAGE);
+        };
+
+        if (existingScript?.dataset.entriLoaded === "true" && window.entri) {
+          finalize(true);
+          return;
+        }
+
+        script.addEventListener("load", handleLoad);
+        script.addEventListener("error", handleError);
+        timeoutId = window.setTimeout(() => {
+          finalize(false, ENTRI_UNAVAILABLE_MESSAGE);
+        }, ENTRI_SCRIPT_TIMEOUT_MS);
+
+        if (!existingScript) {
+          script.src = ENTRI_SCRIPT_URL;
+          script.async = true;
+          script.crossOrigin = "anonymous";
+          document.head.appendChild(script);
+        }
+      });
+    }, []);
 
   const normalizeDomain = useCallback((value: string) => {
     return value
@@ -154,30 +221,26 @@ export const useEntriConnect = () => {
       onSuccess?: () => void,
       onCancel?: () => void,
       onClose?: () => void,
-    ) => {
+    ): Promise<OpenEntriSetupResult> => {
       setIsLoading(true);
+      setScriptError(null);
 
       let didComplete = false;
 
       try {
-        const loaded = await loadEntriScript();
-        if (!loaded || !window.entri) {
-          toast.error(
-            "Failed to load DNS setup tool. Please try manual setup.",
-          );
-          onCancel?.();
-          return;
+        const loadResult = await loadEntriScript();
+        if (!loadResult.loaded || !window.entri) {
+          return {
+            opened: false,
+            errorMessage: loadResult.errorMessage ?? ENTRI_UNAVAILABLE_MESSAGE,
+          };
         }
 
         if (!emailDomainsConfig.isEntriConfigured()) {
-          toast.error(
-            "Entri integration not configured. Please contact support.",
-          );
-          console.error(
-            "Entri Application ID not configured in emailDomainsConfig",
-          );
-          onCancel?.();
-          return;
+          const errorMessage =
+            "Entri integration not configured. Please contact support.";
+          setScriptError(errorMessage);
+          return { opened: false, errorMessage };
         }
 
         const normalizedDomain = normalizeDomain(domain);
@@ -185,15 +248,12 @@ export const useEntriConnect = () => {
         // SAFETY: Abort if no DNS records from backend
         // We NEVER use fallback records - they could disrupt existing email
         if (!dnsRecords || dnsRecords.length === 0) {
-          console.error(
-            "❌ No DNS records from Resend. Aborting automatic setup for safety.",
-          );
-          toast.error(
-            "Unable to retrieve DNS records. Please use manual setup.",
-          );
-          onCancel?.();
           setIsLoading(false);
-          return;
+          return {
+            opened: false,
+            errorMessage:
+              "Unable to retrieve DNS records. Please use manual setup.",
+          };
         }
 
         // SAFETY: Strip any DMARC or root-level records before sending to Entri
@@ -219,13 +279,12 @@ export const useEntriConnect = () => {
         );
 
         if (!hasDkim || !hasMxOrSpf) {
-          console.error(
-            "❌ Missing required subdomain records after safety filter. Aborting.",
-          );
-          toast.error("DNS configuration incomplete. Please use manual setup.");
-          onCancel?.();
           setIsLoading(false);
-          return;
+          return {
+            opened: false,
+            errorMessage:
+              "DNS configuration incomplete. Please use manual setup.",
+          };
         }
 
         // SAFETY: Perform silent DNS preflight check
@@ -235,9 +294,12 @@ export const useEntriConnect = () => {
           safeRecords,
         );
         if (!preflightPassed) {
-          onCancel?.();
           setIsLoading(false);
-          return;
+          return {
+            opened: false,
+            errorMessage:
+              "Automatic DNS setup is unavailable for this domain. Please use manual setup.",
+          };
         }
 
         // Verify MX records have priority
@@ -245,7 +307,6 @@ export const useEntriConnect = () => {
         for (const mx of mxRecords) {
           if (mx.priority === undefined) {
             console.error(`❌ MX record "${mx.host}" is missing priority!`);
-          } else {
           }
         }
 
@@ -254,12 +315,12 @@ export const useEntriConnect = () => {
         // Fetch authenticated JWT token from server
         const tokenData = await fetchEntriToken();
         if (!tokenData) {
-          toast.error(
-            "Failed to authenticate with DNS setup service. Please try manual setup.",
-          );
-          onCancel?.();
           setIsLoading(false);
-          return;
+          return {
+            opened: false,
+            errorMessage:
+              "Failed to authenticate with the domain verification tool. Please try manual setup.",
+          };
         }
 
         const successEventName = "onSuccess";
@@ -346,10 +407,12 @@ export const useEntriConnect = () => {
           token: tokenData.token,
           dnsRecords: records,
         });
-      } catch (err: any) {
-        console.error("Error opening Entri:", err);
-        toast.error("Failed to open DNS setup. Please try manual setup.");
-        onCancel?.();
+        return { opened: true };
+      } catch {
+        const errorMessage =
+          "Domain verification tool unavailable — try again later.";
+        setScriptError(errorMessage);
+        return { opened: false, errorMessage };
       } finally {
         setIsLoading(false);
       }
@@ -427,6 +490,8 @@ export const useEntriConnect = () => {
     validateRecordsStrict,
     isLoading,
     isScriptLoaded,
+    scriptError,
+    clearScriptError: () => setScriptError(null),
     isEntriConfigured: emailDomainsConfig.isEntriConfigured(),
   };
 };

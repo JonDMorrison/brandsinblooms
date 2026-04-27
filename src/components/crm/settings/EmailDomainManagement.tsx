@@ -48,13 +48,8 @@ import {
 } from "@/components/ui-legacy/alert-dialog";
 
 export const EmailDomainManagement: React.FC = () => {
-  const {
-    domains,
-    loading,
-    refreshVerificationStatus,
-    deleteDomain,
-    refetch,
-  } = useEmailDomainManagement();
+  const { domains, loading, refreshVerificationStatus, deleteDomain, refetch } =
+    useEmailDomainManagement();
 
   const [showWizard, setShowWizard] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
@@ -243,14 +238,27 @@ export const EmailDomainManagement: React.FC = () => {
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span className="text-green-700 font-medium">Domain registered</span>
+                            <span className="text-green-700 font-medium">
+                              Domain registered
+                            </span>
                             <span>→</span>
-                            <span className="font-medium text-foreground">Add DNS records</span>
+                            <span className="font-medium text-foreground">
+                              Add DNS records
+                            </span>
                             <span>→</span>
                             <span>Verified & ready</span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Click <span className="font-medium text-foreground">DNS Instructions</span> to see the exact records to add to your domain provider. After adding them, click <span className="font-medium text-foreground">Check DNS</span>.
+                            Click{" "}
+                            <span className="font-medium text-foreground">
+                              DNS Instructions
+                            </span>{" "}
+                            to see the exact records to add to your domain
+                            provider. After adding them, click{" "}
+                            <span className="font-medium text-foreground">
+                              Check DNS
+                            </span>
+                            .
                           </p>
                         </div>
                       )}
@@ -260,14 +268,23 @@ export const EmailDomainManagement: React.FC = () => {
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span className="text-green-700 font-medium">DNS records added</span>
+                            <span className="text-green-700 font-medium">
+                              DNS records added
+                            </span>
                             <span>→</span>
-                            <span className="font-medium text-foreground">Waiting for propagation</span>
+                            <span className="font-medium text-foreground">
+                              Waiting for propagation
+                            </span>
                             <span>→</span>
                             <span>Verified & ready</span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            DNS changes typically propagate within 5–30 minutes, but can take up to 48 hours. Click <span className="font-medium text-foreground">Check DNS</span> to test again.
+                            DNS changes typically propagate within 5–30 minutes,
+                            but can take up to 48 hours. Click{" "}
+                            <span className="font-medium text-foreground">
+                              Check DNS
+                            </span>{" "}
+                            to test again.
                           </p>
                         </div>
                       )}
@@ -400,7 +417,16 @@ export const EmailDomainManagement: React.FC = () => {
                         </div>
                         {domain.status === "failed" && (
                           <p className="text-xs text-muted-foreground ml-6">
-                            Common causes: incorrect record values, missing records, or a conflicting existing record. Click <span className="font-medium text-foreground">DNS Instructions</span> to review the expected records, then click <span className="font-medium text-foreground">Connect Domain</span> to try again.
+                            Common causes: incorrect record values, missing
+                            records, or a conflicting existing record. Click{" "}
+                            <span className="font-medium text-foreground">
+                              DNS Instructions
+                            </span>{" "}
+                            to review the expected records, then click{" "}
+                            <span className="font-medium text-foreground">
+                              Connect Domain
+                            </span>{" "}
+                            to try again.
                           </p>
                         )}
                       </div>
@@ -414,13 +440,15 @@ export const EmailDomainManagement: React.FC = () => {
       )}
 
       {/* Wizard Dialog */}
-      <DomainConnectWizard
-        open={showWizard}
-        onClose={() => {
-          setShowWizard(false);
-          refetch();
-        }}
-      />
+      {showWizard ? (
+        <DomainConnectWizard
+          open={showWizard}
+          onClose={() => {
+            setShowWizard(false);
+            refetch();
+          }}
+        />
+      ) : null}
 
       {/* DNS Instructions Dialog */}
       {showDnsInstructions && (

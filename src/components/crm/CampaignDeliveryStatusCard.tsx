@@ -27,11 +27,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
 import { markEmailCampaignCompletedWithFailures } from "@/lib/email/emailCompletionService";
 import { useCampaignGovernanceVisibility } from "@/hooks/useCampaignGovernanceVisibility";
+import {
+  CAMPAIGN_STATUS,
+  getCampaignStatusLabel,
+  isDeliveredCampaignStatus,
+  isQueuedCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { parseEdgeFunctionError } from "@/utils/campaignSendingErrors";
 
 type CampaignRow = {
   id: string;
   status: string | null;
+  queued_at: string | null;
   scheduled_at: string | null;
   send_started_at: string | null;
   sent_at: string | null;
@@ -67,6 +74,7 @@ function isSameCampaign(a: CampaignRow | null, b: CampaignRow | null) {
   return (
     a.id === b.id &&
     a.status === b.status &&
+    a.queued_at === b.queued_at &&
     a.scheduled_at === b.scheduled_at &&
     a.send_started_at === b.send_started_at &&
     a.sent_at === b.sent_at &&
@@ -155,14 +163,7 @@ function formatPauseCategory(category: string | null | undefined) {
 }
 
 function formatStatusLabel(status: string | null | undefined) {
-  const raw = (status || "").trim();
-  if (!raw) return "Unknown";
-
-  return raw
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return getCampaignStatusLabel(status);
 }
 
 export function CampaignDeliveryStatusCard(props: {
@@ -190,13 +191,25 @@ export function CampaignDeliveryStatusCard(props: {
     let intervalId: number | undefined;
 
     const load = async () => {
+      const fetchQueueMeta = () =>
+        supabase
+          .from("crm_campaigns")
+          .select("queued_at")
+          .eq("id", campaignId)
+          .maybeSingle();
+
       // Prefer the SECURITY DEFINER RPC to avoid RLS drift breaking this UI.
       if (!isStatusRpcMissing) {
         try {
-          const { data: rpcData, error: rpcError } = await supabase.rpc(
-            "get_campaign_delivery_status_tenant_safe" as any,
-            { p_campaign_id: campaignId },
-          );
+          const [
+            { data: rpcData, error: rpcError },
+            { data: campaignMeta },
+          ] = await Promise.all([
+            supabase.rpc("get_campaign_delivery_status_tenant_safe" as any, {
+              p_campaign_id: campaignId,
+            }),
+            fetchQueueMeta(),
+          ]);
 
           if (cancelled) return;
 
@@ -205,8 +218,12 @@ export function CampaignDeliveryStatusCard(props: {
               null) as CampaignRow | null;
 
             if (rpcRow) {
+              const normalizedRpcRow = {
+                ...rpcRow,
+                queued_at: rpcRow.queued_at ?? campaignMeta?.queued_at ?? null,
+              };
               setCampaign((prev) =>
-                isSameCampaign(prev, rpcRow) ? prev : rpcRow,
+                isSameCampaign(prev, normalizedRpcRow) ? prev : normalizedRpcRow,
               );
               return;
             }
@@ -242,7 +259,7 @@ export function CampaignDeliveryStatusCard(props: {
 
       // Fallback path when RPC is unavailable.
       const baseSelect =
-        "id,status,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason";
+        "id,status,queued_at,scheduled_at,send_started_at,sent_at,updated_at,send_error,send_blocked_reason";
 
       // NOTE: Keep this fallback query restricted to stable columns only.
       // Some DB environments haven't deployed throttling columns on crm_campaigns yet,
@@ -323,14 +340,11 @@ export function CampaignDeliveryStatusCard(props: {
 
     // Only poll progress when it’s relevant (sending/queued/etc). For sent/draft it’s stable.
     const status = (campaign?.status || "").toLowerCase();
-    const shouldPoll = [
-      "sending",
-      "queued",
-      "partially_queued",
-      "sent",
-      "sent_with_errors",
-      "failed",
-    ].includes(status);
+    const shouldPoll =
+      status === CAMPAIGN_STATUS.SENDING ||
+      status === CAMPAIGN_STATUS.FAILED ||
+      isQueuedCampaignStatus(status) ||
+      isDeliveredCampaignStatus(status);
     if (shouldPoll)
       intervalId = window.setInterval(loadProgress, effectivePollMs);
 
@@ -350,11 +364,13 @@ export function CampaignDeliveryStatusCard(props: {
     const failed = progress.failed || 0;
     const skipped = progress.skipped || 0;
 
-    if (sending > 0) return "sending";
-    if (queued > 0) return "queued";
+    if (sending > 0) return CAMPAIGN_STATUS.SENDING;
+    if (queued > 0) return CAMPAIGN_STATUS.QUEUED;
 
     if (total > 0 && sent + failed + skipped >= total) {
-      return failed > 0 ? "sent_with_errors" : "sent";
+      return failed > 0
+        ? CAMPAIGN_STATUS.SENT_WITH_ERRORS
+        : CAMPAIGN_STATUS.SENT;
     }
 
     return null;
@@ -362,9 +378,9 @@ export function CampaignDeliveryStatusCard(props: {
 
   const campaignStatus = (campaign?.status || "").toLowerCase();
   const status =
-    campaignStatus && campaignStatus !== "draft"
+    campaignStatus && campaignStatus !== CAMPAIGN_STATUS.DRAFT
       ? campaignStatus
-      : inferredStatusFromProgress || campaignStatus || "draft";
+      : inferredStatusFromProgress || campaignStatus || CAMPAIGN_STATUS.DRAFT;
 
   const failedCount = progress?.failed || 0;
   const canRetryFailed = failedCount > 0 && !progressUnavailable;
@@ -375,6 +391,7 @@ export function CampaignDeliveryStatusCard(props: {
     (progress?.sending || 0) === 0;
 
   const hasAnyScheduleHistory =
+    !!campaign?.queued_at ||
     !!campaign?.scheduled_at ||
     !!campaign?.send_started_at ||
     !!campaign?.sent_at;
@@ -384,11 +401,12 @@ export function CampaignDeliveryStatusCard(props: {
   const hasAnyDeliverySignals = hasAnyScheduleHistory || hasAnyProgressSignals;
 
   const lastScheduleRunAtIso =
-    campaign?.send_started_at ||
-    campaign?.sent_at ||
-    progress?.last_attempt_at ||
-    progress?.last_sent_at ||
     progress?.last_message_updated_at ||
+    progress?.last_sent_at ||
+    progress?.last_attempt_at ||
+    campaign?.sent_at ||
+    campaign?.send_started_at ||
+    campaign?.queued_at ||
     campaign?.updated_at ||
     null;
 
@@ -407,25 +425,28 @@ export function CampaignDeliveryStatusCard(props: {
   const badge = useMemo(() => {
     const statusLabel = formatStatusLabel(status);
 
-    if (status === "sent")
+    if (status === CAMPAIGN_STATUS.SENT)
       return {
         label: statusLabel,
         variant: "default" as const,
         icon: CheckCircle2,
       };
-    if (status === "sending")
+    if (status === CAMPAIGN_STATUS.SENDING)
       return {
         label: statusLabel,
         variant: "secondary" as const,
         icon: Clock,
       };
-    if (status === "queued" || status === "partially_queued")
+    if (isQueuedCampaignStatus(status))
       return {
         label: statusLabel,
         variant: "secondary" as const,
         icon: Mail,
       };
-    if (status === "failed" || status === "sent_with_errors")
+    if (
+      status === CAMPAIGN_STATUS.FAILED ||
+      status === CAMPAIGN_STATUS.SENT_WITH_ERRORS
+    )
       return {
         label: statusLabel,
         variant: "destructive" as const,
@@ -440,7 +461,7 @@ export function CampaignDeliveryStatusCard(props: {
 
   const errorTextRaw =
     campaign?.send_error ||
-    (campaign?.status === "paused" &&
+    (campaign?.status === CAMPAIGN_STATUS.PAUSED &&
     campaign?.send_blocked_reason === "paused_by_user"
       ? null
       : campaign?.send_blocked_reason) ||
@@ -459,7 +480,7 @@ export function CampaignDeliveryStatusCard(props: {
   );
 
   const isPaused =
-    status === "paused" ||
+    status === CAMPAIGN_STATUS.PAUSED ||
     (campaign?.send_blocked_reason || "").toLowerCase().includes("paused");
 
   const pausedNextSteps = useMemo(() => {
@@ -546,7 +567,7 @@ export function CampaignDeliveryStatusCard(props: {
           prev
             ? {
                 ...prev,
-                status: "sending",
+                status: CAMPAIGN_STATUS.SENDING,
                 send_error: null,
                 send_blocked_reason: null,
                 send_started_at: prev.send_started_at || nowIso,
@@ -591,7 +612,7 @@ export function CampaignDeliveryStatusCard(props: {
         prev
           ? {
               ...prev,
-              status: "sent",
+              status: CAMPAIGN_STATUS.SENT,
               send_error: null,
               send_blocked_reason: null,
               sent_at: prev.sent_at || nowIso,
@@ -613,8 +634,8 @@ export function CampaignDeliveryStatusCard(props: {
   };
 
   if (!campaignId) return null;
-  if (!hasAnyDeliverySignals && status === "draft") return null;
-  if (status === "scheduled") return null;
+  if (!hasAnyDeliverySignals && status === CAMPAIGN_STATUS.DRAFT) return null;
+  if (status === CAMPAIGN_STATUS.SCHEDULED) return null;
 
   return (
     <div className="space-y-4">
@@ -643,7 +664,7 @@ export function CampaignDeliveryStatusCard(props: {
         </Alert>
       )}
 
-      {(userError || status === "failed" || status === "sent_with_errors") && (
+      {(userError || status === CAMPAIGN_STATUS.FAILED || status === CAMPAIGN_STATUS.SENT_WITH_ERRORS) && (
         <Alert className="border-red-200 bg-red-50">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertTitle className="text-red-900">
@@ -828,15 +849,15 @@ export function CampaignDeliveryStatusCard(props: {
                     ? "Delivery details temporarily unavailable"
                     : campaign?.is_throttled
                       ? "Sending with protective throttling"
-                      : status === "scheduled"
+                      : status === CAMPAIGN_STATUS.SCHEDULED
                         ? "Scheduled"
-                        : status === "sending"
+                        : status === CAMPAIGN_STATUS.SENDING
                           ? "Sending"
-                          : status === "queued" || status === "partially_queued"
+                          : isQueuedCampaignStatus(status)
                             ? "Queued for sending"
-                            : status === "sent"
+                            : status === CAMPAIGN_STATUS.SENT
                               ? "Completed"
-                              : status === "failed"
+                              : status === CAMPAIGN_STATUS.FAILED
                                 ? "Failed"
                                 : ""}
                 </p>

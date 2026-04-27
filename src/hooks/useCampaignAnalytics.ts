@@ -18,7 +18,9 @@ interface CampaignAnalytics {
   name: string;
   subject_line: string;
   status: string;
-  sent_at: string;
+  sent_at: string | null;
+  queued_at: string | null;
+  activity_at: string;
   metrics: CampaignMetrics | null;
   created_at: string;
   open_rate: number;
@@ -74,6 +76,7 @@ export const useCampaignAnalytics = () => {
         "name",
         "subject_line",
         "status",
+        "queued_at",
         "sent_at",
         "created_at",
         "metrics",
@@ -121,6 +124,7 @@ export const useCampaignAnalytics = () => {
         name: string;
         subject_line: string | null;
         status: string;
+        queued_at: string | null;
         sent_at: string | null;
         created_at: string;
         metrics: unknown;
@@ -140,7 +144,10 @@ export const useCampaignAnalytics = () => {
             name: campaign.name,
             subject_line: campaign.subject_line || "",
             status: campaign.status,
-            sent_at: campaign.sent_at || campaign.created_at,
+            sent_at: campaign.sent_at,
+            queued_at: campaign.queued_at,
+            activity_at:
+              campaign.sent_at || campaign.queued_at || campaign.created_at,
             metrics:
               typeof campaign.metrics === "object" &&
               campaign.metrics !== null &&

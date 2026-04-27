@@ -1,6 +1,10 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  LOCKED_STATUSES,
+  isLockedCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { computeAudienceRecipientCount } from "@/lib/computeAudienceRecipientCount";
 import {
   fetchCampaignEditorRecord,
@@ -13,10 +17,14 @@ import {
   type EditorCampaignType,
 } from "@/lib/crm/campaignEditor";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
-import { useCampaignSending } from "@/hooks/useCampaignSending";
+import {
+  useCampaignSending,
+  type CampaignSendResult,
+} from "@/hooks/useCampaignSending";
 import { useTenant } from "@/hooks/useTenant";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { supabase } from "@/integrations/supabase/client";
+import type { SendError } from "@/utils/campaignSendingErrors";
 import type { ContentBlock } from "@/types/emailBuilder";
 
 type Segment = CampaignSegmentSummary;
@@ -50,8 +58,34 @@ export interface CampaignEditorState {
   sourcePersonaId: string | null;
 }
 
+export type CampaignActivationResult =
+  | CampaignSendResult
+  | {
+      success: true;
+      campaignId: string;
+      recipientCount: number;
+      status: CampaignStatus;
+      complianceWarnings: string[];
+    }
+  | {
+      success: false;
+      error: SendError;
+      campaignId?: string;
+    };
+
+interface CampaignActivationOptions {
+  suppressToasts?: boolean;
+  sendImmediately?: boolean;
+  sendAt?: Date | null;
+}
+
 interface CampaignEditorContextValue extends CampaignEditorState {
   isLoading: boolean;
+  syncLiveCampaign: (
+    next: Partial<
+      Pick<CampaignEditorState, "campaignId" | "status" | "sendBlockedReason">
+    >,
+  ) => void;
   updateSetup: (
     next: Partial<
       Pick<
@@ -80,7 +114,9 @@ interface CampaignEditorContextValue extends CampaignEditorState {
     silent?: boolean;
     status?: CampaignStatus;
   }) => Promise<string | null>;
-  activate: () => Promise<void>;
+  activate: (
+    options?: CampaignActivationOptions,
+  ) => Promise<CampaignActivationResult>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   cancel: () => Promise<void>;
@@ -89,16 +125,6 @@ interface CampaignEditorContextValue extends CampaignEditorState {
 
 const AUTO_SAVE_MS = 1200;
 const AUDIENCE_RECALC_MS = 300;
-const LOCKED_STATUSES = new Set<CampaignStatus>([
-  "scheduled",
-  "queued",
-  "partially_queued",
-  "sending",
-  "sent",
-  "sent_with_errors",
-  "paused",
-  "failed",
-]);
 
 const CampaignEditorContext =
   React.createContext<CampaignEditorContextValue | null>(null);
@@ -235,16 +261,19 @@ export function CampaignEditorProvider({
 
   const sending = useCampaignSending({
     navigateOnSuccess: false,
+    suppressToasts: true,
     onSuccess: (savedCampaignId) => {
       setState((current) => ({
         ...current,
         campaignId: savedCampaignId,
-        status: "sent",
+        status: "queued",
         isDirty: false,
         sendBlockedReason: null,
         isLocked: true,
       }));
-      navigate(`/crm/campaigns/${savedCampaignId}/report`);
+      if (campaignId !== savedCampaignId) {
+        navigate(`/crm/campaigns/${savedCampaignId}`, { replace: true });
+      }
     },
   });
 
@@ -297,7 +326,7 @@ export function CampaignEditorProvider({
         isDirty: false,
         isSaving: false,
         lastSavedAt: record.updatedAt ? new Date(record.updatedAt) : null,
-        isLocked: LOCKED_STATUSES.has(record.status),
+        isLocked: LOCKED_STATUSES.includes(record.status),
         sourceContentTaskId:
           nextState.sourceContentTaskId ?? current.sourceContentTaskId,
         sourceSegmentId: current.sourceSegmentId,
@@ -307,13 +336,64 @@ export function CampaignEditorProvider({
     [senderConfig?.fromEmailDomainId],
   );
 
+  const syncLiveCampaign = React.useCallback<
+    CampaignEditorContextValue["syncLiveCampaign"]
+  >((next) => {
+    setState((current) => {
+      const hasCampaignId = Object.prototype.hasOwnProperty.call(
+        next,
+        "campaignId",
+      );
+      const hasStatus = Object.prototype.hasOwnProperty.call(next, "status");
+      const hasSendBlockedReason = Object.prototype.hasOwnProperty.call(
+        next,
+        "sendBlockedReason",
+      );
+
+      const nextCampaignId = hasCampaignId
+        ? (next.campaignId ?? null)
+        : current.campaignId;
+      const nextStatus = hasStatus
+        ? (next.status ?? current.status)
+        : current.status;
+      const nextSendBlockedReason = hasSendBlockedReason
+        ? (next.sendBlockedReason ?? null)
+        : current.sendBlockedReason;
+      const nextIsLocked = hasStatus
+        ? isLockedCampaignStatus(nextStatus)
+        : current.isLocked;
+
+      if (
+        nextCampaignId === current.campaignId &&
+        nextStatus === current.status &&
+        nextSendBlockedReason === current.sendBlockedReason &&
+        nextIsLocked === current.isLocked
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        campaignId: nextCampaignId,
+        status: nextStatus,
+        sendBlockedReason: nextSendBlockedReason,
+        isLocked: nextIsLocked,
+      };
+    });
+  }, []);
+
   const reload = React.useCallback(async () => {
     if (!campaignId) {
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    const shouldShowInitialLoading = !hasHydratedRef.current;
+
+    if (shouldShowInitialLoading) {
+      setIsLoading(true);
+    }
+
     try {
       const record = await fetchCampaignEditorRecord(campaignId);
       applyLoadedCampaign(record);
@@ -618,7 +698,7 @@ export function CampaignEditorProvider({
           isDirty: false,
           isSaving: false,
           lastSavedAt: new Date(),
-          isLocked: LOCKED_STATUSES.has(saved.status),
+          isLocked: isLockedCampaignStatus(saved.status),
         }));
         return saved.id;
       } catch (error) {
@@ -743,79 +823,146 @@ export function CampaignEditorProvider({
     });
   }, []);
 
-  const activate = React.useCallback(async () => {
-    const savedCampaignId = await saveDraft({ silent: true });
-    if (!savedCampaignId) {
-      return;
-    }
+  const activate = React.useCallback(
+    async (
+      options?: CampaignActivationOptions,
+    ): Promise<CampaignActivationResult> => {
+      const toSendError = (error: unknown, fallback: string): SendError => ({
+        code: "UNKNOWN_ERROR",
+        title: "Activation failed",
+        description: error instanceof Error ? error.message : fallback,
+        recoverable: true,
+      });
 
-    if (!state.sendImmediately && state.sendAt) {
-      const scheduled = await updateCampaignStatus(
-        savedCampaignId,
-        "scheduled",
-        {
-          scheduled_at: state.sendAt.toISOString(),
-        },
-      );
-      setState((current) => ({
-        ...current,
-        status: scheduled.status,
-        isDirty: false,
-        isLocked: LOCKED_STATUSES.has(scheduled.status),
-      }));
-      toast.success("Campaign scheduled");
-      return;
-    }
+      try {
+        const effectiveSendImmediately =
+          options?.sendImmediately ?? state.sendImmediately;
+        const effectiveSendAt =
+          "sendAt" in (options ?? {})
+            ? (options?.sendAt ?? null)
+            : state.sendAt;
+        const savedCampaignId = await saveDraft({ silent: true });
+        if (!savedCampaignId) {
+          return {
+            success: false,
+            error: {
+              code: "CAMPAIGN_SAVE_FAILED",
+              title: "Failed to save campaign",
+              description: "Could not save your campaign before sending.",
+              recoverable: true,
+            },
+          };
+        }
 
-    if (state.campaignType === "sms") {
-      await updateCampaignStatus(savedCampaignId, "queued");
-      setState((current) => ({
-        ...current,
-        status: "queued",
-        isDirty: false,
-        isLocked: true,
-      }));
-      toast.success("SMS campaign queued");
-      return;
-    }
+        if (!effectiveSendImmediately && effectiveSendAt) {
+          const scheduled = await updateCampaignStatus(
+            savedCampaignId,
+            "scheduled",
+            {
+              scheduled_at: effectiveSendAt.toISOString(),
+            },
+          );
+          setState((current) => ({
+            ...current,
+            campaignId: savedCampaignId,
+            status: scheduled.status,
+            isDirty: false,
+            isLocked: isLockedCampaignStatus(scheduled.status),
+          }));
+          if (!options?.suppressToasts) {
+            toast.success("Campaign scheduled");
+          }
+          if (campaignId !== savedCampaignId) {
+            navigate(`/crm/campaigns/${savedCampaignId}`, { replace: true });
+          }
+          return {
+            success: true,
+            campaignId: savedCampaignId,
+            recipientCount: state.audienceCount ?? 0,
+            status: scheduled.status,
+            complianceWarnings: [],
+          };
+        }
 
-    await sending.sendCampaign({
-      campaignId: savedCampaignId,
-      campaignName: state.name,
-      subjectLine: state.subjectLine,
-      preheaderText: state.preheaderText,
-      senderName: state.senderName,
-      senderEmail: state.senderEmail,
-      content: "",
-      blocks: state.contentBlocks,
-      segments: state.selectedSegments,
-    });
-  }, [saveDraft, sending, state]);
+        if (state.campaignType === "sms") {
+          const queued = await updateCampaignStatus(savedCampaignId, "queued");
+          setState((current) => ({
+            ...current,
+            campaignId: savedCampaignId,
+            status: queued.status,
+            isDirty: false,
+            isLocked: true,
+          }));
+          if (!options?.suppressToasts) {
+            toast.success("SMS campaign queued");
+          }
+          if (campaignId !== savedCampaignId) {
+            navigate(`/crm/campaigns/${savedCampaignId}`, { replace: true });
+          }
+          return {
+            success: true,
+            campaignId: savedCampaignId,
+            recipientCount: state.audienceCount ?? 0,
+            status: queued.status,
+            complianceWarnings: [],
+          };
+        }
+
+        return await sending.sendCampaign({
+          campaignId: savedCampaignId,
+          campaignName: state.name,
+          subjectLine: state.subjectLine,
+          preheaderText: state.preheaderText,
+          senderName: state.senderName,
+          senderEmail: state.senderEmail,
+          content: "",
+          blocks: state.contentBlocks,
+          segments: state.selectedSegments,
+        });
+      } catch (error) {
+        const sendError = toSendError(
+          error,
+          "The campaign could not be activated.",
+        );
+        if (!options?.suppressToasts) {
+          toast.error(sendError.description);
+        }
+        return {
+          success: false,
+          error: sendError,
+          campaignId: state.campaignId ?? undefined,
+        };
+      }
+    },
+    [campaignId, navigate, saveDraft, sending, state],
+  );
 
   const pause = React.useCallback(async () => {
     if (!state.campaignId) return;
-    const paused = await updateCampaignStatus(state.campaignId, "paused", {
-      send_blocked_reason: "paused_by_user",
+    const { error } = await supabase.rpc("pause_email_campaign_sending", {
+      p_campaign_id: state.campaignId,
     });
+    if (error) throw error;
     setState((current) => ({
       ...current,
-      status: paused.status,
-      sendBlockedReason: paused.sendBlockedReason,
-      isLocked: LOCKED_STATUSES.has(paused.status),
+      status: "paused",
+      sendBlockedReason: "paused_by_user",
+      isLocked: true,
     }));
     toast.success("Campaign paused");
   }, [state.campaignId]);
 
   const resume = React.useCallback(async () => {
     if (!state.campaignId) return;
-    const resumed = await updateCampaignStatus(state.campaignId, "sending", {
-      send_blocked_reason: null,
+    const { error } = await supabase.rpc("resume_email_campaign_sending", {
+      p_campaign_id: state.campaignId,
     });
+    if (error) throw error;
     setState((current) => ({
       ...current,
-      status: resumed.status,
-      sendBlockedReason: resumed.sendBlockedReason,
-      isLocked: LOCKED_STATUSES.has(resumed.status),
+      status: "sending",
+      sendBlockedReason: null,
+      isLocked: true,
     }));
     toast.success("Campaign resumed");
   }, [state.campaignId]);
@@ -829,7 +976,7 @@ export function CampaignEditorProvider({
       ...current,
       status: cancelled.status,
       sendBlockedReason: cancelled.sendBlockedReason,
-      isLocked: LOCKED_STATUSES.has(cancelled.status),
+      isLocked: isLockedCampaignStatus(cancelled.status),
     }));
     toast.success("Campaign cancelled");
   }, [state.campaignId]);
@@ -838,6 +985,7 @@ export function CampaignEditorProvider({
     () => ({
       ...state,
       isLoading,
+      syncLiveCampaign,
       updateSetup,
       updateAudience,
       updateContent,
@@ -856,6 +1004,7 @@ export function CampaignEditorProvider({
       reload,
       resume,
       saveDraft,
+      syncLiveCampaign,
       state,
       updateAudience,
       updateContent,

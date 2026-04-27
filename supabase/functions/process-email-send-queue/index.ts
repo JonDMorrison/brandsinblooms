@@ -11,13 +11,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MAX_JOBS_PER_INVOCATION = 10;
+const MAX_JOBS_PER_INVOCATION = 25;
+const MAX_PARALLEL_JOBS = 3;
 const SEND_CONCURRENCY = 10;
 const MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_DELAY_MS = 500;
 const DEFAULT_MESSAGE_STALE_MINUTES = 15;
 
-const DEFAULT_RESEND_BATCH_SIZE = 80;
+const DEFAULT_RESEND_BATCH_SIZE = 100;
 const MAX_RESEND_BATCH_SIZE = 100;
 const RESEND_MIN_INTERVAL_MS = 500;
 
@@ -167,18 +168,15 @@ function createFixedWindowRateLimiter(requestsPerSecond: number) {
 
   return {
     async acquire() {
-      const start = chain;
-      let release: (() => void) | null = null;
-      chain = new Promise<void>((resolve) => {
-        release = resolve;
+      const pending = chain.then(async () => {
+        const now = Date.now();
+        const waitMs = Math.max(0, nextAt - now);
+        nextAt = Math.max(nextAt, now) + minIntervalMs;
+        if (waitMs > 0) await sleep(waitMs);
       });
-      await start;
 
-      const now = Date.now();
-      const waitMs = Math.max(0, nextAt - now);
-      nextAt = Math.max(nextAt, now) + minIntervalMs;
-      if (waitMs > 0) await sleep(waitMs);
-      release?.();
+      chain = pending.catch(() => undefined);
+      await pending;
     },
     minIntervalMs,
   };
@@ -623,9 +621,15 @@ async function resendSendBatch(
   payloads: any[],
   batchIdempotencyKeySeed: string,
   limiter?: { acquire: () => Promise<void> },
-): Promise<{ ids?: Array<{ id: string }>; error?: string; status?: number }> {
+): Promise<{
+  ids?: Array<{ id: string }>;
+  error?: string;
+  status?: number;
+  rateLimited?: boolean;
+  retryAfterSeconds?: number;
+}> {
   try {
-    const maxRateLimitRetries = 3;
+    const serverErrorBackoffMs = [1000, 4000, 16000];
     let lastError: string | undefined;
     let lastStatus: number | undefined;
 
@@ -633,7 +637,7 @@ async function resendSendBatch(
     const idem = await sha256Base64Url(batchIdempotencyKeySeed);
     const idempotencyKey = `batch_${idem}`.slice(0, 256);
 
-    for (let attempt = 0; attempt < maxRateLimitRetries; attempt++) {
+    for (let attempt = 0; attempt <= serverErrorBackoffMs.length; attempt++) {
       if (limiter) await limiter.acquire();
 
       const res = await fetch('https://api.resend.com/emails/batch', {
@@ -656,10 +660,18 @@ async function resendSendBatch(
         if (res.status === 429 || isRateLimitErrorMessage(lastError)) {
           const retryAfterHeader = res.headers.get('retry-after');
           const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) : NaN;
-          const backoffMs = Number.isFinite(retryAfterSeconds)
-            ? Math.max(250, retryAfterSeconds * 1000)
-            : 750 * (attempt + 1);
-          await sleep(backoffMs);
+          return {
+            error: lastError,
+            status: lastStatus,
+            rateLimited: true,
+            retryAfterSeconds: Number.isFinite(retryAfterSeconds)
+              ? Math.max(1, retryAfterSeconds)
+              : 30,
+          };
+        }
+
+        if (res.status >= 500 && res.status < 600 && attempt < serverErrorBackoffMs.length) {
+          await sleep(serverErrorBackoffMs[attempt]);
           continue;
         }
 
@@ -680,7 +692,7 @@ async function resendSendBatch(
   }
 }
 
-serve((req) => {
+serve((req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -729,6 +741,134 @@ serve((req) => {
       console.error(`[process-email-send-queue][${runId}] ❌ Missing RESEND_API_KEY`);
       return;
     }
+
+    let dynamicResendBatchSize = resendBatchSize;
+    let consecutiveSuccessfulBatchRequests = 0;
+    let consecutiveRateLimitResponses = 0;
+    const rateLimitedCampaigns = new Map<string, number>();
+
+    const lowerDynamicResendBatchSize = () => {
+      consecutiveSuccessfulBatchRequests = 0;
+      consecutiveRateLimitResponses += 1;
+      dynamicResendBatchSize = consecutiveRateLimitResponses >= 2
+        ? 25
+        : dynamicResendBatchSize > 50
+          ? 50
+          : 25;
+    };
+
+    const maybeRaiseDynamicResendBatchSize = () => {
+      consecutiveRateLimitResponses = 0;
+      consecutiveSuccessfulBatchRequests += 1;
+
+      if (consecutiveSuccessfulBatchRequests < 3) {
+        return;
+      }
+
+      consecutiveSuccessfulBatchRequests = 0;
+      if (dynamicResendBatchSize < 50) {
+        dynamicResendBatchSize = 50;
+      } else if (dynamicResendBatchSize < MAX_RESEND_BATCH_SIZE) {
+        dynamicResendBatchSize = MAX_RESEND_BATCH_SIZE;
+      }
+    };
+
+    const recordCampaignProgress = async (
+      campaignId: string,
+      sentDelta: number,
+      failedDelta: number,
+      skippedDelta = 0,
+    ) => {
+      if (!campaignId) return;
+
+      const { error } = await supabase.rpc('record_campaign_send_progress', {
+        p_campaign_id: campaignId,
+        p_sent_delta: Math.max(0, sentDelta),
+        p_failed_delta: Math.max(0, failedDelta),
+        p_skipped_delta: Math.max(0, skippedDelta),
+        p_worker_heartbeat_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.warn(`⚠️ Failed to record campaign progress for ${campaignId}:`, error.message);
+      }
+    };
+
+    const touchCampaignHeartbeats = async (campaignIds: string[]) => {
+      const uniqueIds = [...new Set(campaignIds.filter(Boolean))];
+      if (uniqueIds.length === 0) return;
+
+      const { error } = await supabase
+        .from('crm_campaigns')
+        .update({ worker_heartbeat_at: new Date().toISOString() })
+        .in('id', uniqueIds);
+
+      if (error) {
+        console.warn('⚠️ Failed to update worker heartbeat checkpoint:', error.message);
+      }
+    };
+
+    const logCampaignHealthEvent = async (
+      campaignId: string,
+      tenantId: string | null | undefined,
+      eventType: string,
+      message: string,
+      metadata: Record<string, unknown>,
+    ) => {
+      if (!campaignId) return;
+
+      const { error } = await supabase
+        .from('campaign_health_events')
+        .insert({
+          campaign_id: campaignId,
+          tenant_id: tenantId || null,
+          event_type: eventType,
+          message,
+          metadata,
+        });
+
+      if (error) {
+        console.warn(`⚠️ Failed to log campaign health event for ${campaignId}:`, error.message);
+      }
+    };
+
+    const deferCampaignForRateLimit = async (
+      campaignId: string,
+      tenantId: string | null | undefined,
+      retryAfterSeconds: number,
+      statusCode?: number,
+    ) => {
+      const retrySeconds = Math.max(1, retryAfterSeconds || 30);
+      const availableAtIso = new Date(Date.now() + retrySeconds * 1000).toISOString();
+
+      rateLimitedCampaigns.set(campaignId, Date.now() + retrySeconds * 1000);
+
+      const { error: deferError } = await supabase
+        .from('email_send_jobs')
+        .update({
+          available_at: availableAtIso,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('campaign_id', campaignId)
+        .eq('status', 'pending')
+        .is('claim_token', null);
+
+      if (deferError) {
+        console.warn(`⚠️ Failed to defer pending jobs for rate-limited campaign ${campaignId}:`, deferError.message);
+      }
+
+      await logCampaignHealthEvent(
+        campaignId,
+        tenantId,
+        'provider_rate_limited',
+        'Resend returned a rate limit response. Pending jobs were deferred.',
+        {
+          retry_after_seconds: retrySeconds,
+          provider: 'resend',
+          status_code: statusCode || 429,
+        },
+      );
+    };
 
     // Atomically claim jobs (prevents concurrent workers from processing the same job)
     // Prefer the lightweight claim_email_send_job_ids RPC, but fall back to claim_email_send_jobs
@@ -804,7 +944,7 @@ serve((req) => {
         .from('crm_campaigns')
         .select('id')
         .eq('status', 'sending')
-        .lt('sending_started_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+        .lt('send_started_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
         .limit(5);
 
       let finalized = 0;
@@ -832,7 +972,8 @@ serve((req) => {
             status: totalFailed > 0 ? 'sent_with_errors' : 'sent',
             total_sent: totalSent,
             sent_at: new Date().toISOString(),
-            sending_started_at: null,
+            send_completed_at: new Date().toISOString(),
+            worker_heartbeat_at: new Date().toISOString(),
             claim_token: null,
             metrics: { sent: totalSent, failed: totalFailed, opens: 0, clicks: 0, unsubscribes: 0 },
           })
@@ -928,17 +1069,17 @@ serve((req) => {
     const replyToCache = new Map<string, string | undefined>();
     const domainInvestigationCache = new Map<string, boolean>();
 
-    for (let jobIndex = 0; jobIndex < jobs.length; jobIndex++) {
-      const job = jobs[jobIndex] as any;
+    const processClaimedJob = async (job: any, _jobIndex: number) => {
       const jobStartTime = Date.now();
 
-      // Check if we're approaching timeout (leave 10s buffer)
-      if (Date.now() - startTime > 50000) {
-        console.log('⏱️ Approaching timeout, stopping processing');
-        break;
-      }
+      do {
+        // Check if we're approaching timeout (leave 10s buffer)
+        if (Date.now() - startTime > 50000) {
+          console.log('⏱️ Approaching timeout, stopping processing');
+          break;
+        }
 
-      try {
+        try {
         const nowIso = new Date().toISOString();
 
         const pauseJob = async (errorMessage: string | null) => {
@@ -957,10 +1098,30 @@ serve((req) => {
         };
 
         const campaignIdForJob: string = String(job.campaign_id || '');
+        const rateLimitedUntilMs = campaignIdForJob ? rateLimitedCampaigns.get(campaignIdForJob) : undefined;
+        if (campaignIdForJob && rateLimitedUntilMs && rateLimitedUntilMs > Date.now()) {
+          await supabase
+            .from('email_send_jobs')
+            .update({
+              status: 'pending',
+              available_at: new Date(rateLimitedUntilMs).toISOString(),
+              error_message: 'Deferred after provider rate limit',
+              claim_token: null,
+              claimed_at: null,
+              claimed_by: null,
+              updated_at: nowIso,
+            })
+            .eq('id', job.id)
+            .eq('claim_token', claimToken);
+          processedCount++;
+          continue;
+        }
+
         let campaignPolicy: CampaignReputationPolicy | null = null;
         let campaignIntervention: CampaignInterventionState | null = null;
         let jobResendLimiter = resendGlobalLimiter;
         if (campaignIdForJob) {
+          await recordCampaignProgress(campaignIdForJob, 0, 0, 0);
           campaignIntervention = await getCampaignInterventionState(supabase, campaignIdForJob);
 
           if (campaignIntervention.force_stopped || campaignIntervention.admin_paused) {
@@ -1158,6 +1319,7 @@ serve((req) => {
         let emailsFailed = 0;
         let lastError: string | null = null;
         let jobWasPaused = false;
+        let jobDeferredForRateLimit = false;
 
         const staleThresholdIso = new Date(Date.now() - messageStaleMinutes * 60 * 1000).toISOString();
 
@@ -1282,6 +1444,7 @@ serve((req) => {
                 .is('resend_id', null);
 
               await logSkippedSends(supabase, skipLogs as any);
+              await recordCampaignProgress(campaignIdForJob, 0, 0, suppressedMsgIds.length);
 
               console.log(`📧 Skipped ${suppressedMsgIds.length} messages due to suppression_list`);
             }
@@ -1457,9 +1620,11 @@ serve((req) => {
           }
         }
 
-        // Send claimed messages using Resend batch endpoint (up to 100 emails per request).
-        // This avoids per-request rate limits (e.g. 2 req/sec) while still sending high volume.
-        for (let i = 0; i < claimedForSend.length; i += resendBatchSize) {
+        // Send claimed messages using Resend batch endpoint.
+        // Batch size adapts downward on provider rate limits and recovers upward after sustained success.
+        for (let i = 0; i < claimedForSend.length; ) {
+          const currentResendBatchSize = Math.max(1, Math.min(MAX_RESEND_BATCH_SIZE, dynamicResendBatchSize));
+
           // FIX: [GH3] - Run batch safety check BEFORE each batch to gate whether sending should continue
           if (campaignId && i > 0) {
             const preBatchSafety = await evaluateCampaignBatchSafety(supabase, campaignId);
@@ -1484,8 +1649,8 @@ serve((req) => {
             }
           }
 
-          const batchMsgs = claimedForSend.slice(i, i + resendBatchSize);
-          console.log(`📧 Sending ${batchMsgs.length} emails (batch request, size ${resendBatchSize})...`);
+          const batchMsgs = claimedForSend.slice(i, i + currentResendBatchSize);
+          console.log(`📧 Sending ${batchMsgs.length} emails (batch request, size ${currentResendBatchSize})...`);
 
           if (campaignId) {
             const liveIntervention = await getCampaignInterventionState(supabase, campaignId);
@@ -1623,11 +1788,27 @@ serve((req) => {
             results.push({ msgId: m.msgId, attempts: m.attempts, error: m.error });
           }
 
+          let batchWasRateLimited = false;
+          let retryAfterSeconds = 0;
+
           if (payloads.length > 0) {
             const idemSeed = `${job.id}:${campaignId}:${msgIds.join(',')}`;
             const batchResp = await resendSendBatch(resendApiKey, payloads, idemSeed, jobResendLimiter);
 
-            if (batchResp.ids && batchResp.ids.length === payloads.length) {
+            if (batchResp.rateLimited) {
+              lowerDynamicResendBatchSize();
+              batchWasRateLimited = true;
+              retryAfterSeconds = Math.max(1, batchResp.retryAfterSeconds || 30);
+              for (const msgId of msgIds) {
+                results.push({
+                  msgId,
+                  attempts: attemptsByMsgId.get(msgId) || 1,
+                  error: batchResp.error || 'Provider rate limited',
+                  status: batchResp.status,
+                });
+              }
+            } else if (batchResp.ids && batchResp.ids.length === payloads.length) {
+              maybeRaiseDynamicResendBatchSize();
               for (let k = 0; k < batchResp.ids.length; k++) {
                 const msgId = msgIds[k];
                 const resendId = batchResp.ids[k]?.id;
@@ -1640,6 +1821,7 @@ serve((req) => {
                 });
               }
             } else {
+              consecutiveSuccessfulBatchRequests = 0;
               const err = batchResp.error || 'Resend batch failed';
               // Batch failure applies to all payloads in this request.
               for (const msgId of msgIds) {
@@ -1682,22 +1864,79 @@ serve((req) => {
           const appliedFailed = Number(appliedRow?.updated_failed || 0);
           const appliedQueued = Number(appliedRow?.updated_queued || 0);
           emailsSent += appliedSent;
-          emailsFailed += appliedFailed + appliedQueued;
-          if (appliedFailed + appliedQueued > 0) {
+          emailsFailed += appliedFailed;
+          if (campaignId) {
+            await recordCampaignProgress(campaignId, appliedSent, appliedFailed, 0);
+          }
+          if (appliedFailed > 0 || appliedQueued > 0) {
             const last = results.find((r) => !r.resendId && r.error)?.error;
             lastError = truncateError(last || lastError || 'Send failed');
           }
 
+          if (batchWasRateLimited) {
+            const deferredUntilIso = new Date(Date.now() + retryAfterSeconds * 1000).toISOString();
+            const unattemptedMessageIds = claimedForSend
+              .slice(i + batchMsgs.length)
+              .map((m: any) => m?.id)
+              .filter((id: any) => typeof id === 'string' && id.length > 0);
+
+            if (unattemptedMessageIds.length > 0) {
+              await supabase
+                .from('email_messages')
+                .update({
+                  status: 'queued',
+                  error_message: 'rate_limited',
+                  claim_token: null,
+                  claimed_at: null,
+                  claimed_by: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .in('id', unattemptedMessageIds)
+                .eq('claim_token', claimToken)
+                .is('resend_id', null);
+            }
+
+            if (campaignId) {
+              await deferCampaignForRateLimit(
+                campaignId,
+                job.tenant_id || messages?.[0]?.tenant_id,
+                retryAfterSeconds,
+                results.find((r) => r.status === 429)?.status,
+              );
+            }
+
+            await supabase
+              .from('email_send_jobs')
+              .update({
+                status: 'pending',
+                available_at: deferredUntilIso,
+                error_message: lastError || 'Deferred after provider rate limit',
+                claim_token: null,
+                claimed_at: null,
+                claimed_by: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', job.id)
+              .eq('claim_token', claimToken);
+
+            jobDeferredForRateLimit = true;
+            break;
+          }
+
           // Spacing between Resend requests is enforced globally by resendGlobalLimiter.
           // Add only the extra delay beyond the global minimum.
-          const hasAnotherBatch = i + resendBatchSize < claimedForSend.length;
+          const hasAnotherBatch = i + batchMsgs.length < claimedForSend.length;
+          i += batchMsgs.length;
           if (hasAnotherBatch && additionalBatchDelayMs > 0) {
             await sleep(additionalBatchDelayMs);
           }
         }
 
-        if (jobWasPaused) {
+        if (jobWasPaused || jobDeferredForRateLimit) {
           processedCount++;
+          if (processedCount % 5 === 0) {
+            await touchCampaignHeartbeats([campaignId]);
+          }
           continue;
         }
 
@@ -1802,6 +2041,9 @@ serve((req) => {
               })
               .eq('id', job.id);
             processedCount++;
+              if (processedCount % 5 === 0) {
+                await touchCampaignHeartbeats([jobCampaignId]);
+              }
             console.warn(`🛑 Campaign ${jobCampaignId} paused by batch safety controller: ${safety.pauseReason || 'threshold exceeded'}`);
 
             // FIX: [GM3] - Log batch safety pause to audit trail for admin visibility
@@ -1823,27 +2065,40 @@ serve((req) => {
         totalEmailsSent += emailsSent;
         totalEmailsFailed += emailsFailed;
         processedCount++;
+        if (processedCount % 5 === 0) {
+          await touchCampaignHeartbeats([jobCampaignId]);
+        }
 
         console.log(`✅ Job ${job.id} completed: ${emailsSent} sent, ${emailsFailed} failed (${Date.now() - jobStartTime}ms)`);
 
-      } catch (jobError: any) {
-        console.error(`❌ Job ${job.id} failed:`, jobError.message);
-        await supabase
-          .from('email_send_jobs')
-          .update({
-            status: 'pending',
-            error_message: truncateError(jobError.message),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', job.id)
-          .eq('claim_token', claimToken);
+        } catch (jobError: any) {
+          console.error(`❌ Job ${job.id} failed:`, jobError.message);
+          await supabase
+            .from('email_send_jobs')
+            .update({
+              status: 'pending',
+              error_message: truncateError(jobError.message),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', job.id)
+            .eq('claim_token', claimToken);
+        }
+      } while (false);
+    };
+
+    for (let jobIndex = 0; jobIndex < jobs.length; jobIndex += MAX_PARALLEL_JOBS) {
+      if (Date.now() - startTime > 50000) {
+        console.log('⏱️ Approaching timeout, stopping processing');
+        break;
       }
 
-      // Rate limiting: add delay between jobs
-      if (jobIndex < jobs.length - 1) {
-        if (additionalBatchDelayMs > 0) {
-          await sleep(additionalBatchDelayMs);
-        }
+      const jobChunk = jobs.slice(jobIndex, jobIndex + MAX_PARALLEL_JOBS);
+      await Promise.allSettled(
+        jobChunk.map((job: any, offset: number) => processClaimedJob(job, jobIndex + offset)),
+      );
+
+      if (jobIndex + MAX_PARALLEL_JOBS < jobs.length && additionalBatchDelayMs > 0) {
+        await sleep(additionalBatchDelayMs);
       }
     }
 
@@ -1889,12 +2144,18 @@ serve((req) => {
       const totalFailed = (failedRows || []).length;
       const hasErrors = totalFailed > 0;
 
-      await supabase
+      const completedAt = new Date().toISOString();
+      const { error: finalizeCampaignError } = await supabase
         .from('crm_campaigns')
         .update({
           status: hasErrors ? 'sent_with_errors' : 'sent',
           total_sent: totalSent,
-          sent_at: new Date().toISOString(),
+          sent_at: completedAt,
+          send_completed_at: completedAt,
+          worker_heartbeat_at: completedAt,
+          estimated_completion_at: completedAt,
+          messages_sent: totalSent,
+          messages_failed: totalFailed,
           metrics: {
             sent: totalSent,
             failed: totalFailed,
@@ -1905,6 +2166,14 @@ serve((req) => {
           send_blocked_reason: hasErrors ? `${totalFailed} recipient(s) failed after ${MAX_ATTEMPTS} attempts` : null,
         })
         .eq('id', campaignId);
+
+      if (finalizeCampaignError) {
+        console.error('❌ Failed to finalize campaign status', {
+          campaignId,
+          error: finalizeCampaignError,
+        });
+        continue;
+      }
 
       console.log(`🎉 Campaign ${campaignId} completed: ${totalSent} sent, ${totalFailed} failed${hasErrors ? ' (with errors)' : ''}`);
     }

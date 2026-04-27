@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  CAMPAIGN_STATUS,
+  isCampaignStatus,
+  type CampaignStatus,
+} from "@/constants/campaignStatuses";
 import type { ContentBlock } from "@/types/emailBuilder";
 import {
   saveCampaignAsDraft,
@@ -13,17 +18,6 @@ type CampaignSegmentRow =
   Database["public"]["Tables"]["campaign_segments"]["Row"];
 type CampaignPersonaRow =
   Database["public"]["Tables"]["campaign_personas"]["Row"];
-
-export type CampaignStatus =
-  | "draft"
-  | "scheduled"
-  | "queued"
-  | "partially_queued"
-  | "sending"
-  | "sent"
-  | "sent_with_errors"
-  | "paused"
-  | "failed";
 
 export type CampaignChannel = "email" | "sms" | "newsletter";
 export type EditorCampaignType = "email" | "sms";
@@ -48,16 +42,27 @@ export interface CampaignCatalogItem {
   preheaderText: string;
   status: CampaignStatus;
   channel: CampaignChannel;
+  queuedAt: string | null;
+  queueStartedAt: string | null;
+  queueCompletedAt: string | null;
   sentAt: string | null;
+  sendStartedAt: string | null;
+  sendCompletedAt: string | null;
   scheduledAt: string | null;
   updatedAt: string | null;
   createdAt: string | null;
   sendBlockedReason: string | null;
   totalRecipients: number;
+  totalBatches: number;
+  messagesSent: number;
+  messagesFailed: number;
+  messagesSkipped: number;
   totalOpens: number;
   totalClicks: number;
   openRate: number;
   clickRate: number;
+  workerHeartbeatAt: string | null;
+  estimatedCompletionAt: string | null;
   senderName: string;
   senderEmail: string;
   sourceContentTaskId: string | null;
@@ -105,19 +110,7 @@ function toRecord(value: unknown): Record<string, unknown> {
 }
 
 function toStatus(value: string | null | undefined): CampaignStatus {
-  switch (value) {
-    case "scheduled":
-    case "queued":
-    case "partially_queued":
-    case "sending":
-    case "sent":
-    case "sent_with_errors":
-    case "paused":
-    case "failed":
-      return value;
-    default:
-      return "draft";
-  }
+  return isCampaignStatus(value) ? value : CAMPAIGN_STATUS.DRAFT;
 }
 
 function coerceNumber(value: unknown) {
@@ -164,17 +157,32 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
     preheaderText: row.preheader_text ?? row.preheader ?? "",
     status: toStatus(row.status),
     channel: extractChannel(row),
+    queuedAt: row.queued_at,
+    queueStartedAt: row.queue_started_at,
+    queueCompletedAt: row.queue_completed_at,
     sentAt: row.sent_at,
+    sendStartedAt: row.send_started_at,
+    sendCompletedAt: row.send_completed_at,
     scheduledAt: row.scheduled_at,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
     sendBlockedReason: row.send_blocked_reason,
-    totalRecipients: row.total_sent ?? coerceNumber(toRecord(row.metrics).sent),
+    totalRecipients:
+      row.total_recipients ??
+      row.total_sent ??
+      coerceNumber(toRecord(row.metrics).sent),
+    totalBatches: row.total_batches ?? 0,
+    messagesSent: row.messages_sent ?? 0,
+    messagesFailed:
+      row.messages_failed ?? coerceNumber(toRecord(row.metrics).failed),
+    messagesSkipped: row.messages_skipped ?? 0,
     totalOpens: row.total_opens ?? coerceNumber(toRecord(row.metrics).opened),
     totalClicks:
       row.total_clicks ?? coerceNumber(toRecord(row.metrics).clicked),
     openRate: row.open_rate ?? 0,
     clickRate: row.click_rate ?? 0,
+    workerHeartbeatAt: row.worker_heartbeat_at,
+    estimatedCompletionAt: row.estimated_completion_at,
     senderName:
       row.sender_display_name ??
       row.sender_name ??

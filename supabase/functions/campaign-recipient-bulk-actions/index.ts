@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsJsonResponse, handleCorsPrelight } from '../_shared/cors.ts';
 
 interface BulkActionRequest {
-  action: 'add-tag' | 'add-to-segment';
+  action: 'add-tag' | 'add-to-segment' | 'retry';
   campaignId: string;
   recipientIds?: string[] | null;
   search?: string | null;
@@ -72,8 +72,47 @@ Deno.serve(async (req: Request) => {
       return corsJsonResponse({ error: 'Failed to resolve recipients' }, { status: 500 });
     }
 
-    const customerIds = Array.from(new Set((rows || []).map((row: any) => row.customer_id).filter(Boolean)));
-    const skippedCount = (rows || []).filter((row: any) => !row.customer_id).length;
+    const resolvedRows = Array.isArray(rows) ? rows : [];
+
+    if (body.action === 'retry') {
+      const retryableRows = resolvedRows.filter((row: any) => {
+        const sendStatus = String(row.send_status || '').toLowerCase();
+        const deliveryStatus = String(row.delivery_status || '').toLowerCase();
+        const latestEvent = String(row.latest_event || '').toLowerCase();
+        return sendStatus === 'failed' || deliveryStatus === 'bounced' || latestEvent === 'bounced';
+      });
+      const results = await Promise.all(
+        retryableRows.map(async (row: any) => {
+          const { data: retryResult, error: retryError } = await userClient.rpc(
+            'retry_campaign_recipient_message' as never,
+            {
+              p_campaign_id: body.campaignId,
+              p_recipient_id: row.recipient_id,
+            } as never,
+          );
+
+          return {
+            recipientId: row.recipient_id,
+            ok: !retryError && Boolean(retryResult),
+            error: retryError?.message || null,
+          };
+        }),
+      );
+      const failedResults = results.filter((result) => !result.ok);
+      const updatedCount = results.length - failedResults.length;
+
+      return corsJsonResponse({
+        ok: failedResults.length === 0,
+        updatedCount,
+        skippedCount: resolvedRows.length - retryableRows.length,
+        failedCount: failedResults.length,
+        totalResolved: resolvedRows.length,
+        failures: failedResults,
+      }, { status: failedResults.length === 0 ? 200 : 207 });
+    }
+
+    const customerIds = Array.from(new Set(resolvedRows.map((row: any) => row.customer_id).filter(Boolean)));
+    const skippedCount = resolvedRows.filter((row: any) => !row.customer_id).length;
 
     if (body.action === 'add-tag') {
       const normalizedTag = String(body.tagName || '').trim();
@@ -128,7 +167,7 @@ Deno.serve(async (req: Request) => {
         processedCount: customerIds.length,
         skippedCount,
         failedCount: 0,
-        totalResolved: rows?.length || 0,
+        totalResolved: resolvedRows.length,
         tagName,
       });
     }
@@ -172,7 +211,7 @@ Deno.serve(async (req: Request) => {
         processedCount: customerIds.length,
         skippedCount,
         failedCount: 0,
-        totalResolved: rows?.length || 0,
+        totalResolved: resolvedRows.length,
         segmentName: segment.name,
       });
     }

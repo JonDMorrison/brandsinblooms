@@ -5,7 +5,7 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Area,
@@ -25,12 +25,11 @@ import {
   MoreHorizontal,
   Users,
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { BounceCleanupCard } from "@/components/crm/campaigns/BounceCleanupCard";
 import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeliverySummary";
 import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
-import { GovernanceHealthCard } from "@/components/crm/campaigns/GovernanceHealthCard";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -56,6 +55,10 @@ import {
   useCampaignDerivedMetrics,
 } from "@/hooks/analytics/useCampaignDerivedMetrics";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
+import {
+  CAMPAIGN_STATUS,
+  isDeliveredCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchCampaignEditorRecord,
@@ -101,32 +104,141 @@ function StatsStripSkeleton({ cells }: { cells: number }) {
         borderRadius: "lg",
         display: "flex",
         flexDirection: { xs: "column", md: "row" },
+        backgroundColor: "background.surface",
         overflow: "hidden",
       }}
     >
       {Array.from({ length: cells }).map((_, index) => (
         <React.Fragment key={index}>
-          <Box sx={{ flex: 1, p: 2.25 }}>
-            <Stack direction="row" spacing={1.25} alignItems="center">
-              <Skeleton variant="circular" width={32} height={32} />
-              <Stack spacing={0.5} sx={{ flex: 1 }}>
-                <Skeleton width="45%" />
-                <Skeleton width="65%" height={22} />
+          <Box sx={{ flex: 1, minWidth: 0, p: 2.25 }}>
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+              <Skeleton variant="circular" width={34} height={34} />
+              <Stack spacing={0.65} sx={{ flex: 1, minWidth: 0 }}>
+                <Skeleton width="48%" height={12} />
+                <Skeleton width="72%" height={28} />
+                <Skeleton width="38%" height={12} />
               </Stack>
             </Stack>
           </Box>
           {index < cells - 1 ? (
-            <Divider
-              orientation={
-                index < cells - 1
-                  ? ({ xs: "horizontal", md: "vertical" } as never)
-                  : "vertical"
-              }
-            />
+            <>
+              <Divider sx={{ display: { xs: "block", md: "none" } }} />
+              <Divider
+                orientation="vertical"
+                sx={{ display: { xs: "none", md: "block" } }}
+              />
+            </>
           ) : null}
         </React.Fragment>
       ))}
     </Sheet>
+  );
+}
+
+function ReportHeaderTitleSkeleton() {
+  return (
+    <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+      <Skeleton width="min(420px, 72vw)" height={42} />
+      <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+        <Skeleton width={44} height={18} />
+        <Skeleton variant="circular" width={4} height={4} />
+        <Skeleton width={92} height={24} sx={{ borderRadius: 999 }} />
+        <Skeleton variant="circular" width={4} height={4} />
+        <Skeleton width={184} height={18} />
+      </Stack>
+    </Stack>
+  );
+}
+
+function ReportHeaderActionsSkeleton() {
+  return (
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={1}
+      alignItems={{ xs: "stretch", sm: "center" }}
+      justifyContent={{ xs: "flex-start", md: "flex-end" }}
+    >
+      <Skeleton width={132} height={34} sx={{ borderRadius: "md" }} />
+      <Skeleton width={34} height={34} sx={{ borderRadius: "md" }} />
+    </Stack>
+  );
+}
+
+function ChartCardSkeleton({ titleWidth }: { titleWidth: number }) {
+  return (
+    <JoyCard variant="outlined">
+      <JoyCardHeader title={<Skeleton width={titleWidth} height={22} />} />
+      <JoyCardContent>
+        <Box
+          sx={{
+            height: 240,
+            borderRadius: "md",
+            border: "1px solid",
+            borderColor: "neutral.100",
+            backgroundColor: "background.level1",
+            p: 2,
+            display: "grid",
+            gridTemplateRows: "1fr auto",
+            gap: 1.5,
+          }}
+        >
+          <Box
+            sx={{
+              position: "relative",
+              minHeight: 0,
+              backgroundImage:
+                "linear-gradient(rgba(var(--joy-palette-neutral-mainChannel) / 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.08) 1px, transparent 1px)",
+              backgroundSize: "100% 44px, 64px 100%",
+            }}
+          >
+            <Skeleton
+              variant="rectangular"
+              width="72%"
+              height={118}
+              sx={{
+                position: "absolute",
+                left: "12%",
+                bottom: 18,
+                borderRadius: "48% 52% 0 0 / 38% 46% 0 0",
+                opacity: 0.75,
+              }}
+            />
+          </Box>
+          <Stack direction="row" spacing={1} justifyContent="space-between">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} width={34} height={10} />
+            ))}
+          </Stack>
+        </Box>
+      </JoyCardContent>
+    </JoyCard>
+  );
+}
+
+function PreviewSkeleton() {
+  return (
+    <Stack spacing={2}>
+      <Stack spacing={0.5}>
+        <Skeleton width="min(420px, 72vw)" height={20} />
+        <Skeleton width="min(320px, 64vw)" height={16} />
+      </Stack>
+      <Sheet
+        variant="soft"
+        color="neutral"
+        sx={{ borderRadius: "lg", p: { xs: 2, md: 2.5 } }}
+      >
+        <Stack spacing={1.15}>
+          <Skeleton width="86%" height={18} />
+          <Skeleton width="94%" height={18} />
+          <Skeleton width="78%" height={18} />
+          <Skeleton width="88%" height={18} />
+          <Skeleton width="62%" height={18} />
+          <Box sx={{ pt: 1 }}>
+            <Skeleton variant="rectangular" height={96} sx={{ borderRadius: "md" }} />
+          </Box>
+        </Stack>
+      </Sheet>
+    </Stack>
   );
 }
 
@@ -477,10 +589,12 @@ function ReportFullPreviewDialog({
 export default function CRMCampaignReport() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
   const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
   const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
+  const lastStatusRef = React.useRef<string | null>(null);
 
   const reportQuery = useQuery({
     queryKey: ["crm-campaign-report-dashboard", campaignId],
@@ -539,6 +653,89 @@ export default function CRMCampaignReport() {
   const report = reportQuery.data;
   const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
 
+  React.useEffect(() => {
+    lastStatusRef.current = report?.campaign.status ?? null;
+  }, [report?.campaign.status]);
+
+  React.useEffect(() => {
+    if (!campaignId) return;
+
+    const channel = supabase
+      .channel(`campaign-report-status-${campaignId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "crm_campaigns",
+          filter: `id=eq.${campaignId}`,
+        },
+        (payload) => {
+          const nextStatus =
+            payload.new && typeof payload.new.status === "string"
+              ? payload.new.status
+              : null;
+          const previousStatus = lastStatusRef.current;
+
+          if (nextStatus && previousStatus !== nextStatus) {
+            if (
+              !isDeliveredCampaignStatus(previousStatus) &&
+              isDeliveredCampaignStatus(nextStatus)
+            ) {
+              if (nextStatus === CAMPAIGN_STATUS.SENT_WITH_ERRORS) {
+                toast.warning("Campaign finished with errors", {
+                  description:
+                    "Delivery completed, but some recipients were not sent successfully.",
+                });
+              } else {
+                toast.success("Campaign finished sending", {
+                  description: "Delivery completed successfully.",
+                });
+              }
+            }
+
+            if (
+              previousStatus !== CAMPAIGN_STATUS.FAILED &&
+              nextStatus === CAMPAIGN_STATUS.FAILED
+            ) {
+              toast.error("Campaign failed", {
+                description: "Delivery stopped before the campaign completed.",
+              });
+            }
+
+            lastStatusRef.current = nextStatus;
+          }
+
+          void queryClient.invalidateQueries({
+            queryKey: ["crm-campaign-report-dashboard", campaignId],
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [campaignId, queryClient]);
+
+  const lifecycleLabel = React.useMemo(() => {
+    if (!report) return "";
+
+    if (isDeliveredCampaignStatus(report.campaign.status)) {
+      return `Sent ${formatDateTime(report.sentAt)}`;
+    }
+
+    if (report.campaign.queuedAt) {
+      return `Queued ${formatDateTime(report.campaign.queuedAt)}`;
+    }
+
+    if (report.campaign.scheduledAt) {
+      return `Scheduled ${formatDateTime(report.campaign.scheduledAt)}`;
+    }
+
+    return `Created ${formatDateTime(report.campaign.createdAt)}`;
+  }, [report]);
+
   const handleDuplicate = React.useCallback(async () => {
     if (!campaignId) return;
     const clonedId = await cloneCampaign(campaignId, { clearScheduling: true });
@@ -558,6 +755,7 @@ export default function CRMCampaignReport() {
     const rows = [
       ["Campaign", report.campaign.name],
       ["Status", report.campaign.status],
+      ["Queued At", formatDateTime(report.campaign.queuedAt)],
       ["Sent At", formatDateTime(report.sentAt)],
       ["Recipients", report.campaign.totalRecipients.toString()],
       ["Delivered", metrics.totals.delivered.toString()],
@@ -609,135 +807,139 @@ export default function CRMCampaignReport() {
   const displayCampaignName = report
     ? normalizeCampaignNameForDisplay(report.campaign.name)
     : "";
+  const channelLabel = report?.campaign.channel === "sms" ? "SMS" : "Email";
 
   return (
-    <PageContainer fullWidth>
+    <PageContainer fullWidth sx={{ px: { xs: 2, md: 3 }, py: 2.5 }}>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <Sheet
           variant="plain"
           sx={{
-            borderBottom: "1px solid",
-            borderColor: "neutral.200",
-            py: 2,
-            px: { xs: 0, md: 0.5 },
-            mb: 0.5,
+            borderRadius: "xl",
+            backgroundColor: "background.surface",
+            overflow: "hidden",
           }}
         >
-          <Typography
-            level="body-xs"
-            component={Link}
-            to="/crm/campaigns"
+          <Box
             sx={{
-              color: "neutral.500",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.5,
-              "&:hover": { color: "neutral.700" },
-              mb: 1,
+              px: { xs: 2, md: 3 },
+              py: 2.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
             }}
           >
-            <ChevronLeft size={14} />
-            Back to campaigns
-          </Typography>
-
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            alignItems={{ lg: "flex-start" }}
-            justifyContent="space-between"
-            spacing={2}
-          >
-            {reportQuery.isLoading ? (
-              <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
-                <Skeleton width={280} height={28} />
-                <Stack direction="row" spacing={1}>
-                  <Skeleton width={52} height={24} />
-                  <Skeleton width={88} height={24} />
-                  <Skeleton width={160} height={20} />
-                </Stack>
-              </Stack>
-            ) : (
-              <Stack
-                spacing={0.5}
-                sx={{ minWidth: 0, maxWidth: { xs: "100%", lg: "60%" } }}
-              >
-                <Typography
-                  level="title-lg"
-                  fontWeight="bold"
-                  title={report?.campaign.name}
-                  sx={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {displayCampaignName}
-                </Typography>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                  flexWrap="wrap"
-                  useFlexGap
-                >
-                  <JoyChip variant="soft" color="neutral" size="sm">
-                    {report?.campaign.channel === "sms" ? "SMS" : "Email"}
-                  </JoyChip>
-                  <JoyStatusChip status={report?.campaign.status ?? "draft"} />
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Sent {formatDateTime(report?.sentAt ?? null)}
-                  </Typography>
-                </Stack>
-              </Stack>
-            )}
-
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              useFlexGap
-              flexWrap="wrap"
-              justifyContent={{ xs: "flex-start", lg: "flex-end" }}
-            >
+            <Stack spacing={2}>
               <JoyButton
-                variant="soft"
+                variant="plain"
                 color="neutral"
                 size="sm"
-                startDecorator={<Users size={16} />}
-                onClick={() =>
-                  navigate(`/crm/campaigns/${campaignId}/recipients`)
-                }
+                startDecorator={<ChevronLeft size={16} />}
+                onClick={() => navigate("/crm/campaigns")}
+                sx={{ alignSelf: "flex-start" }}
               >
-                View Recipients
+                Back to campaigns
               </JoyButton>
-              <JoyDropdownMenu>
-                <JoyDropdownMenuTrigger
-                  variant="outlined"
-                  color="neutral"
-                  size="sm"
+
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={2}
+                justifyContent="space-between"
+                alignItems={{ xs: "stretch", md: "center" }}
+              >
+                {reportQuery.isLoading ? (
+                  <ReportHeaderTitleSkeleton />
+                ) : (
+                  <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      level="h3"
+                      fontWeight="lg"
+                      title={report?.campaign.name}
+                      sx={{
+                        lineHeight: 1.05,
+                        letterSpacing: 0,
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {displayCampaignName}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      useFlexGap
+                      flexWrap="wrap"
+                    >
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        {channelLabel}
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.400" }}>
+                        ·
+                      </Typography>
+                      <JoyStatusChip status={report?.campaign.status ?? "draft"} size="sm" />
+                      <Typography level="body-sm" sx={{ color: "neutral.400" }}>
+                        ·
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        {lifecycleLabel}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                )}
+
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                  justifyContent={{ xs: "flex-start", md: "flex-end" }}
                 >
-                  <MoreHorizontal size={16} />
-                </JoyDropdownMenuTrigger>
-                <JoyDropdownMenuContent>
-                  <JoyDropdownMenuItem onClick={() => void handleDuplicate()}>
-                    {isCloning ? "Duplicating..." : "Duplicate Campaign"}
-                  </JoyDropdownMenuItem>
-                  <JoyDropdownMenuItem
-                    startDecorator={<Copy size={16} />}
-                    onClick={() => void handleCopyLink()}
-                  >
-                    Copy report link
-                  </JoyDropdownMenuItem>
-                  <JoyDropdownMenuItem
-                    startDecorator={<FileDown size={16} />}
-                    onClick={handleExportSummary}
-                  >
-                    Export summary CSV
-                  </JoyDropdownMenuItem>
-                </JoyDropdownMenuContent>
-              </JoyDropdownMenu>
+                  {reportQuery.isLoading ? (
+                    <ReportHeaderActionsSkeleton />
+                  ) : (
+                    <>
+                      <JoyButton
+                        variant="outlined"
+                        color="neutral"
+                        size="sm"
+                        startDecorator={<Users size={16} />}
+                        onClick={() =>
+                          navigate(`/crm/campaigns/${campaignId}/recipients`)
+                        }
+                      >
+                        View Recipients
+                      </JoyButton>
+                      <JoyDropdownMenu>
+                        <JoyDropdownMenuTrigger
+                          variant="outlined"
+                          color="neutral"
+                          size="sm"
+                          iconButtonSx={{ borderRadius: "md" }}
+                        >
+                          <MoreHorizontal size={16} />
+                        </JoyDropdownMenuTrigger>
+                        <JoyDropdownMenuContent>
+                          <JoyDropdownMenuItem onClick={() => void handleDuplicate()}>
+                            {isCloning ? "Duplicating..." : "Duplicate Campaign"}
+                          </JoyDropdownMenuItem>
+                          <JoyDropdownMenuItem
+                            startDecorator={<Copy size={16} />}
+                            onClick={() => void handleCopyLink()}
+                          >
+                            Copy report link
+                          </JoyDropdownMenuItem>
+                          <JoyDropdownMenuItem
+                            startDecorator={<FileDown size={16} />}
+                            onClick={handleExportSummary}
+                          >
+                            Export summary CSV
+                          </JoyDropdownMenuItem>
+                        </JoyDropdownMenuContent>
+                      </JoyDropdownMenu>
+                    </>
+                  )}
+                </Stack>
+              </Stack>
             </Stack>
-          </Stack>
+          </Box>
         </Sheet>
 
         {reportQuery.isLoading ? (
@@ -774,12 +976,7 @@ export default function CRMCampaignReport() {
           }}
         >
           {reportQuery.isLoading ? (
-            <JoyCard variant="outlined">
-              <JoyCardHeader title="Opens Over Time" />
-              <JoyCardContent>
-                <Skeleton variant="rectangular" height={240} />
-              </JoyCardContent>
-            </JoyCard>
+            <ChartCardSkeleton titleWidth={132} />
           ) : (
             <ChartCard
               title="Opens Over Time"
@@ -789,12 +986,7 @@ export default function CRMCampaignReport() {
           )}
 
           {reportQuery.isLoading ? (
-            <JoyCard variant="outlined">
-              <JoyCardHeader title="Clicks Over Time" />
-              <JoyCardContent>
-                <Skeleton variant="rectangular" height={240} />
-              </JoyCardContent>
-            </JoyCard>
+            <ChartCardSkeleton titleWidth={136} />
           ) : (
             <ChartCard
               title="Clicks Over Time"
@@ -832,11 +1024,7 @@ export default function CRMCampaignReport() {
             </Stack>
 
             {reportQuery.isLoading ? (
-              <Stack spacing={1.25}>
-                <Skeleton width={220} height={22} />
-                <Skeleton width={320} height={18} />
-                <Skeleton variant="rectangular" height={260} />
-              </Stack>
+              <PreviewSkeleton />
             ) : (
               <Stack spacing={2}>
                 <Stack spacing={0.5}>
@@ -864,41 +1052,41 @@ export default function CRMCampaignReport() {
         {!reportQuery.isLoading && bouncedEmails.length > 0 ? (
           <BounceCleanupCard campaignId={campaignId} />
         ) : null}
-
-        {!reportQuery.isLoading && report ? (
-          <GovernanceHealthCard
-            campaignId={campaignId}
-            tenantId={report.tenantId}
-          />
-        ) : null}
-
         <JoyCard variant="outlined">
           <JoyCardHeader title="Quick Navigation" />
           <JoyCardContent>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <JoyButton
-                bloomVariant="secondary"
-                startDecorator={<Mail size={16} />}
-                onClick={() =>
-                  navigate(`/crm/campaigns/${campaignId}/recipients`)
-                }
-              >
-                View All Recipients
-              </JoyButton>
-              <JoyButton
-                onClick={() => void handleDuplicate()}
-                bloomVariant="secondary"
-                startDecorator={<Copy size={16} />}
-              >
-                Duplicate Campaign
-              </JoyButton>
-              <JoyButton
-                bloomVariant="secondary"
-                onClick={() => navigate("/crm/campaigns")}
-              >
-                Back to Campaigns
-              </JoyButton>
-            </Stack>
+            {reportQuery.isLoading ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <Skeleton width={156} height={36} sx={{ borderRadius: "md" }} />
+                <Skeleton width={162} height={36} sx={{ borderRadius: "md" }} />
+                <Skeleton width={138} height={36} sx={{ borderRadius: "md" }} />
+              </Stack>
+            ) : (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                <JoyButton
+                  bloomVariant="secondary"
+                  startDecorator={<Mail size={16} />}
+                  onClick={() =>
+                    navigate(`/crm/campaigns/${campaignId}/recipients`)
+                  }
+                >
+                  View All Recipients
+                </JoyButton>
+                <JoyButton
+                  onClick={() => void handleDuplicate()}
+                  bloomVariant="secondary"
+                  startDecorator={<Copy size={16} />}
+                >
+                  Duplicate Campaign
+                </JoyButton>
+                <JoyButton
+                  bloomVariant="secondary"
+                  onClick={() => navigate("/crm/campaigns")}
+                >
+                  Back to Campaigns
+                </JoyButton>
+              </Stack>
+            )}
           </JoyCardContent>
         </JoyCard>
 

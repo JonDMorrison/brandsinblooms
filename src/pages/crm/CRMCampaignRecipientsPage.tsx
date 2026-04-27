@@ -1,55 +1,33 @@
 import * as React from "react";
-import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
 import Checkbox from "@mui/joy/Checkbox";
-import CircularProgress from "@mui/joy/CircularProgress";
+import Dropdown from "@mui/joy/Dropdown";
+import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
 import LinearProgress from "@mui/joy/LinearProgress";
+import Menu from "@mui/joy/Menu";
+import MenuButton from "@mui/joy/MenuButton";
+import MenuItem from "@mui/joy/MenuItem";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
-import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { differenceInHours, format, formatDistanceToNow } from "date-fns";
 import {
-  AlertTriangle,
   ChevronLeft,
-  Copy,
   Download,
-  Eye,
-  Link as LinkIcon,
   Mail,
   MoreHorizontal,
-  RefreshCw,
+  RotateCcw,
   Search,
-  Tag,
-  UserRound,
-  Users,
-  X,
 } from "lucide-react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
-import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
+import { RecipientStatusChip, normalizeRecipientStatus, type RecipientLiveStatus } from "@/components/crm/campaigns/RecipientStatusChip";
 import { JoyButton } from "@/components/joy/JoyButton";
-import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
-import { JoyDebouncedInput } from "@/components/joy/JoyDebouncedInput";
-import {
-  JoyDialog,
-  JoyDialogActions,
-  JoyDialogContent,
-} from "@/components/joy/JoyDialog";
-import {
-  JoyDropdownMenu,
-  JoyDropdownMenuContent,
-  JoyDropdownMenuItem,
-  JoyDropdownMenuTrigger,
-} from "@/components/joy/JoyDropdownMenu";
-import { JoySelect } from "@/components/joy/JoySelect";
+import { JoyChip } from "@/components/joy/JoyChip";
 import {
   JoyTable,
   JoyTableBody,
@@ -59,89 +37,77 @@ import {
   JoyTablePagination,
   JoyTableRow,
 } from "@/components/joy/JoyTable";
-import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { CAMPAIGN_STATUS, getCampaignStatusLabel } from "@/constants/campaignStatuses";
+import { normalizeDerivedMetrics } from "@/hooks/analytics/useCampaignDerivedMetrics";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useCampaignEventRealtime } from "@/hooks/useCampaignEventRealtime";
-import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import {
+  buildRecipientFilterState,
+  downloadTextFile,
+  serializeEventQueryValue,
+  type RecipientDeliveryFilter,
+  type RecipientEventSelection,
+  type RecipientSortColumn,
+  type RecipientSortDirection,
+} from "@/lib/crm/campaignRecipientOperations";
 import {
   getTrackingEventTimestamp,
   normalizeTrackingEventType,
   toRecipientKey,
   type EmailTrackingEventRow,
 } from "@/lib/crm/emailTrackingRealtime";
-import {
-  buildAbsoluteLocationPath,
-  buildRecipientCsv,
-  buildRecipientFilterState,
-  buildRecipientSelectionScope,
-  downloadTextFile,
-  formatDateStamp,
-  sanitizeFileNamePart,
-  serializeEventQueryValue,
-  type CampaignRecipientExportRow,
-  type RecipientCompositeFilter,
-  type RecipientDeliveryFilter,
-  type RecipientEventSelection,
-  type RecipientSortColumn,
-  type RecipientSortDirection,
-  type RecipientTimeRange,
-} from "@/lib/crm/campaignRecipientOperations";
-import { retryCampaignRecipientMessage } from "@/lib/email/emailRetryService";
 
-type SortColumn = RecipientSortColumn;
-type SortDirection = RecipientSortDirection;
-type EngagementFilterValue =
-  | "all"
-  | "opened"
-  | "clicked"
-  | "no_engagement"
-  | "issues";
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
+
+type EmailMessageRow = Database["public"]["Tables"]["email_messages"]["Row"];
 
 interface RecipientRow {
   recipient_id: string;
-  current_message_id?: string | null;
-  retry_message_id?: string | null;
   customer_id: string | null;
   customer_name: string | null;
   customer_email: string;
-  send_status: string;
-  latest_event: string;
+  send_status: string | null;
+  latest_event: string | null;
   latest_event_at: string | null;
-  delivery_status: string;
+  delivery_status: string | null;
   sent_at: string | null;
-  last_attempt_at?: string | null;
-  created_at: string;
-  attempts?: number;
-  resend_id?: string | null;
-  error_message?: string | null;
-  retry_count?: number;
-  retry_status?: string | null;
-  can_retry?: boolean;
-  has_hard_bounce?: boolean;
-  hard_bounce_reason?: string | null;
-  engagement_score?: number;
-  all_events?: string[];
-}
-
-interface CampaignSegment {
-  id: string;
-  name: string;
+  created_at: string | null;
+  all_events?: string[] | null;
 }
 
 interface CampaignSummary {
   id: string;
-  name: string;
+  name: string | null;
   subject_line: string | null;
-  status: string;
+  status: string | null;
   scheduled_at: string | null;
   sent_at: string | null;
-  created_at: string;
+  created_at: string | null;
+  metrics?: unknown;
+  recipient_count?: number | null;
+  tenant_timezone?: string | null;
+  segments?: Array<{ id: string; name: string }>;
+}
+
+interface CampaignProgressRow {
+  id: string;
+  tenant_id: string | null;
+  status: string | null;
+  total_recipients: number | null;
+  messages_sent: number | null;
+  messages_failed: number | null;
+  messages_skipped: number | null;
+  queue_started_at: string | null;
+  queue_completed_at: string | null;
+  send_started_at: string | null;
+  send_completed_at: string | null;
+  worker_heartbeat_at: string | null;
+  estimated_completion_at: string | null;
+  stall_count: number | null;
   metrics: unknown;
-  tenant_timezone: string | null;
-  segments: CampaignSegment[];
-  recipient_count: number;
 }
 
 interface CampaignRecipientsResponse {
@@ -153,1645 +119,984 @@ interface CampaignRecipientsResponse {
     total_count: number;
     total_pages: number;
   };
-  filters: {
-    search: string | null;
-    event_filter: RecipientCompositeFilter;
-    event_filters?: RecipientEventSelection[];
-    time_range?: RecipientTimeRange;
-    delivery_filter?: RecipientDeliveryFilter;
-    sort_column: SortColumn;
-    sort_direction: SortDirection;
-  };
-  not_found: boolean;
+  not_found?: boolean;
 }
 
-interface CRMSegmentOption {
-  id: string;
-  name: string;
+type StatusFilter = "all" | "delivered" | "opened" | "bounced" | "failed" | "queued";
+type ConnectionState = "connecting" | "live" | "reconnecting";
+
+interface SummaryMetrics {
+  total: number;
+  sent: number;
+  delivered: number;
+  opened: number;
+  bounced: number;
+  failed: number;
 }
 
-interface CRMTagOption {
-  id: string;
-  name: string;
-}
+const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "delivered", label: "Delivered" },
+  { key: "opened", label: "Opened" },
+  { key: "bounced", label: "Bounced" },
+  { key: "failed", label: "Failed" },
+  { key: "queued", label: "Queued" },
+];
 
-type RowRealtimeOverride = {
-  latest_event: string;
-  latest_event_at: string | null;
-};
-
-type RecipientEventTimestamps = Record<
-  string,
-  {
-    openedAt: string | null;
-    clickedAt: string | null;
-  }
->;
-
-const PAGE_SIZE_OPTIONS = [25, 50, 100];
-const DEFAULT_SORT_COLUMN: SortColumn = "event_time";
-const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
-
-function isEventNewer(
-  currentTimestamp: string | null,
-  nextTimestamp: string | null,
-) {
-  if (!nextTimestamp) return false;
-  if (!currentTimestamp) return true;
-  return (
-    new Date(nextTimestamp).getTime() >= new Date(currentTimestamp).getTime()
-  );
-}
-
-function formatCampaignTimestamp(
-  timestamp: string | null,
-  timezone: string | null,
-) {
-  if (!timestamp) return "Not sent yet";
-  const zone = timezone || "UTC";
-  return formatInTimeZone(
-    new Date(timestamp),
-    zone,
-    timezone ? "PPpp zzz" : "PPpp 'UTC'",
-  );
-}
-
-function formatRelativeTimestamp(timestamp: string | null) {
-  if (!timestamp) return "-";
-  return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
-}
-
-function getDeliveryLabel(status: string) {
-  switch (status) {
-    case "delivered":
-      return "Delivered";
-    case "bounced":
-      return "Bounced";
-    case "failed":
-      return "Failed";
-    case "pending":
-    case "delayed":
-      return "Pending";
-    default:
-      return status || "Unknown";
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
   }
 }
 
-function getDeliveryTone(
-  status: string,
-): "success" | "warning" | "danger" | "neutral" {
-  switch (status) {
-    case "delivered":
-      return "success";
-    case "bounced":
-      return "warning";
-    case "failed":
-      return "danger";
-    default:
-      return "neutral";
-  }
+function toNumber(value: unknown, fallback = 0) {
+  const parsed = typeof value === "string" ? Number(value) : (value as number);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function getEngagementFilterValue(
-  compositeFilter: RecipientCompositeFilter,
+function normalizeCampaignNameForDisplay(name: string | null | undefined) {
+  const trimmed = (name || "").trim();
+  return trimmed || "Untitled campaign";
+}
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  if (Math.abs(differenceInHours(new Date(), date)) < 24) {
+    return formatDistanceToNow(date, { addSuffix: true });
+  }
+  return format(date, "MMM d, yyyy h:mm a");
+}
+
+function getActiveStatusFilter(
+  deliveryFilter: RecipientDeliveryFilter,
   selectedEvents: RecipientEventSelection[],
-): EngagementFilterValue {
-  if (compositeFilter === "unengaged") return "no_engagement";
-  if (compositeFilter === "issues") return "issues";
-  if (selectedEvents.includes("clicked")) return "clicked";
+): StatusFilter {
   if (selectedEvents.includes("opened")) return "opened";
+  if (deliveryFilter === "delivered") return "delivered";
+  if (deliveryFilter === "bounced") return "bounced";
+  if (deliveryFilter === "failed") return "failed";
+  if (deliveryFilter === "pending") return "queued";
   return "all";
 }
 
-function getSortValue(sortColumn: SortColumn, sortDirection: SortDirection) {
-  if (sortColumn === "customer_name") return "name";
-  return sortDirection === "asc" ? "oldest" : "newest";
+function getFilterParams(filter: StatusFilter): {
+  event: string | null;
+  delivery: RecipientDeliveryFilter;
+} {
+  switch (filter) {
+    case "delivered":
+      return { event: null, delivery: "delivered" };
+    case "opened":
+      return { event: "opened", delivery: "all" };
+    case "bounced":
+      return { event: null, delivery: "bounced" };
+    case "failed":
+      return { event: null, delivery: "failed" };
+    case "queued":
+      return { event: null, delivery: "pending" };
+    default:
+      return { event: null, delivery: "all" };
+  }
 }
 
-function recipientToExportRow(row: RecipientRow): CampaignRecipientExportRow {
+function getRowStatus(row: RecipientRow): RecipientLiveStatus {
+  const eventStatus = normalizeRecipientStatus(row.latest_event);
+
+  if (["clicked", "opened", "delivered", "bounced", "complained", "unsubscribed"].includes(eventStatus)) {
+    return eventStatus;
+  }
+
+  if (row.send_status === "failed" || row.delivery_status === "failed") return "failed";
+  if (row.send_status === "sending") return "sending";
+  if (row.send_status === "queued") return "queued";
+  if (row.send_status === "skipped") return "skipped";
+  if (row.delivery_status === "delivered") return "delivered";
+  if (row.delivery_status === "bounced") return "bounced";
+  if (row.send_status === "sent") return "sent";
+  return eventStatus === "unknown" ? "queued" : eventStatus;
+}
+
+function isRetryableRow(row: RecipientRow) {
+  const status = getRowStatus(row);
+  return status === "failed" || status === "bounced" || row.send_status === "failed";
+}
+
+function eventToDeliveryStatus(eventType: string, current: string | null | undefined) {
+  const normalized = normalizeTrackingEventType(eventType);
+  if (normalized === "bounced") return "bounced";
+  if (normalized === "complained") return "delivered";
+  if (["delivered", "opened", "clicked"].includes(normalized)) return "delivered";
+  return current || null;
+}
+
+function eventIsRelevantToStatus(eventType: string) {
+  return [
+    "sent",
+    "delivered",
+    "opened",
+    "clicked",
+    "bounced",
+    "complained",
+    "unsubscribed",
+    "deferred",
+    "rejected",
+  ].includes(normalizeTrackingEventType(eventType));
+}
+
+function createRowFromMessage(message: EmailMessageRow): RecipientRow {
+  const payload = message.payload && typeof message.payload === "object" && !Array.isArray(message.payload)
+    ? (message.payload as Record<string, unknown>)
+    : {};
+  const customerName = typeof payload.customer_name === "string"
+    ? payload.customer_name
+    : typeof payload.customerName === "string"
+      ? payload.customerName
+      : null;
+
   return {
-    recipient_id: row.recipient_id,
-    customer_id: row.customer_id,
-    customer_name: row.customer_name,
-    customer_email: row.customer_email,
-    latest_event: row.latest_event,
-    latest_event_at: row.latest_event_at,
-    delivery_status: row.delivery_status,
-    all_events: row.all_events,
+    recipient_id: message.id,
+    customer_id: message.customer_id,
+    customer_name: customerName,
+    customer_email: message.email,
+    send_status: message.status,
+    latest_event: message.status === "failed" ? "failed" : message.status,
+    latest_event_at: message.sent_at || message.last_attempt_at || message.updated_at,
+    delivery_status: message.status === "failed" ? "failed" : message.status === "queued" ? "pending" : "sent",
+    sent_at: message.sent_at,
+    created_at: message.created_at,
+    all_events: message.status === "sent" ? ["sent"] : [],
   };
 }
 
-function TableSkeleton() {
-  return (
-    <Stack spacing={1} sx={{ p: 2 }}>
-      {Array.from({ length: 10 }).map((_, index) => (
-        <Stack
-          key={index}
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          sx={{
-            py: 1.25,
-            borderBottom: "1px solid",
-            borderColor: "neutral.100",
-          }}
-        >
-          <Skeleton variant="circular" width={18} height={18} />
-          <Skeleton variant="circular" width={30} height={30} />
-          <Skeleton width="24%" />
-          <Skeleton width="12%" />
-          <Skeleton width="12%" />
-          <Skeleton width="12%" />
-          <Skeleton
-            width={28}
-            height={28}
-            variant="circular"
-            sx={{ ml: "auto" }}
-          />
-        </Stack>
-      ))}
-    </Stack>
+function shouldShowLiveInsertedRow(
+  row: RecipientRow,
+  page: number,
+  searchQuery: string,
+  activeFilter: StatusFilter,
+) {
+  if (page !== 1 || searchQuery.trim()) return false;
+  if (activeFilter === "all") return true;
+  const status = getRowStatus(row);
+  if (activeFilter === "queued") {
+    return status === "queued" || status === "sending" || row.delivery_status === "pending";
+  }
+  return status === activeFilter;
+}
+
+function buildSummaryMetrics(
+  campaign: CampaignSummary | null | undefined,
+  progress: CampaignProgressRow | null | undefined,
+  totalCount: number,
+): SummaryMetrics {
+  const derived = normalizeDerivedMetrics(progress?.metrics ?? campaign?.metrics);
+  return {
+    total: toNumber(progress?.total_recipients ?? campaign?.recipient_count, totalCount),
+    sent: toNumber(progress?.messages_sent, derived?.totals.sent ?? 0),
+    delivered: derived?.totals.delivered ?? 0,
+    opened: derived?.totals.opens ?? 0,
+    bounced: derived?.totals.bounces ?? derived?.totals.hard_bounces ?? 0,
+    failed: toNumber(progress?.messages_failed, 0),
+  };
+}
+
+function clampMetric(value: number) {
+  return Math.max(0, Math.round(value));
+}
+
+function mutateMetric(
+  metrics: SummaryMetrics,
+  key: keyof SummaryMetrics,
+  delta: number,
+): SummaryMetrics {
+  return { ...metrics, [key]: clampMetric(metrics[key] + delta) };
+}
+
+function getCampaignStatusColor(status: string | null | undefined) {
+  switch ((status || "").toLowerCase()) {
+    case CAMPAIGN_STATUS.SENDING:
+    case CAMPAIGN_STATUS.QUEUED:
+    case CAMPAIGN_STATUS.PARTIALLY_QUEUED:
+      return "primary" as const;
+    case CAMPAIGN_STATUS.SENT:
+      return "success" as const;
+    case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
+    case CAMPAIGN_STATUS.PAUSED:
+      return "warning" as const;
+    case CAMPAIGN_STATUS.FAILED:
+      return "danger" as const;
+    default:
+      return "neutral" as const;
+  }
+}
+
+function isActiveSendStatus(status: string | null | undefined) {
+  return [CAMPAIGN_STATUS.QUEUED, CAMPAIGN_STATUS.PARTIALLY_QUEUED, CAMPAIGN_STATUS.SENDING].includes(
+    (status || "") as typeof CAMPAIGN_STATUS[keyof typeof CAMPAIGN_STATUS],
   );
 }
 
 export default function CRMCampaignRecipientsPage() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const navigate = useNavigate();
-  const { tenant } = useTenant();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const filterState = buildRecipientFilterState(searchParams);
-  const [searchInput, setSearchInput] = React.useState(filterState.searchQuery);
-  const debouncedSearch = useDebounce(searchInput, 300);
-  const [rowOverrides, setRowOverrides] = React.useState<
-    Record<string, RowRealtimeOverride>
-  >({});
-  const [highlightedRecipients, setHighlightedRecipients] = React.useState<
-    Record<string, boolean>
-  >({});
-  const [selectedRecipientIds, setSelectedRecipientIds] = React.useState<
-    string[]
-  >([]);
-  const [allMatchingSelected, setAllMatchingSelected] = React.useState(false);
-  const [clearSelectionDialogOpen, setClearSelectionDialogOpen] =
-    React.useState(false);
-  const [pendingParamUpdates, setPendingParamUpdates] = React.useState<Record<
-    string,
-    string | null
-  > | null>(null);
-  const [tagDialogOpen, setTagDialogOpen] = React.useState(false);
-  const [segmentDialogOpen, setSegmentDialogOpen] = React.useState(false);
-  const [tagName, setTagName] = React.useState("");
-  const [selectedSegmentId, setSelectedSegmentId] = React.useState<
-    string | null
-  >(null);
+
+  const filters = React.useMemo(() => buildRecipientFilterState(searchParams), [searchParams]);
+  const [searchInput, setSearchInput] = React.useState(filters.searchQuery);
+  const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+  const page = Math.max(1, Number.parseInt(searchParams.get("page") || "1", 10) || 1);
+  const sortColumn = (searchParams.get("sort") as RecipientSortColumn | null) || "event_time";
+  const sortDirection = (searchParams.get("dir") as RecipientSortDirection | null) || "desc";
+  const activeFilter = getActiveStatusFilter(filters.deliveryFilter, filters.selectedEvents);
+  const eventQueryValue = serializeEventQueryValue(filters.compositeFilter, filters.selectedEvents);
+
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [rowPatches, setRowPatches] = React.useState<Record<string, Partial<RecipientRow>>>({});
+  const [liveRowsById, setLiveRowsById] = React.useState<Record<string, RecipientRow>>({});
+  const [highlightedRows, setHighlightedRows] = React.useState<Record<string, number>>({});
+  const [connectionState, setConnectionState] = React.useState<ConnectionState>("connecting");
+  const [summaryMetrics, setSummaryMetrics] = React.useState<SummaryMetrics>({
+    total: 0,
+    sent: 0,
+    delivered: 0,
+    opened: 0,
+    bounced: 0,
+    failed: 0,
+  });
   const [isExporting, setIsExporting] = React.useState(false);
-  const [isBulkActing, setIsBulkActing] = React.useState(false);
-  const [retryingRecipientId, setRetryingRecipientId] = React.useState<
-    string | null
-  >(null);
-  const [suppressingRecipientId, setSuppressingRecipientId] = React.useState<
-    string | null
-  >(null);
-  const [pendingRealtimeCount, setPendingRealtimeCount] = React.useState(0);
-  const highlightTimersRef = React.useRef<Record<string, number>>({});
-  const tableBodyRef = React.useRef<HTMLTableSectionElement | null>(null);
+  const [isRetryingSelected, setIsRetryingSelected] = React.useState(false);
 
-  const page = Math.max(Number(searchParams.get("page") ?? "1") || 1, 1);
-  const pageSize = PAGE_SIZE_OPTIONS.includes(
-    Number(searchParams.get("pageSize")),
-  )
-    ? Number(searchParams.get("pageSize"))
-    : 25;
-  const searchQuery = filterState.searchQuery;
-  const compositeFilter = filterState.compositeFilter;
-  const selectedEvents = filterState.selectedEvents;
-  const timeRange = filterState.timeRange;
-  const deliveryFilter = filterState.deliveryFilter;
-  const sortColumn =
-    (searchParams.get("sort") as SortColumn | null) ?? DEFAULT_SORT_COLUMN;
-  const sortDirection =
-    (searchParams.get("direction") as SortDirection | null) ??
-    DEFAULT_SORT_DIRECTION;
-  const selectionScope = buildRecipientSelectionScope(filterState);
-  const detailSearch = searchParams.toString();
-  const detailSearchSuffix = detailSearch ? `?${detailSearch}` : "";
-  const focusStorageKey = campaignId
-    ? `crm-campaign-recipient-focus:${campaignId}`
-    : null;
-
-  const updateParams = React.useCallback(
-    (updates: Record<string, string | null>) => {
-      setSearchParams((current) => {
-        const next = new URLSearchParams(current);
-        Object.entries(updates).forEach(([key, value]) => {
-          if (value === null || value === "") {
-            next.delete(key);
-          } else {
-            next.set(key, value);
-          }
-        });
-        if (Object.prototype.hasOwnProperty.call(updates, "q"))
-          next.delete("search");
-        if (Object.prototype.hasOwnProperty.call(updates, "event"))
-          next.delete("filter");
-        return next;
-      });
-    },
-    [setSearchParams],
-  );
-
-  const clearSelection = React.useCallback(() => {
-    setSelectedRecipientIds([]);
-    setAllMatchingSelected(false);
-  }, []);
-
-  const requestParamUpdate = React.useCallback(
-    (updates: Record<string, string | null>) => {
-      const hasSelection =
-        allMatchingSelected || selectedRecipientIds.length > 0;
-      const affectsSelection = [
-        "q",
-        "event",
-        "time",
-        "delivery",
-        "sort",
-        "direction",
-      ].some((key) => Object.prototype.hasOwnProperty.call(updates, key));
-
-      if (hasSelection && affectsSelection) {
-        setPendingParamUpdates(updates);
-        setClearSelectionDialogOpen(true);
-        return;
-      }
-
-      updateParams(updates);
-    },
-    [allMatchingSelected, selectedRecipientIds.length, updateParams],
-  );
+  const rowsRef = React.useRef<RecipientRow[]>([]);
+  const messageStatusByIdRef = React.useRef<Map<string, string>>(new Map());
+  const metricEventKeysRef = React.useRef<Set<string>>(new Set());
+  const pollWhenDisconnected = connectionState === "reconnecting";
 
   React.useEffect(() => {
-    setSearchInput(searchQuery);
-  }, [searchQuery]);
+    setSearchInput(filters.searchQuery);
+  }, [filters.searchQuery]);
 
   React.useEffect(() => {
-    if (debouncedSearch === searchQuery) return;
-    requestParamUpdate({ q: debouncedSearch || null, page: "1" });
-  }, [debouncedSearch, requestParamUpdate, searchQuery]);
+    if (debouncedSearch === filters.searchQuery) return;
+    const nextParams = new URLSearchParams(searchParams);
+    if (debouncedSearch.trim()) nextParams.set("q", debouncedSearch.trim());
+    else nextParams.delete("q");
+    nextParams.set("page", "1");
+    setSearchParams(nextParams, { replace: true });
+  }, [debouncedSearch, filters.searchQuery, searchParams, setSearchParams]);
 
   React.useEffect(() => {
-    clearSelection();
-  }, [clearSelection, selectionScope]);
-
-  React.useEffect(() => {
-    return () => {
-      Object.values(highlightTimersRef.current).forEach((timer) =>
-        window.clearTimeout(timer),
-      );
-    };
-  }, []);
-
-  const buildRecipientDetailPath = React.useCallback(
-    (recipientId: string) =>
-      `/dashboard/campaigns/${campaignId}/recipients/${recipientId}${detailSearchSuffix}`,
-    [campaignId, detailSearchSuffix],
-  );
-
-  const rememberRecipientFocus = React.useCallback(
-    (recipientId: string) => {
-      if (!focusStorageKey) return;
-      window.sessionStorage.setItem(focusStorageKey, recipientId);
-    },
-    [focusStorageKey],
-  );
+    setSelectedIds(new Set());
+  }, [campaignId, filters.searchQuery, filters.deliveryFilter, eventQueryValue, page]);
 
   const recipientsQuery = useQuery({
     queryKey: [
-      "campaign-recipients-page",
+      "campaign-recipients-live-page",
       campaignId,
       page,
-      pageSize,
-      searchQuery,
-      compositeFilter,
-      selectedEvents,
-      timeRange,
-      deliveryFilter,
+      filters.searchQuery,
+      filters.compositeFilter,
+      eventQueryValue,
+      filters.timeRange,
+      filters.deliveryFilter,
       sortColumn,
       sortDirection,
     ],
     enabled: Boolean(campaignId),
-    placeholderData: (previousData) => previousData,
+    refetchInterval: pollWhenDisconnected ? 10_000 : false,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "get_campaign_recipients_page" as any,
-        {
-          p_campaign_id: campaignId,
-          p_page: page,
-          p_page_size: pageSize,
-          p_search: searchQuery || null,
-          p_event_filter: compositeFilter,
-          p_sort_column: sortColumn,
-          p_sort_direction: sortDirection,
-          p_event_filters: selectedEvents.length ? selectedEvents : null,
-          p_time_range: timeRange,
-          p_delivery_filter: deliveryFilter,
-        } as any,
-      );
+      const { data, error } = await supabase.rpc("get_campaign_recipients_page" as any, {
+        p_campaign_id: campaignId,
+        p_page: page,
+        p_page_size: PAGE_SIZE,
+        p_search: filters.searchQuery || null,
+        p_event_filter: filters.compositeFilter,
+        p_sort_column: sortColumn,
+        p_sort_direction: sortDirection,
+        p_event_filters: filters.selectedEvents.length ? filters.selectedEvents : null,
+        p_time_range: filters.timeRange,
+        p_delivery_filter: filters.deliveryFilter,
+      } as any);
 
       if (error) throw error;
-      return (data ?? null) as CampaignRecipientsResponse | null;
+      return data as CampaignRecipientsResponse;
     },
   });
 
-  const campaign = recipientsQuery.data?.campaign ?? null;
-  const rows = recipientsQuery.data?.rows ?? [];
+  const campaignProgressQuery = useQuery({
+    queryKey: ["campaign-recipients-progress", campaignId],
+    enabled: Boolean(campaignId),
+    refetchInterval: pollWhenDisconnected ? 10_000 : false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_campaigns")
+        .select(
+          "id, tenant_id, status, total_recipients, messages_sent, messages_failed, messages_skipped, queue_started_at, queue_completed_at, send_started_at, send_completed_at, worker_heartbeat_at, estimated_completion_at, stall_count, metrics",
+        )
+        .eq("id", campaignId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as CampaignProgressRow | null;
+    },
+  });
+
+  const baseRows = recipientsQuery.data?.rows ?? [];
   const pagination = recipientsQuery.data?.pagination ?? {
     page,
-    page_size: pageSize,
+    page_size: PAGE_SIZE,
     total_count: 0,
     total_pages: 0,
   };
+  const campaign = recipientsQuery.data?.campaign ?? null;
+  const progress = campaignProgressQuery.data ?? null;
+  const campaignStatus = progress?.status ?? campaign?.status ?? null;
+  const campaignName = normalizeCampaignNameForDisplay(campaign?.name);
 
-  const visibleEmails = React.useMemo(
-    () =>
-      Array.from(
-        new Set(rows.map((row) => row.customer_email).filter(Boolean)),
-      ),
-    [rows],
-  );
-
-  const recipientEventTimestampsQuery = useQuery({
-    queryKey: [
-      "campaign-recipient-event-timestamps",
-      campaignId,
-      visibleEmails,
-    ],
-    enabled: Boolean(campaignId) && visibleEmails.length > 0,
-    queryFn: async (): Promise<RecipientEventTimestamps> => {
-      const { data, error } = await supabase
-        .from("email_tracking_events")
-        .select("customer_email, event_type, created_at")
-        .eq("campaign_id", campaignId)
-        .in("customer_email", visibleEmails)
-        .in("event_type", ["open", "opened", "click", "clicked"]);
-
-      if (error) throw error;
-
-      const timestamps: RecipientEventTimestamps = {};
-      for (const event of data ?? []) {
-        const key = toRecipientKey(event.customer_email);
-        if (!key) continue;
-        const current = timestamps[key] ?? { openedAt: null, clickedAt: null };
-        if (
-          ["open", "opened"].includes(event.event_type) &&
-          isEventNewer(current.openedAt, event.created_at)
-        ) {
-          current.openedAt = event.created_at;
-        }
-        if (
-          ["click", "clicked"].includes(event.event_type) &&
-          isEventNewer(current.clickedAt, event.created_at)
-        ) {
-          current.clickedAt = event.created_at;
-        }
-        timestamps[key] = current;
-      }
-      return timestamps;
-    },
-  });
-
-  const rowsWithRealtime = React.useMemo(
-    () =>
-      rows.map((row) => {
-        const override = rowOverrides[toRecipientKey(row.customer_email)];
-        if (!override) return row;
-        if (!isEventNewer(row.latest_event_at, override.latest_event_at))
-          return row;
-        return {
-          ...row,
-          latest_event: override.latest_event,
-          latest_event_at: override.latest_event_at,
-        };
-      }),
-    [rowOverrides, rows],
-  );
-
-  const selectedRecipientSet = React.useMemo(
-    () => new Set(selectedRecipientIds),
-    [selectedRecipientIds],
-  );
-  const visibleRecipientIds = React.useMemo(
-    () => rowsWithRealtime.map((row) => row.recipient_id),
-    [rowsWithRealtime],
-  );
-  const allVisibleSelected =
-    visibleRecipientIds.length > 0 &&
-    (allMatchingSelected ||
-      visibleRecipientIds.every((recipientId) =>
-        selectedRecipientSet.has(recipientId),
-      ));
-  const someVisibleSelected =
-    !allVisibleSelected &&
-    visibleRecipientIds.some((recipientId) =>
-      selectedRecipientSet.has(recipientId),
+  const rows = React.useMemo(() => {
+    const baseIds = new Set(baseRows.map((row) => row.recipient_id));
+    const merged = baseRows.map((row) => ({ ...row, ...(rowPatches[row.recipient_id] || {}) }));
+    const liveRows = Object.values(liveRowsById).filter(
+      (row) => !baseIds.has(row.recipient_id) && shouldShowLiveInsertedRow(row, page, filters.searchQuery, activeFilter),
     );
-  const selectedCount = allMatchingSelected
-    ? pagination.total_count
-    : selectedRecipientIds.length;
-  const engagementFilterValue = getEngagementFilterValue(
-    compositeFilter,
-    selectedEvents,
-  );
-  const sortValue = getSortValue(sortColumn, sortDirection);
-  const canShowRecipients = ["sent", "sending", "sent_with_errors"].includes(
-    campaign?.status ?? "",
-  );
-
-  const segmentsQuery = useQuery({
-    queryKey: ["crm-recipient-bulk-segments", tenant?.id],
-    enabled: Boolean(tenant?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_segments")
-        .select("id, name")
-        .eq("tenant_id", tenant?.id)
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as CRMSegmentOption[];
-    },
-  });
-
-  const tagsQuery = useQuery({
-    queryKey: ["crm-recipient-bulk-tags", tenant?.id],
-    enabled: Boolean(tenant?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_tags")
-        .select("id, name")
-        .eq("tenant_id", tenant?.id)
-        .order("name", { ascending: true })
-        .limit(30);
-      if (error) throw error;
-      return (data ?? []) as CRMTagOption[];
-    },
-  });
+    return [...liveRows, ...merged].slice(0, PAGE_SIZE);
+  }, [activeFilter, baseRows, filters.searchQuery, liveRowsById, page, rowPatches]);
 
   React.useEffect(() => {
-    if (!focusStorageKey || rowsWithRealtime.length === 0) return;
-    const recipientId = window.sessionStorage.getItem(focusStorageKey);
-    if (!recipientId) return;
-    const rowElement = tableBodyRef.current?.querySelector<HTMLElement>(
-      `[data-recipient-id="${recipientId}"]`,
-    );
-    if (rowElement) {
-      rowElement.focus();
-      window.sessionStorage.removeItem(focusStorageKey);
-    }
-  }, [focusStorageKey, rowsWithRealtime]);
+    rowsRef.current = rows;
+    rows.forEach((row) => {
+      if (row.send_status) messageStatusByIdRef.current.set(row.recipient_id, row.send_status);
+      const recipientKey = toRecipientKey(row.customer_email);
+      (row.all_events || []).forEach((event) => {
+        const normalized = normalizeTrackingEventType(event);
+        metricEventKeysRef.current.add(`${normalized}:${recipientKey}`);
+      });
+    });
+  }, [rows]);
 
-  const handleRealtimeEvent = React.useCallback(
-    (event: EmailTrackingEventRow, options: { animate: boolean }) => {
+  React.useEffect(() => {
+    setSummaryMetrics(buildSummaryMetrics(campaign, progress, pagination.total_count));
+  }, [campaign, pagination.total_count, progress]);
+
+  const markRowHighlighted = React.useCallback((recipientId: string) => {
+    setHighlightedRows((current) => ({ ...current, [recipientId]: Date.now() }));
+    window.setTimeout(() => {
+      setHighlightedRows((current) => {
+        const next = { ...current };
+        delete next[recipientId];
+        return next;
+      });
+    }, 2400);
+  }, []);
+
+  const updateVisibleRowFromEvent = React.useCallback(
+    (event: EmailTrackingEventRow) => {
+      if (!eventIsRelevantToStatus(event.event_type)) return;
       const recipientKey = toRecipientKey(event.customer_email);
-      const latestEvent = normalizeTrackingEventType(event.event_type);
-      const latestEventAt = getTrackingEventTimestamp(event);
-      if (!recipientKey || latestEvent === "unknown") return;
+      if (!recipientKey) return;
 
-      setRowOverrides((current) => {
-        const existing = current[recipientKey];
-        if (existing && !isEventNewer(existing.latest_event_at, latestEventAt))
-          return current;
-        return {
-          ...current,
-          [recipientKey]: {
-            latest_event: latestEvent,
-            latest_event_at: latestEventAt,
-          },
-        };
+      const normalizedEvent = normalizeTrackingEventType(event.event_type);
+      const eventAt = getTrackingEventTimestamp(event);
+      const visibleRow = rowsRef.current.find((row) => toRecipientKey(row.customer_email) === recipientKey);
+
+      if (visibleRow) {
+        setRowPatches((current) => {
+          const previous = current[visibleRow.recipient_id] || {};
+          const allEvents = Array.from(new Set([...(visibleRow.all_events || []), ...(previous.all_events || []), normalizedEvent]));
+          return {
+            ...current,
+            [visibleRow.recipient_id]: {
+              ...previous,
+              latest_event: normalizedEvent,
+              latest_event_at: eventAt,
+              delivery_status: eventToDeliveryStatus(event.event_type, previous.delivery_status ?? visibleRow.delivery_status),
+              sent_at: visibleRow.sent_at || event.sent_at || previous.sent_at || null,
+              all_events: allEvents,
+            },
+          };
+        });
+        markRowHighlighted(visibleRow.recipient_id);
+      }
+
+      const metricKey = `${normalizedEvent}:${recipientKey}`;
+      if (metricEventKeysRef.current.has(metricKey)) return;
+      metricEventKeysRef.current.add(metricKey);
+
+      setSummaryMetrics((current) => {
+        if (normalizedEvent === "delivered") return mutateMetric(current, "delivered", 1);
+        if (normalizedEvent === "opened") return mutateMetric(current, "opened", 1);
+        if (normalizedEvent === "bounced") return mutateMetric(current, "bounced", 1);
+        return current;
       });
+    },
+    [markRowHighlighted],
+  );
 
-      if (options.animate) {
-        setPendingRealtimeCount((current) => current + 1);
-        window.clearTimeout(highlightTimersRef.current[recipientKey]);
-        setHighlightedRecipients((current) => ({
+  const updateRowFromMessage = React.useCallback(
+    (message: EmailMessageRow) => {
+      const previousStatus = messageStatusByIdRef.current.get(message.id);
+      messageStatusByIdRef.current.set(message.id, message.status);
+
+      const visibleRow = rowsRef.current.find((row) => row.recipient_id === message.id);
+      const nextPatch: Partial<RecipientRow> = {
+        send_status: message.status,
+        sent_at: message.sent_at,
+        latest_event: message.status === "failed" ? "failed" : message.status,
+        latest_event_at: message.sent_at || message.last_attempt_at || message.updated_at,
+        delivery_status: message.status === "failed" ? "failed" : message.status === "queued" ? "pending" : visibleRow?.delivery_status || "sent",
+      };
+
+      if (visibleRow) {
+        setRowPatches((current) => ({
           ...current,
-          [recipientKey]: true,
+          [message.id]: {
+            ...(current[message.id] || {}),
+            ...nextPatch,
+          },
         }));
-        highlightTimersRef.current[recipientKey] = window.setTimeout(() => {
-          setHighlightedRecipients((current) => {
-            const next = { ...current };
-            delete next[recipientKey];
-            return next;
-          });
-          delete highlightTimersRef.current[recipientKey];
-        }, 900);
-      }
-    },
-    [],
-  );
-
-  const realtime = useCampaignEventRealtime({
-    campaignId,
-    tenantId: tenant?.id,
-    enabled: Boolean(campaignId && tenant?.id),
-    channelName: `campaign-recipient-events-${campaignId}`,
-    onEvent: handleRealtimeEvent,
-  });
-
-  const resolveRecipientRows = React.useCallback(
-    async (recipientIds?: string[] | null) => {
-      const { data, error } = await supabase.rpc(
-        "get_campaign_recipient_matches" as any,
-        {
-          p_campaign_id: campaignId,
-          p_search: searchQuery || null,
-          p_event_filters: selectedEvents.length ? selectedEvents : null,
-          p_event_filter: compositeFilter,
-          p_time_range: timeRange,
-          p_delivery_filter: deliveryFilter,
-          p_recipient_ids: recipientIds?.length ? recipientIds : null,
-        } as any,
-      );
-      if (error) throw error;
-      return (data ?? []) as RecipientRow[];
-    },
-    [
-      campaignId,
-      compositeFilter,
-      deliveryFilter,
-      searchQuery,
-      selectedEvents,
-      timeRange,
-    ],
-  );
-
-  const handleRefresh = React.useCallback(async () => {
-    setPendingRealtimeCount(0);
-    await recipientsQuery.refetch();
-    await recipientEventTimestampsQuery.refetch();
-  }, [recipientEventTimestampsQuery, recipientsQuery]);
-
-  const toggleVisibleSelection = React.useCallback(
-    (checked: boolean) => {
-      if (!checked) {
-        clearSelection();
-        return;
-      }
-      setAllMatchingSelected(false);
-      setSelectedRecipientIds((current) => {
-        const next = new Set(current);
-        visibleRecipientIds.forEach((recipientId) => next.add(recipientId));
-        return Array.from(next);
-      });
-    },
-    [clearSelection, visibleRecipientIds],
-  );
-
-  const toggleRowSelection = React.useCallback(
-    (recipientId: string, checked: boolean) => {
-      if (allMatchingSelected && !checked) {
-        setAllMatchingSelected(false);
-        setSelectedRecipientIds(
-          visibleRecipientIds.filter((candidate) => candidate !== recipientId),
-        );
-        return;
-      }
-      setSelectedRecipientIds((current) => {
-        const next = new Set(current);
-        if (checked) next.add(recipientId);
-        else next.delete(recipientId);
-        return Array.from(next);
-      });
-    },
-    [allMatchingSelected, visibleRecipientIds],
-  );
-
-  const handleCopyViewLink = React.useCallback(async () => {
-    await navigator.clipboard.writeText(
-      buildAbsoluteLocationPath(
-        `${window.location.pathname}${window.location.search}`,
-      ),
-    );
-    toast.success("Filtered recipients link copied");
-  }, []);
-
-  const handleCopyEmail = React.useCallback(async (email: string) => {
-    await navigator.clipboard.writeText(email);
-    toast.success("Email address copied");
-  }, []);
-
-  const handleCopySelection = React.useCallback(async () => {
-    try {
-      const rowsToCopy = allMatchingSelected
-        ? await resolveRecipientRows(null)
-        : await resolveRecipientRows(selectedRecipientIds);
-      const emails = Array.from(
-        new Set(rowsToCopy.map((row) => row.customer_email).filter(Boolean)),
-      );
-      if (emails.length === 0) {
-        toast.error("No email addresses found for this selection");
-        return;
-      }
-      await navigator.clipboard.writeText(emails.join(", "));
-      toast.success(`${emails.length.toLocaleString()} emails copied`);
-    } catch (error) {
-      console.error("Failed to copy selected emails", error);
-      toast.error("Unable to copy selected email addresses");
-    }
-  }, [allMatchingSelected, resolveRecipientRows, selectedRecipientIds]);
-
-  const handleExportSelected = React.useCallback(async () => {
-    if (!campaignId) return;
-    try {
-      setIsExporting(true);
-      if (allMatchingSelected) {
-        const { data, error } = await supabase.functions.invoke(
-          "campaign-recipient-export",
-          {
-            body: {
-              campaignId,
-              search: searchQuery || null,
-              eventFilter: compositeFilter,
-              eventFilters: selectedEvents.length ? selectedEvents : null,
-              timeRange,
-              deliveryFilter,
-            },
-          },
-        );
-        if (error) throw error;
-        downloadTextFile(
-          data.csvContent,
-          data.fileName,
-          "text/csv;charset=utf-8",
-        );
+        markRowHighlighted(message.id);
       } else {
-        const resolvedRows = await resolveRecipientRows(selectedRecipientIds);
-        const csv = buildRecipientCsv(
-          resolvedRows.map((row) => recipientToExportRow(row)),
-          campaign?.tenant_timezone,
-        );
-        const fileName = `${sanitizeFileNamePart(campaign?.name || "campaign")}-recipients-selected-${formatDateStamp()}.csv`;
-        downloadTextFile(csv, fileName, "text/csv;charset=utf-8");
+        const liveRow = createRowFromMessage(message);
+        if (shouldShowLiveInsertedRow(liveRow, page, filters.searchQuery, activeFilter)) {
+          setLiveRowsById((current) => ({ ...current, [message.id]: liveRow }));
+          markRowHighlighted(message.id);
+        }
       }
-      toast.success("Recipient export ready");
-    } catch (error) {
-      console.error("Failed to export recipients", error);
-      toast.error("Unable to export selected recipients");
-    } finally {
-      setIsExporting(false);
-    }
-  }, [
-    allMatchingSelected,
-    campaign?.name,
-    campaign?.tenant_timezone,
-    campaignId,
-    compositeFilter,
-    deliveryFilter,
-    resolveRecipientRows,
-    searchQuery,
-    selectedEvents,
-    selectedRecipientIds,
-    timeRange,
-  ]);
 
-  const handleExportAll = React.useCallback(async () => {
+      if (previousStatus === message.status) return;
+      setSummaryMetrics((current) => {
+        if (message.status === "sent") return mutateMetric(current, "sent", 1);
+        if (message.status === "failed") return mutateMetric(current, "failed", 1);
+        return current;
+      });
+    },
+    [activeFilter, filters.searchQuery, markRowHighlighted, page],
+  );
+
+  React.useEffect(() => {
     if (!campaignId) return;
+
+    const channel = supabase
+      .channel(`campaign-recipients-live:${campaignId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "email_tracking_events",
+          filter: `campaign_id=eq.${campaignId}`,
+        },
+        (payload) => {
+          const event = payload.new as EmailTrackingEventRow;
+          const tenantId = campaignProgressQuery.data?.tenant_id;
+          if (tenantId && event.tenant_id && event.tenant_id !== tenantId) return;
+          updateVisibleRowFromEvent(event);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "email_messages",
+          filter: `campaign_id=eq.${campaignId}`,
+        },
+        (payload) => {
+          const message = payload.new as EmailMessageRow;
+          const tenantId = campaignProgressQuery.data?.tenant_id;
+          if (tenantId && message.tenant_id && message.tenant_id !== tenantId) return;
+          updateRowFromMessage(message);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "crm_campaigns",
+          filter: `id=eq.${campaignId}`,
+        },
+        (payload) => {
+          queryClient.setQueryData(["campaign-recipients-progress", campaignId], payload.new as CampaignProgressRow);
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setConnectionState("live");
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          setConnectionState("reconnecting");
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [campaignId, campaignProgressQuery.data?.tenant_id, queryClient, updateRowFromMessage, updateVisibleRowFromEvent]);
+
+  const selectedRows = React.useMemo(
+    () => rows.filter((row) => selectedIds.has(row.recipient_id)),
+    [rows, selectedIds],
+  );
+  const retryableSelection = selectedRows.filter(isRetryableRow);
+  const canRetrySelected = selectedRows.length > 0 && retryableSelection.length === selectedRows.length;
+  const allVisibleSelected = rows.length > 0 && rows.every((row) => selectedIds.has(row.recipient_id));
+  const someVisibleSelected = rows.some((row) => selectedIds.has(row.recipient_id));
+  const progressTotal = Math.max(summaryMetrics.total, 0);
+  const progressValue = progressTotal > 0 ? Math.min(100, (summaryMetrics.sent / progressTotal) * 100) : 0;
+  const isSending = campaignStatus === CAMPAIGN_STATUS.SENDING;
+  const isActive = isActiveSendStatus(campaignStatus);
+
+  const updateParams = React.useCallback(
+    (mutator: (params: URLSearchParams) => void) => {
+      const nextParams = new URLSearchParams(searchParams);
+      mutator(nextParams);
+      setSearchParams(nextParams, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleFilterChange = (filter: StatusFilter) => {
+    const params = getFilterParams(filter);
+    updateParams((nextParams) => {
+      nextParams.set("page", "1");
+      nextParams.delete("filter");
+      if (params.event) nextParams.set("event", params.event);
+      else nextParams.delete("event");
+      if (params.delivery !== "all") nextParams.set("delivery", params.delivery);
+      else nextParams.delete("delivery");
+    });
+  };
+
+  const handleSort = (column: RecipientSortColumn) => {
+    updateParams((nextParams) => {
+      const currentColumn = (nextParams.get("sort") as RecipientSortColumn | null) || "event_time";
+      const currentDirection = (nextParams.get("dir") as RecipientSortDirection | null) || "desc";
+      const nextDirection = currentColumn === column && currentDirection === "desc" ? "asc" : "desc";
+      nextParams.set("sort", column);
+      nextParams.set("dir", nextDirection);
+      nextParams.set("page", "1");
+    });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    updateParams((nextParams) => {
+      nextParams.set("page", String(nextPage));
+    });
+  };
+
+  const toggleRowSelection = (recipientId: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(recipientId)) next.delete(recipientId);
+      else next.add(recipientId);
+      return next;
+    });
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) rows.forEach((row) => next.delete(row.recipient_id));
+      else rows.forEach((row) => next.add(row.recipient_id));
+      return next;
+    });
+  };
+
+  const buildDetailPath = (recipientId: string) => {
+    const params = new URLSearchParams(searchParams);
+    return `/crm/campaigns/${campaignId}/recipients/${recipientId}${params.toString() ? `?${params.toString()}` : ""}`;
+  };
+
+  const handleExport = async (recipientIds: string[]) => {
+    if (!campaignId || recipientIds.length === 0) return;
     try {
       setIsExporting(true);
-      const { data, error } = await supabase.functions.invoke(
-        "campaign-recipient-export",
-        {
-          body: {
-            campaignId,
-            search: searchQuery || null,
-            eventFilter: compositeFilter,
-            eventFilters: selectedEvents.length ? selectedEvents : null,
-            timeRange,
-            deliveryFilter,
-          },
+      const { data, error } = await supabase.functions.invoke("campaign-recipient-export", {
+        body: {
+          campaignId,
+          recipientIds,
+          search: filters.searchQuery || null,
+          eventFilter: filters.compositeFilter,
+          eventFilters: filters.selectedEvents.length ? filters.selectedEvents : null,
+          timeRange: filters.timeRange,
+          deliveryFilter: filters.deliveryFilter,
         },
-      );
+      });
+
       if (error) throw error;
-      downloadTextFile(
-        data.csvContent,
-        data.fileName,
-        "text/csv;charset=utf-8",
-      );
-      toast.success("Recipients exported");
+      const result = data as { ok?: boolean; csvContent?: string; fileName?: string; rowCount?: number; error?: string };
+      if (!result.ok || !result.csvContent) throw new Error(result.error || "Unable to export recipients");
+      downloadTextFile(result.csvContent, result.fileName || `campaign-recipients-${campaignId}.csv`, "text/csv;charset=utf-8");
+      toast.success(`Exported ${result.rowCount ?? recipientIds.length} recipient${(result.rowCount ?? recipientIds.length) === 1 ? "" : "s"}`);
     } catch (error) {
-      console.error("Failed to export recipients", error);
-      toast.error("Unable to export recipients");
+      toast.error(getErrorMessage(error));
     } finally {
       setIsExporting(false);
     }
-  }, [
-    campaignId,
-    compositeFilter,
-    deliveryFilter,
-    searchQuery,
-    selectedEvents,
-    timeRange,
-  ]);
+  };
 
-  const runBulkAction = React.useCallback(
-    async (
-      action: "add-tag" | "add-to-segment",
-      payload: Record<string, unknown>,
-    ) => {
-      if (!campaignId) return;
-      try {
-        setIsBulkActing(true);
-        const { data, error } = await supabase.functions.invoke(
-          "campaign-recipient-bulk-actions",
-          {
-            body: {
-              action,
-              campaignId,
-              recipientIds: allMatchingSelected ? null : selectedRecipientIds,
-              search: searchQuery || null,
-              eventFilter: compositeFilter,
-              eventFilters: selectedEvents.length ? selectedEvents : null,
-              timeRange,
-              deliveryFilter,
-              ...payload,
-            },
-          },
-        );
-        if (error) throw error;
-        const processed = Number(data?.processedCount ?? 0);
-        const skipped = Number(data?.skippedCount ?? 0);
-        const suffix =
-          skipped > 0
-            ? ` ${skipped} skipped because they have no linked customer record.`
-            : "";
-        if (action === "add-tag") {
-          toast.success(
-            `Added tag to ${processed.toLocaleString()} customers.${suffix}`,
-          );
-          setTagDialogOpen(false);
-          setTagName("");
-        } else {
-          toast.success(
-            `Added ${processed.toLocaleString()} customers to the segment.${suffix}`,
-          );
-          setSegmentDialogOpen(false);
-          setSelectedSegmentId(null);
-        }
-      } catch (error) {
-        console.error("Failed to run bulk recipient action", error);
-        toast.error("Unable to complete the bulk action");
-      } finally {
-        setIsBulkActing(false);
-      }
-    },
-    [
-      allMatchingSelected,
-      campaignId,
-      compositeFilter,
-      deliveryFilter,
-      searchQuery,
-      selectedEvents,
-      selectedRecipientIds,
-      timeRange,
-    ],
-  );
+  const retryRecipientIds = async (recipientIds: string[]) => {
+    if (!campaignId || recipientIds.length === 0) return;
+    const { data, error } = await supabase.functions.invoke("campaign-recipient-bulk-actions", {
+      body: {
+        action: "retry",
+        campaignId,
+        recipientIds,
+      },
+    });
 
-  const handleRetryRecipient = React.useCallback(
-    async (row: RecipientRow) => {
-      if (!campaignId) return;
-      try {
-        setRetryingRecipientId(row.recipient_id);
-        const result = await retryCampaignRecipientMessage(
-          campaignId,
-          row.recipient_id,
-        );
-        if (result.blockedReason) {
-          toast.error(result.blockedReason);
-          return;
-        }
-        toast.success(
-          result.jobsCreated > 0 ? "Retry queued" : "Recipient retry updated",
-        );
-        await handleRefresh();
-      } catch (error) {
-        console.error("Failed to retry recipient", error);
-        toast.error(
-          error instanceof Error ? error.message : "Unable to retry recipient",
-        );
-      } finally {
-        setRetryingRecipientId(null);
-      }
-    },
-    [campaignId, handleRefresh],
-  );
+    if (error) throw error;
+    const result = data as { ok?: boolean; updatedCount?: number; skippedCount?: number; error?: string };
+    if (!result.ok) throw new Error(result.error || "Unable to retry selected recipients");
+    toast.success(`Queued ${result.updatedCount ?? recipientIds.length} retry${(result.updatedCount ?? recipientIds.length) === 1 ? "" : "s"}`);
+    void recipientsQuery.refetch();
+    void campaignProgressQuery.refetch();
+  };
 
-  const handleSuppressEmail = React.useCallback(
-    async (row: RecipientRow) => {
-      if (!tenant?.id) return;
-      try {
-        setSuppressingRecipientId(row.recipient_id);
-        const { data: existing, error: existingError } = await supabase
-          .from("suppression_list")
-          .select("id")
-          .eq("tenant_id", tenant.id)
-          .eq("email", row.customer_email)
-          .eq("channel", "email")
-          .is("lifted_at", null)
-          .maybeSingle();
-        if (existingError) throw existingError;
-        if (!existing) {
-          const { error } = await supabase.from("suppression_list").insert({
-            tenant_id: tenant.id,
-            email: row.customer_email,
-            suppression_type: "manual",
-            channel: "email",
-            reason: `Manual suppression from campaign recipients page (${campaign?.name || "campaign"})`,
-            auto_suppressed: false,
-            suppressed_at: new Date().toISOString(),
-          });
-          if (error) throw error;
-        }
-        toast.success(`${row.customer_email} suppressed`);
-      } catch (error) {
-        console.error("Failed to suppress email", error);
-        toast.error("Unable to suppress recipient email");
-      } finally {
-        setSuppressingRecipientId(null);
-      }
-    },
-    [campaign?.name, tenant?.id],
-  );
+  const handleRetrySelected = async () => {
+    if (retryableSelection.length === 0) return;
+    if (!canRetrySelected) {
+      toast.error("Only failed or bounced recipients can be retried.");
+      return;
+    }
 
-  const handleEngagementChange = React.useCallback(
-    (value: string) => {
-      switch (value as EngagementFilterValue) {
-        case "opened":
-          requestParamUpdate({
-            event: serializeEventQueryValue("all", ["opened"]),
-            page: "1",
-          });
-          return;
-        case "clicked":
-          requestParamUpdate({
-            event: serializeEventQueryValue("all", ["clicked"]),
-            page: "1",
-          });
-          return;
-        case "no_engagement":
-          requestParamUpdate({ event: "unengaged", page: "1" });
-          return;
-        case "issues":
-          requestParamUpdate({ event: "issues", page: "1" });
-          return;
-        default:
-          requestParamUpdate({ event: null, page: "1" });
-      }
-    },
-    [requestParamUpdate],
-  );
+    try {
+      setIsRetryingSelected(true);
+      await retryRecipientIds(retryableSelection.map((row) => row.recipient_id));
+      setSelectedIds(new Set());
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsRetryingSelected(false);
+    }
+  };
 
-  const handleSortChange = React.useCallback(
-    (value: string) => {
-      switch (value) {
-        case "name":
-          requestParamUpdate({
-            sort: "customer_name",
-            direction: "asc",
-            page: "1",
-          });
-          return;
-        case "oldest":
-          requestParamUpdate({
-            sort: "event_time",
-            direction: "asc",
-            page: "1",
-          });
-          return;
-        default:
-          requestParamUpdate({
-            sort: "event_time",
-            direction: "desc",
-            page: "1",
-          });
-      }
-    },
-    [requestParamUpdate],
-  );
+  const handleRetryRow = async (row: RecipientRow) => {
+    if (!isRetryableRow(row)) return;
+    try {
+      setIsRetryingSelected(true);
+      await retryRecipientIds([row.recipient_id]);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsRetryingSelected(false);
+    }
+  };
 
-  if (!campaignId) return null;
-
-  if (
-    !recipientsQuery.isLoading &&
-    (!recipientsQuery.data || recipientsQuery.data.not_found || !campaign)
-  ) {
+  if (!campaignId) {
     return (
-      <PageContainer fullWidth>
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 6 }}>
-          <Stack spacing={2} alignItems="center" textAlign="center">
-            <Avatar variant="soft" color="neutral">
-              <Mail size={18} />
-            </Avatar>
-            <Typography level="title-lg">Campaign not found</Typography>
-            <Typography level="body-sm" color="neutral">
-              This campaign does not exist or you do not have access to its
-              recipients.
-            </Typography>
-            <JoyButton component={Link} to="/crm/campaigns">
-              Back to Campaigns
-            </JoyButton>
-          </Stack>
+      <PageContainer>
+        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 4, textAlign: "center" }}>
+          <Typography level="title-md">Campaign not found</Typography>
         </Sheet>
       </PageContainer>
     );
   }
 
   return (
-    <PageContainer fullWidth>
-      <Stack spacing={2.5} sx={{ pb: 6 }}>
-        {recipientsQuery.isFetching || isExporting || isBulkActing ? (
-          <LinearProgress thickness={3} />
-        ) : null}
-
-        <Stack
-          direction={{ xs: "column", xl: "row" }}
-          justifyContent="space-between"
-          spacing={2}
-        >
-          <Stack spacing={1.25}>
-            <JoyButton
-              component={Link}
-              to={`/crm/campaigns/${campaignId}/report`}
-              bloomVariant="link"
-              color="neutral"
-            >
-              <ChevronLeft size={16} />
-              Back to report
-            </JoyButton>
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              flexWrap="wrap"
-              useFlexGap
-            >
-              <Typography level="title-lg">
-                {campaign?.name || <Skeleton width={220} />}
-              </Typography>
-              {campaign ? (
-                <JoyChip variant="soft" color="neutral">
-                  {pagination.total_count.toLocaleString()} recipients
-                </JoyChip>
-              ) : null}
-              <JoyChip
-                variant="soft"
-                color={realtime.isLive ? "success" : "neutral"}
+    <PageContainer fullWidth sx={{ pb: 4 }}>
+      <Sheet variant="plain" sx={{ minHeight: "100%" }}>
+        <Stack spacing={2.5}>
+          <Stack spacing={1.5}>
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+              <JoyButton
+                component={Link}
+                to={`/crm/campaigns/${campaignId}`}
+                bloomVariant="ghost"
+                color="neutral"
                 size="sm"
-                sx={
-                  realtime.isLive
-                    ? {
-                        "@keyframes recipientLivePulse": {
-                          "0%": { opacity: 0.72 },
-                          "50%": { opacity: 1 },
-                          "100%": { opacity: 0.72 },
-                        },
-                        animation:
-                          "recipientLivePulse 1.8s ease-in-out infinite",
-                      }
-                    : undefined
-                }
+                startDecorator={<ChevronLeft size={16} />}
               >
-                {realtime.isLive ? "Live" : "Realtime paused"}
-              </JoyChip>
-            </Stack>
-            {campaign ? (
-              <Typography level="body-sm" color="neutral">
-                Sent{" "}
-                {formatCampaignTimestamp(
-                  campaign.sent_at ?? campaign.scheduled_at,
-                  campaign.tenant_timezone,
-                )}
+                Campaign
+              </JoyButton>
+              <Typography level="title-lg" sx={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {recipientsQuery.isLoading ? <Skeleton width={260} /> : campaignName}
               </Typography>
+              <JoyChip variant="soft" color={getCampaignStatusColor(campaignStatus)}>
+                {getCampaignStatusLabel(campaignStatus || "draft")}
+              </JoyChip>
+              {isSending ? (
+                <Tooltip title="Campaign is actively sending">
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      bgcolor: "success.500",
+                      boxShadow: "0 0 0 0 rgba(46, 125, 50, 0.4)",
+                      animation: "campaign-live-pulse 1.6s ease-out infinite",
+                      "@keyframes campaign-live-pulse": {
+                        "0%": { boxShadow: "0 0 0 0 rgba(46, 125, 50, 0.4)" },
+                        "70%": { boxShadow: "0 0 0 8px rgba(46, 125, 50, 0)" },
+                        "100%": { boxShadow: "0 0 0 0 rgba(46, 125, 50, 0)" },
+                      },
+                    }}
+                  />
+                </Tooltip>
+              ) : null}
+              {connectionState !== "live" ? (
+                <Typography level="body-xs" color="neutral" sx={{ ml: "auto" }}>
+                  Reconnecting...
+                </Typography>
+              ) : null}
+            </Stack>
+
+            <Stack direction="row" spacing={2.5} useFlexGap flexWrap="wrap" sx={{ color: "neutral.600" }}>
+              <Typography level="body-sm">Total: {summaryMetrics.total.toLocaleString()}</Typography>
+              <Typography level="body-sm">Sent: {summaryMetrics.sent.toLocaleString()}</Typography>
+              <Typography level="body-sm">Delivered: {summaryMetrics.delivered.toLocaleString()}</Typography>
+              <Typography level="body-sm">Opened: {summaryMetrics.opened.toLocaleString()}</Typography>
+              <Typography level="body-sm">Bounced: {summaryMetrics.bounced.toLocaleString()}</Typography>
+              <Typography level="body-sm">Failed: {summaryMetrics.failed.toLocaleString()}</Typography>
+            </Stack>
+
+            {isActive && progressTotal > 0 ? (
+              <Stack spacing={0.75}>
+                <LinearProgress determinate value={progressValue} thickness={4} />
+                <Typography level="body-xs" color="neutral">
+                  {summaryMetrics.sent.toLocaleString()} of {progressTotal.toLocaleString()} messages accepted by the send pipeline
+                </Typography>
+              </Stack>
             ) : null}
           </Stack>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
-            <JoyButton
-              onClick={() => void handleExportAll()}
-              disabled={isExporting}
-            >
-              <Download size={16} />
-              Export CSV
-            </JoyButton>
-            <JoyDropdownMenu>
-              <JoyDropdownMenuTrigger variant="plain" color="neutral">
-                <MoreHorizontal size={18} />
-              </JoyDropdownMenuTrigger>
-              <JoyDropdownMenuContent>
-                <JoyDropdownMenuItem
-                  startDecorator={<RefreshCw size={16} />}
-                  onClick={() => void handleRefresh()}
-                >
-                  Refresh data
-                </JoyDropdownMenuItem>
-                <JoyDropdownMenuItem
-                  startDecorator={<LinkIcon size={16} />}
-                  onClick={() => void handleCopyViewLink()}
-                >
-                  Copy filtered view link
-                </JoyDropdownMenuItem>
-              </JoyDropdownMenuContent>
-            </JoyDropdownMenu>
-          </Stack>
-        </Stack>
-
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2 }}>
-          <Stack
-            direction={{ xs: "column", lg: "row" }}
-            spacing={1.25}
-            useFlexGap
-          >
-            <JoyDebouncedInput
-              value={searchInput}
-              onValueChange={setSearchInput}
-              onDebouncedChange={(value) =>
-                requestParamUpdate({ q: value || null, page: "1" })
-              }
-              placeholder="Search name or email"
-              startDecorator={<Search size={16} />}
-              sx={{ minWidth: { xs: "100%", lg: 280 }, flex: 1 }}
-            />
-            <JoySelect
-              value={deliveryFilter}
-              onValueChange={(value) =>
-                requestParamUpdate({
-                  delivery: value === "all" ? null : value,
-                  page: "1",
-                })
-              }
-              options={[
-                { value: "all", label: "All statuses" },
-                { value: "delivered", label: "Delivered" },
-                { value: "bounced", label: "Bounced" },
-                { value: "failed", label: "Failed" },
-                { value: "pending", label: "Pending" },
-              ]}
-              sx={{ minWidth: 160 }}
-            />
-            <JoySelect
-              value={engagementFilterValue}
-              onValueChange={handleEngagementChange}
-              options={[
-                { value: "all", label: "All engagement" },
-                { value: "opened", label: "Opened" },
-                { value: "clicked", label: "Clicked" },
-                { value: "no_engagement", label: "No engagement" },
-                { value: "issues", label: "Issues" },
-              ]}
-              sx={{ minWidth: 170 }}
-            />
-            <JoySelect
-              value={timeRange}
-              onValueChange={(value) =>
-                requestParamUpdate({
-                  time: value === "all" ? null : value,
-                  page: "1",
-                })
-              }
-              options={[
-                { value: "all", label: "All time" },
-                { value: "1h", label: "Last hour" },
-                { value: "24h", label: "Last 24 hours" },
-                { value: "7d", label: "Last 7 days" },
-              ]}
-              sx={{ minWidth: 150 }}
-            />
-            <JoySelect
-              value={sortValue}
-              onValueChange={handleSortChange}
-              options={[
-                { value: "newest", label: "Newest" },
-                { value: "oldest", label: "Oldest" },
-                { value: "name", label: "Name" },
-              ]}
-              sx={{ minWidth: 130 }}
-            />
-          </Stack>
-        </Sheet>
-
-        {pendingRealtimeCount > 0 ? (
-          <Sheet
-            variant="soft"
-            color="info"
-            onClick={() => void handleRefresh()}
-            sx={{
-              borderRadius: "md",
-              px: 1.5,
-              py: 1,
-              cursor: "pointer",
-              alignSelf: "flex-start",
-            }}
-          >
-            <Typography level="body-sm" fontWeight="md">
-              {pendingRealtimeCount.toLocaleString()} new event
-              {pendingRealtimeCount === 1 ? "" : "s"} - refresh view
-            </Typography>
-          </Sheet>
-        ) : null}
-
-        <Sheet
-          variant="outlined"
-          sx={{ borderRadius: "lg", overflow: "hidden" }}
-        >
-          {recipientsQuery.isLoading ? (
-            <TableSkeleton />
-          ) : !canShowRecipients || rowsWithRealtime.length === 0 ? (
-            <Stack spacing={1.5} alignItems="center" sx={{ px: 4, py: 8 }}>
-              <Avatar variant="soft" color="neutral">
-                <Mail size={18} />
-              </Avatar>
-              <Typography level="title-md">No recipients yet</Typography>
-              <Typography level="body-sm" color="neutral" textAlign="center">
-                {campaign?.status === "draft" ||
-                campaign?.status === "scheduled"
-                  ? "Recipients will appear here after the campaign is sent."
-                  : "No recipients matched the current filters."}
-              </Typography>
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 1.5 }}>
+            <Stack direction={{ xs: "column", lg: "row" }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: "stretch", lg: "center" }}>
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                {STATUS_FILTERS.map((filter) => (
+                  <JoyChip
+                    key={filter.key}
+                    role="button"
+                    tabIndex={0}
+                    variant={activeFilter === filter.key ? "solid" : "soft"}
+                    color={activeFilter === filter.key ? "primary" : "neutral"}
+                    onClick={() => handleFilterChange(filter.key)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") handleFilterChange(filter.key);
+                    }}
+                    sx={{ cursor: "pointer" }}
+                  >
+                    {filter.label}
+                  </JoyChip>
+                ))}
+              </Stack>
+              <Input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search recipients"
+                startDecorator={<Search size={16} />}
+                sx={{ width: { xs: "100%", lg: 320 } }}
+              />
             </Stack>
-          ) : (
-            <>
-              <JoyTable variant="plain" borderAxis="none" stickyHeader>
-                <JoyTableHead>
-                  <JoyTableRow>
-                    <JoyTableHeaderCell sx={{ width: 44 }}>
-                      <Checkbox
-                        checked={
-                          allVisibleSelected
-                            ? true
-                            : someVisibleSelected
-                              ? "indeterminate"
-                              : false
-                        }
-                        onChange={(event) =>
-                          toggleVisibleSelection(event.target.checked)
-                        }
-                      />
-                    </JoyTableHeaderCell>
-                    <JoyTableHeaderCell
-                      sortable
-                      sortDirection={
-                        sortColumn === "customer_name"
-                          ? sortDirection === "asc"
-                            ? "asc"
-                            : "desc"
-                          : "none"
-                      }
-                      onSort={() =>
-                        requestParamUpdate({
-                          sort: "customer_name",
-                          direction:
-                            sortColumn === "customer_name" &&
-                            sortDirection === "asc"
-                              ? "desc"
-                              : "asc",
-                          page: "1",
-                        })
-                      }
-                    >
-                      Customer
-                    </JoyTableHeaderCell>
-                    <JoyTableHeaderCell>Delivery Status</JoyTableHeaderCell>
-                    <JoyTableHeaderCell>Opened</JoyTableHeaderCell>
-                    <JoyTableHeaderCell>Clicked</JoyTableHeaderCell>
-                    <JoyTableHeaderCell
-                      sortable
-                      sortDirection={
-                        sortColumn === "event_time"
-                          ? sortDirection === "asc"
-                            ? "asc"
-                            : "desc"
-                          : "none"
-                      }
-                      onSort={() =>
-                        requestParamUpdate({
-                          sort: "event_time",
-                          direction:
-                            sortColumn === "event_time" &&
-                            sortDirection === "desc"
-                              ? "asc"
-                              : "desc",
-                          page: "1",
-                        })
-                      }
-                    >
-                      Latest Event
-                    </JoyTableHeaderCell>
-                    <JoyTableHeaderCell align="right">
-                      Actions
-                    </JoyTableHeaderCell>
-                  </JoyTableRow>
-                </JoyTableHead>
-                <JoyTableBody ref={tableBodyRef}>
-                  {rowsWithRealtime.map((row) => {
-                    const recipientKey = toRecipientKey(row.customer_email);
-                    const eventTimestamps = recipientEventTimestampsQuery
-                      .data?.[recipientKey] ?? {
-                      openedAt: null,
-                      clickedAt: null,
-                    };
-                    const isSelected =
-                      allMatchingSelected ||
-                      selectedRecipientSet.has(row.recipient_id);
-                    const isHighlighted = Boolean(
-                      highlightedRecipients[recipientKey],
-                    );
-                    const isWorking =
-                      retryingRecipientId === row.recipient_id ||
-                      suppressingRecipientId === row.recipient_id;
+          </Sheet>
 
+          {selectedIds.size > 0 ? (
+            <Sheet variant="soft" color="primary" sx={{ borderRadius: "lg", px: 2, py: 1.25 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between">
+                <Typography level="body-sm" fontWeight="md">
+                  {selectedIds.size.toLocaleString()} recipient{selectedIds.size === 1 ? "" : "s"} selected
+                </Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Tooltip title={canRetrySelected ? "Retry selected failed or bounced recipients" : "Only failed or bounced recipients can be retried"}>
+                    <span>
+                      <JoyButton
+                        size="sm"
+                        bloomVariant="secondary"
+                        disabled={!canRetrySelected || isRetryingSelected}
+                        loading={isRetryingSelected}
+                        startDecorator={<RotateCcw size={15} />}
+                        onClick={() => void handleRetrySelected()}
+                      >
+                        Retry Selected
+                      </JoyButton>
+                    </span>
+                  </Tooltip>
+                  <JoyButton
+                    size="sm"
+                    bloomVariant="secondary"
+                    disabled={isExporting}
+                    loading={isExporting}
+                    startDecorator={<Download size={15} />}
+                    onClick={() => void handleExport(Array.from(selectedIds))}
+                  >
+                    Export Selected
+                  </JoyButton>
+                  <JoyButton size="sm" bloomVariant="ghost" color="neutral" onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </JoyButton>
+                </Stack>
+              </Stack>
+            </Sheet>
+          ) : null}
+
+          <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
+            <JoyTable aria-label="Campaign recipients" containerSx={{ border: 0, borderRadius: 0 }}>
+              <JoyTableHead>
+                <JoyTableRow>
+                  <JoyTableHeaderCell sx={{ width: 48 }}>
+                    <Checkbox
+                      size="sm"
+                      checked={allVisibleSelected}
+                      indeterminate={!allVisibleSelected && someVisibleSelected}
+                      onChange={toggleVisibleSelection}
+                      slotProps={{ input: { "aria-label": "Select all visible recipients" } }}
+                    />
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    sortable
+                    sortDirection={sortColumn === "customer_name" ? sortDirection : "none"}
+                    onSort={() => handleSort("customer_name")}
+                  >
+                    Recipient
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    sortable
+                    sortDirection={sortColumn === "latest_event" ? sortDirection : "none"}
+                    onSort={() => handleSort("latest_event")}
+                    sx={{ width: 170 }}
+                  >
+                    Status
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell
+                    sortable
+                    sortDirection={sortColumn === "event_time" ? sortDirection : "none"}
+                    onSort={() => handleSort("event_time")}
+                    sx={{ width: 190 }}
+                  >
+                    Sent At
+                  </JoyTableHeaderCell>
+                  <JoyTableHeaderCell sx={{ width: 230 }}>Last Event</JoyTableHeaderCell>
+                  <JoyTableHeaderCell sx={{ width: 72, textAlign: "right" }}>Actions</JoyTableHeaderCell>
+                </JoyTableRow>
+              </JoyTableHead>
+              <JoyTableBody>
+                {recipientsQuery.isLoading ? (
+                  Array.from({ length: 15 }).map((_, index) => (
+                    <JoyTableRow key={index}>
+                      <JoyTableCell><Skeleton width={18} height={18} /></JoyTableCell>
+                      <JoyTableCell><Skeleton width="72%" /></JoyTableCell>
+                      <JoyTableCell><Skeleton width={92} height={28} /></JoyTableCell>
+                      <JoyTableCell><Skeleton width={126} /></JoyTableCell>
+                      <JoyTableCell><Skeleton width="80%" /></JoyTableCell>
+                      <JoyTableCell><Skeleton width={32} /></JoyTableCell>
+                    </JoyTableRow>
+                  ))
+                ) : recipientsQuery.isError ? (
+                  <JoyTableRow>
+                    <JoyTableCell colSpan={6} sx={{ py: 5, textAlign: "center" }}>
+                      <Stack spacing={1} alignItems="center">
+                        <Typography level="title-sm">Could not load recipients</Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {getErrorMessage(recipientsQuery.error)}
+                        </Typography>
+                        <JoyButton size="sm" bloomVariant="secondary" onClick={() => void recipientsQuery.refetch()}>
+                          Retry
+                        </JoyButton>
+                      </Stack>
+                    </JoyTableCell>
+                  </JoyTableRow>
+                ) : rows.length === 0 ? (
+                  <JoyTableRow>
+                    <JoyTableCell colSpan={6} sx={{ py: 6, textAlign: "center" }}>
+                      <Stack spacing={1} alignItems="center">
+                        <Mail size={22} />
+                        <Typography level="title-sm">No recipients match this view</Typography>
+                        <Typography level="body-sm" color="neutral">
+                          Adjust the search or status filter to inspect more recipient activity.
+                        </Typography>
+                      </Stack>
+                    </JoyTableCell>
+                  </JoyTableRow>
+                ) : (
+                  rows.map((row) => {
+                    const status = getRowStatus(row);
+                    const isHighlighted = Boolean(highlightedRows[row.recipient_id]);
+                    const isSelected = selectedIds.has(row.recipient_id);
                     return (
                       <JoyTableRow
                         key={row.recipient_id}
-                        data-recipient-id={row.recipient_id}
                         clickable
+                        onClick={() => navigate(buildDetailPath(row.recipient_id))}
                         sx={{
-                          ...(isSelected
-                            ? {
-                                "& > td": {
-                                  backgroundColor:
-                                    "rgba(var(--joy-palette-primary-mainChannel) / 0.05)",
-                                },
-                              }
-                            : undefined),
-                          ...(isHighlighted
-                            ? {
-                                "& > td": {
-                                  backgroundColor:
-                                    "rgba(var(--joy-palette-success-mainChannel) / 0.08)",
-                                },
-                              }
-                            : undefined),
+                          "& > td": {
+                            backgroundColor: isHighlighted ? "primary.50" : undefined,
+                          },
                         }}
                       >
-                        <JoyTableCell>
+                        <JoyTableCell onClick={(event) => event.stopPropagation()}>
                           <Checkbox
+                            size="sm"
                             checked={isSelected}
-                            onChange={(event) =>
-                              toggleRowSelection(
-                                row.recipient_id,
-                                event.target.checked,
-                              )
-                            }
+                            onChange={() => toggleRowSelection(row.recipient_id)}
+                            slotProps={{ input: { "aria-label": `Select ${row.customer_email}` } }}
                           />
                         </JoyTableCell>
                         <JoyTableCell>
-                          <Stack
-                            direction="row"
-                            spacing={1.25}
-                            alignItems="center"
-                          >
-                            <Avatar size="sm" variant="soft" color="neutral">
-                              <UserRound size={16} />
-                            </Avatar>
-                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                              <Typography
-                                component={Link}
-                                to={buildRecipientDetailPath(row.recipient_id)}
-                                onClick={() =>
-                                  rememberRecipientFocus(row.recipient_id)
-                                }
-                                level="body-sm"
-                                fontWeight="md"
-                                sx={{
-                                  textDecoration: "none",
-                                  color: "neutral.800",
-                                }}
-                              >
-                                {row.customer_name || row.customer_email}
-                              </Typography>
-                              <Typography level="body-xs" color="neutral">
-                                {row.customer_email}
-                              </Typography>
-                            </Stack>
+                          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                            <Typography level="body-sm" fontWeight="md" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {row.customer_name || row.customer_email}
+                            </Typography>
+                            <Typography level="body-xs" color="neutral" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {row.customer_email}
+                            </Typography>
                           </Stack>
                         </JoyTableCell>
                         <JoyTableCell>
-                          {row.delivery_status === "bounced" &&
-                          row.hard_bounce_reason ? (
-                            <JoyTooltip title={row.hard_bounce_reason}>
-                              <span>
-                                <JoyStatusChip
-                                  status={getDeliveryLabel(row.delivery_status)}
-                                  tone={getDeliveryTone(row.delivery_status)}
-                                />
-                              </span>
-                            </JoyTooltip>
-                          ) : (
-                            <JoyStatusChip
-                              status={getDeliveryLabel(row.delivery_status)}
-                              tone={getDeliveryTone(row.delivery_status)}
-                            />
-                          )}
+                          <RecipientStatusChip status={status} />
                         </JoyTableCell>
                         <JoyTableCell>
-                          <Typography level="body-sm">
-                            {formatRelativeTimestamp(eventTimestamps.openedAt)}
+                          <Typography level="body-sm" color="neutral">
+                            {formatTimestamp(row.sent_at)}
                           </Typography>
                         </JoyTableCell>
                         <JoyTableCell>
-                          <Typography level="body-sm">
-                            {formatRelativeTimestamp(eventTimestamps.clickedAt)}
-                          </Typography>
-                        </JoyTableCell>
-                        <JoyTableCell>
-                          <Stack spacing={0.25}>
-                            <Typography level="body-sm">
-                              {row.latest_event
-                                ? row.latest_event.replace(/[_-]+/g, " ")
-                                : "-"}
-                            </Typography>
+                          <Stack spacing={0.25} alignItems="flex-start">
+                            {normalizeRecipientStatus(row.latest_event) === "unknown" ? (
+                              <Typography level="body-sm" color="neutral">No event yet</Typography>
+                            ) : (
+                              <RecipientStatusChip status={row.latest_event} size="sm" />
+                            )}
                             <Typography level="body-xs" color="neutral">
-                              {formatRelativeTimestamp(row.latest_event_at)}
+                              {formatTimestamp(row.latest_event_at)}
                             </Typography>
                           </Stack>
                         </JoyTableCell>
-                        <JoyTableCell align="right">
-                          <JoyDropdownMenu>
-                            <JoyDropdownMenuTrigger
-                              variant="plain"
-                              color="neutral"
-                            >
-                              {isWorking ? (
-                                <CircularProgress size="sm" />
-                              ) : (
-                                <MoreHorizontal size={16} />
-                              )}
-                            </JoyDropdownMenuTrigger>
-                            <JoyDropdownMenuContent>
-                              <JoyDropdownMenuItem
-                                startDecorator={<Eye size={16} />}
-                                onClick={() => {
-                                  rememberRecipientFocus(row.recipient_id);
-                                  navigate(
-                                    buildRecipientDetailPath(row.recipient_id),
-                                  );
-                                }}
-                              >
-                                View Detail
-                              </JoyDropdownMenuItem>
-                              {row.customer_id ? (
-                                <JoyDropdownMenuItem
-                                  startDecorator={<Users size={16} />}
-                                  onClick={() =>
-                                    navigate(
-                                      `/crm/customers/${row.customer_id}`,
-                                    )
-                                  }
-                                >
-                                  View Customer
-                                </JoyDropdownMenuItem>
-                              ) : null}
-                              {row.delivery_status === "failed" &&
-                              row.can_retry ? (
-                                <JoyDropdownMenuItem
-                                  startDecorator={<RefreshCw size={16} />}
-                                  onClick={() => void handleRetryRecipient(row)}
-                                >
-                                  Retry Send
-                                </JoyDropdownMenuItem>
-                              ) : null}
-                              <JoyDropdownMenuItem
-                                startDecorator={<AlertTriangle size={16} />}
-                                onClick={() => void handleSuppressEmail(row)}
-                              >
-                                Suppress Email
-                              </JoyDropdownMenuItem>
-                              <JoyDropdownMenuItem
-                                startDecorator={<Copy size={16} />}
-                                onClick={() =>
-                                  void handleCopyEmail(row.customer_email)
-                                }
-                              >
-                                Copy Email
-                              </JoyDropdownMenuItem>
-                            </JoyDropdownMenuContent>
-                          </JoyDropdownMenu>
+                        <JoyTableCell onClick={(event) => event.stopPropagation()} sx={{ textAlign: "right" }}>
+                          <Dropdown>
+                            <MenuButton slots={{ root: IconButton }} slotProps={{ root: { variant: "plain", color: "neutral", size: "sm" } }}>
+                              <MoreHorizontal size={18} />
+                            </MenuButton>
+                            <Menu placement="bottom-end">
+                              <MenuItem onClick={() => navigate(buildDetailPath(row.recipient_id))}>View Details</MenuItem>
+                              <MenuItem disabled={!isRetryableRow(row)} onClick={() => void handleRetryRow(row)}>
+                                Retry
+                              </MenuItem>
+                              <MenuItem onClick={() => void handleExport([row.recipient_id])}>Export CSV</MenuItem>
+                            </Menu>
+                          </Dropdown>
                         </JoyTableCell>
                       </JoyTableRow>
                     );
-                  })}
-                </JoyTableBody>
-              </JoyTable>
-
-              <JoyTablePagination
-                page={page}
-                pageSize={pageSize}
-                totalCount={pagination.total_count}
-                onPageChange={(nextPage) =>
-                  updateParams({ page: String(nextPage) })
-                }
-                onPageSizeChange={(nextPageSize) =>
-                  updateParams({ pageSize: String(nextPageSize), page: "1" })
-                }
-                pageSizeOptions={PAGE_SIZE_OPTIONS}
-              />
-            </>
-          )}
-        </Sheet>
-
-        {selectedCount > 0 ? (
-          <Sheet
-            variant="soft"
-            color="primary"
-            sx={{
-              position: "fixed",
-              left: 24,
-              right: 24,
-              bottom: 24,
-              zIndex: (theme) => theme.vars.zIndex.modal - 1,
-              borderRadius: "md",
-              px: 2,
-              py: 1.5,
-              boxShadow: "var(--joy-shadow-lg)",
-            }}
-          >
-            <Stack
-              direction={{ xs: "column", lg: "row" }}
-              spacing={1.5}
-              justifyContent="space-between"
-              alignItems={{ xs: "flex-start", lg: "center" }}
-            >
-              <Stack spacing={0.5}>
-                <Typography level="body-sm" fontWeight="lg">
-                  {allMatchingSelected
-                    ? `${pagination.total_count.toLocaleString()} selected across all matches`
-                    : `${selectedCount.toLocaleString()} selected on this page`}
-                </Typography>
-                {!allMatchingSelected &&
-                selectedCount < pagination.total_count ? (
-                  <JoyButton
-                    bloomVariant="link"
-                    color="primary"
-                    onClick={() => setAllMatchingSelected(true)}
-                  >
-                    Select all {pagination.total_count.toLocaleString()}{" "}
-                    matching recipients
-                  </JoyButton>
-                ) : null}
-              </Stack>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                useFlexGap
-              >
-                <JoyButton
-                  bloomVariant="secondary"
-                  onClick={() => setTagDialogOpen(true)}
-                  disabled={isBulkActing}
-                >
-                  <Tag size={16} />
-                  Add Tag
-                </JoyButton>
-                <JoyButton
-                  bloomVariant="secondary"
-                  onClick={() => setSegmentDialogOpen(true)}
-                  disabled={isBulkActing}
-                >
-                  <Users size={16} />
-                  Add to Segment
-                </JoyButton>
-                <JoyButton
-                  bloomVariant="secondary"
-                  onClick={() => void handleExportSelected()}
-                  disabled={isExporting}
-                >
-                  <Download size={16} />
-                  Export Selected
-                </JoyButton>
-                <JoyButton
-                  bloomVariant="ghost"
-                  color="neutral"
-                  onClick={() => void handleCopySelection()}
-                >
-                  <Copy size={16} />
-                  Copy Emails
-                </JoyButton>
-                <JoyButton
-                  bloomVariant="ghost"
-                  color="neutral"
-                  onClick={clearSelection}
-                >
-                  <X size={16} />
-                  Clear
-                </JoyButton>
-              </Stack>
-            </Stack>
+                  })
+                )}
+              </JoyTableBody>
+            </JoyTable>
           </Sheet>
-        ) : null}
 
-        <JoyAlertDialog
-          open={clearSelectionDialogOpen}
-          onClose={() => {
-            setClearSelectionDialogOpen(false);
-            setPendingParamUpdates(null);
-          }}
-          onConfirm={() => {
-            clearSelection();
-            setClearSelectionDialogOpen(false);
-            if (pendingParamUpdates) updateParams(pendingParamUpdates);
-            setPendingParamUpdates(null);
-          }}
-          title="Clear current selection?"
-          description="Changing filters or sort order will clear the current selection scope."
-          confirmLabel="Clear selection"
-          cancelLabel="Keep selection"
-          variant="warning"
-        />
-
-        <JoyDialog
-          open={tagDialogOpen}
-          onClose={() => setTagDialogOpen(false)}
-          title="Add Tag"
-          description="Assign a CRM tag to the selected recipients."
-          size="sm"
-        >
-          <JoyDialogContent>
-            <JoyAutocomplete
-              freeSolo
-              options={tagsQuery.data?.map((tag) => tag.name) ?? []}
-              value={tagName}
-              onInputChange={(_event, value) => setTagName(value)}
-              onChange={(_event, value) =>
-                setTagName(typeof value === "string" ? value : (value ?? ""))
-              }
-              placeholder="Choose or create a tag"
-            />
-          </JoyDialogContent>
-          <JoyDialogActions>
-            <JoyButton
-              bloomVariant="ghost"
-              color="neutral"
-              onClick={() => setTagDialogOpen(false)}
-            >
-              Cancel
-            </JoyButton>
-            <JoyButton
-              disabled={!tagName.trim() || isBulkActing}
-              onClick={() =>
-                void runBulkAction("add-tag", { tagName: tagName.trim() })
-              }
-            >
-              Add Tag
-            </JoyButton>
-          </JoyDialogActions>
-        </JoyDialog>
-
-        <JoyDialog
-          open={segmentDialogOpen}
-          onClose={() => setSegmentDialogOpen(false)}
-          title="Add to Segment"
-          description="Add the selected recipients to an existing segment."
-          size="sm"
-        >
-          <JoyDialogContent>
-            <JoyAutocomplete
-              options={segmentsQuery.data ?? []}
-              getOptionLabel={(option) =>
-                typeof option === "string" ? option : option.name
-              }
-              value={
-                (segmentsQuery.data ?? []).find(
-                  (segment) => segment.id === selectedSegmentId,
-                ) ?? null
-              }
-              onChange={(_event, value) =>
-                setSelectedSegmentId(value?.id ?? null)
-              }
-              placeholder="Choose a segment"
-            />
-          </JoyDialogContent>
-          <JoyDialogActions>
-            <JoyButton
-              bloomVariant="ghost"
-              color="neutral"
-              onClick={() => setSegmentDialogOpen(false)}
-            >
-              Cancel
-            </JoyButton>
-            <JoyButton
-              disabled={!selectedSegmentId || isBulkActing}
-              onClick={() =>
-                void runBulkAction("add-to-segment", {
-                  segmentId: selectedSegmentId,
-                })
-              }
-            >
-              Add to Segment
-            </JoyButton>
-          </JoyDialogActions>
-        </JoyDialog>
-      </Stack>
+          <JoyTablePagination
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalCount={pagination.total_count}
+            onPageChange={handlePageChange}
+            showPageSizeSelector={false}
+            disabled={recipientsQuery.isFetching}
+          />
+        </Stack>
+      </Sheet>
     </PageContainer>
   );
 }

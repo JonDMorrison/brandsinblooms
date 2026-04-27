@@ -16,17 +16,36 @@ export interface SendingState {
   message?: string;
   error?: SendError;
   campaignId?: string;
-  sentCount?: number;
+  recipientCount?: number;
 }
 
 export interface UseCampaignSendingOptions {
-  onSuccess?: (campaignId: string, sentCount: number) => void;
+  onSuccess?: (campaignId: string, recipientCount: number) => void;
   onError?: (error: SendError) => void;
   navigateOnSuccess?: boolean;
+  suppressToasts?: boolean;
 }
 
+export type CampaignSendResult =
+  | {
+      success: true;
+      campaignId: string;
+      recipientCount: number;
+      complianceWarnings: string[];
+    }
+  | {
+      success: false;
+      error: SendError;
+      campaignId?: string;
+    };
+
 export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
-  const { navigateOnSuccess = true } = options;
+  const {
+    navigateOnSuccess = true,
+    suppressToasts = false,
+    onError,
+    onSuccess,
+  } = options;
   const [state, setState] = useState<SendingState>({ status: "idle" });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -46,7 +65,7 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
       content: string;
       blocks: any[];
       segments: Array<{ id: string; name: string; customer_count: number }>;
-    }) => {
+    }): Promise<CampaignSendResult> => {
       const {
         campaignId: existingCampaignId,
         campaignName,
@@ -70,12 +89,14 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
 
       if (!validation.valid && validation.error) {
         setState({ status: "error", error: validation.error });
-        toast({
-          title: validation.error.title,
-          description: validation.error.description,
-          variant: "destructive",
-        });
-        options.onError?.(validation.error);
+        if (!suppressToasts) {
+          toast({
+            title: validation.error.title,
+            description: validation.error.description,
+            variant: "destructive",
+          });
+        }
+        onError?.(validation.error);
         return { success: false, error: validation.error };
       }
 
@@ -112,19 +133,21 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
           recoverable: true,
         };
         setState({ status: "error", error });
-        toast({
-          title: error.title,
-          description: error.description,
-          variant: "destructive",
-        });
-        options.onError?.(error);
+        if (!suppressToasts) {
+          toast({
+            title: error.title,
+            description: error.description,
+            variant: "destructive",
+          });
+        }
+        onError?.(error);
         return { success: false, error };
       }
 
       // Step 3: Send via edge function
       setState({
         status: "sending",
-        message: "Sending emails...",
+        message: "Queueing campaign...",
         campaignId: campaign.id,
       });
 
@@ -163,12 +186,14 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
           );
 
           setState({ status: "error", error, campaignId: campaign.id });
-          toast({
-            title: error.title,
-            description: error.description,
-            variant: "destructive",
-          });
-          options.onError?.(error);
+          if (!suppressToasts) {
+            toast({
+              title: error.title,
+              description: error.description,
+              variant: "destructive",
+            });
+          }
+          onError?.(error);
           return { success: false, error, campaignId: campaign.id };
         }
 
@@ -181,16 +206,18 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
             sendResult,
           );
           setState({ status: "error", error, campaignId: campaign.id });
-          toast({
-            title: error.title,
-            description: error.description,
-            variant: "destructive",
-          });
-          options.onError?.(error);
+          if (!suppressToasts) {
+            toast({
+              title: error.title,
+              description: error.description,
+              variant: "destructive",
+            });
+          }
+          onError?.(error);
           return { success: false, error, campaignId: campaign.id };
         }
 
-        const sentCount = sendResult?.metrics?.sent || 0;
+        const recipientCount = Number(sendResult?.total_recipients || 0);
         const complianceWarnings = Array.isArray(sendResult?.warnings)
           ? sendResult.warnings.filter((w: unknown) => typeof w === "string")
           : [];
@@ -198,46 +225,55 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         setState({
           status: "success",
           campaignId: campaign.id,
-          sentCount,
-          message: `Sent to ${sentCount} recipients`,
+          recipientCount,
+          message: `Queued for ${recipientCount} recipients`,
         });
 
-        toast({
-          title: "Campaign sent!",
-          description: `Your campaign "${campaignName}" has been sent to ${sentCount} customers.`,
-        });
+        if (!suppressToasts) {
+          toast({
+            title: "Campaign queued",
+            description: `Sending to ${recipientCount} recipients.`,
+          });
+        }
 
-        if (complianceWarnings.length > 0) {
+        if (!suppressToasts && complianceWarnings.length > 0) {
           toast({
             title: "Compliance warning",
             description: complianceWarnings[0],
           });
         }
 
-        options.onSuccess?.(campaign.id, sentCount);
+        onSuccess?.(campaign.id, recipientCount);
 
         if (navigateOnSuccess) {
           navigate(`/crm/campaigns/${campaign.id}/report`);
         }
 
-        return { success: true, campaignId: campaign.id, sentCount };
+        return {
+          success: true,
+          campaignId: campaign.id,
+          recipientCount,
+          complianceWarnings,
+        };
       } catch (sendError: any) {
         console.error("❌ Send failed:", sendError);
 
         const error = parseEdgeFunctionError(sendError);
         setState({ status: "error", error, campaignId: campaign.id });
 
-        toast({
-          title: error.title,
-          description: error.description,
-          variant: "destructive",
-        });
+        if (!suppressToasts) {
+          toast({
+            title: error.title,
+            description: error.description,
+            variant: "destructive",
+          });
+        }
 
-        options.onError?.(error);
+        onError?.(error);
         return { success: false, error, campaignId: campaign.id };
       }
     },
-    [navigate, toast, options],
+    [navigate, navigateOnSuccess, onError, onSuccess, suppressToasts, toast],
   );
 
   return {

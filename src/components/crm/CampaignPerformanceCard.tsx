@@ -3,6 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy
 import { Badge } from '@/components/ui-legacy/badge';
 import { Button } from '@/components/ui-legacy/button';
 import { Progress } from '@/components/ui-legacy/progress';
+import {
+  CAMPAIGN_STATUS,
+  getCampaignStatusLabel,
+  isQueuedCampaignStatus,
+} from '@/constants/campaignStatuses';
 import { 
   Mail, 
   Eye, 
@@ -25,8 +30,8 @@ interface CampaignMetrics {
 
 interface CampaignPerformanceCardProps {
   campaignName: string;
-  sentDate: string;
-  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'completed';
+  sentDate: string | null;
+  status: string;
   metrics?: CampaignMetrics;
   onViewDetails?: () => void;
 }
@@ -49,16 +54,24 @@ export const CampaignPerformanceCard: React.FC<CampaignPerformanceCardProps> = (
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'scheduled': return 'bg-blue-100 text-blue-800';
-      case 'sending': return 'bg-yellow-100 text-yellow-800';
-      case 'sent': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-green-100 text-green-800';
+      case CAMPAIGN_STATUS.DRAFT: return 'bg-gray-100 text-gray-800';
+      case CAMPAIGN_STATUS.SCHEDULED: return 'bg-blue-100 text-blue-800';
+      case CAMPAIGN_STATUS.QUEUED:
+      case CAMPAIGN_STATUS.PARTIALLY_QUEUED:
+        return 'bg-indigo-100 text-indigo-800';
+      case CAMPAIGN_STATUS.SENDING: return 'bg-yellow-100 text-yellow-800';
+      case CAMPAIGN_STATUS.PAUSED: return 'bg-amber-100 text-amber-800';
+      case CAMPAIGN_STATUS.SENT: return 'bg-green-100 text-green-800';
+      case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
+      case CAMPAIGN_STATUS.FAILED:
+        return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'No activity yet';
+
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -80,7 +93,7 @@ export const CampaignPerformanceCard: React.FC<CampaignPerformanceCardProps> = (
                 {formatDate(sentDate)}
               </div>
               <Badge className={getStatusColor(status)}>
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {getCampaignStatusLabel(status)}
               </Badge>
             </div>
           </div>
@@ -94,7 +107,7 @@ export const CampaignPerformanceCard: React.FC<CampaignPerformanceCardProps> = (
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {metrics && status !== 'draft' && status !== 'scheduled' ? (
+        {metrics && status !== CAMPAIGN_STATUS.DRAFT && status !== CAMPAIGN_STATUS.SCHEDULED && !isQueuedCampaignStatus(status) ? (
           <>
             {/* Key Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -190,8 +203,9 @@ export const CampaignPerformanceCard: React.FC<CampaignPerformanceCardProps> = (
           <div className="text-center py-6 text-muted-foreground">
             <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">
-              {status === 'draft' ? 'Campaign not sent yet' : 
-               status === 'scheduled' ? 'Scheduled to send' :
+              {status === CAMPAIGN_STATUS.DRAFT ? 'Campaign not sent yet' : 
+               status === CAMPAIGN_STATUS.SCHEDULED ? 'Scheduled to send' :
+               isQueuedCampaignStatus(status) ? 'Campaign queued for sending' :
                'Analytics will appear once the campaign is sent'}
             </p>
           </div>
