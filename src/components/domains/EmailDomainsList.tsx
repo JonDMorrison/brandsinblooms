@@ -108,6 +108,7 @@ export const EmailDomainsList = ({
   );
   const [savingDefaultDomain, setSavingDefaultDomain] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [entriError, setEntriError] = useState<string | null>(null);
 
   // Rate limiting: track last check time per domain
   const [lastCheckTimes, setLastCheckTimes] = useState<Record<string, number>>(
@@ -400,6 +401,7 @@ export const EmailDomainsList = ({
     if (!tenant?.id) return;
 
     try {
+      setEntriError(null);
       setRepairingDomains((prev) => new Set(prev).add(domain.id));
 
       const records = await getDomainRecords(domain.id);
@@ -431,7 +433,7 @@ export const EmailDomainsList = ({
         return;
       }
 
-      await openEntriSetup(
+      const entriResult = await openEntriSetup(
         domain.domain,
         tenant.id,
         entriRecords,
@@ -450,6 +452,14 @@ export const EmailDomainsList = ({
           toast.info("DNS repair cancelled");
         },
       );
+
+      if (!entriResult.opened) {
+        setEntriError(
+          entriResult.errorMessage ||
+            "Domain verification tool unavailable — try again later.",
+        );
+        return;
+      }
     } catch (error: any) {
       console.error("Error repairing domain:", error);
       toast.error(error.message || "Failed to repair domain");
@@ -603,6 +613,24 @@ export const EmailDomainsList = ({
 
   return (
     <>
+      {entriError ? (
+        <Sheet
+          color="danger"
+          variant="soft"
+          sx={{ borderRadius: "sm", p: 2, mb: 1.5 }}
+        >
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <AlertTriangle size={16} />
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Typography level="body-sm" fontWeight="lg">
+                Domain verification tool unavailable
+              </Typography>
+              <Typography level="body-xs">{entriError}</Typography>
+            </Stack>
+          </Stack>
+        </Sheet>
+      ) : null}
+
       {emailDomains.length === 0 ? (
         <Sheet
           variant="outlined"
@@ -867,14 +895,17 @@ export const EmailDomainsList = ({
         </Stack>
       )}
 
-      <DomainConnectWizard
-        open={addDomainOpen}
-        onClose={() => {
-          onAddDomainOpenChange(false);
-          setLoadError(null);
-          refetch();
-        }}
-      />
+      {addDomainOpen ? (
+        <DomainConnectWizard
+          open={addDomainOpen}
+          onClose={() => {
+            onAddDomainOpenChange(false);
+            setLoadError(null);
+            setEntriError(null);
+            refetch();
+          }}
+        />
+      ) : null}
 
       {selectedDomain && (
         <EmailDomainDetails

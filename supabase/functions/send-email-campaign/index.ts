@@ -129,10 +129,62 @@ async function getCampaignReputationPolicy(supabase: any, campaignId: string): P
   };
 }
 
-function randomIntInclusive(min: number, max: number): number {
-  const lo = Math.ceil(Math.min(min, max));
-  const hi = Math.floor(Math.max(min, max));
-  return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+function getAdaptiveBatchSizePerJob(
+  totalRecipients: number,
+  policyBatchSize: number,
+  maxBatchSizePerJob: number,
+): number {
+  let adaptiveBatchSize = DEFAULT_BATCH_SIZE_PER_JOB;
+
+  if (totalRecipients > 50000) {
+    adaptiveBatchSize = 250;
+  } else if (totalRecipients > 10000) {
+    adaptiveBatchSize = 200;
+  } else if (totalRecipients > 1000) {
+    adaptiveBatchSize = 100;
+  }
+
+  return Math.max(1, Math.min(adaptiveBatchSize, policyBatchSize, maxBatchSizePerJob));
+}
+
+function getInitialMessageInsertChunkSize(totalRecipients: number): number {
+  if (totalRecipients > 10000) {
+    return 500;
+  }
+
+  if (totalRecipients > 1000) {
+    return 250;
+  }
+
+  return 200;
+}
+
+function getQueueAvailabilityPlan(params: {
+  totalRecipients: number;
+  totalBatches: number;
+  batchSizePerJob: number;
+  sendPacingMultiplier: number;
+  batchDelayMinSeconds: number;
+  batchDelayMaxSeconds: number;
+}) {
+  const configuredDelaySeconds = Math.max(
+    1,
+    Math.round((params.batchDelayMinSeconds + params.batchDelayMaxSeconds) / 2),
+  );
+  const configuredEmailsPerMinute = Math.floor((60 / configuredDelaySeconds) * params.batchSizePerJob);
+  const scaledHeadroomPerMinute = Math.max(
+    params.batchSizePerJob * 2,
+    Math.floor(1500 / Math.max(1, params.sendPacingMultiplier)),
+  );
+  const estimatedEmailsPerMinute = Math.max(configuredEmailsPerMinute, scaledHeadroomPerMinute);
+  const jobsPerMinute = Math.max(2, Math.floor(estimatedEmailsPerMinute / Math.max(1, params.batchSizePerJob)));
+  const immediateJobCount = Math.min(6, params.totalBatches, jobsPerMinute);
+
+  return {
+    estimatedEmailsPerMinute,
+    jobsPerMinute,
+    immediateJobCount,
+  };
 }
 
 function stripHtml(input: string): string {
@@ -973,9 +1025,13 @@ serve(async (req: Request) => {
     }
 
     const policyBatchSize = Math.max(1, Number(reputationPolicy.job_batch_size || DEFAULT_BATCH_SIZE_PER_JOB));
-    const batchSizePerJob = Math.min(policyBatchSize, maxBatchSizePerJob);
+    const batchSizePerJob = getAdaptiveBatchSizePerJob(
+      recipientCount,
+      policyBatchSize,
+      maxBatchSizePerJob,
+    );
     // Warmup/throttling removed: no partial-send truncation.
-    console.log(`📧 Found ${recipientCount} customers`);
+    console.log(`📧 Found ${recipientCount} customers (job batch size: ${batchSizePerJob})`);
 
     // Milestone 7: Campaigns must declare an explicit sending domain.
     // If missing, attempt to auto-select the tenant's most recent operational domain.
@@ -1325,9 +1381,7 @@ serve(async (req: Request) => {
     };
 
     // Queue recipients
-    console.log(`📧 Queuing ${recipientCount} recipients in batches of ${batchSizePerJob}...`);
     const piiWarningSet = new Set<string>();
-    let queuedRecipientCount = 0;
 
     // Link tracking setup
     const campaignContent = campaign.content || '';
@@ -1363,18 +1417,141 @@ serve(async (req: Request) => {
     }
 
     const sendPacingMultiplier = Math.max(1, Number(reputationPolicy.send_pacing_multiplier || 1));
-
-    // Process recipients in batches
     const totalBatches = Math.ceil(recipientCount / batchSizePerJob);
-    let nextBatchAvailableAtMs = Date.now();
+    const skippedRecipientCount =
+      suppressedCount
+      + hygieneAnalysis.invalidEmailsCount
+      + hygieneAnalysis.duplicateEmailsCount;
+    const queueAvailabilityPlan = getQueueAvailabilityPlan({
+      totalRecipients: recipientCount,
+      totalBatches,
+      batchSizePerJob,
+      sendPacingMultiplier,
+      batchDelayMinSeconds,
+      batchDelayMaxSeconds,
+    });
+
+    const { count: existingMessageCount, error: existingMessagesError } = await supabase
+      .from('email_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId);
+
+    if (existingMessagesError) {
+      console.error('❌ Failed to inspect existing campaign queue state:', {
+        campaignId,
+        err: serializeSupabaseError(existingMessagesError),
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to inspect campaign queue state' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const isResumeRun = Number(existingMessageCount || 0) > 0;
+    const queueInitializedAt = new Date().toISOString();
+    const queueStartedAt = typeof campaign.queue_started_at === 'string' && campaign.queue_started_at
+      ? campaign.queue_started_at
+      : queueInitializedAt;
+    const queuedAt = typeof campaign.queued_at === 'string' && campaign.queued_at
+      ? campaign.queued_at
+      : queueInitializedAt;
+    const queueProgressMetrics = {
+      ...(campaign.metrics || {}),
+      queued: 0,
+      skipped_suppressed: suppressedCount,
+      links_tracked: urlsToTrack.length,
+      pii_warnings: piiWarningSet.size,
+      queue: {
+        resumed: isResumeRun,
+        existing_message_count: Number(existingMessageCount || 0),
+        jobs_per_minute_target: queueAvailabilityPlan.jobsPerMinute,
+        immediate_job_count: queueAvailabilityPlan.immediateJobCount,
+        estimated_emails_per_minute: queueAvailabilityPlan.estimatedEmailsPerMinute,
+      },
+      compliance: {
+        high_volume: isHighVolume,
+        high_volume_threshold: highVolumeThreshold,
+        warnings: complianceWarnings,
+        spam_score: spamAssessment.score,
+        spam_score_threshold: spamScoreThreshold,
+        spam_issues: spamAssessment.issues,
+        checks: {
+          unsubscribe_present: unsubscribePresent,
+          physical_address_present: physicalAddressPresent,
+          from_name_valid: fromNameValid,
+        },
+        domain: quotaCheck?.compliance || null,
+      },
+      reputation_policy: {
+        score: reputationPolicy.score,
+        tier: reputationPolicy.tier,
+        action: reputationPolicy.action,
+        recipient_cap: recipientCap,
+        job_batch_size: batchSizePerJob,
+        send_pacing_multiplier: reputationPolicy.send_pacing_multiplier,
+      },
+      list_hygiene: {
+        audience_total: hygieneAnalysis.audienceTotal,
+        duplicate_emails_count: hygieneAnalysis.duplicateEmailsCount,
+        invalid_emails_count: hygieneAnalysis.invalidEmailsCount,
+        invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
+        suppressed_count: hygieneAnalysis.suppressedCount,
+        inactive_count: hygieneAnalysis.inactiveCount,
+        inactive_pct: hygieneAnalysis.inactivePct,
+        warnings: hygieneAnalysis.warnings,
+        blocked: false,
+      },
+    };
+
+    const { error: queueInitError } = await supabase
+      .from('crm_campaigns')
+      .update({
+        delivery_method: deliveryMethod,
+        sender_display_name: senderDisplayName,
+        actual_sender_email: senderEmail,
+        from_email_domain_id: activeDomainId,
+        status: 'partially_queued',
+        queued_at: queuedAt,
+        queue_started_at: queueStartedAt,
+        queue_completed_at: null,
+        send_started_at: null,
+        send_completed_at: null,
+        sent_at: null,
+        worker_heartbeat_at: null,
+        estimated_completion_at: null,
+        total_recipients: recipientCount,
+        total_batches: totalBatches,
+        messages_sent: 0,
+        messages_failed: 0,
+        messages_skipped: skippedRecipientCount,
+        send_blocked_reason: null,
+        send_error: null,
+        metrics: queueProgressMetrics,
+      })
+      .eq('id', campaignId);
+
+    if (queueInitError) {
+      console.error('❌ Failed to mark campaign partially queued:', {
+        campaignId,
+        error: serializeSupabaseError(queueInitError),
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to initialize campaign queue' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(
+      `📧 Queuing ${recipientCount} recipients in batches of ${batchSizePerJob} `
+      + `(resume: ${isResumeRun}, jobs/min target: ${queueAvailabilityPlan.jobsPerMinute})...`
+    );
+
+    let queuedRecipientCount = 0;
+    let dbChunkSize = getInitialMessageInsertChunkSize(recipientCount);
     for (let batchStart = 0; batchStart < customers.length; batchStart += batchSizePerJob) {
       const batchIndex = Math.floor(batchStart / batchSizePerJob);
       const batchCustomers = customers.slice(batchStart, batchStart + batchSizePerJob);
-      const batchAvailableAtIso = new Date(nextBatchAvailableAtMs).toISOString();
-      nextBatchAvailableAtMs += randomIntInclusive(batchDelayMinSeconds, batchDelayMaxSeconds) * 1000 * sendPacingMultiplier;
-
       const batchMessageUpserts: any[] = [];
-      const batchRecipientEmails: Array<{ email: string; customerId: string }> = [];
 
       for (const customer of batchCustomers) {
         if (!customer?.id || !customer?.email) continue;
@@ -1394,13 +1571,10 @@ serve(async (req: Request) => {
           dead_lettered_at: null,
           error_message: null,
         });
-
-        batchRecipientEmails.push({ email: customer.email, customerId: customer.id });
       }
 
       if (batchMessageUpserts.length === 0) continue;
 
-      let dbChunkSize = 200;
       for (let offset = 0; offset < batchMessageUpserts.length; ) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
@@ -1411,8 +1585,8 @@ serve(async (req: Request) => {
           if (resp.error) {
             const code = (resp.error as any)?.code;
             const msg = (resp.error as any)?.message;
-            if ((code === '57014' || String(msg || '').includes('statement timeout')) && dbChunkSize > 25) {
-              dbChunkSize = Math.max(25, Math.floor(dbChunkSize / 2));
+            if ((code === '57014' || String(msg || '').includes('statement timeout')) && dbChunkSize > 50) {
+              dbChunkSize = Math.max(50, Math.floor(dbChunkSize / 2));
               console.warn(`⚠️ email_messages write timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
               continue;
             }
@@ -1438,8 +1612,8 @@ serve(async (req: Request) => {
           offset += chunk.length;
         } catch (e: any) {
           const msg = String(e?.message || e);
-          if ((msg.includes('statement timeout') || msg.includes('57014')) && dbChunkSize > 25) {
-            dbChunkSize = Math.max(25, Math.floor(dbChunkSize / 2));
+          if ((msg.includes('statement timeout') || msg.includes('57014')) && dbChunkSize > 50) {
+            dbChunkSize = Math.max(50, Math.floor(dbChunkSize / 2));
             console.warn(`⚠️ email_messages write exception timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
             continue;
           }
@@ -1455,98 +1629,11 @@ serve(async (req: Request) => {
         }
       }
 
-      if (batchRecipientEmails.length > 0) {
-        const batchCustomerIds = batchRecipientEmails
-          .map((r) => r.customerId)
-          .filter((id) => typeof id === 'string' && id.length > 0);
-
-        const { data: messageRows, error: messageIdsErr } = await supabase
-          .from('email_messages')
-          .select('id, customer_id')
-          .eq('campaign_id', campaignId)
-          .in('customer_id', batchCustomerIds);
-
-        if (messageIdsErr) {
-          console.error('❌ Failed to fetch recipient message IDs for job:', {
-            batchIndex,
-            err: serializeSupabaseError(messageIdsErr),
-          });
-          return new Response(
-            JSON.stringify({ error: 'Failed to queue campaign (message IDs lookup failed)' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const recipientMessageIds = (messageRows || [])
-          .map((r: any) => r?.id)
-          .filter((id: any) => typeof id === 'string' && id.length > 0);
-
-        if (recipientMessageIds.length === 0) {
-          console.error('❌ No recipient message IDs found for job; refusing to create empty job:', {
-            batchIndex,
-            batchSize: batchRecipientEmails.length,
-          });
-          return new Response(
-            JSON.stringify({ error: 'Failed to queue campaign (empty batch message IDs)' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        const jobPayload: Record<string, unknown> = {
-          campaign_id: campaignId,
-          tenant_id: campaign.tenant_id,
-          domain_id: activeDomainId,
-          status: 'pending',
-          available_at: batchAvailableAtIso,
-          recipient_message_ids: recipientMessageIds,
-          recipient_emails: batchRecipientEmails,
-          batch_index: batchIndex,
-        };
-
-        const tryUpsert = async (payload: Record<string, unknown>) =>
-          supabase
-            .from('email_send_jobs')
-            .upsert(payload, { onConflict: 'campaign_id,batch_index', ignoreDuplicates: true });
-
-        let { error: jobErr } = await tryUpsert(jobPayload);
-
-        // If PostgREST schema cache is stale (or remote schema is behind), retry without `available_at`.
-        // This unblocks queueing and relies on DB defaults when the column exists.
-        if (
-          jobErr &&
-          String((jobErr as any)?.code || '') === 'PGRST204' &&
-          String((jobErr as any)?.message || '').includes("'available_at'")
-        ) {
-          console.warn('⚠️ email_send_jobs.available_at not in schema cache; retrying job upsert without available_at');
-          const { available_at: _omit, ...payloadWithoutAvailableAt } = jobPayload;
-          ({ error: jobErr } = await tryUpsert(payloadWithoutAvailableAt));
-        }
-
-        if (jobErr) {
-          console.error('❌ Failed to create batch job:', { batchIndex, err: serializeSupabaseError(jobErr) });
-          return new Response(
-            JSON.stringify({ error: 'Failed to queue campaign' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-
-      queuedRecipientCount += batchRecipientEmails.length;
+      queuedRecipientCount += batchMessageUpserts.length;
       if ((batchIndex + 1) % 10 === 0 || batchIndex + 1 === totalBatches) {
         console.log(`📧 Queued batch ${batchIndex + 1}/${totalBatches} (queued so far: ${queuedRecipientCount})`);
       }
     }
-
-    // Update campaign sender config
-    await supabase
-      .from('crm_campaigns')
-      .update({
-        delivery_method: deliveryMethod,
-        sender_display_name: senderDisplayName,
-        actual_sender_email: senderEmail,
-        from_email_domain_id: activeDomainId
-      })
-      .eq('id', campaignId);
 
     if (!campaign?.tenant_id) {
       console.error('❌ Campaign tenant_id missing, cannot queue recipients', { campaignId });
@@ -1556,20 +1643,92 @@ serve(async (req: Request) => {
       );
     }
 
-    // Mark campaign as sending
+    const { data: ensureJobsData, error: ensureJobsError } = await supabase.rpc('ensure_jobs_for_queued_email_messages', {
+      p_campaign_id: campaignId,
+      p_batch_size: batchSizePerJob,
+      p_jobs_per_minute: queueAvailabilityPlan.jobsPerMinute,
+      p_immediate_job_count: queueAvailabilityPlan.immediateJobCount,
+      p_activate_sending: false,
+    });
+
+    if (ensureJobsError) {
+      console.error('❌ Failed to create send jobs for queued messages:', {
+        campaignId,
+        err: serializeSupabaseError(ensureJobsError),
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to build send jobs for campaign queue' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const ensureJobsRow = Array.isArray(ensureJobsData) ? ensureJobsData[0] : ensureJobsData;
+    const { count: totalJobCount, error: totalJobCountError } = await supabase
+      .from('email_send_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('campaign_id', campaignId);
+
+    if (totalJobCountError) {
+      console.error('❌ Failed to count queued send jobs:', {
+        campaignId,
+        err: serializeSupabaseError(totalJobCountError),
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to inspect queued send jobs' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const finalSkippedRecipientCount = skippedRecipientCount + Math.max(recipientCount - queuedRecipientCount, 0);
+    const actualTotalBatches = Math.max(Number(totalJobCount || 0), 0);
+
+    if (queuedRecipientCount > 0 && actualTotalBatches === 0) {
+      console.error('❌ Queue build created no send jobs for a non-empty campaign queue', {
+        campaignId,
+        queuedRecipientCount,
+      });
+      return new Response(
+        JSON.stringify({ error: 'Failed to schedule queued recipients for sending' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Queue acceptance is distinct from final delivery completion.
     const campaignStatus = 'queued';
-    await supabase
+    const queueCompletedAt = new Date().toISOString();
+    const { error: queueCampaignError } = await supabase
       .from('crm_campaigns')
       .update({
         status: campaignStatus,
-        sent_at: new Date().toISOString(),
+        queued_at: queuedAt,
+        queue_completed_at: queueCompletedAt,
+        total_recipients: queuedRecipientCount,
+        total_batches: actualTotalBatches,
+        messages_sent: 0,
+        messages_failed: 0,
+        messages_skipped: finalSkippedRecipientCount,
+        sent_at: null,
+        send_started_at: null,
+        send_completed_at: null,
+        worker_heartbeat_at: null,
+        estimated_completion_at: null,
         send_blocked_reason: null,
         metrics: {
-          ...(campaign.metrics || {}),
+          ...queueProgressMetrics,
           queued: queuedRecipientCount,
           skipped_suppressed: suppressedCount,
           links_tracked: urlsToTrack.length,
           pii_warnings: piiWarningSet.size,
+          queue: {
+            ...(queueProgressMetrics.queue || {}),
+            resumed: isResumeRun,
+            jobs_created: Number(ensureJobsRow?.jobs_created || 0),
+            jobs_total: actualTotalBatches,
+            jobs_per_minute_target: queueAvailabilityPlan.jobsPerMinute,
+            immediate_job_count: queueAvailabilityPlan.immediateJobCount,
+            estimated_emails_per_minute: queueAvailabilityPlan.estimatedEmailsPerMinute,
+            final_db_chunk_size: dbChunkSize,
+          },
           compliance: {
             high_volume: isHighVolume,
             high_volume_threshold: highVolumeThreshold,
@@ -1607,7 +1766,15 @@ serve(async (req: Request) => {
       })
       .eq('id', campaignId);
 
-    console.log(`📧 Campaign ${campaignId} queued with ${totalBatches} batch jobs`);
+    if (queueCampaignError) {
+      console.error('❌ Failed to mark campaign queued', {
+        campaignId,
+        error: queueCampaignError,
+      });
+      throw queueCampaignError;
+    }
+
+    console.log(`📧 Campaign ${campaignId} queued with ${actualTotalBatches} batch jobs`);
 
     await logCampaignGovernanceDecision({
       decision: complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0 ? 'warn' : 'allow',
@@ -1619,6 +1786,10 @@ serve(async (req: Request) => {
         recipient_count: recipientCount,
         queued_recipient_count: queuedRecipientCount,
         suppressed_count: suppressedCount,
+        resumed: isResumeRun,
+        existing_message_count: Number(existingMessageCount || 0),
+        jobs_created: Number(ensureJobsRow?.jobs_created || 0),
+        jobs_total: actualTotalBatches,
         compliance_warnings: complianceWarnings,
         hygiene_warnings: hygieneAnalysis.warnings,
         reputation: {
@@ -1634,8 +1805,11 @@ serve(async (req: Request) => {
         success: true,
         mode: 'queued',
         campaign_id: campaignId,
+        queued_at: queuedAt,
+        queue_completed_at: queueCompletedAt,
+        resumed: isResumeRun,
         total_recipients: queuedRecipientCount,
-        total_batches: totalBatches,
+        total_batches: actualTotalBatches,
         message: `Campaign queued for sending to ${queuedRecipientCount} recipients`,
         reputation: {
           score: reputationPolicy.score,

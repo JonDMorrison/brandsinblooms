@@ -25,6 +25,10 @@ import {
 } from 'lucide-react';
 import { toast } from '@/utils/toast';
 import { useNavigate } from 'react-router-dom';
+import {
+  CAMPAIGN_STATUS,
+  getCampaignStatusLabel,
+} from '@/constants/campaignStatuses';
 
 interface CampaignPerformanceMetrics {
   open_rate: number;
@@ -40,7 +44,9 @@ interface CampaignHistoryItem {
   name: string;
   subject_line: string;
   status: string;
-  sent_at?: string;
+  sent_at: string | null;
+  queued_at: string | null;
+  activity_at: string;
   created_at: string;
   metrics?: CampaignPerformanceMetrics;
   segment_name?: string;
@@ -63,6 +69,8 @@ export const CampaignHistoryView: React.FC = () => {
       subject_line: campaign.subject_line || '',
       status: campaign.status,
       sent_at: campaign.sent_at,
+      queued_at: campaign.queued_at,
+      activity_at: campaign.activity_at,
       created_at: campaign.created_at,
       metrics: campaign.metrics ? {
         open_rate: campaign.open_rate || 0,
@@ -95,13 +103,10 @@ export const CampaignHistoryView: React.FC = () => {
         case 'performance':
           return (b.metrics?.engagement_score || 0) - (a.metrics?.engagement_score || 0);
         case 'sent':
-          if (!a.sent_at && !b.sent_at) return 0;
-          if (!a.sent_at) return 1;
-          if (!b.sent_at) return -1;
-          return new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime();
+          return new Date(b.activity_at).getTime() - new Date(a.activity_at).getTime();
         case 'recent':
         default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          return new Date(b.activity_at).getTime() - new Date(a.activity_at).getTime();
       }
     });
 
@@ -120,12 +125,13 @@ export const CampaignHistoryView: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'sent': 'default',
-      'draft': 'secondary',
-      'scheduled': 'outline',
-      'failed': 'destructive'
+      [CAMPAIGN_STATUS.SENT]: 'default',
+      [CAMPAIGN_STATUS.SENT_WITH_ERRORS]: 'destructive',
+      [CAMPAIGN_STATUS.DRAFT]: 'secondary',
+      [CAMPAIGN_STATUS.SCHEDULED]: 'outline',
+      [CAMPAIGN_STATUS.FAILED]: 'destructive',
     };
-    return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>;
+    return <Badge variant={variants[status] || 'secondary'}>{getCampaignStatusLabel(status)}</Badge>;
   };
 
   const getPerformanceBadge = (metrics?: CampaignPerformanceMetrics) => {
@@ -242,10 +248,12 @@ export const CampaignHistoryView: React.FC = () => {
               className="w-40"
               options={[
                 { value: '', label: 'All Status' },
-                { value: 'sent', label: 'Sent' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'failed', label: 'Failed' }
+                { value: CAMPAIGN_STATUS.SENT, label: getCampaignStatusLabel(CAMPAIGN_STATUS.SENT) },
+                { value: CAMPAIGN_STATUS.DRAFT, label: getCampaignStatusLabel(CAMPAIGN_STATUS.DRAFT) },
+                { value: CAMPAIGN_STATUS.SCHEDULED, label: getCampaignStatusLabel(CAMPAIGN_STATUS.SCHEDULED) },
+                { value: CAMPAIGN_STATUS.QUEUED, label: getCampaignStatusLabel(CAMPAIGN_STATUS.QUEUED) },
+                { value: CAMPAIGN_STATUS.SENT_WITH_ERRORS, label: getCampaignStatusLabel(CAMPAIGN_STATUS.SENT_WITH_ERRORS) },
+                { value: CAMPAIGN_STATUS.FAILED, label: getCampaignStatusLabel(CAMPAIGN_STATUS.FAILED) }
               ]}
             />
 
@@ -315,6 +323,8 @@ export const CampaignHistoryView: React.FC = () => {
                           <span>
                             {campaign.sent_at ? 
                               `Sent ${new Date(campaign.sent_at).toLocaleDateString()}` :
+                              campaign.queued_at ?
+                              `Queued ${new Date(campaign.queued_at).toLocaleDateString()}` :
                               `Created ${new Date(campaign.created_at).toLocaleDateString()}`
                             }
                           </span>

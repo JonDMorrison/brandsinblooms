@@ -40,6 +40,12 @@ import {
   JoyTabsList,
   JoyTabsTrigger,
 } from "@/components/joy/JoyTabs";
+import {
+  ACTIVE_STATUSES,
+  CAMPAIGN_STATUS,
+  isDeliveredCampaignStatus,
+  isQueuedCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { supabase } from "@/integrations/supabase/client";
 
 type MarketingPerformanceSectionProps = {
@@ -75,21 +81,30 @@ type MarketingSummary = {
 };
 
 const normalizeCampaignStatus = (status: string | null) => {
+  if (isDeliveredCampaignStatus(status)) {
+    return "completed" as const;
+  }
+
+  if (isQueuedCampaignStatus(status)) {
+    return "active" as const;
+  }
+
   switch ((status ?? "").toLowerCase()) {
-    case "sent":
-    case "sent_with_errors":
-    case "completed":
-      return "completed" as const;
-    case "active":
-    case "scheduled":
-    case "sending":
+    case CAMPAIGN_STATUS.SCHEDULED:
+    case CAMPAIGN_STATUS.SENDING:
       return "active" as const;
-    case "paused":
+    case CAMPAIGN_STATUS.PAUSED:
       return "paused" as const;
     default:
       return "draft" as const;
   }
 };
+
+const normalizeCampaignSummaryDate = (campaign: {
+  sent_at: string | null;
+  queued_at?: string | null;
+  created_at: string;
+}) => campaign.sent_at ?? campaign.queued_at ?? campaign.created_at;
 
 export function MarketingPerformanceSection({
   dateRange,
@@ -102,148 +117,148 @@ export function MarketingPerformanceSection({
   const navigate = useNavigate();
 
   const { data, error, isLoading, refetch } = useQuery<MarketingSummary>({
-    queryKey: ["analytics-marketing-summary", user?.id, tenant?.id, dateRange],
-    enabled: Boolean(user?.id && tenant?.id),
-    queryFn: async () => {
-      if (!user?.id || !tenant?.id) {
-        return {
-          activeCampaigns: 0,
-          campaignStatusCounts: {
-            active: 0,
-            completed: 0,
-            draft: 0,
-            paused: 0,
+      queryKey: ["analytics-marketing-summary", user?.id, tenant?.id, dateRange],
+      enabled: Boolean(user?.id && tenant?.id),
+      queryFn: async () => {
+        if (!user?.id || !tenant?.id) {
+          return {
+            activeCampaigns: 0,
+            campaignStatusCounts: {
+              active: 0,
+              completed: 0,
+              draft: 0,
+              paused: 0,
+            },
+            campaignsConnected: false,
+            campaignsPerWeek: [],
+            emailConnected: false,
+            engagementRate: 0,
+            recentCampaignPerformance: [],
+            sentMessages: 0,
+            socialConnected: false,
+            socialPlatforms: [],
+            totalCustomers: 0,
+          };
+        }
+
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - dateRange);
+
+        const [
+          socialConnections,
+          totalCustomers,
+          activeCampaigns,
+          sentCampaigns,
+          allCampaigns,
+          sentMessages,
+        ] = await Promise.all([
+          supabase
+            .from("social_connections")
+            .select("platform")
+            .eq("user_id", user.id)
+            .eq("is_active", true),
+          supabase
+            .from("crm_customers")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenant.id),
+          supabase
+            .from("crm_campaigns")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenant.id)
+            .in("status", [...ACTIVE_STATUSES, CAMPAIGN_STATUS.SCHEDULED]),
+          supabase
+            .from("crm_campaigns")
+            .select(
+              "id, name, status, created_at, queued_at, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
+            )
+            .eq("tenant_id", tenant.id)
+            .not("sent_at", "is", null)
+            .gte("sent_at", startDate.toISOString())
+            .order("sent_at", { ascending: false })
+            .limit(12),
+          supabase
+            .from("crm_campaigns")
+            .select("id, status, created_at, queued_at, sent_at")
+            .eq("tenant_id", tenant.id)
+            .gte("created_at", startDate.toISOString()),
+          supabase
+            .from("sms_messages")
+            .select("id, crm_customers!inner(tenant_id)", {
+              count: "exact",
+              head: true,
+            })
+            .eq("status", "sent")
+            .eq("crm_customers.tenant_id", tenant.id),
+        ]);
+
+        const campaignStatusCounts = (
+          allCampaigns.data ?? []
+        ).reduce<CampaignStatusCounts>(
+          (accumulator, campaign) => {
+            const normalized = normalizeCampaignStatus(campaign.status);
+            accumulator[normalized] += 1;
+            return accumulator;
           },
-          campaignsConnected: false,
-          campaignsPerWeek: [],
-          emailConnected: false,
-          engagementRate: 0,
-          recentCampaignPerformance: [],
-          sentMessages: 0,
-          socialConnected: false,
-          socialPlatforms: [],
-          totalCustomers: 0,
-        };
-      }
-
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - dateRange);
-
-      const [
-        socialConnections,
-        totalCustomers,
-        activeCampaigns,
-        sentCampaigns,
-        allCampaigns,
-        sentMessages,
-      ] = await Promise.all([
-        supabase
-          .from("social_connections")
-          .select("platform")
-          .eq("user_id", user.id)
-          .eq("is_active", true),
-        supabase
-          .from("crm_customers")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant.id),
-        supabase
-          .from("crm_campaigns")
-          .select("id", { count: "exact", head: true })
-          .eq("tenant_id", tenant.id)
-          .eq("status", "active"),
-        supabase
-          .from("crm_campaigns")
-          .select(
-            "id, name, status, created_at, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
-          )
-          .eq("tenant_id", tenant.id)
-          .not("sent_at", "is", null)
-          .gte("sent_at", startDate.toISOString())
-          .order("sent_at", { ascending: false })
-          .limit(12),
-        supabase
-          .from("crm_campaigns")
-          .select("id, status, created_at, sent_at")
-          .eq("tenant_id", tenant.id)
-          .gte("created_at", startDate.toISOString()),
-        supabase
-          .from("sms_messages")
-          .select("id, crm_customers!inner(tenant_id)", {
-            count: "exact",
-            head: true,
-          })
-          .eq("status", "sent")
-          .eq("crm_customers.tenant_id", tenant.id),
-      ]);
-
-      const campaignStatusCounts = (
-        allCampaigns.data ?? []
-      ).reduce<CampaignStatusCounts>(
-        (accumulator, campaign) => {
-          const normalized = normalizeCampaignStatus(campaign.status);
-          accumulator[normalized] += 1;
-          return accumulator;
-        },
-        { active: 0, completed: 0, draft: 0, paused: 0 },
-      );
-
-      const campaignsPerWeekMap = new Map<string, number>();
-
-      for (const campaign of allCampaigns.data ?? []) {
-        const weekLabel = format(
-          startOfWeek(new Date(campaign.sent_at ?? campaign.created_at), {
-            weekStartsOn: 1,
-          }),
-          "MMM d",
+          { active: 0, completed: 0, draft: 0, paused: 0 },
         );
-        campaignsPerWeekMap.set(
-          weekLabel,
-          (campaignsPerWeekMap.get(weekLabel) ?? 0) + 1,
+
+        const campaignsPerWeekMap = new Map<string, number>();
+
+        for (const campaign of allCampaigns.data ?? []) {
+          const weekLabel = format(
+            startOfWeek(new Date(normalizeCampaignSummaryDate(campaign)), {
+              weekStartsOn: 1,
+            }),
+            "MMM d",
+          );
+          campaignsPerWeekMap.set(
+            weekLabel,
+            (campaignsPerWeekMap.get(weekLabel) ?? 0) + 1,
+          );
+        }
+
+        const recentCampaignPerformance = (sentCampaigns.data ?? [])
+          .slice(0, 5)
+          .map((campaign) => ({
+            clickRate: campaign.click_rate ?? 0,
+            name: campaign.name,
+            openRate: campaign.open_rate ?? 0,
+          }))
+          .reverse();
+
+        const totalSent = (sentCampaigns.data ?? []).reduce(
+          (sum, campaign) => sum + (campaign.total_sent ?? 0),
+          0,
         );
-      }
+        const totalEngaged = (sentCampaigns.data ?? []).reduce(
+          (sum, campaign) =>
+            sum + (campaign.total_opens ?? 0) + (campaign.total_clicks ?? 0),
+          0,
+        );
 
-      const recentCampaignPerformance = (sentCampaigns.data ?? [])
-        .slice(0, 5)
-        .map((campaign) => ({
-          clickRate: campaign.click_rate ?? 0,
-          name: campaign.name,
-          openRate: campaign.open_rate ?? 0,
-        }))
-        .reverse();
-
-      const totalSent = (sentCampaigns.data ?? []).reduce(
-        (sum, campaign) => sum + (campaign.total_sent ?? 0),
-        0,
-      );
-      const totalEngaged = (sentCampaigns.data ?? []).reduce(
-        (sum, campaign) =>
-          sum + (campaign.total_opens ?? 0) + (campaign.total_clicks ?? 0),
-        0,
-      );
-
-      return {
-        activeCampaigns: activeCampaigns.count ?? 0,
-        campaignStatusCounts,
-        campaignsConnected: (allCampaigns.data?.length ?? 0) > 0,
-        campaignsPerWeek: Array.from(campaignsPerWeekMap.entries()).map(
-          ([label, total]) => ({ label, total }),
-        ),
-        emailConnected: (sentCampaigns.data?.length ?? 0) > 0,
-        engagementRate: totalSent > 0 ? (totalEngaged / totalSent) * 100 : 0,
-        recentCampaignPerformance,
-        sentMessages: sentMessages.count ?? 0,
-        socialConnected: (socialConnections.data?.length ?? 0) > 0,
-        socialPlatforms: Array.from(
-          new Set(
-            (socialConnections.data ?? []).map((connection) =>
-              normalizePlatformLabel(connection.platform),
+        return {
+          activeCampaigns: activeCampaigns.count ?? 0,
+          campaignStatusCounts,
+          campaignsConnected: (allCampaigns.data?.length ?? 0) > 0,
+          campaignsPerWeek: Array.from(campaignsPerWeekMap.entries()).map(
+            ([label, total]) => ({ label, total }),
+          ),
+          emailConnected: (sentCampaigns.data?.length ?? 0) > 0,
+          engagementRate: totalSent > 0 ? (totalEngaged / totalSent) * 100 : 0,
+          recentCampaignPerformance,
+          sentMessages: sentMessages.count ?? 0,
+          socialConnected: (socialConnections.data?.length ?? 0) > 0,
+          socialPlatforms: Array.from(
+            new Set(
+              (socialConnections.data ?? []).map((connection) =>
+                normalizePlatformLabel(connection.platform),
+              ),
             ),
           ),
-        ),
-        totalCustomers: totalCustomers.count ?? 0,
-      };
-    },
-  });
+          totalCustomers: totalCustomers.count ?? 0,
+        };
+      },
+    });
 
   const channelStates = [
     {

@@ -125,17 +125,17 @@ export function CampaignDeliverySummary({
         overflow: "hidden",
       }}
     >
-      {items.map((item, index) => (
-        <React.Fragment key={item.key}>
+      {items.map(({ key, ...item }, index) => (
+        <React.Fragment key={key}>
           <DeliveryCell {...item} />
           {index < items.length - 1 ? (
-            <Divider
-              orientation={
-                index < items.length - 1
-                  ? ({ xs: "horizontal", md: "vertical" } as never)
-                  : "vertical"
-              }
-            />
+            <>
+              <Divider sx={{ display: { xs: "block", md: "none" } }} />
+              <Divider
+                orientation="vertical"
+                sx={{ display: { xs: "none", md: "block" } }}
+              />
+            </>
           ) : null}
         </React.Fragment>
       ))}

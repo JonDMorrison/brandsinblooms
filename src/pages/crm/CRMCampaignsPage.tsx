@@ -1,37 +1,40 @@
 import * as React from "react";
-import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
-import Checkbox from "@mui/joy/Checkbox";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
 import Divider from "@mui/joy/Divider";
-import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
+import LinearProgress from "@mui/joy/LinearProgress";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
-import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
+import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   BarChart3,
+  Clock3,
   Copy,
-  LayoutGrid,
-  List,
-  Mail,
-  MessageSquare,
+  Download,
+  Edit3,
+  FileText,
   MoreHorizontal,
-  Newspaper,
   Pause,
   Play,
   Plus,
+  RotateCcw,
   Search,
+  Send,
+  TimerReset,
   Trash2,
   Users,
+  XCircle,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isTomorrow, isValid } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
-import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
-import { JoyDebouncedInput } from "@/components/joy/JoyDebouncedInput";
 import {
   JoyDialog,
   JoyDialogActions,
@@ -44,610 +47,487 @@ import {
   JoyDropdownMenuTrigger,
 } from "@/components/joy/JoyDropdownMenu";
 import { JoyInput } from "@/components/joy/JoyInput";
-import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
 import { PageContainer } from "@/components/joy/PageContainer";
-import { JoySelect } from "@/components/joy/JoySelect";
 import {
   JoyTable,
   JoyTableBody,
   JoyTableCell,
   JoyTableHead,
   JoyTableHeaderCell,
+  JoyTablePagination,
   JoyTableRow,
   type JoyTableSortDirection,
 } from "@/components/joy/JoyTable";
+import {
+  CAMPAIGN_STATUS,
+  isCampaignStatus,
+  isDeliveredCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
 import {
   deleteCampaignById,
   fetchCampaignCatalog,
+  mapCampaignCatalogItem,
   updateCampaignStatus,
   type CampaignCatalogItem,
-  type CampaignChannel,
 } from "@/lib/crm/campaignEditor";
+import { retryFailedEmailMessages } from "@/lib/email/emailRetryService";
+import { unscheduleCampaign } from "@/utils/crmCampaignService";
+import { toast } from "@/utils/toast";
 
-type ViewMode = "grid" | "table";
-type TypeFilter = "all" | CampaignChannel;
 type StatusFilter =
   | "all"
-  | "draft"
-  | "scheduled"
   | "sending"
+  | "scheduled"
+  | "draft"
   | "sent"
-  | "failed"
-  | "paused";
-type SortOption =
-  | "newest"
-  | "oldest"
-  | "name-asc"
-  | "name-desc"
-  | "recipients-desc"
-  | "recipients-asc"
-  | "open-rate-desc"
-  | "open-rate-asc"
-  | "click-rate-desc"
-  | "click-rate-asc";
+  | "failed";
 type SortColumn =
   | "campaign"
+  | "status"
   | "recipients"
+  | "date"
   | "open-rate"
-  | "click-rate"
-  | "date";
+  | "click-rate";
+type SortDirection = "asc" | "desc";
+type ConfirmAction =
+  | { type: "delete"; campaign: CampaignCatalogItem }
+  | { type: "pause"; campaign: CampaignCatalogItem }
+  | { type: "resume"; campaign: CampaignCatalogItem }
+  | { type: "unschedule"; campaign: CampaignCatalogItem }
+  | { type: "retry"; campaign: CampaignCatalogItem };
 
-const GRID_COLUMNS = {
-  xs: "1fr",
-  md: "repeat(2, minmax(0, 1fr))",
-  xl: "repeat(3, minmax(0, 1fr))",
-} as const;
-
-const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
-  { value: "newest", label: "Newest" },
-  { value: "oldest", label: "Oldest" },
-  { value: "name-asc", label: "Name A-Z" },
-  { value: "recipients-desc", label: "Most recipients" },
-  { value: "open-rate-desc", label: "Best open rate" },
-  { value: "click-rate-desc", label: "Best click rate" },
-];
-
-const TYPE_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
-  { value: "all", label: "All types" },
-  { value: "email", label: "Email" },
-  { value: "sms", label: "SMS" },
-  { value: "newsletter", label: "Newsletter" },
-];
-
-const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "scheduled", label: "Scheduled" },
+const FILTERS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "all", label: "All" },
   { value: "sending", label: "Sending" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "draft", label: "Drafts" },
   { value: "sent", label: "Sent" },
   { value: "failed", label: "Failed" },
-  { value: "paused", label: "Paused" },
 ];
 
-function getCampaignIcon(channel: CampaignChannel) {
-  switch (channel) {
-    case "sms":
-      return MessageSquare;
-    case "newsletter":
-      return Newspaper;
-    default:
-      return Mail;
+const PAGE_SIZE = 100;
+
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function getSendProgress(campaign: CampaignCatalogItem) {
+  const total = Math.max(0, Number(campaign.totalRecipients || 0));
+  if (total <= 0) return 0;
+  return clampPercent((Number(campaign.messagesSent || 0) / total) * 100);
+}
+
+function getProcessedCount(campaign: CampaignCatalogItem) {
+  return (
+    Number(campaign.messagesSent || 0) +
+    Number(campaign.messagesFailed || 0) +
+    Number(campaign.messagesSkipped || 0)
+  );
+}
+
+function parseDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return isValid(date) ? date : null;
+}
+
+function getRelativeScheduleLabel(value: string | null | undefined) {
+  const date = parseDate(value);
+  if (!date) return "not scheduled";
+  if (isTomorrow(date)) return `Tomorrow ${format(date, "h:mm a")}`;
+  return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
+}
+
+function getContextualDate(campaign: CampaignCatalogItem) {
+  if (campaign.status === CAMPAIGN_STATUS.SCHEDULED) {
+    return { label: "Scheduled", value: campaign.scheduledAt };
   }
+
+  if (
+    campaign.status === CAMPAIGN_STATUS.QUEUED ||
+    campaign.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+  ) {
+    return {
+      label: "Queued",
+      value: campaign.queuedAt || campaign.queueStartedAt,
+    };
+  }
+
+  if (campaign.status === CAMPAIGN_STATUS.SENDING) {
+    return {
+      label: "Started",
+      value: campaign.sendStartedAt || campaign.queuedAt,
+    };
+  }
+
+  if (isDeliveredCampaignStatus(campaign.status)) {
+    return {
+      label: "Sent",
+      value: campaign.sentAt || campaign.sendCompletedAt,
+    };
+  }
+
+  if (campaign.status === CAMPAIGN_STATUS.FAILED) {
+    return { label: "Failed", value: campaign.updatedAt };
+  }
+
+  return { label: "Updated", value: campaign.updatedAt || campaign.createdAt };
 }
 
-function getCampaignSubject(campaign: CampaignCatalogItem) {
-  return campaign.subjectLine || campaign.preheaderText || "No subject yet";
-}
-
-function isSentCampaign(campaign: CampaignCatalogItem) {
-  return ["sent", "sent_with_errors"].includes(campaign.status);
-}
-
-function getDisplayDate(campaign: CampaignCatalogItem) {
-  const dateValue =
-    campaign.sentAt ||
-    campaign.scheduledAt ||
-    campaign.updatedAt ||
-    campaign.createdAt;
-
-  return dateValue
-    ? formatDistanceToNow(new Date(dateValue), { addSuffix: true })
-    : "No date";
+function formatContextualDate(campaign: CampaignCatalogItem) {
+  const context = getContextualDate(campaign);
+  const date = parseDate(context.value);
+  if (!date) return { label: context.label, value: "-" };
+  return { label: context.label, value: format(date, "MMM d, h:mm a") };
 }
 
 function getSortDate(campaign: CampaignCatalogItem) {
   return new Date(
-    campaign.sentAt ||
+    campaign.updatedAt ||
+      campaign.workerHeartbeatAt ||
+      campaign.sentAt ||
+      campaign.queuedAt ||
       campaign.scheduledAt ||
-      campaign.updatedAt ||
       campaign.createdAt ||
       0,
   ).getTime();
 }
 
-function getCampaignStatusTone(campaign: CampaignCatalogItem) {
-  switch (campaign.status) {
-    case "sent":
-      return "success" as const;
-    case "sent_with_errors":
-      return "warning" as const;
-    case "failed":
-      return "danger" as const;
-    case "scheduled":
-    case "queued":
-    case "partially_queued":
-    case "sending":
-      return "info" as const;
-    case "paused":
-      return "warning" as const;
-    default:
-      return "neutral" as const;
-  }
-}
-
-function getCampaignStatusLabel(campaign: CampaignCatalogItem) {
-  if (campaign.status === "sent_with_errors") {
-    return "Sent w/ errors";
-  }
-
-  if (campaign.status === "partially_queued") {
-    return "Partially queued";
-  }
-
-  return undefined;
-}
-
-function normalizeSortOption(value: string | null): SortOption {
+function normalizeFilter(value: string | null): StatusFilter {
   switch (value) {
-    case "oldest":
-    case "name-asc":
-    case "name-desc":
-    case "recipients-desc":
-    case "recipients-asc":
-    case "open-rate-desc":
-    case "open-rate-asc":
-    case "click-rate-desc":
-    case "click-rate-asc":
+    case "sending":
+    case "scheduled":
+    case "draft":
+    case "sent":
+    case "failed":
       return value;
-    case "name":
-      return "name-asc";
-    case "recipients":
-      return "recipients-desc";
-    case "open-rate":
-      return "open-rate-desc";
-    case "newest":
     default:
-      return "newest";
+      return "all";
   }
+}
+
+function normalizeSortColumn(value: string | null): SortColumn {
+  switch (value) {
+    case "campaign":
+    case "status":
+    case "recipients":
+    case "date":
+    case "open-rate":
+    case "click-rate":
+      return value;
+    default:
+      return "date";
+  }
+}
+
+function normalizeSortDirection(value: string | null): SortDirection {
+  return value === "asc" ? "asc" : "desc";
+}
+
+function getSortDirection(
+  currentColumn: SortColumn,
+  currentDirection: SortDirection,
+  column: SortColumn,
+): JoyTableSortDirection {
+  return currentColumn === column ? currentDirection : "none";
 }
 
 function matchesStatusFilter(
   campaign: CampaignCatalogItem,
-  status: StatusFilter,
+  filter: StatusFilter,
 ) {
-  if (status === "all") {
-    return true;
-  }
-
-  if (status === "sent") {
-    return isSentCampaign(campaign);
-  }
-
-  if (status === "scheduled") {
-    return ["scheduled", "queued", "partially_queued"].includes(
-      campaign.status,
-    );
-  }
-
-  if (status === "sending") {
-    return ["sending", "queued", "partially_queued"].includes(campaign.status);
-  }
-
-  return campaign.status === status;
-}
-
-function getColumnSortDirection(
-  sort: SortOption,
-  column: SortColumn,
-): JoyTableSortDirection {
-  switch (column) {
-    case "campaign":
-      if (sort === "name-asc") return "asc";
-      if (sort === "name-desc") return "desc";
-      return "none";
-    case "recipients":
-      if (sort === "recipients-asc") return "asc";
-      if (sort === "recipients-desc") return "desc";
-      return "none";
-    case "open-rate":
-      if (sort === "open-rate-asc") return "asc";
-      if (sort === "open-rate-desc") return "desc";
-      return "none";
-    case "click-rate":
-      if (sort === "click-rate-asc") return "asc";
-      if (sort === "click-rate-desc") return "desc";
-      return "none";
-    case "date":
-      if (sort === "oldest") return "asc";
-      if (sort === "newest") return "desc";
-      return "none";
+  switch (filter) {
+    case "all":
+      return true;
+    case "sending":
+      return [
+        CAMPAIGN_STATUS.QUEUED,
+        CAMPAIGN_STATUS.PARTIALLY_QUEUED,
+        CAMPAIGN_STATUS.SENDING,
+        CAMPAIGN_STATUS.PAUSED,
+      ].includes(campaign.status);
+    case "scheduled":
+      return campaign.status === CAMPAIGN_STATUS.SCHEDULED;
+    case "draft":
+      return campaign.status === CAMPAIGN_STATUS.DRAFT;
+    case "sent":
+      return isDeliveredCampaignStatus(campaign.status);
+    case "failed":
+      return campaign.status === CAMPAIGN_STATUS.FAILED;
   }
 }
 
-function getNextSortOption(
-  current: SortOption,
-  column: SortColumn,
-): SortOption {
-  switch (column) {
-    case "campaign":
-      return current === "name-asc" ? "name-desc" : "name-asc";
-    case "recipients":
-      return current === "recipients-desc"
-        ? "recipients-asc"
-        : "recipients-desc";
-    case "open-rate":
-      return current === "open-rate-desc" ? "open-rate-asc" : "open-rate-desc";
-    case "click-rate":
-      return current === "click-rate-desc"
-        ? "click-rate-asc"
-        : "click-rate-desc";
-    case "date":
-      return current === "newest" ? "oldest" : "newest";
-  }
-}
-
-function CampaignStatsStrip({
-  items,
-}: {
-  items: Array<{ label: string; value: string; icon: React.ElementType }>;
-}) {
-  return (
-    <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
-      <Stack
-        direction={{ xs: "column", xl: "row" }}
-        divider={
-          <Divider
-            orientation="vertical"
-            sx={{ display: { xs: "none", xl: "block" } }}
-          />
-        }
-      >
-        {items.map((item) => (
-          <Box key={item.label} sx={{ flex: 1, p: 2 }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Avatar
-                color="neutral"
-                variant="soft"
-                sx={{ width: 32, height: 32 }}
-              >
-                <item.icon size={16} />
-              </Avatar>
-              <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  {item.label}
-                </Typography>
-                <Typography level="title-md" fontWeight="lg">
-                  {item.value}
-                </Typography>
-              </Stack>
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
-    </Sheet>
-  );
-}
-
-function StatsStripSkeleton() {
-  return (
-    <Sheet variant="outlined" sx={{ borderRadius: "lg", overflow: "hidden" }}>
-      <Stack
-        direction={{ xs: "column", xl: "row" }}
-        divider={
-          <Divider
-            orientation="vertical"
-            sx={{ display: { xs: "none", xl: "block" } }}
-          />
-        }
-      >
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Box key={index} sx={{ flex: 1, p: 2 }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Skeleton
-                variant="circular"
-                width={32}
-                height={32}
-                animation="wave"
-              />
-              <Stack spacing={0.5}>
-                <Skeleton
-                  variant="text"
-                  width={80}
-                  height={12}
-                  animation="wave"
-                />
-                <Skeleton
-                  variant="text"
-                  width={48}
-                  height={22}
-                  animation="wave"
-                />
-              </Stack>
-            </Stack>
-          </Box>
-        ))}
-      </Stack>
-    </Sheet>
-  );
-}
-
-function CampaignCardSkeleton() {
-  return (
-    <Sheet
-      variant="outlined"
-      sx={{ borderRadius: "lg", p: 2, minHeight: 226, height: "100%" }}
-    >
-      <Stack spacing={2} sx={{ height: "100%" }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Skeleton
-            variant="circular"
-            width={36}
-            height={36}
-            animation="wave"
-          />
-          <Stack spacing={0.5} sx={{ flex: 1 }}>
-            <Skeleton variant="text" width="65%" height={18} animation="wave" />
-            <Skeleton variant="text" width="85%" height={14} animation="wave" />
-          </Stack>
-          <Skeleton
-            variant="circular"
-            width={28}
-            height={28}
-            animation="wave"
-          />
-        </Stack>
-
-        <Box>
-          <Skeleton
-            variant="rectangular"
-            width={52}
-            height={22}
-            animation="wave"
-            sx={{ borderRadius: "sm" }}
-          />
-        </Box>
-
-        <Stack direction="row" spacing={3}>
-          <Skeleton variant="text" width={90} height={14} animation="wave" />
-          <Skeleton variant="text" width={70} height={14} animation="wave" />
-          <Skeleton variant="text" width={60} height={14} animation="wave" />
-        </Stack>
-
-        <Skeleton variant="text" width={120} height={12} animation="wave" />
-
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          sx={{ mt: "auto" }}
-        >
-          <Skeleton variant="text" width={80} height={14} animation="wave" />
-          <Skeleton variant="text" width={100} height={14} animation="wave" />
-        </Stack>
-      </Stack>
-    </Sheet>
-  );
-}
-
-function CampaignCard({
+function StatusChip({
   campaign,
-  onOpenDuplicate,
-  onOpenDelete,
-  onToggleStatus,
-  onNavigate,
-  onOpenRecipients,
+  compactOnNarrow = true,
 }: {
   campaign: CampaignCatalogItem;
-  onOpenDuplicate: (campaign: CampaignCatalogItem) => void;
-  onOpenDelete: (campaign: CampaignCatalogItem) => void;
-  onToggleStatus: (campaign: CampaignCatalogItem) => void;
-  onNavigate: (campaign: CampaignCatalogItem) => void;
-  onOpenRecipients: (campaign: CampaignCatalogItem) => void;
+  compactOnNarrow?: boolean;
 }) {
-  const Icon = getCampaignIcon(campaign.channel);
-  const sentCampaign = isSentCampaign(campaign);
+  const progress = Math.round(getSendProgress(campaign));
+  let color: React.ComponentProps<typeof Chip>["color"] = "neutral";
+  let label = "Draft";
+  let icon: React.ReactNode = null;
 
-  return (
-    <Sheet
-      onClick={() => onNavigate(campaign)}
-      variant="outlined"
+  switch (campaign.status) {
+    case CAMPAIGN_STATUS.DRAFT:
+      label = "Draft - ready to edit";
+      icon = <FileText size={13} />;
+      break;
+    case CAMPAIGN_STATUS.SCHEDULED:
+      label = `Scheduled - ${getRelativeScheduleLabel(campaign.scheduledAt)}`;
+      icon = <Clock3 size={13} />;
+      break;
+    case CAMPAIGN_STATUS.QUEUED:
+      label = "Queued";
+      icon = <TimerReset size={13} />;
+      break;
+    case CAMPAIGN_STATUS.PARTIALLY_QUEUED:
+      label = "Queuing...";
+      color = "warning";
+      icon = (
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            bgcolor: "currentColor",
+            animation: "campaign-status-pulse 1.1s ease-in-out infinite",
+          }}
+        />
+      );
+      break;
+    case CAMPAIGN_STATUS.SENDING:
+      label = `Sending - ${progress}%`;
+      color = "primary";
+      icon = <Send size={13} />;
+      break;
+    case CAMPAIGN_STATUS.PAUSED:
+      label = "Paused";
+      color = "warning";
+      icon = <Pause size={13} />;
+      break;
+    case CAMPAIGN_STATUS.SENT:
+      label = "Sent";
+      color = "success";
+      icon = <BarChart3 size={13} />;
+      break;
+    case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
+      label = `Sent - ${Number(campaign.messagesFailed || 0).toLocaleString()} errors`;
+      color = "warning";
+      icon = <AlertCircle size={13} />;
+      break;
+    case CAMPAIGN_STATUS.FAILED:
+      label = "Failed";
+      color = "danger";
+      icon = <XCircle size={13} />;
+      break;
+    default:
+      label = isCampaignStatus(campaign.status) ? campaign.status : "Draft";
+      icon = <FileText size={13} />;
+  }
+
+  const chip = (
+    <Chip
+      color={color}
+      size="sm"
+      variant="soft"
+      startDecorator={icon}
       sx={{
-        borderRadius: "lg",
-        p: 2,
-        minHeight: 226,
-        height: "100%",
-        cursor: "pointer",
-        transition: "all 200ms ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "md",
+        minHeight: 24,
+        maxWidth: "100%",
+        transition:
+          "background-color 180ms ease, color 180ms ease, opacity 180ms ease",
+        "@keyframes campaign-status-pulse": {
+          "0%, 100%": { opacity: 0.35, transform: "scale(0.9)" },
+          "50%": { opacity: 0.9, transform: "scale(1)" },
         },
       }}
     >
-      <Stack spacing={2} sx={{ height: "100%" }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            sx={{ minWidth: 0, flex: 1 }}
-          >
-            <Avatar
-              color="neutral"
-              variant="soft"
-              sx={{ width: 36, height: 36 }}
-            >
-              <Icon size={18} />
-            </Avatar>
-            <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-              <Typography
-                level="title-sm"
-                fontWeight="lg"
-                sx={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {campaign.name}
-              </Typography>
-              <Typography
-                level="body-xs"
-                sx={{
-                  color: "neutral.500",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {getCampaignSubject(campaign)}
-              </Typography>
-            </Stack>
-          </Stack>
+      <Box
+        component="span"
+        sx={{
+          display: compactOnNarrow
+            ? { xs: "inline", sm: "none", lg: "inline" }
+            : "inline",
+          whiteSpace: "nowrap",
+          transition: "opacity 180ms ease",
+        }}
+      >
+        {label}
+      </Box>
+    </Chip>
+  );
 
-          <JoyDropdownMenu>
-            <JoyDropdownMenuTrigger variant="plain" color="neutral" size="sm">
-              <MoreHorizontal size={16} />
-            </JoyDropdownMenuTrigger>
-            <JoyDropdownMenuContent>
-              <JoyDropdownMenuItem
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenDuplicate(campaign);
-                }}
-                startDecorator={<Copy size={16} />}
-              >
-                Duplicate
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onToggleStatus(campaign);
-                }}
-                startDecorator={
-                  campaign.status === "paused" ? (
-                    <Play size={16} />
-                  ) : (
-                    <Pause size={16} />
-                  )
-                }
-              >
-                {campaign.status === "paused" ? "Resume" : "Pause"}
-              </JoyDropdownMenuItem>
-              <JoyDropdownMenuItem
-                destructive
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenDelete(campaign);
-                }}
-                startDecorator={<Trash2 size={16} />}
-              >
-                Delete
-              </JoyDropdownMenuItem>
-            </JoyDropdownMenuContent>
-          </JoyDropdownMenu>
-        </Stack>
+  return compactOnNarrow ? <Tooltip title={label}>{chip}</Tooltip> : chip;
+}
 
-        <Box>
-          <JoyStatusChip
-            size="sm"
-            status={campaign.status}
-            tone={getCampaignStatusTone(campaign)}
-            label={getCampaignStatusLabel(campaign)}
-          />
-        </Box>
+function ProgressMeter({ campaign }: { campaign: CampaignCatalogItem }) {
+  if (campaign.status !== CAMPAIGN_STATUS.SENDING) return null;
 
-        <Stack direction="row" spacing={3} useFlexGap flexWrap="wrap">
-          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-            {campaign.totalRecipients.toLocaleString()} recipients
-          </Typography>
-          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-            {sentCampaign ? `${campaign.openRate.toFixed(1)}% open` : "-- open"}
-          </Typography>
-          <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-            {sentCampaign
-              ? `${campaign.clickRate.toFixed(1)}% click`
-              : "-- click"}
-          </Typography>
-        </Stack>
+  return (
+    <Stack spacing={0.5} sx={{ mt: 0.75, maxWidth: 180 }}>
+      <LinearProgress
+        determinate
+        color="primary"
+        size="sm"
+        value={getSendProgress(campaign)}
+        variant="soft"
+        sx={{
+          height: 4,
+          borderRadius: 999,
+          transition: "opacity 180ms ease",
+          "& .MuiLinearProgress-bar": { transition: "transform 400ms ease" },
+        }}
+      />
+      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+        {Number(campaign.messagesSent || 0).toLocaleString()} /{" "}
+        {Number(campaign.totalRecipients || 0).toLocaleString()}
+      </Typography>
+    </Stack>
+  );
+}
 
-        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-          {getDisplayDate(campaign)}
-        </Typography>
+function RateCell({
+  value,
+  count,
+  active,
+}: {
+  value: number;
+  count: number;
+  active: boolean;
+}) {
+  const hasValue = active && (value > 0 || count > 0);
+  const display = hasValue ? `${value.toFixed(1)}%` : "-";
 
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          sx={{ mt: "auto" }}
-        >
-          <JoyButton
-            bloomVariant="link"
-            color="neutral"
-            onClick={(event) => {
-              event.stopPropagation();
-              onNavigate(campaign);
-            }}
-          >
-            {sentCampaign ? "View report" : "Continue editing"}
-          </JoyButton>
-          <JoyButton
-            bloomVariant="link"
-            color="primary"
-            onClick={(event) => {
-              event.stopPropagation();
-              if (sentCampaign) {
-                onOpenRecipients(campaign);
-                return;
-              }
-              onOpenDuplicate(campaign);
-            }}
-          >
-            {sentCampaign ? "View recipients" : "Duplicate"}
-          </JoyButton>
-        </Stack>
-      </Stack>
-    </Sheet>
+  return (
+    <Stack spacing={0.75} alignItems="flex-end">
+      <Typography
+        level="body-sm"
+        sx={{
+          fontWeight: hasValue ? "md" : "regular",
+          color: hasValue ? "neutral.800" : "neutral.400",
+        }}
+      >
+        {display}
+      </Typography>
+      <LinearProgress
+        determinate
+        color="neutral"
+        size="sm"
+        value={hasValue ? clampPercent(value) : 0}
+        variant="soft"
+        sx={{
+          width: 72,
+          height: 3,
+          borderRadius: 999,
+          opacity: hasValue ? 1 : 0.35,
+          "& .MuiLinearProgress-bar": { transition: "transform 300ms ease" },
+        }}
+      />
+    </Stack>
+  );
+}
+
+function SkeletonRows() {
+  return (
+    <>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <JoyTableRow key={index}>
+          <JoyTableCell>
+            <Skeleton animation="wave" variant="text" width="78%" />
+          </JoyTableCell>
+          <JoyTableCell>
+            <Skeleton
+              animation="wave"
+              variant="rectangular"
+              width={92}
+              height={24}
+              sx={{ borderRadius: "md" }}
+            />
+          </JoyTableCell>
+          <JoyTableCell sx={{ textAlign: "right" }}>
+            <Skeleton
+              animation="wave"
+              variant="text"
+              width={52}
+              sx={{ ml: "auto" }}
+            />
+          </JoyTableCell>
+          <JoyTableCell>
+            <Skeleton animation="wave" variant="text" width={110} />
+          </JoyTableCell>
+          <JoyTableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+            <Skeleton
+              animation="wave"
+              variant="text"
+              width={72}
+              sx={{ ml: "auto" }}
+            />
+          </JoyTableCell>
+          <JoyTableCell sx={{ display: { xs: "none", lg: "table-cell" } }}>
+            <Skeleton
+              animation="wave"
+              variant="text"
+              width={72}
+              sx={{ ml: "auto" }}
+            />
+          </JoyTableCell>
+          <JoyTableCell sx={{ textAlign: "center" }}>
+            <Skeleton
+              animation="wave"
+              variant="circular"
+              width={28}
+              height={28}
+              sx={{ mx: "auto" }}
+            />
+          </JoyTableCell>
+        </JoyTableRow>
+      ))}
+    </>
   );
 }
 
 export function CRMCampaignsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [deleteTarget, setDeleteTarget] =
-    React.useState<CampaignCatalogItem | null>(null);
+  const [searchDraft, setSearchDraft] = React.useState(
+    searchParams.get("q") ?? "",
+  );
   const [duplicateTarget, setDuplicateTarget] =
     React.useState<CampaignCatalogItem | null>(null);
   const [duplicateName, setDuplicateName] = React.useState("");
+  const [confirmAction, setConfirmAction] =
+    React.useState<ConfirmAction | null>(null);
+  const [actionLoading, setActionLoading] = React.useState(false);
+  const [page, setPage] = React.useState(1);
 
   const query = searchParams.get("q") ?? "";
-  const type = (searchParams.get("type") as TypeFilter | null) ?? "all";
-  const status = (searchParams.get("status") as StatusFilter | null) ?? "all";
-  const sort = normalizeSortOption(searchParams.get("sort"));
-  const view = (searchParams.get("view") as ViewMode | null) ?? "grid";
+  const statusFilter = normalizeFilter(searchParams.get("status"));
+  const sortColumn = normalizeSortColumn(searchParams.get("sort"));
+  const sortDirection = normalizeSortDirection(searchParams.get("dir"));
+
+  const queryKey = React.useMemo(
+    () => ["crm-campaign-catalog", tenant?.id] as const,
+    [tenant?.id],
+  );
 
   const campaignsQuery = useQuery({
-    queryKey: ["crm-campaign-catalog", tenant?.id],
+    queryKey,
     enabled: Boolean(tenant?.id),
     queryFn: async () => fetchCampaignCatalog(tenant!.id),
   });
+
+  React.useEffect(() => {
+    setSearchDraft(query);
+  }, [query]);
 
   const updateParams = React.useCallback(
     (updates: Record<string, string | null>) => {
@@ -656,8 +536,8 @@ export function CRMCampaignsPage() {
         if (
           !value ||
           value === "all" ||
-          (key === "view" && value === "grid") ||
-          (key === "sort" && value === "newest")
+          (key === "sort" && value === "date") ||
+          (key === "dir" && value === "desc")
         ) {
           next.delete(key);
         } else {
@@ -665,185 +545,162 @@ export function CRMCampaignsPage() {
         }
       });
       setSearchParams(next, { replace: true });
+      setPage(1);
     },
     [searchParams, setSearchParams],
   );
 
-  const campaigns = React.useMemo(() => {
+  React.useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (searchDraft !== query) {
+        updateParams({ q: searchDraft.trim() || null });
+      }
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [query, searchDraft, updateParams]);
+
+  React.useEffect(() => {
+    if (!tenant?.id) return undefined;
+
+    const channel = supabase
+      .channel(`crm-campaigns-list-${tenant.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "crm_campaigns",
+          filter: `tenant_id=eq.${tenant.id}`,
+        },
+        (payload) => {
+          queryClient.setQueryData<CampaignCatalogItem[]>(
+            queryKey,
+            (current) => {
+              if (!current) return current;
+
+              if (payload.eventType === "DELETE") {
+                const deletedId = (payload.old as { id?: string }).id;
+                return deletedId
+                  ? current.filter((campaign) => campaign.id !== deletedId)
+                  : current;
+              }
+
+              const updated = mapCampaignCatalogItem(payload.new as any);
+              const existing = current.some(
+                (campaign) => campaign.id === updated.id,
+              );
+              return existing
+                ? current.map((campaign) =>
+                    campaign.id === updated.id ? updated : campaign,
+                  )
+                : [updated, ...current];
+            },
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient, queryKey, tenant?.id]);
+
+  React.useEffect(() => {
+    if (duplicateTarget) {
+      setDuplicateName(`${duplicateTarget.name} (Copy)`);
+    }
+  }, [duplicateTarget]);
+
+  const totalCount = campaignsQuery.data?.length ?? 0;
+  const activeCount = React.useMemo(
+    () =>
+      (campaignsQuery.data ?? []).filter((campaign) =>
+        matchesStatusFilter(campaign, "sending"),
+      ).length,
+    [campaignsQuery.data],
+  );
+
+  const filteredCampaigns = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = (campaignsQuery.data ?? []).filter((campaign) => {
-      if (type !== "all" && campaign.channel !== type) {
-        return false;
-      }
-
-      if (!matchesStatusFilter(campaign, status)) {
-        return false;
-      }
-
-      if (!normalizedQuery) {
-        return true;
-      }
-
-      return `${campaign.name} ${campaign.subjectLine} ${campaign.preheaderText}`
+      if (!matchesStatusFilter(campaign, statusFilter)) return false;
+      if (!normalizedQuery) return true;
+      return `${campaign.name} ${campaign.subjectLine}`
         .toLowerCase()
         .includes(normalizedQuery);
     });
 
     filtered.sort((left, right) => {
-      switch (sort) {
-        case "oldest":
-          return getSortDate(left) - getSortDate(right);
-        case "name-asc":
-          return left.name.localeCompare(right.name);
-        case "name-desc":
-          return right.name.localeCompare(left.name);
-        case "recipients-asc":
-          return left.totalRecipients - right.totalRecipients;
-        case "recipients-desc":
-          return right.totalRecipients - left.totalRecipients;
-        case "open-rate-asc":
-          return left.openRate - right.openRate;
-        case "open-rate-desc":
-          return right.openRate - left.openRate;
-        case "click-rate-asc":
-          return left.clickRate - right.clickRate;
-        case "click-rate-desc":
-          return right.clickRate - left.clickRate;
-        case "newest":
+      let result = 0;
+      switch (sortColumn) {
+        case "campaign":
+          result = left.name.localeCompare(right.name);
+          break;
+        case "status":
+          result = left.status.localeCompare(right.status);
+          break;
+        case "recipients":
+          result = left.totalRecipients - right.totalRecipients;
+          break;
+        case "open-rate":
+          result = left.openRate - right.openRate;
+          break;
+        case "click-rate":
+          result = left.clickRate - right.clickRate;
+          break;
+        case "date":
         default:
-          return getSortDate(right) - getSortDate(left);
+          result = getSortDate(left) - getSortDate(right);
       }
+      return sortDirection === "asc" ? result : -result;
     });
 
     return filtered;
-  }, [campaignsQuery.data, query, sort, status, type]);
+  }, [campaignsQuery.data, query, sortColumn, sortDirection, statusFilter]);
 
-  const stats = React.useMemo(() => {
-    const sentThisMonth = (campaignsQuery.data ?? []).filter((campaign) => {
-      if (!campaign.sentAt) {
-        return false;
-      }
+  const paginatedCampaigns = React.useMemo(() => {
+    if (filteredCampaigns.length <= PAGE_SIZE) return filteredCampaigns;
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredCampaigns.slice(start, start + PAGE_SIZE);
+  }, [filteredCampaigns, page]);
 
-      const sentDate = new Date(campaign.sentAt);
-      const now = new Date();
-      return (
-        sentDate.getMonth() === now.getMonth() &&
-        sentDate.getFullYear() === now.getFullYear()
-      );
-    }).length;
-
-    const sentCampaigns = (campaignsQuery.data ?? []).filter((campaign) =>
-      isSentCampaign(campaign),
-    );
-    const avgOpenRate = sentCampaigns.length
-      ? sentCampaigns.reduce((sum, campaign) => sum + campaign.openRate, 0) /
-        sentCampaigns.length
-      : 0;
-    const avgClickRate = sentCampaigns.length
-      ? sentCampaigns.reduce((sum, campaign) => sum + campaign.clickRate, 0) /
-        sentCampaigns.length
-      : 0;
-    const totalRecipients = (campaignsQuery.data ?? []).reduce(
-      (sum, campaign) => sum + campaign.totalRecipients,
-      0,
-    );
-
-    return [
-      {
-        label: "Total campaigns",
-        value: (campaignsQuery.data ?? []).length.toLocaleString(),
-        icon: Mail,
-      },
-      {
-        label: "Sent this month",
-        value: sentThisMonth.toLocaleString(),
-        icon: BarChart3,
-      },
-      {
-        label: "Avg open rate",
-        value: `${avgOpenRate.toFixed(1)}%`,
-        icon: Search,
-      },
-      {
-        label: "Avg click rate",
-        value: `${avgClickRate.toFixed(1)}%`,
-        icon: Copy,
-      },
-      {
-        label: "Total recipients",
-        value: totalRecipients.toLocaleString(),
-        icon: Users,
-      },
-    ];
-  }, [campaignsQuery.data]);
-
-  const totalCount = campaignsQuery.data?.length ?? 0;
-  const draftCount = React.useMemo(
-    () =>
-      (campaignsQuery.data ?? []).filter(
-        (campaign) => campaign.status === "draft",
-      ).length,
-    [campaignsQuery.data],
-  );
-  const hasActiveFilters =
-    query.trim().length > 0 ||
-    type !== "all" ||
-    status !== "all" ||
-    sort !== "newest" ||
-    view !== "grid";
+  const hasFilters = statusFilter !== "all" || query.trim().length > 0;
+  const isLoading = tenantLoading || campaignsQuery.isLoading;
+  const isEmptyCatalog =
+    !isLoading && !campaignsQuery.isError && totalCount === 0;
+  const isEmptyFiltered =
+    !isLoading &&
+    !campaignsQuery.isError &&
+    totalCount > 0 &&
+    filteredCampaigns.length === 0;
 
   const invalidateCampaigns = React.useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["crm-campaign-catalog"] });
   }, [queryClient]);
 
+  const setSort = React.useCallback(
+    (column: SortColumn) => {
+      const nextDirection =
+        sortColumn === column && sortDirection === "desc" ? "asc" : "desc";
+      updateParams({ sort: column, dir: nextDirection });
+    },
+    [sortColumn, sortDirection, updateParams],
+  );
+
   const handleNavigate = React.useCallback(
     (campaign: CampaignCatalogItem) => {
-      if (isSentCampaign(campaign)) {
+      if (isDeliveredCampaignStatus(campaign.status)) {
         navigate(`/crm/campaigns/${campaign.id}/report`);
         return;
       }
-
       navigate(`/crm/campaigns/${campaign.id}`);
     },
     [navigate],
   );
 
-  const handleOpenRecipients = React.useCallback(
-    (campaign: CampaignCatalogItem) => {
-      navigate(`/crm/campaigns/${campaign.id}/recipients`);
-    },
-    [navigate],
-  );
-
-  const handleToggleStatus = React.useCallback(
-    async (campaign: CampaignCatalogItem) => {
-      await updateCampaignStatus(
-        campaign.id,
-        campaign.status === "paused" ? "scheduled" : "paused",
-        {
-          send_blocked_reason:
-            campaign.status === "paused" ? null : "paused_by_user",
-        },
-      );
-      await invalidateCampaigns();
-    },
-    [invalidateCampaigns],
-  );
-
-  const handleDelete = React.useCallback(async () => {
-    if (!deleteTarget) {
-      return;
-    }
-
-    await deleteCampaignById(deleteTarget.id);
-    setDeleteTarget(null);
-    await invalidateCampaigns();
-  }, [deleteTarget, invalidateCampaigns]);
-
   const handleDuplicate = React.useCallback(async () => {
-    if (!duplicateTarget) {
-      return;
-    }
+    if (!duplicateTarget) return;
 
     const duplicatedId = await cloneCampaign(duplicateTarget.id, {
       newName: duplicateName.trim() || `${duplicateTarget.name} (Copy)`,
@@ -865,326 +722,683 @@ export function CRMCampaignsPage() {
     navigate,
   ]);
 
-  React.useEffect(() => {
-    if (duplicateTarget) {
-      setDuplicateName(`${duplicateTarget.name} (Copy)`);
-    }
-  }, [duplicateTarget]);
+  const runConfirmedAction = React.useCallback(async () => {
+    if (!confirmAction) return;
 
-  const isLoading = campaignsQuery.isLoading;
+    setActionLoading(true);
+    try {
+      switch (confirmAction.type) {
+        case "delete":
+          await deleteCampaignById(confirmAction.campaign.id);
+          toast.success("Campaign deleted");
+          break;
+        case "pause":
+          await updateCampaignStatus(
+            confirmAction.campaign.id,
+            CAMPAIGN_STATUS.PAUSED,
+            {
+              send_blocked_reason: "paused_by_user",
+            },
+          );
+          toast.success("Campaign paused");
+          break;
+        case "resume":
+          await updateCampaignStatus(
+            confirmAction.campaign.id,
+            CAMPAIGN_STATUS.QUEUED,
+            {
+              send_blocked_reason: null,
+              send_error: null,
+            },
+          );
+          toast.success("Campaign resumed");
+          break;
+        case "unschedule": {
+          const ok = await unscheduleCampaign(confirmAction.campaign.id, {
+            silent: true,
+          });
+          if (!ok)
+            throw new Error(
+              "We couldn't remove the schedule. Please try again.",
+            );
+          toast.success("Campaign unscheduled");
+          break;
+        }
+        case "retry": {
+          const result = await retryFailedEmailMessages(
+            confirmAction.campaign.id,
+          );
+          toast.success(
+            `Retry queued for ${result.countReset.toLocaleString()} recipients`,
+          );
+          break;
+        }
+      }
+      setConfirmAction(null);
+      await invalidateCampaigns();
+    } catch (error: any) {
+      toast.error(error?.message || "Action failed");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [confirmAction, invalidateCampaigns]);
+
+  const clearFilters = React.useCallback(() => {
+    setSearchDraft("");
+    setSearchParams(new URLSearchParams(), { replace: true });
+    setPage(1);
+  }, [setSearchParams]);
+
+  const renderActions = (campaign: CampaignCatalogItem) => {
+    const item = (
+      label: string,
+      icon: React.ReactNode,
+      onClick: () => void,
+      destructive = false,
+    ) => (
+      <JoyDropdownMenuItem
+        destructive={destructive}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick();
+        }}
+        startDecorator={icon}
+      >
+        {label}
+      </JoyDropdownMenuItem>
+    );
+
+    const duplicate = item("Duplicate", <Copy size={16} />, () =>
+      setDuplicateTarget(campaign),
+    );
+    const deleteItem = item(
+      "Delete",
+      <Trash2 size={16} />,
+      () => setConfirmAction({ type: "delete", campaign }),
+      true,
+    );
+    const recipients = item("View Recipients", <Users size={16} />, () =>
+      navigate(`/crm/campaigns/${campaign.id}/recipients`),
+    );
+
+    let items: React.ReactNode[];
+    switch (campaign.status) {
+      case CAMPAIGN_STATUS.DRAFT:
+        items = [
+          item("Edit", <Edit3 size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}`),
+          ),
+          duplicate,
+          deleteItem,
+        ];
+        break;
+      case CAMPAIGN_STATUS.SCHEDULED:
+        items = [
+          item("Edit", <Edit3 size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}`),
+          ),
+          item("Reschedule", <Clock3 size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}`),
+          ),
+          item("Unschedule", <TimerReset size={16} />, () =>
+            setConfirmAction({ type: "unschedule", campaign }),
+          ),
+          duplicate,
+          deleteItem,
+        ];
+        break;
+      case CAMPAIGN_STATUS.QUEUED:
+      case CAMPAIGN_STATUS.PARTIALLY_QUEUED:
+      case CAMPAIGN_STATUS.SENDING:
+        items = [
+          item("View Progress", <BarChart3 size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}/report`),
+          ),
+          item("Pause", <Pause size={16} />, () =>
+            setConfirmAction({ type: "pause", campaign }),
+          ),
+          recipients,
+        ];
+        break;
+      case CAMPAIGN_STATUS.PAUSED:
+        items = [
+          item("Resume", <Play size={16} />, () =>
+            setConfirmAction({ type: "resume", campaign }),
+          ),
+          recipients,
+          duplicate,
+        ];
+        break;
+      case CAMPAIGN_STATUS.SENT:
+      case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
+        items = [
+          item("View Report", <BarChart3 size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}/report`),
+          ),
+          recipients,
+          duplicate,
+          item("Export", <Download size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}/recipients?export=1`),
+          ),
+        ];
+        break;
+      case CAMPAIGN_STATUS.FAILED:
+      default:
+        items = [
+          item("Retry", <RotateCcw size={16} />, () =>
+            setConfirmAction({ type: "retry", campaign }),
+          ),
+          item("View Details", <AlertCircle size={16} />, () =>
+            navigate(`/crm/campaigns/${campaign.id}`),
+          ),
+          duplicate,
+          deleteItem,
+        ];
+    }
+
+    return (
+      <JoyDropdownMenu>
+        <JoyDropdownMenuTrigger
+          variant="plain"
+          color="neutral"
+          size="sm"
+          iconButtonSx={{ borderRadius: "md" }}
+        >
+          <MoreHorizontal size={16} />
+        </JoyDropdownMenuTrigger>
+        <JoyDropdownMenuContent>
+          {items.map((node, index) => (
+            <React.Fragment key={index}>{node}</React.Fragment>
+          ))}
+        </JoyDropdownMenuContent>
+      </JoyDropdownMenu>
+    );
+  };
+
+  const confirmDialogConfig = React.useMemo(() => {
+    if (!confirmAction) return null;
+    switch (confirmAction.type) {
+      case "delete":
+        return {
+          title: "Delete campaign",
+          description: `Delete ${confirmAction.campaign.name}? This action cannot be undone.`,
+          confirmLabel: "Delete",
+          variant: "danger" as const,
+        };
+      case "pause":
+        return {
+          title: "Pause campaign",
+          description: `Pause ${confirmAction.campaign.name}? Pending queue work will stop until it is resumed.`,
+          confirmLabel: "Pause",
+          variant: "warning" as const,
+        };
+      case "resume":
+        return {
+          title: "Resume campaign",
+          description: `Resume ${confirmAction.campaign.name}? Queued work will continue on the next worker run.`,
+          confirmLabel: "Resume",
+          variant: "warning" as const,
+        };
+      case "unschedule":
+        return {
+          title: "Unschedule campaign",
+          description: `Return ${confirmAction.campaign.name} to draft?`,
+          confirmLabel: "Unschedule",
+          variant: "warning" as const,
+        };
+      case "retry":
+        return {
+          title: "Retry failed recipients",
+          description: `Queue retries for failed recipients in ${confirmAction.campaign.name}?`,
+          confirmLabel: "Retry",
+          variant: "warning" as const,
+        };
+    }
+  }, [confirmAction]);
 
   return (
-    <PageContainer>
-      <Stack spacing={3} sx={{ pb: 4 }}>
-        <JoyPageHeaderBand
-          title="Campaigns"
-          description="Build, schedule, and monitor email and SMS campaigns from one workflow."
-          metadata={
-            <>
-              <JoyChip size="sm" variant="soft" color="neutral">
-                {totalCount} total
-              </JoyChip>
-              <JoyChip size="sm" variant="soft" color="neutral">
-                {draftCount} drafts
-              </JoyChip>
-            </>
-          }
-          actions={
-            <>
-              <JoyButton
-                size="sm"
+    <PageContainer fullWidth>
+      <Sheet
+        variant="plain"
+        sx={{
+          minHeight: "calc(100vh - 96px)",
+          bgcolor: "background.body",
+          color: "neutral.900",
+          pb: 4,
+        }}
+      >
+        <Stack spacing={2.5}>
+          <Sheet variant="plain" sx={{ bgcolor: "transparent" }}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              justifyContent="space-between"
+              spacing={2}
+              alignItems={{ xs: "stretch", md: "flex-end" }}
+            >
+              <Stack spacing={0.75}>
+                <Typography level="h2" sx={{ letterSpacing: 0 }}>
+                  Campaigns
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                  {totalCount.toLocaleString()} campaigns -{" "}
+                  {activeCount.toLocaleString()} active sends
+                </Typography>
+              </Stack>
+              <Button
+                color="neutral"
                 variant="solid"
-                color="primary"
                 startDecorator={<Plus size={16} />}
                 onClick={() => navigate("/crm/campaigns/new?type=email")}
+                sx={{ alignSelf: { xs: "flex-start", md: "auto" } }}
               >
-                New Email Campaign
-              </JoyButton>
-              <JoyButton
-                size="sm"
-                variant="outlined"
-                color="neutral"
-                startDecorator={<Plus size={16} />}
-                onClick={() => navigate("/crm/campaigns/new?type=sms")}
-              >
-                New SMS Campaign
-              </JoyButton>
-            </>
-          }
-          sx={{
-            px: 0,
-            py: 0,
-            borderRadius: 0,
-            background: "transparent",
-          }}
-        />
+                New Campaign
+              </Button>
+            </Stack>
+          </Sheet>
 
-        {isLoading ? (
-          <StatsStripSkeleton />
-        ) : (
-          <CampaignStatsStrip items={stats} />
-        )}
-
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 1.5 }}>
-          <Stack
-            direction="row"
-            spacing={1.5}
-            alignItems="center"
-            useFlexGap
-            flexWrap="wrap"
-          >
-            <JoyDebouncedInput
-              size="sm"
-              value={query}
-              debounceMs={250}
-              onDebouncedChange={(value) => updateParams({ q: value || null })}
-              placeholder="Search campaigns..."
-              startDecorator={<Search size={16} />}
-              sx={{ minWidth: 200, flex: 1, maxWidth: 320 }}
-            />
-
-            <JoySelect
-              size="sm"
-              value={type}
-              onValueChange={(value) => updateParams({ type: value || null })}
-              options={TYPE_OPTIONS}
-              formControlSx={{ width: "auto", minWidth: 120 }}
-            />
-
-            <JoySelect
-              size="sm"
-              value={status}
-              onValueChange={(value) => updateParams({ status: value || null })}
-              options={STATUS_OPTIONS}
-              formControlSx={{ width: "auto", minWidth: 136 }}
-            />
-
-            <JoySelect
-              size="sm"
-              value={sort}
-              onValueChange={(value) => updateParams({ sort: value || null })}
-              options={SORT_OPTIONS}
-              formControlSx={{ width: "auto", minWidth: 148 }}
-            />
-
-            <Box
-              sx={{
-                ml: { xs: 0, md: "auto" },
-                width: { xs: "100%", md: "auto" },
-                display: "flex",
-                justifyContent: { xs: "flex-start", md: "flex-end" },
-              }}
+          <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.25 }}>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={1.25}
+              alignItems={{ xs: "stretch", lg: "center" }}
+              sx={{ width: "100%" }}
             >
-              <ToggleButtonGroup
-                size="sm"
-                color="neutral"
-                value={view}
-                onChange={(_event, value) =>
-                  value && updateParams({ view: value })
-                }
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  minWidth: { xs: 0, lg: 320 },
+                  flex: { lg: 1 },
+                  maxWidth: { lg: 420 },
+                }}
               >
-                <IconButton
-                  value="grid"
-                  variant="plain"
-                  color="neutral"
+                <Input
                   size="sm"
-                >
-                  <LayoutGrid size={16} />
-                </IconButton>
-                <IconButton
-                  value="table"
-                  variant="plain"
-                  color="neutral"
-                  size="sm"
-                >
-                  <List size={16} />
-                </IconButton>
-              </ToggleButtonGroup>
-            </Box>
-
-            {hasActiveFilters ? (
-              <JoyButton
-                variant="plain"
-                color="primary"
-                size="sm"
-                sx={{ minHeight: "auto", px: 0 }}
-                onClick={() =>
-                  setSearchParams(new URLSearchParams(), { replace: true })
-                }
+                  value={searchDraft}
+                  onChange={(event) => setSearchDraft(event.target.value)}
+                  placeholder="Search campaigns"
+                  startDecorator={<Search size={16} />}
+                  sx={{ flex: 1, minWidth: 0 }}
+                />
+                {hasFilters ? (
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </Button>
+                ) : null}
+              </Stack>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                useFlexGap
+                flexWrap="wrap"
+                sx={{
+                  ml: "auto",
+                  justifyContent: { lg: "flex-end" },
+                  flexShrink: 0,
+                }}
               >
-                Clear filters
-              </JoyButton>
-            ) : null}
-          </Stack>
-        </Sheet>
+                {FILTERS.map((filter) => (
+                  <Chip
+                    key={filter.value}
+                    size="sm"
+                    color="neutral"
+                    variant={
+                      statusFilter === filter.value ? "solid" : "outlined"
+                    }
+                    onClick={() => updateParams({ status: filter.value })}
+                    sx={{ borderRadius: "md" }}
+                  >
+                    {filter.label}
+                  </Chip>
+                ))}
+              </Stack>
+            </Stack>
+          </Sheet>
 
-        {isLoading ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: GRID_COLUMNS,
-              gap: 2,
-            }}
-          >
-            {Array.from({ length: 6 }).map((_, index) => (
-              <CampaignCardSkeleton key={index} />
-            ))}
-          </Box>
-        ) : campaigns.length === 0 ? (
-          <Stack alignItems="center" spacing={1.5} sx={{ py: 10 }}>
-            <Avatar
-              color="neutral"
-              variant="soft"
-              sx={{ width: 56, height: 56 }}
-            >
-              <Mail size={24} />
-            </Avatar>
-            <Typography level="title-lg">Create your first campaign</Typography>
-            <Typography level="body-sm" color="neutral" textAlign="center">
-              Start with an email or SMS draft, then refine the audience and
-              content in the editor.
-            </Typography>
-            <JoyButton
-              onClick={() => navigate("/crm/campaigns/new?type=email")}
-            >
-              Create campaign
-            </JoyButton>
-          </Stack>
-        ) : view === "grid" ? (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: GRID_COLUMNS,
-              gap: 2,
-            }}
-          >
-            {campaigns.map((campaign) => (
-              <CampaignCard
-                key={campaign.id}
-                campaign={campaign}
-                onNavigate={handleNavigate}
-                onOpenRecipients={handleOpenRecipients}
-                onOpenDelete={setDeleteTarget}
-                onOpenDuplicate={setDuplicateTarget}
-                onToggleStatus={handleToggleStatus}
-              />
-            ))}
-          </Box>
-        ) : (
           <Sheet
             variant="outlined"
-            sx={{ borderRadius: "lg", overflow: "hidden" }}
+            sx={{ borderRadius: "md", overflow: "hidden" }}
           >
-            <JoyTable>
-              <JoyTableHead>
-                <JoyTableRow>
-                  <JoyTableHeaderCell sx={{ width: 40, px: 1.5 }}>
-                    <Checkbox size="sm" />
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    sortable
-                    sortDirection={getColumnSortDirection(sort, "campaign")}
-                    onSort={() =>
-                      updateParams({
-                        sort: getNextSortOption(sort, "campaign"),
-                      })
-                    }
-                    sx={{ width: "34%" }}
-                  >
-                    Campaign
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell sx={{ width: 100 }}>
-                    Status
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    align="right"
-                    sortable
-                    sortDirection={getColumnSortDirection(sort, "recipients")}
-                    onSort={() =>
-                      updateParams({
-                        sort: getNextSortOption(sort, "recipients"),
-                      })
-                    }
-                    sx={{ width: 90 }}
-                  >
-                    Recipients
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    align="right"
-                    sortable
-                    sortDirection={getColumnSortDirection(sort, "open-rate")}
-                    onSort={() =>
-                      updateParams({
-                        sort: getNextSortOption(sort, "open-rate"),
-                      })
-                    }
-                    sx={{ width: 90 }}
-                  >
-                    Open Rate
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    align="right"
-                    sortable
-                    sortDirection={getColumnSortDirection(sort, "click-rate")}
-                    onSort={() =>
-                      updateParams({
-                        sort: getNextSortOption(sort, "click-rate"),
-                      })
-                    }
-                    sx={{ width: 90 }}
-                  >
-                    Click Rate
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    sortable
-                    sortDirection={getColumnSortDirection(sort, "date")}
-                    onSort={() =>
-                      updateParams({ sort: getNextSortOption(sort, "date") })
-                    }
-                    sx={{ width: 120 }}
-                  >
-                    Date
-                  </JoyTableHeaderCell>
-                  <JoyTableHeaderCell
-                    align="center"
-                    sx={{ width: 48, px: 1.5 }}
-                  >
-                    Actions
-                  </JoyTableHeaderCell>
-                </JoyTableRow>
-              </JoyTableHead>
-              <JoyTableBody>
-                {campaigns.map((campaign) => {
-                  const Icon = getCampaignIcon(campaign.channel);
-                  const sentCampaign = isSentCampaign(campaign);
-
-                  return (
-                    <JoyTableRow
-                      key={campaign.id}
-                      clickable
-                      onClick={() => handleNavigate(campaign)}
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+              <JoyTable>
+                <JoyTableHead>
+                  <JoyTableRow>
+                    <JoyTableHeaderCell
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "campaign",
+                      )}
+                      onSort={() => setSort("campaign")}
+                      sx={{ width: "34%" }}
                     >
-                      <JoyTableCell
-                        sx={{ width: 40, px: 1.5, py: 1 }}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Checkbox size="sm" />
+                      Campaign name
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "status",
+                      )}
+                      onSort={() => setSort("status")}
+                      sx={{ width: 170 }}
+                    >
+                      Status
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      align="right"
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "recipients",
+                      )}
+                      onSort={() => setSort("recipients")}
+                      sx={{ width: 110 }}
+                    >
+                      Recipients
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "date",
+                      )}
+                      onSort={() => setSort("date")}
+                      sx={{ width: 150 }}
+                    >
+                      Date
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      align="right"
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "open-rate",
+                      )}
+                      onSort={() => setSort("open-rate")}
+                      sx={{
+                        width: 120,
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
+                      Open rate
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell
+                      align="right"
+                      sortable
+                      sortDirection={getSortDirection(
+                        sortColumn,
+                        sortDirection,
+                        "click-rate",
+                      )}
+                      onSort={() => setSort("click-rate")}
+                      sx={{
+                        width: 120,
+                        display: { xs: "none", lg: "table-cell" },
+                      }}
+                    >
+                      Click rate
+                    </JoyTableHeaderCell>
+                    <JoyTableHeaderCell align="center" sx={{ width: 56 }}>
+                      Actions
+                    </JoyTableHeaderCell>
+                  </JoyTableRow>
+                </JoyTableHead>
+                <JoyTableBody>
+                  {isLoading ? <SkeletonRows /> : null}
+                  {campaignsQuery.isError ? (
+                    <JoyTableRow>
+                      <JoyTableCell colSpan={7}>
+                        <Sheet
+                          variant="soft"
+                          color="neutral"
+                          sx={{ borderRadius: "md", p: 4, textAlign: "center" }}
+                        >
+                          <Typography level="title-md">
+                            Couldn't load campaigns.
+                          </Typography>
+                          <Button
+                            variant="plain"
+                            color="neutral"
+                            size="sm"
+                            onClick={() => void campaignsQuery.refetch()}
+                            sx={{ mt: 1 }}
+                          >
+                            Retry
+                          </Button>
+                        </Sheet>
                       </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1, minWidth: 0 }}>
+                    </JoyTableRow>
+                  ) : null}
+                  {isEmptyCatalog ? (
+                    <JoyTableRow>
+                      <JoyTableCell colSpan={7}>
+                        <Sheet
+                          variant="soft"
+                          color="neutral"
+                          sx={{
+                            borderRadius: "md",
+                            py: 8,
+                            px: 3,
+                            textAlign: "center",
+                          }}
+                        >
+                          <Typography level="h3">No campaigns yet</Typography>
+                          <Typography
+                            level="body-sm"
+                            sx={{ color: "neutral.500", mt: 0.75 }}
+                          >
+                            Create your first email campaign to start reaching
+                            your customers.
+                          </Typography>
+                          <Button
+                            color="neutral"
+                            variant="solid"
+                            sx={{ mt: 2 }}
+                            onClick={() =>
+                              navigate("/crm/campaigns/new?type=email")
+                            }
+                          >
+                            Create Campaign
+                          </Button>
+                        </Sheet>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  ) : null}
+                  {isEmptyFiltered ? (
+                    <JoyTableRow>
+                      <JoyTableCell colSpan={7}>
+                        <Sheet
+                          variant="soft"
+                          color="neutral"
+                          sx={{ borderRadius: "md", p: 4, textAlign: "center" }}
+                        >
+                          <Typography level="title-md">
+                            No campaigns match your filters.
+                          </Typography>
+                          <Button
+                            variant="plain"
+                            color="neutral"
+                            size="sm"
+                            onClick={clearFilters}
+                            sx={{ mt: 1 }}
+                          >
+                            Clear filters
+                          </Button>
+                        </Sheet>
+                      </JoyTableCell>
+                    </JoyTableRow>
+                  ) : null}
+                  {!isLoading && !campaignsQuery.isError
+                    ? paginatedCampaigns.map((campaign) => {
+                        const date = formatContextualDate(campaign);
+                        const terminal = isDeliveredCampaignStatus(
+                          campaign.status,
+                        );
+                        return (
+                          <JoyTableRow
+                            key={campaign.id}
+                            clickable
+                            onClick={() => handleNavigate(campaign)}
+                            sx={{
+                              "& > td": {
+                                transition: "background-color 140ms ease",
+                              },
+                            }}
+                          >
+                            <JoyTableCell sx={{ minWidth: 260 }}>
+                              <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+                                <Typography
+                                  level="body-sm"
+                                  sx={{
+                                    fontWeight: "lg",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {campaign.name}
+                                </Typography>
+                                <Typography
+                                  level="body-xs"
+                                  sx={{
+                                    color: "neutral.500",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {campaign.subjectLine ||
+                                    campaign.preheaderText ||
+                                    "No subject yet"}
+                                </Typography>
+                              </Stack>
+                            </JoyTableCell>
+                            <JoyTableCell>
+                              <StatusChip campaign={campaign} />
+                              <ProgressMeter campaign={campaign} />
+                            </JoyTableCell>
+                            <JoyTableCell sx={{ textAlign: "right" }}>
+                              <Typography
+                                level="body-sm"
+                                sx={{ fontWeight: "md" }}
+                              >
+                                {Number(
+                                  campaign.totalRecipients || 0,
+                                ).toLocaleString()}
+                              </Typography>
+                              {campaign.status === CAMPAIGN_STATUS.SENDING ? (
+                                <Typography
+                                  level="body-xs"
+                                  sx={{ color: "neutral.500" }}
+                                >
+                                  {getProcessedCount(campaign).toLocaleString()}{" "}
+                                  processed
+                                </Typography>
+                              ) : null}
+                            </JoyTableCell>
+                            <JoyTableCell>
+                              <Typography
+                                level="body-sm"
+                                sx={{ fontWeight: "md" }}
+                              >
+                                {date.value}
+                              </Typography>
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "neutral.500" }}
+                              >
+                                {date.label}
+                              </Typography>
+                            </JoyTableCell>
+                            <JoyTableCell
+                              sx={{
+                                textAlign: "right",
+                                display: { xs: "none", lg: "table-cell" },
+                              }}
+                            >
+                              <RateCell
+                                value={campaign.openRate}
+                                count={campaign.totalOpens}
+                                active={terminal}
+                              />
+                            </JoyTableCell>
+                            <JoyTableCell
+                              sx={{
+                                textAlign: "right",
+                                display: { xs: "none", lg: "table-cell" },
+                              }}
+                            >
+                              <RateCell
+                                value={campaign.clickRate}
+                                count={campaign.totalClicks}
+                                active={terminal}
+                              />
+                            </JoyTableCell>
+                            <JoyTableCell
+                              sx={{ textAlign: "center" }}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {renderActions(campaign)}
+                            </JoyTableCell>
+                          </JoyTableRow>
+                        );
+                      })
+                    : null}
+                </JoyTableBody>
+              </JoyTable>
+            </Box>
+
+            <Box sx={{ display: { xs: "block", sm: "none" } }}>
+              {isLoading
+                ? Array.from({ length: 8 }).map((_, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        p: 1.5,
+                        borderBottom: "1px solid",
+                        borderColor: "neutral.100",
+                      }}
+                    >
+                      <Skeleton variant="text" width="72%" animation="wave" />
+                      <Skeleton variant="text" width="44%" animation="wave" />
+                    </Box>
+                  ))
+                : null}
+              {!isLoading && !campaignsQuery.isError
+                ? paginatedCampaigns.map((campaign) => {
+                    const date = formatContextualDate(campaign);
+                    return (
+                      <Box
+                        key={campaign.id}
+                        onClick={() => handleNavigate(campaign)}
+                        sx={{
+                          p: 1.5,
+                          borderBottom: "1px solid",
+                          borderColor: "neutral.100",
+                          cursor: "pointer",
+                        }}
+                      >
                         <Stack
                           direction="row"
-                          spacing={1.5}
-                          alignItems="center"
-                          sx={{ minWidth: 0 }}
+                          spacing={1}
+                          justifyContent="space-between"
+                          alignItems="flex-start"
                         >
-                          <Avatar color="neutral" variant="soft" size="sm">
-                            <Icon size={16} />
-                          </Avatar>
-                          <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+                          <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                             <Typography
-                              level="body-sm"
+                              level="title-sm"
                               sx={{
-                                fontWeight: "var(--joy-fontWeight-md)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -1192,138 +1406,122 @@ export function CRMCampaignsPage() {
                             >
                               {campaign.name}
                             </Typography>
+                            <StatusChip
+                              campaign={campaign}
+                              compactOnNarrow={false}
+                            />
                             <Typography
                               level="body-xs"
-                              sx={{
-                                color: "neutral.500",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
+                              sx={{ color: "neutral.500" }}
                             >
-                              {getCampaignSubject(campaign)}
+                              {date.label} - {date.value}
                             </Typography>
                           </Stack>
+                          <Box onClick={(event) => event.stopPropagation()}>
+                            {renderActions(campaign)}
+                          </Box>
                         </Stack>
-                      </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1 }}>
-                        <JoyStatusChip
-                          size="sm"
-                          status={campaign.status}
-                          tone={getCampaignStatusTone(campaign)}
-                          label={getCampaignStatusLabel(campaign)}
-                        />
-                      </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
-                        <Typography level="body-sm">
-                          {campaign.totalRecipients.toLocaleString()}
-                        </Typography>
-                      </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
-                        <Typography
-                          level="body-sm"
-                          sx={{
-                            fontWeight:
-                              campaign.openRate > 0
-                                ? "var(--joy-fontWeight-md)"
-                                : "var(--joy-fontWeight-regular)",
-                          }}
-                        >
-                          {sentCampaign
-                            ? `${campaign.openRate.toFixed(1)}%`
-                            : "--"}
-                        </Typography>
-                      </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1, textAlign: "right" }}>
-                        <Typography level="body-sm">
-                          {sentCampaign
-                            ? `${campaign.clickRate.toFixed(1)}%`
-                            : "--"}
-                        </Typography>
-                      </JoyTableCell>
-                      <JoyTableCell sx={{ py: 1 }}>
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "neutral.500" }}
-                        >
-                          {getDisplayDate(campaign)}
-                        </Typography>
-                      </JoyTableCell>
-                      <JoyTableCell
-                        sx={{ width: 48, px: 1.5, py: 1, textAlign: "center" }}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <JoyDropdownMenu>
-                          <JoyDropdownMenuTrigger
-                            variant="plain"
-                            color="neutral"
-                            size="sm"
-                          >
-                            <MoreHorizontal size={16} />
-                          </JoyDropdownMenuTrigger>
-                          <JoyDropdownMenuContent>
-                            <JoyDropdownMenuItem
-                              onClick={() => handleNavigate(campaign)}
-                              startDecorator={<BarChart3 size={16} />}
-                            >
-                              {sentCampaign
-                                ? "Open report"
-                                : "Continue editing"}
-                            </JoyDropdownMenuItem>
-                            {sentCampaign ? (
-                              <JoyDropdownMenuItem
-                                onClick={() => handleOpenRecipients(campaign)}
-                                startDecorator={<Users size={16} />}
-                              >
-                                View recipients
-                              </JoyDropdownMenuItem>
-                            ) : null}
-                            <JoyDropdownMenuItem
-                              onClick={() => setDuplicateTarget(campaign)}
-                              startDecorator={<Copy size={16} />}
-                            >
-                              Duplicate
-                            </JoyDropdownMenuItem>
-                            <JoyDropdownMenuItem
-                              onClick={() => void handleToggleStatus(campaign)}
-                              startDecorator={
-                                campaign.status === "paused" ? (
-                                  <Play size={16} />
-                                ) : (
-                                  <Pause size={16} />
-                                )
-                              }
-                            >
-                              {campaign.status === "paused"
-                                ? "Resume"
-                                : "Pause"}
-                            </JoyDropdownMenuItem>
-                            <JoyDropdownMenuItem
-                              destructive
-                              onClick={() => setDeleteTarget(campaign)}
-                              startDecorator={<Trash2 size={16} />}
-                            >
-                              Delete
-                            </JoyDropdownMenuItem>
-                          </JoyDropdownMenuContent>
-                        </JoyDropdownMenu>
-                      </JoyTableCell>
-                    </JoyTableRow>
-                  );
-                })}
-              </JoyTableBody>
-            </JoyTable>
-          </Sheet>
-        )}
-      </Stack>
+                        <ProgressMeter campaign={campaign} />
+                      </Box>
+                    );
+                  })
+                : null}
+              {campaignsQuery.isError ? (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ m: 1.5, borderRadius: "md", p: 3, textAlign: "center" }}
+                >
+                  <Typography level="title-md">
+                    Couldn't load campaigns.
+                  </Typography>
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    onClick={() => void campaignsQuery.refetch()}
+                    sx={{ mt: 1 }}
+                  >
+                    Retry
+                  </Button>
+                </Sheet>
+              ) : null}
+              {isEmptyCatalog ? (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ m: 1.5, borderRadius: "md", p: 4, textAlign: "center" }}
+                >
+                  <Typography level="h3">No campaigns yet</Typography>
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: "neutral.500", mt: 0.75 }}
+                  >
+                    Create your first email campaign to start reaching your
+                    customers.
+                  </Typography>
+                  <Button
+                    color="neutral"
+                    variant="solid"
+                    sx={{ mt: 2 }}
+                    onClick={() => navigate("/crm/campaigns/new?type=email")}
+                  >
+                    Create Campaign
+                  </Button>
+                </Sheet>
+              ) : null}
+              {isEmptyFiltered ? (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ m: 1.5, borderRadius: "md", p: 3, textAlign: "center" }}
+                >
+                  <Typography level="title-md">
+                    No campaigns match your filters.
+                  </Typography>
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    onClick={clearFilters}
+                    sx={{ mt: 1 }}
+                  >
+                    Clear filters
+                  </Button>
+                </Sheet>
+              ) : null}
+            </Box>
 
-      <JoyAlertDialog
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-        title="Delete campaign"
-        description={`Delete ${deleteTarget?.name ?? "this campaign"}? This action cannot be undone.`}
-      />
+            {filteredCampaigns.length > PAGE_SIZE ? (
+              <>
+                <Divider />
+                <JoyTablePagination
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  totalCount={filteredCampaigns.length}
+                  onPageChange={setPage}
+                  pageSizeOptions={[100]}
+                  showPageSizeSelector={false}
+                  sx={{ px: 2, py: 2 }}
+                />
+              </>
+            ) : null}
+          </Sheet>
+        </Stack>
+      </Sheet>
+
+      {confirmDialogConfig ? (
+        <JoyAlertDialog
+          open={Boolean(confirmAction)}
+          onClose={() => setConfirmAction(null)}
+          onConfirm={runConfirmedAction}
+          title={confirmDialogConfig.title}
+          description={confirmDialogConfig.description}
+          confirmLabel={confirmDialogConfig.confirmLabel}
+          variant={confirmDialogConfig.variant}
+          loading={actionLoading}
+        />
+      ) : null}
 
       <JoyDialog
         open={Boolean(duplicateTarget)}

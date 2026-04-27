@@ -63,14 +63,14 @@ const handler = async (req: Request): Promise<Response> => {
     // Check for stuck campaigns before claiming (for logging purposes)
     const { data: stuckCampaigns } = await supabase
       .from('crm_campaigns')
-      .select('id, name, sending_started_at, send_attempts')
+      .select('id, name, send_started_at, send_attempts')
       .eq('status', 'sending')
-      .lt('sending_started_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
+      .lt('send_started_at', new Date(Date.now() - 15 * 60 * 1000).toISOString());
 
     if (stuckCampaigns && stuckCampaigns.length > 0) {
       console.log(`⚠️ [${runId}] Found ${stuckCampaigns.length} stuck campaigns (sending > 15 min)`);
-      stuckCampaigns.forEach(c => {
-        console.log(`   - "${c.name}" (${c.id}) - attempts: ${c.send_attempts || 0}, started: ${c.sending_started_at}`);
+      stuckCampaigns.forEach((c: any) => {
+        console.log(`   - "${c.name}" (${c.id}) - attempts: ${c.send_attempts || 0}, started: ${c.send_started_at}`);
       });
       console.log(`🔄 [${runId}] Recovery will be handled atomically by claim_scheduled_campaigns RPC`);
     }
@@ -87,7 +87,25 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Failed to claim campaigns: ${claimError.message}`);
     }
 
-    const campaigns = (claimedCampaigns || []) as ClaimedCampaign[];
+    const scheduledCampaigns = (claimedCampaigns || []) as ClaimedCampaign[];
+
+    const { data: stalePartialQueuedCampaigns, error: stalePartialQueuedError } = await supabase
+      .from('crm_campaigns')
+      .select('id, name, user_id, tenant_id, scheduled_at, send_attempts, queue_started_at')
+      .eq('status', 'partially_queued')
+      .lt('queue_started_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+      .order('queue_started_at', { ascending: true })
+      .limit(10);
+
+    if (stalePartialQueuedError) {
+      console.error(`❌ [${runId}] Failed to load stale partially queued campaigns:`, stalePartialQueuedError);
+      throw new Error(`Failed to load partially queued campaigns: ${stalePartialQueuedError.message}`);
+    }
+
+    const campaigns = [
+      ...scheduledCampaigns,
+      ...((stalePartialQueuedCampaigns || []) as ClaimedCampaign[]),
+    ];
 
     console.log(`📧 Claimed ${campaigns.length} campaigns for sending`);
 
@@ -122,10 +140,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Process each claimed campaign
     for (const campaign of campaigns) {
       const campaignStartTime = Date.now();
+      const sendAttempts = campaign.send_attempts || 1;
 
       try {
         console.log(`📨 Processing campaign: "${campaign.name}" (${campaign.id})`);
-        const sendAttempts = campaign.send_attempts || 1;
 
         // Check if user has auto-send enabled
         const { data: userProfile } = await supabase
@@ -144,7 +162,6 @@ const handler = async (req: Request): Promise<Response> => {
             .from('crm_campaigns')
             .update({
               status: 'scheduled',
-              sending_started_at: null,
               send_started_at: null,
               failure_reason: 'Auto-send disabled for user'
             })
@@ -193,10 +210,58 @@ const handler = async (req: Request): Promise<Response> => {
         });
 
         if (sendError) {
+          const { data: resumeState } = await supabase
+            .from('crm_campaigns')
+            .select('status, total_recipients')
+            .eq('id', campaign.id)
+            .maybeSingle();
+
+          if (resumeState?.status === 'queued' || resumeState?.status === 'partially_queued') {
+            const queuedCount = Number(resumeState.total_recipients || 0);
+            const campaignDuration = Date.now() - campaignStartTime;
+
+            console.warn(`⚠️ Campaign ${campaign.id} send invocation errored after queue progress was persisted; leaving as ${resumeState.status}`);
+
+            campaignsSent++;
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'queued',
+              durationMs: campaignDuration,
+              recipientCount: queuedCount,
+              sendAttempts,
+            });
+            continue;
+          }
+
           throw new Error(`Send function error: ${sendError.message}`);
         }
 
         if (sendResult?.error) {
+          const { data: resumeState } = await supabase
+            .from('crm_campaigns')
+            .select('status, total_recipients')
+            .eq('id', campaign.id)
+            .maybeSingle();
+
+          if (resumeState?.status === 'queued' || resumeState?.status === 'partially_queued') {
+            const queuedCount = Number(resumeState.total_recipients || sendResult?.total_recipients || 0);
+            const campaignDuration = Date.now() - campaignStartTime;
+
+            console.warn(`⚠️ Campaign ${campaign.id} returned an error after queue progress was persisted; leaving as ${resumeState.status}`);
+
+            campaignsSent++;
+            results.push({
+              id: campaign.id,
+              name: campaign.name,
+              status: 'queued',
+              durationMs: campaignDuration,
+              recipientCount: queuedCount,
+              sendAttempts,
+            });
+            continue;
+          }
+
           throw new Error(sendResult.error);
         }
 

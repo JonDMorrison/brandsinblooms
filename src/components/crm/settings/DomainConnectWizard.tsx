@@ -116,6 +116,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     sanitizeAndConvertRecords,
     isEntriConfigured,
     isLoading: entriLoading,
+    scriptError,
+    clearScriptError,
   } = useEntriConnect();
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -159,7 +161,8 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   const canContinueFromDomain =
     Boolean(cleanedDomain) && !domainFormatError && !loading;
 
-  const resetWizardState = () => {
+  const resetWizardState = React.useCallback(() => {
+    clearScriptError();
     setStep("enter_domain");
     setDomain("");
     setError(null);
@@ -170,13 +173,13 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     setCopiedRecordId(null);
     setSelectedMethod(null);
     setProvisioningError(null);
-  };
+  }, [clearScriptError]);
 
   useEffect(() => {
     if (!open) {
       resetWizardState();
     }
-  }, [open]);
+  }, [open, resetWizardState]);
 
   const copyToClipboard = async (text: string, fieldKey: string) => {
     try {
@@ -313,7 +316,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
 
       const cleanupProviderCapture = captureEntriProvider();
 
-      openEntriSetup(
+      const entriResult = await openEntriSetup(
         cleanDomain,
         tenant.id,
         entriRecords,
@@ -333,6 +336,18 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
           setIsEntriModalOpen(false);
         },
       );
+
+      if (!entriResult.opened) {
+        cleanupProviderCapture();
+        setIsEntriModalOpen(false);
+        setSelectedMethod(null);
+        setStep("choose_method");
+        setError(
+          entriResult.errorMessage ||
+            scriptError ||
+            "Domain verification tool unavailable — try again later.",
+        );
+      }
     } catch (err: any) {
       setProvisioningError(err.message || "Failed to set up domain");
       setLoading(false);
@@ -369,6 +384,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
     setSelectedMethod(method);
     setError(null);
     setProvisioningError(null);
+    clearScriptError();
 
     await new Promise((resolve) => window.setTimeout(resolve, 140));
 
@@ -643,6 +659,12 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
               {error ? (
                 <Alert color="danger" size="sm" variant="soft">
                   {error}
+                </Alert>
+              ) : null}
+
+              {!error && scriptError ? (
+                <Alert color="danger" size="sm" variant="soft">
+                  {scriptError}
                 </Alert>
               ) : null}
             </Stack>

@@ -15,6 +15,10 @@ import { Link } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyStatusChip } from "@/components/joy/JoyChip";
 import { JoyInput } from "@/components/joy/JoyInput";
+import {
+  CAMPAIGN_STATUS,
+  isDeliveredCampaignStatus,
+} from "@/constants/campaignStatuses";
 import { useCampaignEditor } from "@/components/crm/campaign-editor/CampaignEditorContext";
 import { CampaignPreviewDialog } from "@/components/crm/campaign-editor/CampaignPreviewDialog";
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
@@ -111,7 +115,7 @@ export function CampaignEditorHeader() {
             >
               Schedule
             </JoyButton>
-            {status === "sending" ? (
+            {status === CAMPAIGN_STATUS.SENDING ? (
               <JoyButton
                 color="warning"
                 onClick={() => void pause()}
@@ -119,7 +123,7 @@ export function CampaignEditorHeader() {
               >
                 Pause
               </JoyButton>
-            ) : status === "paused" ? (
+            ) : status === CAMPAIGN_STATUS.PAUSED ? (
               <JoyButton
                 color="success"
                 onClick={() => void resume()}
@@ -132,17 +136,19 @@ export function CampaignEditorHeader() {
                 onClick={() => void activate()}
                 startDecorator={<SendHorizonal size={16} />}
               >
-                {status === "scheduled" ? "Reschedule / Send" : "Send"}
+                {status === CAMPAIGN_STATUS.SCHEDULED
+                  ? "Reschedule / Send"
+                  : "Send"}
               </JoyButton>
             )}
           </Stack>
         </Stack>
 
-        {status === "sending" ? (
+        {status === CAMPAIGN_STATUS.SENDING ? (
           <LinearProgress determinate value={55} />
         ) : null}
 
-        {status === "sent" || status === "sent_with_errors" ? (
+        {isDeliveredCampaignStatus(status) ? (
           <Typography level="body-sm" color="neutral">
             Campaign sent.{" "}
             <Link to={`/crm/campaigns/${campaignId}/report`}>View report</Link>
