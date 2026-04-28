@@ -121,9 +121,8 @@ function toHtmlText(value: string | undefined): string {
 }
 
 function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
-  const images: RenderableGalleryImage[] = [];
-
-  toArray(value).forEach((entry) => {
+  return toArray(value)
+    .map((entry) => {
       const record = toRecord(entry);
       const url = stringValue(
         record.url,
@@ -131,9 +130,9 @@ function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
         record.image_url,
         record.src,
       );
-      if (!url) return;
+      if (!url) return null;
 
-      images.push({
+      return {
         id: stringValue(record.id),
         url,
         alt: stringValue(
@@ -143,10 +142,9 @@ function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
           record.title,
         ),
         caption: stringValue(record.caption, record.title),
-      });
-    });
-
-  return images;
+      } satisfies RenderableGalleryImage;
+    })
+    .filter((entry): entry is RenderableGalleryImage => Boolean(entry));
 }
 
 function normalizeGalleryItems(value: unknown): RenderableGalleryItem[] {

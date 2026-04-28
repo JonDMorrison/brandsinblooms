@@ -2274,24 +2274,28 @@ function CampaignEditorScreen() {
                       option.id === value.id
                     }
                     renderTags={(value, getTagProps) =>
-                      value.map((segment, index) => (
-                        <JoyChip
-                          key={segment.id}
-                          size="sm"
-                          variant="soft"
-                          color="neutral"
-                          endDecorator={<XCircle size={12} />}
-                          {...getTagProps({ index })}
-                        >
-                          {segment.name}
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.400", ml: 0.5 }}
+                      value.map((segment, index) => {
+                        const { key, ...chipProps } = getTagProps({ index });
+
+                        return (
+                          <JoyChip
+                            key={key ?? segment.id}
+                            size="sm"
+                            variant="soft"
+                            color="neutral"
+                            endDecorator={<XCircle size={12} />}
+                            {...chipProps}
                           >
-                            ({segment.customer_count.toLocaleString()})
-                          </Typography>
-                        </JoyChip>
-                      ))
+                            {segment.name}
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "neutral.400", ml: 0.5 }}
+                            >
+                              ({segment.customer_count.toLocaleString()})
+                            </Typography>
+                          </JoyChip>
+                        );
+                      })
                     }
                     onChange={(_event, value) =>
                       updateAudience({ selectedSegments: value })
@@ -2318,18 +2322,22 @@ function CampaignEditorScreen() {
                       option.id === value.id
                     }
                     renderTags={(value, getTagProps) =>
-                      value.map((persona, index) => (
-                        <JoyChip
-                          key={persona.id}
-                          size="sm"
-                          variant="soft"
-                          color="neutral"
-                          endDecorator={<XCircle size={12} />}
-                          {...getTagProps({ index })}
-                        >
-                          {persona.name}
-                        </JoyChip>
-                      ))
+                      value.map((persona, index) => {
+                        const { key, ...chipProps } = getTagProps({ index });
+
+                        return (
+                          <JoyChip
+                            key={key ?? persona.id}
+                            size="sm"
+                            variant="soft"
+                            color="neutral"
+                            endDecorator={<XCircle size={12} />}
+                            {...chipProps}
+                          >
+                            {persona.name}
+                          </JoyChip>
+                        );
+                      })
                     }
                     onChange={(_event, value) =>
                       updateAudience({ selectedPersonas: value })

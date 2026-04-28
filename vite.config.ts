@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [react()].filter(Boolean),
   resolve: {
+    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/styled"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
@@ -52,6 +53,7 @@ export default defineConfig(({ mode }) => ({
       "react-dom",
       "react-router-dom",
       "@supabase/supabase-js",
+      "@mui/joy/LinearProgress",
     ],
   },
   test: {

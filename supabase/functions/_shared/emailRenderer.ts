@@ -366,7 +366,7 @@ function buildMergeData(
 
   if (customer) {
     const mergeData = createMergeTagDataFromCustomer(
-      customer as unknown as Record<string, unknown>,
+      customer as Record<string, unknown>,
       {
         company_name: companyProfile?.company_name || undefined,
         address:
@@ -444,19 +444,7 @@ function appendFooter(
     youtube_url: companyProfile?.youtube_url || "",
     linkedin_url: companyProfile?.linkedin_url || "",
     brand_primary_color: companyProfile?.brand_primary_color || "#283024",
-    feature_flags: companyProfile?.feature_flags
-      ? {
-          company_logo_url: companyProfile.feature_flags.company_logo_url,
-          footer_colors: companyProfile.feature_flags.footer_colors
-            ? {
-                backgroundColor:
-                  companyProfile.feature_flags.footer_colors.background,
-                textColor: companyProfile.feature_flags.footer_colors.text,
-                linkColor: companyProfile.feature_flags.footer_colors.link,
-              }
-            : undefined,
-        }
-      : undefined,
+    feature_flags: companyProfile?.feature_flags || undefined,
   };
 
   // Generate footer with placeholders then replace
