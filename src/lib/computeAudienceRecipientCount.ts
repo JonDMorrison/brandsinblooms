@@ -17,6 +17,11 @@ const SYSTEM_SEGMENT_IDS = new Set(
 );
 const PAGE_SIZE = 1000;
 
+type PagedQueryResult<Row> = {
+  data: Row[] | null;
+  error: unknown;
+};
+
 export function isUuidLike(value: string) {
   return UUID_LIKE_REGEX.test(value);
 }
@@ -31,6 +36,37 @@ function chunkIds(ids: string[], size = 200) {
   return chunks;
 }
 
+async function fetchIdsPaged<Row>(
+  queryFactory: (
+    from: number,
+    to: number,
+  ) => PromiseLike<PagedQueryResult<Row>>,
+  rowToId: (row: Row) => string | null,
+) {
+  const ids = new Set<string>();
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await queryFactory(from, to);
+    if (error) {
+      throw error;
+    }
+
+    (data ?? []).forEach((row) => {
+      const id = rowToId(row);
+      if (id) {
+        ids.add(id);
+      }
+    });
+
+    if (!data || data.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return ids;
+}
+
 interface ComputeAudienceRecipientCountParams {
   tenantId?: string | null;
   totalCustomerCount?: number;
@@ -38,14 +74,19 @@ interface ComputeAudienceRecipientCountParams {
   personaIds: string[];
 }
 
-export async function computeAudienceRecipientCount({
+interface ResolveAudienceRecipientIdsParams {
+  tenantId?: string | null;
+  segmentIds: string[];
+  personaIds: string[];
+}
+
+export async function resolveAudienceRecipientIds({
   tenantId,
-  totalCustomerCount = 0,
   segmentIds,
   personaIds,
-}: ComputeAudienceRecipientCountParams) {
+}: ResolveAudienceRecipientIdsParams) {
   if (!tenantId) {
-    return 0;
+    return [] as string[];
   }
 
   const safeSegmentIds = segmentIds.filter(Boolean);
@@ -60,36 +101,22 @@ export async function computeAudienceRecipientCount({
     systemSegmentIds.length === 0 &&
     safePersonaIds.length === 0
   ) {
-    return totalCustomerCount;
+    const allCustomerIds = await fetchIdsPaged(
+      (from, to) =>
+        supabase
+          .from("crm_customers")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .is("deleted_at", null)
+          .range(from, to),
+      (row) => {
+        const id = String(row?.id || "");
+        return isUuidLike(id) ? id : null;
+      },
+    );
+
+    return Array.from(allCustomerIds);
   }
-
-  const fetchIdsPaged = async (
-    queryFactory: (from: number, to: number) => PromiseLike<any>,
-    rowToId: (row: any) => string | null,
-  ) => {
-    const ids = new Set<string>();
-
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const to = from + PAGE_SIZE - 1;
-      const { data, error } = await queryFactory(from, to);
-      if (error) {
-        throw error;
-      }
-
-      (data ?? []).forEach((row: any) => {
-        const id = rowToId(row);
-        if (id) {
-          ids.add(id);
-        }
-      });
-
-      if (!data || data.length < PAGE_SIZE) {
-        break;
-      }
-    }
-
-    return ids;
-  };
 
   let segmentCustomerIds: Set<string> | null = null;
   if (customSegmentIds.length > 0) {
@@ -367,23 +394,42 @@ export async function computeAudienceRecipientCount({
         ? [segmentCustomerIds, personaCustomerIds]
         : [personaCustomerIds, segmentCustomerIds];
 
-    let intersectionCount = 0;
-    for (const id of small) {
-      if (large.has(id)) {
-        intersectionCount += 1;
-      }
-    }
-
-    return intersectionCount;
+    return Array.from(small).filter((id) => large.has(id));
   }
 
   if (segmentCustomerIds) {
-    return segmentCustomerIds.size;
+    return Array.from(segmentCustomerIds);
   }
 
   if (personaCustomerIds) {
-    return personaCustomerIds.size;
+    return Array.from(personaCustomerIds);
   }
 
-  return 0;
+  return [] as string[];
+}
+
+export async function computeAudienceRecipientCount({
+  tenantId,
+  totalCustomerCount = 0,
+  segmentIds,
+  personaIds,
+}: ComputeAudienceRecipientCountParams) {
+  if (!tenantId) {
+    return 0;
+  }
+
+  if (
+    segmentIds.filter(Boolean).length === 0 &&
+    personaIds.filter(Boolean).length === 0
+  ) {
+    return totalCustomerCount;
+  }
+
+  const recipientIds = await resolveAudienceRecipientIds({
+    tenantId,
+    segmentIds,
+    personaIds,
+  });
+
+  return recipientIds.length;
 }

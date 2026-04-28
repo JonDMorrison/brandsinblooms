@@ -1,27 +1,33 @@
-import React, { useCallback } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
-import { Slider } from '@/components/ui-legacy/slider';
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
-import { useBlockImageGeneration } from '@/hooks/useBlockImageGeneration';
-import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
+import React, { useCallback } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import { Slider } from "@/components/ui-legacy/slider";
+import { MediaSelectorImage } from "@/components/crm/MediaSelectorImage";
+import { useBlockImageGeneration } from "@/hooks/useBlockImageGeneration";
+import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 
 interface ImageBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
+  validationErrors?: Partial<Record<"buttonUrl" | "imageUrl", string>>;
+  onClose?: () => void;
+  onCancel?: () => void;
   isGenerating?: boolean;
 }
 
-export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({ 
-  block, 
+export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
+  block,
   onUpdate,
-  isGenerating = false
+  validationErrors,
+  onClose,
+  onCancel,
+  isGenerating = false,
 }) => {
   // Use AI image generation for standalone image blocks
-  const contentForImage = 'Newsletter image';
-  
+  const contentForImage = "Newsletter image";
+
   const { isGeneratingImage } = useBlockImageGeneration({
     blockId: block.id,
     blockType: block.type,
@@ -31,22 +37,25 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
     onImageReady: (imageUrl, metadata) => {
       onUpdate({
         imageUrl,
-        altText: metadata?.alt || 'AI generated image'
+        altText: metadata?.alt || "AI generated image",
       });
     },
-    enabled: false // Disabled - users add images manually based on their content
+    enabled: false, // Disabled - users add images manually based on their content
   });
 
-  const handleImageChange = useCallback((imageUrl: string) => {
-    // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects an image,
-    // set autoImageMode = false to prevent system from ever auto-replacing it
-    onUpdate({ 
-      imageUrl, 
-      autoImageMode: false,
-      shouldFetchImage: false,
-      isGeneratingImage: false
-    });
-  }, [onUpdate]);
+  const handleImageChange = useCallback(
+    (imageUrl: string) => {
+      // DETERMINISTIC IMAGE BEHAVIOR: When user manually selects an image,
+      // set autoImageMode = false to prevent system from ever auto-replacing it
+      onUpdate({
+        imageUrl,
+        autoImageMode: false,
+        shouldFetchImage: false,
+        isGeneratingImage: false,
+      });
+    },
+    [onUpdate],
+  );
 
   return (
     <div className="space-y-6 pb-4 relative">
@@ -67,6 +76,11 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
             />
           )}
         </div>
+        {validationErrors?.imageUrl ? (
+          <p className="text-xs text-destructive">
+            {validationErrors.imageUrl}
+          </p>
+        ) : null}
       </div>
 
       {/* Image Opacity - only show when image exists */}
@@ -74,7 +88,9 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label htmlFor="imageOpacity">Image Opacity</Label>
-            <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+            <span className="text-sm text-muted-foreground">
+              {block.backgroundOpacity || 100}%
+            </span>
           </div>
           <Slider
             value={[block.backgroundOpacity || 100]}
@@ -92,12 +108,16 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label htmlFor="darkOverlay">Dark Overlay</Label>
-            <span className="text-sm text-muted-foreground">{block.darkOverlayOpacity || 0}%</span>
+            <span className="text-sm text-muted-foreground">
+              {block.darkOverlayOpacity || 0}%
+            </span>
           </div>
           <Slider
             id="darkOverlay"
             value={[block.darkOverlayOpacity || 0]}
-            onValueChange={(value) => onUpdate({ darkOverlayOpacity: value[0] })}
+            onValueChange={(value) =>
+              onUpdate({ darkOverlayOpacity: value[0] })
+            }
             max={100}
             min={0}
             step={1}
@@ -116,12 +136,12 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
               <Input
                 id="bgColor"
                 type="color"
-                value={block.backgroundColor || '#000000'}
+                value={block.backgroundColor || "#000000"}
                 onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
                 className="w-16 h-10 p-1 border rounded"
               />
               <Input
-                value={block.backgroundColor || '#000000'}
+                value={block.backgroundColor || "#000000"}
                 onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
                 placeholder="#000000"
                 className="flex-1"
@@ -131,11 +151,15 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="colorOpacity">Overlay Opacity</Label>
-              <span className="text-sm text-muted-foreground">{block.colorOverlayOpacity || 0}%</span>
+              <span className="text-sm text-muted-foreground">
+                {block.colorOverlayOpacity || 0}%
+              </span>
             </div>
             <Slider
               value={[block.colorOverlayOpacity || 0]}
-              onValueChange={(value) => onUpdate({ colorOverlayOpacity: value[0] })}
+              onValueChange={(value) =>
+                onUpdate({ colorOverlayOpacity: value[0] })
+              }
               max={100}
               min={0}
               step={1}
@@ -148,7 +172,9 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       {/* Image Overlay Section */}
       <div className="space-y-4 pt-2 border-t">
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">Image Overlay (Optional)</Label>
+          <Label className="text-sm font-semibold">
+            Image Overlay (Optional)
+          </Label>
           <p className="text-xs text-muted-foreground">
             Add a custom color overlay on top of your image
           </p>
@@ -160,12 +186,12 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
               <Input
                 id="overlayColor"
                 type="color"
-                value={block.overlayColor || '#000000'}
+                value={block.overlayColor || "#000000"}
                 onChange={(e) => onUpdate({ overlayColor: e.target.value })}
                 className="w-16 h-10 p-1 border rounded"
               />
               <Input
-                value={block.overlayColor || '#000000'}
+                value={block.overlayColor || "#000000"}
                 onChange={(e) => onUpdate({ overlayColor: e.target.value })}
                 placeholder="#000000"
                 className="flex-1"
@@ -175,7 +201,9 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="overlayOpacity">Overlay Opacity</Label>
-              <span className="text-sm text-muted-foreground">{block.overlayOpacity || 0}%</span>
+              <span className="text-sm text-muted-foreground">
+                {block.overlayOpacity || 0}%
+              </span>
             </div>
             <Slider
               id="overlayOpacity"
@@ -197,18 +225,35 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       <div className="space-y-2">
         <Label>Aspect Ratio</Label>
         <NativeSelect
-          value={block.aspectRatio || 'auto'}
+          value={block.aspectRatio || "auto"}
           onChange={(e) => onUpdate({ aspectRatio: e.target.value as any })}
           options={[
-            { value: 'auto', label: 'Auto (Natural)' },
-            { value: '16:9', label: '16:9 (Widescreen)' },
-            { value: '4:3', label: '4:3 (Standard)' },
-            { value: '1:1', label: '1:1 (Square)' },
-            { value: '4:5', label: '4:5 (Portrait)' }
+            { value: "auto", label: "Auto (Natural)" },
+            { value: "16:9", label: "16:9 (Widescreen)" },
+            { value: "4:3", label: "4:3 (Standard)" },
+            { value: "1:1", label: "1:1 (Square)" },
+            { value: "4:5", label: "4:5 (Portrait)" },
           ]}
         />
-        <p className="text-xs text-muted-foreground">Fixed ratios ensure images fill the frame completely</p>
+        <p className="text-xs text-muted-foreground">
+          Fixed ratios ensure images fill the frame completely
+        </p>
       </div>
+
+      {(onClose || onCancel) && (
+        <div className="pt-4 border-t flex flex-col sm:flex-row gap-3">
+          {onCancel ? (
+            <Button variant="outline" onClick={onCancel} className="w-full">
+              Cancel
+            </Button>
+          ) : null}
+          {onClose ? (
+            <Button onClick={onClose} className="w-full">
+              Save & Close
+            </Button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

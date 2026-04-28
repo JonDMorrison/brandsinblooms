@@ -21,6 +21,8 @@ interface ImageGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
   onClose?: () => void;
+  onCancel?: () => void;
+  validationErrors?: Partial<Record<"buttonUrl" | "imageUrl", string>>;
   isGenerating?: boolean;
 }
 
@@ -46,7 +48,14 @@ const getImageCount = (
 
 export const ImageGalleryBlockEditor: React.FC<
   ImageGalleryBlockEditorProps
-> = ({ block, onUpdate, onClose, isGenerating = false }) => {
+> = ({
+  block,
+  onUpdate,
+  onClose,
+  onCancel,
+  validationErrors,
+  isGenerating = false,
+}) => {
   const { toast } = useToast();
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
@@ -332,18 +341,35 @@ export const ImageGalleryBlockEditor: React.FC<
                 onUpdate({ ctaUrl: e.target.value, buttonUrl: e.target.value })
               }
               placeholder="https://..."
+              aria-invalid={Boolean(validationErrors?.buttonUrl)}
+              className={cn(
+                validationErrors?.buttonUrl &&
+                  "border-destructive focus-visible:ring-destructive/30",
+              )}
             />
+            {validationErrors?.buttonUrl ? (
+              <p className="text-xs text-destructive">
+                {validationErrors.buttonUrl}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
 
       {/* Save & Close Button */}
-      {onClose && (
-        <div className="pt-4 border-t">
-          <Button onClick={onClose} className="w-full gap-2">
-            <Check className="h-4 w-4" />
-            Save & Close
-          </Button>
+      {(onClose || onCancel) && (
+        <div className="pt-4 border-t flex flex-col sm:flex-row gap-3">
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel} className="w-full">
+              Cancel
+            </Button>
+          )}
+          {onClose && (
+            <Button onClick={onClose} className="w-full gap-2">
+              <Check className="h-4 w-4" />
+              Save & Close
+            </Button>
+          )}
         </div>
       )}
 

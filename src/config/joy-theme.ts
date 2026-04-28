@@ -1,6 +1,6 @@
 import { extendTheme } from "@mui/joy/styles";
 import type { PaletteRange } from "@mui/joy/styles";
-import createBreakpoints from "@mui/system/createTheme/createBreakpoints";
+import { unstable_createBreakpoints as createBreakpoints } from "@mui/system/createBreakpoints";
 
 declare module "@mui/joy/styles" {
   interface ColorPalettePropOverrides {

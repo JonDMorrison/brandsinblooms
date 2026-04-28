@@ -9,6 +9,7 @@ import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import { mediaSelector } from "@/utils/mediaSelector";
 import { RegenerateBlockButton } from "./RegenerateBlockButton";
 import { NextBlockSuggestion } from "./NextBlockSuggestion";
+import type { ClickToEditBlockEditSession } from "./click-to-edit/ClickToEditBlock";
 
 interface BrandDefaults {
   primaryColor: string;
@@ -20,6 +21,12 @@ interface BrandDefaults {
   fontFamily: string;
   loaded: boolean;
 }
+
+type SuggestedBlockKind =
+  | "header"
+  | "image_text"
+  | "button"
+  | "product_gallery";
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
@@ -37,6 +44,92 @@ interface CleanEmailBlockEditorProps {
   brandDefaults?: BrandDefaults;
   preheaderText?: string;
   suggestionsEnabled?: boolean;
+  onEditSessionChange?: (session: ClickToEditBlockEditSession | null) => void;
+}
+
+function createBlockId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createSuggestedBlock(kind: SuggestedBlockKind): ContentBlock | null {
+  switch (kind) {
+    case "header":
+      return {
+        id: createBlockId("hero"),
+        type: "email-safe-hero",
+        source: "manual",
+        headline: "",
+        subtitle: "",
+        eyebrow: "",
+        imageUrl: "",
+        altText: "",
+        ctaText: "",
+        ctaUrl: "",
+        textAlign: "center",
+        backgroundColor: "#f5f5f7",
+        textColor: "#111111",
+        padding: "large",
+        shouldFetchImage: false,
+        isGeneratingImage: false,
+        autoImageMode: false,
+        visible: true,
+        collapsed: false,
+      };
+    case "image_text":
+      return {
+        id: createBlockId("image_text"),
+        type: "image-text",
+        source: "manual",
+        headline: "",
+        title: "",
+        subtitle: "",
+        body: "",
+        content: "",
+        imageUrl: "",
+        altText: "",
+        layout: "two-column-left",
+        textAlign: "left",
+        alignment: "left",
+        backgroundColor: "#f5f5f7",
+        textColor: "#111111",
+        buttonText: "",
+        buttonUrl: "",
+        visible: true,
+        collapsed: false,
+      };
+    case "button":
+      return {
+        id: createBlockId("button"),
+        type: "button",
+        source: "manual",
+        heading: "Call to action",
+        body: "Explain what happens next.",
+        buttonText: "Learn more",
+        buttonUrl: "",
+        alignment: "center",
+        padding: "medium",
+        visible: true,
+        collapsed: false,
+      };
+    case "product_gallery":
+      return {
+        id: createBlockId("product_gallery"),
+        type: "product-gallery",
+        source: "manual",
+        headline: "Product gallery",
+        body: "Showcase featured products, bundles, or seasonal picks.",
+        galleryItems: [],
+        columns: 2,
+        showBadges: true,
+        backgroundColor: "#ffffff",
+        ctaText: "Shop now",
+        ctaUrl: "",
+        visible: true,
+        collapsed: false,
+      };
+    default:
+      return null;
+  }
 }
 
 // Enhanced mapping function to convert layout types to block types and configurations
@@ -228,11 +321,14 @@ const mapLayoutToBlock = async (
       };
     case "product-gallery":
       return {
-        type: "image-gallery",
+        type: "product-gallery",
         config: {
           headline: "",
           body: "",
           galleryItems: [],
+          columns: 2,
+          showBadges: true,
+          backgroundColor: "#ffffff",
           ctaText: "Shop Holiday",
           ctaUrl: "",
           shouldFetchImage: false,
@@ -292,6 +388,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   brandDefaults,
   preheaderText = "",
   suggestionsEnabled = true,
+  onEditSessionChange,
 }) => {
   const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
   const [hydrationComplete, setHydrationComplete] = useState(false);
@@ -605,6 +702,26 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     setInsertIndex(null);
   };
 
+  const addSuggestedBlock = (kind: SuggestedBlockKind) => {
+    const nextBlock = createSuggestedBlock(kind);
+    if (!nextBlock) {
+      return;
+    }
+
+    const brandOverrides: Partial<ContentBlock> = {};
+    if (brandDefaults?.loaded && kind === "header") {
+      brandOverrides.backgroundColor = brandDefaults.headerBgColor;
+      brandOverrides.textColor = brandDefaults.textColor;
+    }
+    if (brandDefaults?.loaded && kind === "button") {
+      brandOverrides.buttonColor = brandDefaults.buttonColor;
+    }
+
+    const nextBlocks = [...internalBlocks, { ...nextBlock, ...brandOverrides }];
+    setInternalBlocks(nextBlocks);
+    onBlocksChange(nextBlocks);
+  };
+
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
     const newBlocks = internalBlocks.map((block) => {
       if (block.id === id) {
@@ -700,14 +817,15 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         footerBackgroundColor={footerBackgroundColor}
         onFooterColorChange={onFooterColorChange}
         onFooterStylingChange={onFooterStylingChange}
+        onEditSessionChange={onEditSessionChange}
       />
 
       {/* Smart next-block suggestion */}
       {suggestionsEnabled && (
         <NextBlockSuggestion
           blocks={internalBlocks}
-          preheaderText={preheaderText}
-          onAddBlock={(layoutType) => addBlockWithLayout(layoutType as LayoutType)}
+          preheaderText={preheaderText ?? ""}
+          onAddBlockKind={addSuggestedBlock}
         />
       )}
 

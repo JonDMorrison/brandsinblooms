@@ -13,13 +13,15 @@ import { cn } from "@/lib/utils";
 interface TextEditModeProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
-  onSave?: () => void;
+  validationErrors?: Partial<Record<"buttonUrl" | "imageUrl", string>>;
+  onSave?: () => boolean;
   onCancel?: () => void;
 }
 
 export const TextEditMode: React.FC<TextEditModeProps> = ({
   block,
   onUpdate,
+  validationErrors,
   onSave,
   onCancel,
 }) => {
@@ -399,7 +401,17 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
                 }
               }}
               placeholder="https://example.com"
+              aria-invalid={Boolean(validationErrors?.buttonUrl)}
+              className={cn(
+                validationErrors?.buttonUrl &&
+                  "border-destructive focus-visible:ring-destructive/30",
+              )}
             />
+            {validationErrors?.buttonUrl ? (
+              <p className="text-xs text-destructive">
+                {validationErrors.buttonUrl}
+              </p>
+            ) : null}
           </div>
         </div>
       )}

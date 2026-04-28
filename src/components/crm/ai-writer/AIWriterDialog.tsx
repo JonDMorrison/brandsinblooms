@@ -21,6 +21,10 @@ import { ContentBlock } from "@/types/emailBuilder";
 interface AIWriterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTopic?: string;
+  initialLayout?: "block-builder" | "simple-email";
+  initialTone?: string;
+  initialCustomInstructions?: string;
   onContentGenerated: (data: {
     campaignName: string;
     subjectLine: string;
@@ -34,19 +38,26 @@ interface AIWriterDialogProps {
 export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   open,
   onOpenChange,
+  initialTopic,
+  initialLayout,
+  initialTone,
+  initialCustomInstructions,
   onContentGenerated,
   onBlockImageGenerated,
   onBlockImageGenerationFailed,
 }) => {
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(initialTopic || "");
   const [layout, setLayout] = useState<"block-builder" | "simple-email">(
-    "block-builder",
+    initialLayout || "block-builder",
   );
-  const [tone, setTone] = useState("professional");
-  const [customInstructions, setCustomInstructions] = useState("");
+  const [tone, setTone] = useState(initialTone || "professional");
+  const [customInstructions, setCustomInstructions] = useState(
+    initialCustomInstructions || "",
+  );
   const [generating, setGenerating] = useState(false);
   const [usedImageIds, setUsedImageIds] = useState<Set<string>>(new Set());
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [imageGenerationProgress, setImageGenerationProgress] = useState({
     completed: 0,
     total: 0,
@@ -55,6 +66,27 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   const { selectedPersonas, generateEmailContent } =
     usePersonaAwareGeneration();
   const { toast } = useToast();
+
+  const applyInitialContext = React.useCallback(() => {
+    setTopic(initialTopic || "");
+    setLayout(initialLayout || "block-builder");
+    setTone(initialTone || "professional");
+    setCustomInstructions(initialCustomInstructions || "");
+    setUsedImageIds(new Set());
+    setGenerationError(null);
+    setIsGeneratingImages(false);
+    setImageGenerationProgress({ completed: 0, total: 0 });
+  }, [initialCustomInstructions, initialLayout, initialTone, initialTopic]);
+
+  const previousOpenRef = React.useRef(open);
+
+  React.useEffect(() => {
+    if (open && !previousOpenRef.current) {
+      applyInitialContext();
+    }
+
+    previousOpenRef.current = open;
+  }, [applyInitialContext, open]);
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -66,6 +98,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
       return;
     }
 
+    setGenerationError(null);
     setGenerating(true);
 
     try {
@@ -173,13 +206,15 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
 
       // Step 5: Generate images in parallel (background)
       startParallelImageGeneration(enhancedBlocks);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to generate newsletter:", error);
+      const message =
+        (error instanceof Error ? error.message : null) ||
+        "Failed to generate newsletter content. Please try again.";
+      setGenerationError(message);
       toast({
         title: "Generation Failed",
-        description:
-          error.message ||
-          "Failed to generate newsletter content. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -264,7 +299,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
             description: `Successfully generated ${succeeded}/${imageBlocks.length} AI images`,
           });
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(
           `❌ Failed to generate image for block ${block.id}:`,
           error,
@@ -281,7 +316,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
         if (onBlockImageGenerationFailed) {
           onBlockImageGenerationFailed(
             block.id,
-            error.message || "Image generation failed",
+            error instanceof Error ? error.message : "Image generation failed",
           );
         }
 
@@ -320,11 +355,7 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
   };
 
   const reset = () => {
-    setTopic("");
-    setLayout("block-builder");
-    setTone("professional");
-    setCustomInstructions("");
-    setUsedImageIds(new Set());
+    applyInitialContext();
   };
 
   const handleClose = (open: boolean) => {
@@ -446,6 +477,28 @@ export const AIWriterDialog: React.FC<AIWriterDialogProps> = ({
               disabled={generating}
             />
           </div>
+
+          {generationError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-destructive">
+                  Generation failed
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {generationError}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerate}
+                  disabled={generating || !topic.trim()}
+                >
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex gap-2">
             <Button
@@ -676,7 +729,10 @@ const generatePreheaderText = (topic: string, tone: string): string => {
 };
 
 // Quality validation function
-const validateContentQuality = (content: any, topic: string): boolean => {
+const validateContentQuality = (
+  content: { headline?: string; body?: string },
+  topic: string,
+): boolean => {
   const { headline, body } = content;
 
   // Check minimum length requirements

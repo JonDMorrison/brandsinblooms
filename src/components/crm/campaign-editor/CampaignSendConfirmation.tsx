@@ -1,5 +1,6 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
+import Checkbox from "@mui/joy/Checkbox";
 import CircularProgress from "@mui/joy/CircularProgress";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
@@ -123,7 +124,9 @@ async function fetchAudienceConsentGap(params: {
       allowedCustomerIds = personaCustomerIds;
     } else {
       const personaSet = new Set(personaCustomerIds);
-      allowedCustomerIds = allowedCustomerIds.filter((id) => personaSet.has(id));
+      allowedCustomerIds = allowedCustomerIds.filter((id) =>
+        personaSet.has(id),
+      );
     }
   }
 
@@ -199,9 +202,14 @@ function PreflightLine({ item }: { item: PreflightItem }) {
 
   return (
     <Stack direction="row" spacing={1.25} alignItems="flex-start">
-      <Box sx={{ width: 20, pt: 0.25, display: "flex", justifyContent: "center" }}>
+      <Box
+        sx={{ width: 20, pt: 0.25, display: "flex", justifyContent: "center" }}
+      >
         {item.loading ? (
-          <CircularProgress size="sm" sx={{ "--CircularProgress-size": "18px" }} />
+          <CircularProgress
+            size="sm"
+            sx={{ "--CircularProgress-size": "18px" }}
+          />
         ) : hasWarning ? (
           <AlertTriangle size={18} style={{ color: iconColor }} />
         ) : (
@@ -236,9 +244,13 @@ function PreflightLine({ item }: { item: PreflightItem }) {
 export function CampaignSendConfirmation({
   open,
   onClose,
+  builderWarnings = [],
+  builderBlockers = [],
 }: {
   open: boolean;
   onClose: () => void;
+  builderWarnings?: string[];
+  builderBlockers?: string[];
 }) {
   const { tenant } = useTenant();
   const {
@@ -268,11 +280,13 @@ export function CampaignSendConfirmation({
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [inlineError, setInlineError] = React.useState<string | null>(null);
+  const [warningsAcknowledged, setWarningsAcknowledged] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
       setInlineError(null);
       setIsSubmitting(false);
+      setWarningsAcknowledged(false);
     }
   }, [open]);
 
@@ -369,14 +383,21 @@ export function CampaignSendConfirmation({
   );
 
   const hasWarning = preflightItems.some((item) => Boolean(item.warning));
+  const hasBuilderWarnings = builderWarnings.length > 0;
+  const hasBuilderBlockers = builderBlockers.length > 0;
+  const requiresAcknowledgement = hasWarning || hasBuilderWarnings;
   const primaryLabel = sendImmediately
-    ? hasWarning
+    ? requiresAcknowledgement
       ? "Send Anyway"
       : "Send Now"
-    : hasWarning
+    : requiresAcknowledgement
       ? "Schedule Anyway"
       : "Schedule Send";
   const isBusy = isSaving || isSubmitting;
+  const isPrimaryDisabled =
+    isBusy ||
+    hasBuilderBlockers ||
+    (requiresAcknowledgement && !warningsAcknowledged);
 
   const handleClose = React.useCallback(() => {
     if (!isBusy) {
@@ -385,7 +406,7 @@ export function CampaignSendConfirmation({
   }, [isBusy, onClose]);
 
   const handleSubmit = React.useCallback(async () => {
-    if (isBusy) return;
+    if (isPrimaryDisabled) return;
 
     setInlineError(null);
     setIsSubmitting(true);
@@ -405,7 +426,7 @@ export function CampaignSendConfirmation({
     } finally {
       setIsSubmitting(false);
     }
-  }, [activate, isBusy, onClose]);
+  }, [activate, isPrimaryDisabled, onClose]);
 
   return (
     <Modal open={open} onClose={handleClose}>
@@ -416,7 +437,9 @@ export function CampaignSendConfirmation({
       >
         {!isBusy ? <ModalClose /> : null}
         <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-          <DialogTitle sx={{ p: 0, mb: 0.5 }}>Confirm Campaign Send</DialogTitle>
+          <DialogTitle sx={{ p: 0, mb: 0.5 }}>
+            Confirm Campaign Send
+          </DialogTitle>
           <Typography level="body-sm" sx={{ color: "neutral.600" }}>
             This campaign will be sent to {formattedRecipients} recipients.
           </Typography>
@@ -424,7 +447,11 @@ export function CampaignSendConfirmation({
 
         <DialogContent sx={{ px: 3, py: 0 }}>
           <Stack spacing={2.25}>
-            <Sheet variant="soft" color="neutral" sx={{ borderRadius: "md", p: 2 }}>
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "md", p: 2 }}
+            >
               <Stack spacing={1.25}>
                 <Box>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
@@ -447,15 +474,23 @@ export function CampaignSendConfirmation({
                     <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                       From
                     </Typography>
-                    <Typography level="body-sm" sx={{ wordBreak: "break-word" }}>
-                      {senderName ? `${senderName} <${senderEmail}>` : senderEmail || "No sender"}
+                    <Typography
+                      level="body-sm"
+                      sx={{ wordBreak: "break-word" }}
+                    >
+                      {senderName
+                        ? `${senderName} <${senderEmail}>`
+                        : senderEmail || "No sender"}
                     </Typography>
                   </Box>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                       Reply-to
                     </Typography>
-                    <Typography level="body-sm" sx={{ wordBreak: "break-word" }}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ wordBreak: "break-word" }}
+                    >
                       {replyTo || senderEmail || "No reply-to"}
                     </Typography>
                   </Box>
@@ -474,10 +509,66 @@ export function CampaignSendConfirmation({
               ))}
             </Stack>
 
+            {hasBuilderBlockers ? (
+              <Sheet
+                variant="soft"
+                color="danger"
+                sx={{ borderRadius: "md", p: 1.5 }}
+              >
+                <Stack spacing={0.75}>
+                  <Typography level="body-sm" fontWeight="lg">
+                    Fix these blockers before sending
+                  </Typography>
+                  {builderBlockers.map((blocker) => (
+                    <Typography key={blocker} level="body-xs">
+                      {blocker}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Sheet>
+            ) : null}
+
+            {hasBuilderWarnings ? (
+              <Sheet
+                variant="soft"
+                color="warning"
+                sx={{ borderRadius: "md", p: 1.5 }}
+              >
+                <Stack spacing={0.75}>
+                  <Typography level="body-sm" fontWeight="lg">
+                    Review these content warnings before sending
+                  </Typography>
+                  {builderWarnings.map((warning) => (
+                    <Typography key={warning} level="body-xs">
+                      {warning}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Sheet>
+            ) : null}
+
+            {requiresAcknowledgement ? (
+              <Checkbox
+                checked={warningsAcknowledged}
+                onChange={(event) =>
+                  setWarningsAcknowledged(Boolean(event.target.checked))
+                }
+                label="I understand these warnings and want to continue."
+                disabled={hasBuilderBlockers || isBusy}
+              />
+            ) : null}
+
             {inlineError ? (
-              <Sheet variant="soft" color="danger" sx={{ borderRadius: "md", p: 1.5 }}>
+              <Sheet
+                variant="soft"
+                color="danger"
+                sx={{ borderRadius: "md", p: 1.5 }}
+              >
                 <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <AlertTriangle size={17} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <AlertTriangle
+                    size={17}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  />
                   <Typography level="body-sm">{inlineError}</Typography>
                 </Stack>
               </Sheet>
@@ -487,10 +578,20 @@ export function CampaignSendConfirmation({
 
         <Divider />
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <JoyButton bloomVariant="ghost" color="neutral" onClick={handleClose} disabled={isBusy}>
+          <JoyButton
+            bloomVariant="ghost"
+            color="neutral"
+            onClick={handleClose}
+            disabled={isBusy}
+          >
             Back
           </JoyButton>
-          <JoyButton loading={isBusy} onClick={handleSubmit} startDecorator={<Send size={16} />}>
+          <JoyButton
+            loading={isBusy}
+            disabled={isPrimaryDisabled}
+            onClick={handleSubmit}
+            startDecorator={<Send size={16} />}
+          >
             {primaryLabel}
           </JoyButton>
         </DialogActions>
