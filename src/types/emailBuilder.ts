@@ -1,13 +1,55 @@
-
 // CRITICAL: 'text' type deprecated for weekly themes - all content blocks should use 'image-text'
 // 'text' type kept temporarily for backward compatibility with existing campaigns
-export type BlockType = 'header' | 'text' | 'image' | 'image-text' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery' | 'social-follow' | 'footer' | 'email-safe-hero' | 'graphic-hero';
-export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background' | 'image-left' | 'image-right' | 'text-left';
-export type AlignmentType = 'left' | 'center' | 'right' | 'justify';
-export type SpacingType = 'none' | 'small' | 'medium' | 'large' | 'extra-large';
-export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image' | 'mobile-first';
-export type ImageSizeType = 'small' | 'medium' | 'large' | 'full-width' | 'cover';
-export type ImagePositionType = 'left' | 'right' | 'center' | 'background' | 'overlay';
+export type BlockType =
+  | "header"
+  | "text"
+  | "image"
+  | "image-text"
+  | "button"
+  | "divider"
+  | "product"
+  | "quote"
+  | "cta"
+  | "newsletter-header"
+  | "image-gallery"
+  | "product-gallery"
+  | "social-follow"
+  | "footer"
+  | "email-safe-hero"
+  | "graphic-hero";
+export type BlockLayout =
+  | "full-width"
+  | "two-column-left"
+  | "two-column-right"
+  | "three-column"
+  | "image-60-40"
+  | "image-70-30"
+  | "image-overlay"
+  | "image-background"
+  | "overlay"
+  | "background"
+  | "image-left"
+  | "image-right"
+  | "text-left";
+export type AlignmentType = "left" | "center" | "right" | "justify";
+export type SpacingType = "none" | "small" | "medium" | "large" | "extra-large";
+export type ResponsiveBehaviorType =
+  | "stack"
+  | "reverse"
+  | "hide-image"
+  | "mobile-first";
+export type ImageSizeType =
+  | "small"
+  | "medium"
+  | "large"
+  | "full-width"
+  | "cover";
+export type ImagePositionType =
+  | "left"
+  | "right"
+  | "center"
+  | "background"
+  | "overlay";
 
 /**
  * Block status for tracking content state
@@ -15,7 +57,7 @@ export type ImagePositionType = 'left' | 'right' | 'center' | 'background' | 'ov
  * - "ai-generated": AI writer created content for this block
  * - "user-edited": User manually edited headline, body, CTA, or other visible content
  */
-export type BlockStatus = 'empty' | 'ai-generated' | 'user-edited';
+export type BlockStatus = "empty" | "ai-generated" | "user-edited";
 
 export interface EmailBlock {
   id: string;
@@ -35,13 +77,13 @@ export interface EmailBlock {
 export interface GlobalSettings {
   fontFamily: string;
   fontSize: string;
-  
+
   // Granular typography fonts
   headlineFont?: string;
   subheadingFont?: string;
   bodyFont?: string;
   buttonFont?: string;
-  
+
   buttonStyle: {
     cornerRadius: string;
     backgroundColor: string;
@@ -66,14 +108,14 @@ export interface ContentBlock {
   imageQuery?: string; // AI-generated image search query
   ctaText?: string;
   ctaUrl?: string;
-  source: 'newsletter' | 'ai' | 'template' | 'manual';
+  source: "newsletter" | "ai" | "template" | "manual";
   personaTag?: string;
   layout?: BlockLayout;
   isWeeklyTheme?: boolean; // Flag for weekly theme enforcement
-  
+
   // BLOCK STATUS - controls hydration and default injection behavior
   status?: BlockStatus;
-  
+
   // Layout & Structure
   collapsed?: boolean;
   alignment?: AlignmentType;
@@ -81,22 +123,22 @@ export interface ContentBlock {
   padding?: SpacingType;
   margin?: SpacingType;
   responsiveBehavior?: ResponsiveBehaviorType;
-  
+
   // Visual Settings
   visible?: boolean;
   backgroundColor?: string;
   containerBackgroundColor?: string; // Background color behind the image (container)
   textColor?: string;
-  animation?: 'none' | 'fade-in' | 'slide-up' | 'scale-in';
-  
+  animation?: "none" | "fade-in" | "slide-up" | "scale-in";
+
   // Enhanced Image Settings
   imageSize?: ImageSizeType;
   imagePosition?: ImagePositionType;
   imageRounded?: boolean;
   imageShadow?: boolean;
   imageBorder?: boolean;
-  aspectRatio?: 'auto' | '16:9' | '4:3' | '1:1' | '4:5';
-  
+  aspectRatio?: "auto" | "16:9" | "4:3" | "1:1" | "4:5";
+
   // New specialized block fields
   headline?: string;
   body?: string;
@@ -111,43 +153,43 @@ export interface ContentBlock {
   buttonText?: string;
   buttonUrl?: string;
   heading?: string;
-  
+
   // Quote-specific fields
   quote?: string;
   author?: string;
   authorTitle?: string;
-  
+
   // CTA-specific fields
-  ctaStyle?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  ctaSize?: 'small' | 'medium' | 'large';
-  
+  ctaStyle?: "primary" | "secondary" | "outline" | "ghost";
+  ctaSize?: "small" | "medium" | "large";
+
   // Newsletter Header fields
   subtitle?: string;
   issueNumber?: string;
   publishDate?: string;
-  
+
   // Email Safe Hero fields
   eyebrow?: string; // Optional small text above title
-  
+
   // Image fetching control - DETERMINISTIC IMAGE BEHAVIOR
   autoImageMode?: boolean; // true = system may auto-fetch images; false = never auto-fetch
   shouldFetchImage?: boolean; // Flag to trigger image fetching when autoImageMode is true
-  
+
   // AI Image generation state
   isGeneratingImage?: boolean;
   imageGenerationError?: string;
-  
+
   // Button block specific
   buttonColor?: string;
   buttonSize?: string;
   isRounded?: boolean;
-  
+
   // Divider block specific
   dividerThickness?: number;
   dividerColor?: string;
   paddingTop?: number;
   paddingBottom?: number;
-  
+
   // Social follow block specific
   socialLinks?: {
     [platform: string]: {
@@ -157,17 +199,17 @@ export interface ContentBlock {
   };
   iconColor?: string;
   iconSize?: string;
-  
+
   // Text styling
   fontFamily?: string;
   fontSize?: string;
-  
+
   // Content lifecycle tracking - PHASE 1: Add persistent tracking
   contentGeneratedAt?: number; // Timestamp when content was first generated
   hasGeneratedContent?: boolean; // Permanent flag: true once content is generated
   contentVersion?: number; // Increment on each update to prevent stale data
   userEdited?: boolean; // Flag to indicate user has manually edited this block
-  
+
   // IMAGE GALLERY block specific fields
   galleryImages?: Array<{
     id: string;
@@ -175,12 +217,12 @@ export interface ContentBlock {
     alt?: string;
     caption?: string;
   }>;
-  galleryLayout?: '3-across' | '6-across' | '9-images' | 'custom';
-  galleryRows?: number;    // 1-4 rows (for custom layout)
+  galleryLayout?: "3-across" | "6-across" | "9-images" | "custom";
+  galleryRows?: number; // 1-4 rows (for custom layout)
   galleryColumns?: number; // 2-4 columns (for custom layout)
-  galleryGap?: 'small' | 'medium' | 'large';
-  galleryImageRadius?: 'none' | 'small' | 'medium' | 'large';
-  
+  galleryGap?: "small" | "medium" | "large";
+  galleryImageRadius?: "none" | "small" | "medium" | "large";
+
   // PRODUCT GALLERY (2x2 grid) block specific fields
   galleryItems?: GalleryItem[];
 }
@@ -191,12 +233,12 @@ export interface GalleryItem {
   title: string;
   imageUrl: string;
   badgeText?: string; // e.g. "25% OFF"
-  url?: string;       // product or category link
+  url?: string; // product or category link
 }
 
 // Specialized interfaces for type safety
 export interface HeaderBlock extends ContentBlock {
-  type: 'header';
+  type: "header";
   headline: string;
   body?: string;
   backgroundImageUrl?: string;
@@ -206,7 +248,7 @@ export interface HeaderBlock extends ContentBlock {
 }
 
 export interface NewsletterHeaderBlock extends ContentBlock {
-  type: 'newsletter-header';
+  type: "newsletter-header";
   title: string;
   subtitle?: string;
   issueNumber?: string;
@@ -215,7 +257,7 @@ export interface NewsletterHeaderBlock extends ContentBlock {
 }
 
 export interface QuoteBlock extends ContentBlock {
-  type: 'quote';
+  type: "quote";
   quote: string;
   author?: string;
   authorTitle?: string;
@@ -223,18 +265,18 @@ export interface QuoteBlock extends ContentBlock {
 }
 
 export interface CTABlock extends ContentBlock {
-  type: 'cta';
+  type: "cta";
   heading?: string;
   body?: string;
   ctaText: string;
   ctaUrl: string;
-  ctaStyle: 'primary' | 'secondary' | 'outline' | 'ghost';
-  ctaSize: 'small' | 'medium' | 'large';
+  ctaStyle: "primary" | "secondary" | "outline" | "ghost";
+  ctaSize: "small" | "medium" | "large";
   alignment: AlignmentType;
 }
 
 export interface ImageBlock extends ContentBlock {
-  type: 'image';
+  type: "image";
   imageUrl: string;
   altText?: string;
   caption?: string;
@@ -243,7 +285,7 @@ export interface ImageBlock extends ContentBlock {
 }
 
 export interface ButtonBlock extends ContentBlock {
-  type: 'button';
+  type: "button";
   heading?: string;
   body?: string;
   buttonText: string;

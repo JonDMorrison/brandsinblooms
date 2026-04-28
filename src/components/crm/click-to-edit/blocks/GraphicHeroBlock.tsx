@@ -1,12 +1,15 @@
-import React, { useRef } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
-import { cn } from '@/lib/utils';
-import { ContextualToolbar } from '../contextual/ContextualToolbar';
-import { EditMode } from '@/hooks/useBlockEditMode';
-import { ImageIcon } from 'lucide-react';
+import React, { useRef } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import {
+  MediaSelectorImage,
+  MediaSelectorImageHandle,
+} from "@/components/crm/MediaSelectorImage";
+import { cn } from "@/lib/utils";
+import { ContextualToolbar } from "../contextual/ContextualToolbar";
+import { EditMode } from "@/hooks/useBlockEditMode";
+import { ImageIcon } from "lucide-react";
 
 interface GraphicHeroBlockProps {
   block: ContentBlock;
@@ -16,18 +19,24 @@ interface GraphicHeroBlockProps {
   isPreview: boolean;
   editMode?: EditMode;
   onModeChange?: (mode: EditMode) => void;
+  validationErrors?: Partial<Record<"buttonUrl" | "imageUrl", string>>;
+  onClose?: () => void;
+  onCancel?: () => void;
   isGenerating?: boolean;
 }
 
-export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({ 
-  block, 
-  onUpdate, 
-  onDuplicate, 
-  onDelete, 
+export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
+  block,
+  onUpdate,
+  onDuplicate,
+  onDelete,
   isPreview,
   editMode,
   onModeChange,
-  isGenerating = false
+  validationErrors,
+  onClose,
+  onCancel,
+  isGenerating = false,
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
 
@@ -50,29 +59,33 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
       {block.imageUrl ? (
         block.ctaUrl ? (
           <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
-            <img 
-              src={block.imageUrl} 
-              alt={block.altText || ''}
+            <img
+              src={block.imageUrl}
+              alt={block.altText || ""}
               className="w-full h-auto object-cover"
             />
           </a>
         ) : (
-          <img 
-            src={block.imageUrl} 
-            alt={block.altText || ''}
+          <img
+            src={block.imageUrl}
+            alt={block.altText || ""}
             className="w-full h-auto object-cover"
           />
         )
       ) : (
-        <div 
+        <div
           className={cn(
             "w-full flex flex-col items-center justify-center text-muted-foreground bg-muted",
-            isPreview ? "h-48" : "h-64"
+            isPreview ? "h-48" : "h-64",
           )}
         >
           <ImageIcon className="h-12 w-12 mb-2 opacity-50" />
-          <span className="text-sm">Upload a pre-designed graphic with text baked in</span>
-          <span className="text-xs opacity-70 mt-1">Perfect for Canva designs, flyers, or custom graphics</span>
+          <span className="text-sm">
+            Upload a pre-designed graphic with text baked in
+          </span>
+          <span className="text-xs opacity-70 mt-1">
+            Perfect for Canva designs, flyers, or custom graphics
+          </span>
         </div>
       )}
 
@@ -103,8 +116,9 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
         <p className="font-medium mb-1">📷 Graphic Hero Block</p>
         <p className="text-blue-700">
-          Upload a pre-designed image with text already included. This is perfect for 
-          Canva designs, promotional flyers, or any graphic where the text is part of the image.
+          Upload a pre-designed image with text already included. This is
+          perfect for Canva designs, promotional flyers, or any graphic where
+          the text is part of the image.
         </p>
       </div>
 
@@ -118,6 +132,11 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
           contentContext="graphic hero image"
           className="h-48"
         />
+        {validationErrors?.imageUrl ? (
+          <p className="text-xs text-destructive">
+            {validationErrors.imageUrl}
+          </p>
+        ) : null}
       </div>
 
       {/* Alt Text */}
@@ -125,7 +144,7 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
         <Label htmlFor="altText">Alt Text (for accessibility)</Label>
         <Input
           id="altText"
-          value={block.altText || ''}
+          value={block.altText || ""}
           onChange={(e) => onUpdate({ altText: e.target.value })}
           placeholder="Describe the image content"
         />
@@ -136,14 +155,39 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
         <Label htmlFor="ctaUrl">Click-through URL (Optional)</Label>
         <Input
           id="ctaUrl"
-          value={block.ctaUrl || ''}
+          value={block.ctaUrl || ""}
           onChange={(e) => onUpdate({ ctaUrl: e.target.value })}
+          aria-invalid={Boolean(validationErrors?.buttonUrl)}
+          className={cn(
+            validationErrors?.buttonUrl &&
+              "border-destructive focus-visible:ring-destructive/30",
+          )}
           placeholder="https://..."
         />
+        {validationErrors?.buttonUrl ? (
+          <p className="text-xs text-destructive">
+            {validationErrors.buttonUrl}
+          </p>
+        ) : null}
         <p className="text-xs text-muted-foreground">
           When set, the entire image becomes clickable
         </p>
       </div>
+
+      {(onClose || onCancel) && (
+        <div className="pt-4 border-t flex flex-col sm:flex-row gap-3">
+          {onCancel ? (
+            <Button variant="outline" onClick={onCancel} className="w-full">
+              Cancel
+            </Button>
+          ) : null}
+          {onClose ? (
+            <Button onClick={onClose} className="w-full">
+              Save & Close
+            </Button>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

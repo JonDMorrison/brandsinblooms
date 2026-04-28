@@ -26,6 +26,36 @@ import {
   registerEditOverlay,
   unregisterEditOverlay,
 } from "./editOverlayRegistry";
+import {
+  getBlockDisplayLabel,
+  validateBlockBeforeSave,
+} from "@/lib/crm/campaignBuilderValidation";
+
+const GALLERY_BLOCK_TYPES = new Set<ContentBlock["type"]>([
+  "image-gallery",
+  "product-gallery",
+]);
+
+function cloneContentBlock(sourceBlock: ContentBlock): ContentBlock {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(sourceBlock);
+  }
+
+  return JSON.parse(JSON.stringify(sourceBlock)) as ContentBlock;
+}
+
+function areBlocksEqual(left: ContentBlock, right: ContentBlock): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export interface ClickToEditBlockEditSession {
+  blockId: string;
+  blockLabel: string;
+  isDirty: boolean;
+  save: () => boolean;
+  discard: () => void;
+  cancel: () => void;
+}
 
 interface ClickToEditBlockProps {
   block: ContentBlock;
@@ -44,6 +74,8 @@ interface ClickToEditBlockProps {
   allBlocks?: ContentBlock[];
   retryImageGeneration?: (blockId: string) => void;
   onOpenAIImageDialog?: (blockId: string) => void;
+  onRequestOpenEditor?: (blockId: string, openEditor: () => void) => void;
+  onEditSessionChange?: (session: ClickToEditBlockEditSession | null) => void;
   children: {
     preview: React.ReactNode;
     editor: React.ReactNode;
@@ -67,12 +99,19 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   allBlocks = [],
   retryImageGeneration,
   onOpenAIImageDialog,
+  onRequestOpenEditor,
+  onEditSessionChange,
   children,
 }) => {
   const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
   const [collapsed, setCollapsed] = useState(false);
   const blockRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef<HTMLDivElement>(null);
+  const imageEditSnapshotRef = useRef<ContentBlock | null>(null);
+  const wasEditingRef = useRef(false);
+  const [validationErrors, setValidationErrors] = useState<
+    Partial<Record<"buttonUrl" | "imageUrl", string>>
+  >({});
   const [isMediaSelectorOpen, setIsMediaSelectorOpen] = useState(false);
   const [isOverlayDialogOpen, setIsOverlayDialogOpen] = useState(false);
   const [isGridConfigOpen, setIsGridConfigOpen] = useState(false);
@@ -115,6 +154,16 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     setLocalBlock(block);
   }, [block]);
 
+  useEffect(() => {
+    setValidationErrors({});
+  }, [block.id]);
+
+  useEffect(() => {
+    if (editMode === null) {
+      imageEditSnapshotRef.current = null;
+    }
+  }, [editMode]);
+
   // Debounced update function to avoid excessive API calls
   const debouncedUpdate = useCallback(
     (() => {
@@ -151,6 +200,25 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         sanitizedUpdates.headline = sanitizeAndImproveContent(updates.headline);
       }
 
+      if (
+        "buttonUrl" in sanitizedUpdates ||
+        "ctaUrl" in sanitizedUpdates ||
+        "buttonText" in sanitizedUpdates ||
+        "ctaText" in sanitizedUpdates
+      ) {
+        setValidationErrors((current) => ({
+          ...current,
+          buttonUrl: undefined,
+        }));
+      }
+
+      if ("imageUrl" in sanitizedUpdates) {
+        setValidationErrors((current) => ({
+          ...current,
+          imageUrl: undefined,
+        }));
+      }
+
       const updatedBlock = { ...localBlock, ...sanitizedUpdates };
       setLocalBlock(updatedBlock);
       // Update parent immediately for all content changes
@@ -158,6 +226,86 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     },
     [localBlock, block.id, onUpdate],
   );
+
+  const commitBlockChanges = useCallback(() => {
+    const validation = validateBlockBeforeSave(localBlock);
+    setValidationErrors(validation.fieldErrors);
+
+    if (!validation.isValid) {
+      return false;
+    }
+
+    setLocalBlock(validation.sanitizedBlock);
+    onUpdate(block.id, validation.sanitizedBlock);
+    setValidationErrors({});
+    exitEditMode();
+    return true;
+  }, [block.id, exitEditMode, localBlock, onUpdate]);
+
+  const discardBlockChanges = useCallback(() => {
+    const originalBlock = imageEditSnapshotRef.current;
+    if (originalBlock) {
+      setLocalBlock(originalBlock);
+      onUpdate(block.id, originalBlock);
+    }
+    setValidationErrors({});
+    exitEditMode();
+  }, [block.id, exitEditMode, onUpdate]);
+
+  const cancelBlockEditing = useCallback(() => {
+    setValidationErrors({});
+    exitEditMode();
+  }, [exitEditMode]);
+
+  const requestEditorOpen = useCallback(
+    (openEditor: () => void) => {
+      if (onRequestOpenEditor) {
+        onRequestOpenEditor(block.id, openEditor);
+        return;
+      }
+
+      openEditor();
+    },
+    [block.id, onRequestOpenEditor],
+  );
+
+  const isDirty =
+    editMode !== null && imageEditSnapshotRef.current
+      ? !areBlocksEqual(localBlock, imageEditSnapshotRef.current)
+      : false;
+
+  useEffect(() => {
+    if (!onEditSessionChange) return;
+
+    if (!editMode) {
+      if (wasEditingRef.current) {
+        wasEditingRef.current = false;
+        onEditSessionChange(null);
+      }
+      return;
+    }
+
+    wasEditingRef.current = true;
+
+    onEditSessionChange({
+      blockId: block.id,
+      blockLabel: getBlockDisplayLabel(block, index),
+      isDirty,
+      save: commitBlockChanges,
+      discard: discardBlockChanges,
+      cancel: cancelBlockEditing,
+    });
+  }, [
+    block,
+    block.id,
+    cancelBlockEditing,
+    commitBlockChanges,
+    discardBlockChanges,
+    editMode,
+    index,
+    isDirty,
+    onEditSessionChange,
+  ]);
 
   // Strengthen content function for weak blocks
   const handleStrengthenContent = async () => {
@@ -237,7 +385,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       if (isInsideAllowedOverlay(target)) return;
 
       // Focus moved outside editor and no overlays are open -> exit
-      exitEditMode();
+      cancelBlockEditing();
     };
 
     // Also handle clicks for non-focusable areas
@@ -254,7 +402,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       // DOM fallback check
       if (isInsideAllowedOverlay(target)) return;
 
-      exitEditMode();
+      cancelBlockEditing();
     };
 
     // Handle Escape key to exit edit mode when no overlays are active
@@ -264,7 +412,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         // Only exit edit mode if no overlays are active after a small delay
         setTimeout(() => {
           if (!hasActiveEditOverlays()) {
-            exitEditMode();
+            cancelBlockEditing();
           }
         }, 50);
       }
@@ -279,22 +427,67 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [editMode, exitEditMode]);
+  }, [cancelBlockEditing, editMode]);
 
   // Handle mode changes with special logic for image mode
   const handleModeChange = (mode: EditMode) => {
     if (mode === "image") {
+      if (GALLERY_BLOCK_TYPES.has(block.type)) {
+        if (editMode === "image") {
+          cancelBlockEditing();
+          return;
+        }
+
+        requestEditorOpen(() => {
+          if (!editMode) {
+            imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+          }
+          setValidationErrors({});
+          setEditMode("image");
+        });
+        return;
+      }
+
       // For header blocks, image mode should show the full editor interface
       if (block.type === "header") {
-        toggleMode("image"); // Enter image edit mode
-      } else {
-        // For other blocks, open media selector with proper edit mode
-        setIsMediaSelectorOpen(true);
-        setEditMode("image"); // Set edit mode to sync state
+        requestEditorOpen(() => {
+          if (!editMode) {
+            imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+          }
+          setValidationErrors({});
+          setEditMode("image");
+        });
+        return;
       }
-    } else {
-      toggleMode(mode);
+
+      requestEditorOpen(() => {
+        if (!editMode) {
+          imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+        }
+        setValidationErrors({});
+        setIsMediaSelectorOpen(true);
+        setEditMode("image");
+      });
+      return;
     }
+
+    if (!mode) {
+      cancelBlockEditing();
+      return;
+    }
+
+    if (editMode === mode) {
+      cancelBlockEditing();
+      return;
+    }
+
+    requestEditorOpen(() => {
+      if (!editMode) {
+        imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+      }
+      setValidationErrors({});
+      setEditMode(mode);
+    });
   };
 
   // Create local edit mode for contextual components
@@ -324,8 +517,12 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       return;
     }
     if (!editMode) {
-      // Don't toggle edit mode for image gallery blocks - users interact with grid items directly
-      if (block.type === "image-gallery") {
+      if (GALLERY_BLOCK_TYPES.has(block.type)) {
+        requestEditorOpen(() => {
+          imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+          setValidationErrors({});
+          setEditMode("image");
+        });
         return;
       }
 
@@ -343,7 +540,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       if (isImageOnlyBlock) {
         return;
       }
-      toggleMode("text"); // Default to text editing on click
+      requestEditorOpen(() => {
+        imageEditSnapshotRef.current = cloneContentBlock(localBlock);
+        setValidationErrors({});
+        setEditMode("text");
+      });
     }
   };
 
@@ -443,10 +644,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         <button
           type="button"
           className="text-muted-foreground hover:text-foreground"
-          onClick={(e) => { e.stopPropagation(); setCollapsed((c) => !c); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setCollapsed((c) => !c);
+          }}
           title={collapsed ? "Expand block" : "Collapse block"}
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
         </button>
         <div
           {...listeners}
@@ -573,16 +781,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 <TextEditMode
                   block={localBlock}
                   onUpdate={handleLocalUpdate}
-                  onSave={() => {
-                    // Final commit of changes and exit edit mode
-                    onUpdate(block.id, localBlock);
-                    exitEditMode();
-                  }}
-                  onCancel={() => {
-                    // Reset to original block state
-                    setLocalBlock(block);
-                    exitEditMode();
-                  }}
+                  validationErrors={validationErrors}
+                  onSave={commitBlockChanges}
+                  onCancel={discardBlockChanges}
                 />
               </div>
             )}
@@ -593,7 +794,9 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 {React.cloneElement(children.editor as React.ReactElement, {
                   block: localBlock,
                   onUpdate: handleLocalUpdate,
-                  onClose: exitEditMode,
+                  validationErrors,
+                  onClose: commitBlockChanges,
+                  onCancel: discardBlockChanges,
                   isPreview: false,
                   editMode: "image",
                   onModeChange: handleModeChange,
@@ -655,10 +858,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
         ) : (
           /* ── Expanded: full preview ── */
           <div
-            className={cn(
-              "p-0",
-              block.type !== "image-gallery" && "cursor-pointer",
-            )}
+            className="p-0 cursor-pointer"
             onClick={handleBlockClick}
             style={{ pointerEvents: "auto" }}
           >

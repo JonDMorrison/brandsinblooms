@@ -16,6 +16,11 @@ import {
   type CampaignStatus,
   type EditorCampaignType,
 } from "@/lib/crm/campaignEditor";
+import {
+  CampaignDraftConflictError,
+  writeCampaignDraftSnapshot,
+  type DraftSnapshotTrigger,
+} from "@/lib/crm/campaignDraftPersistence";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
 import {
   useCampaignSending,
@@ -29,6 +34,7 @@ import type { ContentBlock } from "@/types/emailBuilder";
 
 type Segment = CampaignSegmentSummary;
 type Persona = CampaignPersonaSummary;
+type AutoSaveStatus = "idle" | "saving" | "saved" | "error" | "conflict";
 
 export interface CampaignEditorState {
   campaignId: string | null;
@@ -52,6 +58,8 @@ export interface CampaignEditorState {
   isDirty: boolean;
   isSaving: boolean;
   lastSavedAt: Date | null;
+  autoSaveStatus: AutoSaveStatus;
+  autoSaveMessage: string | null;
   isLocked: boolean;
   sourceContentTaskId: string | null;
   sourceSegmentId: string | null;
@@ -114,6 +122,8 @@ interface CampaignEditorContextValue extends CampaignEditorState {
     silent?: boolean;
     status?: CampaignStatus;
   }) => Promise<string | null>;
+  setAutoSavePaused: (paused: boolean) => void;
+  captureDraftSnapshot: (trigger: DraftSnapshotTrigger) => Promise<void>;
   activate: (
     options?: CampaignActivationOptions,
   ) => Promise<CampaignActivationResult>;
@@ -123,7 +133,9 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   reload: () => Promise<void>;
 }
 
-const AUTO_SAVE_MS = 1200;
+const AUTO_SAVE_MS = 3000;
+const AUTO_SAVE_RETRY_MS = 10000;
+const AUTO_SAVE_SUCCESS_VISIBILITY_MS = 2000;
 const AUDIENCE_RECALC_MS = 300;
 
 const CampaignEditorContext =
@@ -225,6 +237,8 @@ function createInitialState(
     isDirty: false,
     isSaving: false,
     lastSavedAt: null,
+    autoSaveStatus: "idle",
+    autoSaveMessage: null,
     isLocked: false,
     sourceContentTaskId: searchParams.get("contentTaskId"),
     sourceSegmentId: searchParams.get("segment"),
@@ -256,8 +270,16 @@ export function CampaignEditorProvider({
   const autosaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const autoSaveRetryTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const autoSaveSuccessTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const hasHydratedRef = React.useRef(false);
   const lastSavedFingerprintRef = React.useRef<string | null>(null);
+  const lastUpdatedAtRef = React.useRef<string | null>(null);
+  const [autoSavePaused, setAutoSavePausedState] = React.useState(false);
 
   const sending = useCampaignSending({
     navigateOnSuccess: false,
@@ -304,6 +326,7 @@ export function CampaignEditorProvider({
         ...nextState,
         fromEmailDomainId: senderConfig?.fromEmailDomainId ?? null,
       });
+      lastUpdatedAtRef.current = record.updatedAt;
 
       setState((current) => ({
         ...current,
@@ -326,6 +349,8 @@ export function CampaignEditorProvider({
         isDirty: false,
         isSaving: false,
         lastSavedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        autoSaveStatus: "idle",
+        autoSaveMessage: null,
         isLocked: LOCKED_STATUSES.includes(record.status),
         sourceContentTaskId:
           nextState.sourceContentTaskId ?? current.sourceContentTaskId,
@@ -453,6 +478,20 @@ export function CampaignEditorProvider({
       setIsLoading(false);
     }
   }, [campaignId, senderConfig]);
+
+  React.useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+      }
+      if (autoSaveSuccessTimerRef.current) {
+        clearTimeout(autoSaveSuccessTimerRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -682,14 +721,25 @@ export function CampaignEditorProvider({
         return state.campaignId;
       }
 
-      setState((current) => ({ ...current, isSaving: true }));
+      if (autoSaveSuccessTimerRef.current) {
+        clearTimeout(autoSaveSuccessTimerRef.current);
+      }
+
+      setState((current) => ({
+        ...current,
+        isSaving: true,
+        autoSaveStatus: "saving",
+        autoSaveMessage: null,
+      }));
       try {
         const saved = await persistCampaignDraft({
           ...draftPayload,
+          expectedUpdatedAt: lastUpdatedAtRef.current,
           status: requestedStatus,
         });
 
         lastSavedFingerprintRef.current = nextFingerprint;
+        lastUpdatedAtRef.current = saved.updatedAt;
 
         setState((current) => ({
           ...current,
@@ -697,12 +747,38 @@ export function CampaignEditorProvider({
           status: saved.status,
           isDirty: false,
           isSaving: false,
-          lastSavedAt: new Date(),
+          lastSavedAt: saved.updatedAt ? new Date(saved.updatedAt) : new Date(),
+          autoSaveStatus: "saved",
+          autoSaveMessage: null,
           isLocked: isLockedCampaignStatus(saved.status),
         }));
+
+        autoSaveSuccessTimerRef.current = setTimeout(() => {
+          setState((current) =>
+            current.autoSaveStatus === "saved"
+              ? { ...current, autoSaveStatus: "idle" }
+              : current,
+          );
+        }, AUTO_SAVE_SUCCESS_VISIBILITY_MS);
+
         return saved.id;
       } catch (error) {
-        setState((current) => ({ ...current, isSaving: false }));
+        if (error instanceof CampaignDraftConflictError) {
+          setState((current) => ({
+            ...current,
+            isSaving: false,
+            autoSaveStatus: "conflict",
+            autoSaveMessage: error.message,
+          }));
+          return null;
+        }
+
+        setState((current) => ({
+          ...current,
+          isSaving: false,
+          autoSaveStatus: "error",
+          autoSaveMessage: "Changes not saved — retrying...",
+        }));
         console.error("Failed to save campaign draft", error);
         return null;
       }
@@ -710,12 +786,55 @@ export function CampaignEditorProvider({
     [draftPayload, state.campaignId, state.status],
   );
 
+  const setAutoSavePaused = React.useCallback((paused: boolean) => {
+    setAutoSavePausedState((current) =>
+      current === paused ? current : paused,
+    );
+  }, []);
+
+  const captureDraftSnapshot = React.useCallback(
+    async (trigger: DraftSnapshotTrigger) => {
+      const savedCampaignId = await saveDraft({ silent: true });
+      if (!savedCampaignId) {
+        return;
+      }
+
+      try {
+        await writeCampaignDraftSnapshot({
+          campaignId: savedCampaignId,
+          campaignType: state.campaignType,
+          trigger,
+          subjectLine: state.subjectLine,
+          preheaderText: state.preheaderText,
+          smsMessage: state.smsMessage,
+          contentBlocks: state.contentBlocks,
+          segmentIds: state.selectedSegments.map((segment) => segment.id),
+          personaIds: state.selectedPersonas.map((persona) => persona.id),
+        });
+      } catch (error) {
+        console.error("Failed to write draft snapshot", error);
+      }
+    },
+    [
+      saveDraft,
+      state.campaignType,
+      state.contentBlocks,
+      state.preheaderText,
+      state.selectedPersonas,
+      state.selectedSegments,
+      state.smsMessage,
+      state.subjectLine,
+    ],
+  );
+
   React.useEffect(() => {
     if (
       !state.isDirty ||
       state.isLocked ||
       isLoading ||
-      draftFingerprint === lastSavedFingerprintRef.current
+      draftFingerprint === lastSavedFingerprintRef.current ||
+      autoSavePaused ||
+      state.autoSaveStatus === "conflict"
     ) {
       return;
     }
@@ -733,7 +852,48 @@ export function CampaignEditorProvider({
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [draftFingerprint, isLoading, saveDraft, state.isDirty, state.isLocked]);
+  }, [
+    autoSavePaused,
+    draftFingerprint,
+    isLoading,
+    saveDraft,
+    state.autoSaveStatus,
+    state.isDirty,
+    state.isLocked,
+  ]);
+
+  React.useEffect(() => {
+    if (
+      state.autoSaveStatus !== "error" ||
+      !state.isDirty ||
+      state.isLocked ||
+      isLoading ||
+      autoSavePaused
+    ) {
+      return;
+    }
+
+    if (autoSaveRetryTimerRef.current) {
+      clearTimeout(autoSaveRetryTimerRef.current);
+    }
+
+    autoSaveRetryTimerRef.current = setTimeout(() => {
+      void saveDraft({ silent: true });
+    }, AUTO_SAVE_RETRY_MS);
+
+    return () => {
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+      }
+    };
+  }, [
+    autoSavePaused,
+    isLoading,
+    saveDraft,
+    state.autoSaveStatus,
+    state.isDirty,
+    state.isLocked,
+  ]);
 
   const updateSetup = React.useCallback<
     CampaignEditorContextValue["updateSetup"]
@@ -751,6 +911,12 @@ export function CampaignEditorProvider({
         ...current,
         ...next,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -774,6 +940,12 @@ export function CampaignEditorProvider({
         selectedSegments: nextSegments,
         selectedPersonas: nextPersonas,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -796,6 +968,12 @@ export function CampaignEditorProvider({
         ...current,
         ...next,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -819,6 +997,12 @@ export function CampaignEditorProvider({
         ...current,
         ...next,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -853,6 +1037,8 @@ export function CampaignEditorProvider({
             },
           };
         }
+
+        await captureDraftSnapshot("pre-send");
 
         if (!effectiveSendImmediately && effectiveSendAt) {
           const scheduled = await updateCampaignStatus(
@@ -934,7 +1120,7 @@ export function CampaignEditorProvider({
         };
       }
     },
-    [campaignId, navigate, saveDraft, sending, state],
+    [campaignId, captureDraftSnapshot, navigate, saveDraft, sending, state],
   );
 
   const pause = React.useCallback(async () => {
@@ -991,6 +1177,8 @@ export function CampaignEditorProvider({
       updateContent,
       updateSchedule,
       saveDraft,
+      setAutoSavePaused,
+      captureDraftSnapshot,
       activate,
       pause,
       resume,
@@ -1004,6 +1192,8 @@ export function CampaignEditorProvider({
       reload,
       resume,
       saveDraft,
+      setAutoSavePaused,
+      captureDraftSnapshot,
       syncLiveCampaign,
       state,
       updateAudience,

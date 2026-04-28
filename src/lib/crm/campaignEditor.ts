@@ -7,9 +7,13 @@ import {
 } from "@/constants/campaignStatuses";
 import type { ContentBlock } from "@/types/emailBuilder";
 import {
-  saveCampaignAsDraft,
-  type CampaignData,
-} from "@/utils/crmCampaignService";
+  normalizeBlockFromDatabase,
+  type DatabaseBlock,
+} from "@/utils/blockFieldMapping";
+import {
+  persistCampaignRecord,
+  type CampaignDraftConflictError,
+} from "@/lib/crm/campaignDraftPersistence";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type SegmentRow = Database["public"]["Tables"]["crm_segments"]["Row"];
@@ -83,6 +87,7 @@ export interface CampaignEditorRecord extends CampaignCatalogItem {
 
 export interface PersistCampaignDraftInput {
   campaignId?: string | null;
+  expectedUpdatedAt?: string | null;
   campaignType: EditorCampaignType;
   status?: CampaignStatus;
   name: string;
@@ -211,12 +216,27 @@ function mapPersonaSummary(row: PersonaRow): CampaignPersonaSummary {
   };
 }
 
+function normalizeLegacyProductGalleryBlock(block: ContentBlock): ContentBlock {
+  return block.type === "image-gallery" && block.galleryItems !== undefined
+    ? {
+        ...block,
+        type: "product-gallery",
+      }
+    : block;
+}
+
+export function normalizeLoadedContentBlocks(
+  blocks: ContentBlock[],
+): ContentBlock[] {
+  return blocks.map(normalizeLegacyProductGalleryBlock);
+}
+
 function toContentBlocks(value: unknown): ContentBlock[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value as ContentBlock[];
+  return normalizeLoadedContentBlocks(value as ContentBlock[]);
 }
 
 export async function fetchCampaignCatalog(tenantId: string) {
@@ -297,6 +317,11 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
   const mapped = mapCampaignCatalogItem(campaignRow);
   const metadata = toRecord(campaignRow.metadata);
   const metadataBlocks = toContentBlocks(metadata.contentBlocks);
+  const hydratedBlockRows = (blockRows ?? []).map((row) =>
+    normalizeLegacyProductGalleryBlock(
+      normalizeBlockFromDatabase(row as DatabaseBlock),
+    ),
+  );
 
   return {
     ...mapped,
@@ -304,9 +329,7 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
     deliveryMethod: campaignRow.delivery_method,
     fromEmailDomainId: campaignRow.from_email_domain_id,
     replyTo: extractReplyTo(campaignRow),
-    contentBlocks: metadataBlocks.length
-      ? metadataBlocks
-      : ((blockRows as unknown as ContentBlock[] | null) ?? []),
+    contentBlocks: metadataBlocks.length ? metadataBlocks : hydratedBlockRows,
     smsMessage: extractSmsMessage(campaignRow),
     segments: (segments ?? []).map(mapSegmentSummary),
     personas: (personas ?? []).map(mapPersonaSummary),
@@ -359,6 +382,7 @@ async function syncCampaignPersonas(
 export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
   const {
     campaignId,
+    expectedUpdatedAt = null,
     campaignType,
     status = "draft",
     name,
@@ -379,74 +403,35 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     sourcePersonaId = null,
   } = input;
 
-  const draftPayload: CampaignData = {
-    id: campaignId ?? undefined,
-    name: name.trim() || "Untitled Campaign",
-    subject: subjectLine,
-    sender_name: senderName,
-    sender_email: senderEmail,
-    from_email_domain_id: fromEmailDomainId,
-    content: campaignType === "sms" ? smsMessage : "",
-    preheader: preheaderText,
-    segments,
-    schedule: sendImmediately
-      ? { type: "immediate" }
-      : sendAt
-        ? { type: "scheduled", send_at: sendAt.toISOString() }
-        : { type: "immediate" },
-    source_content_id: sourceContentTaskId ?? undefined,
-    content_blocks: campaignType === "email" ? contentBlocks : [],
-  };
-
-  const savedCampaign = await saveCampaignAsDraft(draftPayload);
-  const nextMetadata = {
-    ...(toRecord(savedCampaign.metadata) as Record<string, unknown>),
+  const savedCampaign = await persistCampaignRecord({
+    campaignId,
+    expectedUpdatedAt,
     campaignType,
+    status,
+    name,
+    subjectLine,
+    preheaderText,
+    senderName,
+    senderEmail,
+    fromEmailDomainId,
     replyTo: replyTo ?? senderEmail,
+    contentBlocks: campaignType === "email" ? contentBlocks : [],
     smsMessage,
-    contentBlocks,
+    sendAt: sendImmediately ? null : (sendAt?.toISOString() ?? null),
+    sendImmediately,
+    sourceContentTaskId,
     sourceSegmentId,
     sourcePersonaId,
-  };
-
-  const updatePayload: Database["public"]["Tables"]["crm_campaigns"]["Update"] =
-    {
-      status,
-      subject_line: subjectLine,
-      preheader_text: preheaderText,
-      preheader: preheaderText,
-      sender_name: senderName,
-      sender_display_name: senderName,
-      sender_email: senderEmail,
-      actual_sender_email: senderEmail,
-      from_email_domain_id: fromEmailDomainId,
-      content: campaignType === "sms" ? smsMessage : savedCampaign.content,
-      scheduled_at: sendImmediately ? null : (sendAt?.toISOString() ?? null),
-      send_blocked_reason: null,
-      source_content_task_id: sourceContentTaskId,
-      segment_id: segments[0]?.id ?? null,
-      persona_ids: personas.map((persona) => persona.id),
-      metadata: nextMetadata,
-      updated_at: new Date().toISOString(),
-    };
-
-  const { data: updatedRows, error: updateError } = await supabase
-    .from("crm_campaigns")
-    .update(updatePayload)
-    .eq("id", savedCampaign.id)
-    .select("*")
-    .single();
-
-  if (updateError) {
-    throw updateError;
-  }
+    segmentIds: segments.map((segment) => segment.id),
+    personaIds: personas.map((persona) => persona.id),
+  });
 
   await Promise.all([
-    syncCampaignSegments(savedCampaign.id, segments),
-    syncCampaignPersonas(savedCampaign.id, personas),
+    syncCampaignSegments(savedCampaign.campaign.id, segments),
+    syncCampaignPersonas(savedCampaign.campaign.id, personas),
   ]);
 
-  return mapCampaignCatalogItem((updatedRows ?? savedCampaign) as CampaignRow);
+  return mapCampaignCatalogItem(savedCampaign.campaign);
 }
 
 export async function deleteCampaignById(campaignId: string) {

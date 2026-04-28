@@ -1,42 +1,484 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Monitor, Smartphone } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  AlertTriangle,
+  Monitor,
+  RefreshCw,
+  Smartphone,
+  User,
+} from "lucide-react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { EmailBlockRenderer } from "@/components/crm/EmailBlockRenderer";
 import { JoyDialog, JoyDialogContent } from "@/components/joy/JoyDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
 import { useCampaignEditor } from "@/components/crm/campaign-editor/CampaignEditorContext";
+import { isUuidLike } from "@/lib/computeAudienceRecipientCount";
+import type {
+  ContentBlock,
+  EmailBlock,
+  GlobalSettings,
+} from "@/types/emailBuilder";
+import { normalizeBlockForSave } from "@/utils/blockFieldMapping";
 
-function buildPreviewHtml(
-  blocks: ReturnType<typeof useCampaignEditor>["contentBlocks"],
-) {
-  if (blocks.length === 0) {
-    return "<div style='font-family: sans-serif; padding: 24px;'>No email content yet.</div>";
+const PAGE_SIZE = 1000;
+
+const SAMPLE_PREVIEW_CUSTOMER = {
+  first_name: "Jane",
+  last_name: "Gardener",
+  email: "jane@example.com",
+  phone: "(555) 123-4567",
+};
+
+type PreviewCustomer = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+type PreviewDiagnostics = {
+  usedTags: string[];
+  missingTags: string[];
+  emptyResolvedTags: string[];
+  legacyTagsConverted: number;
+};
+
+type PreviewCompanyInfo = ReturnType<typeof useCompanyInfo>["companyInfo"];
+
+function chunkIds(ids: string[], size = 200) {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
   }
 
-  const sections = blocks
-    .map((block) => {
-      const title =
-        block.headline || block.title || block.heading || "Untitled block";
-      const body = block.body || block.content || "";
-      return `
-        <section style="padding:24px;border-bottom:1px solid #e5e7eb;">
-          <h2 style="margin:0 0 12px;font-size:22px;">${title}</h2>
-          <div style="font-size:15px;line-height:1.6;white-space:pre-wrap;">${body}</div>
-        </section>
-      `;
-    })
-    .join("");
+  return chunks;
+}
 
-  return `
-    <html>
-      <body style="margin:0;background:#f7f7f8;">
-        <div style="max-width:680px;margin:0 auto;background:#ffffff;min-height:100vh;">
-          ${sections}
+async function fetchIdsPaged(
+  queryFactory: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: Array<Record<string, unknown>> | null;
+    error: Error | null;
+  }>,
+  rowToId: (row: Record<string, unknown>) => string | null,
+) {
+  const ids = new Set<string>();
+
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await queryFactory(from, to);
+    if (error) {
+      throw error;
+    }
+
+    (data ?? []).forEach((row) => {
+      const nextId = rowToId(row);
+      if (nextId) {
+        ids.add(nextId);
+      }
+    });
+
+    if (!data || data.length < PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return ids;
+}
+
+async function fetchFirstPreviewCustomer(params: {
+  tenantId: string;
+  segmentIds: string[];
+  personaIds: string[];
+}) {
+  const { tenantId, segmentIds, personaIds } = params;
+
+  if (segmentIds.length === 0 && personaIds.length === 0) {
+    return null;
+  }
+
+  let allowedCustomerIds: string[] | null = null;
+
+  if (segmentIds.length > 0) {
+    const segmentCustomerIds = await fetchIdsPaged(
+      (from, to) =>
+        supabase
+          .from("customer_segments")
+          .select("customer_id")
+          .in("segment_id", segmentIds)
+          .range(from, to),
+      (row) => {
+        const customerId = String(row.customer_id || "");
+        return isUuidLike(customerId) ? customerId : null;
+      },
+    );
+    allowedCustomerIds = Array.from(segmentCustomerIds);
+  }
+
+  if (personaIds.length > 0) {
+    const personaCustomerIds = new Set<string>();
+    const customPersonaIds = personaIds.filter(isUuidLike);
+    const predefinedPersonaIds = personaIds.filter(
+      (personaId) => !isUuidLike(personaId),
+    );
+
+    if (customPersonaIds.length > 0) {
+      const linkedPersonaCustomerIds = await fetchIdsPaged(
+        (from, to) =>
+          supabase
+            .from("customer_personas")
+            .select("customer_id")
+            .in("persona_id", customPersonaIds)
+            .range(from, to),
+        (row) => {
+          const customerId = String(row.customer_id || "");
+          return isUuidLike(customerId) ? customerId : null;
+        },
+      );
+
+      linkedPersonaCustomerIds.forEach((customerId) => {
+        personaCustomerIds.add(customerId);
+      });
+
+      const directPersonaCustomerIds = await fetchIdsPaged(
+        (from, to) =>
+          supabase
+            .from("crm_customers")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .in("persona_id", customPersonaIds)
+            .range(from, to),
+        (row) => {
+          const customerId = String(row.id || "");
+          return isUuidLike(customerId) ? customerId : null;
+        },
+      );
+
+      directPersonaCustomerIds.forEach((customerId) => {
+        personaCustomerIds.add(customerId);
+      });
+    }
+
+    if (predefinedPersonaIds.length > 0) {
+      const predefinedMatches = await fetchIdsPaged(
+        (from, to) =>
+          supabase
+            .from("customer_personas")
+            .select("customer_id")
+            .in("predefined_persona_id", predefinedPersonaIds)
+            .range(from, to),
+        (row) => {
+          const customerId = String(row.customer_id || "");
+          return isUuidLike(customerId) ? customerId : null;
+        },
+      );
+
+      predefinedMatches.forEach((customerId) => {
+        personaCustomerIds.add(customerId);
+      });
+    }
+
+    const nextPersonaCustomerIds = Array.from(personaCustomerIds);
+    if (allowedCustomerIds === null) {
+      allowedCustomerIds = nextPersonaCustomerIds;
+    } else {
+      const personaIdSet = new Set(nextPersonaCustomerIds);
+      allowedCustomerIds = allowedCustomerIds.filter((customerId) =>
+        personaIdSet.has(customerId),
+      );
+    }
+  }
+
+  if (allowedCustomerIds && allowedCustomerIds.length === 0) {
+    return null;
+  }
+
+  const customerIdChunks = allowedCustomerIds
+    ? chunkIds(allowedCustomerIds)
+    : [[]];
+
+  for (const customerIdChunk of customerIdChunks) {
+    let query = supabase
+      .from("crm_customers")
+      .select("id, first_name, last_name, email, phone")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .not("email", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (customerIdChunk.length > 0) {
+      query = query.in("id", customerIdChunk);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const firstCustomer = data?.[0] as PreviewCustomer | undefined;
+    if (firstCustomer) {
+      return firstCustomer;
+    }
+  }
+
+  return null;
+}
+
+function formatPreviewRecipient(
+  customer: Pick<PreviewCustomer, "first_name" | "last_name" | "email">,
+) {
+  const fullName = [customer.first_name, customer.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  if (fullName && customer.email) {
+    return `${fullName} (${customer.email})`;
+  }
+
+  return fullName || customer.email || "Sample customer";
+}
+
+function buildPreviewGlobalSettings(
+  companyInfo: PreviewCompanyInfo,
+): GlobalSettings {
+  const fontFamily =
+    companyInfo.selectedFont?.fontFamilyCss ||
+    companyInfo.bodyFont?.fontFamilyCss ||
+    "Arial, sans-serif";
+
+  return {
+    fontFamily,
+    fontSize: "16px",
+    headlineFont: companyInfo.headlineFont?.fontFamilyCss,
+    subheadingFont: companyInfo.subheadingFont?.fontFamilyCss,
+    bodyFont: companyInfo.bodyFont?.fontFamilyCss,
+    buttonFont: companyInfo.buttonFont?.fontFamilyCss,
+    buttonStyle: {
+      cornerRadius: "6px",
+      backgroundColor: companyInfo.brandPrimaryColor || "#22C55E",
+      textColor: "#FFFFFF",
+    },
+    headerStyle: {
+      backgroundColor: companyInfo.brandPrimaryColor || "#1F2937",
+      textColor: companyInfo.brandTextColor || "#FFFFFF",
+    },
+    footerStyle: {
+      backgroundColor:
+        companyInfo.brandFooterColors?.backgroundColor || "#F8F9FA",
+      textColor: companyInfo.brandFooterColors?.textColor || "#6B7280",
+    },
+  };
+}
+
+function renderImageTextBlock(
+  block: ContentBlock,
+  globalSettings: GlobalSettings,
+) {
+  const title =
+    block.title || block.headline || block.heading || "Untitled section";
+  const body = block.body || block.content || "";
+  const imageUrl = block.imageUrl || block.backgroundImageUrl || "";
+  const buttonText = block.buttonText || block.ctaText || "";
+  const buttonUrl = block.buttonUrl || block.ctaUrl || "#";
+  const reverseLayout = block.layout === "two-column-right";
+  const isStacked = block.layout === "full-width" || !imageUrl;
+  const textFont = globalSettings.bodyFont || globalSettings.fontFamily;
+  const headingFont =
+    globalSettings.subheadingFont || globalSettings.fontFamily;
+
+  const imageNode = imageUrl ? (
+    <div style={{ flex: isStacked ? undefined : "0 0 46%", minWidth: 0 }}>
+      <img
+        src={imageUrl}
+        alt={block.altText || title}
+        style={{
+          width: "100%",
+          display: "block",
+          borderRadius: "12px",
+          objectFit: "cover",
+        }}
+      />
+    </div>
+  ) : null;
+
+  const copyNode = (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      {title ? (
+        <h2
+          style={{
+            margin: 0,
+            marginBottom: body ? "12px" : 0,
+            fontSize: "1.5rem",
+            fontWeight: 700,
+            fontFamily: headingFont,
+            color: "#111827",
+          }}
+        >
+          {title}
+        </h2>
+      ) : null}
+      {body ? (
+        <p
+          style={{
+            margin: 0,
+            color: "#374151",
+            lineHeight: 1.7,
+            fontFamily: textFont,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {body}
+        </p>
+      ) : null}
+      {buttonText ? (
+        <div style={{ marginTop: "16px" }}>
+          <a
+            href={buttonUrl}
+            style={{
+              display: "inline-block",
+              padding: "10px 20px",
+              borderRadius: globalSettings.buttonStyle.cornerRadius,
+              backgroundColor: globalSettings.buttonStyle.backgroundColor,
+              color: globalSettings.buttonStyle.textColor,
+              textDecoration: "none",
+              fontWeight: 700,
+              fontFamily:
+                globalSettings.buttonFont || globalSettings.fontFamily,
+            }}
+          >
+            {buttonText}
+          </a>
         </div>
-      </body>
-    </html>
-  `;
+      ) : null}
+    </div>
+  );
+
+  return renderToStaticMarkup(
+    <div
+      style={{
+        padding: "24px",
+        borderBottom: "1px solid #E5E7EB",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: isStacked
+            ? "column"
+            : reverseLayout
+              ? "row-reverse"
+              : "row",
+          gap: "24px",
+          alignItems: "center",
+        }}
+      >
+        {imageNode}
+        {copyNode}
+      </div>
+    </div>,
+  );
+}
+
+function toEmailBlock(block: ContentBlock, index: number): EmailBlock {
+  const normalized = normalizeBlockForSave(block, index);
+
+  return {
+    id: block.id,
+    campaign_id: "preview",
+    created_at: undefined,
+    updated_at: undefined,
+    ...normalized,
+  };
+}
+
+function buildPreviewHtml(
+  blocks: ContentBlock[],
+  preheaderText: string,
+  globalSettings: GlobalSettings,
+) {
+  const hiddenPreheader = preheaderText.trim()
+    ? renderToStaticMarkup(
+        <div
+          style={{
+            display: "none",
+            fontSize: "1px",
+            lineHeight: "1px",
+            maxHeight: "0px",
+            maxWidth: "0px",
+            opacity: 0,
+            overflow: "hidden",
+            msoHide: "all",
+          }}
+        >
+          {preheaderText}
+        </div>,
+      )
+    : "";
+
+  const sections =
+    blocks.length > 0
+      ? blocks
+          .map((block, index) => {
+            if (block.type === "image-text") {
+              return renderImageTextBlock(block, globalSettings);
+            }
+
+            return renderToStaticMarkup(
+              <div style={{ borderBottom: "1px solid #E5E7EB" }}>
+                <EmailBlockRenderer
+                  block={toEmailBlock(block, index)}
+                  globalSettings={globalSettings}
+                  isPreview={false}
+                />
+              </div>,
+            );
+          })
+          .join("")
+      : renderToStaticMarkup(
+          <div
+            style={{
+              padding: "24px",
+              paddingTop: "48px",
+              paddingBottom: "48px",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontFamily:
+                  globalSettings.bodyFont || globalSettings.fontFamily,
+                color: "#4B5563",
+              }}
+            >
+              No email content yet.
+            </p>
+          </div>,
+        );
+
+  return `<!doctype html>
+  <html>
+    <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
+      ${hiddenPreheader}
+      <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 12px 32px rgba(15, 23, 42, 0.08);">
+        ${sections}
+      </div>
+    </body>
+  </html>`;
 }
 
 export function CampaignPreviewDialog({
@@ -46,22 +488,179 @@ export function CampaignPreviewDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const { campaignType, contentBlocks, smsMessage, subjectLine } =
-    useCampaignEditor();
+  const { tenant } = useTenant();
+  const { companyInfo } = useCompanyInfo();
+  const {
+    campaignType,
+    contentBlocks,
+    smsMessage,
+    subjectLine,
+    preheaderText,
+    selectedSegments,
+    selectedPersonas,
+  } = useCampaignEditor();
   const [viewMode, setViewMode] = React.useState<"desktop" | "mobile">(
     "desktop",
   );
+  const [isRendering, setIsRendering] = React.useState(false);
+  const [renderError, setRenderError] = React.useState<string | null>(null);
+  const [renderedHtml, setRenderedHtml] = React.useState<string | null>(null);
+  const [renderedSubject, setRenderedSubject] = React.useState<string | null>(
+    null,
+  );
+  const [diagnostics, setDiagnostics] =
+    React.useState<PreviewDiagnostics | null>(null);
+  const renderRequestIdRef = React.useRef(0);
+
+  const segmentIds = React.useMemo(
+    () => selectedSegments.map((segment) => segment.id),
+    [selectedSegments],
+  );
+  const personaIds = React.useMemo(
+    () => selectedPersonas.map((persona) => persona.id),
+    [selectedPersonas],
+  );
+  const hasAudienceSelection = segmentIds.length > 0 || personaIds.length > 0;
+
+  const previewCustomerQuery = useQuery({
+    queryKey: ["campaign-preview-customer", tenant?.id, segmentIds, personaIds],
+    enabled:
+      open &&
+      campaignType === "email" &&
+      hasAudienceSelection &&
+      Boolean(tenant?.id),
+    staleTime: 60000,
+    queryFn: () =>
+      fetchFirstPreviewCustomer({
+        tenantId: tenant?.id as string,
+        segmentIds,
+        personaIds,
+      }),
+  });
+
+  const previewGlobalSettings = React.useMemo(
+    () => buildPreviewGlobalSettings(companyInfo),
+    [companyInfo],
+  );
+  const previewHtml = React.useMemo(() => {
+    if (campaignType !== "email") {
+      return "";
+    }
+
+    return buildPreviewHtml(
+      contentBlocks,
+      preheaderText,
+      previewGlobalSettings,
+    );
+  }, [campaignType, contentBlocks, preheaderText, previewGlobalSettings]);
+
+  const previewCustomer = previewCustomerQuery.data ?? null;
+  const previewRecipientLabel = previewCustomer
+    ? formatPreviewRecipient(previewCustomer)
+    : formatPreviewRecipient(SAMPLE_PREVIEW_CUSTOMER);
+  const hasDiagnosticsWarning =
+    (diagnostics?.missingTags.length ?? 0) > 0 ||
+    (diagnostics?.emptyResolvedTags.length ?? 0) > 0;
+
+  const renderPreview = React.useCallback(async () => {
+    if (campaignType !== "email") {
+      return;
+    }
+
+    const requestId = ++renderRequestIdRef.current;
+    setIsRendering(true);
+    setRenderError(null);
+
+    try {
+      const body: Record<string, unknown> = {
+        tenantId: tenant?.id,
+        html: previewHtml,
+        subject: subjectLine,
+        includeFooter: true,
+      };
+
+      if (previewCustomer?.id) {
+        body.customerId = previewCustomer.id;
+      } else {
+        body.sampleCustomer = SAMPLE_PREVIEW_CUSTOMER;
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "render-email-preview",
+        {
+          body,
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (requestId !== renderRequestIdRef.current) {
+        return;
+      }
+
+      setRenderedHtml((data?.renderedHtml as string | undefined) ?? null);
+      setRenderedSubject((data?.renderedSubject as string | undefined) ?? null);
+      setDiagnostics(
+        (data?.diagnostics as PreviewDiagnostics | undefined) ?? null,
+      );
+    } catch (error) {
+      if (requestId !== renderRequestIdRef.current) {
+        return;
+      }
+
+      setRenderError(
+        error instanceof Error ? error.message : "Failed to render preview.",
+      );
+    } finally {
+      if (requestId === renderRequestIdRef.current) {
+        setIsRendering(false);
+      }
+    }
+  }, [campaignType, previewCustomer?.id, previewHtml, subjectLine, tenant?.id]);
+
+  React.useEffect(() => {
+    if (!open) {
+      renderRequestIdRef.current += 1;
+      setIsRendering(false);
+      setRenderError(null);
+      setRenderedHtml(null);
+      setRenderedSubject(null);
+      setDiagnostics(null);
+      return;
+    }
+
+    if (campaignType !== "email") {
+      return;
+    }
+
+    if (hasAudienceSelection && previewCustomerQuery.isLoading) {
+      return;
+    }
+
+    void renderPreview();
+  }, [
+    campaignType,
+    hasAudienceSelection,
+    open,
+    previewCustomerQuery.isLoading,
+    previewCustomer?.id,
+    previewHtml,
+    renderPreview,
+    subjectLine,
+  ]);
 
   return (
     <JoyDialog
       open={open}
       onClose={onClose}
-      size="lg"
+      size="xl"
       title="Campaign Preview"
       description={
         campaignType === "sms"
           ? "Preview your SMS message."
-          : subjectLine || "Preview your email layout."
+          : "Preview the rendered email your recipients will receive."
       }
     >
       <JoyDialogContent>
@@ -100,27 +699,225 @@ export function CampaignPreviewDialog({
               </Typography>
             </Box>
           ) : (
-            <Box
-              sx={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <Box
-                component="iframe"
-                srcDoc={buildPreviewHtml(contentBlocks)}
-                title="Campaign preview"
+            <Stack spacing={2}>
+              <Sheet
+                variant="outlined"
                 sx={{
-                  width: viewMode === "mobile" ? 390 : "100%",
-                  minHeight: 560,
-                  border: "1px solid",
-                  borderColor: "neutral.200",
                   borderRadius: "lg",
-                  backgroundColor: "common.white",
+                  p: 2,
+                  borderColor: "neutral.200",
                 }}
-              />
-            </Box>
+              >
+                <Stack spacing={1.25}>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    justifyContent="space-between"
+                  >
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        Subject
+                      </Typography>
+                      <Typography level="body-sm" fontWeight="lg">
+                        {renderedSubject || subjectLine || "No subject line"}
+                      </Typography>
+                    </Stack>
+                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        Preview text
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                        {preheaderText || "No preview text"}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <User size={14} />
+                      <Typography level="body-sm">
+                        Preview shown for: {previewRecipientLabel}
+                      </Typography>
+                    </Stack>
+                    {diagnostics?.usedTags.length ? (
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        {diagnostics.usedTags.length} merge tags rendered
+                      </Typography>
+                    ) : null}
+                  </Stack>
+
+                  {previewCustomerQuery.error ? (
+                    <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                      Could not load an audience recipient. Showing the sample
+                      customer instead.
+                    </Typography>
+                  ) : null}
+
+                  {hasDiagnosticsWarning ? (
+                    <Sheet
+                      variant="soft"
+                      color="warning"
+                      sx={{ borderRadius: "md", p: 1.25 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="flex-start"
+                      >
+                        <AlertTriangle
+                          size={14}
+                          style={{
+                            color: "var(--joy-palette-warning-700)",
+                            marginTop: 2,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: "warning.700" }}
+                        >
+                          Merge-tag preview found missing or empty
+                          personalization values.
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                  ) : null}
+                </Stack>
+              </Sheet>
+
+              {renderError ? (
+                <Sheet
+                  variant="soft"
+                  color="danger"
+                  sx={{ borderRadius: "lg", p: 2 }}
+                >
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                  >
+                    <Stack spacing={0.5}>
+                      <Typography level="title-sm">
+                        Preview failed to render
+                      </Typography>
+                      <Typography level="body-sm">{renderError}</Typography>
+                    </Stack>
+                    <JoyButton
+                      bloomVariant="secondary"
+                      startDecorator={<RefreshCw size={16} />}
+                      onClick={() => void renderPreview()}
+                    >
+                      Retry
+                    </JoyButton>
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              {isRendering ||
+              (hasAudienceSelection && previewCustomerQuery.isLoading) ? (
+                <Stack spacing={1.5}>
+                  <Sheet
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "lg",
+                      p: 2,
+                      borderColor: "neutral.200",
+                    }}
+                  >
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <CircularProgress size="sm" />
+                      <Typography level="body-sm">
+                        Rendering preview
+                        {hasAudienceSelection && previewCustomerQuery.isLoading
+                          ? " and selecting a recipient"
+                          : ""}
+                        ...
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                  <Sheet
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "lg",
+                      p: 2,
+                      borderColor: "neutral.200",
+                    }}
+                  >
+                    <Skeleton
+                      variant="rectangular"
+                      sx={{ borderRadius: "md", height: 560 }}
+                    />
+                  </Sheet>
+                </Stack>
+              ) : renderedHtml ? (
+                <Box
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  {viewMode === "mobile" ? (
+                    <Box sx={{ width: "min(420px, 100%)" }}>
+                      <Box
+                        sx={{
+                          borderRadius: "36px",
+                          p: 1,
+                          backgroundColor: "#111827",
+                          boxShadow: "lg",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: 6,
+                            width: 88,
+                            borderRadius: 999,
+                            backgroundColor: "rgba(255,255,255,0.24)",
+                            mx: "auto",
+                            my: 1,
+                          }}
+                        />
+                        <Box
+                          component="iframe"
+                          srcDoc={renderedHtml}
+                          title="Mobile campaign preview"
+                          sandbox="allow-same-origin"
+                          sx={{
+                            width: "100%",
+                            height: 680,
+                            border: 0,
+                            borderRadius: "28px",
+                            backgroundColor: "common.white",
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box
+                      component="iframe"
+                      srcDoc={renderedHtml}
+                      title="Campaign preview"
+                      sandbox="allow-same-origin"
+                      sx={{
+                        width: "100%",
+                        minHeight: 720,
+                        border: "1px solid",
+                        borderColor: "neutral.200",
+                        borderRadius: "lg",
+                        backgroundColor: "common.white",
+                        boxShadow: "sm",
+                      }}
+                    />
+                  )}
+                </Box>
+              ) : null}
+            </Stack>
           )}
         </Stack>
       </JoyDialogContent>

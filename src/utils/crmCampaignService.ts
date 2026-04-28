@@ -1,9 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
-import {
-  normalizeBlockForSave,
-  convertEmailBlockToContentBlock,
-} from "@/utils/blockFieldMapping";
+import { convertEmailBlockToContentBlock } from "@/utils/blockFieldMapping";
 import { logDevError, logSupabaseError } from "@/utils/devErrorLogger";
 import { ContentBlock } from "@/types/emailBuilder";
 import {
@@ -11,6 +8,7 @@ import {
   getCampaignStatusLabel,
   isLockedCampaignStatus,
 } from "@/constants/campaignStatuses";
+import { persistCampaignRecord } from "@/lib/crm/campaignDraftPersistence";
 
 // FIX: [issue #62] - TODO: Replace console.log statements with a proper logging service for production
 
@@ -59,330 +57,50 @@ export interface CampaignBlock {
 
 export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) throw new Error("User not authenticated");
+    const contentBlocks = (campaignData.content_blocks ?? []).flatMap(
+      (block) => {
+        if (!block || typeof block !== "object") {
+          return [] as ContentBlock[];
+        }
 
-    // Get user's tenant
-    const { data: userRows, error: userProfileError } = await supabase
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .maybeSingle();
+        const candidate = block as Record<string, unknown>;
+        if (typeof candidate.type === "string") {
+          return [candidate as ContentBlock];
+        }
 
-    if (userProfileError) throw userProfileError;
+        if (typeof candidate.block_type === "string") {
+          return [
+            convertEmailBlockToContentBlock(candidate as unknown as EmailBlock),
+          ];
+        }
 
-    const userProfile = userRows ?? null;
-
-    if (!userProfile?.tenant_id) {
-      throw new Error("User tenant not found");
-    }
-
-    const campaignPayload = {
-      tenant_id: userProfile.tenant_id,
-      user_id: user.id,
-      name: campaignData.name,
-      subject_line: campaignData.subject,
-      sender_name: campaignData.sender_name,
-      sender_email: campaignData.sender_email,
-      from_email_domain_id: campaignData.from_email_domain_id ?? null,
-      preheader: campaignData.preheader,
-      content: campaignData.content,
-      status: "draft",
-      source_content_task_id: campaignData.source_content_id,
-      metrics: {
-        sent: 0,
-        delivered: 0,
-        opened: 0,
-        clicked: 0,
-        bounced: 0,
-        unsubscribed: 0,
-        revenue: 0,
+        return [] as ContentBlock[];
       },
-    };
+    );
 
-    let campaign: any;
-    let campaignError: any;
+    const persisted = await persistCampaignRecord({
+      campaignId: campaignData.id ?? null,
+      campaignType: "email",
+      legacyContentHtml: campaignData.content,
+      status: "draft",
+      name: campaignData.name,
+      subjectLine: campaignData.subject,
+      preheaderText: campaignData.preheader ?? "",
+      senderName: campaignData.sender_name,
+      senderEmail: campaignData.sender_email,
+      fromEmailDomainId: campaignData.from_email_domain_id ?? null,
+      replyTo: campaignData.sender_email,
+      contentBlocks,
+      smsMessage: "",
+      sendImmediately: campaignData.schedule.type === "immediate",
+      sendAt: campaignData.schedule.send_at ?? null,
+      sourceContentTaskId: campaignData.source_content_id ?? null,
+      segmentIds: campaignData.segments.map((segment) => segment.id),
+      personaIds: [],
+      metadata: campaignData.source_metadata,
+    });
 
-    const tryUpdateOwnedCampaign = async () => {
-      const { data: rows, error } = await supabase
-        .from("crm_campaigns")
-        .update({
-          name: campaignData.name,
-          subject_line: campaignData.subject,
-          sender_name: campaignData.sender_name,
-          sender_email: campaignData.sender_email,
-          from_email_domain_id: campaignData.from_email_domain_id ?? null,
-          preheader: campaignData.preheader,
-          content: campaignData.content,
-          status: "draft", // Reset to draft on re-save
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", campaignData.id)
-        .eq("user_id", user.id) // Security: ensure user owns campaign
-        .select();
-
-      return { rows, error };
-    };
-
-    // If campaign ID provided, UPDATE existing campaign instead of creating duplicate
-    if (campaignData.id) {
-      const attemptResult = await tryUpdateOwnedCampaign();
-
-      if (attemptResult.error) {
-        campaignError = attemptResult.error;
-      } else {
-        const updated = Array.isArray(attemptResult.rows)
-          ? attemptResult.rows[0]
-          : null;
-
-        if (!updated) {
-          // If the row is unowned (user_id IS NULL), claim it once then retry.
-          // This keeps owner-only editing behavior while repairing legacy/system rows.
-          try {
-            const { data: claimed, error: claimError } = await supabase.rpc(
-              "claim_unowned_crm_campaign" as any,
-              {
-                p_campaign_id: campaignData.id,
-              },
-            );
-
-            if (claimError) {
-              // If the function isn't available yet (schema cache drift), don't hard-fail here.
-              // We'll fall through to a diagnostic select for a clearer message.
-              logSupabaseError(claimError, "claim_unowned_crm_campaign", {
-                campaignId: campaignData.id,
-              });
-            }
-
-            if (claimed === true) {
-              const retryResult = await tryUpdateOwnedCampaign();
-              if (retryResult.error) {
-                campaignError = retryResult.error;
-              } else {
-                const retried = Array.isArray(retryResult.rows)
-                  ? retryResult.rows[0]
-                  : null;
-                if (retried) {
-                  campaign = retried;
-                  campaignError = null;
-                }
-              }
-            }
-          } catch (claimException) {
-            logDevError(
-              "supabase",
-              claimException instanceof Error
-                ? claimException
-                : new Error(String(claimException)),
-              {
-                functionName: "claim_unowned_crm_campaign",
-                requestPayload: { campaignId: campaignData.id },
-              },
-            );
-          }
-
-          if (!campaign) {
-            // Provide a more actionable error message.
-            const { data: probeRows, error: probeError } = await supabase
-              .from("crm_campaigns")
-              .select("id,user_id,tenant_id")
-              .eq("id", campaignData.id)
-              .maybeSingle();
-
-            if (probeError) {
-              campaignError = new Error(
-                "Campaign update failed (unable to verify ownership)",
-              );
-            } else {
-              const probed = probeRows ?? null;
-              if (!probed) {
-                campaignError = new Error(
-                  "Campaign not found or you do not have access",
-                );
-              } else if (probed.user_id && probed.user_id !== user.id) {
-                campaignError = new Error(
-                  "This campaign is owned by another user and cannot be edited",
-                );
-              } else if (!probed.user_id) {
-                campaignError = new Error(
-                  "Campaign is unowned but could not be claimed (tenant mismatch or policy)",
-                );
-              } else {
-                campaignError = new Error(
-                  "Campaign update returned no row (permission denied)",
-                );
-              }
-            }
-          }
-        } else {
-          campaign = updated;
-          campaignError = null;
-        }
-      }
-    } else {
-      const { data: rows, error } = await supabase
-        .from("crm_campaigns")
-        .insert(campaignPayload)
-        .select();
-
-      if (error) {
-        campaignError = error;
-      } else {
-        const inserted = Array.isArray(rows) ? rows[0] : null;
-        if (!inserted) {
-          campaignError = new Error("Campaign insert returned no row");
-        } else {
-          campaign = inserted;
-          campaignError = null;
-        }
-      }
-    }
-
-    if (campaignError) throw campaignError;
-
-    // Save campaign blocks if content blocks are provided
-    if (campaignData.content_blocks && campaignData.content_blocks.length > 0) {
-      // If updating an existing campaign, delete old blocks first
-      if (campaignData.id) {
-        await supabase
-          .from("campaign_blocks")
-          .delete()
-          .eq("campaign_id", campaign.id);
-      }
-
-      // CRITICAL FIX: Use canonical normalizeBlockForSave for consistent field mapping
-      // This prevents content erasure by ensuring all block fields are properly mapped
-      const blocks = campaignData.content_blocks.map((block, index) => {
-        // Convert to ContentBlock format if needed (handles EmailBlock or raw objects)
-        const contentBlock: ContentBlock = block.type
-          ? block
-          : {
-              id: block.id || `block-${index}`,
-              type: block.block_type || block.type || "text",
-              headline:
-                block.headline ||
-                block.title ||
-                block.content?.headline ||
-                block.content?.title ||
-                "",
-              body:
-                block.body ||
-                block.content?.body ||
-                block.content?.content ||
-                (typeof block.content === "string" ? block.content : ""),
-              title:
-                block.title ||
-                block.headline ||
-                block.content?.title ||
-                block.content?.headline ||
-                "",
-              content:
-                block.body ||
-                block.content?.body ||
-                block.content?.content ||
-                (typeof block.content === "string" ? block.content : ""),
-              imageUrl:
-                block.imageUrl || block.image_url || block.content?.imageUrl,
-              backgroundImageUrl:
-                block.backgroundImageUrl || block.content?.backgroundImageUrl,
-              ctaText:
-                block.ctaText ||
-                block.cta_text ||
-                block.buttonText ||
-                block.content?.ctaText ||
-                block.content?.buttonText ||
-                "",
-              ctaUrl:
-                block.ctaUrl ||
-                block.cta_url ||
-                block.buttonUrl ||
-                block.content?.ctaUrl ||
-                block.content?.buttonUrl ||
-                "",
-              buttonText:
-                block.buttonText ||
-                block.ctaText ||
-                block.content?.buttonText ||
-                "",
-              buttonUrl:
-                block.buttonUrl ||
-                block.ctaUrl ||
-                block.content?.buttonUrl ||
-                "",
-              altText: block.altText || block.content?.altText || "",
-              caption: block.caption || block.content?.caption || "",
-              layout: block.layout || block.content?.layout,
-              alignment: block.alignment || block.content?.alignment,
-              textAlign: block.textAlign || block.content?.textAlign,
-              padding: block.padding || block.content?.padding,
-              margin: block.margin || block.content?.margin,
-              fontFamily: block.fontFamily || block.content?.fontFamily,
-              fontSize: block.fontSize || block.content?.fontSize,
-              textColor: block.textColor || block.content?.textColor,
-              backgroundColor:
-                block.backgroundColor || block.content?.backgroundColor,
-              backgroundOpacity:
-                block.backgroundOpacity || block.content?.backgroundOpacity,
-              overlayOpacity:
-                block.overlayOpacity || block.content?.overlayOpacity,
-              overlayColor: block.overlayColor || block.content?.overlayColor,
-              darkOverlayOpacity:
-                block.darkOverlayOpacity || block.content?.darkOverlayOpacity,
-              ctaStyle: block.ctaStyle || block.content?.ctaStyle,
-              ctaSize: block.ctaSize || block.content?.ctaSize,
-              quote: block.quote || block.content?.quote,
-              author: block.author || block.content?.author,
-              authorTitle: block.authorTitle || block.content?.authorTitle,
-              visible: block.visible ?? block.content?.visible ?? true,
-              collapsed: block.collapsed ?? block.content?.collapsed ?? false,
-              source: block.source || "newsletter",
-              personaTag: block.personaTag || block.persona_tag,
-              // Lifecycle flags
-              status: block.status || block.content?.status,
-              hasGeneratedContent:
-                block.hasGeneratedContent || block.content?.hasGeneratedContent,
-              userEdited: block.userEdited || block.content?.userEdited,
-              autoImageMode:
-                block.autoImageMode || block.content?.autoImageMode,
-              shouldFetchImage:
-                block.shouldFetchImage || block.content?.shouldFetchImage,
-              isGeneratingImage:
-                block.isGeneratingImage || block.content?.isGeneratingImage,
-              // Gallery fields
-              galleryImages:
-                block.galleryImages || block.content?.galleryImages || [],
-            };
-
-        // Use canonical normalizer for consistent field mapping
-        const normalizedBlock = normalizeBlockForSave(
-          contentBlock,
-          block.order_index ?? index,
-        );
-
-        return {
-          campaign_id: campaign.id,
-          ...normalizedBlock,
-        };
-      });
-
-      const { error: blocksError } = await supabase
-        .from("campaign_blocks")
-        .insert(blocks);
-
-      if (blocksError) {
-        console.error("❌ CRITICAL: Block insert failed:", blocksError);
-        console.error(
-          "❌ Block data sample:",
-          JSON.stringify(blocks[0], null, 2),
-        );
-        // Throw so callers know blocks weren't saved
-        throw new Error(
-          `Campaign created but blocks failed to save: ${blocksError.message}`,
-        );
-      }
-    }
+    const campaign = persisted.campaign;
 
     // Handle segment linking
     // If updating, clear old segment links first
@@ -482,13 +200,17 @@ const recoverPersistedQueueState = async (campaignId: string) => {
 
   if (error) {
     console.error("Failed to inspect persisted campaign queue state:", error);
-    return { handled: false, queuedRecipients: 0, status: null as string | null };
+    return {
+      handled: false,
+      queuedRecipients: 0,
+      status: null as string | null,
+    };
   }
 
   const status = campaignState?.status || null;
   if (
-    status === CAMPAIGN_STATUS.QUEUED
-    || status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+    status === CAMPAIGN_STATUS.QUEUED ||
+    status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
   ) {
     return {
       handled: true,
@@ -525,9 +247,10 @@ export const sendCampaign = async (campaignData: CampaignData) => {
         console.error("Edge function send error:", sendError);
         const recovered = await recoverPersistedQueueState(campaign.id);
         if (recovered.handled) {
-          const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
-            ? "Campaign queue build partially completed. The queue will resume automatically."
-            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+          const message =
+            recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+              ? "Campaign queue build partially completed. The queue will resume automatically."
+              : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
           toast.warning(message);
           return campaign;
         }
@@ -548,9 +271,10 @@ export const sendCampaign = async (campaignData: CampaignData) => {
         console.error("Send result error:", sendResult.error);
         const recovered = await recoverPersistedQueueState(campaign.id);
         if (recovered.handled) {
-          const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
-            ? "Campaign queue build partially completed. The queue will resume automatically."
-            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+          const message =
+            recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+              ? "Campaign queue build partially completed. The queue will resume automatically."
+              : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
           toast.warning(message);
           return campaign;
         }
@@ -1144,9 +868,10 @@ export const sendScheduledCampaignNow = async (
       console.error("Edge function send error:", sendError);
       const recovered = await recoverPersistedQueueState(campaignId);
       if (recovered.handled) {
-        const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
-          ? "Campaign queue build partially completed. The queue will resume automatically."
-          : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+        const message =
+          recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+            ? "Campaign queue build partially completed. The queue will resume automatically."
+            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
         toast.warning(message);
         return { success: true };
       }
@@ -1165,9 +890,10 @@ export const sendScheduledCampaignNow = async (
       console.error("Send result error:", sendResult.error);
       const recovered = await recoverPersistedQueueState(campaignId);
       if (recovered.handled) {
-        const message = recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
-          ? "Campaign queue build partially completed. The queue will resume automatically."
-          : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
+        const message =
+          recovered.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED
+            ? "Campaign queue build partially completed. The queue will resume automatically."
+            : `Campaign queued - sending to ${recovered.queuedRecipients} recipients`;
         toast.warning(message);
         return { success: true };
       }
@@ -1183,7 +909,9 @@ export const sendScheduledCampaignNow = async (
     }
 
     const queuedRecipients = Number(sendResult?.total_recipients || 0);
-    toast.success(`Campaign queued - sending to ${queuedRecipients} recipients`);
+    toast.success(
+      `Campaign queued - sending to ${queuedRecipients} recipients`,
+    );
 
     return { success: true };
   } catch (error: any) {

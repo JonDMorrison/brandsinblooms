@@ -1,40 +1,48 @@
-import React, { useState } from 'react';
-import { ContentBlock, GalleryItem } from '@/types/emailBuilder';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Button } from '@/components/ui-legacy/button';
-import { Plus, X, Check } from 'lucide-react';
-import { MediaSelectorSidebar } from '@/components/crm/MediaSelectorSidebar';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { ProductGalleryImageSlot } from './ProductGalleryImageSlot';
+import React, { useState } from "react";
+import { ContentBlock, GalleryItem } from "@/types/emailBuilder";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Button } from "@/components/ui-legacy/button";
+import { Plus, X, Check } from "lucide-react";
+import { MediaSelectorSidebar } from "@/components/crm/MediaSelectorSidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ProductGalleryImageSlot } from "./ProductGalleryImageSlot";
 
 // Helper to strip HTML tags from content
 const stripHtmlTags = (html: string | undefined): string => {
-  if (!html) return '';
+  if (!html) return "";
   // Create a temporary element to parse HTML and extract text
-  const tmp = document.createElement('div');
+  const tmp = document.createElement("div");
   tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  return tmp.textContent || tmp.innerText || "";
 };
 
 interface ProductGalleryBlockEditorProps {
   block: ContentBlock;
   onUpdate: (updates: Partial<ContentBlock>) => void;
   onClose?: () => void;
+  onCancel?: () => void;
+  validationErrors?: Partial<Record<"buttonUrl" | "imageUrl", string>>;
   isGenerating?: boolean;
 }
 
-export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps> = ({
+export const ProductGalleryBlockEditor: React.FC<
+  ProductGalleryBlockEditorProps
+> = ({
   block,
   onUpdate,
   onClose,
+  onCancel,
+  validationErrors,
   isGenerating = false,
 }) => {
   const { toast } = useToast();
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
-  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(new Set());
+  const [generatingSlots, setGeneratingSlots] = useState<Set<number>>(
+    new Set(),
+  );
 
   const galleryItems: GalleryItem[] = block.galleryItems || [];
 
@@ -50,8 +58,8 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
     const newItem: GalleryItem = {
       id: `product_${Date.now()}_${galleryItems.length}`,
-      title: '',
-      imageUrl: '',
+      title: "",
+      imageUrl: "",
     };
 
     onUpdate({
@@ -70,7 +78,11 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
   };
 
   // Update a specific product field
-  const updateProduct = (index: number, field: keyof GalleryItem, value: string) => {
+  const updateProduct = (
+    index: number,
+    field: keyof GalleryItem,
+    value: string,
+  ) => {
     const newItems = [...galleryItems];
     newItems[index] = { ...newItems[index], [field]: value };
     onUpdate({
@@ -81,7 +93,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
   // Handle image selection from media selector
   const handleImageSelect = (index: number, imageUrl: string) => {
-    updateProduct(index, 'imageUrl', imageUrl);
+    updateProduct(index, "imageUrl", imageUrl);
     setMediaSelectorOpen(false);
     setActiveSlotIndex(null);
   };
@@ -94,7 +106,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
   // Generate AI image for a product slot
   const generateImageForSlot = async (index: number) => {
-    setGeneratingSlots(prev => new Set(prev).add(index));
+    setGeneratingSlots((prev) => new Set(prev).add(index));
 
     try {
       const item = galleryItems[index];
@@ -102,17 +114,22 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         block.headline,
         block.body,
         item?.title || `product ${index + 1}`,
-      ].filter(Boolean).join(' - ');
+      ]
+        .filter(Boolean)
+        .join(" - ");
 
-      const { data, error } = await supabase.functions.invoke('generate-ai-image', {
-        body: {
-          channel: 'email',
-          contentType: 'product',
-          headline: item?.title || 'Product Image',
-          bodyText: block.body || '',
-          additionalContext: contentContext,
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "generate-ai-image",
+        {
+          body: {
+            channel: "email",
+            contentType: "product",
+            headline: item?.title || "Product Image",
+            bodyText: block.body || "",
+            additionalContext: contentContext,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -120,14 +137,14 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         handleImageSelect(index, data.imageUrl);
       }
     } catch (err) {
-      console.error('Failed to generate image:', err);
+      console.error("Failed to generate image:", err);
       toast({
         title: "Image generation failed",
         description: "Please try again or upload an image manually.",
         variant: "destructive",
       });
     } finally {
-      setGeneratingSlots(prev => {
+      setGeneratingSlots((prev) => {
         const next = new Set(prev);
         next.delete(index);
         return next;
@@ -142,12 +159,14 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         <Label htmlFor="product-gallery-headline">Headline</Label>
         <Input
           id="product-gallery-headline"
-          value={block.headline || ''}
-          onChange={(e) => onUpdate({ 
-            headline: e.target.value, 
-            title: e.target.value,
-            userEdited: true 
-          })}
+          value={block.headline || ""}
+          onChange={(e) =>
+            onUpdate({
+              headline: e.target.value,
+              title: e.target.value,
+              userEdited: true,
+            })
+          }
           onKeyDown={(e) => e.stopPropagation()}
           placeholder="Bring the Holiday Season to Life"
           className="text-lg font-semibold"
@@ -160,11 +179,13 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         <Input
           id="product-gallery-body"
           value={stripHtmlTags(block.body)}
-          onChange={(e) => onUpdate({ 
-            body: e.target.value, 
-            content: e.target.value,
-            userEdited: true 
-          })}
+          onChange={(e) =>
+            onUpdate({
+              body: e.target.value,
+              content: e.target.value,
+              userEdited: true,
+            })
+          }
           onKeyDown={(e) => e.stopPropagation()}
           placeholder="Transform your space with festive favorites..."
         />
@@ -189,8 +210,8 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {galleryItems.map((item, index) => (
-            <div 
-              key={item.id} 
+            <div
+              key={item.id}
               className="relative rounded-lg border bg-card p-3 space-y-3"
             >
               {/* Remove button */}
@@ -211,13 +232,13 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
                 isGenerating={generatingSlots.has(index)}
                 onOpenMediaSelector={() => openMediaSelectorForSlot(index)}
                 onOpenAIDialog={() => generateImageForSlot(index)}
-                onImageRemove={() => updateProduct(index, 'imageUrl', '')}
+                onImageRemove={() => updateProduct(index, "imageUrl", "")}
               />
 
               {/* Title */}
               <Input
-                value={item.title || ''}
-                onChange={(e) => updateProduct(index, 'title', e.target.value)}
+                value={item.title || ""}
+                onChange={(e) => updateProduct(index, "title", e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="Product name"
                 className="text-sm"
@@ -225,8 +246,10 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
               {/* Badge Text */}
               <Input
-                value={item.badgeText || ''}
-                onChange={(e) => updateProduct(index, 'badgeText', e.target.value)}
+                value={item.badgeText || ""}
+                onChange={(e) =>
+                  updateProduct(index, "badgeText", e.target.value)
+                }
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="25% OFF"
                 className="text-xs"
@@ -234,8 +257,8 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
 
               {/* URL */}
               <Input
-                value={item.url || ''}
-                onChange={(e) => updateProduct(index, 'url', e.target.value)}
+                value={item.url || ""}
+                onChange={(e) => updateProduct(index, "url", e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="https://..."
                 className="text-xs"
@@ -244,18 +267,19 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
           ))}
 
           {/* Empty slots placeholder */}
-          {galleryItems.length < 4 && Array.from({ length: 4 - galleryItems.length }).map((_, i) => (
-            <div
-              key={`empty-${i}`}
-              className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center cursor-pointer hover:border-muted-foreground/40 transition-colors"
-              onClick={addProduct}
-            >
-              <div className="text-center text-muted-foreground">
-                <Plus className="h-8 w-8 mx-auto mb-1" />
-                <span className="text-xs">Add</span>
+          {galleryItems.length < 4 &&
+            Array.from({ length: 4 - galleryItems.length }).map((_, i) => (
+              <div
+                key={`empty-${i}`}
+                className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center cursor-pointer hover:border-muted-foreground/40 transition-colors"
+                onClick={addProduct}
+              >
+                <div className="text-center text-muted-foreground">
+                  <Plus className="h-8 w-8 mx-auto mb-1" />
+                  <span className="text-xs">Add</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
@@ -264,46 +288,69 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
         <Label className="text-sm font-medium">Call to Action</Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="product-cta-text" className="text-xs">Button Text</Label>
+            <Label htmlFor="product-cta-text" className="text-xs">
+              Button Text
+            </Label>
             <Input
               id="product-cta-text"
-              value={block.ctaText || ''}
-              onChange={(e) => onUpdate({ 
-                ctaText: e.target.value, 
-                buttonText: e.target.value,
-                userEdited: true 
-              })}
+              value={block.ctaText || ""}
+              onChange={(e) =>
+                onUpdate({
+                  ctaText: e.target.value,
+                  buttonText: e.target.value,
+                  userEdited: true,
+                })
+              }
               onKeyDown={(e) => e.stopPropagation()}
               placeholder="Shop Holiday"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="product-cta-url" className="text-xs">Button URL</Label>
+            <Label htmlFor="product-cta-url" className="text-xs">
+              Button URL
+            </Label>
             <Input
               id="product-cta-url"
-              value={block.ctaUrl || ''}
-              onChange={(e) => onUpdate({ 
-                ctaUrl: e.target.value, 
-                buttonUrl: e.target.value,
-                userEdited: true 
-              })}
+              value={block.ctaUrl || ""}
+              onChange={(e) =>
+                onUpdate({
+                  ctaUrl: e.target.value,
+                  buttonUrl: e.target.value,
+                  userEdited: true,
+                })
+              }
               onKeyDown={(e) => e.stopPropagation()}
               placeholder="https://..."
+              aria-invalid={Boolean(validationErrors?.buttonUrl)}
+              className={
+                validationErrors?.buttonUrl
+                  ? "border-destructive focus-visible:ring-destructive/30"
+                  : undefined
+              }
             />
+            {validationErrors?.buttonUrl ? (
+              <p className="text-xs text-destructive">
+                {validationErrors.buttonUrl}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
 
       {/* Save & Close Button */}
-      {onClose && (
-        <div className="pt-4 border-t">
-          <Button
-            onClick={onClose}
-            className="w-full gap-2"
-          >
-            <Check className="h-4 w-4" />
-            Save & Close
-          </Button>
+      {(onClose || onCancel) && (
+        <div className="pt-4 border-t flex flex-col sm:flex-row gap-3">
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel} className="w-full">
+              Cancel
+            </Button>
+          )}
+          {onClose && (
+            <Button onClick={onClose} className="w-full gap-2">
+              <Check className="h-4 w-4" />
+              Save & Close
+            </Button>
+          )}
         </div>
       )}
 
@@ -319,7 +366,7 @@ export const ProductGalleryBlockEditor: React.FC<ProductGalleryBlockEditorProps>
             handleImageSelect(activeSlotIndex, imageUrl);
           }
         }}
-        contentContext={block.headline || 'Product image'}
+        contentContext={block.headline || "Product image"}
       />
     </div>
   );

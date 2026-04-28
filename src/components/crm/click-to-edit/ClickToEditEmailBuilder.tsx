@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { Button } from "@/components/ui-legacy/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui-legacy/dialog";
 import { Plus, Bug } from "lucide-react";
-import { ClickToEditBlock } from "./ClickToEditBlock";
+import {
+  ClickToEditBlock,
+  type ClickToEditBlockEditSession,
+} from "./ClickToEditBlock";
 import { HeaderBlock } from "./blocks/HeaderBlock";
 import { NewsletterHeaderBlock } from "./blocks/NewsletterHeaderBlock";
 import { EmailSafeHeroBlock } from "./blocks/EmailSafeHeroBlock";
@@ -15,6 +26,7 @@ import { ButtonBlock } from "./blocks/ButtonBlock";
 import { SocialFollowBlock } from "./blocks/SocialFollowBlock";
 import { FooterBlock } from "./blocks/FooterBlock";
 import { ImageGalleryBlock } from "./blocks/ImageGalleryBlock";
+import { ProductGalleryBlock } from "./blocks/ProductGalleryBlock";
 import { MediaSelectorSidebar } from "@/components/crm/MediaSelectorSidebar";
 import { useFooterSettings } from "@/hooks/useFooterSettings";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
@@ -35,6 +47,7 @@ interface ClickToEditEmailBuilderProps {
   onFooterStylingChange?: (
     styling: import("@/types/footerStyling").FooterStyling,
   ) => void;
+  onEditSessionChange?: (session: ClickToEditBlockEditSession | null) => void;
 }
 
 export const ClickToEditEmailBuilder: React.FC<
@@ -50,10 +63,17 @@ export const ClickToEditEmailBuilder: React.FC<
   footerBackgroundColor,
   onFooterColorChange,
   onFooterStylingChange,
+  onEditSessionChange,
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
   const [saveError, setSaveError] = useState(false);
+  const [activeEditSession, setActiveEditSession] =
+    useState<ClickToEditBlockEditSession | null>(null);
+  const [editResolutionOpen, setEditResolutionOpen] = useState(false);
+  const [pendingEditorContinuation, setPendingEditorContinuation] = useState<
+    (() => void) | null
+  >(null);
 
   // Debug state for MediaSelector
   const [debugMediaSelectorOpen, setDebugMediaSelectorOpen] = useState(false);
@@ -65,6 +85,52 @@ export const ClickToEditEmailBuilder: React.FC<
   useEffect(() => {
     blocksRef.current = blocks;
   }, [blocks]);
+
+  useEffect(() => {
+    onEditSessionChange?.(activeEditSession);
+  }, [activeEditSession, onEditSessionChange]);
+
+  const closeEditResolutionDialog = useCallback(() => {
+    setEditResolutionOpen(false);
+    setPendingEditorContinuation(null);
+  }, []);
+
+  const continueAfterResolution = useCallback(() => {
+    const continuation = pendingEditorContinuation;
+    closeEditResolutionDialog();
+    continuation?.();
+  }, [closeEditResolutionDialog, pendingEditorContinuation]);
+
+  const requestEditorResolution = useCallback(
+    (continuation: () => void) => {
+      if (!activeEditSession) {
+        continuation();
+        return;
+      }
+
+      if (!activeEditSession.isDirty) {
+        activeEditSession.cancel();
+        continuation();
+        return;
+      }
+
+      setPendingEditorContinuation(() => continuation);
+      setEditResolutionOpen(true);
+    },
+    [activeEditSession],
+  );
+
+  const handleRequestOpenEditor = useCallback(
+    (blockId: string, openEditor: () => void) => {
+      if (!activeEditSession || activeEditSession.blockId === blockId) {
+        openEditor();
+        return;
+      }
+
+      requestEditorResolution(openEditor);
+    },
+    [activeEditSession, requestEditorResolution],
+  );
 
   // Find the first header block (header or newsletter-header)
   const headerBlock = blocks.find(
@@ -373,6 +439,14 @@ export const ClickToEditEmailBuilder: React.FC<
             isGenerating={generatingBlocks.has(block.id)}
           />
         );
+      case "product-gallery":
+        return (
+          <ProductGalleryBlock
+            {...props}
+            isPreview={false}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
       default:
         return <div>Unknown block type</div>;
     }
@@ -497,6 +571,14 @@ export const ClickToEditEmailBuilder: React.FC<
             isGenerating={generatingBlocks.has(block.id)}
           />
         );
+      case "product-gallery":
+        return (
+          <ProductGalleryBlock
+            {...props}
+            isPreview={true}
+            isGenerating={generatingBlocks.has(block.id)}
+          />
+        );
       default:
         return <div>Unknown block type</div>;
     }
@@ -507,7 +589,7 @@ export const ClickToEditEmailBuilder: React.FC<
   }) => {
     const handleAddBlock = () => {
       if (onOpenAddModal) {
-        onOpenAddModal(afterIndex);
+        requestEditorResolution(() => onOpenAddModal(afterIndex));
       }
     };
 
@@ -547,6 +629,8 @@ export const ClickToEditEmailBuilder: React.FC<
             isGenerating={generatingBlocks.has(block.id)}
             allBlocks={blocks}
             onOpenAIImageDialog={onOpenAIImageDialog}
+            onRequestOpenEditor={handleRequestOpenEditor}
+            onEditSessionChange={setActiveEditSession}
           >
             {{
               preview: renderBlockPreview(block),
@@ -600,6 +684,52 @@ export const ClickToEditEmailBuilder: React.FC<
           contentContext="Debug test"
         />
       )}
+
+      <Dialog
+        open={editResolutionOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeEditResolutionDialog();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Unsaved block edits</DialogTitle>
+            <DialogDescription>
+              {activeEditSession
+                ? `${activeEditSession.blockLabel} has unsaved changes.`
+                : "Finish the current block before continuing."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="outline" onClick={closeEditResolutionDialog}>
+              Cancel
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  activeEditSession?.discard();
+                  continueAfterResolution();
+                }}
+              >
+                Discard & Continue
+              </Button>
+              <Button
+                onClick={() => {
+                  const saved = activeEditSession?.save() ?? true;
+                  if (saved !== false) {
+                    continueAfterResolution();
+                  }
+                }}
+              >
+                Save & Continue
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

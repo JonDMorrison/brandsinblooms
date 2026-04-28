@@ -14,7 +14,6 @@ import Stack from "@mui/joy/Stack";
 import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
 import {
   AlignLeft,
   AlertTriangle,
@@ -48,6 +47,8 @@ import {
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CleanEmailBlockEditor } from "@/components/crm/CleanEmailBlockEditor";
+import type { ClickToEditBlockEditSession } from "@/components/crm/click-to-edit/ClickToEditBlock";
+import { AIWriterDialog } from "@/components/crm/ai-writer/AIWriterDialog";
 import { CampaignActiveSendView } from "@/components/crm/campaign-editor/CampaignActiveSendView";
 import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLockedView";
 import {
@@ -87,6 +88,14 @@ import type {
   CampaignSegmentSummary,
   CampaignStatus,
 } from "@/lib/crm/campaignEditor";
+import {
+  findEmptyBlocks,
+  findIncompleteImageBlocks,
+  findPlaceholderTextIssues,
+  getVisibleContentBlocks,
+  validateAudienceSelection,
+  validateSubjectLine,
+} from "@/lib/crm/campaignBuilderValidation";
 import type { ContentBlock } from "@/types/emailBuilder";
 
 type SampleCustomer = {
@@ -104,6 +113,14 @@ type PreflightCheck = {
   label: string;
   detail: string;
   status: PreflightStatus;
+  detailLines?: string[];
+};
+
+type AIWriterGeneratedContent = {
+  campaignName: string;
+  subjectLine: string;
+  preheaderText: string;
+  blocks: ContentBlock[];
 };
 
 const EDITOR_MAX_WIDTH = 1200;
@@ -113,7 +130,7 @@ function isReadOnlyStatus(status: CampaignStatus) {
 }
 
 function hasEmailContent(blocks: ContentBlock[]) {
-  return blocks.length > 0;
+  return getVisibleContentBlocks(blocks).length > 0;
 }
 
 function computeSmsSegments(message: string) {
@@ -137,11 +154,83 @@ function displayName(customer: SampleCustomer) {
   return fullName || customer.email || "Unknown customer";
 }
 
+function buildAIWriterContextInstructions(params: {
+  campaignType: "email" | "sms";
+  segmentName?: string;
+  personaNames?: string[];
+  subjectLine?: string;
+}) {
+  const lines = [`Channel: ${params.campaignType === "sms" ? "SMS" : "Email"}`];
+
+  if (params.segmentName) {
+    lines.push(`Primary audience segment: ${params.segmentName}`);
+  }
+
+  if (params.personaNames && params.personaNames.length > 0) {
+    lines.push(`Selected personas: ${params.personaNames.join(", ")}`);
+  }
+
+  if (params.subjectLine?.trim()) {
+    lines.push(`Current subject line: ${params.subjectLine.trim()}`);
+  }
+
+  return lines.join("\n");
+}
+
+function isAIWriterHeaderBlock(block: ContentBlock) {
+  return (
+    block.type === "header" ||
+    block.type === "newsletter-header" ||
+    block.type === "email-safe-hero"
+  );
+}
+
+function applyAIWriterImageToBlock(block: ContentBlock, imageUrl: string) {
+  return {
+    ...block,
+    ...(imageUrl
+      ? isAIWriterHeaderBlock(block)
+        ? { backgroundImageUrl: imageUrl }
+        : { imageUrl }
+      : {}),
+    isGeneratingImage: false,
+    shouldFetchImage: false,
+    imageGenerationError: undefined,
+  } satisfies ContentBlock;
+}
+
+function applyAIWriterImageFailureToBlock(block: ContentBlock, error: string) {
+  return {
+    ...block,
+    isGeneratingImage: false,
+    shouldFetchImage: false,
+    imageGenerationError: error,
+  } satisfies ContentBlock;
+}
+
+function updateBlocksById(
+  blocks: ContentBlock[],
+  blockId: string,
+  updater: (block: ContentBlock) => ContentBlock,
+) {
+  let found = false;
+  const nextBlocks = blocks.map((block) => {
+    if (block.id !== blockId) {
+      return block;
+    }
+
+    found = true;
+    return updater(block);
+  });
+
+  return { found, nextBlocks };
+}
+
 function createBlockId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createManualBlock(kind: string): ContentBlock {
+function createManualBlock(kind: string): ContentBlock | null {
   switch (kind) {
     case "hero_safe":
     case "header":
@@ -187,6 +276,27 @@ function createManualBlock(kind: string): ContentBlock {
         visible: true,
         collapsed: false,
       };
+    case "image_text":
+      return {
+        id: createBlockId("image_text"),
+        type: "image-text",
+        source: "manual",
+        headline: "",
+        title: "",
+        subtitle: "",
+        body: "",
+        content: "",
+        imageUrl: "",
+        altText: "",
+        layout: "two-column-left",
+        textAlign: "left",
+        backgroundColor: "#f5f5f7",
+        textColor: "#111111",
+        buttonText: "",
+        buttonUrl: "",
+        visible: true,
+        collapsed: false,
+      };
     case "image_gallery":
     case "gallery":
       return {
@@ -205,11 +315,14 @@ function createManualBlock(kind: string): ContentBlock {
     case "product_gallery":
       return {
         id: createBlockId("product_gallery"),
-        type: "image-gallery",
+        type: "product-gallery",
         source: "manual",
         headline: "Product gallery",
         body: "Showcase featured products, bundles, or seasonal picks.",
         galleryItems: [],
+        columns: 2,
+        showBadges: true,
+        backgroundColor: "#ffffff",
         ctaText: "Shop now",
         ctaUrl: "",
         visible: true,
@@ -252,9 +365,19 @@ function createManualBlock(kind: string): ContentBlock {
         collapsed: false,
       };
     case "plain_text":
-    case "image_text":
+      return {
+        id: createBlockId("plain_text"),
+        type: "text",
+        source: "manual",
+        body: "",
+        textAlign: "left",
+        textColor: "#000000",
+        backgroundColor: "#ffffff",
+        padding: "medium",
+        visible: true,
+        collapsed: false,
+      };
     case "text":
-    default:
       return {
         id: createBlockId("text"),
         type: "image-text",
@@ -268,6 +391,9 @@ function createManualBlock(kind: string): ContentBlock {
         visible: true,
         collapsed: false,
       };
+    default:
+      console.error("Unknown manual block kind", { kind });
+      return null;
   }
 }
 
@@ -566,17 +692,34 @@ function PreflightRow({ check }: { check: PreflightCheck }) {
         : "danger.500";
 
   return (
-    <Stack direction="row" spacing={1.5} alignItems="center">
-      <Box sx={{ color, display: "inline-flex", alignItems: "center" }}>
-        <Icon size={16} />
-      </Box>
-      <Typography level="body-sm">{check.label}</Typography>
-      <Typography
-        level="body-xs"
-        sx={{ color: "neutral.500", ml: "auto", textAlign: "right" }}
-      >
-        {check.detail}
-      </Typography>
+    <Stack spacing={0.75}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box sx={{ color, display: "inline-flex", alignItems: "center" }}>
+          <Icon size={16} />
+        </Box>
+        <Typography level="body-sm">{check.label}</Typography>
+        <Typography
+          level="body-xs"
+          sx={{ color: "neutral.500", ml: "auto", textAlign: "right" }}
+        >
+          {check.detail}
+        </Typography>
+      </Stack>
+      {check.detailLines?.length ? (
+        <Stack spacing={0.5} sx={{ pl: 4 }}>
+          {check.detailLines.map((line) => (
+            <Typography
+              key={line}
+              level="body-xs"
+              sx={{
+                color: check.status === "fail" ? "danger.600" : "warning.700",
+              }}
+            >
+              {line}
+            </Typography>
+          ))}
+        </Stack>
+      ) : null}
     </Stack>
   );
 }
@@ -795,14 +938,22 @@ function CampaignEditorScreen() {
     sendImmediately,
     lastSavedAt,
     isSaving,
+    autoSaveStatus,
+    autoSaveMessage,
     isLoading,
     updateSetup,
     updateAudience,
     updateContent,
     updateSchedule,
+    setAutoSavePaused,
+    captureDraftSnapshot,
   } = useCampaignEditor();
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [aiWriterOpen, setAiWriterOpen] = React.useState(false);
+  const [aiReplaceConfirmOpen, setAiReplaceConfirmOpen] = React.useState(false);
+  const [pendingAIContent, setPendingAIContent] =
+    React.useState<AIWriterGeneratedContent | null>(null);
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
   const [verificationOpen, setVerificationOpen] = React.useState(false);
@@ -811,6 +962,10 @@ function CampaignEditorScreen() {
   const [blockInsertIndex, setBlockInsertIndex] = React.useState<number | null>(
     null,
   );
+  const [builderEditSession, setBuilderEditSession] =
+    React.useState<ClickToEditBlockEditSession | null>(null);
+  const [builderLeaveDialogOpen, setBuilderLeaveDialogOpen] =
+    React.useState(false);
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [showExclusions, setShowExclusions] = React.useState(false);
   const [segmentSearch, setSegmentSearch] = React.useState("");
@@ -822,6 +977,69 @@ function CampaignEditorScreen() {
     SampleCustomer[]
   >([]);
   const headerNameRef = React.useRef<HTMLDivElement | null>(null);
+  const contentBlocksRef = React.useRef(contentBlocks);
+  const pendingBuilderActionRef = React.useRef<(() => void) | null>(null);
+  const pendingAIContentRef = React.useRef<AIWriterGeneratedContent | null>(
+    pendingAIContent,
+  );
+  const aiWriterCloseGuardRef = React.useRef(false);
+
+  React.useEffect(() => {
+    contentBlocksRef.current = contentBlocks;
+  }, [contentBlocks]);
+
+  React.useEffect(() => {
+    pendingAIContentRef.current = pendingAIContent;
+  }, [pendingAIContent]);
+
+  React.useEffect(() => {
+    setAutoSavePaused(Boolean(builderEditSession));
+  }, [builderEditSession, setAutoSavePaused]);
+
+  const saveIndicator = React.useMemo(() => {
+    switch (autoSaveStatus) {
+      case "saving":
+        return {
+          label: "Saving...",
+          color: "neutral.500",
+          opacity: 1,
+        };
+      case "saved":
+        return {
+          label: "Saved",
+          color: "success.600",
+          opacity: 1,
+        };
+      case "error":
+        return {
+          label: autoSaveMessage ?? "Changes not saved — retrying...",
+          color: "danger.600",
+          opacity: 1,
+        };
+      case "conflict":
+        return {
+          label:
+            autoSaveMessage ??
+            "This campaign was modified in another tab. Reload to see the latest version.",
+          color: "warning.600",
+          opacity: 1,
+        };
+      default:
+        if (lastSavedAt) {
+          return {
+            label: "Saved",
+            color: "success.600",
+            opacity: 0,
+          };
+        }
+
+        return {
+          label: "Not saved yet",
+          color: "neutral.400",
+          opacity: 1,
+        };
+    }
+  }, [autoSaveMessage, autoSaveStatus, lastSavedAt]);
 
   const activeDomains = React.useMemo(
     () =>
@@ -996,6 +1214,9 @@ function CampaignEditorScreen() {
       }
 
       const nextBlock = createManualBlock(kind);
+      if (!nextBlock) {
+        return;
+      }
       const nextBlocks = [...contentBlocks];
       const insertAt =
         blockInsertIndex === null ? nextBlocks.length : blockInsertIndex + 1;
@@ -1009,6 +1230,218 @@ function CampaignEditorScreen() {
       setBlockPickerOpen(false);
     },
     [blockInsertIndex, contentBlocks, isReadOnly, updateContent],
+  );
+
+  const applyAIWriterContent = React.useCallback(
+    (generated: AIWriterGeneratedContent) => {
+      const nextSetup: {
+        subjectLine?: string;
+        preheaderText?: string;
+      } = {};
+
+      if (generated.subjectLine.trim()) {
+        nextSetup.subjectLine = generated.subjectLine;
+      }
+
+      if (generated.preheaderText.trim()) {
+        nextSetup.preheaderText = generated.preheaderText;
+      }
+
+      if (Object.keys(nextSetup).length > 0) {
+        updateSetup(nextSetup);
+      }
+
+      if (generated.blocks.length > 0) {
+        updateContent({ contentBlocks: generated.blocks });
+      }
+
+      setPendingAIContent(null);
+      setAiReplaceConfirmOpen(false);
+      setAiWriterOpen(false);
+    },
+    [updateContent, updateSetup],
+  );
+
+  const handleAIWriterContentGenerated = React.useCallback(
+    (generated: AIWriterGeneratedContent) => {
+      if (contentBlocksRef.current.length > 0) {
+        aiWriterCloseGuardRef.current = true;
+        setPendingAIContent(generated);
+        setAiReplaceConfirmOpen(true);
+        setAiWriterOpen(true);
+        return;
+      }
+
+      applyAIWriterContent(generated);
+    },
+    [applyAIWriterContent],
+  );
+
+  const handleAIWriterOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (!nextOpen && aiWriterCloseGuardRef.current) {
+      return;
+    }
+
+    if (!nextOpen) {
+      aiWriterCloseGuardRef.current = false;
+      setPendingAIContent(null);
+      setAiReplaceConfirmOpen(false);
+    }
+
+    setAiWriterOpen(nextOpen);
+  }, []);
+
+  const handleConfirmAIReplace = React.useCallback(() => {
+    if (!pendingAIContentRef.current) {
+      aiWriterCloseGuardRef.current = false;
+      setAiReplaceConfirmOpen(false);
+      return;
+    }
+
+    aiWriterCloseGuardRef.current = false;
+    applyAIWriterContent(pendingAIContentRef.current);
+  }, [applyAIWriterContent]);
+
+  const handleCancelAIReplace = React.useCallback(() => {
+    aiWriterCloseGuardRef.current = false;
+    setPendingAIContent(null);
+    setAiReplaceConfirmOpen(false);
+    setAiWriterOpen(true);
+  }, []);
+
+  const closeBuilderLeaveDialog = React.useCallback(() => {
+    pendingBuilderActionRef.current = null;
+    setBuilderLeaveDialogOpen(false);
+  }, []);
+
+  const continueAfterBuilderResolution = React.useCallback(() => {
+    const action = pendingBuilderActionRef.current;
+    pendingBuilderActionRef.current = null;
+    setBuilderLeaveDialogOpen(false);
+    action?.();
+  }, []);
+
+  const resolveActiveBuilderEdit = React.useCallback(
+    (action: () => void) => {
+      if (!builderEditSession) {
+        action();
+        return;
+      }
+
+      if (!builderEditSession.isDirty) {
+        builderEditSession.cancel();
+        action();
+        return;
+      }
+
+      pendingBuilderActionRef.current = action;
+      setBuilderLeaveDialogOpen(true);
+    },
+    [builderEditSession],
+  );
+
+  const openSendConfirmation = React.useCallback(() => {
+    resolveActiveBuilderEdit(() => {
+      void captureDraftSnapshot("review").finally(() => {
+        setSendConfirmOpen(true);
+      });
+    });
+  }, [captureDraftSnapshot, resolveActiveBuilderEdit]);
+
+  const openScheduleDrawer = React.useCallback(() => {
+    resolveActiveBuilderEdit(() => {
+      void captureDraftSnapshot("review").finally(() => {
+        setScheduleOpen(true);
+      });
+    });
+  }, [captureDraftSnapshot, resolveActiveBuilderEdit]);
+
+  const handleBackToCampaigns = React.useCallback(
+    (event: React.MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      resolveActiveBuilderEdit(() => navigate("/crm/campaigns"));
+    },
+    [navigate, resolveActiveBuilderEdit],
+  );
+
+  React.useEffect(() => {
+    if (!builderEditSession?.isDirty) {
+      return undefined;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [builderEditSession?.isDirty]);
+
+  const handleAIWriterBlockImageGenerated = React.useCallback(
+    (blockId: string, imageUrl: string) => {
+      const pendingResult = pendingAIContentRef.current;
+      if (pendingResult) {
+        const nextPending = updateBlocksById(
+          pendingResult.blocks,
+          blockId,
+          (block) => applyAIWriterImageToBlock(block, imageUrl),
+        );
+
+        if (nextPending.found) {
+          setPendingAIContent({
+            ...pendingResult,
+            blocks: nextPending.nextBlocks,
+          });
+          return;
+        }
+      }
+
+      const nextContent = updateBlocksById(
+        contentBlocksRef.current,
+        blockId,
+        (block) => applyAIWriterImageToBlock(block, imageUrl),
+      );
+
+      if (nextContent.found) {
+        updateContent({ contentBlocks: nextContent.nextBlocks });
+      }
+    },
+    [updateContent],
+  );
+
+  const handleAIWriterBlockImageGenerationFailed = React.useCallback(
+    (blockId: string, error: string) => {
+      const pendingResult = pendingAIContentRef.current;
+      if (pendingResult) {
+        const nextPending = updateBlocksById(
+          pendingResult.blocks,
+          blockId,
+          (block) => applyAIWriterImageFailureToBlock(block, error),
+        );
+
+        if (nextPending.found) {
+          setPendingAIContent({
+            ...pendingResult,
+            blocks: nextPending.nextBlocks,
+          });
+          return;
+        }
+      }
+
+      const nextContent = updateBlocksById(
+        contentBlocksRef.current,
+        blockId,
+        (block) => applyAIWriterImageFailureToBlock(block, error),
+      );
+
+      if (nextContent.found) {
+        updateContent({ contentBlocks: nextContent.nextBlocks });
+      }
+    },
+    [updateContent],
   );
 
   const openBlockPicker = React.useCallback(
@@ -1101,7 +1534,31 @@ function CampaignEditorScreen() {
     updateContent,
   ]);
 
+  const aiWriterInitialTopic = React.useMemo(
+    () => name.trim() || subjectLine.trim(),
+    [name, subjectLine],
+  );
+  const aiWriterInitialInstructions = React.useMemo(
+    () =>
+      buildAIWriterContextInstructions({
+        campaignType,
+        segmentName: selectedSegments[0]?.name,
+        personaNames: selectedPersonas.map((persona) => persona.name),
+        subjectLine,
+      }),
+    [campaignType, selectedPersonas, selectedSegments, subjectLine],
+  );
+
   const preflightChecks = React.useMemo<PreflightCheck[]>(() => {
+    const visibleContentBlocks = getVisibleContentBlocks(contentBlocks);
+    const subjectValidation = validateSubjectLine(subjectLine, campaignType);
+    const audienceValidation = validateAudienceSelection({
+      recipientCount: audienceCount,
+    });
+    const placeholderTextIssues = findPlaceholderTextIssues(contentBlocks);
+    const emptyBlocks = findEmptyBlocks(contentBlocks);
+    const incompleteImageBlocks = findIncompleteImageBlocks(contentBlocks);
+
     const checks: PreflightCheck[] = [
       {
         id: "name",
@@ -1115,11 +1572,17 @@ function CampaignEditorScreen() {
         detail:
           campaignType === "sms"
             ? "Not required for SMS"
-            : subjectLine.trim() || "Required",
+            : subjectValidation.value || "Required",
         status:
-          campaignType === "sms" || subjectLine.trim().length > 0
+          campaignType === "sms"
             ? "pass"
-            : "fail",
+            : subjectValidation.isMissing
+              ? "fail"
+              : subjectValidation.warnings.length > 0
+                ? "warn"
+                : "pass",
+        detailLines:
+          campaignType === "sms" ? undefined : subjectValidation.warnings,
       },
       {
         id: "content",
@@ -1127,21 +1590,59 @@ function CampaignEditorScreen() {
         detail:
           campaignType === "sms"
             ? `${smsMessage.length} characters`
-            : `${contentBlocks.length} blocks`,
+            : `${visibleContentBlocks.length} blocks`,
         status:
           campaignType === "sms"
             ? smsMessage.trim().length > 0
               ? "pass"
               : "fail"
-            : contentBlocks.length > 0
+            : visibleContentBlocks.length > 0
               ? "pass"
               : "fail",
       },
+      ...(campaignType === "email"
+        ? [
+            {
+              id: "placeholders",
+              label: "Placeholder text",
+              detail:
+                placeholderTextIssues.length > 0
+                  ? `${placeholderTextIssues.length} fields need review`
+                  : "No placeholder copy detected",
+              status: placeholderTextIssues.length > 0 ? "warn" : "pass",
+              detailLines: placeholderTextIssues.map(
+                (issue) =>
+                  `${issue.blockLabel}: ${issue.fieldLabel} still uses placeholder copy.`,
+              ),
+            },
+            {
+              id: "empty_blocks",
+              label: "Blank sections",
+              detail:
+                emptyBlocks.length > 0
+                  ? `${emptyBlocks.length} empty blocks detected`
+                  : "No blank sections detected",
+              status: emptyBlocks.length > 0 ? "warn" : "pass",
+              detailLines: emptyBlocks.map((issue) => issue.detail),
+            },
+            {
+              id: "image_blocks",
+              label: "Required images",
+              detail:
+                incompleteImageBlocks.length > 0
+                  ? `${incompleteImageBlocks.length} image blocks need assets`
+                  : "All required images are present",
+              status: incompleteImageBlocks.length > 0 ? "warn" : "pass",
+              detailLines: incompleteImageBlocks.map((issue) => issue.detail),
+            },
+          ]
+        : []),
       {
         id: "audience",
         label: "Audience",
         detail: `~${(audienceCount ?? 0).toLocaleString()} recipients`,
-        status: (audienceCount ?? 0) > 0 ? "pass" : "fail",
+        status: audienceValidation.hasRecipients ? "pass" : "fail",
+        detailLines: audienceValidation.warnings,
       },
       {
         id: "sender",
@@ -1173,12 +1674,41 @@ function CampaignEditorScreen() {
     activeDomains.length,
     audienceCount,
     campaignType,
-    contentBlocks.length,
+    contentBlocks,
     name,
     senderEmail,
-    smsMessage.length,
+    smsMessage,
     subjectLine,
   ]);
+
+  const sendWarningLines = React.useMemo(() => {
+    const builderWarningIds = new Set([
+      "subject",
+      "placeholders",
+      "empty_blocks",
+      "image_blocks",
+    ]);
+
+    return preflightChecks
+      .filter(
+        (check) => check.status === "warn" && builderWarningIds.has(check.id),
+      )
+      .flatMap((check) =>
+        check.detailLines?.length
+          ? check.detailLines
+          : [`${check.label}: ${check.detail}`],
+      );
+  }, [preflightChecks]);
+
+  const sendBlockerLines = React.useMemo(() => {
+    return preflightChecks
+      .filter((check) => check.status === "fail")
+      .flatMap((check) =>
+        check.detailLines?.length
+          ? check.detailLines
+          : [`${check.label}: ${check.detail}`],
+      );
+  }, [preflightChecks]);
 
   const allChecksPassed = preflightChecks.every(
     (check) => check.status !== "fail",
@@ -1272,7 +1802,7 @@ function CampaignEditorScreen() {
               variant="soft"
               color="neutral"
               size="sm"
-              onClick={() => setScheduleOpen(true)}
+              onClick={openScheduleDrawer}
             >
               Schedule
             </JoyButton>
@@ -1281,7 +1811,7 @@ function CampaignEditorScreen() {
               color="primary"
               size="sm"
               startDecorator={<Send size={16} />}
-              onClick={() => setSendConfirmOpen(true)}
+              onClick={openSendConfirmation}
               disabled={!allChecksPassed}
             >
               Send
@@ -1390,6 +1920,7 @@ function CampaignEditorScreen() {
           level="body-xs"
           component={Link}
           to="/crm/campaigns"
+          onClick={handleBackToCampaigns}
           sx={{
             color: "neutral.500",
             textDecoration: "none",
@@ -1489,12 +2020,15 @@ function CampaignEditorScreen() {
               <JoyChip variant="soft" color="neutral" size="sm">
                 {campaignType === "email" ? "Email" : "SMS"}
               </JoyChip>
-              <Typography level="body-xs" sx={{ color: "neutral.400" }}>
-                {isSaving
-                  ? "Saving..."
-                  : lastSavedAt
-                    ? `Last saved ${formatDistanceToNow(lastSavedAt, { addSuffix: true })}`
-                    : "Not saved yet"}
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: saveIndicator.color,
+                  opacity: saveIndicator.opacity,
+                  transition: "opacity 200ms ease",
+                }}
+              >
+                {isSaving ? "Saving..." : saveIndicator.label}
               </Typography>
             </Stack>
           </Stack>
@@ -1510,7 +2044,7 @@ function CampaignEditorScreen() {
       ) : showStateLayoutView ? (
         <CampaignLockedView
           onPreview={() => setPreviewOpen(true)}
-          onReschedule={() => setScheduleOpen(true)}
+          onReschedule={openScheduleDrawer}
         />
       ) : (
         <Stack
@@ -2082,7 +2616,7 @@ function CampaignEditorScreen() {
                     color="primary"
                     size="sm"
                     startDecorator={<Sparkles size={16} />}
-                    onClick={handleGenerateStarterContent}
+                    onClick={() => setAiWriterOpen(true)}
                     sx={{
                       fontWeight: "lg",
                       whiteSpace: "nowrap",
@@ -2214,6 +2748,7 @@ function CampaignEditorScreen() {
                         blocks={contentBlocks}
                         campaignId={campaignId ?? undefined}
                         campaignName={name}
+                        onEditSessionChange={setBuilderEditSession}
                         onRequestAddBlock={openBlockPicker}
                         onBlocksChange={(blocks) =>
                           updateContent({ contentBlocks: blocks })
@@ -2278,7 +2813,7 @@ function CampaignEditorScreen() {
                 size="lg"
                 fullWidth
                 startDecorator={<Send size={18} />}
-                onClick={() => setSendConfirmOpen(true)}
+                onClick={openSendConfirmation}
                 disabled={!allChecksPassed}
               >
                 {sendButtonLabel}
@@ -2297,6 +2832,55 @@ function CampaignEditorScreen() {
           </SectionCard>
         </Stack>
       )}
+
+      <JoyDialog
+        open={builderLeaveDialogOpen}
+        onClose={closeBuilderLeaveDialog}
+        size="sm"
+        title="Unsaved block edits"
+        description={
+          builderEditSession
+            ? `${builderEditSession.blockLabel} has unsaved changes.`
+            : "Finish the current block before continuing."
+        }
+      >
+        <JoyDialogContent>
+          <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+            Save the current block, discard those edits, or stay here and keep
+            editing.
+          </Typography>
+        </JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton
+            variant="plain"
+            color="neutral"
+            onClick={closeBuilderLeaveDialog}
+          >
+            Cancel
+          </JoyButton>
+          <JoyButton
+            variant="soft"
+            color="neutral"
+            onClick={() => {
+              builderEditSession?.discard();
+              continueAfterBuilderResolution();
+            }}
+          >
+            Discard & Continue
+          </JoyButton>
+          <JoyButton
+            color="primary"
+            onClick={() => {
+              const saved = builderEditSession?.save() ?? true;
+              if (saved !== false) {
+                continueAfterBuilderResolution();
+              }
+            }}
+          >
+            Save & Continue
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
 
       <JoyDialog
         open={blockPickerOpen}
@@ -2360,22 +2944,61 @@ function CampaignEditorScreen() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
       />
+      <AIWriterDialog
+        open={aiWriterOpen}
+        onOpenChange={handleAIWriterOpenChange}
+        initialTopic={aiWriterInitialTopic}
+        initialLayout={
+          campaignType === "sms" ? "simple-email" : "block-builder"
+        }
+        initialCustomInstructions={aiWriterInitialInstructions}
+        onContentGenerated={handleAIWriterContentGenerated}
+        onBlockImageGenerated={handleAIWriterBlockImageGenerated}
+        onBlockImageGenerationFailed={handleAIWriterBlockImageGenerationFailed}
+      />
+      <JoyDialog
+        open={aiReplaceConfirmOpen}
+        onClose={handleCancelAIReplace}
+        size="sm"
+        title="Replace existing content?"
+        description="This AI draft will replace the current blocks in your builder."
+      >
+        <JoyDialogContent>
+          <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+            Replace existing content with AI-generated content?
+          </Typography>
+        </JoyDialogContent>
+        <JoyDialogActions>
+          <JoyButton
+            variant="plain"
+            color="neutral"
+            onClick={handleCancelAIReplace}
+          >
+            Cancel
+          </JoyButton>
+          <JoyButton color="primary" onClick={handleConfirmAIReplace}>
+            Replace
+          </JoyButton>
+        </JoyDialogActions>
+      </JoyDialog>
       <CampaignScheduleDrawer
         open={scheduleOpen}
         onClose={() => setScheduleOpen(false)}
         canConfirm={allChecksPassed}
         onSendNow={() => {
           updateSchedule({ sendImmediately: true, sendAt: null });
-          setSendConfirmOpen(true);
+          openSendConfirmation();
         }}
         onSchedule={(scheduledDateTime) => {
           updateSchedule({ sendImmediately: false, sendAt: scheduledDateTime });
-          setSendConfirmOpen(true);
+          openSendConfirmation();
         }}
       />
       <CampaignSendConfirmation
         open={sendConfirmOpen}
         onClose={() => setSendConfirmOpen(false)}
+        builderWarnings={sendWarningLines}
+        builderBlockers={sendBlockerLines}
       />
       <SenderVerificationDialog
         open={verificationOpen}

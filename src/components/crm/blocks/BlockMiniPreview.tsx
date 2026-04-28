@@ -1,6 +1,12 @@
 import React from "react";
 import { ContentBlock } from "@/types/emailBuilder";
-import { Image, Type, MousePointerClick, Minus, LayoutGrid } from "lucide-react";
+import {
+  Image,
+  Type,
+  MousePointerClick,
+  Minus,
+  LayoutGrid,
+} from "lucide-react";
 
 function stripHtml(html: string): string {
   if (!html) return "";
@@ -210,6 +216,34 @@ export const BlockMiniPreview: React.FC<BlockMiniPreviewProps> = ({
                 +{slots - 4}
               </span>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    case "product-gallery": {
+      const galleryItems = (block as any).galleryItems || [];
+      const slots = Math.max(galleryItems.length, 4);
+      return (
+        <div className="flex items-center gap-2 h-[60px] px-3 rounded bg-muted/30 overflow-hidden">
+          <LayoutGrid className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+          <div className="grid grid-cols-2 gap-1.5 flex-1 min-w-0">
+            {Array.from({ length: Math.min(slots, 4) }).map((_, i) => {
+              const item = galleryItems[i];
+              return item?.imageUrl ? (
+                <img
+                  key={item.id || i}
+                  src={item.imageUrl}
+                  alt=""
+                  className="h-10 w-10 rounded object-cover flex-shrink-0"
+                />
+              ) : (
+                <div
+                  key={item?.id || i}
+                  className="h-10 w-10 rounded bg-muted flex-shrink-0"
+                />
+              );
+            })}
           </div>
         </div>
       );
