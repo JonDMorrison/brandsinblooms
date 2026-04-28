@@ -12,6 +12,7 @@ import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
+import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -1723,6 +1724,10 @@ function CampaignEditorScreen() {
     status === CAMPAIGN_STATUS.PAUSED ||
     status === CAMPAIGN_STATUS.FAILED ||
     isDeliveredCampaignStatus(status);
+  const showPreviewTestAction =
+    campaignType === "email" &&
+    (status === CAMPAIGN_STATUS.DRAFT || status === CAMPAIGN_STATUS.SCHEDULED);
+  const canPreviewAndTest = hasEmailContent(contentBlocks);
 
   const focusNameField = React.useCallback(() => {
     const element = headerNameRef.current;
@@ -2606,6 +2611,7 @@ function CampaignEditorScreen() {
               </Stack>
 
               <Stack
+                className="gap-2"
                 direction="row"
                 spacing={0.5}
                 alignItems="center"
@@ -2618,6 +2624,34 @@ function CampaignEditorScreen() {
                   "&::-webkit-scrollbar": { display: "none" },
                 }}
               >
+                {showPreviewTestAction ? (
+                  <Tooltip
+                    title={
+                      canPreviewAndTest
+                        ? ""
+                        : "Add content blocks to preview and send a test email."
+                    }
+                    disableHoverListener={canPreviewAndTest}
+                  >
+                    <span>
+                      <JoyButton
+                        variant="outlined"
+                        color="neutral"
+                        size="sm"
+                        startDecorator={<Eye size={16} />}
+                        onClick={() => setPreviewOpen(true)}
+                        disabled={!canPreviewAndTest}
+                        sx={{
+                          fontWeight: "md",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        Preview &amp; Test
+                      </JoyButton>
+                    </span>
+                  </Tooltip>
+                ) : null}
                 {campaignType === "email" ? (
                   <JoyButton
                     variant="solid"

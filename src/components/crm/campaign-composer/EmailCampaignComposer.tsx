@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { Label } from "@/components/ui-legacy/label";
@@ -54,6 +59,8 @@ import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { SenderStatusIndicator } from "../campaigns/SenderStatusIndicator";
 import { SenderVerificationModal } from "../campaigns/SenderVerificationModal";
 import { SegmentConsentWarning } from "../SegmentConsentWarning";
+import { persistCampaignRecord } from "@/lib/crm/campaignDraftPersistence";
+import type { ContentBlock } from "@/types/emailBuilder";
 
 interface Segment {
   id: string;
@@ -76,6 +83,90 @@ interface CampaignData {
   content: string;
   status: "draft" | "scheduled" | "sent";
   scheduled_at?: string;
+}
+
+function convertComposerBlocksToContentBlocks(
+  blocks: EmailBlock[],
+): ContentBlock[] {
+  return [...blocks]
+    .sort((left, right) => left.order - right.order)
+    .map((block, index) => {
+      const content = block.content || {};
+      const baseBlock = {
+        id: block.id || `composer-block-${index}`,
+        source: "manual" as const,
+        visible: true,
+      };
+
+      switch (block.type) {
+        case "heading":
+          return {
+            ...baseBlock,
+            type: "text" as const,
+            title: content.text || "",
+            headline: content.text || "",
+            alignment: content.align || "left",
+            body: "",
+            content: "",
+          };
+        case "text":
+          return {
+            ...baseBlock,
+            type: "text" as const,
+            body: content.text || "",
+            content: content.text || "",
+            alignment: "left" as const,
+          };
+        case "image":
+          return {
+            ...baseBlock,
+            type: "image" as const,
+            imageUrl: content.src || null,
+            altText: content.alt || "",
+            caption: content.caption || "",
+            alignment: content.align || "center",
+          };
+        case "button":
+          return {
+            ...baseBlock,
+            type: "button" as const,
+            buttonText: content.text || "Click Here",
+            buttonUrl: content.url || "",
+            ctaText: content.text || "Click Here",
+            ctaUrl: content.url || "",
+            alignment: content.align || "center",
+            buttonColor: content.style === "secondary" ? "#E5E7EB" : "#47B881",
+          };
+        case "divider":
+          return {
+            ...baseBlock,
+            type: "divider" as const,
+            dividerColor: content.color || "#E5E7EB",
+          };
+        case "product":
+          return {
+            ...baseBlock,
+            type: "product" as const,
+            title: content.name || "Featured Product",
+            headline: content.name || "Featured Product",
+            body: content.description || "",
+            content: content.description || "",
+            imageUrl: content.image || null,
+            altText: content.name || "Product image",
+            buttonText: content.url ? "View Product" : "",
+            buttonUrl: content.url || "",
+            ctaText: content.url ? "View Product" : "",
+            ctaUrl: content.url || "",
+          };
+        default:
+          return {
+            ...baseBlock,
+            type: "text" as const,
+            body: "",
+            content: "",
+          };
+      }
+    });
 }
 
 export const EmailCampaignComposer: React.FC = () => {
@@ -408,15 +499,8 @@ export const EmailCampaignComposer: React.FC = () => {
   const executeCSend = async (sendNow = false) => {
     setLoading(true);
     try {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", user?.id)
-        .single();
-
-      if (!userData?.tenant_id) return;
-
       const htmlContent = generateHTML();
+      const contentBlocks = convertComposerBlocksToContentBlocks(blocks);
       let scheduled_at = null;
 
       if (!sendNow && scheduledDate && scheduledTime) {
@@ -426,25 +510,52 @@ export const EmailCampaignComposer: React.FC = () => {
         scheduled_at = datetime.toISOString();
       }
 
-      const campaignToSave = {
-        ...campaignData,
-        content: htmlContent,
-        status: sendNow ? "sent" : scheduled_at ? "scheduled" : "draft",
-        scheduled_at,
-        tenant_id: userData.tenant_id,
-        user_id: user?.id,
-        delivery_method: "custom_domain",
-        sender_display_name: senderConfig.displayName,
-        actual_sender_email: senderConfig.isVerified
-          ? senderConfig.senderEmail
-          : null,
-      };
+      const selectedSegment = segments.find(
+        (segment) => segment.id === campaignData.segment_id,
+      );
 
-      const { error } = await supabase
-        .from("crm_campaigns")
-        .insert(campaignToSave);
+      if (!selectedSegment) {
+        throw new Error("Selected segment not found");
+      }
 
-      if (error) throw error;
+      const senderEmail = senderConfig.senderEmail || user?.email || "";
+      const senderName =
+        senderConfig.displayName || user?.email || "BloomSuite";
+
+      const persisted = await persistCampaignRecord({
+        campaignId: campaignData.id ?? null,
+        campaignType: "email",
+        legacyContentHtml: htmlContent,
+        status: scheduled_at ? "scheduled" : "draft",
+        name: campaignData.name,
+        subjectLine: campaignData.subject_line,
+        preheaderText: "",
+        senderName,
+        senderEmail,
+        fromEmailDomainId: null,
+        replyTo: senderEmail,
+        contentBlocks,
+        smsMessage: "",
+        sendAt: scheduled_at,
+        sendImmediately: false,
+        segmentIds: [selectedSegment.id],
+        personaIds: [],
+      });
+
+      if (sendNow) {
+        const { data: sendResult, error: sendError } =
+          await supabase.functions.invoke("send-email-campaign", {
+            body: { campaignId: persisted.campaign.id },
+          });
+
+        if (sendError) {
+          throw sendError;
+        }
+
+        if (sendResult?.error) {
+          throw new Error(sendResult.error);
+        }
+      }
 
       toast({
         title: sendNow ? "Campaign Sent!" : "Campaign Saved!",

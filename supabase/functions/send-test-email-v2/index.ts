@@ -134,7 +134,8 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     let resolvedContentBlocks: RenderableContentBlock[] | null = null;
-    let resolvedHtml = typeof html === "string" ? html.trim() : "";
+    const providedHtml = typeof html === "string" ? html.trim() : "";
+    let resolvedHtml = providedHtml;
     let resolvedSubject =
       typeof subject === "string" && subject.trim().length > 0
         ? subject.trim()
@@ -169,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (source.contentBlocks.length > 0) {
           resolvedContentBlocks = source.contentBlocks;
           resolvedHtml = "";
-        } else if (source.html.trim().length > 0) {
+        } else if (!providedHtml && source.html.trim().length > 0) {
           resolvedHtml = source.html.trim();
         }
 

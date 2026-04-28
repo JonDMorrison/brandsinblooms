@@ -1,21 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { useToast } from '@/hooks/use-toast';
-import { isValidEmail } from '@/lib/sendTestEmail';
-import { supabase } from '@/integrations/supabase/client';
-import { useCompanyInfo } from '@/hooks/useCompanyInfo';
-import { useFooterSettings } from '@/hooks/useFooterSettings';
-import { generateNewsletterFooterHtml } from '@/utils/newsletterFooterHtml';
+import React, { useState, useMemo } from "react";
 import {
-  Monitor,
-  Smartphone,
-  Send,
-  Loader2,
-  Mail
-} from 'lucide-react';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui-legacy/dialog";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { useToast } from "@/hooks/use-toast";
+import { isValidEmail } from "@/lib/sendTestEmail";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { useFooterSettings } from "@/hooks/useFooterSettings";
+import { generateNewsletterFooterHtml } from "@/utils/newsletterFooterHtml";
+import { Monitor, Smartphone, Send, Loader2, Mail } from "lucide-react";
 
 interface EmailPreviewProps {
   isOpen: boolean;
@@ -30,20 +29,23 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
   onClose,
   subject,
   content,
-  campaignId
+  campaignId,
 }) => {
   const { toast } = useToast();
   const { companyInfo } = useCompanyInfo();
   const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
-  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
-  const [testEmail, setTestEmail] = useState('');
+  const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
+  const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
   // Generate complete email HTML with footer (matches FullEmailPreview logic)
   const completeEmailHtml = useMemo(() => {
-    const hasUnsubscribe = content.toLowerCase().includes('unsubscribe');
-    const hasFooterStructure = content.includes('Manage Preferences') || content.includes('margin-top: 40px') || content.includes('max-width: 640px');
-    const hasSocialIcons = content.includes('social-icons/');
+    const hasUnsubscribe = content.toLowerCase().includes("unsubscribe");
+    const hasFooterStructure =
+      content.includes("Manage Preferences") ||
+      content.includes("margin-top: 40px") ||
+      content.includes("max-width: 640px");
+    const hasSocialIcons = content.includes("social-icons/");
     const hasFooter = hasUnsubscribe && (hasFooterStructure || hasSocialIcons);
 
     if (hasFooter) return content;
@@ -52,12 +54,27 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
     const brandFooterColors = companyInfo?.brandFooterColors;
 
     const effectiveColors = {
-      backgroundColor: footerStyling?.backgroundColor || brandFooterColors?.backgroundColor || companyInfo?.brandPrimaryColor || '#283024',
-      textColor: footerStyling?.textColor || brandFooterColors?.textColor || '#F3F4F6',
-      linkColor: footerStyling?.linkColor || brandFooterColors?.linkColor || '#E5BFA7',
-      dividerColor: footerStyling?.dividerColor || brandFooterColors?.dividerColor || '#3D4A38',
-      logoBackgroundColor: footerStyling?.logoBackgroundColor || brandFooterColors?.logoBackgroundColor || '#22C55E',
-      logoTextColor: footerStyling?.logoTextColor || brandFooterColors?.logoTextColor || '#FFFFFF',
+      backgroundColor:
+        footerStyling?.backgroundColor ||
+        brandFooterColors?.backgroundColor ||
+        companyInfo?.brandPrimaryColor ||
+        "#283024",
+      textColor:
+        footerStyling?.textColor || brandFooterColors?.textColor || "#F3F4F6",
+      linkColor:
+        footerStyling?.linkColor || brandFooterColors?.linkColor || "#E5BFA7",
+      dividerColor:
+        footerStyling?.dividerColor ||
+        brandFooterColors?.dividerColor ||
+        "#3D4A38",
+      logoBackgroundColor:
+        footerStyling?.logoBackgroundColor ||
+        brandFooterColors?.logoBackgroundColor ||
+        "#22C55E",
+      logoTextColor:
+        footerStyling?.logoTextColor ||
+        brandFooterColors?.logoTextColor ||
+        "#FFFFFF",
     };
 
     const footerHtml = generateNewsletterFooterHtml({
@@ -77,8 +94,8 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       pinterestUrl: companyInfo?.pinterestUrl,
       youtubeUrl: companyInfo?.youtubeUrl,
       linkedinUrl: companyInfo?.linkedinUrl,
-      unsubscribeUrl: '#unsubscribe',
-      managePreferencesUrl: '#preferences',
+      unsubscribeUrl: "#unsubscribe",
+      managePreferencesUrl: "#preferences",
       legalText: companyInfo?.footerLegalText || footerSettings?.complianceText,
       footerBackgroundColor: effectiveColors.backgroundColor,
       footerTextColor: effectiveColors.textColor,
@@ -89,10 +106,10 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       brandPrimaryColor: companyInfo?.brandPrimaryColor,
     });
 
-    if (content.includes('</body>')) {
-      return content.replace('</body>', `${footerHtml}</body>`);
-    } else if (content.includes('</html>')) {
-      return content.replace('</html>', `${footerHtml}</html>`);
+    if (content.includes("</body>")) {
+      return content.replace("</body>", `${footerHtml}</body>`);
+    } else if (content.includes("</html>")) {
+      return content.replace("</html>", `${footerHtml}</html>`);
     }
     return `${content}${footerHtml}`;
   }, [content, companyInfo, footerSettings, campaignOverrides]);
@@ -104,7 +121,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       toast({
         title: "Email Required",
         description: "Please enter an email address for the test",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -113,7 +130,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       toast({
         title: "Invalid Email",
         description: "Please enter a valid email address",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -122,20 +139,23 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
 
     try {
       // Use send-test-email-v2 for full personalization and merge tag support
-      const { data, error } = await supabase.functions.invoke('send-test-email-v2', {
-        body: {
-          toEmail: email,
-          subject: subject || 'Test Email Campaign',
-          html: content, // Raw content — server adds footer
-          campaignId,
-          sampleCustomer: {
-            first_name: 'Jane',
-            last_name: 'Gardener',
-            email: 'jane@example.com',
-            phone: '(555) 123-4567',
+      const { data, error } = await supabase.functions.invoke(
+        "send-test-email-v2",
+        {
+          body: {
+            toEmail: email,
+            subject: subject || "Test Email Campaign",
+            html: content, // Raw content — server adds footer
+            campaignId,
+            sampleCustomer: {
+              first_name: "Jane",
+              last_name: "Gardener",
+              email: "jane@example.com",
+              phone: "(555) 123-4567",
+            },
           },
         },
-      });
+      );
 
       if (error) {
         console.error("Edge function invoke error:", error);
@@ -145,7 +165,9 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
           try {
             const body = await errorContext.json();
             message = body?.error || message;
-          } catch { /* ignore parse failure */ }
+          } catch {
+            /* ignore parse failure */
+          }
         }
         toast({ title: "Error", description: message, variant: "destructive" });
         return;
@@ -154,22 +176,23 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
       if (data?.success) {
         toast({
           title: "Test Email Sent!",
-          description: `Test email sent to ${email}`
+          description: `Test email sent to ${email}`,
         });
-        setTestEmail('');
+        setTestEmail("");
       } else {
         toast({
           title: "Failed to Send Test Email",
-          description: data?.error || 'Unknown error',
-          variant: "destructive"
+          description: data?.error || "Unknown error",
+          variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error('Error sending test email:', error);
+      console.error("Error sending test email:", error);
       toast({
         title: "Error",
-        description: error?.message || "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        description:
+          error?.message || "An unexpected error occurred. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setSendingTest(false);
@@ -185,32 +208,34 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
             Email Preview
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex flex-col h-full">
           {/* Controls */}
           <div className="flex items-center justify-between p-4 border-b">
             <div className="flex items-center gap-2">
               <Button
-                variant={viewMode === 'desktop' ? 'default' : 'outline'}
+                variant={viewMode === "desktop" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('desktop')}
+                onClick={() => setViewMode("desktop")}
               >
                 <Monitor className="h-4 w-4 mr-1" />
                 Desktop
               </Button>
               <Button
-                variant={viewMode === 'mobile' ? 'default' : 'outline'}
+                variant={viewMode === "mobile" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode('mobile')}
+                onClick={() => setViewMode("mobile")}
               >
                 <Smartphone className="h-4 w-4 mr-1" />
                 Mobile
               </Button>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
-                <Label htmlFor="test-email" className="text-sm">Send test to:</Label>
+                <Label htmlFor="test-email" className="text-sm">
+                  Send test to:
+                </Label>
                 <Input
                   id="test-email"
                   type="email"
@@ -219,8 +244,8 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
                   placeholder="your-email@example.com"
                   className="w-48"
                 />
-                <Button 
-                  onClick={sendTestEmail} 
+                <Button
+                  onClick={sendTestEmail}
                   disabled={sendingTest}
                   size="sm"
                 >
@@ -233,46 +258,48 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Subject Line Preview */}
           <div className="p-4 bg-gray-50 border-b">
-            <div className="text-sm text-muted-foreground mb-1">Subject Line:</div>
-            <div className="font-medium">{subject || 'No subject line set'}</div>
+            <div className="text-sm text-muted-foreground mb-1">
+              Subject Line:
+            </div>
+            <div className="font-medium">
+              {subject || "No subject line set"}
+            </div>
           </div>
-          
+
           {/* Email Preview */}
           <div className="flex-1 overflow-auto p-4 bg-gray-100">
-            <div 
+            <div
               className={`mx-auto bg-white shadow-lg transition-all duration-300 ${
-                viewMode === 'mobile' 
-                  ? 'w-full max-w-sm' 
-                  : 'w-full max-w-2xl'
+                viewMode === "mobile" ? "w-full max-w-sm" : "w-full max-w-2xl"
               }`}
               style={{
-                minHeight: '600px'
+                minHeight: "600px",
               }}
             >
-              <div 
+              <div
                 className="w-full h-full"
                 style={{
-                  transform: viewMode === 'mobile' ? 'scale(0.9)' : 'scale(1)',
-                  transformOrigin: 'top center'
+                  transform: viewMode === "mobile" ? "scale(0.9)" : "scale(1)",
+                  transformOrigin: "top center",
                 }}
               >
                 <iframe
                   srcDoc={completeEmailHtml}
                   className="w-full h-full border-0"
-                  style={{ 
-                    minHeight: '600px',
-                    height: '100%'
+                  style={{
+                    minHeight: "600px",
+                    height: "100%",
                   }}
                   title="Email Preview"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts"
                 />
               </div>
             </div>
           </div>
-          
+
           {/* Footer */}
           <div className="p-4 border-t bg-gray-50">
             <div className="flex items-center justify-between">

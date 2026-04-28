@@ -1,3 +1,5 @@
+import { resolveImageSrcToHttps } from "./emailImageUrl.ts";
+
 export interface RenderableGalleryImage {
   id?: string;
   url: string;
@@ -45,6 +47,7 @@ export interface CampaignEmailSource {
   source:
     | "metadata-content-blocks"
     | "campaign-blocks"
+    | "content-json-blocks"
     | "legacy-html"
     | "empty";
   html: string;
@@ -121,18 +124,16 @@ function toHtmlText(value: string | undefined): string {
 }
 
 function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
-  return toArray(value)
-    .map((entry) => {
-      const record = toRecord(entry);
-      const url = stringValue(
-        record.url,
-        record.imageUrl,
-        record.image_url,
-        record.src,
-      );
-      if (!url) return null;
+  return toArray(value).flatMap((entry) => {
+    const record = toRecord(entry);
+    const url = resolveImageSrcToHttps(
+      stringValue(record.url, record.imageUrl, record.image_url, record.src) ??
+        null,
+    );
+    if (!url) return [];
 
-      return {
+    return [
+      {
         id: stringValue(record.id),
         url,
         alt: stringValue(
@@ -142,20 +143,22 @@ function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
           record.title,
         ),
         caption: stringValue(record.caption, record.title),
-      } satisfies RenderableGalleryImage;
-    })
-    .filter((entry): entry is RenderableGalleryImage => Boolean(entry));
+      } satisfies RenderableGalleryImage,
+    ];
+  });
 }
 
 function normalizeGalleryItems(value: unknown): RenderableGalleryItem[] {
   return toArray(value)
     .map((entry) => {
       const record = toRecord(entry);
-      const imageUrl = stringValue(
-        record.imageUrl,
-        record.image_url,
-        record.url,
-        record.src,
+      const imageUrl = resolveImageSrcToHttps(
+        stringValue(
+          record.imageUrl,
+          record.image_url,
+          record.url,
+          record.src,
+        ) ?? null,
       );
 
       return {
@@ -167,7 +170,7 @@ function normalizeGalleryItems(value: unknown): RenderableGalleryItem[] {
           record.subtitle,
         ),
         price: stringValue(record.price, record.priceLabel),
-        imageUrl,
+        imageUrl: imageUrl || undefined,
         buttonText: stringValue(
           record.buttonText,
           record.ctaText,
@@ -193,17 +196,23 @@ function normalizeContentBlock(
     typeof record.content === "string" ? record.content : undefined;
   const type =
     stringValue(record.type, record.block_type, nested.type) || "text";
-  const imageUrl = stringValue(
-    record.imageUrl,
-    record.image_url,
-    nested.imageUrl,
-    nested.image_url,
-  );
-  const backgroundImageUrl = stringValue(
-    record.backgroundImageUrl,
-    nested.backgroundImageUrl,
-    record.background_image_url,
-  );
+  const imageUrl =
+    resolveImageSrcToHttps(
+      stringValue(
+        record.imageUrl,
+        record.image_url,
+        nested.imageUrl,
+        nested.image_url,
+      ) ?? null,
+    ) || undefined;
+  const backgroundImageUrl =
+    resolveImageSrcToHttps(
+      stringValue(
+        record.backgroundImageUrl,
+        nested.backgroundImageUrl,
+        record.background_image_url,
+      ) ?? null,
+    ) || undefined;
 
   return {
     id: stringValue(record.id, nested.id) || `${type}-${index}`,
@@ -328,6 +337,79 @@ function renderBlockHeading(
     : "";
 
   return `${eyebrow}${heading}${subtitle}`;
+}
+
+const BLOCK_COLLECTION_KEYS = [
+  "contentBlocks",
+  "content_blocks",
+  "blocks",
+  "layout_json",
+  "layoutJson",
+  "templateBlocks",
+  "template_blocks",
+] as const;
+
+function normalizeRenderableBlocks(value: unknown): RenderableContentBlock[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((block, index) => normalizeContentBlock(block, index))
+      .filter((block): block is RenderableContentBlock => Boolean(block));
+  }
+
+  const record = toRecord(value);
+  if (Object.keys(record).length === 0) {
+    return [];
+  }
+
+  const nested = toRecord(record.content);
+  const looksLikeSingleBlock = Boolean(
+    stringValue(record.type, record.block_type, nested.type),
+  );
+
+  if (!looksLikeSingleBlock) {
+    return [];
+  }
+
+  const block = normalizeContentBlock(record, 0);
+  return block ? [block] : [];
+}
+
+function extractRenderableBlocksFromUnknown(
+  value: unknown,
+  depth = 0,
+): RenderableContentBlock[] {
+  if (depth > 3 || value == null) {
+    return [];
+  }
+
+  const directBlocks = normalizeRenderableBlocks(value);
+  if (directBlocks.length > 0) {
+    return directBlocks;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || !/^[\[{]/.test(trimmed)) {
+      return [];
+    }
+
+    const parsed = safeParseJson(trimmed);
+    if (parsed == null) {
+      return [];
+    }
+
+    return extractRenderableBlocksFromUnknown(parsed, depth + 1);
+  }
+
+  const record = toRecord(value);
+  for (const key of BLOCK_COLLECTION_KEYS) {
+    const blocks = extractRenderableBlocksFromUnknown(record[key], depth + 1);
+    if (blocks.length > 0) {
+      return blocks;
+    }
+  }
+
+  return [];
 }
 
 function renderBlockBody(
@@ -583,10 +665,7 @@ export function renderContentBlocksToEmailHtml(
 function extractMetadataContentBlocks(
   metadata: unknown,
 ): RenderableContentBlock[] {
-  const metadataRecord = toRecord(metadata);
-  return toArray(metadataRecord.contentBlocks)
-    .map((block, index) => normalizeContentBlock(block, index))
-    .filter((block): block is RenderableContentBlock => Boolean(block));
+  return extractRenderableBlocksFromUnknown(metadata);
 }
 
 export async function resolveCampaignEmailSource(
@@ -629,6 +708,20 @@ export async function resolveCampaignEmailSource(
         };
       }
     }
+  }
+
+  const contentJsonBlocks = extractRenderableBlocksFromUnknown(
+    campaign.content,
+  );
+  if (contentJsonBlocks.length > 0) {
+    return {
+      source: "content-json-blocks",
+      html: "",
+      contentBlocks: contentJsonBlocks,
+      usedLegacyHtml: false,
+      warning:
+        "Recovered structured campaign blocks from crm_campaigns.content JSON because no metadata.contentBlocks or campaign_blocks were found.",
+    };
   }
 
   const legacyHtml =

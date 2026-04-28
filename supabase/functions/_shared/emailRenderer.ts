@@ -28,6 +28,7 @@ import {
   renderContentBlocksToEmailHtml,
   type RenderableContentBlock,
 } from "./campaignEmailSource.ts";
+import { sanitizeEmailHtmlImageSources } from "./emailImageUrl.ts";
 
 // ============================================================================
 // TYPES
@@ -330,9 +331,15 @@ export function renderEmailForRecipient(
     ).html;
   }
 
+  const imageSanitization = sanitizeEmailHtmlImageSources(
+    renderedHtml,
+    "emailRenderer",
+  );
+  renderedHtml = imageSanitization.html;
+
   // Step 9: Log diagnostics
   console.log(
-    `[emailRenderer] usedTags=${usedTags.length}, legacy=${legacyTagsConverted}, missing=${missingTags.length}, empty=${emptyResolvedTags.length}`,
+    `[emailRenderer] usedTags=${usedTags.length}, legacy=${legacyTagsConverted}, missing=${missingTags.length}, empty=${emptyResolvedTags.length}, imageWarnings=${imageSanitization.warnings.length}`,
   );
 
   return {

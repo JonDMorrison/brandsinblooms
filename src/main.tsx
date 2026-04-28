@@ -86,7 +86,9 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <JoyThemeProvider>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <TooltipProvider delayDuration={300} skipDelayDuration={100}>
           <LoadingProvider>
             <AuthProvider>

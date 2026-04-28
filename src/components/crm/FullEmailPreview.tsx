@@ -156,7 +156,10 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
   const hasSocialLinks = Object.values(socialLinksStatus).some(Boolean);
 
-  const hasImageTextBlocks = content.includes("mobile-full-width") || content.includes("mobile-stack") || content.includes("width: 50%");
+  const hasImageTextBlocks =
+    content.includes("mobile-full-width") ||
+    content.includes("mobile-stack") ||
+    content.includes("width: 50%");
 
   const sendTestEmailHandler = async () => {
     const email = testEmail.trim();
@@ -183,20 +186,23 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
 
     try {
       // Use send-test-email-v2 for full personalization and merge tag support
-      const { data, error } = await supabase.functions.invoke('send-test-email-v2', {
-        body: {
-          toEmail: email,
-          subject: subject || "Test Email Campaign",
-          html: content, // Raw content — server adds footer and resolves merge tags
-          campaignId: campaignId,
-          sampleCustomer: {
-            first_name: 'Jane',
-            last_name: 'Gardener',
-            email: 'jane@example.com',
-            phone: '(555) 123-4567',
+      const { data, error } = await supabase.functions.invoke(
+        "send-test-email-v2",
+        {
+          body: {
+            toEmail: email,
+            subject: subject || "Test Email Campaign",
+            html: content, // Raw content — server adds footer and resolves merge tags
+            campaignId: campaignId,
+            sampleCustomer: {
+              first_name: "Jane",
+              last_name: "Gardener",
+              email: "jane@example.com",
+              phone: "(555) 123-4567",
+            },
           },
         },
-      });
+      );
 
       // Edge function now returns 200 for all responses, so error here means
       // a network/infrastructure failure, not an application error.
@@ -209,7 +215,9 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
           try {
             const body = await errorContext.json();
             message = body?.error || message;
-          } catch { /* ignore parse failure */ }
+          } catch {
+            /* ignore parse failure */
+          }
         }
         toast({ title: "Error", description: message, variant: "destructive" });
         return;
@@ -232,7 +240,8 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
       console.error("Error sending test email:", error);
       toast({
         title: "Error",
-        description: error?.message || "An unexpected error occurred. Please try again.",
+        description:
+          error?.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -343,7 +352,10 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
                 )}
                 <div
                   className="relative mx-auto overflow-hidden rounded-[2.5rem] shadow-2xl"
-                  style={{ border: "10px solid #1a1a2e", background: "#1a1a2e" }}
+                  style={{
+                    border: "10px solid #1a1a2e",
+                    background: "#1a1a2e",
+                  }}
                 >
                   {/* Notch */}
                   <div className="flex items-center justify-center py-2">
@@ -356,7 +368,7 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
                       className="w-full border-0"
                       style={{ height: 680, width: 370 }}
                       title="Mobile Email Preview"
-                      sandbox="allow-same-origin"
+                      sandbox="allow-same-origin allow-scripts"
                     />
                   </div>
                   {/* Bottom bar */}
@@ -369,13 +381,16 @@ export const FullEmailPreview: React.FC<FullEmailPreviewProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="mx-auto max-w-2xl bg-white shadow-lg rounded-lg overflow-hidden" style={{ minWidth: 640 }}>
+              <div
+                className="mx-auto max-w-2xl bg-white shadow-lg rounded-lg overflow-hidden"
+                style={{ minWidth: 640 }}
+              >
                 <iframe
                   srcDoc={completeEmailHtml}
                   className="w-full border-0"
                   style={{ minHeight: 600, height: 800, minWidth: 640 }}
                   title="Full Email Preview"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts"
                 />
               </div>
             )}
