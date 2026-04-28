@@ -1296,11 +1296,14 @@ export function SMSCampaignWizard() {
                           placeholder="Add labels like VIP, Seasonal, Reminder"
                           renderTags={(value, getTagProps) =>
                             value.map((tag, index) => {
-                              const tagProps = getTagProps({ index });
+                              const { key, ...tagProps } = getTagProps({
+                                index,
+                              });
+
                               return (
                                 <Chip
+                                  key={key ?? `${tag}-${index}`}
                                   {...tagProps}
-                                  key={`${tag}-${index}`}
                                   size="sm"
                                   variant="soft"
                                   color="primary"

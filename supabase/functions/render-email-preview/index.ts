@@ -19,11 +19,6 @@ import {
 } from "../_shared/linkRewriter.ts";
 import type { RenderableContentBlock } from "../_shared/campaignEmailSource.ts";
 
-interface TrackedLinkRow {
-  id?: string | null;
-  url?: string | null;
-}
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -100,7 +95,7 @@ async function buildTrackedLinkMap({
     );
   }
 
-  (existingLinks as TrackedLinkRow[] | null ?? []).forEach((link) => {
+  (existingLinks ?? []).forEach((link) => {
     const linkId = typeof link?.id === "string" ? link.id : null;
     const linkUrl = typeof link?.url === "string" ? link.url : null;
     if (linkId && linkUrl) {
@@ -148,7 +143,7 @@ async function buildTrackedLinkMap({
     return map;
   }
 
-  (insertedLinks as TrackedLinkRow[] | null ?? []).forEach((link) => {
+  (insertedLinks ?? []).forEach((link) => {
     const linkId = typeof link?.id === "string" ? link.id : null;
     const linkUrl = typeof link?.url === "string" ? link.url : null;
     if (linkId && linkUrl) {
