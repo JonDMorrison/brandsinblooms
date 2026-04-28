@@ -1,15 +1,25 @@
 import * as React from "react";
+import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Mail,
   Monitor,
   RefreshCw,
+  Send,
   Smartphone,
   User,
 } from "lucide-react";
@@ -52,6 +62,12 @@ type PreviewDiagnostics = {
   emptyResolvedTags: string[];
   legacyTagsConverted: number;
 };
+
+type PreviewTab = "preview" | "send-test";
+type SendTestState =
+  | { tone: "neutral"; message: string }
+  | { tone: "success"; message: string }
+  | { tone: "danger"; message: string };
 
 type PreviewCompanyInfo = ReturnType<typeof useCompanyInfo>["companyInfo"];
 
@@ -492,6 +508,7 @@ export function CampaignPreviewDialog({
   const { companyInfo } = useCompanyInfo();
   const {
     campaignType,
+    status,
     contentBlocks,
     smsMessage,
     subjectLine,
@@ -510,6 +527,11 @@ export function CampaignPreviewDialog({
   );
   const [diagnostics, setDiagnostics] =
     React.useState<PreviewDiagnostics | null>(null);
+  const [activeTab, setActiveTab] = React.useState<PreviewTab>("preview");
+  const [testEmail, setTestEmail] = React.useState("");
+  const [isSendingTest, setIsSendingTest] = React.useState(false);
+  const [sendTestState, setSendTestState] =
+    React.useState<SendTestState | null>(null);
   const renderRequestIdRef = React.useRef(0);
 
   const segmentIds = React.useMemo(
@@ -561,6 +583,110 @@ export function CampaignPreviewDialog({
   const hasDiagnosticsWarning =
     (diagnostics?.missingTags.length ?? 0) > 0 ||
     (diagnostics?.emptyResolvedTags.length ?? 0) > 0;
+  const canSendTest =
+    campaignType === "email" && (status === "draft" || status === "scheduled");
+
+  const validateEmail = React.useCallback((value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  }, []);
+
+  const sendTestEmail = React.useCallback(async () => {
+    const email = testEmail.trim();
+
+    if (!email) {
+      setSendTestState({
+        tone: "danger",
+        message: "Enter an email address to send a test.",
+      });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setSendTestState({
+        tone: "danger",
+        message: "Enter a valid email address.",
+      });
+      return;
+    }
+
+    setIsSendingTest(true);
+    setSendTestState(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "send-test-email-v2",
+        {
+          body: {
+            toEmail: email,
+            subject: subjectLine || "Test Email Campaign",
+            html: previewHtml,
+            sampleCustomer: SAMPLE_PREVIEW_CUSTOMER,
+          },
+        },
+      );
+
+      if (error) {
+        setSendTestState({
+          tone: "danger",
+          message: "Unable to reach test email service. Try again.",
+        });
+        return;
+      }
+
+      if (data?.success) {
+        setSendTestState({
+          tone: "success",
+          message: `Test email sent to ${email}.`,
+        });
+        return;
+      }
+
+      setSendTestState({
+        tone: "danger",
+        message:
+          (typeof data?.error === "string" && data.error) ||
+          "Test email failed. Check sender configuration and try again.",
+      });
+    } catch (error) {
+      setSendTestState({
+        tone: "danger",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unexpected error while sending test email.",
+      });
+    } finally {
+      setIsSendingTest(false);
+    }
+  }, [previewHtml, subjectLine, testEmail, validateEmail]);
+
+  React.useEffect(() => {
+    if (!open || campaignType !== "email") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSignedInEmail = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (cancelled || !user?.email) {
+        return;
+      }
+
+      setTestEmail((current) =>
+        current.trim() ? current : (user.email ?? ""),
+      );
+    };
+
+    void loadSignedInEmail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignType, open]);
 
   const renderPreview = React.useCallback(async () => {
     if (campaignType !== "email") {
@@ -628,6 +754,9 @@ export function CampaignPreviewDialog({
       setRenderedHtml(null);
       setRenderedSubject(null);
       setDiagnostics(null);
+      setActiveTab("preview");
+      setSendTestState(null);
+      setIsSendingTest(false);
       return;
     }
 
@@ -699,225 +828,379 @@ export function CampaignPreviewDialog({
               </Typography>
             </Box>
           ) : (
-            <Stack spacing={2}>
-              <Sheet
-                variant="outlined"
+            <Tabs
+              value={activeTab}
+              onChange={(_event, value) => setActiveTab(value as PreviewTab)}
+            >
+              <TabList
+                disableUnderline
                 sx={{
-                  borderRadius: "lg",
-                  p: 2,
-                  borderColor: "neutral.200",
+                  width: "fit-content",
+                  alignSelf: "flex-start",
+                  p: 0.5,
+                  borderRadius: "999px",
+                  bgcolor: "neutral.100",
+                  gap: 0.5,
                 }}
               >
-                <Stack spacing={1.25}>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    justifyContent="space-between"
+                <Tab
+                  value="preview"
+                  disableIndicator
+                  sx={{
+                    borderRadius: "999px",
+                    fontWeight: "md",
+                    minHeight: 34,
+                    px: 2,
+                    color: "neutral.600",
+                    "&.Mui-selected": {
+                      bgcolor: "neutral.200",
+                      color: "neutral.800",
+                    },
+                  }}
+                >
+                  Preview
+                </Tab>
+                {canSendTest ? (
+                  <Tab
+                    value="send-test"
+                    disableIndicator
+                    sx={{
+                      borderRadius: "999px",
+                      fontWeight: "md",
+                      minHeight: 34,
+                      px: 2,
+                      color: "neutral.600",
+                      "&.Mui-selected": {
+                        bgcolor: "neutral.200",
+                        color: "neutral.800",
+                      },
+                    }}
                   >
-                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        Subject
-                      </Typography>
-                      <Typography level="body-sm" fontWeight="lg">
-                        {renderedSubject || subjectLine || "No subject line"}
-                      </Typography>
-                    </Stack>
-                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        Preview text
-                      </Typography>
-                      <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-                        {preheaderText || "No preview text"}
-                      </Typography>
-                    </Stack>
-                  </Stack>
+                    Send Test
+                  </Tab>
+                ) : null}
+              </TabList>
 
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
+              <TabPanel value="preview" sx={{ px: 0 }}>
+                <Stack spacing={2}>
+                  <Sheet
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "lg",
+                      p: 2,
+                      borderColor: "neutral.200",
+                    }}
                   >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <User size={14} />
-                      <Typography level="body-sm">
-                        Preview shown for: {previewRecipientLabel}
-                      </Typography>
-                    </Stack>
-                    {diagnostics?.usedTags.length ? (
-                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        {diagnostics.usedTags.length} merge tags rendered
-                      </Typography>
-                    ) : null}
-                  </Stack>
-
-                  {previewCustomerQuery.error ? (
-                    <Typography level="body-xs" sx={{ color: "warning.700" }}>
-                      Could not load an audience recipient. Showing the sample
-                      customer instead.
-                    </Typography>
-                  ) : null}
-
-                  {hasDiagnosticsWarning ? (
-                    <Sheet
-                      variant="soft"
-                      color="warning"
-                      sx={{ borderRadius: "md", p: 1.25 }}
-                    >
+                    <Stack spacing={1.25}>
                       <Stack
-                        direction="row"
+                        direction={{ xs: "column", sm: "row" }}
                         spacing={1}
-                        alignItems="flex-start"
+                        justifyContent="space-between"
                       >
-                        <AlertTriangle
-                          size={14}
-                          style={{
-                            color: "var(--joy-palette-warning-700)",
-                            marginTop: 2,
-                            flexShrink: 0,
-                          }}
-                        />
+                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            Subject
+                          </Typography>
+                          <Typography level="body-sm" fontWeight="lg">
+                            {renderedSubject ||
+                              subjectLine ||
+                              "No subject line"}
+                          </Typography>
+                        </Stack>
+                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            Preview text
+                          </Typography>
+                          <Typography
+                            level="body-sm"
+                            sx={{ color: "neutral.700" }}
+                          >
+                            {preheaderText || "No preview text"}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <User size={14} />
+                          <Typography level="body-sm">
+                            Preview shown for: {previewRecipientLabel}
+                          </Typography>
+                        </Stack>
+                        {diagnostics?.usedTags.length ? (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            {diagnostics.usedTags.length} merge tags rendered
+                          </Typography>
+                        ) : null}
+                      </Stack>
+
+                      {previewCustomerQuery.error ? (
                         <Typography
                           level="body-xs"
                           sx={{ color: "warning.700" }}
                         >
-                          Merge-tag preview found missing or empty
-                          personalization values.
+                          Could not load an audience recipient. Showing the
+                          sample customer instead.
                         </Typography>
+                      ) : null}
+
+                      {hasDiagnosticsWarning ? (
+                        <Sheet
+                          variant="soft"
+                          color="warning"
+                          sx={{ borderRadius: "md", p: 1.25 }}
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="flex-start"
+                          >
+                            <AlertTriangle
+                              size={14}
+                              style={{
+                                color: "var(--joy-palette-warning-700)",
+                                marginTop: 2,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "warning.700" }}
+                            >
+                              Merge-tag preview found missing or empty
+                              personalization values.
+                            </Typography>
+                          </Stack>
+                        </Sheet>
+                      ) : null}
+                    </Stack>
+                  </Sheet>
+
+                  {renderError ? (
+                    <Sheet
+                      variant="soft"
+                      color="danger"
+                      sx={{ borderRadius: "lg", p: 2 }}
+                    >
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1.5}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                      >
+                        <Stack spacing={0.5}>
+                          <Typography level="title-sm">
+                            Preview failed to render
+                          </Typography>
+                          <Typography level="body-sm">{renderError}</Typography>
+                        </Stack>
+                        <JoyButton
+                          bloomVariant="secondary"
+                          startDecorator={<RefreshCw size={16} />}
+                          onClick={() => void renderPreview()}
+                        >
+                          Retry
+                        </JoyButton>
                       </Stack>
                     </Sheet>
                   ) : null}
-                </Stack>
-              </Sheet>
 
-              {renderError ? (
-                <Sheet
-                  variant="soft"
-                  color="danger"
-                  sx={{ borderRadius: "lg", p: 2 }}
-                >
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1.5}
-                    justifyContent="space-between"
-                    alignItems={{ xs: "flex-start", sm: "center" }}
-                  >
-                    <Stack spacing={0.5}>
-                      <Typography level="title-sm">
-                        Preview failed to render
-                      </Typography>
-                      <Typography level="body-sm">{renderError}</Typography>
-                    </Stack>
-                    <JoyButton
-                      bloomVariant="secondary"
-                      startDecorator={<RefreshCw size={16} />}
-                      onClick={() => void renderPreview()}
-                    >
-                      Retry
-                    </JoyButton>
-                  </Stack>
-                </Sheet>
-              ) : null}
-
-              {isRendering ||
-              (hasAudienceSelection && previewCustomerQuery.isLoading) ? (
-                <Stack spacing={1.5}>
-                  <Sheet
-                    variant="outlined"
-                    sx={{
-                      borderRadius: "lg",
-                      p: 2,
-                      borderColor: "neutral.200",
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <CircularProgress size="sm" />
-                      <Typography level="body-sm">
-                        Rendering preview
-                        {hasAudienceSelection && previewCustomerQuery.isLoading
-                          ? " and selecting a recipient"
-                          : ""}
-                        ...
-                      </Typography>
-                    </Stack>
-                  </Sheet>
-                  <Sheet
-                    variant="outlined"
-                    sx={{
-                      borderRadius: "lg",
-                      p: 2,
-                      borderColor: "neutral.200",
-                    }}
-                  >
-                    <Skeleton
-                      variant="rectangular"
-                      sx={{ borderRadius: "md", height: 560 }}
-                    />
-                  </Sheet>
-                </Stack>
-              ) : renderedHtml ? (
-                <Box
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  {viewMode === "mobile" ? (
-                    <Box sx={{ width: "min(420px, 100%)" }}>
-                      <Box
+                  {isRendering ||
+                  (hasAudienceSelection && previewCustomerQuery.isLoading) ? (
+                    <Stack spacing={1.5}>
+                      <Sheet
+                        variant="outlined"
                         sx={{
-                          borderRadius: "36px",
-                          p: 1,
-                          backgroundColor: "#111827",
-                          boxShadow: "lg",
+                          borderRadius: "lg",
+                          p: 2,
+                          borderColor: "neutral.200",
                         }}
                       >
-                        <Box
-                          sx={{
-                            height: 6,
-                            width: 88,
-                            borderRadius: 999,
-                            backgroundColor: "rgba(255,255,255,0.24)",
-                            mx: "auto",
-                            my: 1,
-                          }}
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
+                        >
+                          <CircularProgress size="sm" />
+                          <Typography level="body-sm">
+                            Rendering preview
+                            {hasAudienceSelection &&
+                            previewCustomerQuery.isLoading
+                              ? " and selecting a recipient"
+                              : ""}
+                            ...
+                          </Typography>
+                        </Stack>
+                      </Sheet>
+                      <Sheet
+                        variant="outlined"
+                        sx={{
+                          borderRadius: "lg",
+                          p: 2,
+                          borderColor: "neutral.200",
+                        }}
+                      >
+                        <Skeleton
+                          variant="rectangular"
+                          sx={{ borderRadius: "md", height: 560 }}
                         />
+                      </Sheet>
+                    </Stack>
+                  ) : renderedHtml ? (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {viewMode === "mobile" ? (
+                        <Box sx={{ width: "min(420px, 100%)" }}>
+                          <Box
+                            sx={{
+                              borderRadius: "36px",
+                              p: 1,
+                              backgroundColor: "#111827",
+                              boxShadow: "lg",
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                height: 6,
+                                width: 88,
+                                borderRadius: 999,
+                                backgroundColor: "rgba(255,255,255,0.24)",
+                                mx: "auto",
+                                my: 1,
+                              }}
+                            />
+                            <Box
+                              component="iframe"
+                              srcDoc={renderedHtml}
+                              title="Mobile campaign preview"
+                              sandbox="allow-same-origin allow-scripts"
+                              sx={{
+                                width: "100%",
+                                height: 680,
+                                border: 0,
+                                borderRadius: "28px",
+                                backgroundColor: "common.white",
+                              }}
+                            />
+                          </Box>
+                        </Box>
+                      ) : (
                         <Box
                           component="iframe"
                           srcDoc={renderedHtml}
-                          title="Mobile campaign preview"
-                          sandbox="allow-same-origin"
+                          title="Campaign preview"
+                          sandbox="allow-same-origin allow-scripts"
                           sx={{
                             width: "100%",
-                            height: 680,
-                            border: 0,
-                            borderRadius: "28px",
+                            minHeight: 720,
+                            border: "1px solid",
+                            borderColor: "neutral.200",
+                            borderRadius: "lg",
                             backgroundColor: "common.white",
+                            boxShadow: "sm",
                           }}
                         />
-                      </Box>
+                      )}
                     </Box>
-                  ) : (
-                    <Box
-                      component="iframe"
-                      srcDoc={renderedHtml}
-                      title="Campaign preview"
-                      sandbox="allow-same-origin"
+                  ) : null}
+                </Stack>
+              </TabPanel>
+
+              {canSendTest ? (
+                <TabPanel value="send-test" sx={{ px: 0 }}>
+                  <Stack spacing={2}>
+                    <Sheet
+                      variant="outlined"
                       sx={{
-                        width: "100%",
-                        minHeight: 720,
-                        border: "1px solid",
-                        borderColor: "neutral.200",
                         borderRadius: "lg",
-                        backgroundColor: "common.white",
-                        boxShadow: "sm",
+                        p: 2,
+                        borderColor: "neutral.200",
                       }}
-                    />
-                  )}
-                </Box>
+                    >
+                      <Stack spacing={1.5}>
+                        <Typography level="title-sm">
+                          Send A Test Email
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "neutral.600" }}
+                        >
+                          Send this campaign to yourself to verify layout,
+                          personalization, and links before scheduling.
+                        </Typography>
+                        <FormControl size="sm">
+                          <FormLabel>Email address</FormLabel>
+                          <Input
+                            type="email"
+                            value={testEmail}
+                            startDecorator={<Mail size={14} />}
+                            placeholder="you@example.com"
+                            onChange={(event) => {
+                              setTestEmail(event.target.value);
+                              if (sendTestState?.tone === "danger") {
+                                setSendTestState(null);
+                              }
+                            }}
+                            disabled={isSendingTest}
+                          />
+                        </FormControl>
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                        >
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            Subject: {subjectLine || "No subject line"}
+                          </Typography>
+                          <JoyButton
+                            onClick={() => void sendTestEmail()}
+                            disabled={isSendingTest || !previewHtml.trim()}
+                            startDecorator={
+                              isSendingTest ? (
+                                <CircularProgress size="sm" />
+                              ) : (
+                                <Send size={14} />
+                              )
+                            }
+                          >
+                            {isSendingTest ? "Sending..." : "Send Test"}
+                          </JoyButton>
+                        </Stack>
+                      </Stack>
+                    </Sheet>
+
+                    {sendTestState ? (
+                      <Alert color={sendTestState.tone} variant="soft">
+                        {sendTestState.message}
+                      </Alert>
+                    ) : null}
+                  </Stack>
+                </TabPanel>
               ) : null}
-            </Stack>
+            </Tabs>
           )}
         </Stack>
       </JoyDialogContent>

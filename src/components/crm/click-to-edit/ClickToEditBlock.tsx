@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { Card } from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
@@ -273,6 +279,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     editMode !== null && imageEditSnapshotRef.current
       ? !areBlocksEqual(localBlock, imageEditSnapshotRef.current)
       : false;
+  const blockLabel = useMemo(
+    () => getBlockDisplayLabel(localBlock, index),
+    [localBlock, index],
+  );
 
   useEffect(() => {
     if (!onEditSessionChange) return;
@@ -289,20 +299,19 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
     onEditSessionChange({
       blockId: block.id,
-      blockLabel: getBlockDisplayLabel(block, index),
+      blockLabel,
       isDirty,
       save: commitBlockChanges,
       discard: discardBlockChanges,
       cancel: cancelBlockEditing,
     });
   }, [
-    block,
     block.id,
+    blockLabel,
     cancelBlockEditing,
     commitBlockChanges,
     discardBlockChanges,
     editMode,
-    index,
     isDirty,
     onEditSessionChange,
   ]);

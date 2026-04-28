@@ -500,7 +500,7 @@ function EmailPreviewFrame({
       <iframe
         title={title}
         srcDoc={html}
-        sandbox="allow-same-origin"
+        sandbox="allow-same-origin allow-scripts"
         style={{
           width: "100%",
           height,

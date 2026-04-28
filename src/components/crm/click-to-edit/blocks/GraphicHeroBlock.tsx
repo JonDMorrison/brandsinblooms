@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
+import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { Label } from "@/components/ui-legacy/label";
 import {
