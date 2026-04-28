@@ -1,9 +1,9 @@
 /**
  * Shared CORS configuration for all Supabase Edge Functions
- * 
+ *
  * This file provides standardized CORS headers that work reliably across
- * all browsers and comply with web standards. 
- * 
+ * all browsers and comply with web standards.
+ *
  * Key principles:
  * - Only use standard, widely-supported headers
  * - Remove non-standard headers like 'x-application-name' that can cause preflight failures
@@ -23,22 +23,91 @@ const DEFAULT_ALLOW_HEADERS =
 const DEFAULT_ALLOW_METHODS = "GET, POST, PUT, DELETE, OPTIONS";
 const DEFAULT_MAX_AGE = "86400";
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://bloomsuite.app",
+  "https://www.bloomsuite.app",
+  "http://localhost:3000",
+  "http://localhost:5173",
+];
+
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function readConfiguredOrigins(): Set<string> {
+  const configuredOrigins = new Set<string>();
+
+  for (const origin of DEFAULT_ALLOWED_ORIGINS) {
+    configuredOrigins.add(origin);
+  }
+
+  const envValues = [
+    Deno.env.get("APP_ORIGIN"),
+    Deno.env.get("APP_BASE_URL"),
+    Deno.env.get("SITE_URL"),
+    Deno.env.get("CMS_ORIGIN"),
+    Deno.env.get("CRM_ORIGIN"),
+    Deno.env.get("OAUTH_CORS_ORIGINS"),
+  ];
+
+  for (const envValue of envValues) {
+    if (!envValue?.trim()) {
+      continue;
+    }
+
+    for (const candidate of envValue.split(",")) {
+      const normalized = normalizeOrigin(candidate.trim());
+      if (normalized) {
+        configuredOrigins.add(normalized);
+      }
+    }
+  }
+
+  return configuredOrigins;
+}
+
+function resolveAllowOrigin(
+  req?: Request,
+  explicitAllowOrigin: string = DEFAULT_ALLOW_ORIGIN,
+): string {
+  if (explicitAllowOrigin !== DEFAULT_ALLOW_ORIGIN) {
+    return explicitAllowOrigin;
+  }
+
+  const requestOrigin = req?.headers.get("Origin");
+  if (!requestOrigin) {
+    return DEFAULT_ALLOW_ORIGIN;
+  }
+
+  const normalizedOrigin = normalizeOrigin(requestOrigin);
+  if (!normalizedOrigin) {
+    return DEFAULT_ALLOW_ORIGIN;
+  }
+
+  return readConfiguredOrigins().has(normalizedOrigin)
+    ? normalizedOrigin
+    : DEFAULT_ALLOW_ORIGIN;
+}
+
 export const corsHeaders = {
   // TODO: tighten this with a validated tenant/storefront origin allowlist.
-  'Access-Control-Allow-Origin': DEFAULT_ALLOW_ORIGIN,
-  'Access-Control-Allow-Headers': DEFAULT_ALLOW_HEADERS,
-  'Access-Control-Allow-Methods': DEFAULT_ALLOW_METHODS,
-  'Access-Control-Max-Age': DEFAULT_MAX_AGE,
+  "Access-Control-Allow-Origin": DEFAULT_ALLOW_ORIGIN,
+  "Access-Control-Allow-Headers": DEFAULT_ALLOW_HEADERS,
+  "Access-Control-Allow-Methods": DEFAULT_ALLOW_METHODS,
+  "Access-Control-Max-Age": DEFAULT_MAX_AGE,
+  Vary: "Origin",
 };
 
-export const buildCorsHeaders = (
-  _req?: Request,
-  options: CorsOptions = {},
-) => ({
-  'Access-Control-Allow-Origin': options.allowOrigin ?? DEFAULT_ALLOW_ORIGIN,
-  'Access-Control-Allow-Headers': options.allowHeaders ?? DEFAULT_ALLOW_HEADERS,
-  'Access-Control-Allow-Methods': options.allowMethods ?? DEFAULT_ALLOW_METHODS,
-  'Access-Control-Max-Age': options.maxAge ?? DEFAULT_MAX_AGE,
+export const buildCorsHeaders = (req?: Request, options: CorsOptions = {}) => ({
+  "Access-Control-Allow-Origin": resolveAllowOrigin(req, options.allowOrigin),
+  "Access-Control-Allow-Headers": options.allowHeaders ?? DEFAULT_ALLOW_HEADERS,
+  "Access-Control-Allow-Methods": options.allowMethods ?? DEFAULT_ALLOW_METHODS,
+  "Access-Control-Max-Age": options.maxAge ?? DEFAULT_MAX_AGE,
+  Vary: "Origin",
 });
 
 /**
@@ -49,7 +118,7 @@ export const handleCorsPreflight = (
   req: Request,
   options: CorsOptions = {},
 ): Response | null => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
       headers: buildCorsHeaders(req, options),
@@ -68,10 +137,12 @@ export const addCorsHeaders = (
   options: CorsOptions = {},
 ): Response => {
   const headers = new Headers(response.headers);
-  Object.entries(buildCorsHeaders(undefined, options)).forEach(([key, value]) => {
-    headers.set(key, value);
-  });
-  
+  Object.entries(buildCorsHeaders(undefined, options)).forEach(
+    ([key, value]) => {
+      headers.set(key, value);
+    },
+  );
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -83,20 +154,20 @@ export const addCorsHeaders = (
  * Create a JSON response with CORS headers
  */
 export const corsJsonResponse = (
-  data: any, 
+  data: unknown,
   options: {
     cors?: CorsOptions;
     status?: number;
     headers?: Record<string, string>;
-  } = {}
+  } = {},
 ): Response => {
   const { cors, status = 200, headers: additionalHeaders = {} } = options;
-  
+
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...buildCorsHeaders(undefined, cors),
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...additionalHeaders,
     },
   });

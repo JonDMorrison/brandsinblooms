@@ -79,6 +79,7 @@
     "framer-motion": "^12.25.0",
     "highlight.js": "^11.11.1",
     "input-otp": "^1.2.4",
+    "jose": "^6.2.2",
     "js-yaml": "^4.1.0",
     "jsdom": "^26.1.0",
     "lottie-react": "^2.4.1",
