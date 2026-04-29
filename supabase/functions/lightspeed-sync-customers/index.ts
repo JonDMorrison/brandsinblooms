@@ -3,6 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 // FIX: [P14] - Use proper decryptToken
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
+import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
 
 console.log("[LS-SYNC-CUSTOMERS] Edge function starting");
@@ -90,31 +91,11 @@ function mapLightspeedCustomerRow(
   tenantId: string,
   customer: LightspeedCustomer,
 ) {
-  const email = normalizeEmail(customer.email);
-  const phone = getCustomerPhone(customer);
-  const loyaltyBalance =
-    customer.loyalty_balance !== undefined && customer.loyalty_balance !== null
-      ? toNullableNumber(customer.loyalty_balance)
-      : customer.loyaltyBalance !== undefined &&
-          customer.loyaltyBalance !== null
-        ? toNullableNumber(customer.loyaltyBalance)
-        : customer.creditAccountID
-          ? 0
-          : null;
-
-  const purchaseCount = toNullableNumber(
-    customer.num_visits ?? customer.numVisits ?? customer.purchaseCount,
-  );
-  const totalSpend = toNullableNumber(
-    customer.total_spend ?? customer.totalSpend,
-  );
-
-  return {
+  const providerRow: Record<string, unknown> = {
     tenant_id: tenantId,
     lightspeed_customer_id: String(customer.id ?? customer.customerID),
-    contact_id: customer.contact_id ? String(customer.contact_id) : null,
-    email,
-    phone,
+    email: normalizeEmail(customer.email),
+    phone: getCustomerPhone(customer),
     first_name: customer.first_name ?? customer.firstName ?? null,
     last_name: customer.last_name ?? customer.lastName ?? null,
     customer_group_id:
@@ -122,20 +103,26 @@ function mapLightspeedCustomerRow(
       customer.customerTypeID ??
       customer.CustomerType?.customerTypeID ??
       null,
-    loyalty_balance: loyaltyBalance,
-    purchase_count:
-      typeof purchaseCount === "number" && purchaseCount > 0
-        ? purchaseCount
-        : null,
-    total_spend:
-      typeof totalSpend === "number" && totalSpend > 0 ? totalSpend : null,
-    first_purchase_date:
-      customer.first_purchase_date ?? customer.firstVisit ?? null,
-    last_purchase_date:
-      customer.last_purchase_date ?? customer.lastVisit ?? null,
+    loyalty_balance:
+      customer.loyalty_balance !== undefined &&
+      customer.loyalty_balance !== null
+        ? toNullableNumber(customer.loyalty_balance)
+        : customer.loyaltyBalance !== undefined &&
+            customer.loyaltyBalance !== null
+          ? toNullableNumber(customer.loyaltyBalance)
+          : customer.creditAccountID
+            ? 0
+            : null,
     raw_data: customer,
     synced_at: new Date().toISOString(),
   };
+
+  const contactId = customer.contact_id ? String(customer.contact_id) : null;
+  if (contactId) {
+    providerRow.contact_id = contactId;
+  }
+
+  return providerRow;
 }
 
 function buildCrmCustomerUpsert(
@@ -163,24 +150,6 @@ function buildCrmCustomerUpsert(
 
   if (row.phone) {
     crmRow.phone = row.phone;
-  }
-
-  if (typeof row.purchase_count === "number" && row.purchase_count > 0) {
-    crmRow.pos_order_count = row.purchase_count;
-  }
-
-  if (typeof row.total_spend === "number" && row.total_spend > 0) {
-    crmRow.total_spent = row.total_spend;
-    crmRow.pos_total_spent = row.total_spend;
-    crmRow.lifetime_value = row.total_spend;
-  }
-
-  if (row.first_purchase_date) {
-    crmRow.first_purchase_date = row.first_purchase_date;
-  }
-
-  if (row.last_purchase_date) {
-    crmRow.last_purchase_date = row.last_purchase_date;
   }
 
   return crmRow;
@@ -504,14 +473,16 @@ Deno.serve(async (req) => {
       for (const customer of customers) {
         const providerRow = mapLightspeedCustomerRow(tenantId, customer);
 
-        // Upsert to lightspeed_customers
-        const { error: upsertError } = await supabaseClient
-          .from("lightspeed_customers")
-          .upsert(providerRow, {
-            onConflict: "tenant_id,lightspeed_customer_id",
-          });
-
-        if (upsertError) {
+        try {
+          await upsertLightspeedCustomerProfile(
+            supabaseClient,
+            providerRow as {
+              tenant_id: string;
+              lightspeed_customer_id: string;
+              [key: string]: unknown;
+            },
+          );
+        } catch (upsertError) {
           console.error("[LS-SYNC-CUSTOMERS] Upsert error:", upsertError);
           pageFailed++;
           continue;
@@ -565,7 +536,7 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          const contactId = crmIdByEmail.get(providerRow.email);
+          const contactId = crmIdByEmail.get(providerRow.email as string);
           if (!contactId) {
             continue;
           }
