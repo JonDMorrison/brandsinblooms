@@ -26,6 +26,23 @@ const normalizeConfiguredOrigin = (
   return value.replace(/\/$/, "");
 };
 
+const isMissingRedirectUriColumnError = (
+  error:
+    | {
+        message?: string | null;
+        details?: string | null;
+        hint?: string | null;
+        code?: string | null;
+      }
+    | null
+    | undefined,
+): boolean => {
+  const errorText = [error?.message, error?.details, error?.hint, error?.code]
+    .filter(Boolean)
+    .join(" ");
+  return error?.code === "PGRST204" || errorText.includes("redirect_uri");
+};
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -146,21 +163,51 @@ Deno.serve(async (req) => {
 
     console.log("[LS-START] Tenant found:", userData.tenant_id);
 
+    // Lightspeed requires redirect_uri to exactly match the value registered
+    // for the app. In production, prefer the canonical configured origin rather
+    // than whichever first-party host initiated the flow.
+    const configuredAppOrigin = normalizeConfiguredOrigin(
+      Deno.env.get("APP_ORIGIN") ?? Deno.env.get("APP_BASE_URL") ?? undefined,
+    );
+    const requestOrigin = normalizeConfiguredOrigin(
+      typeof redirectOrigin === "string" ? redirectOrigin : undefined,
+    );
+    const callbackOrigin =
+      environment === "production"
+        ? (configuredAppOrigin ?? requestOrigin ?? "https://bloomsuite.app")
+        : (requestOrigin ?? configuredAppOrigin ?? "https://bloomsuite.app");
+    const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
+
     // Generate random state token
     const state = crypto.randomUUID();
     console.log("[LS-START] Generated state token");
 
     // Store state in database temporarily (expires in 30 minutes)
     // Insert using service role to avoid RLS failures in production.
-    const { error: stateError } = await supabaseAdmin
+    const oauthStatePayload = {
+      state_token: state,
+      user_id: user.id,
+      tenant_id: userData.tenant_id,
+      provider: "lightspeed",
+      domain_prefix: domainPrefix,
+      redirect_uri: callbackUrl,
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    };
+
+    let redirectUriStorageSource: "oauth_states" | "legacy_oauth_states" =
+      "oauth_states";
+    let { error: stateError } = await supabaseAdmin
       .from("oauth_states")
-      .insert({
-        state_token: state,
-        user_id: user.id,
-        tenant_id: userData.tenant_id,
-        domain_prefix: domainPrefix,
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      });
+      .insert(oauthStatePayload);
+
+    if (isMissingRedirectUriColumnError(stateError)) {
+      redirectUriStorageSource = "legacy_oauth_states";
+      const { redirect_uri: _ignoredRedirectUri, ...legacyPayload } =
+        oauthStatePayload;
+      ({ error: stateError } = await supabaseAdmin
+        .from("oauth_states")
+        .insert(legacyPayload));
+    }
 
     if (stateError) {
       console.error("[LS-START] Failed to store state:", stateError.message);
@@ -238,27 +285,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Lightspeed requires redirect_uri to exactly match the value registered
-    // for the app. In production, prefer the canonical configured origin rather
-    // than whichever first-party host initiated the flow.
-    const configuredAppOrigin = normalizeConfiguredOrigin(
-      Deno.env.get("APP_ORIGIN") ?? Deno.env.get("APP_BASE_URL") ?? undefined,
-    );
-    const requestOrigin = normalizeConfiguredOrigin(
-      typeof redirectOrigin === "string" ? redirectOrigin : undefined,
-    );
-    const callbackOrigin =
-      environment === "production"
-        ? (configuredAppOrigin ?? requestOrigin ?? "https://bloomsuite.app")
-        : (requestOrigin ?? configuredAppOrigin ?? "https://bloomsuite.app");
-    const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
-
     console.log("[LS-START] OAuth Configuration:", {
       environment,
       configuredAppOrigin,
       requestOrigin,
       callbackOrigin,
       callbackUrl,
+      redirectUriStorageSource,
       domainPrefix,
       scope: LIGHTSPEED_SCOPE_STRING,
     });
@@ -275,6 +308,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         authUrl: authUrl.toString(),
+        redirectUri: callbackUrl,
         success: true,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
