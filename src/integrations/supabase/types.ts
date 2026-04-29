@@ -9566,8 +9566,11 @@ export type Database = {
           id: string;
           installed_by: string | null;
           last_customer_sync: string | null;
+          last_customer_version_cursor: string | null;
           last_product_sync: string | null;
+          last_product_version_cursor: string | null;
           last_sales_sync: string | null;
+          last_sales_version_cursor: string | null;
           last_synced_at: string | null;
           last_webhook_received_at: string | null;
           products_synced: number | null;
@@ -9598,8 +9601,11 @@ export type Database = {
           id?: string;
           installed_by?: string | null;
           last_customer_sync?: string | null;
+          last_customer_version_cursor?: string | null;
           last_product_sync?: string | null;
+          last_product_version_cursor?: string | null;
           last_sales_sync?: string | null;
+          last_sales_version_cursor?: string | null;
           last_synced_at?: string | null;
           last_webhook_received_at?: string | null;
           products_synced?: number | null;
@@ -9630,8 +9636,11 @@ export type Database = {
           id?: string;
           installed_by?: string | null;
           last_customer_sync?: string | null;
+          last_customer_version_cursor?: string | null;
           last_product_sync?: string | null;
+          last_product_version_cursor?: string | null;
           last_sales_sync?: string | null;
+          last_sales_version_cursor?: string | null;
           last_synced_at?: string | null;
           last_webhook_received_at?: string | null;
           products_synced?: number | null;
@@ -15501,7 +15510,10 @@ export type Database = {
         }[];
       };
       campaign_health_check: {
-        Args: { p_stale_queue_minutes?: number; p_stale_worker_minutes?: number };
+        Args: {
+          p_stale_queue_minutes?: number;
+          p_stale_worker_minutes?: number;
+        };
         Returns: {
           events_logged: number;
           orphaned_jobs_released: number;

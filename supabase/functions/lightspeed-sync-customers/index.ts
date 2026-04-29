@@ -101,6 +101,13 @@ function mapLightspeedCustomerRow(
           ? 0
           : null;
 
+  const purchaseCount = toNullableNumber(
+    customer.num_visits ?? customer.numVisits ?? customer.purchaseCount,
+  );
+  const totalSpend = toNullableNumber(
+    customer.total_spend ?? customer.totalSpend,
+  );
+
   return {
     tenant_id: tenantId,
     lightspeed_customer_id: String(customer.id ?? customer.customerID),
@@ -115,10 +122,12 @@ function mapLightspeedCustomerRow(
       customer.CustomerType?.customerTypeID ??
       null,
     loyalty_balance: loyaltyBalance,
-    purchase_count: toNullableNumber(
-      customer.num_visits ?? customer.numVisits ?? customer.purchaseCount,
-    ),
-    total_spend: toNullableNumber(customer.total_spend ?? customer.totalSpend),
+    purchase_count:
+      typeof purchaseCount === "number" && purchaseCount > 0
+        ? purchaseCount
+        : null,
+    total_spend:
+      typeof totalSpend === "number" && totalSpend > 0 ? totalSpend : null,
     first_purchase_date:
       customer.first_purchase_date ?? customer.firstVisit ?? null,
     last_purchase_date:
@@ -139,7 +148,7 @@ function buildCrmCustomerUpsert(
     tenant_id: row.tenant_id,
     email: row.email,
     pos_source: "lightspeed",
-    lightspeed_customer_id: row.lightspeed_customer_id,
+    external_id: row.lightspeed_customer_id,
     updated_at: new Date().toISOString(),
   };
 
@@ -155,11 +164,11 @@ function buildCrmCustomerUpsert(
     crmRow.phone = row.phone;
   }
 
-  if (typeof row.purchase_count === "number") {
+  if (typeof row.purchase_count === "number" && row.purchase_count > 0) {
     crmRow.pos_order_count = row.purchase_count;
   }
 
-  if (typeof row.total_spend === "number") {
+  if (typeof row.total_spend === "number" && row.total_spend > 0) {
     crmRow.total_spent = row.total_spend;
     crmRow.pos_total_spent = row.total_spend;
     crmRow.lifetime_value = row.total_spend;
@@ -344,18 +353,27 @@ Deno.serve(async (req) => {
 
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingLockJob } = await supabaseClient
-      .from('pos_sync_jobs')
-      .select('id, status')
-      .eq('connection_id', connection.id)
-      .eq('sync_type', 'customers')
-      .in('status', ['pending', 'in_progress'])
+      .from("pos_sync_jobs")
+      .select("id, status")
+      .eq("connection_id", connection.id)
+      .eq("sync_type", "customers")
+      .in("status", ["pending", "in_progress"])
       .maybeSingle();
 
     if (existingLockJob) {
-      console.log('[LS-SYNC-CUSTOMERS] Sync already in progress, returning existing job');
+      console.log(
+        "[LS-SYNC-CUSTOMERS] Sync already in progress, returning existing job",
+      );
       return new Response(
-        JSON.stringify({ success: true, jobId: existingLockJob.id, message: 'Sync already in progress' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          jobId: existingLockJob.id,
+          message: "Sync already in progress",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 

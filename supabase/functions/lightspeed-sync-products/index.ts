@@ -91,22 +91,137 @@ function extractProductId(product: LightspeedXSeriesProduct) {
   );
 }
 
-function extractTags(product: LightspeedXSeriesProduct) {
+type LightspeedProductLookups = {
+  productTypesById: Map<string, string>;
+  tagNamesById: Map<string, string>;
+};
+
+function getFirstNonEmptyString(...candidates: unknown[]) {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getObjectArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((entry) => entry && typeof entry === "object");
+  }
+
+  if (value && typeof value === "object") {
+    return [value];
+  }
+
+  return [];
+}
+
+function getVariants(product: LightspeedXSeriesProduct) {
+  return getObjectArray(
+    (product as any).variants ??
+      (product as any).Variants?.Variant ??
+      (product as any).variant,
+  );
+}
+
+function getInventoryEntries(product: LightspeedXSeriesProduct) {
+  return getObjectArray(
+    (product as any).inventory ??
+      (product as any).Inventory ??
+      (product as any).inventory_levels,
+  );
+}
+
+function extractPrice(product: LightspeedXSeriesProduct) {
+  const primaryVariant = getVariants(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return (
+    toNullableNumber(
+      (product as any).price_including_tax ??
+        product.price ??
+        product.retail_price ??
+        primaryVariant?.price_including_tax ??
+        primaryVariant?.price ??
+        primaryVariant?.retail_price ??
+        (product as any).default_price ??
+        (product as any).defaultPrice ??
+        (product as any).Prices?.ItemPrice?.[0]?.amount,
+    ) ?? 0
+  );
+}
+
+function extractSupplyPrice(product: LightspeedXSeriesProduct) {
+  const primaryVariant = getVariants(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return (
+    toNullableNumber(
+      (product as any).supply_price ??
+        (product as any).supplyPrice ??
+        primaryVariant?.supply_price ??
+        primaryVariant?.supplyPrice ??
+        (product as any).defaultCost,
+    ) ?? 0
+  );
+}
+
+function extractInventoryCount(product: LightspeedXSeriesProduct) {
+  const primaryInventory = getInventoryEntries(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return (
+    toNullableInteger(
+      product.inventory_count ??
+        product.available_inventory ??
+        (product as any).stock_on_hand ??
+        (product as any).qoh ??
+        primaryInventory?.count ??
+        primaryInventory?.current_amount ??
+        primaryInventory?.available ??
+        (product as any).ItemShops?.ItemShop?.[0]?.qoh,
+    ) ?? 0
+  );
+}
+
+function extractCategory(
+  product: LightspeedXSeriesProduct,
+  lookups: LightspeedProductLookups,
+) {
+  const productTypeId =
+    (product as any).product_type_id ??
+    (product as any).productTypeId ??
+    (product as any).type_id ??
+    (product as any).typeId;
+
+  return getFirstNonEmptyString(
+    (product as any).product_type,
+    (product as any).productType,
+    (product as any).type,
+    product.category_name,
+    product.category?.name,
+    (product as any).Category?.name,
+    (product as any).ProductType?.name,
+    (product as any).product_type?.name,
+    productTypeId !== undefined && productTypeId !== null
+      ? lookups.productTypesById.get(String(productTypeId))
+      : null,
+  );
+}
+
+function extractTags(
+  product: LightspeedXSeriesProduct,
+  lookups: LightspeedProductLookups,
+) {
   const tags = new Set<string>();
-
-  if (
-    typeof product.category_name === "string" &&
-    product.category_name.trim().length > 0
-  ) {
-    tags.add(product.category_name.trim());
-  }
-
-  if (
-    typeof product.category?.name === "string" &&
-    product.category.name.trim().length > 0
-  ) {
-    tags.add(product.category.name.trim());
-  }
 
   if (Array.isArray(product.tags)) {
     for (const tag of product.tags) {
@@ -125,7 +240,7 @@ function extractTags(product: LightspeedXSeriesProduct) {
         tags.add(value.trim());
       }
     }
-  } else if (legacyTags) {
+  } else {
     const value =
       typeof legacyTags === "string" ? legacyTags : legacyTags?.name;
     if (typeof value === "string" && value.trim().length > 0) {
@@ -133,51 +248,44 @@ function extractTags(product: LightspeedXSeriesProduct) {
     }
   }
 
+  const tagIds = Array.isArray((product as any).tag_ids)
+    ? (product as any).tag_ids
+    : Array.isArray((product as any).tagIds)
+      ? (product as any).tagIds
+      : [];
+
+  for (const tagId of tagIds) {
+    const resolvedName = lookups.tagNamesById.get(String(tagId));
+    if (resolvedName) {
+      tags.add(resolvedName);
+    }
+  }
+
   return Array.from(tags);
 }
 
-function extractPrice(product: LightspeedXSeriesProduct) {
-  return (
-    toNullableNumber(
-      product.retail_price ??
-        product.price ??
-        (product as any).default_price ??
-        (product as any).Prices?.ItemPrice?.[0]?.amount ??
-        (product as any).defaultCost,
-    ) ?? 0
+function extractBrand(product: LightspeedXSeriesProduct) {
+  return getFirstNonEmptyString(
+    (product as any).brand_name,
+    (product as any).brand,
+    (product as any).Brand?.name,
+    (product as any).brand?.name,
   );
 }
 
-function extractInventoryCount(product: LightspeedXSeriesProduct) {
-  return (
-    toNullableInteger(
-      product.inventory_count ??
-        product.available_inventory ??
-        (product as any).stock_on_hand ??
-        (product as any).ItemShops?.ItemShop?.[0]?.qoh,
-    ) ?? 0
-  );
-}
-
-function extractCategory(product: LightspeedXSeriesProduct) {
-  return (
-    product.category_name ??
-    product.category?.name ??
-    (product as any).Category?.name ??
-    null
-  );
-}
-
-function buildCatalogProductRow(
+function buildProviderProductRow(
   tenantId: string,
   productId: string,
   product: LightspeedXSeriesProduct,
   syncedAt: string,
+  lookups: LightspeedProductLookups,
 ) {
+  const inventoryCount = extractInventoryCount(product);
+  const category = extractCategory(product, lookups);
+
   return {
     tenant_id: tenantId,
-    external_id: productId,
-    source: "lightspeed",
+    lightspeed_product_id: productId,
     name:
       product.name ??
       product.description ??
@@ -191,15 +299,40 @@ function buildCatalogProductRow(
     description:
       product.description ?? (product as any).longDescription ?? null,
     price: extractPrice(product),
+    supply_price: extractSupplyPrice(product),
+    inventory_count: inventoryCount,
+    stock_count: inventoryCount,
+    category,
+    product_type: category,
+    brand: extractBrand(product),
+    tags: extractTags(product, lookups),
+    raw_data: product,
+    synced_at: syncedAt,
+  };
+}
+
+function buildCatalogProductRow(
+  providerRow: ReturnType<typeof buildProviderProductRow>,
+) {
+  return {
+    tenant_id: providerRow.tenant_id,
+    external_id: providerRow.lightspeed_product_id,
+    source: "lightspeed",
+    name: providerRow.name ?? "Unnamed Product",
+    sku: providerRow.sku,
+    description: providerRow.description,
+    price: providerRow.price ?? 0,
+    cost_price: providerRow.supply_price ?? 0,
     currency: "USD",
-    inventory_count: extractInventoryCount(product),
-    category: extractCategory(product),
-    tags: extractTags(product),
-    external_data: product,
-    last_synced_at: syncedAt,
+    inventory_count: providerRow.inventory_count ?? 0,
+    stock_count: providerRow.stock_count ?? providerRow.inventory_count ?? 0,
+    category: providerRow.category ?? providerRow.product_type ?? null,
+    tags: Array.isArray(providerRow.tags) ? providerRow.tags : [],
+    external_data: providerRow.raw_data,
+    last_synced_at: providerRow.synced_at,
     status: "active",
     is_visible: true,
-    updated_at: syncedAt,
+    updated_at: providerRow.synced_at,
   };
 }
 
@@ -219,6 +352,147 @@ function buildProductUrl(
 
   const param = mode === "v2-after" ? "after" : "since_version";
   return `${baseUrl}?${param}=${afterVersion}`;
+}
+
+function buildReferenceUrl(
+  domainPrefix: string,
+  resource: string,
+  afterVersion: number,
+  mode: ProductEndpointMode,
+) {
+  const baseUrl =
+    mode === "v2-after"
+      ? `https://${domainPrefix}.retail.lightspeed.app/api/2.0/${resource}`
+      : `https://${domainPrefix}.retail.lightspeed.app/api/3.0/${resource}`;
+
+  if (afterVersion === 0) {
+    return baseUrl;
+  }
+
+  const param = mode === "v2-after" ? "after" : "since_version";
+  return `${baseUrl}?${param}=${afterVersion}`;
+}
+
+async function fetchReferenceMap(
+  domainPrefix: string,
+  accessToken: string,
+  resource: string,
+  extractId: (entry: Record<string, unknown>) => string | null,
+  extractName: (entry: Record<string, unknown>) => string | null,
+) {
+  const resolved = new Map<string, string>();
+  let mode: ProductEndpointMode = "v2-after";
+  let afterVersion = 0;
+
+  while (true) {
+    let response = await fetch(
+      buildReferenceUrl(domainPrefix, resource, afterVersion, mode),
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          accept: "application/json",
+        },
+      },
+    );
+
+    if (
+      !response.ok &&
+      mode === "v2-after" &&
+      (response.status === 400 || response.status === 404)
+    ) {
+      mode = "v3-since-version";
+      response = await fetch(
+        buildReferenceUrl(domainPrefix, resource, afterVersion, mode),
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            accept: "application/json",
+          },
+        },
+      );
+    }
+
+    if (!response.ok) {
+      console.warn(
+        `[LS-SYNC-PRODUCTS] Failed to fetch ${resource}: ${response.status}`,
+      );
+      break;
+    }
+
+    const data = await response.json().catch(() => null);
+    const rows = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data)
+        ? data
+        : [];
+
+    for (const row of rows) {
+      const normalizedRow = row as Record<string, unknown>;
+      const id = extractId(normalizedRow);
+      const name = extractName(normalizedRow);
+      if (id && name) {
+        resolved.set(id, name);
+      }
+    }
+
+    const nextVersion = parseVersionCursor(data?.version?.max);
+    if (
+      rows.length === 0 ||
+      nextVersion === 0 ||
+      nextVersion === afterVersion
+    ) {
+      break;
+    }
+
+    afterVersion = nextVersion;
+  }
+
+  return resolved;
+}
+
+async function fetchProductLookups(
+  domainPrefix: string,
+  accessToken: string,
+): Promise<LightspeedProductLookups> {
+  const [productTypesById, tagNamesById] = await Promise.all([
+    fetchReferenceMap(
+      domainPrefix,
+      accessToken,
+      "product_types",
+      (entry) =>
+        getFirstNonEmptyString(entry.id, entry.product_type_id, entry.type_id),
+      (entry) => getFirstNonEmptyString(entry.name, entry.label),
+    ),
+    fetchReferenceMap(
+      domainPrefix,
+      accessToken,
+      "tags",
+      (entry) => getFirstNonEmptyString(entry.id, entry.tag_id),
+      (entry) => getFirstNonEmptyString(entry.name, entry.label),
+    ),
+  ]);
+
+  return { productTypesById, tagNamesById };
+}
+
+function logProductShape(product: LightspeedXSeriesProduct) {
+  const primaryVariant = getVariants(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+  const primaryInventory = getInventoryEntries(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  console.log(
+    "[LS-SYNC-PRODUCTS] Lightspeed product sample shape:",
+    JSON.stringify({
+      productKeys: Object.keys(product ?? {}).sort(),
+      variantKeys: primaryVariant ? Object.keys(primaryVariant).sort() : [],
+      inventoryKeys: primaryInventory
+        ? Object.keys(primaryInventory).sort()
+        : [],
+    }),
+  );
 }
 
 async function sleep(ms: number) {
@@ -404,6 +678,10 @@ Deno.serve(async (req: Request) => {
     let afterVersion = getResumeCursor(syncJob, connection);
     let finalVersionCursor = afterVersion;
     let endpointMode: ProductEndpointMode = "v2-after";
+    const productLookups = await fetchProductLookups(
+      connection.domain_prefix,
+      accessToken,
+    );
 
     while (true) {
       await writeJobProgress(supabaseAdmin, jobId, {
@@ -477,6 +755,10 @@ Deno.serve(async (req: Request) => {
         ? (data.data as LightspeedXSeriesProduct[])
         : [];
 
+      if (page === 0 && products.length > 0) {
+        logProductShape(products[0]);
+      }
+
       if (products.length === 0) {
         await writeJobProgress(supabaseAdmin, jobId, {
           status: "completed",
@@ -504,28 +786,13 @@ Deno.serve(async (req: Request) => {
         }
 
         const syncedAt = new Date().toISOString();
-        const providerRow = {
-          tenant_id: tenantId,
-          lightspeed_product_id: productId,
-          name:
-            product.name ??
-            product.description ??
-            (product as any).description ??
-            "Unnamed Product",
-          sku:
-            product.sku ??
-            (product as any).customSku ??
-            (product as any).manufacturerSku ??
-            null,
-          description:
-            product.description ?? (product as any).longDescription ?? null,
-          price: extractPrice(product),
-          inventory_count: extractInventoryCount(product),
-          category: extractCategory(product),
-          tags: extractTags(product),
-          raw_data: product,
-          synced_at: syncedAt,
-        };
+        const providerRow = buildProviderProductRow(
+          tenantId,
+          productId,
+          product,
+          syncedAt,
+          productLookups,
+        );
 
         const { error: upsertError } = await supabaseClient
           .from("lightspeed_products")
@@ -544,12 +811,9 @@ Deno.serve(async (req: Request) => {
 
         const { error: catalogUpsertError } = await supabaseClient
           .from("products")
-          .upsert(
-            buildCatalogProductRow(tenantId, productId, product, syncedAt),
-            {
-              onConflict: "tenant_id,external_id",
-            },
-          );
+          .upsert(buildCatalogProductRow(providerRow), {
+            onConflict: "tenant_id,external_id",
+          });
 
         if (catalogUpsertError) {
           console.error(

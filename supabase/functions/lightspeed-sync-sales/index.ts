@@ -158,6 +158,48 @@ function isCompletedSale(status: string) {
   return ["completed", "closed", "paid"].includes(status.toLowerCase());
 }
 
+async function propagateSalesRollupToCrm(
+  supabaseClient: any,
+  tenantId: string,
+  lightspeedCustomerId: string,
+  purchaseCount: number,
+  totalSpend: number,
+  firstPurchaseDate: string | null,
+  lastPurchaseDate: string | null,
+) {
+  const { data: updatedRows, error } = await supabaseClient
+    .from("crm_customers")
+    .update({
+      updated_at: new Date().toISOString(),
+      pos_source: "lightspeed",
+      external_id: lightspeedCustomerId,
+      pos_order_count: purchaseCount,
+      total_spent: totalSpend,
+      pos_total_spent: totalSpend,
+      lifetime_value: totalSpend,
+      first_purchase_date: firstPurchaseDate,
+      last_purchase_date: lastPurchaseDate,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("pos_source", "lightspeed")
+    .eq("external_id", lightspeedCustomerId)
+    .select("id");
+
+  if (error) {
+    console.error(
+      "[LS-SYNC-SALES] Failed to propagate CRM rollup:",
+      error.message,
+    );
+    return;
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    console.warn(
+      `[LS-SYNC-SALES] No CRM customer linked to Lightspeed customer ${lightspeedCustomerId}; skipping CRM rollup propagation`,
+    );
+  }
+}
+
 function extractSaleDate(sale: LightspeedXSeriesSale) {
   return (
     sale.completed_at ??
@@ -308,39 +350,57 @@ Deno.serve(async (req: Request) => {
 
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingSalesLockJob } = await supabaseClient
-      .from('pos_sync_jobs')
-      .select('id, status')
-      .eq('connection_id', connection.id)
-      .eq('sync_type', 'sales')
-      .in('status', ['pending', 'in_progress'])
+      .from("pos_sync_jobs")
+      .select("id, status")
+      .eq("connection_id", connection.id)
+      .eq("sync_type", "sales")
+      .in("status", ["pending", "in_progress"])
       .maybeSingle();
 
     if (existingSalesLockJob) {
-      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      console.log(
+        "[LS-SYNC-SALES] Sync already in progress, returning existing job",
+      );
       return new Response(
-        JSON.stringify({ success: true, jobId: existingSalesLockJob.id, message: 'Sync already in progress' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          jobId: existingSalesLockJob.id,
+          message: "Sync already in progress",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingJob } = await supabaseClient
-      .from('pos_sync_jobs')
-      .select('id, status')
-      .eq('connection_id', connection.id)
-      .eq('sync_type', 'sales')
-      .in('status', ['pending', 'in_progress'])
+      .from("pos_sync_jobs")
+      .select("id, status")
+      .eq("connection_id", connection.id)
+      .eq("sync_type", "sales")
+      .in("status", ["pending", "in_progress"])
       .single();
 
     if (existingJob) {
-      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      console.log(
+        "[LS-SYNC-SALES] Sync already in progress, returning existing job",
+      );
       return new Response(
-        JSON.stringify({ success: true, jobId: existingJob.id, message: 'Sync already in progress' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          jobId: existingJob.id,
+          message: "Sync already in progress",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[LS-SYNC-SALES] Fetching sales from Lightspeed...');
+    console.log("[LS-SYNC-SALES] Fetching sales from Lightspeed...");
     const { accessToken, needsReEncryption } =
       await getLightspeedAccessToken(connection);
     let reEncrypted = false;
@@ -584,6 +644,16 @@ Deno.serve(async (req: Request) => {
           );
           continue;
         }
+
+        await propagateSalesRollupToCrm(
+          supabaseClient,
+          tenantId,
+          customerId,
+          purchaseCount,
+          totalSpend,
+          firstPurchaseDate,
+          lastPurchaseDate,
+        );
 
         if (purchaseCount === 1) {
           firstPurchases += 1;

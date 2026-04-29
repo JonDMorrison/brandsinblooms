@@ -1,0 +1,25 @@
+ALTER TABLE public.lightspeed_products
+  ADD COLUMN IF NOT EXISTS supply_price NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS category TEXT,
+  ADD COLUMN IF NOT EXISTS product_type TEXT,
+  ADD COLUMN IF NOT EXISTS brand TEXT,
+  ADD COLUMN IF NOT EXISTS stock_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tags TEXT[];
+
+ALTER TABLE public.crm_customers
+  ADD COLUMN IF NOT EXISTS total_spent NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lifetime_value NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS pos_total_spent NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS first_purchase_date TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS last_purchase_date TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS external_id TEXT;
+
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS cost_price NUMERIC DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS category TEXT,
+  ADD COLUMN IF NOT EXISTS stock_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS tags TEXT[];
+
+CREATE INDEX IF NOT EXISTS idx_crm_customers_external_id_tenant_id
+  ON public.crm_customers(external_id, tenant_id)
+  WHERE external_id IS NOT NULL;

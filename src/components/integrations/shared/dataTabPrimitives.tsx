@@ -45,6 +45,7 @@ export type SortOption<T extends string> = {
 
 export type ParsedSaleLineItem = {
   name: string | null;
+  sku: string | null;
   productId: string | null;
   quantity: number | null;
   unitPrice: number | null;
@@ -210,7 +211,21 @@ export function parseSaleLineItems(value: unknown) {
       return null;
     };
 
-    const name = [source.name, source.productName, source.description].find(
+    const name = [
+      source.product_name,
+      source.name,
+      source.productName,
+      source.description,
+    ].find(
+      (candidate) =>
+        typeof candidate === "string" && candidate.trim().length > 0,
+    );
+    const sku = [
+      source.sku,
+      source.systemSku,
+      source.customSku,
+      source.manufacturerSku,
+    ].find(
       (candidate) =>
         typeof candidate === "string" && candidate.trim().length > 0,
     );
@@ -221,6 +236,7 @@ export function parseSaleLineItems(value: unknown) {
 
     return {
       name: typeof name === "string" ? name : null,
+      sku: typeof sku === "string" ? sku : null,
       productId: typeof productId === "string" ? productId : null,
       quantity: getNumber(source.quantity),
       unitPrice: getNumber(source.unitPrice ?? source.price),
