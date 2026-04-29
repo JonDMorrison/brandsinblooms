@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 // FIX: [P14] - Use proper decryptToken
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
+import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
 
 console.log("[LS-SYNC-CUSTOMERS] Edge function starting");
@@ -628,6 +629,18 @@ Deno.serve(async (req) => {
         last_customer_version_cursor: String(finalVersionCursor),
       })
       .eq("tenant_id", tenantId);
+
+    console.log("[LS-SYNC-CUSTOMERS] Running spend recalculation...");
+    const spendResult = await recalculateLightspeedCustomerSpend(
+      supabaseAdmin,
+      {
+        tenantId,
+        connectionId: connection.id,
+      },
+    );
+    console.log(
+      `[LS-SYNC-CUSTOMERS] Spend recalculation: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
+    );
 
     const normalizedSummary = await supabaseAdmin
       .from("crm_customers")

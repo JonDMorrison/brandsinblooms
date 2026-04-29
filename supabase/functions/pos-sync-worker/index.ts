@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
+import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 import {
   shouldThrottleSync,
   checkCircuitBreaker,
@@ -1516,7 +1517,13 @@ async function propagateLightspeedSalesRollupToCrm(
 function mapLightspeedSale(sale: any, connection: any) {
   const payment = Array.isArray(sale.payments)
     ? sale.payments[0]
-    : (sale.SalePayments?.SalePayment?.[0] ?? null);
+    : Array.isArray(sale.register_sale_payments)
+      ? sale.register_sale_payments[0]
+      : (sale.SalePayments?.SalePayment?.[0] ?? null);
+  const totals = sale?.totals && typeof sale.totals === "object" &&
+      !Array.isArray(sale.totals)
+    ? sale.totals
+    : null;
 
   return {
     tenant_id: connection.tenant_id,
@@ -1533,6 +1540,7 @@ function mapLightspeedSale(sale: any, connection: any) {
       : null,
     sale_date:
       sale.completed_at ??
+      sale.sale_date ??
       sale.created_at ??
       sale.completeTime ??
       sale.createTime ??
@@ -1540,6 +1548,11 @@ function mapLightspeedSale(sale: any, connection: any) {
     total_amount:
       sale.total_price !== undefined && sale.total_price !== null
         ? Number.parseFloat(String(sale.total_price))
+        : totals?.total_price !== undefined && totals?.total_price !== null
+          ? Number.parseFloat(String(totals.total_price))
+          : totals?.total_payment !== undefined &&
+              totals?.total_payment !== null
+            ? Number.parseFloat(String(totals.total_payment))
         : sale.calcTotal !== undefined && sale.calcTotal !== null
           ? Number.parseFloat(String(sale.calcTotal))
           : Number.parseFloat(String(sale.total ?? 0)),
@@ -1547,11 +1560,16 @@ function mapLightspeedSale(sale: any, connection: any) {
       normalizeLightspeedSaleStatus(sale.status) ||
       (parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open"),
     line_items:
-      sale.line_items ?? sale.SaleLines?.SaleLine ?? sale.SaleLines ?? [],
+      sale.line_items ??
+      sale.register_sale_products ??
+      sale.SaleLines?.SaleLine ??
+      sale.SaleLines ??
+      [],
     payment_method:
       payment?.payment_type_name ??
       payment?.PaymentType?.name ??
       payment?.paymentType?.name ??
+      (payment?.payment_type_id ? String(payment.payment_type_id) : null) ??
       null,
     note: sale.note ?? null,
     raw_data: sale,
@@ -2038,6 +2056,19 @@ async function syncLightspeedCustomers(
     has_more: hasNextPage,
   });
 
+  if (!hasNextPage) {
+    console.log(
+      "[POS-SYNC-WORKER] Running full Lightspeed spend recalculation after customer sync...",
+    );
+    const spendResult = await recalculateLightspeedCustomerSpend(supabase, {
+      tenantId: connection.tenant_id,
+      connectionId: connection.id,
+    });
+    console.log(
+      `[POS-SYNC-WORKER] Customer sync spend recalculation: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
+    );
+  }
+
   await writeJobProgress(supabase, job.id, {
     status: !hasNextPage ? "completed" : "in_progress",
     current_page: nextPage,
@@ -2152,6 +2183,9 @@ async function syncLightspeedSales(
     currentPage,
   );
   const fetchedRows = sales.length;
+  console.log(
+    `[POS-SYNC-WORKER] Lightspeed sales batch: ${sales.length} rows, ${sales.filter((sale: any) => Boolean(sale?.customer_id ?? sale?.customer?.id ?? sale?.customerID)).length} with customer linkage`,
+  );
   let insertedRows = 0;
   let failedRows = 0;
   const affectedCustomerIds = new Set<string>();
@@ -2201,69 +2235,21 @@ async function syncLightspeedSales(
     }
   }
 
-  for (const customerId of affectedCustomerIds) {
-    const { data: customerSales, error: customerSalesError } = await supabase
-      .from("lightspeed_sales")
-      .select("total_amount, sale_date, status")
-      .eq("tenant_id", connection.tenant_id)
-      .eq("lightspeed_customer_id", customerId)
-      .order("sale_date", { ascending: true });
-
-    if (customerSalesError) {
-      console.error(
-        "[POS-SYNC-WORKER] Failed to load customer sales totals:",
-        customerSalesError.message,
-      );
-      continue;
-    }
-
-    const completedCustomerSales = (customerSales ?? []).filter(
-      (customerSale: any) =>
-        isCompletedLightspeedSaleStatus(customerSale.status),
+  if (affectedCustomerIds.size > 0) {
+    console.log(
+      `[POS-SYNC-WORKER] Recalculating spend for ${affectedCustomerIds.size} Lightspeed customers from sales batch...`,
     );
-
-    if (completedCustomerSales.length === 0) {
-      continue;
-    }
-
-    const totalSpend = completedCustomerSales.reduce(
-      (sum: number, customerSale: any) =>
-        sum + Number.parseFloat(String(customerSale.total_amount ?? 0)),
-      0,
+    const spendResult = await recalculateLightspeedCustomerSpend(supabase, {
+      tenantId: connection.tenant_id,
+      connectionId: connection.id,
+      lightspeedCustomerIds: Array.from(affectedCustomerIds),
+    });
+    console.log(
+      `[POS-SYNC-WORKER] Sales batch spend recalculation: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
     );
-    const purchaseCount = completedCustomerSales.length;
-    const firstPurchaseDate = completedCustomerSales[0]?.sale_date ?? null;
-    const lastPurchaseDate =
-      completedCustomerSales[completedCustomerSales.length - 1]?.sale_date ??
-      null;
-
-    const { error: updateCustomerError } = await supabase
-      .from("lightspeed_customers")
-      .update({
-        total_spend: totalSpend,
-        purchase_count: purchaseCount,
-        first_purchase_date: firstPurchaseDate,
-        last_purchase_date: lastPurchaseDate,
-      })
-      .eq("tenant_id", connection.tenant_id)
-      .eq("lightspeed_customer_id", customerId);
-
-    if (updateCustomerError) {
-      console.error(
-        "[POS-SYNC-WORKER] Failed to update Lightspeed customer aggregates:",
-        updateCustomerError.message,
-      );
-      continue;
-    }
-
-    await propagateLightspeedSalesRollupToCrm(
-      supabase,
-      connection.tenant_id,
-      customerId,
-      purchaseCount,
-      totalSpend,
-      firstPurchaseDate,
-      lastPurchaseDate,
+  } else {
+    console.log(
+      "[POS-SYNC-WORKER] No customer-linked completed sales in this batch — skipping targeted spend recalculation",
     );
   }
 
@@ -2271,6 +2257,23 @@ async function syncLightspeedSales(
   const nextVersion = parseLightspeedVersionCursor(data?.version?.max);
   const hasNextPage =
     sales.length > 0 && nextVersion > 0 && nextVersion !== currentCursor;
+
+  if (!hasNextPage) {
+    console.log(
+      "[POS-SYNC-WORKER] Running final full Lightspeed spend recalculation after sales sync...",
+    );
+    const finalSpendResult = await recalculateLightspeedCustomerSpend(
+      supabase,
+      {
+        tenantId: connection.tenant_id,
+        connectionId: connection.id,
+      },
+    );
+    console.log(
+      `[POS-SYNC-WORKER] Final sales spend recalculation: ${finalSpendResult.updated} updated, ${finalSpendResult.skipped} unchanged, ${finalSpendResult.errors} errors`,
+    );
+  }
+
   const nextPage = fetchedRows === 0 ? currentPage : currentPage + 1;
   const totalFetched = toFiniteNumber(job.fetched_rows, 0) + fetchedRows;
   const totalInserted = toFiniteNumber(job.inserted_rows, 0) + insertedRows;
