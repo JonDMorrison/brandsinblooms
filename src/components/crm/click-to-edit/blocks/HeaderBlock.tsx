@@ -194,6 +194,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
             id="headline"
             value={block.headline || ""}
             onChange={(e) => onUpdate({ headline: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
             placeholder="Enter headline"
             maxLength={80}
           />

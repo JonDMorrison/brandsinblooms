@@ -186,8 +186,12 @@ export const ImageBlockPreview: React.FC<ImageBlockPreviewProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            // Don't intercept keyboard events from input fields
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+            // Don't intercept keyboard events from input fields or editable elements
+            if (
+              e.target instanceof HTMLInputElement ||
+              e.target instanceof HTMLTextAreaElement ||
+              (e.target as HTMLElement).isContentEditable
+            ) {
               return;
             }
             if (e.key === 'Enter' || e.key === ' ') {

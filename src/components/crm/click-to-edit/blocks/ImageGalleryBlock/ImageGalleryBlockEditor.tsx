@@ -238,6 +238,7 @@ export const ImageGalleryBlockEditor: React.FC<
               userEdited: true,
             })
           }
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Gallery Headline"
           className="text-lg font-semibold"
         />
@@ -256,6 +257,7 @@ export const ImageGalleryBlockEditor: React.FC<
               userEdited: true,
             })
           }
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Optional description text"
         />
       </div>

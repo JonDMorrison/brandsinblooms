@@ -758,6 +758,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
           pointerEvents: "auto",
           overflow: "visible",
           backgroundColor: "#ffffff",
+          borderColor: "#e5e7eb",
         }}
       >
         {/* Loading overlay when content is being generated */}
