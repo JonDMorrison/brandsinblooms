@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 
 console.log("[LS-WEBHOOK] Edge function starting");
 
@@ -7,7 +8,7 @@ const HANDLER_NAME = "lightspeed-webhook-handler";
 const responseHeaders = {
   ...corsHeaders,
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-lightspeed-signature, x-lightspeed-storeid",
+    "authorization, x-client-info, apikey, content-type, x-lightspeed-signature, x-lightspeed-storeid, x-signature, x-vend-webhook-id, x-vend-webhook-source",
   "Content-Type": "application/json",
 };
 
@@ -224,6 +225,404 @@ function getExistingArray(value: unknown) {
   return [];
 }
 
+function normalizeOptionalString(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getFirstPresentValue(source: JsonObject, keys: string[]) {
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function hasLegacyLightspeedWrapper(payloadObject: JsonObject) {
+  return [
+    "Sale",
+    "sale",
+    "Customer",
+    "customer",
+    "Item",
+    "item",
+    "Product",
+    "product",
+  ].some((key) => Boolean(asObject(payloadObject[key])));
+}
+
+function normalizeVendSaleLineItem(lineItem: JsonObject) {
+  const product = asObject(lineItem.product);
+
+  return {
+    ...lineItem,
+    product_id: getFirstNonEmptyString(
+      lineItem.product_id,
+      lineItem.productId,
+      product?.id,
+      lineItem.item_id,
+      lineItem.itemId,
+    ),
+    quantity: toNullableNumber(lineItem.quantity) ?? 0,
+    price: toNullableNumber(lineItem.price) ?? 0,
+    price_total: toNullableNumber(
+      lineItem.price_total ?? lineItem.total_price ?? lineItem.total,
+    ) ?? 0,
+    discount: toNullableNumber(lineItem.discount) ?? 0,
+    tax: toNullableNumber(lineItem.tax) ?? 0,
+    tax_total: toNullableNumber(lineItem.tax_total) ?? 0,
+    name: getFirstNonEmptyString(
+      lineItem.name,
+      lineItem.product_name,
+      lineItem.productName,
+      product?.name,
+      lineItem.description,
+    ),
+    sku: getFirstNonEmptyString(
+      lineItem.sku,
+      lineItem.systemSku,
+      lineItem.customSku,
+      lineItem.manufacturerSku,
+      product?.sku,
+    ),
+  };
+}
+
+function normalizeVendSalePayment(payment: JsonObject) {
+  const paymentType = asObject(payment.paymentType);
+  const legacyPaymentType = asObject(payment.PaymentType);
+
+  return {
+    ...payment,
+    payment_type_name: getFirstNonEmptyString(
+      payment.payment_type_name,
+      payment.paymentTypeName,
+      payment.payment_type_id,
+      paymentType?.name,
+      legacyPaymentType?.name,
+    ),
+    amount: toNullableNumber(payment.amount) ?? 0,
+  };
+}
+
+function normalizeSalePayload(payload: JsonObject) {
+  const totals = asObject(payload.totals) ?? {};
+  const customer = asObject(payload.customer) ?? {};
+  const saleProducts = getObjectArray(payload.register_sale_products).map(
+    (entry) => normalizeVendSaleLineItem(entry as JsonObject),
+  );
+  const salePayments = getObjectArray(payload.register_sale_payments).map(
+    (entry) => normalizeVendSalePayment(entry as JsonObject),
+  );
+  const saleId = getFirstNonEmptyString(payload.id, payload.saleID);
+  const customerId = getFirstNonEmptyString(
+    payload.customer_id,
+    customer.id,
+    payload.customerID,
+  );
+  const totalPrice =
+    totals.total_price ??
+    totals.total_payment ??
+    payload.total_price ??
+    payload.total ??
+    0;
+  const totalTax = totals.total_tax ?? payload.total_tax ?? 0;
+  const status =
+    normalizeOptionalString(payload.status) ??
+    normalizeOptionalString(payload.state);
+  const saleDate =
+    normalizeOptionalString(payload.sale_date) ??
+    normalizeOptionalString(payload.completed_at) ??
+    normalizeOptionalString(payload.updated_at) ??
+    normalizeOptionalString(payload.created_at);
+  const createdAt =
+    normalizeOptionalString(payload.created_at) ??
+    normalizeOptionalString(payload.sale_date);
+  const updatedAt = normalizeOptionalString(payload.updated_at);
+  const invoiceNumber = normalizeOptionalString(payload.invoice_number);
+  const outletId = normalizeOptionalString(payload.outlet_id);
+  const registerId = normalizeOptionalString(payload.register_id);
+  const userId = normalizeOptionalString(payload.user_id);
+  const source = normalizeOptionalString(payload.source);
+  const note = normalizeOptionalString(payload.note);
+
+  const normalized = {
+    ...payload,
+    _vend_format: true,
+    _vend_event_type: "sale",
+    _sale_id: saleId,
+    _total_price: totalPrice,
+    _total_tax: totalTax,
+    _line_items: saleProducts,
+    _payments: salePayments,
+    _customer_id: customerId,
+    _customer_email: normalizeEmail(customer.email),
+    _customer_name: customer.first_name
+      ? `${customer.first_name} ${customer.last_name || ""}`.trim()
+      : null,
+    _status: status,
+    _state: normalizeOptionalString(payload.state),
+    _sale_date: saleDate,
+    _created_at: createdAt,
+    _updated_at: updatedAt,
+    _invoice_number: invoiceNumber,
+    _outlet_id: outletId,
+    _register_id: registerId,
+    _user_id: userId,
+    _source: source,
+    _note: note,
+    saleID: saleId,
+    customerID: customerId,
+    customer_id: customerId,
+    total_price: totalPrice,
+    total_tax: totalTax,
+    line_items: saleProducts,
+    payments: salePayments,
+    completed_at: saleDate,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    status,
+    note,
+  } satisfies JsonObject;
+
+  console.log(
+    `[LS-WEBHOOK] Sale normalized: id=${saleId ?? "n/a"}, total=${String(totalPrice)}, items=${saleProducts.length}`,
+  );
+
+  return normalized;
+}
+
+function normalizeVendCustomerPayload(payload: JsonObject) {
+  return {
+    ...payload,
+    _vend_format: true,
+    _vend_event_type: "customer",
+    customerID: payload.id ?? payload.customerID,
+    email: normalizeEmail(payload.email),
+    phone: getFirstNonEmptyString(payload.phone, payload.mobile, payload.fax),
+    firstName: getFirstNonEmptyString(
+      payload.first_name,
+      payload.contact_first_name,
+      payload.firstName,
+    ),
+    lastName: getFirstNonEmptyString(
+      payload.last_name,
+      payload.contact_last_name,
+      payload.lastName,
+    ),
+    customerTypeID: getFirstNonEmptyString(
+      payload.customer_group_id,
+      payload.customerTypeID,
+      payload.customer_code,
+    ),
+    customer_group_id: getFirstNonEmptyString(
+      payload.customer_group_id,
+      payload.customerTypeID,
+      payload.customer_code,
+    ),
+    loyaltyBalance: toNullableNumber(payload.loyalty_balance),
+    loyalty_balance: toNullableNumber(payload.loyalty_balance),
+    totalSpend: toNullableNumber(payload.total_spend),
+    purchaseCount: toNullableInteger(payload.purchase_count),
+    firstVisit: normalizeOptionalString(payload.first_purchase_date),
+    lastVisit: normalizeOptionalString(payload.last_purchase_date),
+  };
+}
+
+function normalizeVendProductPayload(payload: JsonObject) {
+  const productId = getFirstNonEmptyString(
+    payload.id,
+    payload.product_id,
+    payload.itemID,
+  );
+  const category = getFirstNonEmptyString(
+    payload.product_type,
+    payload.category_name,
+    asObject(payload.category)?.name,
+  );
+  const retailPrice = toNullableNumber(
+    payload.retail_price ?? payload.price ?? payload.price_including_tax,
+  );
+
+  return {
+    ...payload,
+    _vend_format: true,
+    _vend_event_type: "product",
+    itemID: productId,
+    product_id: productId,
+    name: getFirstNonEmptyString(
+      payload.name,
+      payload.handle,
+      payload.description,
+    ),
+    description: getFirstNonEmptyString(
+      payload.description,
+      payload.longDescription,
+    ),
+    sku: getFirstNonEmptyString(
+      payload.sku,
+      payload.systemSku,
+      payload.customSku,
+      payload.manufacturerSku,
+    ),
+    price: retailPrice,
+    retail_price: retailPrice,
+    supply_price: toNullableNumber(payload.supply_price ?? payload.defaultCost),
+    inventory_count: toNullableInteger(
+      payload.inventory_count ??
+        payload.available_inventory ??
+        payload.stock_on_hand,
+    ),
+    product_type: category,
+    category_name: category,
+  };
+}
+
+function normalizeVendInventoryPayload(payload: JsonObject) {
+  const product = asObject(payload.product) ?? {};
+  const outlet = asObject(payload.outlet);
+  const productId = getFirstNonEmptyString(
+    payload.product_id,
+    product.id,
+    product.itemID,
+  );
+  const category = getFirstNonEmptyString(
+    product.product_type,
+    product.category_name,
+    asObject(product.category)?.name,
+  );
+  const retailPrice = toNullableNumber(
+    product.retail_price ??
+      product.price ??
+      product.price_including_tax ??
+      payload.retail_price ??
+      payload.price,
+  );
+  const inventoryCount = toNullableInteger(
+    payload.count ??
+      payload.inventory_count ??
+      product.inventory_count ??
+      product.available_inventory,
+  );
+
+  return {
+    ...product,
+    ...payload,
+    _vend_format: true,
+    _vend_event_type: "inventory",
+    _inventory_id: payload.id ?? null,
+    _outlet_name: getFirstNonEmptyString(outlet?.name, outlet?.outlet_name),
+    itemID: productId,
+    product_id: productId,
+    id: productId,
+    name: getFirstNonEmptyString(
+      product.name,
+      product.handle,
+      payload.name,
+      payload.handle,
+      product.description,
+      payload.description,
+    ),
+    description: getFirstNonEmptyString(
+      product.description,
+      product.longDescription,
+      payload.description,
+    ),
+    sku: getFirstNonEmptyString(
+      product.sku,
+      product.systemSku,
+      product.customSku,
+      product.manufacturerSku,
+      payload.sku,
+    ),
+    price: retailPrice,
+    retail_price: retailPrice,
+    supply_price: toNullableNumber(
+      payload.attributed_cost ?? product.supply_price ?? product.defaultCost,
+    ),
+    inventory_count: inventoryCount,
+    available_inventory: inventoryCount,
+    stock_count: inventoryCount,
+    count: inventoryCount,
+    product_type: category,
+    category_name: category,
+    tags: Array.isArray(product.tags) ? product.tags : payload.tags,
+    raw_inventory_event: payload,
+  };
+}
+
+function normalizeVendPayload(eventType: string, payload: unknown): unknown {
+  const root = asObject(payload);
+  if (!root) {
+    return payload;
+  }
+
+  const candidate = asObject(root.data) ?? root;
+  const hasRSeriesWrapper =
+    "Sale" in candidate ||
+    "Customer" in candidate ||
+    "Item" in candidate ||
+    "Product" in candidate;
+
+  console.log(
+    `[LS-WEBHOOK] normalizeVendPayload — eventType: ${eventType}, hasRSeriesWrapper: ${hasRSeriesWrapper}, payloadKeys: ${Object.keys(candidate).slice(0, 5).join(", ")}...`,
+  );
+
+  if (hasRSeriesWrapper) {
+    console.log("[LS-WEBHOOK] Payload has R-Series wrapper — skipping normalization");
+    return payload;
+  }
+
+  console.log(`[LS-WEBHOOK] Normalizing Vend ${eventType} payload`);
+
+  let normalized: unknown;
+  if (
+    eventType === "sale.update" ||
+    eventType === "sale.completed" ||
+    eventType === "sale.updated"
+  ) {
+    normalized = normalizeSalePayload(candidate);
+  } else if (
+    eventType === "customer.update" ||
+    eventType === "customer.created" ||
+    eventType === "customer.updated"
+  ) {
+    normalized = normalizeVendCustomerPayload(candidate);
+  } else if (eventType === "inventory.update") {
+    normalized = normalizeVendInventoryPayload(candidate);
+  } else if (
+    eventType === "product.update" ||
+    eventType === "product.updated" ||
+    eventType === "item.updated"
+  ) {
+    normalized = normalizeVendProductPayload(candidate);
+  } else {
+    console.log(`[LS-WEBHOOK] No normalizer for event type: ${eventType}`);
+    return payload;
+  }
+
+  if (candidate === root) {
+    return normalized;
+  }
+
+  const normalizedObject = asObject(normalized);
+  return {
+    ...root,
+    data: normalized,
+    ...(normalizedObject?._vend_format === true ? { _vend_format: true } : {}),
+    ...(typeof normalizedObject?._vend_event_type === "string"
+      ? { _vend_event_type: normalizedObject._vend_event_type }
+      : {}),
+  };
+}
+
 async function propagateSalesRollupToCrm(
   supabase: any,
   tenantId: string,
@@ -271,54 +670,21 @@ async function refreshCustomerRollupFromSales(
   connection: LightspeedConnection,
   lightspeedCustomerId: string,
 ) {
-  const { data: customerSales, error: customerSalesError } = await supabase
-    .from("lightspeed_sales")
-    .select("total_amount,sale_date,status")
-    .eq("tenant_id", connection.tenant_id)
-    .eq("lightspeed_customer_id", lightspeedCustomerId)
-    .order("sale_date", { ascending: true });
-
-  if (customerSalesError) {
-    throw customerSalesError;
-  }
-
-  const completedSales = (customerSales ?? []).filter((customerSale: any) =>
-    isCompletedSaleStatus(customerSale.status),
-  );
-  const totalSpend = completedSales.reduce(
-    (sum: number, customerSale: any) =>
-      sum + Number.parseFloat(String(customerSale.total_amount ?? 0)),
-    0,
-  );
-  const purchaseCount = completedSales.length;
-  const firstPurchaseDate = completedSales[0]?.sale_date ?? null;
-  const lastPurchaseDate =
-    completedSales[completedSales.length - 1]?.sale_date ?? null;
-
-  const { error: customerUpdateError } = await supabase
-    .from("lightspeed_customers")
-    .update({
-      total_spend: totalSpend,
-      purchase_count: purchaseCount,
-      first_purchase_date: firstPurchaseDate,
-      last_purchase_date: lastPurchaseDate,
-    })
-    .eq("tenant_id", connection.tenant_id)
-    .eq("lightspeed_customer_id", lightspeedCustomerId);
-
-  if (customerUpdateError) {
-    throw customerUpdateError;
-  }
-
-  await propagateSalesRollupToCrm(
-    supabase,
-    connection.tenant_id,
+  const spendResult = await recalculateLightspeedCustomerSpend(supabase, {
+    tenantId: connection.tenant_id,
+    connectionId: connection.id,
     lightspeedCustomerId,
-    purchaseCount,
-    totalSpend,
-    firstPurchaseDate,
-    lastPurchaseDate,
+  });
+
+  console.log(
+    `[LS-WEBHOOK] Spend recalculation for ${lightspeedCustomerId}: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
   );
+
+  if (spendResult.errors > 0) {
+    throw new Error(
+      `Failed to recalculate spend for Lightspeed customer ${lightspeedCustomerId}`,
+    );
+  }
 }
 
 function getRoutingContext(req: Request) {
@@ -338,40 +704,20 @@ function getRoutingContext(req: Request) {
   };
 }
 
-function isProductionEnvironment() {
-  const environment =
-    Deno.env.get("ENVIRONMENT") ??
-    Deno.env.get("NODE_ENV") ??
-    Deno.env.get("SUPABASE_ENV") ??
-    "";
-
-  return ["production", "prod"].includes(environment.toLowerCase());
-}
-
-function decodeBase64Signature(signatureHeader: string) {
-  const normalized = signatureHeader
-    .trim()
-    .replace(/^sha256=/i, "")
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-
-  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
-}
-
-// FIX: [P3] - HMAC-SHA256 webhook signature verification
-async function verifyLightspeedSignature(
-  rawBody: string,
-  signatureHeader: string,
-) {
-  const secret = Deno.env.get("LIGHTSPEED_WEBHOOK_SECRET");
-
-  if (!secret) {
-    // FIX: [P3] - Fail closed in production when secret is missing
-    console.warn("[LS-WEBHOOK] LIGHTSPEED_WEBHOOK_SECRET not configured");
-    return !isProductionEnvironment();
+function extractVendSignature(header: string | null) {
+  if (!header) {
+    return null;
   }
 
+  const signatureMatch = header.match(/signature=([a-f0-9]+)/i);
+  return signatureMatch?.[1] || null;
+}
+
+async function verifyVendSignature(
+  rawBody: string,
+  signatureHex: string,
+  secret: string,
+) {
   try {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -379,30 +725,118 @@ async function verifyLightspeedSignature(
       encoder.encode(secret),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["verify"],
+      ["sign"],
     );
 
-    return await crypto.subtle.verify(
+    const signatureBuffer = await crypto.subtle.sign(
       "HMAC",
       key,
-      decodeBase64Signature(signatureHeader),
       encoder.encode(rawBody),
     );
+
+    const computedHex = Array.from(new Uint8Array(signatureBuffer))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (computedHex.length !== signatureHex.length) {
+      return false;
+    }
+
+    let mismatch = 0;
+    for (let index = 0; index < computedHex.length; index++) {
+      mismatch |= computedHex.charCodeAt(index) ^ signatureHex.charCodeAt(index);
+    }
+
+    return mismatch === 0;
   } catch (error) {
     console.error("[LS-WEBHOOK] Signature verification error:", error);
     return false;
   }
 }
 
-function extractEventType(payload: unknown) {
+/**
+ * Vend/X-Series webhooks do not include an event type field in the payload.
+ * Each webhook is registered for a specific type (sale.update, customer.update, etc.)
+ * and the payload is the raw entity data.
+ *
+ * Strategy:
+ * 1. Check for explicit type/event fields (R-Series or wrapped payloads)
+ * 2. Vend webhook IDs are opaque, so use them for correlation while inferring from payload shape
+ * 3. Infer from payload key fingerprint (reliable — each entity has unique keys)
+ */
+function extractEventType(
+  payload: unknown,
+  headers?: Headers,
+): string {
   const root = asObject(payload);
   const data = asObject(root?.data);
+  const payloadObject = data ?? root;
+  const vendWebhookId = headers?.get("x-vend-webhook-id");
 
-  const eventType =
-    root?.event_type ?? root?.type ?? data?.event_type ?? data?.type;
-  return typeof eventType === "string" && eventType.length > 0
-    ? eventType
-    : "unknown";
+  const explicitTypeCandidates = [
+    root?.type,
+    root?.event,
+    root?.event_type,
+    data?.type,
+    data?.event,
+    data?.event_type,
+  ];
+
+  for (const candidate of explicitTypeCandidates) {
+    if (typeof candidate === "string" && candidate.includes(".")) {
+      return candidate;
+    }
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return candidate;
+    }
+  }
+
+  if (!payloadObject) {
+    return vendWebhookId ? "unknown" : "unknown";
+  }
+
+  if (
+    "register_sale_products" in payloadObject ||
+    "invoice_number" in payloadObject ||
+    "sale_date" in payloadObject
+  ) {
+    return "sale.update";
+  }
+
+  if (
+    "customer_code" in payloadObject ||
+    ("first_name" in payloadObject && "loyalty_balance" in payloadObject) ||
+    "enable_loyalty" in payloadObject
+  ) {
+    return "customer.update";
+  }
+
+  if (
+    "product_id" in payloadObject &&
+    "count" in payloadObject &&
+    ("reorder_point" in payloadObject || "restock_level" in payloadObject)
+  ) {
+    return "inventory.update";
+  }
+
+  if (
+    "supply_price" in payloadObject ||
+    "variant_count" in payloadObject ||
+    ("handle" in payloadObject && "sku" in payloadObject)
+  ) {
+    return "product.update";
+  }
+
+  if (
+    "register_id" in payloadObject &&
+    ("counted" in payloadObject ||
+      "float_amount" in payloadObject ||
+      "cash_movements" in payloadObject)
+  ) {
+    return "register_closure.update";
+  }
+
+  return "unknown";
 }
 
 function extractEntity(
@@ -454,33 +888,59 @@ function mapLightspeedCustomer(
   customer: any,
   connection: LightspeedConnection,
 ) {
+  const customerRecord = asObject(customer) ?? {};
   const email = normalizeEmail(
-    customer.Contact?.Emails?.ContactEmail?.[0]?.address ?? customer.email,
+    getFirstPresentValue(customerRecord, ["email"]) ??
+      customer.Contact?.Emails?.ContactEmail?.[0]?.address,
+  );
+  const phone = normalizeOptionalString(
+    getFirstPresentValue(customerRecord, ["phone", "mobile"]) ??
+      customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
+      customer.Contact?.Phones?.Phone?.[0]?.number,
   );
   const purchaseCount = toNullableInteger(
-    customer.numVisits ?? customer.purchaseCount,
+    getFirstPresentValue(customerRecord, [
+      "num_visits",
+      "numVisits",
+      "purchase_count",
+      "purchaseCount",
+    ]),
   );
-  const totalSpend = toNullableNumber(customer.totalSpend);
+  const totalSpend = toNullableNumber(
+    getFirstPresentValue(customerRecord, ["total_spend", "totalSpend"]),
+  );
 
   return {
     tenant_id: connection.tenant_id,
-    lightspeed_customer_id: String(customer.customerID),
-    contact_id: customer.contactID ? String(customer.contactID) : null,
-    email,
-    phone:
-      customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
-      customer.Contact?.Phones?.Phone?.[0]?.number ??
-      null,
-    first_name: customer.firstName ?? null,
-    last_name: customer.lastName ?? null,
-    customer_group_id: customer.customerTypeID
-      ? String(customer.customerTypeID)
-      : customer.CustomerType?.customerTypeID
-        ? String(customer.CustomerType.customerTypeID)
+    lightspeed_customer_id: String(customer.id ?? customer.customerID),
+    contact_id: customer.contact_id
+      ? String(customer.contact_id)
+      : customer.contactID
+        ? String(customer.contactID)
         : null,
+    email,
+    phone,
+    first_name:
+      normalizeOptionalString(
+        customer.first_name ?? customer.firstName ?? customer.contact_first_name,
+      ) ?? null,
+    last_name:
+      normalizeOptionalString(
+        customer.last_name ?? customer.lastName ?? customer.contact_last_name,
+      ) ?? null,
+    customer_group_id: getFirstNonEmptyString(
+      customer.customer_group_id,
+      customer.customer_code,
+      customer.customerTypeID,
+      customer.CustomerType?.customerTypeID,
+    ),
     loyalty_balance:
-      customer.loyaltyBalance !== undefined && customer.loyaltyBalance !== null
-        ? Number.parseFloat(String(customer.loyaltyBalance))
+      customer.loyalty_balance !== undefined &&
+          customer.loyalty_balance !== null
+        ? Number.parseFloat(String(customer.loyalty_balance))
+        : customer.loyaltyBalance !== undefined &&
+            customer.loyaltyBalance !== null
+          ? Number.parseFloat(String(customer.loyaltyBalance))
         : customer.creditAccountID
           ? 0
           : null,
@@ -490,21 +950,77 @@ function mapLightspeedCustomer(
         : null,
     total_spend:
       typeof totalSpend === "number" && totalSpend > 0 ? totalSpend : null,
-    first_purchase_date: customer.firstVisit ?? null,
-    last_purchase_date: customer.lastVisit ?? null,
+    first_purchase_date:
+      normalizeOptionalString(
+        getFirstPresentValue(customerRecord, ["first_purchase_date", "firstVisit"]),
+      ) ?? null,
+    last_purchase_date:
+      normalizeOptionalString(
+        getFirstPresentValue(customerRecord, ["last_purchase_date", "lastVisit"]),
+      ) ?? null,
     raw_data: customer,
     synced_at: new Date().toISOString(),
   };
 }
 
+function buildLightspeedCrmCustomerPayload(
+  row: ReturnType<typeof mapLightspeedCustomer>,
+) {
+  const payload: Record<string, unknown> = {
+    tenant_id: row.tenant_id,
+    updated_at: new Date().toISOString(),
+    pos_source: "lightspeed",
+    external_id: row.lightspeed_customer_id,
+  };
+
+  if (row.email) {
+    payload.email = row.email;
+  }
+
+  if (row.phone) {
+    payload.phone = row.phone;
+  }
+
+  if (row.first_name) {
+    payload.first_name = row.first_name;
+  }
+
+  if (row.last_name) {
+    payload.last_name = row.last_name;
+  }
+
+  if (typeof row.purchase_count === "number" && row.purchase_count > 0) {
+    payload.pos_order_count = row.purchase_count;
+  }
+
+  if (typeof row.total_spend === "number" && row.total_spend > 0) {
+    payload.total_spent = row.total_spend;
+    payload.pos_total_spent = row.total_spend;
+    payload.lifetime_value = row.total_spend;
+  }
+
+  if (row.first_purchase_date) {
+    payload.first_purchase_date = row.first_purchase_date;
+  }
+
+  if (row.last_purchase_date) {
+    payload.last_purchase_date = row.last_purchase_date;
+  }
+
+  return payload;
+}
+
 function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
   const payment = Array.isArray(sale.payments)
     ? sale.payments[0]
-    : (sale.SalePayments?.SalePayment?.[0] ?? null);
+    : Array.isArray(sale.register_sale_payments)
+      ? sale.register_sale_payments[0]
+      : (sale.SalePayments?.SalePayment?.[0] ?? null);
+  const totals = asObject(sale.totals);
 
   return {
     tenant_id: connection.tenant_id,
-    lightspeed_sale_id: String(sale.id ?? sale.saleID),
+    lightspeed_sale_id: String(sale.id ?? sale.sale_id ?? sale.saleID),
     lightspeed_customer_id:
       (sale.customer_id ?? sale.customer?.id ?? sale.customerID)
         ? String(sale.customer_id ?? sale.customer?.id ?? sale.customerID)
@@ -514,6 +1030,7 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
       : null,
     sale_date:
       sale.completed_at ??
+      sale.sale_date ??
       sale.created_at ??
       sale.completeTime ??
       sale.createTime ??
@@ -521,6 +1038,11 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
     total_amount:
       sale.total_price !== undefined && sale.total_price !== null
         ? Number.parseFloat(String(sale.total_price))
+        : totals?.total_price !== undefined && totals?.total_price !== null
+          ? Number.parseFloat(String(totals.total_price))
+          : totals?.total_payment !== undefined &&
+              totals?.total_payment !== null
+            ? Number.parseFloat(String(totals.total_payment))
         : sale.calcTotal !== undefined && sale.calcTotal !== null
           ? Number.parseFloat(String(sale.calcTotal))
           : Number.parseFloat(String(sale.total ?? 0)),
@@ -528,11 +1050,16 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
       normalizeSaleStatus(sale.status) ||
       (parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open"),
     line_items:
-      sale.line_items ?? sale.SaleLines?.SaleLine ?? sale.SaleLines ?? [],
+      sale.line_items ??
+      sale.register_sale_products ??
+      sale.SaleLines?.SaleLine ??
+      sale.SaleLines ??
+      [],
     payment_method:
       payment?.payment_type_name ??
       payment?.PaymentType?.name ??
       payment?.paymentType?.name ??
+      (payment?.payment_type_id ? String(payment.payment_type_id) : null) ??
       null,
     note: sale.note ?? null,
     raw_data: sale,
@@ -550,11 +1077,19 @@ function mapLightspeedProduct(
   const inventoryCount = extractProductInventoryCount(product);
   const category = extractProductCategory(product);
   const tags = extractProductTags(product);
+  const productId = String(product.id ?? product.product_id ?? product.itemID);
+  const name =
+    getFirstNonEmptyString(
+      product.name,
+      product.handle,
+      product.description,
+      existingProduct?.name,
+    ) ?? `Product ${productId}`;
 
   return {
     tenant_id: connection.tenant_id,
-    lightspeed_product_id: String(product.id ?? product.itemID),
-    name: product.name ?? product.description ?? existingProduct?.name ?? null,
+    lightspeed_product_id: productId,
+    name,
     sku:
       product.sku ??
       product.systemSku ??
@@ -695,13 +1230,132 @@ async function handleSaleEvent(
   connection: LightspeedConnection,
   supabase: any,
 ) {
-  const sale = extractSaleFromPayload(payload);
-  if (!sale?.saleID) {
-    console.log("[LS-WEBHOOK] Sale event missing saleID, ignoring");
-    return;
+  const payloadObject = asObject(payload) ?? {};
+  const extractedSale = asObject(extractSaleFromPayload(payload));
+  const salePayload = extractedSale ?? payloadObject;
+  const hasRegisterSaleProducts =
+    "register_sale_products" in payloadObject ||
+    "register_sale_products" in salePayload;
+  const isVend = payloadObject._vend_format === true ||
+    salePayload._vend_format === true ||
+    (hasRegisterSaleProducts &&
+      ("invoice_number" in payloadObject || "invoice_number" in salePayload)) ||
+    (("sale_date" in payloadObject || "sale_date" in salePayload) &&
+      ("totals" in payloadObject || "totals" in salePayload));
+  console.log(
+    `[LS-WEBHOOK] handleSaleEvent — format: ${isVend ? "vend" : "legacy"}, _vend_format: ${String(payloadObject._vend_format ?? salePayload._vend_format ?? false)}, has register_sale_products: ${String(hasRegisterSaleProducts)}`,
+  );
+
+  const saleId =
+    getFirstNonEmptyString(
+      salePayload._sale_id,
+      salePayload.id,
+      salePayload.saleID,
+      payloadObject.id,
+      payloadObject.saleID,
+      asObject(payloadObject.Sale)?.saleID,
+    ) ?? null;
+  if (!saleId) {
+    throw new Error(
+      `handleSaleEvent — no sale ID found. Payload keys: ${Object.keys(salePayload).sort().join(", ")}`,
+    );
   }
 
-  const mappedSale = mapLightspeedSale(sale, connection);
+  const totalPrice =
+    toNullableNumber(
+      salePayload._total_price ??
+        asObject(salePayload.totals)?.total_price ??
+        asObject(salePayload.totals)?.total_payment ??
+        salePayload.total_price ??
+        asObject(payloadObject.Sale)?.totalPrice,
+    ) ?? 0;
+  const saleDate =
+    normalizeOptionalString(salePayload._sale_date) ??
+    normalizeOptionalString(salePayload.sale_date) ??
+    normalizeOptionalString(salePayload.completed_at) ??
+    normalizeOptionalString(salePayload.created_at) ??
+    normalizeOptionalString(asObject(payloadObject.Sale)?.completedTime);
+  const status =
+    getFirstNonEmptyString(
+      salePayload._status,
+      salePayload.status,
+      salePayload.state,
+      asObject(payloadObject.Sale)?.status,
+    ) ??
+    (parseLightspeedCompletedFlag(asObject(payloadObject.Sale)?.completed)
+      ? "completed"
+      : "open");
+  const customerId =
+    getFirstNonEmptyString(
+      salePayload._customer_id,
+      salePayload.customer_id,
+      salePayload.customerID,
+      asObject(payloadObject.Sale)?.customerID,
+    ) ?? null;
+  const legacySaleLines = asObject(salePayload.SaleLines);
+  const legacySalePayments = asObject(salePayload.SalePayments);
+  const invoiceNumber =
+    getFirstNonEmptyString(
+      salePayload._invoice_number,
+      salePayload.invoice_number,
+      asObject(payloadObject.Sale)?.invoiceNumber,
+    ) ?? null;
+  const lineItems = getExistingArray(salePayload._line_items).length > 0
+    ? getExistingArray(salePayload._line_items)
+    : getExistingArray(salePayload.register_sale_products).length > 0
+      ? getExistingArray(salePayload.register_sale_products)
+      : getExistingArray(salePayload.line_items).length > 0
+        ? getExistingArray(salePayload.line_items)
+        : getExistingArray(legacySaleLines?.SaleLine).length > 0
+          ? getExistingArray(legacySaleLines?.SaleLine)
+          : getExistingArray(salePayload.SaleLines);
+  const paymentMethods = getExistingArray(salePayload._payments).length > 0
+    ? getExistingArray(salePayload._payments)
+    : getExistingArray(salePayload.register_sale_payments).length > 0
+      ? getExistingArray(salePayload.register_sale_payments)
+      : getExistingArray(salePayload.payments).length > 0
+        ? getExistingArray(salePayload.payments)
+        : getExistingArray(legacySalePayments?.SalePayment).length > 0
+          ? getExistingArray(legacySalePayments?.SalePayment)
+          : getExistingArray(salePayload.SalePayments);
+  const firstPayment = paymentMethods[0] && typeof paymentMethods[0] === "object"
+    ? paymentMethods[0] as JsonObject
+    : null;
+  const note =
+    getFirstNonEmptyString(salePayload._note, salePayload.note) ?? null;
+  const source =
+    getFirstNonEmptyString(salePayload._source, salePayload.source) ?? null;
+  const outletId =
+    getFirstNonEmptyString(salePayload._outlet_id, salePayload.outlet_id) ?? null;
+
+  const baseMappedSale = mapLightspeedSale(salePayload, connection);
+  const mappedSale = {
+    ...baseMappedSale,
+    lightspeed_sale_id: saleId,
+    lightspeed_customer_id: customerId,
+    sale_date: saleDate ?? baseMappedSale.sale_date,
+    total_amount: totalPrice,
+    status: normalizeSaleStatus(status) || baseMappedSale.status,
+    line_items: lineItems,
+    payment_method:
+      getFirstNonEmptyString(
+        firstPayment?.payment_type_name,
+        firstPayment?.payment_type_id,
+        asObject(firstPayment?.PaymentType)?.name,
+        asObject(firstPayment?.paymentType)?.name,
+      ) ?? baseMappedSale.payment_method,
+    note,
+    raw_data: {
+      ...salePayload,
+      ...(invoiceNumber ? { invoice_number: invoiceNumber } : {}),
+      ...(source ? { source } : {}),
+      ...(outletId ? { outlet_id: outletId } : {}),
+    },
+    synced_at: new Date().toISOString(),
+  };
+  console.log(
+    `[LS-WEBHOOK] Sale: id=${saleId}, total=${mappedSale.total_amount}, date=${mappedSale.sale_date}, status=${mappedSale.status}, customer=${mappedSale.lightspeed_customer_id ?? "none"}, items=${Array.isArray(mappedSale.line_items) ? mappedSale.line_items.length : 0}`,
+  );
 
   const { error: upsertError } = await supabase
     .from("lightspeed_sales")
@@ -727,7 +1381,7 @@ async function handleSaleEvent(
   }
 
   console.log(
-    `[LS-WEBHOOK] Sale ${sale.saleID} upserted for tenant ${connection.tenant_id}`,
+    `[LS-WEBHOOK] ✓ Sale ${saleId} upserted for tenant ${connection.tenant_id}`,
   );
 }
 
@@ -737,13 +1391,23 @@ async function handleCustomerEvent(
   connection: LightspeedConnection,
   supabase: any,
 ) {
+  const payloadObject = asObject(payload);
+  const isVend = payloadObject?._vend_format === true;
+  console.log(
+    `[LS-WEBHOOK] handleCustomerEvent — format: ${isVend ? "vend" : "legacy"}`,
+  );
+
   const customer = extractCustomerFromPayload(payload);
-  if (!customer?.customerID) {
-    console.log("[LS-WEBHOOK] Customer event missing customerID, ignoring");
+  const customerId = customer ? String(customer.id ?? customer.customerID ?? "") : "";
+  if (!customer || customerId.length === 0) {
+    console.error("[LS-WEBHOOK] handleCustomerEvent — no customer ID found in payload");
     return;
   }
 
   const providerRow = mapLightspeedCustomer(customer, connection);
+  console.log(
+    `[LS-WEBHOOK] Customer: id=${customerId}, email=${providerRow.email ?? "none"}, name=${[providerRow.first_name, providerRow.last_name].filter(Boolean).join(" ") || "n/a"}`,
+  );
 
   const { error: providerUpsertError } = await supabase
     .from("lightspeed_customers")
@@ -755,56 +1419,11 @@ async function handleCustomerEvent(
     throw providerUpsertError;
   }
 
-  const email = providerRow.email;
-
-  if (email) {
-    const crmRow: Record<string, unknown> = {
-      tenant_id: connection.tenant_id,
-      email,
-      pos_source: "lightspeed",
-      external_id: String(customer.customerID),
-      updated_at: new Date().toISOString(),
-    };
-
-    if (providerRow.first_name) {
-      crmRow.first_name = providerRow.first_name;
-    }
-
-    if (providerRow.last_name) {
-      crmRow.last_name = providerRow.last_name;
-    }
-
-    if (providerRow.phone) {
-      crmRow.phone = providerRow.phone;
-    }
-
-    if (
-      typeof providerRow.purchase_count === "number" &&
-      providerRow.purchase_count > 0
-    ) {
-      crmRow.pos_order_count = providerRow.purchase_count;
-    }
-
-    if (
-      typeof providerRow.total_spend === "number" &&
-      providerRow.total_spend > 0
-    ) {
-      crmRow.total_spent = providerRow.total_spend;
-      crmRow.pos_total_spent = providerRow.total_spend;
-      crmRow.lifetime_value = providerRow.total_spend;
-    }
-
-    if (providerRow.first_purchase_date) {
-      crmRow.first_purchase_date = providerRow.first_purchase_date;
-    }
-
-    if (providerRow.last_purchase_date) {
-      crmRow.last_purchase_date = providerRow.last_purchase_date;
-    }
-
+  const crmPayload = buildLightspeedCrmCustomerPayload(providerRow);
+  if (crmPayload.email) {
     const { error: crmUpsertError } = await supabase
       .from("crm_customers")
-      .upsert(crmRow, { onConflict: "tenant_id,email" });
+      .upsert(crmPayload, { onConflict: "tenant_id,email" });
 
     if (crmUpsertError) {
       throw crmUpsertError;
@@ -817,7 +1436,7 @@ async function handleCustomerEvent(
     .eq("id", connection.id);
 
   console.log(
-    `[LS-WEBHOOK] Customer ${customer.customerID} upserted for tenant ${connection.tenant_id}`,
+    `[LS-WEBHOOK] ✓ Customer ${customerId} upserted for tenant ${connection.tenant_id}`,
   );
 }
 
@@ -827,14 +1446,22 @@ async function handleProductEvent(
   connection: LightspeedConnection,
   supabase: any,
 ) {
+  const payloadObject = asObject(payload);
+  const isVend = payloadObject?._vend_format === true;
+  console.log(
+    `[LS-WEBHOOK] handleProductEvent — format: ${isVend ? "vend" : "legacy"}, subtype: ${String(payloadObject?._vend_event_type ?? "product")}`,
+  );
+
   const product = extractProductFromPayload(payload);
-  if (!product?.itemID) {
-    console.log("[LS-WEBHOOK] Product event missing itemID, ignoring");
+  const productId = product
+    ? String(product.id ?? product.product_id ?? product.itemID ?? "")
+    : "";
+  if (!product || productId.length === 0) {
+    console.error("[LS-WEBHOOK] handleProductEvent — no product ID found in payload");
     return;
   }
 
-  const productId = String(product.id ?? product.itemID);
-  const { data: existingProduct } = await supabase
+  const { data: existingProduct, error: existingProductError } = await supabase
     .from("lightspeed_products")
     .select(
       "price,supply_price,inventory_count,stock_count,category,product_type,brand,tags,sku,description,name",
@@ -843,10 +1470,19 @@ async function handleProductEvent(
     .eq("lightspeed_product_id", productId)
     .maybeSingle();
 
+  if (existingProductError) {
+    console.error(
+      `[LS-WEBHOOK] Existing product lookup failed for ${productId}: ${existingProductError.message}`,
+    );
+  }
+
   const providerRow = mapLightspeedProduct(
     product,
     connection,
     existingProduct,
+  );
+  console.log(
+    `[LS-WEBHOOK] Product: id=${productId}, name=${providerRow.name ?? "n/a"}, sku=${providerRow.sku ?? "n/a"}, price=${providerRow.price ?? 0}, inventory=${providerRow.inventory_count ?? 0}`,
   );
 
   const { error: upsertError } = await supabase
@@ -875,8 +1511,14 @@ async function handleProductEvent(
     .eq("id", connection.id);
 
   console.log(
-    `[LS-WEBHOOK] Product ${product.itemID} upserted for tenant ${connection.tenant_id}`,
+    `[LS-WEBHOOK] ✓ Product ${productId} upserted for tenant ${connection.tenant_id}`,
   );
+
+  if (payloadObject?._vend_event_type === "inventory") {
+    console.log(
+      `[LS-WEBHOOK] ✓ Stock count updated for product ${productId}: ${providerRow.inventory_count ?? 0}`,
+    );
+  }
 }
 
 async function dispatchLightspeedEvent(
@@ -902,6 +1544,12 @@ async function dispatchLightspeedEvent(
     case "item.updated":
       await handleProductEvent(payload, connection, supabase);
       break;
+    case "register_closure.create":
+    case "register_closure.update":
+      console.log(
+        "[LS-WEBHOOK] Register closure event received — logged, no handler yet",
+      );
+      break;
     default:
       console.log(`[LS-WEBHOOK] Unhandled event type: ${eventType} — ignoring`);
   }
@@ -922,24 +1570,62 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Missing routing context" }, 400);
   }
 
-  const rawBody = await req.text();
-  const signatureHeader = req.headers.get("x-lightspeed-signature");
-
-  if (!signatureHeader) {
-    console.warn("[LS-WEBHOOK] Missing signature header — rejecting");
-    return jsonResponse({ error: "Unauthorized" }, 401);
+  const incomingHeaders: Record<string, string> = {};
+  for (const [key, value] of req.headers.entries()) {
+    if (!["authorization", "cookie"].includes(key.toLowerCase())) {
+      incomingHeaders[key] = value;
+    }
   }
-
-  const signatureValid = await verifyLightspeedSignature(
-    rawBody,
-    signatureHeader,
+  console.log(
+    "[LS-WEBHOOK] Incoming headers:",
+    JSON.stringify(incomingHeaders),
   );
-  if (!signatureValid) {
-    console.warn("[LS-WEBHOOK] Signature verification failed — rejecting");
-    return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const vendWebhookId = req.headers.get("x-vend-webhook-id");
+  const vendWebhookSource = req.headers.get("x-vend-webhook-source");
+  console.log(
+    `[LS-WEBHOOK] Vend webhook: id=${vendWebhookId}, source=${vendWebhookSource}`,
+  );
+
+  const contentType = req.headers.get("content-type") || "";
+  if (
+    !contentType.includes("application/json") &&
+    !contentType.includes("application/x-www-form-urlencoded") &&
+    !contentType.includes("text/")
+  ) {
+    console.warn("[LS-WEBHOOK] Unexpected content-type:", contentType);
   }
 
-  console.log("[LS-WEBHOOK] Signature verified");
+  const rawBody = await req.text();
+  const rawSignatureHeader =
+    req.headers.get("x-signature") ||
+    req.headers.get("x-lightspeed-signature");
+  const signatureValue =
+    extractVendSignature(rawSignatureHeader) || rawSignatureHeader?.trim() || null;
+  const webhookSecret = Deno.env.get("LIGHTSPEED_WEBHOOK_SECRET");
+
+  if (webhookSecret && signatureValue) {
+    const signatureValid = await verifyVendSignature(
+      rawBody,
+      signatureValue,
+      webhookSecret,
+    );
+    if (!signatureValid) {
+      console.warn("[LS-WEBHOOK] Signature verification failed — rejecting");
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    console.log(
+      "[LS-WEBHOOK] Signature verified via x-signature HMAC-SHA256",
+    );
+  } else if (webhookSecret && !signatureValue) {
+    console.log(
+      "[LS-WEBHOOK] No x-signature header — accepted via URL-based auth (normal for some Vend webhook types)",
+    );
+  } else {
+    console.log(
+      "[LS-WEBHOOK] No webhook secret configured — accepting via URL-based auth",
+    );
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -982,26 +1668,111 @@ Deno.serve(async (req) => {
     `[LS-WEBHOOK] Routed via ${routingSource}=${routingKey} to tenant ${connection.tenant_id}, connection ${connection.id}`,
   );
 
-  await updateLastWebhookReceivedAt(supabase, connection.id);
-
   let payload: unknown;
   try {
-    payload = rawBody.length > 0 ? JSON.parse(rawBody) : {};
-  } catch {
-    console.error("[LS-WEBHOOK] Invalid JSON payload");
+    if (contentType.includes("application/json")) {
+      payload = rawBody.length > 0 ? JSON.parse(rawBody) : {};
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      const formData = new URLSearchParams(rawBody);
+      const payloadField = formData.get("payload");
+
+      if (payloadField) {
+        payload = JSON.parse(payloadField);
+      } else {
+        const firstKeyResult = formData.keys().next();
+        const firstKey = firstKeyResult.done ? null : firstKeyResult.value;
+
+        if (firstKey) {
+          try {
+            payload = JSON.parse(firstKey);
+          } catch {
+            try {
+              payload = JSON.parse(decodeURIComponent(firstKey));
+            } catch {
+              const formObject: Record<string, string> = {};
+              for (const [key, value] of formData.entries()) {
+                formObject[key] = value;
+              }
+              payload = formObject;
+            }
+          }
+        } else {
+          payload = {};
+        }
+      }
+
+      console.log("[LS-WEBHOOK] Parsed form-encoded body successfully");
+    } else {
+      payload = rawBody.length > 0 ? JSON.parse(rawBody) : {};
+    }
+  } catch (parseError) {
+    console.error("[LS-WEBHOOK] Failed to parse payload:", parseError);
+    console.error(
+      "[LS-WEBHOOK] Raw body (first 500 chars):",
+      rawBody.slice(0, 500),
+    );
+    console.error("[LS-WEBHOOK] Content-Type:", contentType);
     return jsonResponse({ error: "Bad Request" }, 400);
   }
 
-  const eventType = extractEventType(payload);
+  const parsedPayloadObject = asObject(payload);
   console.log(
-    `[LS-WEBHOOK] Event type: ${eventType}, tenant: ${connection.tenant_id}`,
+    "[LS-WEBHOOK] Parsed payload keys:",
+    parsedPayloadObject ? Object.keys(parsedPayloadObject) : [],
   );
 
-  try {
-    await dispatchLightspeedEvent(eventType, payload, connection, supabase);
-  } catch (error) {
-    console.error(`[LS-WEBHOOK] Event dispatch error for ${eventType}:`, error);
+  const eventType = extractEventType(payload, req.headers);
+  console.log(
+    `[LS-WEBHOOK] Event type: ${eventType}, tenant: ${connection.tenant_id}, vend-webhook-id: ${vendWebhookId}`,
+  );
+
+  if (eventType === "unknown") {
+    const payloadKeys = Object.keys(parsedPayloadObject ?? {}).sort();
+    console.warn(
+      `[LS-WEBHOOK] Could not infer event type. Payload keys: ${JSON.stringify(payloadKeys)}`,
+    );
   }
 
-  return jsonResponse({ success: true, processed: eventType }, 200);
+  const payloadObj = asObject(payload);
+  console.log(
+    "[LS-WEBHOOK] Payload top-level keys:",
+    payloadObj ? Object.keys(payloadObj) : [],
+  );
+  const payloadDataObj = asObject(payloadObj?.data);
+  if (payloadDataObj) {
+    console.log(
+      "[LS-WEBHOOK] Payload data keys:",
+      Object.keys(payloadDataObj),
+    );
+  }
+
+  const normalizedPayload = normalizeVendPayload(eventType, payload);
+
+  try {
+    console.log(`[LS-WEBHOOK] Dispatching ${eventType} to handler...`);
+    await dispatchLightspeedEvent(
+      eventType,
+      normalizedPayload,
+      connection,
+      supabase,
+    );
+    console.log(`[LS-WEBHOOK] ✓ ${eventType} handler completed successfully`);
+
+    if (eventType !== "unknown") {
+      await updateLastWebhookReceivedAt(supabase, connection.id);
+    }
+
+    return jsonResponse({ success: true, event: eventType }, 200);
+  } catch (error) {
+    const handlerError = error instanceof Error
+      ? error
+      : new Error(String(error));
+    console.error(`[LS-WEBHOOK] Handler error for ${eventType}:`, handlerError);
+    console.error(
+      "[LS-WEBHOOK] Handler error stack:",
+      handlerError.stack ?? "no stack",
+    );
+
+    return jsonResponse({ success: false, event: eventType }, 200);
+  }
 });
