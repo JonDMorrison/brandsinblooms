@@ -2337,13 +2337,50 @@ function CampaignEditorScreen() {
             <Grid container spacing={3} alignItems="start">
               <Grid xs={12} md={7}>
                 <Stack spacing={2.5}>
+                  {/* All Contacts indicator */}
+                  {!hasAudienceSelection && (
+                    <Sheet
+                      variant="soft"
+                      color="success"
+                      sx={{
+                        borderRadius: "md",
+                        px: 2,
+                        py: 1.5,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                      }}
+                    >
+                      <Users
+                        size={16}
+                        style={{
+                          color: "var(--joy-palette-success-700)",
+                        }}
+                      />
+                      <Typography
+                        level="body-sm"
+                        sx={{ color: "success.700", fontWeight: 600 }}
+                      >
+                        All Contacts
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "success.600", ml: "auto" }}
+                      >
+                        {isAudienceLoading
+                          ? "Counting..."
+                          : `${(audienceCount ?? 0).toLocaleString()} recipients`}
+                      </Typography>
+                    </Sheet>
+                  )}
+
                   <JoyAutocomplete
                     multiple
                     disabled={isReadOnly}
                     loading={segmentOptionsQuery.isLoading}
                     options={segmentOptions}
                     value={selectedSegments}
-                    label="Target segments"
+                    label="Target segments (optional — leave empty for All Contacts)"
                     placeholder="Search segments..."
                     onInputChange={(_event, value) => setSegmentSearch(value)}
                     filterOptions={(options) => options}
@@ -2353,7 +2390,9 @@ function CampaignEditorScreen() {
                         : "Type to search..."
                     }
                     getOptionLabel={(option) =>
-                      `${option.name} (${option.customer_count.toLocaleString()})`
+                      option.customer_count === 0
+                        ? `${option.name} (empty)`
+                        : `${option.name} (${option.customer_count.toLocaleString()})`
                     }
                     isOptionEqualToValue={(option, value) =>
                       option.id === value.id
@@ -2509,8 +2548,9 @@ function CampaignEditorScreen() {
                         )}
                       </Typography>
                       <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                        Deduped recipients across selected segments and
-                        personas.
+                        {hasAudienceSelection
+                          ? "Deduped recipients across selected segments and personas."
+                          : "Sending to all opted-in contacts. Select segments or personas to narrow."}
                       </Typography>
                     </Box>
 
