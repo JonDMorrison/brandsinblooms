@@ -51,6 +51,276 @@ function parseLightspeedCompletedFlag(value: unknown) {
   return value === true || value === "true" || value === "1" || value === 1;
 }
 
+function toNullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toNullableInteger(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeSaleStatus(status: unknown) {
+  return typeof status === "string" ? status.trim().toLowerCase() : "";
+}
+
+function isCompletedSaleStatus(status: unknown) {
+  return ["completed", "closed", "paid"].includes(normalizeSaleStatus(status));
+}
+
+function getFirstNonEmptyString(...candidates: unknown[]) {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getObjectArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((entry) => entry && typeof entry === "object");
+  }
+
+  if (value && typeof value === "object") {
+    return [value];
+  }
+
+  return [];
+}
+
+function getVariants(product: any) {
+  return getObjectArray(
+    product.variants ?? product.Variants?.Variant ?? product.variant,
+  );
+}
+
+function getInventoryEntries(product: any) {
+  return getObjectArray(
+    product.inventory ?? product.Inventory ?? product.inventory_levels,
+  );
+}
+
+function extractProductPrice(product: any) {
+  const primaryVariant = getVariants(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return toNullableNumber(
+    product.price_including_tax ??
+      product.price ??
+      product.retail_price ??
+      primaryVariant?.price_including_tax ??
+      primaryVariant?.price ??
+      primaryVariant?.retail_price ??
+      product.default_price ??
+      product.defaultPrice ??
+      product.Prices?.ItemPrice?.[0]?.amount,
+  );
+}
+
+function extractProductSupplyPrice(product: any) {
+  const primaryVariant = getVariants(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return toNullableNumber(
+    product.supply_price ??
+      product.supplyPrice ??
+      primaryVariant?.supply_price ??
+      primaryVariant?.supplyPrice ??
+      product.defaultCost,
+  );
+}
+
+function extractProductInventoryCount(product: any) {
+  const primaryInventory = getInventoryEntries(product)[0] as
+    | Record<string, unknown>
+    | undefined;
+
+  return toNullableInteger(
+    product.inventory_count ??
+      product.available_inventory ??
+      product.stock_on_hand ??
+      product.qoh ??
+      primaryInventory?.count ??
+      primaryInventory?.current_amount ??
+      primaryInventory?.available ??
+      product.ItemShops?.ItemShop?.[0]?.qoh,
+  );
+}
+
+function extractProductCategory(product: any) {
+  return getFirstNonEmptyString(
+    product.product_type,
+    product.productType,
+    product.type,
+    product.category_name,
+    product.category?.name,
+    product.Category?.name,
+    product.ProductType?.name,
+    product.product_type?.name,
+  );
+}
+
+function extractProductBrand(product: any) {
+  return getFirstNonEmptyString(
+    product.brand_name,
+    product.brand,
+    product.Brand?.name,
+    product.brand?.name,
+  );
+}
+
+function extractProductTags(product: any) {
+  const tags = new Set<string>();
+
+  if (Array.isArray(product.tags)) {
+    for (const tag of product.tags) {
+      const value = typeof tag === "string" ? tag : tag?.name;
+      if (typeof value === "string" && value.trim().length > 0) {
+        tags.add(value.trim());
+      }
+    }
+  }
+
+  const legacyTags = product.Tags?.tag;
+  if (Array.isArray(legacyTags)) {
+    for (const tag of legacyTags) {
+      const value = typeof tag === "string" ? tag : tag?.name;
+      if (typeof value === "string" && value.trim().length > 0) {
+        tags.add(value.trim());
+      }
+    }
+  } else {
+    const value =
+      typeof legacyTags === "string" ? legacyTags : legacyTags?.name;
+    if (typeof value === "string" && value.trim().length > 0) {
+      tags.add(value.trim());
+    }
+  }
+
+  return Array.from(tags);
+}
+
+function getExistingArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return [];
+}
+
+async function propagateSalesRollupToCrm(
+  supabase: any,
+  tenantId: string,
+  lightspeedCustomerId: string,
+  purchaseCount: number,
+  totalSpend: number,
+  firstPurchaseDate: string | null,
+  lastPurchaseDate: string | null,
+) {
+  const { data: updatedRows, error } = await supabase
+    .from("crm_customers")
+    .update({
+      updated_at: new Date().toISOString(),
+      pos_source: "lightspeed",
+      external_id: lightspeedCustomerId,
+      pos_order_count: purchaseCount,
+      total_spent: totalSpend,
+      pos_total_spent: totalSpend,
+      lifetime_value: totalSpend,
+      first_purchase_date: firstPurchaseDate,
+      last_purchase_date: lastPurchaseDate,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("pos_source", "lightspeed")
+    .eq("external_id", lightspeedCustomerId)
+    .select("id");
+
+  if (error) {
+    console.error(
+      "[LS-WEBHOOK] Failed to propagate CRM rollup:",
+      error.message,
+    );
+    return;
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    console.warn(
+      `[LS-WEBHOOK] No CRM customer linked to Lightspeed customer ${lightspeedCustomerId}; skipping CRM rollup propagation`,
+    );
+  }
+}
+
+async function refreshCustomerRollupFromSales(
+  supabase: any,
+  connection: LightspeedConnection,
+  lightspeedCustomerId: string,
+) {
+  const { data: customerSales, error: customerSalesError } = await supabase
+    .from("lightspeed_sales")
+    .select("total_amount,sale_date,status")
+    .eq("tenant_id", connection.tenant_id)
+    .eq("lightspeed_customer_id", lightspeedCustomerId)
+    .order("sale_date", { ascending: true });
+
+  if (customerSalesError) {
+    throw customerSalesError;
+  }
+
+  const completedSales = (customerSales ?? []).filter((customerSale: any) =>
+    isCompletedSaleStatus(customerSale.status),
+  );
+  const totalSpend = completedSales.reduce(
+    (sum: number, customerSale: any) =>
+      sum + Number.parseFloat(String(customerSale.total_amount ?? 0)),
+    0,
+  );
+  const purchaseCount = completedSales.length;
+  const firstPurchaseDate = completedSales[0]?.sale_date ?? null;
+  const lastPurchaseDate =
+    completedSales[completedSales.length - 1]?.sale_date ?? null;
+
+  const { error: customerUpdateError } = await supabase
+    .from("lightspeed_customers")
+    .update({
+      total_spend: totalSpend,
+      purchase_count: purchaseCount,
+      first_purchase_date: firstPurchaseDate,
+      last_purchase_date: lastPurchaseDate,
+    })
+    .eq("tenant_id", connection.tenant_id)
+    .eq("lightspeed_customer_id", lightspeedCustomerId);
+
+  if (customerUpdateError) {
+    throw customerUpdateError;
+  }
+
+  await propagateSalesRollupToCrm(
+    supabase,
+    connection.tenant_id,
+    lightspeedCustomerId,
+    purchaseCount,
+    totalSpend,
+    firstPurchaseDate,
+    lastPurchaseDate,
+  );
+}
+
 function getRoutingContext(req: Request) {
   const url = new URL(req.url);
   const pathSegments = url.pathname.split("/").filter(Boolean);
@@ -187,6 +457,10 @@ function mapLightspeedCustomer(
   const email = normalizeEmail(
     customer.Contact?.Emails?.ContactEmail?.[0]?.address ?? customer.email,
   );
+  const purchaseCount = toNullableInteger(
+    customer.numVisits ?? customer.purchaseCount,
+  );
+  const totalSpend = toNullableNumber(customer.totalSpend);
 
   return {
     tenant_id: connection.tenant_id,
@@ -210,11 +484,12 @@ function mapLightspeedCustomer(
         : customer.creditAccountID
           ? 0
           : null,
-    purchase_count: toInteger(customer.numVisits ?? customer.purchaseCount, 0),
-    total_spend:
-      customer.totalSpend !== undefined && customer.totalSpend !== null
-        ? Number.parseFloat(String(customer.totalSpend))
+    purchase_count:
+      typeof purchaseCount === "number" && purchaseCount > 0
+        ? purchaseCount
         : null,
+    total_spend:
+      typeof totalSpend === "number" && totalSpend > 0 ? totalSpend : null,
     first_purchase_date: customer.firstVisit ?? null,
     last_purchase_date: customer.lastVisit ?? null,
     raw_data: customer,
@@ -223,23 +498,41 @@ function mapLightspeedCustomer(
 }
 
 function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
+  const payment = Array.isArray(sale.payments)
+    ? sale.payments[0]
+    : (sale.SalePayments?.SalePayment?.[0] ?? null);
+
   return {
     tenant_id: connection.tenant_id,
-    lightspeed_sale_id: String(sale.saleID),
-    lightspeed_customer_id: sale.customerID ? String(sale.customerID) : null,
+    lightspeed_sale_id: String(sale.id ?? sale.saleID),
+    lightspeed_customer_id:
+      (sale.customer_id ?? sale.customer?.id ?? sale.customerID)
+        ? String(sale.customer_id ?? sale.customer?.id ?? sale.customerID)
+        : null,
     contact_id: sale.Customer?.contactID
       ? String(sale.Customer.contactID)
       : null,
-    sale_date: sale.completeTime ?? sale.createTime ?? null,
+    sale_date:
+      sale.completed_at ??
+      sale.created_at ??
+      sale.completeTime ??
+      sale.createTime ??
+      null,
     total_amount:
-      sale.calcTotal !== undefined && sale.calcTotal !== null
-        ? Number.parseFloat(String(sale.calcTotal))
-        : Number.parseFloat(String(sale.total ?? 0)),
-    status: parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open",
-    line_items: sale.SaleLines?.SaleLine ?? sale.SaleLines ?? [],
+      sale.total_price !== undefined && sale.total_price !== null
+        ? Number.parseFloat(String(sale.total_price))
+        : sale.calcTotal !== undefined && sale.calcTotal !== null
+          ? Number.parseFloat(String(sale.calcTotal))
+          : Number.parseFloat(String(sale.total ?? 0)),
+    status:
+      normalizeSaleStatus(sale.status) ||
+      (parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open"),
+    line_items:
+      sale.line_items ?? sale.SaleLines?.SaleLine ?? sale.SaleLines ?? [],
     payment_method:
-      sale.SalePayments?.SalePayment?.[0]?.PaymentType?.name ??
-      sale.SalePayments?.SalePayment?.[0]?.paymentType?.name ??
+      payment?.payment_type_name ??
+      payment?.PaymentType?.name ??
+      payment?.paymentType?.name ??
       null,
     note: sale.note ?? null,
     raw_data: sale,
@@ -247,39 +540,53 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
   };
 }
 
-function mapLightspeedProduct(product: any, connection: LightspeedConnection) {
-  const rawTags = Array.isArray(product.tags)
-    ? product.tags
-    : product.Tags?.tag
-      ? (Array.isArray(product.Tags.tag)
-          ? product.Tags.tag
-          : [product.Tags.tag]
-        ).map((tag: any) => tag?.name ?? tag)
-      : [];
+function mapLightspeedProduct(
+  product: any,
+  connection: LightspeedConnection,
+  existingProduct?: Record<string, unknown> | null,
+) {
+  const price = extractProductPrice(product);
+  const supplyPrice = extractProductSupplyPrice(product);
+  const inventoryCount = extractProductInventoryCount(product);
+  const category = extractProductCategory(product);
+  const tags = extractProductTags(product);
 
   return {
     tenant_id: connection.tenant_id,
-    lightspeed_product_id: String(product.itemID),
-    name: product.description ?? null,
+    lightspeed_product_id: String(product.id ?? product.itemID),
+    name: product.name ?? product.description ?? existingProduct?.name ?? null,
     sku:
-      product.systemSku ?? product.customSku ?? product.manufacturerSku ?? null,
-    description: product.longDescription ?? null,
-    price:
-      product.Prices?.ItemPrice?.[0]?.amount !== undefined &&
-      product.Prices?.ItemPrice?.[0]?.amount !== null
-        ? Number.parseFloat(String(product.Prices.ItemPrice[0].amount))
-        : product.defaultCost !== undefined && product.defaultCost !== null
-          ? Number.parseFloat(String(product.defaultCost))
-          : null,
-    inventory_count:
-      product.ItemShops?.ItemShop?.[0]?.qoh !== undefined &&
-      product.ItemShops?.ItemShop?.[0]?.qoh !== null
-        ? Number.parseInt(String(product.ItemShops.ItemShop[0].qoh), 10)
-        : product.qoh !== undefined && product.qoh !== null
-          ? Number.parseInt(String(product.qoh), 10)
-          : 0,
-    category: product.Category?.name ?? null,
-    tags: rawTags,
+      product.sku ??
+      product.systemSku ??
+      product.customSku ??
+      product.manufacturerSku ??
+      existingProduct?.sku ??
+      null,
+    description:
+      product.longDescription ??
+      product.description ??
+      existingProduct?.description ??
+      null,
+    price: price ?? existingProduct?.price ?? 0,
+    supply_price: supplyPrice ?? existingProduct?.supply_price ?? 0,
+    inventory_count: inventoryCount ?? existingProduct?.inventory_count ?? 0,
+    stock_count:
+      inventoryCount ??
+      existingProduct?.stock_count ??
+      existingProduct?.inventory_count ??
+      0,
+    category:
+      category ??
+      existingProduct?.category ??
+      existingProduct?.product_type ??
+      null,
+    product_type:
+      category ??
+      existingProduct?.product_type ??
+      existingProduct?.category ??
+      null,
+    brand: extractProductBrand(product) ?? existingProduct?.brand ?? null,
+    tags: tags.length > 0 ? tags : getExistingArray(existingProduct?.tags),
     raw_data: product,
     synced_at: new Date().toISOString(),
   };
@@ -296,9 +603,11 @@ function mapLightspeedProductToCatalogProduct(
     description: row.description,
     sku: row.sku,
     price: row.price ?? 0,
+    cost_price: row.supply_price ?? 0,
     currency: "USD",
     inventory_count: row.inventory_count ?? 0,
-    category: row.category,
+    stock_count: row.stock_count ?? row.inventory_count ?? 0,
+    category: row.category ?? row.product_type ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     external_data: row.raw_data ?? {},
     last_synced_at: row.synced_at,
@@ -392,9 +701,11 @@ async function handleSaleEvent(
     return;
   }
 
+  const mappedSale = mapLightspeedSale(sale, connection);
+
   const { error: upsertError } = await supabase
     .from("lightspeed_sales")
-    .upsert(mapLightspeedSale(sale, connection), {
+    .upsert(mappedSale, {
       onConflict: "tenant_id,lightspeed_sale_id",
     });
 
@@ -406,6 +717,14 @@ async function handleSaleEvent(
     .from("lightspeed_connections")
     .update({ last_sales_sync: new Date().toISOString() })
     .eq("id", connection.id);
+
+  if (mappedSale.lightspeed_customer_id) {
+    await refreshCustomerRollupFromSales(
+      supabase,
+      connection,
+      mappedSale.lightspeed_customer_id,
+    );
+  }
 
   console.log(
     `[LS-WEBHOOK] Sale ${sale.saleID} upserted for tenant ${connection.tenant_id}`,
@@ -443,7 +762,7 @@ async function handleCustomerEvent(
       tenant_id: connection.tenant_id,
       email,
       pos_source: "lightspeed",
-      lightspeed_customer_id: String(customer.customerID),
+      external_id: String(customer.customerID),
       updated_at: new Date().toISOString(),
     };
 
@@ -459,11 +778,17 @@ async function handleCustomerEvent(
       crmRow.phone = providerRow.phone;
     }
 
-    if (typeof providerRow.purchase_count === "number") {
+    if (
+      typeof providerRow.purchase_count === "number" &&
+      providerRow.purchase_count > 0
+    ) {
       crmRow.pos_order_count = providerRow.purchase_count;
     }
 
-    if (typeof providerRow.total_spend === "number") {
+    if (
+      typeof providerRow.total_spend === "number" &&
+      providerRow.total_spend > 0
+    ) {
       crmRow.total_spent = providerRow.total_spend;
       crmRow.pos_total_spent = providerRow.total_spend;
       crmRow.lifetime_value = providerRow.total_spend;
@@ -508,7 +833,21 @@ async function handleProductEvent(
     return;
   }
 
-  const providerRow = mapLightspeedProduct(product, connection);
+  const productId = String(product.id ?? product.itemID);
+  const { data: existingProduct } = await supabase
+    .from("lightspeed_products")
+    .select(
+      "price,supply_price,inventory_count,stock_count,category,product_type,brand,tags,sku,description,name",
+    )
+    .eq("tenant_id", connection.tenant_id)
+    .eq("lightspeed_product_id", productId)
+    .maybeSingle();
+
+  const providerRow = mapLightspeedProduct(
+    product,
+    connection,
+    existingProduct,
+  );
 
   const { error: upsertError } = await supabase
     .from("lightspeed_products")

@@ -440,6 +440,26 @@ type BaseLightspeedSaleRow =
   Database["public"]["Tables"]["lightspeed_sales"]["Row"];
 type LightspeedProductRow =
   Database["public"]["Tables"]["lightspeed_products"]["Row"];
+type LightspeedDashboardEntityStats = {
+  count: number;
+  lastSyncedAt: string | null;
+};
+type LightspeedSaleLineItemLookup = {
+  name: string | null;
+  sku: string | null;
+};
+
+const LIGHTSPEED_COMPLETED_SALE_STATUSES = [
+  "completed",
+  "closed",
+  "paid",
+] as const;
+const LIGHTSPEED_OPEN_SALE_STATUSES = [
+  "open",
+  "layby",
+  "on_account",
+  "parked",
+] as const;
 
 export type LightspeedSortDirection = "asc" | "desc";
 export type SquareCustomerSortField =
@@ -1086,6 +1106,147 @@ function normalizeShopifySyncLogRow(job: PosSyncJobRow): ShopifySyncLogRow {
 
 function getJsonArrayLength(value: Json | null | undefined) {
   return Array.isArray(value) ? value.length : 0;
+}
+
+function getNonEmptyStringValue(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
+function getEffectiveImportedMetric(
+  primary?: number | null,
+  fallback?: number | null,
+) {
+  const hasPrimary = typeof primary === "number" && Number.isFinite(primary);
+  const hasFallback = typeof fallback === "number" && Number.isFinite(fallback);
+
+  if (!hasPrimary && !hasFallback) {
+    return null;
+  }
+
+  return Math.max(hasPrimary ? primary : 0, hasFallback ? fallback : 0);
+}
+
+function getLightspeedSaleStatusValues(status?: string | null) {
+  switch (status?.trim().toLowerCase()) {
+    case "completed":
+      return [...LIGHTSPEED_COMPLETED_SALE_STATUSES];
+    case "open":
+      return [...LIGHTSPEED_OPEN_SALE_STATUSES];
+    default:
+      return null;
+  }
+}
+
+function applyLightspeedSaleStatusFilter(request: any, status?: string | null) {
+  const statusValues = getLightspeedSaleStatusValues(status);
+  if (!statusValues || statusValues.length === 0) {
+    return request;
+  }
+
+  return request.or(
+    statusValues.map((value) => `status.ilike.${value}`).join(","),
+  );
+}
+
+function getLightspeedLineItemProductId(lineItem: unknown) {
+  if (!lineItem || typeof lineItem !== "object" || Array.isArray(lineItem)) {
+    return null;
+  }
+
+  const source = lineItem as Record<string, unknown>;
+  return getNonEmptyStringValue(
+    source.product_id,
+    source.productId,
+    source.productID,
+    source.item_id,
+    source.itemId,
+  );
+}
+
+function getLightspeedLineItemName(lineItem: unknown) {
+  if (!lineItem || typeof lineItem !== "object" || Array.isArray(lineItem)) {
+    return null;
+  }
+
+  const source = lineItem as Record<string, unknown>;
+  return getNonEmptyStringValue(
+    source.product_name,
+    source.productName,
+    source.name,
+    source.description,
+  );
+}
+
+function getLightspeedLineItemSku(lineItem: unknown) {
+  if (!lineItem || typeof lineItem !== "object" || Array.isArray(lineItem)) {
+    return null;
+  }
+
+  const source = lineItem as Record<string, unknown>;
+  return getNonEmptyStringValue(
+    source.sku,
+    source.systemSku,
+    source.customSku,
+    source.manufacturerSku,
+  );
+}
+
+function collectLightspeedSaleProductIds(lineItems: Json | null | undefined) {
+  if (!Array.isArray(lineItems)) {
+    return [] as string[];
+  }
+
+  const productIds = new Set<string>();
+
+  for (const entry of lineItems) {
+    const productId = getLightspeedLineItemProductId(entry);
+    if (productId) {
+      productIds.add(productId);
+    }
+  }
+
+  return Array.from(productIds);
+}
+
+function enrichLightspeedSaleLineItems(
+  lineItems: Json | null | undefined,
+  productLookup: Map<string, LightspeedSaleLineItemLookup>,
+) {
+  if (!Array.isArray(lineItems)) {
+    return lineItems ?? null;
+  }
+
+  return lineItems.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return entry;
+    }
+
+    const source = entry as Record<string, unknown>;
+    const productId = getLightspeedLineItemProductId(source);
+    const lookup = productId ? productLookup.get(productId) : null;
+    const resolvedName = lookup?.name ?? getLightspeedLineItemName(source);
+    const resolvedSku = lookup?.sku ?? getLightspeedLineItemSku(source);
+
+    if (!resolvedName && !resolvedSku) {
+      return entry;
+    }
+
+    return {
+      ...source,
+      ...(resolvedName ? { product_name: resolvedName } : {}),
+      ...(resolvedSku ? { sku: resolvedSku } : {}),
+    } satisfies Record<string, unknown>;
+  });
 }
 
 function normalizeJsonStringList(value: Json | null | undefined) {
@@ -4842,6 +5003,99 @@ export function useIntegrationDetailData(
     Boolean(tenant?.id) &&
     Boolean(resolved?.shopifyConnection?.id);
 
+  const lightspeedCustomersStatsQuery = useQuery({
+    queryKey: [
+      "integration-detail-lightspeed-customers-stats",
+      tenant?.id ?? null,
+    ],
+    enabled: isLightspeedDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          count: 0,
+          lastSyncedAt: null,
+        } satisfies LightspeedDashboardEntityStats;
+      }
+
+      const { data, error, count } = await supabase
+        .from("lightspeed_customers")
+        .select("synced_at", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .order("synced_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        count: count ?? 0,
+        lastSyncedAt: data?.[0]?.synced_at ?? null,
+      } satisfies LightspeedDashboardEntityStats;
+    },
+  });
+
+  const lightspeedSalesStatsQuery = useQuery({
+    queryKey: ["integration-detail-lightspeed-sales-stats", tenant?.id ?? null],
+    enabled: isLightspeedDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          count: 0,
+          lastSyncedAt: null,
+        } satisfies LightspeedDashboardEntityStats;
+      }
+
+      const { data, error, count } = await supabase
+        .from("lightspeed_sales")
+        .select("synced_at", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .order("synced_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        count: count ?? 0,
+        lastSyncedAt: data?.[0]?.synced_at ?? null,
+      } satisfies LightspeedDashboardEntityStats;
+    },
+  });
+
+  const lightspeedProductsStatsQuery = useQuery({
+    queryKey: [
+      "integration-detail-lightspeed-products-stats",
+      tenant?.id ?? null,
+    ],
+    enabled: isLightspeedDashboardEnabled,
+    queryFn: async () => {
+      if (!tenant?.id) {
+        return {
+          count: 0,
+          lastSyncedAt: null,
+        } satisfies LightspeedDashboardEntityStats;
+      }
+
+      const { data, error, count } = await supabase
+        .from("lightspeed_products")
+        .select("synced_at", { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .order("synced_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      return {
+        count: count ?? 0,
+        lastSyncedAt: data?.[0]?.synced_at ?? null,
+      } satisfies LightspeedDashboardEntityStats;
+    },
+  });
+
   const shopifyCustomersQuery = useQuery({
     queryKey: [
       "integration-detail-shopify-customers",
@@ -6283,6 +6537,7 @@ export function useIntegrationDetailData(
       const { from, to, safePage } = getLightspeedPageRange(
         lightspeedDashboardOptions.sales.page,
       );
+      let productLookupMap = new Map<string, LightspeedSaleLineItemLookup>();
       let request = supabase
         .from("lightspeed_sales")
         .select("*", { count: "exact" })
@@ -6295,9 +6550,10 @@ export function useIntegrationDetailData(
         );
       }
 
-      if (lightspeedDashboardOptions.sales.status !== "all") {
-        request = request.eq("status", lightspeedDashboardOptions.sales.status);
-      }
+      request = applyLightspeedSaleStatusFilter(
+        request,
+        lightspeedDashboardOptions.sales.status,
+      );
 
       if (lightspeedDashboardOptions.sales.startDate) {
         request = request.gte(
@@ -6357,14 +6613,52 @@ export function useIntegrationDetailData(
         );
       }
 
+      const productIds = Array.from(
+        new Set(
+          (data ?? []).flatMap((row) =>
+            collectLightspeedSaleProductIds(row.line_items),
+          ),
+        ),
+      );
+
+      if (productIds.length > 0) {
+        const { data: productData, error: productError } = await supabase
+          .from("lightspeed_products")
+          .select("lightspeed_product_id, name, sku")
+          .eq("tenant_id", tenant.id)
+          .in("lightspeed_product_id", productIds);
+
+        if (productError) {
+          throw productError;
+        }
+
+        productLookupMap = new Map<string, LightspeedSaleLineItemLookup>(
+          (productData ?? []).map((row) => [
+            row.lightspeed_product_id,
+            {
+              name: row.name ?? null,
+              sku: row.sku ?? null,
+            },
+          ]),
+        );
+      }
+
       return {
-        rows: (data ?? []).map((row) => ({
-          ...row,
-          customerDisplayName: row.lightspeed_customer_id
-            ? (customerNameMap.get(row.lightspeed_customer_id) ?? null)
-            : null,
-          lineItemCount: getJsonArrayLength(row.line_items),
-        })),
+        rows: (data ?? []).map((row) => {
+          const resolvedLineItems = enrichLightspeedSaleLineItems(
+            row.line_items,
+            productLookupMap,
+          );
+
+          return {
+            ...row,
+            line_items: resolvedLineItems,
+            customerDisplayName: row.lightspeed_customer_id
+              ? (customerNameMap.get(row.lightspeed_customer_id) ?? null)
+              : null,
+            lineItemCount: getJsonArrayLength(resolvedLineItems),
+          };
+        }),
         pagination: buildLightspeedPagination(safePage, count ?? 0),
       };
     },
@@ -6401,9 +6695,10 @@ export function useIntegrationDetailData(
         );
       }
 
-      if (lightspeedDashboardOptions.sales.status !== "all") {
-        request = request.eq("status", lightspeedDashboardOptions.sales.status);
-      }
+      request = applyLightspeedSaleStatusFilter(
+        request,
+        lightspeedDashboardOptions.sales.status,
+      );
 
       if (lightspeedDashboardOptions.sales.startDate) {
         request = request.gte(
@@ -7302,6 +7597,59 @@ export function useIntegrationDetailData(
     lightspeedSyncLogsQuery.isLoading,
   ]);
 
+  const lightspeedDetail = useMemo<LightspeedDetailData | null>(() => {
+    const detail = resolved?.lightspeedDetail ?? null;
+    if (!detail) {
+      return null;
+    }
+
+    const lastCustomerSync = getMostRecentTimestamp([
+      detail.lastCustomerSync,
+      lightspeedCustomersStatsQuery.data?.lastSyncedAt ?? null,
+    ]);
+    const lastSalesSync = getMostRecentTimestamp([
+      detail.lastSalesSync,
+      lightspeedSalesStatsQuery.data?.lastSyncedAt ?? null,
+    ]);
+    const lastProductSync = getMostRecentTimestamp([
+      detail.lastProductSync,
+      lightspeedProductsStatsQuery.data?.lastSyncedAt ?? null,
+    ]);
+
+    return {
+      ...detail,
+      lastCustomerSync,
+      lastSalesSync,
+      lastProductSync,
+      customersSynced: getEffectiveImportedMetric(
+        detail.customersSynced,
+        lightspeedCustomersStatsQuery.data?.count,
+      ),
+      salesSynced: getEffectiveImportedMetric(
+        detail.salesSynced,
+        lightspeedSalesStatsQuery.data?.count,
+      ),
+      productsSynced: getEffectiveImportedMetric(
+        detail.productsSynced,
+        lightspeedProductsStatsQuery.data?.count,
+      ),
+      lastSyncedAt: getMostRecentTimestamp([
+        detail.lastSyncedAt,
+        lastCustomerSync,
+        lastSalesSync,
+        lastProductSync,
+      ]),
+    };
+  }, [
+    lightspeedCustomersStatsQuery.data?.count,
+    lightspeedCustomersStatsQuery.data?.lastSyncedAt,
+    lightspeedProductsStatsQuery.data?.count,
+    lightspeedProductsStatsQuery.data?.lastSyncedAt,
+    lightspeedSalesStatsQuery.data?.count,
+    lightspeedSalesStatsQuery.data?.lastSyncedAt,
+    resolved?.lightspeedDetail,
+  ]);
+
   const squareDashboard = useMemo<SquareDashboardData | null>(() => {
     if (!isSquareDashboardEnabled) {
       return null;
@@ -8118,7 +8466,7 @@ export function useIntegrationDetailData(
     squareDashboard,
     cloverDetail: resolved?.cloverDetail ?? null,
     cloverDashboard,
-    lightspeedDetail: resolved?.lightspeedDetail ?? null,
+    lightspeedDetail,
     lightspeedDashboard,
     metaDetail: resolved?.metaDetail ?? null,
     ga4Detail: resolved?.ga4Detail ?? null,
