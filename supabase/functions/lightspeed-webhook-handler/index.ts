@@ -886,14 +886,18 @@ async function dispatchLightspeedEvent(
   supabase: any,
 ) {
   switch (eventType) {
+    case "sale.update":
     case "sale.completed":
     case "sale.updated":
       await handleSaleEvent(payload, connection, supabase);
       break;
+    case "customer.update":
     case "customer.created":
     case "customer.updated":
       await handleCustomerEvent(payload, connection, supabase);
       break;
+    case "product.update":
+    case "inventory.update":
     case "product.updated":
     case "item.updated":
       await handleProductEvent(payload, connection, supabase);

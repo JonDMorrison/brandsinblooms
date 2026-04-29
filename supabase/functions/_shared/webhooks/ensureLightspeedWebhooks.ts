@@ -13,15 +13,14 @@
 import { EnsureWebhooksResult, calculateNextRetry } from "./types.ts";
 import { decryptToken } from "../crypto/tokens.ts";
 
-const REQUIRED_EVENTS = [
-  "sale.completed",
-  "sale.updated",
-  "customer.created",
-  "customer.updated",
-  "product.updated",
-  "item.updated",
-  "loyalty.updated",
-];
+const XSERIES_WEBHOOK_TYPES = [
+  "sale.update",
+  "customer.update",
+  "product.update",
+  "inventory.update",
+] as const;
+
+type XSeriesWebhookType = (typeof XSERIES_WEBHOOK_TYPES)[number];
 
 type LightspeedWebhookFormat = "x-series" | "r-series";
 
@@ -86,6 +85,18 @@ function getWebhookId(webhook: any) {
   );
 }
 
+function getWebhookType(webhook: any) {
+  if (!webhook || typeof webhook !== "object") {
+    return null;
+  }
+
+  return typeof webhook.type === "string"
+    ? webhook.type
+    : typeof webhook.event === "string"
+      ? webhook.event
+      : null;
+}
+
 function isWebhookEnabled(webhook: any) {
   if (!webhook || typeof webhook !== "object") {
     return false;
@@ -127,6 +138,78 @@ function getWebhookErrorMessage(
       : null) ||
     `Create failed: ${status} — ${errorText.slice(0, 200)}`
   );
+}
+
+async function createXSeriesWebhook(
+  createEndpoint: string,
+  headers: Record<string, string>,
+  webhookUrl: string,
+  webhookType: XSeriesWebhookType,
+) {
+  const createBody = {
+    url: webhookUrl,
+    type: webhookType,
+    active: true,
+  };
+
+  console.log(
+    `[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook type=${webhookType}`,
+  );
+  console.log(
+    "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create body:",
+    JSON.stringify(createBody),
+  );
+
+  const createResponse = await fetch(createEndpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(createBody),
+  });
+
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    console.error(
+      `[ENSURE-LIGHTSPEED-WEBHOOKS] Failed to create ${webhookType}:`,
+      createResponse.status,
+      errorText,
+    );
+
+    return {
+      ok: false,
+      status: createResponse.status,
+      errorText,
+      createdId: null,
+    };
+  }
+
+  const createData = await createResponse.json();
+  const createdWebhook = extractWebhookRecord(createData);
+  const createdId = getWebhookId(createdWebhook);
+
+  console.log(
+    "[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:",
+    getResponseKeys(createData),
+  );
+  console.log(
+    "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create response:",
+    JSON.stringify(createData),
+  );
+  if (createdId) {
+    console.log(
+      `[ENSURE-LIGHTSPEED-WEBHOOKS] ✓ Created ${webhookType}: ${createdId}`,
+    );
+  } else {
+    console.warn(
+      `[ENSURE-LIGHTSPEED-WEBHOOKS] ${webhookType} created but no ID was returned`,
+    );
+  }
+
+  return {
+    ok: true,
+    status: createResponse.status,
+    errorText: null,
+    createdId,
+  };
 }
 
 export async function ensureLightspeedWebhooks(
@@ -339,224 +422,284 @@ export async function ensureLightspeedWebhooks(
       );
     }
 
-    // 4. Find our webhook
-    const existingWebhook = webhooks.find(
+    // 4. Find our webhook(s)
+    const ourWebhooks = webhooks.filter(
       (w: any) => w.url === webhookUrl || w.url === legacyWebhookUrl,
+    );
+    const existingWebhook = ourWebhooks[0] || null;
+    console.log(
+      `[ENSURE-LIGHTSPEED-WEBHOOKS] Found ${ourWebhooks.length} webhook(s) matching our URL`,
     );
     const existingWebhookId = getWebhookId(existingWebhook);
 
     let subscriptionId: string | null = null;
     let action: "created" | "updated" | "verified" = "verified";
 
-    if (existingWebhook && existingWebhookId) {
-      // Webhook exists - check if it's enabled
+    if (existingWebhook) {
       subscriptionId = existingWebhookId;
 
-      if (
-        !isWebhookEnabled(existingWebhook) ||
-        existingWebhook.url !== webhookUrl
-      ) {
-        // Enable the webhook and migrate legacy generic URLs to the store-specific path.
-        console.log(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:",
-          subscriptionId,
-          "=>",
-          webhookUrl,
-        );
-
-        const updateBody =
-          detectedFormat === "x-series"
-            ? { url: webhookUrl, active: true }
-            : { Webhook: { enabled: true, url: webhookUrl } };
-
-        console.log(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook with body:",
-          JSON.stringify(updateBody),
-        );
-
-        const updateResponse = await fetch(
-          endpoints.update(existingWebhookId),
-          {
-            method: "PUT",
-            headers,
-            body: JSON.stringify(updateBody),
-          },
-        );
-
-        if (!updateResponse.ok) {
-          const errorText = await updateResponse.text();
-          console.error(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:",
-            updateResponse.status,
-            errorText,
-          );
-          await updateConnectionError(
-            supabase,
-            connectionId,
-            `Update failed: ${updateResponse.status}`,
-          );
-          return {
-            success: false,
-            verified: false,
-            subscription_id: null,
-            error: `Update failed: ${updateResponse.status}`,
-            action: "failed",
-          };
+      if (detectedFormat === "x-series") {
+        const existingTypes = new Set<string>();
+        for (const webhook of ourWebhooks) {
+          const webhookType = getWebhookType(webhook);
+          if (webhookType) {
+            existingTypes.add(webhookType);
+          }
         }
 
-        action = "updated";
+        const missingTypes = XSERIES_WEBHOOK_TYPES.filter(
+          (type) => !existingTypes.has(type),
+        );
+
+        if (missingTypes.length > 0) {
+          console.log(
+            `[ENSURE-LIGHTSPEED-WEBHOOKS] Missing webhook types: ${missingTypes.join(", ")}`,
+          );
+
+          for (const webhookType of missingTypes) {
+            const result = await createXSeriesWebhook(
+              endpoints.create,
+              headers,
+              webhookUrl,
+              webhookType,
+            );
+
+            if (result.ok) {
+              if (!subscriptionId && result.createdId) {
+                subscriptionId = result.createdId;
+              }
+              action = "updated";
+            } else {
+              console.warn(
+                `[ENSURE-LIGHTSPEED-WEBHOOKS] Failed to create missing type ${webhookType}: ${result.status}`,
+              );
+            }
+          }
+        }
+
+        for (const webhook of ourWebhooks) {
+          const webhookId = getWebhookId(webhook);
+          if (!webhookId) {
+            console.warn(
+              "[ENSURE-LIGHTSPEED-WEBHOOKS] Matched X-Series webhook has no usable ID; skipping update",
+            );
+            continue;
+          }
+
+          if (!isWebhookEnabled(webhook) || webhook.url !== webhookUrl) {
+            console.log(
+              `[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook ${webhookId} — active: ${webhook.active}, url match: ${webhook.url === webhookUrl}`,
+            );
+
+            const updateBody = { url: webhookUrl, active: true };
+            const updateResponse = await fetch(endpoints.update(webhookId), {
+              method: "PUT",
+              headers,
+              body: JSON.stringify(updateBody),
+            });
+
+            if (!updateResponse.ok) {
+              const errorText = await updateResponse.text();
+              console.error(
+                "[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:",
+                updateResponse.status,
+                errorText,
+              );
+              await updateConnectionError(
+                supabase,
+                connectionId,
+                `Update failed: ${updateResponse.status}`,
+              );
+              return {
+                success: false,
+                verified: false,
+                subscription_id: null,
+                error: `Update failed: ${updateResponse.status}`,
+                action: "failed",
+              };
+            }
+
+            action = "updated";
+          }
+        }
+      } else if (existingWebhookId) {
+        if (
+          !isWebhookEnabled(existingWebhook) ||
+          existingWebhook.url !== webhookUrl
+        ) {
+          console.log(
+            "[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:",
+            subscriptionId,
+            "=>",
+            webhookUrl,
+          );
+
+          const updateBody = { Webhook: { enabled: true, url: webhookUrl } };
+
+          console.log(
+            "[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook with body:",
+            JSON.stringify(updateBody),
+          );
+
+          const updateResponse = await fetch(
+            endpoints.update(existingWebhookId),
+            {
+              method: "PUT",
+              headers,
+              body: JSON.stringify(updateBody),
+            },
+          );
+
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            console.error(
+              "[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:",
+              updateResponse.status,
+              errorText,
+            );
+            await updateConnectionError(
+              supabase,
+              connectionId,
+              `Update failed: ${updateResponse.status}`,
+            );
+            return {
+              success: false,
+              verified: false,
+              subscription_id: null,
+              error: `Update failed: ${updateResponse.status}`,
+              action: "failed",
+            };
+          }
+
+          action = "updated";
+        }
+      } else {
+        console.warn(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] Existing R-Series webhook matched by URL but had no usable ID - creating a replacement",
+        );
       }
 
       console.log(
-        "[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook exists:",
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Existing webhook(s) processed. Primary ID:",
         subscriptionId,
       );
     } else {
-      if (existingWebhook && !existingWebhookId) {
-        console.warn(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Existing webhook matched by URL but had no usable ID - creating a replacement",
-        );
-      }
-
       // Create new webhook
       console.log(
         "[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook to:",
         webhookUrl,
       );
 
-      let createResponse: Response | null = null;
-      let createAttemptLabel = "r-series";
-      let createErrorText: string | null = null;
-
       if (detectedFormat === "x-series") {
-        const createAttempts: Array<{
-          label: string;
-          body: Record<string, unknown>;
-        }> = [
-          {
-            label: 'type="general.webhook"',
-            body: { url: webhookUrl, type: "general.webhook" },
-          },
-          {
-            label: 'type="webhook"',
-            body: { url: webhookUrl, type: "webhook" },
-          },
-          {
-            label: 'type="all"',
-            body: { url: webhookUrl, type: "all" },
-          },
-          {
-            label: 'type="url"',
-            body: { url: webhookUrl, type: "url" },
-          },
-        ];
+        console.log(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series: creating one webhook per event type",
+        );
 
-        for (const attempt of createAttempts) {
-          createAttemptLabel = attempt.label;
-          createErrorText = null;
+        const createdIds: string[] = [];
+        const successfulTypes: XSeriesWebhookType[] = [];
+        const failedTypes: string[] = [];
 
-          console.log(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] Attempting X-Series create with",
-            attempt.label,
-          );
-          console.log(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create body:",
-            JSON.stringify(attempt.body),
-          );
-
-          createResponse = await fetch(endpoints.create, {
-            method: "POST",
+        for (const webhookType of XSERIES_WEBHOOK_TYPES) {
+          const result = await createXSeriesWebhook(
+            endpoints.create,
             headers,
-            body: JSON.stringify(attempt.body),
-          });
+            webhookUrl,
+            webhookType,
+          );
 
-          if (createResponse.status !== 422) {
-            break;
+          if (result.ok) {
+            successfulTypes.push(webhookType);
+            if (result.createdId) {
+              createdIds.push(result.createdId);
+            }
+            continue;
           }
 
-          createErrorText = await createResponse.text();
-          console.warn(
-            `[ENSURE-LIGHTSPEED-WEBHOOKS] ${attempt.label} rejected with 422`,
-          );
-          console.warn(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create 422 response:",
-            createErrorText,
-          );
+          failedTypes.push(webhookType);
         }
-      } else {
+
+        if (successfulTypes.length === 0) {
+          const errorMsg = `All webhook type registrations failed: ${failedTypes.join(", ")}`;
+          console.log("[ENSURE-LIGHTSPEED-WEBHOOKS]", errorMsg);
+          await updateConnectionError(supabase, connectionId, errorMsg);
+          return {
+            success: false,
+            verified: false,
+            subscription_id: null,
+            error: errorMsg,
+            action: "failed",
+          };
+        }
+
+        subscriptionId = createdIds[0] ?? subscriptionId;
+        action = "created";
         const createBody = {
-          Webhook: { url: webhookUrl, enabled: true, event: "all" },
+          created: successfulTypes,
+          failed: failedTypes,
         };
         console.log(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook with body:",
+          `[ENSURE-LIGHTSPEED-WEBHOOKS] Created ${successfulTypes.length}/${XSERIES_WEBHOOK_TYPES.length} webhooks. Primary ID: ${subscriptionId}`,
+        );
+        if (failedTypes.length > 0) {
+          console.warn(
+            `[ENSURE-LIGHTSPEED-WEBHOOKS] Failed types: ${failedTypes.join(", ")}`,
+          );
+        }
+        console.log(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create summary:",
           JSON.stringify(createBody),
         );
-        createResponse = await fetch(endpoints.create, {
+      } else {
+        console.log(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] R-Series: creating single webhook",
+        );
+
+        const createResponse = await fetch(endpoints.create, {
           method: "POST",
           headers,
-          body: JSON.stringify(createBody),
+          body: JSON.stringify({
+            Webhook: {
+              url: webhookUrl,
+              enabled: true,
+              event: "all",
+            },
+          }),
         });
+
+        if (!createResponse.ok) {
+          const errorText = await createResponse.text();
+          console.error(
+            "[ENSURE-LIGHTSPEED-WEBHOOKS] R-Series create failed:",
+            createResponse.status,
+            errorText,
+          );
+
+          const errorData = parseWebhookErrorPayload(errorText);
+          const errorMsg =
+            (typeof errorData.message === "string"
+              ? errorData.message
+              : null) || `Create failed: ${createResponse.status}`;
+
+          await updateConnectionError(supabase, connectionId, errorMsg);
+          return {
+            success: false,
+            verified: false,
+            subscription_id: null,
+            error: errorMsg,
+            action: "failed",
+          };
+        }
+
+        const createData = await createResponse.json();
+        const createdWebhook =
+          createData.Webhook ?? createData.data ?? createData;
+        subscriptionId = getWebhookId(createdWebhook);
+        action = "created";
+        console.log(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] R-Series webhook created:",
+          subscriptionId,
+        );
       }
-
-      if (!createResponse) {
-        throw new Error("Webhook create request was not attempted");
-      }
-
-      if (!createResponse.ok) {
-        const errorText = createErrorText ?? (await createResponse.text());
-        console.error(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed — status:",
-          createResponse.status,
-        );
-        console.error(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed — attempt:",
-          createAttemptLabel,
-        );
-        console.error(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed — full response:",
-          errorText,
-        );
-
-        const errorData = parseWebhookErrorPayload(errorText);
-        const errorMsg = getWebhookErrorMessage(
-          errorData,
-          createResponse.status,
-          errorText,
-        );
-        console.error(
-          "[ENSURE-LIGHTSPEED-WEBHOOKS] Create error parsed:",
-          errorMsg,
-        );
-        await updateConnectionError(supabase, connectionId, errorMsg);
-        return {
-          success: false,
-          verified: false,
-          subscription_id: null,
-          error: errorMsg,
-          action: "failed",
-        };
-      }
-
-      const createData = await createResponse.json();
-      const createdWebhook = extractWebhookRecord(createData);
-      subscriptionId = getWebhookId(createdWebhook);
-      action = "created";
-      console.log(
-        "[ENSURE-LIGHTSPEED-WEBHOOKS] Create succeeded with attempt:",
-        createAttemptLabel,
-      );
-      console.log(
-        "[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:",
-        getResponseKeys(createData),
-      );
-      console.log(
-        "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create response:",
-        JSON.stringify(createData),
-      );
-      console.log(
-        "[ENSURE-LIGHTSPEED-WEBHOOKS] Created webhook ID:",
-        subscriptionId,
-      );
     }
 
     // 5. Verify webhook exists
@@ -569,14 +712,54 @@ export async function ensureLightspeedWebhooks(
     let verified = false;
     if (verifyResponse.ok) {
       const verifyData = await verifyResponse.json();
-      const verifyWebhooks = extractWebhookCollection(verifyData);
-      const confirmedWebhook = verifyWebhooks.find(
-        (w: any) => getWebhookId(w) === subscriptionId || w.url === webhookUrl,
-      );
+      const allWebhooks = extractWebhookCollection(verifyData);
 
-      if (confirmedWebhook && isWebhookEnabled(confirmedWebhook)) {
-        verified = true;
-        subscriptionId = getWebhookId(confirmedWebhook);
+      if (detectedFormat === "x-series") {
+        const ourActiveWebhooks = allWebhooks.filter(
+          (w: any) =>
+            (w.url === webhookUrl || w.url === legacyWebhookUrl) &&
+            w.active !== false,
+        );
+        const activeTypes = new Set<string>();
+
+        for (const webhook of ourActiveWebhooks) {
+          const webhookType = getWebhookType(webhook);
+          if (webhookType) {
+            activeTypes.add(webhookType);
+          }
+        }
+
+        const coveredCount = XSERIES_WEBHOOK_TYPES.filter((type) =>
+          activeTypes.has(type),
+        ).length;
+
+        verified = coveredCount >= XSERIES_WEBHOOK_TYPES.length;
+        subscriptionId = getWebhookId(ourActiveWebhooks[0]) ?? subscriptionId;
+
+        console.log(
+          `[ENSURE-LIGHTSPEED-WEBHOOKS] Verification: ${coveredCount}/${XSERIES_WEBHOOK_TYPES.length} types covered`,
+        );
+        if (!verified) {
+          const missingTypes = XSERIES_WEBHOOK_TYPES.filter(
+            (type) => !activeTypes.has(type),
+          );
+          console.warn(
+            `[ENSURE-LIGHTSPEED-WEBHOOKS] Missing types after verify: ${missingTypes.join(", ")}`,
+          );
+        }
+      } else {
+        const confirmedWebhook = allWebhooks.find(
+          (w: any) =>
+            getWebhookId(w) === subscriptionId || w.url === webhookUrl,
+        );
+
+        if (confirmedWebhook && confirmedWebhook.enabled !== false) {
+          verified = true;
+          subscriptionId = getWebhookId(confirmedWebhook);
+        }
+      }
+
+      if (verified) {
         console.log("[ENSURE-LIGHTSPEED-WEBHOOKS] ✓ VERIFIED:", subscriptionId);
       }
     }
