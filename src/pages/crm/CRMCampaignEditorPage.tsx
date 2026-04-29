@@ -58,6 +58,7 @@ import {
 } from "@/components/crm/campaign-editor/CampaignEditorContext";
 import { CampaignPreviewDialog } from "@/components/crm/campaign-editor/CampaignPreviewDialog";
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
+import { EmailHealthScore } from "@/components/crm/EmailHealthScore";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
@@ -2832,6 +2833,14 @@ function CampaignEditorScreen() {
               )}
             </Box>
           </JoyCard>
+
+          {campaignType === "email" && contentBlocks.length > 0 && (
+            <EmailHealthScore
+              blocks={contentBlocks}
+              subjectLine={subjectLine}
+              preheaderText={preheaderText}
+            />
+          )}
 
           <SectionCard title="Review & Send">
             <Stack spacing={1.25}>

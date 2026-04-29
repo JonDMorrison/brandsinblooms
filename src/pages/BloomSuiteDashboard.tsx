@@ -39,6 +39,7 @@ import {
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
+import { POSInsightsCard } from "@/components/dashboard/POSInsightsCard";
 
 const panelSurfaceSx = {
   borderRadius: "12px",
@@ -552,6 +553,7 @@ export const BloomSuiteDashboard = () => {
   return (
     <Stack spacing={3}>
       <SetupNextStepsBanner />
+      <POSInsightsCard />
       <Sheet
         variant="plain"
         sx={{
