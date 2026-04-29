@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { encryptToken } from "../_shared/crypto/tokens.ts";
 import {
-  detectEnvironment,
+  detectEnvironmentFromOrigin,
   getLightspeedCredentials,
 } from "../_shared/environment.ts";
 import { ensureLightspeedWebhooks } from "../_shared/webhooks/ensureLightspeedWebhooks.ts";
@@ -21,25 +21,80 @@ type WebhookResult = {
   subscription_id?: string | null;
 };
 
+type OAuthStateRow = {
+  user_id: string;
+  tenant_id: string;
+  domain_prefix: string;
+  expires_at: string;
+  redirect_uri?: string | null;
+};
+
+const getStateLookupErrorText = (
+  error:
+    | {
+        message?: string | null;
+        details?: string | null;
+        hint?: string | null;
+        code?: string | null;
+      }
+    | null
+    | undefined,
+): string => {
+  return [error?.message, error?.details, error?.hint, error?.code]
+    .filter(Boolean)
+    .join(" ");
+};
+
+const isMissingRedirectUriColumnError = (
+  error:
+    | {
+        message?: string | null;
+        details?: string | null;
+        hint?: string | null;
+        code?: string | null;
+      }
+    | null
+    | undefined,
+): boolean => {
+  const errorText = getStateLookupErrorText(error);
+  return error?.code === "PGRST204" || errorText.includes("redirect_uri");
+};
+
+const normalizeCallbackRedirectUri = (
+  value: string | null | undefined,
+): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed || !trimmed.startsWith("http")) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.origin}/integrations/lightspeed/callback`;
+  } catch {
+    return null;
+  }
+};
+
 const inferRedirectUri = (req: Request): string => {
+  const appOrigin = normalizeCallbackRedirectUri(Deno.env.get("APP_ORIGIN"));
+  if (appOrigin) {
+    return appOrigin;
+  }
+
+  const appBaseUrl = normalizeCallbackRedirectUri(Deno.env.get("APP_BASE_URL"));
+  if (appBaseUrl) {
+    return appBaseUrl;
+  }
+
   const referer = req.headers.get("referer");
-  if (referer) {
-    try {
-      const u = new URL(referer);
-      return `${u.origin}/integrations/lightspeed/callback`;
-    } catch {
-      // ignore
-    }
+  const refererRedirectUri = normalizeCallbackRedirectUri(referer);
+  if (refererRedirectUri) {
+    return refererRedirectUri;
   }
 
   const origin = req.headers.get("origin");
-  if (origin && origin.startsWith("http")) {
-    return `${origin}/integrations/lightspeed/callback`;
-  }
-
-  const appBaseUrl = Deno.env.get("APP_BASE_URL");
-  if (appBaseUrl && appBaseUrl.startsWith("http")) {
-    return `${appBaseUrl.replace(/\/$/, "")}/integrations/lightspeed/callback`;
+  const originRedirectUri = normalizeCallbackRedirectUri(origin);
+  if (originRedirectUri) {
+    return originRedirectUri;
   }
 
   return "https://bloomsuite.app/integrations/lightspeed/callback";
@@ -126,16 +181,9 @@ Deno.serve(async (req) => {
     const payload = await parseCallbackPayload(req);
     const code = payload.code ?? undefined;
     const state = payload.state ?? undefined;
-    const redirectUri =
-      (payload.redirectUri ?? undefined) || inferRedirectUri(req);
+    const inferredRedirectUri = inferRedirectUri(req);
 
-    console.log("[LS-CALLBACK] Request data:", {
-      hasCode: !!code,
-      hasState: !!state,
-      redirectUri,
-    });
-
-    if (!code || !state || !redirectUri) {
+    if (!code || !state) {
       console.error("[LS-CALLBACK] Missing required parameters");
       return new Response(
         JSON.stringify({
@@ -143,7 +191,7 @@ Deno.serve(async (req) => {
           missing: {
             code: !code,
             state: !state,
-            redirectUri: !redirectUri,
+            redirectUri: false,
           },
         }),
         {
@@ -155,16 +203,95 @@ Deno.serve(async (req) => {
 
     // Look up state in database
     console.log("[LS-CALLBACK] Looking up state token...");
-    const { data: stateData, error: stateError } = await supabaseClient
+    let stateData: OAuthStateRow | null = null;
+    let stateError: {
+      message?: string | null;
+      details?: string | null;
+      hint?: string | null;
+      code?: string | null;
+    } | null = null;
+    let redirectUriStorageSource: "oauth_states" | "legacy_oauth_states" =
+      "oauth_states";
+
+    const stateLookupWithRedirect = await supabaseClient
       .from("oauth_states")
-      .select("user_id, tenant_id, domain_prefix, expires_at")
+      .select("user_id, tenant_id, domain_prefix, expires_at, redirect_uri")
       .eq("state_token", state)
       .single();
+
+    if (isMissingRedirectUriColumnError(stateLookupWithRedirect.error)) {
+      redirectUriStorageSource = "legacy_oauth_states";
+      const legacyStateLookup = await supabaseClient
+        .from("oauth_states")
+        .select("user_id, tenant_id, domain_prefix, expires_at")
+        .eq("state_token", state)
+        .single();
+
+      stateData = legacyStateLookup.data
+        ? {
+            ...legacyStateLookup.data,
+            redirect_uri: null,
+          }
+        : null;
+      stateError = legacyStateLookup.error;
+    } else {
+      stateData = stateLookupWithRedirect.data as OAuthStateRow | null;
+      stateError = stateLookupWithRedirect.error;
+    }
 
     if (stateError || !stateData) {
       console.error("[LS-CALLBACK] State lookup failed:", stateError?.message);
       return new Response(
         JSON.stringify({ error: "Invalid or expired state token" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const storedRedirectUri =
+      typeof stateData.redirect_uri === "string" && stateData.redirect_uri
+        ? stateData.redirect_uri
+        : null;
+    const payloadRedirectUri = normalizeCallbackRedirectUri(
+      payload.redirectUri,
+    );
+    const redirectUri =
+      storedRedirectUri || payloadRedirectUri || inferredRedirectUri;
+    const redirectUriSource = storedRedirectUri
+      ? "stored"
+      : payloadRedirectUri
+        ? "payload"
+        : "inferred";
+    const environment = detectEnvironmentFromOrigin(redirectUri);
+
+    console.log("[LS-CALLBACK] Request data:", {
+      hasCode: !!code,
+      hasState: !!state,
+      redirectUri,
+      redirectUriSource,
+      payloadRedirectUri: payload.redirectUri ?? "not provided",
+      normalizedPayloadRedirectUri: payloadRedirectUri ?? "not normalized",
+      inferredRedirectUri,
+      storedRedirectUri: storedRedirectUri ?? "not stored",
+      redirectUriStorageSource,
+      referer: req.headers.get("referer"),
+      origin: req.headers.get("origin"),
+      environment,
+    });
+
+    if (!redirectUri) {
+      console.error("[LS-CALLBACK] Redirect URI could not be resolved");
+      return new Response(
+        JSON.stringify({
+          error: "Missing code, state, or redirect URI",
+          missing: {
+            code: false,
+            state: false,
+            redirectUri: true,
+          },
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -195,10 +322,8 @@ Deno.serve(async (req) => {
     // Delete used state token
     await supabaseClient.from("oauth_states").delete().eq("state_token", state);
 
-    // Detect environment and get appropriate credentials
-    const environment = detectEnvironment(req);
-    console.log("[LS-CALLBACK] Environment detected:", environment);
-
+    // Derive environment from the callback redirect URI so the token exchange
+    // uses the same Lightspeed app context as the original authorize request.
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
     if (!clientId || !clientSecret) {
       console.error(
@@ -242,6 +367,13 @@ Deno.serve(async (req) => {
         tokenResponse.status,
         errorText,
       );
+      console.error("[LS-CALLBACK] Token exchange context:", {
+        redirectUri,
+        redirectUriSource,
+        environment,
+        domainPrefix,
+        clientIdPrefix: clientId.substring(0, 8),
+      });
       return new Response(
         JSON.stringify({
           error: "Failed to exchange authorization code",

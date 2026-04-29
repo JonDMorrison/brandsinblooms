@@ -10293,6 +10293,7 @@ export type Database = {
           expires_at: string;
           id: string;
           provider: string | null;
+          redirect_uri: string | null;
           state_token: string;
           tenant_id: string;
           user_id: string;
@@ -10303,6 +10304,7 @@ export type Database = {
           expires_at: string;
           id?: string;
           provider?: string | null;
+          redirect_uri?: string | null;
           state_token: string;
           tenant_id: string;
           user_id: string;
@@ -10313,6 +10315,7 @@ export type Database = {
           expires_at?: string;
           id?: string;
           provider?: string | null;
+          redirect_uri?: string | null;
           state_token?: string;
           tenant_id?: string;
           user_id?: string;
