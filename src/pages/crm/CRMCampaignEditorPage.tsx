@@ -59,6 +59,9 @@ import {
 import { CampaignPreviewDialog } from "@/components/crm/campaign-editor/CampaignPreviewDialog";
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
 import { EmailHealthScore } from "@/components/crm/EmailHealthScore";
+import { WeeklyThemeCard } from "@/components/crm/WeeklyThemeCard";
+import { StructurePicker } from "@/components/crm/StructurePicker";
+import { useBrandDefaults } from "@/hooks/useBrandDefaults";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
@@ -978,6 +981,11 @@ function CampaignEditorScreen() {
   const [sampleCustomers, setSampleCustomers] = React.useState<
     SampleCustomer[]
   >([]);
+  // Email border frame settings (local state, persisted to campaign metadata on save)
+  const [emailBorderThickness, setEmailBorderThickness] = React.useState(0);
+  const [emailBorderColor, setEmailBorderColor] = React.useState("#68BEB9");
+  const brand = useBrandDefaults();
+
   const headerNameRef = React.useRef<HTMLDivElement | null>(null);
   const contentBlocksRef = React.useRef(contentBlocks);
   const pendingBuilderActionRef = React.useRef<(() => void) | null>(null);
@@ -2237,6 +2245,77 @@ function CampaignEditorScreen() {
                           }
                           placeholder="Defaults to sender email"
                         />
+
+                        {/* Email Border Frame */}
+                        <Stack spacing={1}>
+                          <Typography level="body-sm" fontWeight="md">
+                            Email Border
+                          </Typography>
+                          <ButtonGroup
+                            size="sm"
+                            variant="outlined"
+                            sx={{ width: "fit-content" }}
+                          >
+                            {(
+                              [
+                                { label: "None", value: 0 },
+                                { label: "Thin", value: 4 },
+                                { label: "Medium", value: 8 },
+                                { label: "Heavy", value: 12 },
+                              ] as const
+                            ).map((opt) => (
+                              <Button
+                                key={opt.value}
+                                variant={
+                                  emailBorderThickness === opt.value
+                                    ? "solid"
+                                    : "outlined"
+                                }
+                                color={
+                                  emailBorderThickness === opt.value
+                                    ? "primary"
+                                    : "neutral"
+                                }
+                                onClick={() =>
+                                  setEmailBorderThickness(opt.value)
+                                }
+                                disabled={isReadOnly}
+                              >
+                                {opt.label}
+                              </Button>
+                            ))}
+                          </ButtonGroup>
+                          {emailBorderThickness > 0 && (
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                            >
+                              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                                Color:
+                              </Typography>
+                              <input
+                                type="color"
+                                value={emailBorderColor}
+                                onChange={(e) =>
+                                  setEmailBorderColor(e.target.value)
+                                }
+                                disabled={isReadOnly}
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  border: "1px solid #d4d4d8",
+                                  borderRadius: 6,
+                                  cursor: "pointer",
+                                  padding: 0,
+                                }}
+                              />
+                              <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                                {emailBorderColor}
+                              </Typography>
+                            </Stack>
+                          )}
+                        </Stack>
                       </>
                     ) : null}
                   </Stack>
@@ -2569,6 +2648,18 @@ function CampaignEditorScreen() {
             </Grid>
           </SectionCard>
 
+          {/* Weekly Theme Suggestion */}
+          {campaignType === "email" && contentBlocks.length === 0 && (
+            <WeeklyThemeCard
+              onUseTheme={(title, seasonalFocus) => {
+                updateSetup({
+                  name: title,
+                  subjectLine: `${title} — ${seasonalFocus}`,
+                });
+              }}
+            />
+          )}
+
           <JoyCard
             variant="outlined"
             sx={{
@@ -2609,6 +2700,23 @@ function CampaignEditorScreen() {
                 >
                   Content
                 </Typography>
+                {brand.primaryColor && (
+                  <Typography
+                    level="body-xs"
+                    sx={{
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: "sm",
+                      backgroundColor: "success.100",
+                      color: "success.700",
+                      fontWeight: 600,
+                      fontSize: "10px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Brand Applied
+                  </Typography>
+                )}
               </Stack>
 
               <Stack
@@ -2719,56 +2827,35 @@ function CampaignEditorScreen() {
             <Box sx={{ p: 3 }}>
               {campaignType === "email" ? (
                 contentBlocks.length === 0 ? (
-                  <Box
-                    sx={{
-                      py: 8,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: "12px",
-                        backgroundColor: "neutral.100",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                  <Box sx={{ py: 3, px: 2 }}>
+                    <StructurePicker
+                      gardenCenterName={
+                        tenant?.name || name || "Your Garden Center"
+                      }
+                      primaryColor={brand.primaryColor || "#22C55E"}
+                      onSelect={(blocks, campaignName, sl) => {
+                        updateContent({ contentBlocks: blocks });
+                        if (campaignName || sl) {
+                          updateSetup({
+                            ...(campaignName ? { name: campaignName } : {}),
+                            ...(sl ? { subjectLine: sl } : {}),
+                          });
+                        }
                       }}
-                    >
-                      <LayoutTemplate
-                        size={24}
-                        style={{ color: "var(--joy-palette-neutral-400)" }}
-                      />
+                    />
+                    <Divider sx={{ my: 2 }} />
+                    <Box sx={{ textAlign: "center" }}>
+                      <JoyButton
+                        variant="plain"
+                        color="neutral"
+                        size="sm"
+                        startDecorator={<Plus size={16} />}
+                        onClick={() => openBlockPicker()}
+                        disabled={isReadOnly}
+                      >
+                        Or start from scratch
+                      </JoyButton>
                     </Box>
-                    <Typography level="body-sm" fontWeight="md">
-                      Start building your email
-                    </Typography>
-                    <Typography
-                      level="body-xs"
-                      sx={{
-                        color: "neutral.500",
-                        textAlign: "center",
-                        maxWidth: 280,
-                      }}
-                    >
-                      Choose a block layout to begin designing your campaign
-                      content.
-                    </Typography>
-                    <JoyButton
-                      variant="solid"
-                      color="primary"
-                      size="sm"
-                      startDecorator={<Plus size={16} />}
-                      onClick={() => openBlockPicker()}
-                      sx={{ mt: 1 }}
-                      disabled={isReadOnly}
-                    >
-                      Add your first block
-                    </JoyButton>
                   </Box>
                 ) : (
                   <Box sx={{ display: "flex", justifyContent: "center" }}>
