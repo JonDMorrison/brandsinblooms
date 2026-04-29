@@ -602,25 +602,29 @@ export function CampaignEditorProvider({
         return;
       }
 
-      if (
-        state.selectedSegments.length === 0 &&
-        state.selectedPersonas.length === 0
-      ) {
-        setState((current) => ({
-          ...current,
-          audienceCount: 0,
-          isAudienceLoading: false,
-        }));
-        return;
-      }
-
       setState((current) => ({ ...current, isAudienceLoading: true }));
       try {
-        const count = await computeAudienceRecipientCount({
-          tenantId: tenant.id,
-          segmentIds: state.selectedSegments.map((segment) => segment.id),
-          personaIds: state.selectedPersonas.map((persona) => persona.id),
-        });
+        let count: number;
+
+        if (
+          state.selectedSegments.length === 0 &&
+          state.selectedPersonas.length === 0
+        ) {
+          // "All Contacts" mode — count all emailable customers for this tenant
+          const { count: total } = await supabase
+            .from("crm_customers")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenant.id)
+            .not("email", "is", null)
+            .not("email_opt_in", "is", false);
+          count = total ?? 0;
+        } else {
+          count = await computeAudienceRecipientCount({
+            tenantId: tenant.id,
+            segmentIds: state.selectedSegments.map((segment) => segment.id),
+            personaIds: state.selectedPersonas.map((persona) => persona.id),
+          });
+        }
 
         if (!cancelled) {
           setState((current) => ({
