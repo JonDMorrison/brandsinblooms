@@ -817,7 +817,7 @@ export function FormPreviewRenderer({
 
   const containerStyle: React.CSSProperties = {
     width: "100%",
-    maxWidth: `min(${tokens.formMaxWidth}, 42rem)`,
+    maxWidth: `min(${tokens.formMaxWidth}, 48rem)`,
     margin: "0 auto",
     backgroundColor: tokens.background,
     color: tokens.text,
@@ -940,7 +940,7 @@ export function FormPreviewRenderer({
                 style={{
                   color: tokens.text,
                   fontFamily: tokens.fontFamily,
-                  fontSize: "1.25rem",
+                  fontSize: "1.5rem",
                   fontWeight: 600,
                   lineHeight: 1.3,
                   margin: 0,
@@ -954,8 +954,8 @@ export function FormPreviewRenderer({
               <p
                 style={{
                   color: tokens.mutedText,
-                  fontSize: "0.875rem",
-                  lineHeight: 1.6,
+                  fontSize: "1rem",
+                  lineHeight: 1.7,
                   margin: 0,
                 }}
               >
