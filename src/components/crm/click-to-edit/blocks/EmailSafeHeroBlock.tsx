@@ -184,6 +184,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           id="headline"
           value={block.headline || ''}
           onChange={(e) => onUpdate({ headline: e.target.value })}
+          onKeyDown={(e) => e.stopPropagation()}
           placeholder="Enter your main headline"
         />
       </div>
