@@ -306,7 +306,17 @@ export const AuthCallbackPage = () => {
           if (data?.stage === "fetch_pages") {
             errorMessage = `Unable to fetch your Facebook Pages from Meta. ${data.meta_error || ""}\n\nThis usually happens when:\n• You don't have admin access to any Facebook Pages\n• Pages weren't selected during the connection process\n• The app doesn't have the required permissions\n\nPlease:\n1. Go to facebook.com/settings?tab=business_tools\n2. Remove BloomSuite from Business Integrations\n3. Try connecting again and grant all permissions\n4. Make sure to select at least one Page you manage`;
           } else if (data?.stage === "no_pages") {
-            errorMessage = `No Facebook Pages were found for your account.\n\nPlease ensure:\n• You are an admin on at least one Facebook Page\n• You selected your Page(s) during the Meta authorization\n• You're using the correct Facebook account\n\nTry:\n1. Logging into the Facebook account that owns your Page\n2. Reconnecting from BloomSuite\n3. Selecting all Pages you want to connect when prompted`;
+            const errorCode = data?.error_code || "no_pages_admin";
+            if (errorCode === "permission_declined") {
+              errorMessage =
+                "Your authorization is missing the permissions BloomSuite needs to access your Pages.\n\nClick Try Again, and on the Meta consent screen, make sure all permissions stay checked — don't click 'Choose what you allow' to deselect any.";
+            } else if (errorCode === "scope_missing") {
+              errorMessage =
+                "No Facebook Pages were found for your account.\n\nThis appears to be a configuration issue on BloomSuite's side. Please contact support so we can investigate.";
+            } else {
+              errorMessage =
+                "Your Facebook authorization worked, but Meta didn't return any Pages tied to your account.\n\nThis usually means you're not yet an admin on your business's Facebook Page. If a partner, employee, or previous agency owns the Page, ask them to add you as an admin:\nhttps://www.facebook.com/business/help/187316341316631\n\nOnce you have admin access, come back and try connecting again.";
+            }
           }
 
           sessionStorage.setItem(

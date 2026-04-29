@@ -546,17 +546,55 @@ serve(async (req) => {
     }
 
     console.log("✅ Retrieved Facebook user data:", {
-      name: userData.name,
-      id: userData.id,
+      user_id: user.id,
+      platform: "facebook",
+      meta_user_id: userData.id,
+      meta_user_name: userData.name,
     });
 
-    console.log("📄 Fetching Facebook pages and Instagram accounts...");
-    console.log(
-      "📡 Access token preview:",
-      accessToken.substring(0, 15) +
-        "..." +
-        accessToken.substring(accessToken.length - 5),
-    );
+    // ── Diagnostic: Fetch granted permissions ──────────────────────────
+    console.log("🔐 Fetching granted permissions...", {
+      user_id: user.id,
+      platform: "facebook",
+    });
+    let grantedPermissions: string[] = [];
+    let declinedPermissions: string[] = [];
+    try {
+      const permResponse = await fetch(
+        `https://graph.facebook.com/v19.0/me/permissions?access_token=${accessToken}`,
+      );
+      const permData = await permResponse.json();
+      console.log("🔐 /me/permissions raw response:", {
+        user_id: user.id,
+        platform: "facebook",
+        meta_user_id: userData.id,
+        status: permResponse.status,
+        data: permData.data,
+      });
+      if (Array.isArray(permData.data)) {
+        grantedPermissions = permData.data
+          .filter((p: any) => p.status === "granted")
+          .map((p: any) => p.permission);
+        declinedPermissions = permData.data
+          .filter((p: any) => p.status === "declined")
+          .map((p: any) => p.permission);
+      }
+      console.log("🔐 Permission summary:", {
+        user_id: user.id,
+        platform: "facebook",
+        granted: grantedPermissions,
+        declined: declinedPermissions,
+      });
+    } catch (permErr) {
+      console.warn("⚠️ Failed to fetch permissions (non-blocking):", permErr);
+    }
+
+    // ── Fetch Facebook Pages ──────────────────────────────────────────
+    console.log("📄 Fetching Facebook pages and Instagram accounts...", {
+      user_id: user.id,
+      platform: "facebook",
+      meta_user_id: userData.id,
+    });
 
     const pagesResponse = await fetch(
       `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${accessToken}`,
@@ -564,17 +602,20 @@ serve(async (req) => {
     const pagesData = await pagesResponse.json();
 
     console.log("📬 Pages API Response:", {
+      user_id: user.id,
+      platform: "facebook",
+      meta_user_id: userData.id,
       status: pagesResponse.status,
       ok: pagesResponse.ok,
       hasData: !!pagesData.data,
       dataLength: pagesData.data?.length || 0,
+      pageNames: (pagesData.data || []).map((p: any) => p.name),
       hasError: !!pagesData.error,
       errorType: pagesData.error?.type,
       errorCode: pagesData.error?.code,
       errorMessage: pagesData.error?.message,
-      errorSubcode: pagesData.error?.error_subcode,
-      fullError: pagesData.error,
-      rawResponse: JSON.stringify(pagesData).substring(0, 500),
+      grantedPermissions,
+      declinedPermissions,
     });
 
     if (!pagesResponse.ok) {
@@ -612,10 +653,39 @@ serve(async (req) => {
     }
 
     const pageCount = pagesData.data?.length || 0;
-    console.log(`📊 Found ${pageCount} pages to process`);
+    console.log(`📊 Found ${pageCount} pages to process`, {
+      user_id: user.id,
+      platform: "facebook",
+      meta_user_id: userData.id,
+      pageCount,
+    });
 
     if (pageCount === 0) {
-      console.warn("⚠️ Meta returned 0 pages for this account");
+      // Determine specific error_code based on permissions diagnostics
+      const pagePermissions = ["pages_show_list", "pages_manage_posts", "pages_read_engagement"];
+      const hasDeclinedPagePerms = declinedPermissions.some((p) =>
+        pagePermissions.includes(p),
+      );
+      const hasMissingPagePerms = !grantedPermissions.some((p) =>
+        pagePermissions.includes(p),
+      );
+
+      let errorCode = "no_pages_admin";
+      if (hasDeclinedPagePerms) {
+        errorCode = "permission_declined";
+      } else if (hasMissingPagePerms && grantedPermissions.length > 0) {
+        errorCode = "scope_missing";
+      }
+
+      console.warn("⚠️ Meta returned 0 pages for this account", {
+        user_id: user.id,
+        platform: "facebook",
+        meta_user_id: userData.id,
+        error_code: errorCode,
+        grantedPermissions,
+        declinedPermissions,
+      });
+
       providerResults.facebook.error =
         "No Facebook Pages found for this account.";
 
@@ -623,12 +693,17 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           stage: "no_pages",
+          error_code: errorCode,
           error: "No Facebook Pages found for this account.",
           message:
             "Meta did not return any Pages. Please ensure you are an admin on at least one Facebook Page and selected it during the connection process.",
           providerIntent,
           providerResults,
           retry: true,
+          permissions: {
+            granted: grantedPermissions,
+            declined: declinedPermissions,
+          },
         }),
         {
           status: 200,
