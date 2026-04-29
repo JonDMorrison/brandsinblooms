@@ -1180,7 +1180,7 @@ export function FormPreviewRenderer({
               flexWrap: "wrap",
               gap: "0.75rem",
               alignItems: "center",
-              justifyContent: isFirstStep ? "flex-end" : "space-between",
+              justifyContent: isFirstStep ? "center" : "space-between",
             }}
           >
             {!isFirstStep ? (
@@ -1200,7 +1200,7 @@ export function FormPreviewRenderer({
                   justifyContent: "center",
                   gap: "0.5rem",
                   minHeight: 48,
-                  padding: "12px 24px",
+                  padding: "12px 32px",
                   borderRadius: CONTROL_RADIUS,
                   fontSize: "0.875rem",
                   fontWeight: 500,
@@ -1230,10 +1230,10 @@ export function FormPreviewRenderer({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "0.5rem",
-                width: "100%",
-                flex: "1 1 180px",
                 fontSize: "0.875rem",
                 fontWeight: 500,
+                borderStyle: "solid",
+                borderWidth: 1,
                 transition:
                   "background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, opacity 150ms ease",
                 cursor:
@@ -1266,17 +1266,18 @@ export function FormPreviewRenderer({
             </button>
           </div>
         ) : (
+          <div style={{ marginTop: 32, textAlign: "center" }}>
           <button
             type="submit"
             disabled={isSubmitting || hasActiveUploads}
             style={{
               ...getSubmitButtonStyle(tokens, theme.button_style ?? "filled"),
-              marginTop: 32,
               display: "inline-flex",
-              width: "100%",
               alignItems: "center",
               justifyContent: "center",
               gap: "0.5rem",
+              borderStyle: "solid",
+              borderWidth: 1,
               fontSize: "0.875rem",
               fontWeight: 500,
               transition:
@@ -1301,6 +1302,7 @@ export function FormPreviewRenderer({
               <ArrowRight size={16} />
             ) : null}
           </button>
+          </div>
         )}
 
         {hasActiveUploads && (
@@ -2515,7 +2517,7 @@ function getSubmitButtonStyle(
   if (buttonStyle === "outlined") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: CONTROL_RADIUS,
       backgroundColor: "transparent",
       borderColor: tokens.primary,
@@ -2527,7 +2529,7 @@ function getSubmitButtonStyle(
   if (buttonStyle === "ghost") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: CONTROL_RADIUS,
       backgroundColor: toRgba(tokens.primary, 0.08),
       borderColor: "transparent",
