@@ -1374,7 +1374,7 @@
         var headlineEl = document.createElement('h2');
         headlineEl.className = CSS_PREFIX + 'headline';
         headlineEl.textContent = _headlineText;
-        headlineEl.style.cssText = 'font-size:clamp(1.75rem,2vw,2.15rem);font-weight:700;line-height:1.15;margin:0 0 4px;color:' + (theme.text_color || '#1f2937');
+        headlineEl.style.cssText = 'font-size:1.5rem;font-weight:600;line-height:1.3;margin:0 0 4px;color:' + (theme.text_color || '#1f2937');
         if (theme.font_family && theme.font_family !== 'inherit') {
           headlineEl.style.fontFamily = theme.font_family;
         }
@@ -1385,7 +1385,7 @@
         var subheadlineEl = document.createElement('p');
         subheadlineEl.className = CSS_PREFIX + 'subheadline';
         subheadlineEl.textContent = _subheadlineText;
-        subheadlineEl.style.cssText = 'font-size:1rem;line-height:1.6;margin:0;color:#6b7280';
+        subheadlineEl.style.cssText = 'font-size:1.125rem;line-height:1.75;margin:0;color:#6b7280';
         if (theme.font_family && theme.font_family !== 'inherit') {
           subheadlineEl.style.fontFamily = theme.font_family;
         }
