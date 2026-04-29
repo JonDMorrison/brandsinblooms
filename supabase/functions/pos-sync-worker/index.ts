@@ -663,7 +663,8 @@ function sumLightspeedInventoryEntries(
   const totals = new Map<string, number>();
 
   for (const entry of entries) {
-    const productId = getLightspeedInventoryProductId(entry) ?? fallbackProductId;
+    const productId =
+      getLightspeedInventoryProductId(entry) ?? fallbackProductId;
     if (!productId) {
       continue;
     }
@@ -712,7 +713,12 @@ async function fetchLightspeedInventoryTotalsFromEndpoint(
   let cursor = 0;
 
   while (true) {
-    const url = buildLightspeedReferenceUrl(connection, "2.0", "inventory", cursor);
+    const url = buildLightspeedReferenceUrl(
+      connection,
+      "2.0",
+      "inventory",
+      cursor,
+    );
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -806,7 +812,7 @@ async function fetchLightspeedInventoryTotalFromProductDetail(
 
   const detailProduct = Array.isArray(responseData?.data)
     ? responseData.data[0]
-    : responseData?.data ?? responseData?.product ?? responseData;
+    : (responseData?.data ?? responseData?.product ?? responseData);
 
   if (!detailProduct || typeof detailProduct !== "object") {
     console.warn(
@@ -870,15 +876,17 @@ async function fetchLightspeedInventoryTotalsFromProductDetails(
   ) {
     const batch = productsNeedingInventory.slice(offset, offset + batchSize);
     const batchStart = offset + 1;
-    const batchEnd = Math.min(offset + batch.length, productsNeedingInventory.length);
+    const batchEnd = Math.min(
+      offset + batch.length,
+      productsNeedingInventory.length,
+    );
 
     console.log(
       `[PRODUCT-SYNC] Fetching inventory for product ${batchStart}/${productsNeedingInventory.length}`,
     );
 
     await writeJobProgress(supabase, job.id, {
-      progress_message:
-        `Fetching product inventory details — ${batchEnd.toLocaleString()}/${productsNeedingInventory.length.toLocaleString()} checked`,
+      progress_message: `Fetching product inventory details — ${batchEnd.toLocaleString()}/${productsNeedingInventory.length.toLocaleString()} checked`,
     });
 
     const batchResults = await Promise.all(
@@ -930,11 +938,7 @@ async function persistLightspeedInventoryTotals(
   let updatedProducts = 0;
   const batchSize = 50;
 
-  for (
-    let offset = 0;
-    offset < inventoryEntries.length;
-    offset += batchSize
-  ) {
+  for (let offset = 0; offset < inventoryEntries.length; offset += batchSize) {
     const batch = inventoryEntries.slice(offset, offset + batchSize);
     const batchResults = await Promise.all(
       batch.map(async ([productId, totalStock]) => {
@@ -1011,8 +1015,7 @@ async function syncLightspeedProductInventory(
   }
 
   await writeJobProgress(supabase, job.id, {
-    progress_message:
-      `Fetching product inventory counts — ${effectiveTotalItems.toLocaleString()} products imported`,
+    progress_message: `Fetching product inventory counts — ${effectiveTotalItems.toLocaleString()} products imported`,
   });
 
   const endpointResult = await fetchLightspeedInventoryTotalsFromEndpoint(

@@ -74,6 +74,7 @@ const CHECK_NAMES = {
   salesApi: "sales_api",
   productsApi: "product_api",
   webhookMode: "webhook_mode",
+  webhookEndpointFormat: "webhook_endpoint_format",
   syncQueue: "sync_queue",
   importedData: "imported_data",
 } as const;
@@ -560,6 +561,46 @@ Deno.serve(async (req) => {
         "Lightspeed webhook mode is active.",
         `Last webhook received at ${formatDateTime(connection.last_webhook_received_at)}.`,
       );
+    }
+
+    if (connection && accessToken && baseUrl) {
+      try {
+        const xSeriesResponse = await fetch(`${baseUrl}/api/2.0/webhooks`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const rSeriesResponse = xSeriesResponse.ok
+          ? null
+          : await fetch(`${baseUrl}/api/2.0/Webhook.json`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+        const format = xSeriesResponse.ok
+          ? "x-series"
+          : rSeriesResponse?.ok
+            ? "r-series"
+            : "neither";
+
+        appendCheck(
+          checks,
+          CHECK_NAMES.webhookEndpointFormat,
+          format !== "neither" ? "pass" : "fail",
+          format !== "neither"
+            ? `Webhook API is reachable via ${format} endpoint format.`
+            : "Neither X-Series nor R-Series webhook endpoint returned a successful response.",
+          format === "x-series"
+            ? `GET /api/2.0/webhooks returned ${xSeriesResponse.status}`
+            : format === "r-series"
+              ? `GET /api/2.0/Webhook.json returned ${rSeriesResponse?.status}`
+              : `X-Series returned ${xSeriesResponse.status}, R-Series returned ${rSeriesResponse?.status ?? "not attempted"}`,
+        );
+      } catch (error) {
+        appendCheck(
+          checks,
+          CHECK_NAMES.webhookEndpointFormat,
+          "fail",
+          "Webhook endpoint format probe failed.",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     }
 
     const { data: queueJobs, error: queueError } = await supabaseAdmin

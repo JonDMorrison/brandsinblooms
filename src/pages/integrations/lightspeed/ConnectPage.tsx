@@ -18,6 +18,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+const FIRST_PARTY_LIGHTSPEED_CALLBACK_ORIGINS = new Set([
+  "https://bloomsuite.app",
+  "https://www.bloomsuite.app",
+]);
+
 export default function LightspeedConnectPage() {
   const [domainPrefix, setDomainPrefix] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,7 +73,12 @@ export default function LightspeedConnectPage() {
     } catch { /* ignore */ }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin && event.data?.type === "lightspeed_oauth_result") {
+      const allowedOrigins = new Set([
+        window.location.origin,
+        ...FIRST_PARTY_LIGHTSPEED_CALLBACK_ORIGINS,
+      ]);
+
+      if (allowedOrigins.has(event.origin) && event.data?.type === "lightspeed_oauth_result") {
         handleOAuthResult(event.data.data);
       }
     };

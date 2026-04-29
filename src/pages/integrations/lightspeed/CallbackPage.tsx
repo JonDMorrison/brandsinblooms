@@ -4,6 +4,14 @@ import { CheckCircle, Clock, XCircle } from "lucide-react";
 import { getUserFacingIntegrationError } from "@/components/integrations/integrationDetailModel";
 import { Box, CircularProgress, Stack, Typography } from "@mui/joy";
 
+type OAuthResult = {
+  status: "success" | "error";
+  message: string;
+  timestamp: number;
+  retailerName?: string;
+  details?: unknown;
+};
+
 const CallbackPage = () => {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<
@@ -179,7 +187,7 @@ const CallbackPage = () => {
 
         // Close tab after showing success message
         setTimeout(() => window.close(), 2000);
-      } catch (error: any) {
+      } catch (error: unknown) {
         clearTimeout(timeoutId);
         console.error("[LS-Callback] Unexpected error:", error);
         const userMessage = getUserFacingIntegrationError(
@@ -204,7 +212,7 @@ const CallbackPage = () => {
   }, [searchParams]);
 
   // Broadcast result via multiple channels for reliability
-  const broadcastResult = (result: any) => {
+  const broadcastResult = (result: OAuthResult) => {
     // Method 1: localStorage (works cross-domain)
     localStorage.setItem("lightspeed_oauth_result", JSON.stringify(result));
 
@@ -213,16 +221,20 @@ const CallbackPage = () => {
       const channel = new BroadcastChannel("lightspeed_oauth");
       channel.postMessage(result);
       channel.close();
-    } catch (e) {}
+    } catch {
+      // Ignore BroadcastChannel failures and continue with fallbacks.
+    }
 
     // Method 3: Try to message opener window
     if (window.opener && !window.opener.closed) {
       try {
         window.opener.postMessage(
           { type: "lightspeed_oauth_result", data: result },
-          window.location.origin,
+          "*",
         );
-      } catch (e) {}
+      } catch {
+        // Ignore opener messaging failures; localStorage remains as a fallback.
+      }
     }
   };
 

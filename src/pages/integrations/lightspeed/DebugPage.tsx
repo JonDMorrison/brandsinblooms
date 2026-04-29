@@ -63,6 +63,7 @@ const CHECK_LABELS: Record<string, string> = {
   sales_api: "Sales API",
   product_api: "Product API",
   webhook_mode: "Webhook Mode",
+  webhook_endpoint_format: "Webhook Endpoint Format",
   sync_queue: "Sync Queue",
   imported_data: "Imported Data",
 };
