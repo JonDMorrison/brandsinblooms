@@ -954,8 +954,8 @@ export function FormPreviewRenderer({
               <p
                 style={{
                   color: tokens.mutedText,
-                  fontSize: "1rem",
-                  lineHeight: 1.7,
+                  fontSize: "1.125rem",
+                  lineHeight: 1.75,
                   margin: 0,
                 }}
               >
