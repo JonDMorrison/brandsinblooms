@@ -1,195 +1,240 @@
 // FIX: [P29] - lightspeed-oauth-initiate was a duplicate of this function and has been deleted
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
-import { isValidPrefix } from '../_shared/cookies.ts';
-import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { isValidPrefix } from "../_shared/cookies.ts";
+import {
+  detectEnvironment,
+  getLightspeedCredentials,
+} from "../_shared/environment.ts";
 
-console.log('[LS-START] Edge function starting');
+console.log("[LS-START] Edge function starting");
 
 const REQUIRED_LIGHTSPEED_SCOPES = [
-  'customers:read',
-  'products:read',
-  'sales:read',
-  'inventory:read',
-  'retailer:read',
-  'webhooks',
+  "customers:read",
+  "products:read",
+  "sales:read",
+  "inventory:read",
+  "retailer:read",
+  "webhooks",
 ] as const;
-const LIGHTSPEED_SCOPE_STRING = REQUIRED_LIGHTSPEED_SCOPES.join(' ');
+const LIGHTSPEED_SCOPE_STRING = REQUIRED_LIGHTSPEED_SCOPES.join(" ");
 
-const normalizeConfiguredOrigin = (value: string | undefined): string | null => {
-  if (!value || !value.startsWith('http')) return null;
-  return value.replace(/\/$/, '');
+const normalizeConfiguredOrigin = (
+  value: string | undefined,
+): string | null => {
+  if (!value || !value.startsWith("http")) return null;
+  return value.replace(/\/$/, "");
 };
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     // Log environment detection early
-    const origin = req.headers.get('origin') || '';
-    const referer = req.headers.get('referer') || '';
+    const origin = req.headers.get("origin") || "";
+    const referer = req.headers.get("referer") || "";
     const environment = detectEnvironment(req);
 
-    console.log('[LS-START] Request Details:', {
+    console.log("[LS-START] Request Details:", {
       method: req.method,
       origin,
       referer,
-      detectedEnvironment: environment
+      detectedEnvironment: environment,
     });
 
     // Get authorization header
-    const authHeader = req.headers.get('Authorization');
+    const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      console.error('[LS-START] No authorization header');
+      console.error("[LS-START] No authorization header");
       return new Response(
-        JSON.stringify({ error: 'No authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "No authorization header" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Create Supabase client
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
     );
 
     // Create admin client (service role) for DB writes that must succeed regardless of RLS drift.
     // Safe because we only use it AFTER authenticating the user and we only write rows scoped
     // to that authenticated user's tenant.
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     if (!serviceRoleKey) {
-      console.error('[LS-START] Missing SUPABASE_SERVICE_ROLE_KEY');
+      console.error("[LS-START] Missing SUPABASE_SERVICE_ROLE_KEY");
       return new Response(
-        JSON.stringify({ error: 'Server not configured (missing service role key)' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Server not configured (missing service role key)",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
     const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get("SUPABASE_URL") ?? "",
       serviceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
-        }
-      }
+        },
+      },
     );
 
     // Authenticate user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      console.error('[LS-START] Auth error:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("[LS-START] Auth error:", userError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log('[LS-START] User authenticated:', user.id);
+    console.log("[LS-START] User authenticated:", user.id);
 
     // Parse request body
     const { domainPrefix, redirectOrigin } = await req.json();
 
     if (!domainPrefix || !isValidPrefix(domainPrefix)) {
-      console.error('[LS-START] Invalid domain prefix:', domainPrefix);
+      console.error("[LS-START] Invalid domain prefix:", domainPrefix);
       return new Response(
-        JSON.stringify({ error: 'Invalid domain prefix. Use only letters, numbers, and dashes (3-50 chars)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error:
+            "Invalid domain prefix. Use only letters, numbers, and dashes (3-50 chars)",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[LS-START] Domain prefix:', domainPrefix);
+    console.log("[LS-START] Domain prefix:", domainPrefix);
 
     // Get tenant_id
     const { data: userData, error: userDataError } = await supabaseClient
-      .from('users')
-      .select('tenant_id')
-      .eq('id', user.id)
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
       .single();
 
     if (userDataError || !userData?.tenant_id) {
-      console.error('[LS-START] Tenant lookup failed:', userDataError?.message);
+      console.error("[LS-START] Tenant lookup failed:", userDataError?.message);
       return new Response(
-        JSON.stringify({ error: 'No tenant found for user' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "No tenant found for user" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[LS-START] Tenant found:', userData.tenant_id);
+    console.log("[LS-START] Tenant found:", userData.tenant_id);
 
     // Generate random state token
     const state = crypto.randomUUID();
-    console.log('[LS-START] Generated state token');
+    console.log("[LS-START] Generated state token");
 
     // Store state in database temporarily (expires in 30 minutes)
     // Insert using service role to avoid RLS failures in production.
     const { error: stateError } = await supabaseAdmin
-      .from('oauth_states')
+      .from("oauth_states")
       .insert({
         state_token: state,
         user_id: user.id,
         tenant_id: userData.tenant_id,
         domain_prefix: domainPrefix,
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       });
 
     if (stateError) {
-      console.error('[LS-START] Failed to store state:', stateError.message);
+      console.error("[LS-START] Failed to store state:", stateError.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to initialize OAuth flow' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to initialize OAuth flow" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Get environment-specific credentials
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
 
-    console.log('[LS-START] Credentials Check:', {
+    console.log("[LS-START] Credentials Check:", {
       environment,
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
-      clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'missing'
+      clientIdPrefix: clientId ? clientId.substring(0, 8) + "..." : "missing",
     });
 
     if (!clientId || !clientSecret) {
       const missingSecrets = [];
-      if (!clientId) missingSecrets.push(`LIGHTSPEED_CLIENT_ID_${environment === 'development' ? 'DEV' : 'PROD'}`);
-      if (!clientSecret) missingSecrets.push(`LIGHTSPEED_CLIENT_SECRET_${environment === 'development' ? 'DEV' : 'PROD'}`);
+      if (!clientId)
+        missingSecrets.push(
+          `LIGHTSPEED_CLIENT_ID_${environment === "development" ? "DEV" : "PROD"}`,
+        );
+      if (!clientSecret)
+        missingSecrets.push(
+          `LIGHTSPEED_CLIENT_SECRET_${environment === "development" ? "DEV" : "PROD"}`,
+        );
 
-      console.error('[LS-START] Missing secrets:', missingSecrets.join(', '));
+      console.error("[LS-START] Missing secrets:", missingSecrets.join(", "));
       return new Response(
         JSON.stringify({
-          error: `Lightspeed integration not configured for ${environment} environment. Missing: ${missingSecrets.join(', ')}`,
-          environment
+          error: `Lightspeed integration not configured for ${environment} environment. Missing: ${missingSecrets.join(", ")}`,
+          environment,
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Create pending connection in database
-    console.log('[LS-START] Creating pending connection');
+    console.log("[LS-START] Creating pending connection");
     const { error: upsertError } = await supabaseAdmin
-      .from('lightspeed_connections')
-      .upsert({
-        tenant_id: userData.tenant_id,
-        user_id: user.id,
-        domain_prefix: domainPrefix,
-        encrypted_access_token: 'pending',
-        encrypted_refresh_token: 'pending',
-        expires_at: new Date(Date.now() + 3600000).toISOString(),
-      }, {
-        onConflict: 'tenant_id,domain_prefix',
-      });
+      .from("lightspeed_connections")
+      .upsert(
+        {
+          tenant_id: userData.tenant_id,
+          user_id: user.id,
+          domain_prefix: domainPrefix,
+          encrypted_access_token: "pending",
+          encrypted_refresh_token: "pending",
+          expires_at: new Date(Date.now() + 3600000).toISOString(),
+        },
+        {
+          onConflict: "tenant_id,domain_prefix",
+        },
+      );
 
     if (upsertError) {
-      console.error('[LS-START] DB upsert error:', upsertError.message);
+      console.error("[LS-START] DB upsert error:", upsertError.message);
       return new Response(
-        JSON.stringify({ error: 'Failed to store connection: ' + upsertError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Failed to store connection: " + upsertError.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -197,17 +242,18 @@ Deno.serve(async (req) => {
     // for the app. In production, prefer the canonical configured origin rather
     // than whichever first-party host initiated the flow.
     const configuredAppOrigin = normalizeConfiguredOrigin(
-      Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? undefined,
+      Deno.env.get("APP_ORIGIN") ?? Deno.env.get("APP_BASE_URL") ?? undefined,
     );
     const requestOrigin = normalizeConfiguredOrigin(
-      typeof redirectOrigin === 'string' ? redirectOrigin : undefined,
+      typeof redirectOrigin === "string" ? redirectOrigin : undefined,
     );
-    const callbackOrigin = environment === 'production'
-      ? configuredAppOrigin ?? requestOrigin ?? 'https://bloomsuite.app'
-      : requestOrigin ?? configuredAppOrigin ?? 'https://bloomsuite.app';
+    const callbackOrigin =
+      environment === "production"
+        ? (configuredAppOrigin ?? requestOrigin ?? "https://bloomsuite.app")
+        : (requestOrigin ?? configuredAppOrigin ?? "https://bloomsuite.app");
     const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
 
-    console.log('[LS-START] OAuth Configuration:', {
+    console.log("[LS-START] OAuth Configuration:", {
       environment,
       configuredAppOrigin,
       requestOrigin,
@@ -224,22 +270,21 @@ Deno.serve(async (req) => {
       `&state=${encodeURIComponent(state)}` +
       `&scope=${encodeURIComponent(LIGHTSPEED_SCOPE_STRING)}`;
 
-    console.log('[LS-START] Success! Auth URL created');
+    console.log("[LS-START] Success! Auth URL created");
 
     return new Response(
       JSON.stringify({
         authUrl: authUrl.toString(),
-        success: true
+        success: true,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[LS-START] Error:', message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("[LS-START] Error:", message);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

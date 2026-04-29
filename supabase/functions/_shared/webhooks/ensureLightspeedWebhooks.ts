@@ -10,20 +10,20 @@
  * This function probes X-Series format first and falls back to R-Series.
  */
 
-import { EnsureWebhooksResult, calculateNextRetry } from './types.ts';
-import { decryptToken } from '../crypto/tokens.ts';
+import { EnsureWebhooksResult, calculateNextRetry } from "./types.ts";
+import { decryptToken } from "../crypto/tokens.ts";
 
 const REQUIRED_EVENTS = [
-  'sale.completed',
-  'sale.updated',
-  'customer.created',
-  'customer.updated',
-  'product.updated',
-  'item.updated',
-  'loyalty.updated',
+  "sale.completed",
+  "sale.updated",
+  "customer.created",
+  "customer.updated",
+  "product.updated",
+  "item.updated",
+  "loyalty.updated",
 ];
 
-type LightspeedWebhookFormat = 'x-series' | 'r-series';
+type LightspeedWebhookFormat = "x-series" | "r-series";
 
 function shouldTryRSeriesFallback(status: number) {
   return status === 403 || status === 404 || status === 405 || status >= 500;
@@ -38,7 +38,7 @@ function extractWebhookCollection(payload: any) {
     return payload;
   }
 
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== "object") {
     return [];
   }
 
@@ -62,7 +62,7 @@ function extractWebhookRecord(payload: any) {
     return payload[0] ?? null;
   }
 
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== "object") {
     return null;
   }
 
@@ -74,7 +74,7 @@ function extractWebhookRecord(payload: any) {
 }
 
 function getWebhookId(webhook: any) {
-  if (!webhook || typeof webhook !== 'object') {
+  if (!webhook || typeof webhook !== "object") {
     return null;
   }
 
@@ -82,7 +82,7 @@ function getWebhookId(webhook: any) {
 }
 
 function isWebhookEnabled(webhook: any) {
-  if (!webhook || typeof webhook !== 'object') {
+  if (!webhook || typeof webhook !== "object") {
     return false;
   }
 
@@ -90,7 +90,7 @@ function isWebhookEnabled(webhook: any) {
 }
 
 function getResponseKeys(payload: any) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return [];
   }
 
@@ -99,36 +99,45 @@ function getResponseKeys(payload: any) {
 
 export async function ensureLightspeedWebhooks(
   supabase: any,
-  connectionId: string
+  connectionId: string,
 ): Promise<EnsureWebhooksResult> {
-  console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Starting for connection:', connectionId);
+  console.log(
+    "[ENSURE-LIGHTSPEED-WEBHOOKS] Starting for connection:",
+    connectionId,
+  );
 
   try {
     // 1. Load connection
     const { data: connection, error: connError } = await supabase
-      .from('lightspeed_connections')
-      .select('*')
-      .eq('id', connectionId)
+      .from("lightspeed_connections")
+      .select("*")
+      .eq("id", connectionId)
       .single();
 
     if (connError || !connection) {
-      console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] Connection not found:', connError?.message);
+      console.error(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Connection not found:",
+        connError?.message,
+      );
       return {
         success: false,
         verified: false,
         subscription_id: null,
-        error: 'Connection not found',
-        action: 'failed',
+        error: "Connection not found",
+        action: "failed",
       };
     }
 
-    if (!connection.encrypted_access_token || connection.encrypted_access_token === 'pending') {
+    if (
+      !connection.encrypted_access_token ||
+      connection.encrypted_access_token === "pending"
+    ) {
       return {
         success: false,
         verified: false,
         subscription_id: null,
-        error: 'OAuth not completed',
-        action: 'failed',
+        error: "OAuth not completed",
+        action: "failed",
       };
     }
 
@@ -136,16 +145,23 @@ export async function ensureLightspeedWebhooks(
     let accessToken: string;
     try {
       accessToken = await decryptToken(connection.encrypted_access_token);
-      if (!accessToken) throw new Error('Decryption returned empty');
+      if (!accessToken) throw new Error("Decryption returned empty");
     } catch (e: any) {
-      console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] Token decryption failed:', e.message);
-      await updateConnectionError(supabase, connectionId, `Token decryption failed: ${e.message}`);
+      console.error(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Token decryption failed:",
+        e.message,
+      );
+      await updateConnectionError(
+        supabase,
+        connectionId,
+        `Token decryption failed: ${e.message}`,
+      );
       return {
         success: false,
         verified: false,
         subscription_id: null,
-        error: 'Token decryption failed',
-        action: 'failed',
+        error: "Token decryption failed",
+        action: "failed",
       };
     }
 
@@ -155,18 +171,18 @@ export async function ensureLightspeedWebhooks(
         success: false,
         verified: false,
         subscription_id: null,
-        error: 'No domain prefix configured',
-        action: 'failed',
+        error: "No domain prefix configured",
+        action: "failed",
       };
     }
 
     const baseUrl = `https://${domainPrefix}.retail.lightspeed.app/api/2.0`;
-    const handlerBaseUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/lightspeed-webhook-handler`;
+    const handlerBaseUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/lightspeed-webhook-handler`;
     const webhookUrl = `${handlerBaseUrl}/${domainPrefix}`;
     const legacyWebhookUrl = handlerBaseUrl;
     const headers = {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
     };
 
     const xSeriesEndpoints = {
@@ -181,34 +197,34 @@ export async function ensureLightspeedWebhooks(
     };
 
     // 3. List existing webhooks
-    console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Fetching existing webhooks...');
-    let detectedFormat: LightspeedWebhookFormat = 'x-series';
+    console.log("[ENSURE-LIGHTSPEED-WEBHOOKS] Fetching existing webhooks...");
+    let detectedFormat: LightspeedWebhookFormat = "x-series";
     let endpoints = xSeriesEndpoints;
     let xSeriesStatus: number | null = null;
     let rSeriesStatus: number | null = null;
 
     let listResponse = await fetch(xSeriesEndpoints.list, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
     xSeriesStatus = listResponse.status;
 
     if (!listResponse.ok && shouldTryRSeriesFallback(listResponse.status)) {
       console.log(
-        '[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series /webhooks returned',
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series /webhooks returned",
         listResponse.status,
-        '- trying R-Series /Webhook.json fallback',
+        "- trying R-Series /Webhook.json fallback",
       );
 
       const fallbackResponse = await fetch(rSeriesEndpoints.list, {
-        method: 'GET',
+        method: "GET",
         headers,
       });
       rSeriesStatus = fallbackResponse.status;
 
       if (fallbackResponse.ok) {
         listResponse = fallbackResponse;
-        detectedFormat = 'r-series';
+        detectedFormat = "r-series";
         endpoints = rSeriesEndpoints;
       } else {
         listResponse = fallbackResponse;
@@ -222,34 +238,34 @@ export async function ensureLightspeedWebhooks(
 
       if (bothFormatsUnavailable) {
         console.warn(
-          '[ENSURE-LIGHTSPEED-WEBHOOKS] Both webhook endpoint formats returned unavailable statuses:',
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] Both webhook endpoint formats returned unavailable statuses:",
           { xSeriesStatus, rSeriesStatus },
         );
 
         await supabase
-          .from('lightspeed_connections')
+          .from("lightspeed_connections")
           .update({
             webhook_registered: false,
             webhooks_subscribed: false,
             webhook_last_error:
-              'Lightspeed webhook API not available for both X-Series and R-Series endpoint formats. Sync-only mode.',
+              "Lightspeed webhook API not available for both X-Series and R-Series endpoint formats. Sync-only mode.",
             webhooks_last_checked_at: new Date().toISOString(),
           })
-          .eq('id', connectionId);
+          .eq("id", connectionId);
 
         return {
           success: true,
           verified: false,
           subscription_id: null,
-          error: 'Webhook API not available - sync-only',
-          action: 'skipped',
+          error: "Webhook API not available - sync-only",
+          action: "skipped",
         };
       }
 
       const errorText = await listResponse.text();
-      const statusDetail = `X-Series ${xSeriesStatus}${rSeriesStatus !== null ? `, R-Series ${rSeriesStatus}` : ''}`;
+      const statusDetail = `X-Series ${xSeriesStatus}${rSeriesStatus !== null ? `, R-Series ${rSeriesStatus}` : ""}`;
       console.error(
-        '[ENSURE-LIGHTSPEED-WEBHOOKS] List failed:',
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] List failed:",
         statusDetail,
         errorText,
       );
@@ -263,58 +279,77 @@ export async function ensureLightspeedWebhooks(
         verified: false,
         subscription_id: null,
         error: `Lightspeed API error: ${statusDetail}`,
-        action: 'failed',
+        action: "failed",
       };
     }
 
     console.log(
-      '[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook list succeeded via',
+      "[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook list succeeded via",
       detectedFormat,
-      'format',
+      "format",
     );
 
     const listData = await listResponse.json();
     const webhooks = extractWebhookCollection(listData);
-    console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Found', webhooks.length, 'existing webhooks');
-    console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Response keys:', getResponseKeys(listData));
+    console.log(
+      "[ENSURE-LIGHTSPEED-WEBHOOKS] Found",
+      webhooks.length,
+      "existing webhooks",
+    );
+    console.log(
+      "[ENSURE-LIGHTSPEED-WEBHOOKS] Response keys:",
+      getResponseKeys(listData),
+    );
     if (webhooks.length > 0) {
       console.log(
-        '[ENSURE-LIGHTSPEED-WEBHOOKS] First webhook keys:',
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] First webhook keys:",
         getResponseKeys(webhooks[0]),
       );
     }
 
     // 4. Find our webhook
-    const existingWebhook = webhooks.find((w: any) =>
-      w.url === webhookUrl || w.url === legacyWebhookUrl
+    const existingWebhook = webhooks.find(
+      (w: any) => w.url === webhookUrl || w.url === legacyWebhookUrl,
     );
     const existingWebhookId = getWebhookId(existingWebhook);
 
     let subscriptionId: string | null = null;
-    let action: 'created' | 'updated' | 'verified' = 'verified';
+    let action: "created" | "updated" | "verified" = "verified";
 
     if (existingWebhook && existingWebhookId) {
       // Webhook exists - check if it's enabled
       subscriptionId = existingWebhookId;
 
-      if (!isWebhookEnabled(existingWebhook) || existingWebhook.url !== webhookUrl) {
+      if (
+        !isWebhookEnabled(existingWebhook) ||
+        existingWebhook.url !== webhookUrl
+      ) {
         // Enable the webhook and migrate legacy generic URLs to the store-specific path.
-        console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:', subscriptionId, '=>', webhookUrl);
+        console.log(
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:",
+          subscriptionId,
+          "=>",
+          webhookUrl,
+        );
 
-        const updateBody = detectedFormat === 'x-series'
-          ? { url: webhookUrl, enabled: true, active: true }
-          : { Webhook: { enabled: true, url: webhookUrl } };
+        const updateBody =
+          detectedFormat === "x-series"
+            ? { url: webhookUrl, enabled: true, active: true }
+            : { Webhook: { enabled: true, url: webhookUrl } };
 
-        const updateResponse = await fetch(endpoints.update(existingWebhookId), {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(updateBody),
-        });
+        const updateResponse = await fetch(
+          endpoints.update(existingWebhookId),
+          {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(updateBody),
+          },
+        );
 
         if (!updateResponse.ok) {
           const errorText = await updateResponse.text();
           console.error(
-            '[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:',
+            "[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:",
             updateResponse.status,
             errorText,
           );
@@ -328,60 +363,74 @@ export async function ensureLightspeedWebhooks(
             verified: false,
             subscription_id: null,
             error: `Update failed: ${updateResponse.status}`,
-            action: 'failed',
+            action: "failed",
           };
         }
 
-        action = 'updated';
+        action = "updated";
       }
 
-      console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook exists:', subscriptionId);
+      console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook exists:",
+        subscriptionId,
+      );
     } else {
       if (existingWebhook && !existingWebhookId) {
         console.warn(
-          '[ENSURE-LIGHTSPEED-WEBHOOKS] Existing webhook matched by URL but had no usable ID - creating a replacement',
+          "[ENSURE-LIGHTSPEED-WEBHOOKS] Existing webhook matched by URL but had no usable ID - creating a replacement",
         );
       }
 
       // Create new webhook
-      console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook to:', webhookUrl);
+      console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook to:",
+        webhookUrl,
+      );
 
-      const createBody = detectedFormat === 'x-series'
-        ? { url: webhookUrl, enabled: true, active: true }
-        : { Webhook: { url: webhookUrl, enabled: true, event: 'all' } };
+      const createBody =
+        detectedFormat === "x-series"
+          ? { url: webhookUrl, enabled: true, active: true }
+          : { Webhook: { url: webhookUrl, enabled: true, event: "all" } };
 
       const createResponse = await fetch(endpoints.create, {
-        method: 'POST',
+        method: "POST",
         headers,
         body: JSON.stringify(createBody),
       });
 
       if (!createResponse.ok) {
         const errorData = await createResponse.json().catch(() => ({}));
-        const errorMsg = errorData.message || `Create failed: ${createResponse.status}`;
-        console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed:', errorMsg);
+        const errorMsg =
+          errorData.message || `Create failed: ${createResponse.status}`;
+        console.error("[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed:", errorMsg);
         await updateConnectionError(supabase, connectionId, errorMsg);
         return {
           success: false,
           verified: false,
           subscription_id: null,
           error: errorMsg,
-          action: 'failed',
+          action: "failed",
         };
       }
 
       const createData = await createResponse.json();
       const createdWebhook = extractWebhookRecord(createData);
       subscriptionId = getWebhookId(createdWebhook);
-      action = 'created';
-      console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:', getResponseKeys(createData));
-      console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook created:', subscriptionId);
+      action = "created";
+      console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:",
+        getResponseKeys(createData),
+      );
+      console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook created:",
+        subscriptionId,
+      );
     }
 
     // 5. Verify webhook exists
-    console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Verifying...');
+    console.log("[ENSURE-LIGHTSPEED-WEBHOOKS] Verifying...");
     const verifyResponse = await fetch(endpoints.list, {
-      method: 'GET',
+      method: "GET",
       headers,
     });
 
@@ -389,65 +438,73 @@ export async function ensureLightspeedWebhooks(
     if (verifyResponse.ok) {
       const verifyData = await verifyResponse.json();
       const verifyWebhooks = extractWebhookCollection(verifyData);
-      const confirmedWebhook = verifyWebhooks.find((w: any) =>
-        getWebhookId(w) === subscriptionId ||
-        w.url === webhookUrl
+      const confirmedWebhook = verifyWebhooks.find(
+        (w: any) => getWebhookId(w) === subscriptionId || w.url === webhookUrl,
       );
 
       if (confirmedWebhook && isWebhookEnabled(confirmedWebhook)) {
         verified = true;
         subscriptionId = getWebhookId(confirmedWebhook);
-        console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] ✓ VERIFIED:', subscriptionId);
+        console.log("[ENSURE-LIGHTSPEED-WEBHOOKS] ✓ VERIFIED:", subscriptionId);
       }
     }
 
     // 6. Update connection state
     await supabase
-      .from('lightspeed_connections')
+      .from("lightspeed_connections")
       .update({
         webhook_registered: verified,
         webhooks_subscribed: verified,
         webhook_subscription_id: subscriptionId,
         webhooks_last_checked_at: new Date().toISOString(),
-        webhook_last_error: verified ? null : 'Verification failed',
-        webhook_retry_count: verified ? 0 : (connection.webhook_retry_count || 0) + 1,
-        webhook_next_retry_at: verified ? null : calculateNextRetry((connection.webhook_retry_count || 0) + 1).toISOString(),
+        webhook_last_error: verified ? null : "Verification failed",
+        webhook_retry_count: verified
+          ? 0
+          : (connection.webhook_retry_count || 0) + 1,
+        webhook_next_retry_at: verified
+          ? null
+          : calculateNextRetry(
+              (connection.webhook_retry_count || 0) + 1,
+            ).toISOString(),
       })
-      .eq('id', connectionId);
+      .eq("id", connectionId);
 
     return {
       success: true,
       verified,
       subscription_id: subscriptionId,
-      error: verified ? null : 'Verification pending',
+      error: verified ? null : "Verification pending",
       action,
     };
-
   } catch (error: any) {
-    console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] Error:', error.message);
+    console.error("[ENSURE-LIGHTSPEED-WEBHOOKS] Error:", error.message);
     await updateConnectionError(supabase, connectionId, error.message);
     return {
       success: false,
       verified: false,
       subscription_id: null,
       error: error.message,
-      action: 'failed',
+      action: "failed",
     };
   }
 }
 
-async function updateConnectionError(supabase: any, connectionId: string, error: string) {
+async function updateConnectionError(
+  supabase: any,
+  connectionId: string,
+  error: string,
+) {
   try {
     const { data: conn } = await supabase
-      .from('lightspeed_connections')
-      .select('webhook_retry_count')
-      .eq('id', connectionId)
+      .from("lightspeed_connections")
+      .select("webhook_retry_count")
+      .eq("id", connectionId)
       .single();
 
     const retryCount = (conn?.webhook_retry_count || 0) + 1;
 
     await supabase
-      .from('lightspeed_connections')
+      .from("lightspeed_connections")
       .update({
         webhook_registered: false,
         webhooks_subscribed: false,
@@ -456,8 +513,11 @@ async function updateConnectionError(supabase: any, connectionId: string, error:
         webhook_retry_count: retryCount,
         webhook_next_retry_at: calculateNextRetry(retryCount).toISOString(),
       })
-      .eq('id', connectionId);
+      .eq("id", connectionId);
   } catch (e) {
-    console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] Failed to update error state:', e);
+    console.error(
+      "[ENSURE-LIGHTSPEED-WEBHOOKS] Failed to update error state:",
+      e,
+    );
   }
 }

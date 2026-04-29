@@ -35,10 +35,7 @@ const shouldDetectSupabaseSessionInUrl = () => {
 
   // Provider-managed OAuth callbacks also use `?code=` query params.
   // Letting Supabase auto-consume those codes clears the active app session.
-  if (
-    pathname === "/auth/callback" ||
-    pathname.startsWith("/integrations/")
-  ) {
+  if (pathname === "/auth/callback" || pathname.startsWith("/integrations/")) {
     return false;
   }
 

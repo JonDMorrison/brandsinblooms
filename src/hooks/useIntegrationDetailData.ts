@@ -8570,8 +8570,7 @@ export function useIntegrationDetailData(
     lightspeedRealtimeActive: lightspeedTrackedJobIds.length > 0,
     lightspeedSyncState,
     verifyLightspeedWebhooks: verifyLightspeedWebhooksMutation.mutateAsync,
-    isVerifyingLightspeedWebhooks:
-      verifyLightspeedWebhooksMutation.isPending,
+    isVerifyingLightspeedWebhooks: verifyLightspeedWebhooksMutation.isPending,
     lightspeedHasStaleJobs,
     triggerLightspeedSync: lightspeedSyncMutation.mutateAsync,
     isLightspeedSyncing: lightspeedSyncState !== "idle",
