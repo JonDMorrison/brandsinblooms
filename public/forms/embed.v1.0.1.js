@@ -426,12 +426,43 @@
     formEl.setAttribute('novalidate', 'true');
     formEl.setAttribute('autocomplete', 'on');
     
+    // Headline and subheadline (form_headline takes priority, falls back to form_title)
+    var headlineText = settings.form_headline || settings.form_title || '';
+    var subheadlineText = settings.form_subheadline || settings.form_description || '';
+    if (headlineText || subheadlineText) {
+      var headerDiv = createElement('div', 'header');
+      headerDiv.style.textAlign = 'center';
+      headerDiv.style.marginBottom = '1rem';
+      if (headlineText) {
+        var h2 = document.createElement('h2');
+        h2.className = CSS_PREFIX + 'headline';
+        h2.textContent = headlineText;
+        h2.style.margin = '0 0 0.25rem';
+        h2.style.fontSize = '1.5rem';
+        h2.style.fontWeight = '700';
+        h2.style.lineHeight = '1.2';
+        h2.style.color = theme.text_color || '#1F2937';
+        headerDiv.appendChild(h2);
+      }
+      if (subheadlineText) {
+        var p = document.createElement('p');
+        p.className = CSS_PREFIX + 'subheadline';
+        p.textContent = subheadlineText;
+        p.style.margin = '0';
+        p.style.fontSize = '0.95rem';
+        p.style.lineHeight = '1.5';
+        p.style.color = '#6B7280';
+        headerDiv.appendChild(p);
+      }
+      formEl.appendChild(headerDiv);
+    }
+
     // Honeypot field (spam trap)
     var honeypot = createElement('div', 'hp');
     honeypot.setAttribute('aria-hidden', 'true');
     honeypot.innerHTML = '<input type="text" name="_hp_website" tabindex="-1" autocomplete="off">';
     formEl.appendChild(honeypot);
-    
+
     // Render each field
     fields.forEach(function(field) {
       formEl.appendChild(renderField(field, compliance));
