@@ -469,27 +469,27 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
       case "email-safe-hero":
         return renderHeader();
       case "graphic-hero":
-        // Graphic hero is a single clickable image
+        // Graphic hero is a single clickable image — always full width
         return block.image_url ? (
-          <div style={{ padding: "0", textAlign: "center" as const }}>
+          <div style={{ padding: "0", width: "100%" }}>
             {block.content?.ctaUrl || block.cta_url ? (
               <a
                 href={block.content?.ctaUrl || block.cta_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: "block" }}
+                style={{ display: "block", width: "100%" }}
               >
                 <img
                   src={block.image_url}
                   alt={block.content?.altText || ""}
-                  style={{ maxWidth: "100%", height: "auto", display: "block" }}
+                  style={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
                 />
               </a>
             ) : (
               <img
                 src={block.image_url}
                 alt={block.content?.altText || ""}
-                style={{ maxWidth: "100%", height: "auto", display: "block" }}
+                style={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
               />
             )}
           </div>
