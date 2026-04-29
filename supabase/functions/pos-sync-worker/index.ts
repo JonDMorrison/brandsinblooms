@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
+import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
 import {
   shouldThrottleSync,
   checkCircuitBreaker,
@@ -384,7 +385,6 @@ function mapLightspeedCustomer(customer: any, connection: any) {
   const mappedCustomer: Record<string, unknown> = {
     tenant_id: connection.tenant_id,
     lightspeed_customer_id: String(customer.id ?? customer.customerID),
-    contact_id: customer.contact_id ? String(customer.contact_id) : null,
     email:
       normalizeOptionalString(
         customer.email ?? customer.Contact?.Emails?.ContactEmail?.[0]?.address,
@@ -418,36 +418,9 @@ function mapLightspeedCustomer(customer: any, connection: any) {
     synced_at: new Date().toISOString(),
   };
 
-  const purchaseCount = toNullableInteger(
-    getFirstPresentValue(customerRecord, [
-      "num_visits",
-      "numVisits",
-      "purchaseCount",
-    ]),
-  );
-  if (typeof purchaseCount === "number" && purchaseCount > 0) {
-    mappedCustomer.purchase_count = purchaseCount;
-  }
-
-  const totalSpend = toNullableNumber(
-    getFirstPresentValue(customerRecord, ["total_spend", "totalSpend"]),
-  );
-  if (typeof totalSpend === "number" && totalSpend > 0) {
-    mappedCustomer.total_spend = totalSpend;
-  }
-
-  const firstPurchaseDate = normalizeOptionalString(
-    getFirstPresentValue(customerRecord, ["first_purchase_date", "firstVisit"]),
-  );
-  if (firstPurchaseDate) {
-    mappedCustomer.first_purchase_date = firstPurchaseDate;
-  }
-
-  const lastPurchaseDate = normalizeOptionalString(
-    getFirstPresentValue(customerRecord, ["last_purchase_date", "lastVisit"]),
-  );
-  if (lastPurchaseDate) {
-    mappedCustomer.last_purchase_date = lastPurchaseDate;
+  const contactId = customer.contact_id ? String(customer.contact_id) : null;
+  if (contactId) {
+    mappedCustomer.contact_id = contactId;
   }
 
   return mappedCustomer;
@@ -486,24 +459,6 @@ function buildLightspeedCrmCustomerPayload(
 
   if (row.last_name) {
     payload.last_name = row.last_name;
-  }
-
-  if (typeof row.purchase_count === "number" && row.purchase_count > 0) {
-    payload.pos_order_count = row.purchase_count;
-  }
-
-  if (typeof row.total_spend === "number" && row.total_spend > 0) {
-    payload.total_spent = row.total_spend;
-    payload.pos_total_spent = row.total_spend;
-    payload.lifetime_value = row.total_spend;
-  }
-
-  if (row.first_purchase_date) {
-    payload.first_purchase_date = row.first_purchase_date;
-  }
-
-  if (row.last_purchase_date) {
-    payload.last_purchase_date = row.last_purchase_date;
   }
 
   return payload;
@@ -1520,10 +1475,12 @@ function mapLightspeedSale(sale: any, connection: any) {
     : Array.isArray(sale.register_sale_payments)
       ? sale.register_sale_payments[0]
       : (sale.SalePayments?.SalePayment?.[0] ?? null);
-  const totals = sale?.totals && typeof sale.totals === "object" &&
-      !Array.isArray(sale.totals)
-    ? sale.totals
-    : null;
+  const totals =
+    sale?.totals &&
+    typeof sale.totals === "object" &&
+    !Array.isArray(sale.totals)
+      ? sale.totals
+      : null;
 
   return {
     tenant_id: connection.tenant_id,
@@ -1553,9 +1510,9 @@ function mapLightspeedSale(sale: any, connection: any) {
           : totals?.total_payment !== undefined &&
               totals?.total_payment !== null
             ? Number.parseFloat(String(totals.total_payment))
-        : sale.calcTotal !== undefined && sale.calcTotal !== null
-          ? Number.parseFloat(String(sale.calcTotal))
-          : Number.parseFloat(String(sale.total ?? 0)),
+            : sale.calcTotal !== undefined && sale.calcTotal !== null
+              ? Number.parseFloat(String(sale.calcTotal))
+              : Number.parseFloat(String(sale.total ?? 0)),
     status:
       normalizeLightspeedSaleStatus(sale.status) ||
       (parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open"),
@@ -1889,18 +1846,7 @@ async function syncLightspeedCustomers(
 
   for (const row of mappedRows) {
     try {
-      const { error: upsertError } = await supabase
-        .from("lightspeed_customers")
-        .upsert(row, { onConflict: "tenant_id,lightspeed_customer_id" });
-
-      if (upsertError) {
-        failedRows += 1;
-        console.error(
-          "[POS-SYNC-WORKER] Failed to upsert Lightspeed customer:",
-          upsertError.message,
-        );
-        continue;
-      }
+      await upsertLightspeedCustomerProfile(supabase, row);
 
       insertedRows += 1;
 

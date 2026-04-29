@@ -25,9 +25,7 @@ function normalizeSaleStatus(status: unknown) {
 }
 
 function isCompletedLightspeedSaleStatus(status: unknown) {
-  return ["completed", "closed", "paid"].includes(
-    normalizeSaleStatus(status),
-  );
+  return ["completed", "closed", "paid"].includes(normalizeSaleStatus(status));
 }
 
 function normalizeDate(value: unknown) {
@@ -38,8 +36,12 @@ export async function recalculateLightspeedCustomerSpend(
   supabase: any,
   options: RecalculateLightspeedCustomerSpendOptions,
 ): Promise<RecalculateLightspeedCustomerSpendResult> {
-  const { tenantId, connectionId, lightspeedCustomerId, lightspeedCustomerIds } =
-    options;
+  const {
+    tenantId,
+    connectionId,
+    lightspeedCustomerId,
+    lightspeedCustomerIds,
+  } = options;
   const stats: RecalculateLightspeedCustomerSpendResult = {
     updated: 0,
     skipped: 0,
@@ -51,7 +53,10 @@ export async function recalculateLightspeedCustomerSpend(
       [
         ...(Array.isArray(lightspeedCustomerIds) ? lightspeedCustomerIds : []),
         ...(lightspeedCustomerId ? [lightspeedCustomerId] : []),
-      ].filter((value): value is string => typeof value === "string" && value.length > 0),
+      ].filter(
+        (value): value is string =>
+          typeof value === "string" && value.length > 0,
+      ),
     ),
   );
 
@@ -100,7 +105,10 @@ export async function recalculateLightspeedCustomerSpend(
     .not("lightspeed_customer_id", "is", null);
 
   if (requestedCustomerIds.length === 1) {
-    salesQuery = salesQuery.eq("lightspeed_customer_id", requestedCustomerIds[0]);
+    salesQuery = salesQuery.eq(
+      "lightspeed_customer_id",
+      requestedCustomerIds[0],
+    );
   } else if (requestedCustomerIds.length > 1) {
     salesQuery = salesQuery.in("lightspeed_customer_id", requestedCustomerIds);
   }
@@ -178,7 +186,9 @@ export async function recalculateLightspeedCustomerSpend(
 
     const currentSpend = toNullableNumber(customer.total_spend) ?? 0;
     const currentCount = customer.purchase_count ?? 0;
-    const currentFirstPurchaseDate = normalizeDate(customer.first_purchase_date);
+    const currentFirstPurchaseDate = normalizeDate(
+      customer.first_purchase_date,
+    );
     const currentLastPurchaseDate = normalizeDate(customer.last_purchase_date);
 
     if (

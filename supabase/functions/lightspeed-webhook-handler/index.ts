@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
+import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
 
 console.log("[LS-WEBHOOK] Edge function starting");
 
@@ -272,9 +273,10 @@ function normalizeVendSaleLineItem(lineItem: JsonObject) {
     ),
     quantity: toNullableNumber(lineItem.quantity) ?? 0,
     price: toNullableNumber(lineItem.price) ?? 0,
-    price_total: toNullableNumber(
-      lineItem.price_total ?? lineItem.total_price ?? lineItem.total,
-    ) ?? 0,
+    price_total:
+      toNullableNumber(
+        lineItem.price_total ?? lineItem.total_price ?? lineItem.total,
+      ) ?? 0,
     discount: toNullableNumber(lineItem.discount) ?? 0,
     tax: toNullableNumber(lineItem.tax) ?? 0,
     tax_total: toNullableNumber(lineItem.tax_total) ?? 0,
@@ -429,10 +431,6 @@ function normalizeVendCustomerPayload(payload: JsonObject) {
     ),
     loyaltyBalance: toNullableNumber(payload.loyalty_balance),
     loyalty_balance: toNullableNumber(payload.loyalty_balance),
-    totalSpend: toNullableNumber(payload.total_spend),
-    purchaseCount: toNullableInteger(payload.purchase_count),
-    firstVisit: normalizeOptionalString(payload.first_purchase_date),
-    lastVisit: normalizeOptionalString(payload.last_purchase_date),
   };
 }
 
@@ -576,7 +574,9 @@ function normalizeVendPayload(eventType: string, payload: unknown): unknown {
   );
 
   if (hasRSeriesWrapper) {
-    console.log("[LS-WEBHOOK] Payload has R-Series wrapper — skipping normalization");
+    console.log(
+      "[LS-WEBHOOK] Payload has R-Series wrapper — skipping normalization",
+    );
     return payload;
   }
 
@@ -744,7 +744,8 @@ async function verifyVendSignature(
 
     let mismatch = 0;
     for (let index = 0; index < computedHex.length; index++) {
-      mismatch |= computedHex.charCodeAt(index) ^ signatureHex.charCodeAt(index);
+      mismatch |=
+        computedHex.charCodeAt(index) ^ signatureHex.charCodeAt(index);
     }
 
     return mismatch === 0;
@@ -764,10 +765,7 @@ async function verifyVendSignature(
  * 2. Vend webhook IDs are opaque, so use them for correlation while inferring from payload shape
  * 3. Infer from payload key fingerprint (reliable — each entity has unique keys)
  */
-function extractEventType(
-  payload: unknown,
-  headers?: Headers,
-): string {
+function extractEventType(payload: unknown, headers?: Headers): string {
   const root = asObject(payload);
   const data = asObject(root?.data);
   const payloadObject = data ?? root;
@@ -889,40 +887,23 @@ function mapLightspeedCustomer(
   connection: LightspeedConnection,
 ) {
   const customerRecord = asObject(customer) ?? {};
-  const email = normalizeEmail(
-    getFirstPresentValue(customerRecord, ["email"]) ??
-      customer.Contact?.Emails?.ContactEmail?.[0]?.address,
-  );
-  const phone = normalizeOptionalString(
-    getFirstPresentValue(customerRecord, ["phone", "mobile"]) ??
-      customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
-      customer.Contact?.Phones?.Phone?.[0]?.number,
-  );
-  const purchaseCount = toNullableInteger(
-    getFirstPresentValue(customerRecord, [
-      "num_visits",
-      "numVisits",
-      "purchase_count",
-      "purchaseCount",
-    ]),
-  );
-  const totalSpend = toNullableNumber(
-    getFirstPresentValue(customerRecord, ["total_spend", "totalSpend"]),
-  );
-
-  return {
+  const mappedCustomer: Record<string, unknown> = {
     tenant_id: connection.tenant_id,
     lightspeed_customer_id: String(customer.id ?? customer.customerID),
-    contact_id: customer.contact_id
-      ? String(customer.contact_id)
-      : customer.contactID
-        ? String(customer.contactID)
-        : null,
-    email,
-    phone,
+    email: normalizeEmail(
+      getFirstPresentValue(customerRecord, ["email"]) ??
+        customer.Contact?.Emails?.ContactEmail?.[0]?.address,
+    ),
+    phone: normalizeOptionalString(
+      getFirstPresentValue(customerRecord, ["phone", "mobile"]) ??
+        customer.Contact?.Phones?.ContactPhone?.[0]?.number ??
+        customer.Contact?.Phones?.Phone?.[0]?.number,
+    ),
     first_name:
       normalizeOptionalString(
-        customer.first_name ?? customer.firstName ?? customer.contact_first_name,
+        customer.first_name ??
+          customer.firstName ??
+          customer.contact_first_name,
       ) ?? null,
     last_name:
       normalizeOptionalString(
@@ -936,31 +917,28 @@ function mapLightspeedCustomer(
     ),
     loyalty_balance:
       customer.loyalty_balance !== undefined &&
-          customer.loyalty_balance !== null
+      customer.loyalty_balance !== null
         ? Number.parseFloat(String(customer.loyalty_balance))
         : customer.loyaltyBalance !== undefined &&
             customer.loyaltyBalance !== null
           ? Number.parseFloat(String(customer.loyaltyBalance))
-        : customer.creditAccountID
-          ? 0
-          : null,
-    purchase_count:
-      typeof purchaseCount === "number" && purchaseCount > 0
-        ? purchaseCount
-        : null,
-    total_spend:
-      typeof totalSpend === "number" && totalSpend > 0 ? totalSpend : null,
-    first_purchase_date:
-      normalizeOptionalString(
-        getFirstPresentValue(customerRecord, ["first_purchase_date", "firstVisit"]),
-      ) ?? null,
-    last_purchase_date:
-      normalizeOptionalString(
-        getFirstPresentValue(customerRecord, ["last_purchase_date", "lastVisit"]),
-      ) ?? null,
+          : customer.creditAccountID
+            ? 0
+            : null,
     raw_data: customer,
     synced_at: new Date().toISOString(),
   };
+
+  const contactId = customer.contact_id
+    ? String(customer.contact_id)
+    : customer.contactID
+      ? String(customer.contactID)
+      : null;
+  if (contactId) {
+    mappedCustomer.contact_id = contactId;
+  }
+
+  return mappedCustomer;
 }
 
 function buildLightspeedCrmCustomerPayload(
@@ -987,24 +965,6 @@ function buildLightspeedCrmCustomerPayload(
 
   if (row.last_name) {
     payload.last_name = row.last_name;
-  }
-
-  if (typeof row.purchase_count === "number" && row.purchase_count > 0) {
-    payload.pos_order_count = row.purchase_count;
-  }
-
-  if (typeof row.total_spend === "number" && row.total_spend > 0) {
-    payload.total_spent = row.total_spend;
-    payload.pos_total_spent = row.total_spend;
-    payload.lifetime_value = row.total_spend;
-  }
-
-  if (row.first_purchase_date) {
-    payload.first_purchase_date = row.first_purchase_date;
-  }
-
-  if (row.last_purchase_date) {
-    payload.last_purchase_date = row.last_purchase_date;
   }
 
   return payload;
@@ -1043,9 +1003,9 @@ function mapLightspeedSale(sale: any, connection: LightspeedConnection) {
           : totals?.total_payment !== undefined &&
               totals?.total_payment !== null
             ? Number.parseFloat(String(totals.total_payment))
-        : sale.calcTotal !== undefined && sale.calcTotal !== null
-          ? Number.parseFloat(String(sale.calcTotal))
-          : Number.parseFloat(String(sale.total ?? 0)),
+            : sale.calcTotal !== undefined && sale.calcTotal !== null
+              ? Number.parseFloat(String(sale.calcTotal))
+              : Number.parseFloat(String(sale.total ?? 0)),
     status:
       normalizeSaleStatus(sale.status) ||
       (parseLightspeedCompletedFlag(sale.completed) ? "completed" : "open"),
@@ -1236,7 +1196,8 @@ async function handleSaleEvent(
   const hasRegisterSaleProducts =
     "register_sale_products" in payloadObject ||
     "register_sale_products" in salePayload;
-  const isVend = payloadObject._vend_format === true ||
+  const isVend =
+    payloadObject._vend_format === true ||
     salePayload._vend_format === true ||
     (hasRegisterSaleProducts &&
       ("invoice_number" in payloadObject || "invoice_number" in salePayload)) ||
@@ -1300,33 +1261,37 @@ async function handleSaleEvent(
       salePayload.invoice_number,
       asObject(payloadObject.Sale)?.invoiceNumber,
     ) ?? null;
-  const lineItems = getExistingArray(salePayload._line_items).length > 0
-    ? getExistingArray(salePayload._line_items)
-    : getExistingArray(salePayload.register_sale_products).length > 0
-      ? getExistingArray(salePayload.register_sale_products)
-      : getExistingArray(salePayload.line_items).length > 0
-        ? getExistingArray(salePayload.line_items)
-        : getExistingArray(legacySaleLines?.SaleLine).length > 0
-          ? getExistingArray(legacySaleLines?.SaleLine)
-          : getExistingArray(salePayload.SaleLines);
-  const paymentMethods = getExistingArray(salePayload._payments).length > 0
-    ? getExistingArray(salePayload._payments)
-    : getExistingArray(salePayload.register_sale_payments).length > 0
-      ? getExistingArray(salePayload.register_sale_payments)
-      : getExistingArray(salePayload.payments).length > 0
-        ? getExistingArray(salePayload.payments)
-        : getExistingArray(legacySalePayments?.SalePayment).length > 0
-          ? getExistingArray(legacySalePayments?.SalePayment)
-          : getExistingArray(salePayload.SalePayments);
-  const firstPayment = paymentMethods[0] && typeof paymentMethods[0] === "object"
-    ? paymentMethods[0] as JsonObject
-    : null;
+  const lineItems =
+    getExistingArray(salePayload._line_items).length > 0
+      ? getExistingArray(salePayload._line_items)
+      : getExistingArray(salePayload.register_sale_products).length > 0
+        ? getExistingArray(salePayload.register_sale_products)
+        : getExistingArray(salePayload.line_items).length > 0
+          ? getExistingArray(salePayload.line_items)
+          : getExistingArray(legacySaleLines?.SaleLine).length > 0
+            ? getExistingArray(legacySaleLines?.SaleLine)
+            : getExistingArray(salePayload.SaleLines);
+  const paymentMethods =
+    getExistingArray(salePayload._payments).length > 0
+      ? getExistingArray(salePayload._payments)
+      : getExistingArray(salePayload.register_sale_payments).length > 0
+        ? getExistingArray(salePayload.register_sale_payments)
+        : getExistingArray(salePayload.payments).length > 0
+          ? getExistingArray(salePayload.payments)
+          : getExistingArray(legacySalePayments?.SalePayment).length > 0
+            ? getExistingArray(legacySalePayments?.SalePayment)
+            : getExistingArray(salePayload.SalePayments);
+  const firstPayment =
+    paymentMethods[0] && typeof paymentMethods[0] === "object"
+      ? (paymentMethods[0] as JsonObject)
+      : null;
   const note =
     getFirstNonEmptyString(salePayload._note, salePayload.note) ?? null;
   const source =
     getFirstNonEmptyString(salePayload._source, salePayload.source) ?? null;
   const outletId =
-    getFirstNonEmptyString(salePayload._outlet_id, salePayload.outlet_id) ?? null;
+    getFirstNonEmptyString(salePayload._outlet_id, salePayload.outlet_id) ??
+    null;
 
   const baseMappedSale = mapLightspeedSale(salePayload, connection);
   const mappedSale = {
@@ -1398,9 +1363,13 @@ async function handleCustomerEvent(
   );
 
   const customer = extractCustomerFromPayload(payload);
-  const customerId = customer ? String(customer.id ?? customer.customerID ?? "") : "";
+  const customerId = customer
+    ? String(customer.id ?? customer.customerID ?? "")
+    : "";
   if (!customer || customerId.length === 0) {
-    console.error("[LS-WEBHOOK] handleCustomerEvent — no customer ID found in payload");
+    console.error(
+      "[LS-WEBHOOK] handleCustomerEvent — no customer ID found in payload",
+    );
     return;
   }
 
@@ -1409,15 +1378,14 @@ async function handleCustomerEvent(
     `[LS-WEBHOOK] Customer: id=${customerId}, email=${providerRow.email ?? "none"}, name=${[providerRow.first_name, providerRow.last_name].filter(Boolean).join(" ") || "n/a"}`,
   );
 
-  const { error: providerUpsertError } = await supabase
-    .from("lightspeed_customers")
-    .upsert(providerRow, {
-      onConflict: "tenant_id,lightspeed_customer_id",
-    });
-
-  if (providerUpsertError) {
-    throw providerUpsertError;
-  }
+  const customerWriteResult = await upsertLightspeedCustomerProfile(
+    supabase,
+    providerRow as {
+      tenant_id: string;
+      lightspeed_customer_id: string;
+      [key: string]: unknown;
+    },
+  );
 
   const crmPayload = buildLightspeedCrmCustomerPayload(providerRow);
   if (crmPayload.email) {
@@ -1435,9 +1403,17 @@ async function handleCustomerEvent(
     .update({ last_customer_sync: new Date().toISOString() })
     .eq("id", connection.id);
 
-  console.log(
-    `[LS-WEBHOOK] ✓ Customer ${customerId} upserted for tenant ${connection.tenant_id}`,
-  );
+  if (customerWriteResult.mode === "updated") {
+    console.log(
+      `[LS-WEBHOOK] ✓ Customer ${customerId} profile updated (spend preserved)`,
+    );
+    console.log(
+      `[LS-WEBHOOK] Customer ${customerId} spend after profile update: $${customerWriteResult.totalSpend ?? "null"}, ${customerWriteResult.purchaseCount ?? "null"} purchases`,
+    );
+    return;
+  }
+
+  console.log(`[LS-WEBHOOK] ✓ Customer ${customerId} inserted (new customer)`);
 }
 
 // SECURITY: [T1] - Write only to the single matched tenant
@@ -1457,7 +1433,9 @@ async function handleProductEvent(
     ? String(product.id ?? product.product_id ?? product.itemID ?? "")
     : "";
   if (!product || productId.length === 0) {
-    console.error("[LS-WEBHOOK] handleProductEvent — no product ID found in payload");
+    console.error(
+      "[LS-WEBHOOK] handleProductEvent — no product ID found in payload",
+    );
     return;
   }
 
@@ -1598,10 +1576,11 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
   const rawSignatureHeader =
-    req.headers.get("x-signature") ||
-    req.headers.get("x-lightspeed-signature");
+    req.headers.get("x-signature") || req.headers.get("x-lightspeed-signature");
   const signatureValue =
-    extractVendSignature(rawSignatureHeader) || rawSignatureHeader?.trim() || null;
+    extractVendSignature(rawSignatureHeader) ||
+    rawSignatureHeader?.trim() ||
+    null;
   const webhookSecret = Deno.env.get("LIGHTSPEED_WEBHOOK_SECRET");
 
   if (webhookSecret && signatureValue) {
@@ -1614,9 +1593,7 @@ Deno.serve(async (req) => {
       console.warn("[LS-WEBHOOK] Signature verification failed — rejecting");
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
-    console.log(
-      "[LS-WEBHOOK] Signature verified via x-signature HMAC-SHA256",
-    );
+    console.log("[LS-WEBHOOK] Signature verified via x-signature HMAC-SHA256");
   } else if (webhookSecret && !signatureValue) {
     console.log(
       "[LS-WEBHOOK] No x-signature header — accepted via URL-based auth (normal for some Vend webhook types)",
@@ -1740,10 +1717,7 @@ Deno.serve(async (req) => {
   );
   const payloadDataObj = asObject(payloadObj?.data);
   if (payloadDataObj) {
-    console.log(
-      "[LS-WEBHOOK] Payload data keys:",
-      Object.keys(payloadDataObj),
-    );
+    console.log("[LS-WEBHOOK] Payload data keys:", Object.keys(payloadDataObj));
   }
 
   const normalizedPayload = normalizeVendPayload(eventType, payload);
@@ -1764,9 +1738,8 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ success: true, event: eventType }, 200);
   } catch (error) {
-    const handlerError = error instanceof Error
-      ? error
-      : new Error(String(error));
+    const handlerError =
+      error instanceof Error ? error : new Error(String(error));
     console.error(`[LS-WEBHOOK] Handler error for ${eventType}:`, handlerError);
     console.error(
       "[LS-WEBHOOK] Handler error stack:",
