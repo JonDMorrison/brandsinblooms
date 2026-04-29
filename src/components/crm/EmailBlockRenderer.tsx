@@ -139,7 +139,8 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     return (
       <div
         style={{
-          padding: "16px 24px",
+          padding: "0",
+          width: "100%",
           textAlign: (block.content.alignment as any) || "center",
         }}
       >
@@ -147,15 +148,17 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           src={block.image_url}
           alt={block.content.alt || "Email image"}
           style={{
+            width: "100%",
             maxWidth: "100%",
             height: "auto",
-            borderRadius: "8px",
+            display: "block",
           }}
         />
         {block.content.caption && (
           <p
             style={{
               margin: "8px 0 0 0",
+              padding: "0 24px",
               fontSize: "14px",
               color: "#6B7280",
               textAlign: "center" as const,
@@ -361,6 +364,101 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     </div>
   );
 
+  const renderImageText = () => {
+    const layout = block.content.layout || "image-left";
+    const isImageRight = layout === "image-right";
+    const hasButton =
+      (block.cta_text || block.content.buttonText) &&
+      (block.cta_url || block.content.buttonUrl);
+
+    const imageColumn = block.image_url ? (
+      <div style={{ width: "50%", flexShrink: 0 }}>
+        <img
+          src={block.image_url}
+          alt={block.content.alt || ""}
+          style={{
+            width: "100%",
+            maxWidth: "100%",
+            height: "auto",
+            display: "block",
+            borderRadius: "8px",
+          }}
+        />
+      </div>
+    ) : null;
+
+    const textColumn = (
+      <div style={{ flex: 1, padding: "0 16px" }}>
+        {block.content.title && (
+          <h2
+            style={{
+              margin: "0 0 8px 0",
+              fontSize: "20px",
+              fontWeight: "bold",
+              fontFamily:
+                globalSettings.subheadingFont || globalSettings.fontFamily,
+            }}
+          >
+            {block.content.title}
+          </h2>
+        )}
+        <div
+          style={{
+            lineHeight: "1.6",
+            color: "#374151",
+            fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
+          }}
+          dangerouslySetInnerHTML={{
+            __html: block.content.content || block.content.body || "",
+          }}
+        />
+        {hasButton && (
+          <div style={{ marginTop: "16px" }}>
+            <a
+              href={block.cta_url || block.content.buttonUrl || "#"}
+              style={{
+                display: "inline-block",
+                padding: "12px 24px",
+                backgroundColor: globalSettings.buttonStyle.backgroundColor,
+                color: globalSettings.buttonStyle.textColor,
+                borderRadius: globalSettings.buttonStyle.cornerRadius,
+                textDecoration: "none",
+                fontWeight: "bold",
+                fontSize: "16px",
+              }}
+            >
+              {block.cta_text || block.content.buttonText || "Click Here"}
+            </a>
+          </div>
+        )}
+      </div>
+    );
+
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          padding: "16px 24px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "16px",
+        }}
+      >
+        {isImageRight ? (
+          <>
+            {textColumn}
+            {imageColumn}
+          </>
+        ) : (
+          <>
+            {imageColumn}
+            {textColumn}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const renderDivider = () => (
     <div style={{ padding: "16px 24px" }}>
       <div
@@ -467,6 +565,48 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
       case "newsletter-header":
         return renderHeader();
       case "email-safe-hero":
+        // Email-safe hero can have a background image
+        if (block.image_url || block.content?.backgroundImageUrl) {
+          const bgUrl = block.image_url || block.content?.backgroundImageUrl;
+          return (
+            <div
+              style={{
+                ...baseStyle,
+                backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${bgUrl})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                color: "#FFFFFF",
+                padding: "48px 24px",
+                textAlign: "center" as const,
+              }}
+            >
+              <h1
+                style={{
+                  margin: "0 0 8px 0",
+                  fontSize: "28px",
+                  fontWeight: "bold",
+                  fontFamily:
+                    globalSettings.headlineFont || globalSettings.fontFamily,
+                }}
+              >
+                {block.content.title || block.content.headline || ""}
+              </h1>
+              {(block.content.subtitle || block.content.body) && (
+                <p
+                  style={{
+                    margin: "0",
+                    fontSize: "16px",
+                    opacity: 0.9,
+                    fontFamily:
+                      globalSettings.subheadingFont || globalSettings.fontFamily,
+                  }}
+                >
+                  {block.content.subtitle || block.content.body}
+                </p>
+              )}
+            </div>
+          );
+        }
         return renderHeader();
       case "graphic-hero":
         // Graphic hero is a single clickable image — always full width
@@ -508,8 +648,9 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           </div>
         );
       case "text":
-      case "image-text":
         return renderText();
+      case "image-text":
+        return renderImageText();
       case "image":
         // Don't render image blocks if they're actually text blocks
         return isTextBlock ? renderText() : renderImage();
