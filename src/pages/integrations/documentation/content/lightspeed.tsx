@@ -148,10 +148,11 @@ export const lightspeedDocumentation: DocContent = {
             Lightspeed exposes two separate features that both involve
             event-driven behavior. <strong>Webhooks</strong> are available on
             all POS plans and are what BloomSuite uses for real-time event
-            delivery. <strong>Business Rules</strong> are a separate Plus-plan-only
-            automation feature within Lightspeed and are not used by BloomSuite.
-            If Lightspeed support references Business Rules, they are referring
-            to a different capability than the webhooks BloomSuite subscribes to.
+            delivery. <strong>Business Rules</strong> are a separate
+            Plus-plan-only automation feature within Lightspeed and are not used
+            by BloomSuite. If Lightspeed support references Business Rules, they
+            are referring to a different capability than the webhooks BloomSuite
+            subscribes to.
           </DocCallout>
         </div>
       ),
@@ -269,8 +270,8 @@ export const lightspeedDocumentation: DocContent = {
                     domain prefix, tokens, and connection state. Webhook
                     registration runs automatically — check the Webhook Mode
                     indicator on the detail page to confirm it shows Real-time.
-                    If it shows Sync only, use the "Verify webhooks" action
-                    to retry.
+                    If it shows Sync only, use the "Verify webhooks" action to
+                    retry.
                   </p>
                 ),
               },
@@ -326,24 +327,24 @@ export const lightspeedDocumentation: DocContent = {
             Lightspeed exposes dedicated sync functions for customers, sales,
             and products. The detail page shows the last sync timestamps and
             current synced counts for those domains, plus a
-            <DocInlineCode>Sync Now</DocInlineCode> action when the
-            connection is active.
+            <DocInlineCode>Sync Now</DocInlineCode> action when the connection
+            is active.
           </p>
           <p>
-            When webhooks are operating in real-time mode, background sync
-            jobs complement webhook delivery by handling bulk imports,
-            historical backfills, and metric aggregation that webhooks do
-            not cover (such as inventory counts from the separate inventory
-            endpoint). When the integration is in sync-only mode, these
-            same background jobs are the primary data pipeline.
+            When webhooks are operating in real-time mode, background sync jobs
+            complement webhook delivery by handling bulk imports, historical
+            backfills, and metric aggregation that webhooks do not cover (such
+            as inventory counts from the separate inventory endpoint). When the
+            integration is in sync-only mode, these same background jobs are the
+            primary data pipeline.
           </p>
           <p>
-            Customer sync paginates through customer records and links them
-            into BloomSuite CRM contacts. Sales sync pulls recent completed
-            sales and derives purchase metrics such as first purchase date,
-            total spend, and purchase count. Product sync fetches catalog
-            items with pricing, and inventory counts are fetched from the
-            separate <DocInlineCode>/api/2.0/inventory</DocInlineCode>
+            Customer sync paginates through customer records and links them into
+            BloomSuite CRM contacts. Sales sync pulls recent completed sales and
+            derives purchase metrics such as first purchase date, total spend,
+            and purchase count. Product sync fetches catalog items with pricing,
+            and inventory counts are fetched from the separate{" "}
+            <DocInlineCode>/api/2.0/inventory</DocInlineCode>
             endpoint.
           </p>
         </div>
@@ -403,8 +404,8 @@ export const lightspeedDocumentation: DocContent = {
           <p className="text-[15px] leading-7 text-muted-foreground">
             The real-time handler covers fewer domains than the full sync
             surface because inventory and historical backfills still come from
-            background jobs, but the events it does receive now trigger full
-            CRM propagation and sales rollup processing.
+            background jobs, but the events it does receive now trigger full CRM
+            propagation and sales rollup processing.
           </p>
           <DocCodeBlock
             language="text"
@@ -415,9 +416,9 @@ export const lightspeedDocumentation: DocContent = {
             variant="info"
             title="Real-time events carry full processing weight"
           >
-            When webhooks are active, incoming sale, customer, and product events
-            trigger full processing in the webhook handler — including CRM
-            customer upserts, sales rollup recalculation, lifetime value
+            When webhooks are active, incoming sale, customer, and product
+            events trigger full processing in the webhook handler — including
+            CRM customer upserts, sales rollup recalculation, lifetime value
             propagation, and catalog product updates. Background sync jobs
             complement real-time delivery by handling bulk historical imports,
             inventory counts, and metric aggregation.
@@ -432,29 +433,27 @@ export const lightspeedDocumentation: DocContent = {
       content: (
         <div className={proseClassName}>
           <p>
-            Lightspeed sales sync and the real-time webhook handler both
-            update purchase count, total spend, first purchase date, and
-            last purchase date for matched Lightspeed customers. When a
-            webhook sale event is received, the handler recalculates these
-            metrics from the full set of completed sales and propagates
-            the rollup to the linked CRM customer record.
+            Lightspeed sales sync and the real-time webhook handler both update
+            purchase count, total spend, first purchase date, and last purchase
+            date for matched Lightspeed customers. When a webhook sale event is
+            received, the handler recalculates these metrics from the full set
+            of completed sales and propagates the rollup to the linked CRM
+            customer record.
           </p>
           <p>
-            The webhook handler processes sale, customer, and product
-            events with full CRM propagation — not just lightweight
-            record updates. This means real-time mode provides
-            near-immediate visibility into customer lifetime value
-            changes, new customer creation, and product catalog
-            updates.
+            The webhook handler processes sale, customer, and product events
+            with full CRM propagation — not just lightweight record updates.
+            This means real-time mode provides near-immediate visibility into
+            customer lifetime value changes, new customer creation, and product
+            catalog updates.
           </p>
           <p>
-            For heavier real-time marketing automation (e.g., triggered
-            email workflows based on purchase events), validate the
-            exact automation trigger wiring in the current app. The
-            Lightspeed webhook handler focuses on data integrity and
-            CRM propagation rather than direct automation dispatch,
-            unlike the Square webhook handler which includes full
-            automation trigger support.
+            For heavier real-time marketing automation (e.g., triggered email
+            workflows based on purchase events), validate the exact automation
+            trigger wiring in the current app. The Lightspeed webhook handler
+            focuses on data integrity and CRM propagation rather than direct
+            automation dispatch, unlike the Square webhook handler which
+            includes full automation trigger support.
           </p>
         </div>
       ),
@@ -471,8 +470,8 @@ export const lightspeedDocumentation: DocContent = {
                 title: "Check Webhook Mode on the detail page",
                 body: (
                   <p>
-                    The integration detail page shows the current webhook mode as
-                    Real-time, Sync only, or Unavailable. If the mode is not
+                    The integration detail page shows the current webhook mode
+                    as Real-time, Sync only, or Unavailable. If the mode is not
                     Real-time, use the "Verify webhooks" action before
                     investigating further.
                   </p>
@@ -482,10 +481,10 @@ export const lightspeedDocumentation: DocContent = {
                 title: "Use Verify webhooks to retry registration",
                 body: (
                   <p>
-                    The "Verify webhooks" action in the detail page actions dropdown
-                    re-runs the webhook registration flow against the connected
-                    Lightspeed store. This is the first action to take when
-                    webhook mode shows Sync only or Unavailable.
+                    The "Verify webhooks" action in the detail page actions
+                    dropdown re-runs the webhook registration flow against the
+                    connected Lightspeed store. This is the first action to take
+                    when webhook mode shows Sync only or Unavailable.
                   </p>
                 ),
               },
@@ -585,12 +584,12 @@ export const lightspeedDocumentation: DocContent = {
           />
           <DocCallout title="Webhook registration subscribes to all events">
             When webhook creation succeeds, BloomSuite registers a single
-            webhook endpoint and subscribes to all available event types
-            rather than maintaining individual per-topic subscriptions.
-            The webhook handler dispatches received events by type and
-            ignores unrecognized event types with a log entry. This means
-            new event types that Lightspeed adds in the future will be
-            received and logged without requiring a code change.
+            webhook endpoint and subscribes to all available event types rather
+            than maintaining individual per-topic subscriptions. The webhook
+            handler dispatches received events by type and ignores unrecognized
+            event types with a log entry. This means new event types that
+            Lightspeed adds in the future will be received and logged without
+            requiring a code change.
           </DocCallout>
         </div>
       ),
@@ -609,8 +608,8 @@ export const lightspeedDocumentation: DocContent = {
               The Lightspeed OAuth start and callback flow is built around the
               store domain prefix and constructs the token and account URLs from
               that value. The prefix is the part before
-              <DocInlineCode>.retail.lightspeed.app</DocInlineCode> in the
-              store URL.
+              <DocInlineCode>.retail.lightspeed.app</DocInlineCode> in the store
+              URL.
             </p>
           </div>
           <div>
@@ -620,8 +619,8 @@ export const lightspeedDocumentation: DocContent = {
             <p>
               Yes. Lightspeed webhooks are available on all POS plans. Business
               Rules is a separate Plus-plan-only feature that is not related to
-              BloomSuite&apos;s webhook integration. If webhook registration fails,
-              use the "Verify webhooks" action to retry.
+              BloomSuite&apos;s webhook integration. If webhook registration
+              fails, use the "Verify webhooks" action to retry.
             </p>
           </div>
           <div>
@@ -642,12 +641,11 @@ export const lightspeedDocumentation: DocContent = {
             </p>
             <p>
               Webhooks are event notifications that Lightspeed sends to
-              BloomSuite when data changes (sales, customers, products).
-              They are available on all POS plans. Business Rules are a
-              separate Lightspeed feature for in-store workflow automation
-              (e.g., loyalty triggers, discount rules) and are limited to
-              Plus plan subscribers. BloomSuite uses webhooks, not Business
-              Rules.
+              BloomSuite when data changes (sales, customers, products). They
+              are available on all POS plans. Business Rules are a separate
+              Lightspeed feature for in-store workflow automation (e.g., loyalty
+              triggers, discount rules) and are limited to Plus plan
+              subscribers. BloomSuite uses webhooks, not Business Rules.
             </p>
           </div>
           <div>
@@ -666,10 +664,10 @@ export const lightspeedDocumentation: DocContent = {
               Can I still use BloomSuite if the store is in sync-only mode?
             </p>
             <p>
-              Yes. Customer, sales, and product sync paths continue to
-              provide full retail data coverage. Sync-only mode means
-              data updates arrive during scheduled or manual sync runs
-              rather than in real time.
+              Yes. Customer, sales, and product sync paths continue to provide
+              full retail data coverage. Sync-only mode means data updates
+              arrive during scheduled or manual sync runs rather than in real
+              time.
             </p>
           </div>
         </div>

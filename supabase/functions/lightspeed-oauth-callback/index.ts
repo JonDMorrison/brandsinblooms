@@ -1,10 +1,13 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
-import { encryptToken } from '../_shared/crypto/tokens.ts';
-import { detectEnvironment, getLightspeedCredentials } from '../_shared/environment.ts';
-import { ensureLightspeedWebhooks } from '../_shared/webhooks/ensureLightspeedWebhooks.ts';
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { encryptToken } from "../_shared/crypto/tokens.ts";
+import {
+  detectEnvironment,
+  getLightspeedCredentials,
+} from "../_shared/environment.ts";
+import { ensureLightspeedWebhooks } from "../_shared/webhooks/ensureLightspeedWebhooks.ts";
 
-console.log('[LS-CALLBACK] Edge function starting');
+console.log("[LS-CALLBACK] Edge function starting");
 
 type CallbackPayload = {
   code?: string | null;
@@ -19,7 +22,7 @@ type WebhookResult = {
 };
 
 const inferRedirectUri = (req: Request): string => {
-  const referer = req.headers.get('referer');
+  const referer = req.headers.get("referer");
   if (referer) {
     try {
       const u = new URL(referer);
@@ -29,35 +32,37 @@ const inferRedirectUri = (req: Request): string => {
     }
   }
 
-  const origin = req.headers.get('origin');
-  if (origin && origin.startsWith('http')) {
+  const origin = req.headers.get("origin");
+  if (origin && origin.startsWith("http")) {
     return `${origin}/integrations/lightspeed/callback`;
   }
 
-  const appBaseUrl = Deno.env.get('APP_BASE_URL');
-  if (appBaseUrl && appBaseUrl.startsWith('http')) {
-    return `${appBaseUrl.replace(/\/$/, '')}/integrations/lightspeed/callback`;
+  const appBaseUrl = Deno.env.get("APP_BASE_URL");
+  if (appBaseUrl && appBaseUrl.startsWith("http")) {
+    return `${appBaseUrl.replace(/\/$/, "")}/integrations/lightspeed/callback`;
   }
 
-  return 'https://bloomsuite.app/integrations/lightspeed/callback';
+  return "https://bloomsuite.app/integrations/lightspeed/callback";
 };
 
 const parseCallbackPayload = async (req: Request): Promise<CallbackPayload> => {
   // Some environments/tools may send this as a GET with query params.
   // Our frontend sends it as a POST JSON body.
-  if (req.method === 'GET') {
+  if (req.method === "GET") {
     const url = new URL(req.url);
     return {
-      code: url.searchParams.get('code'),
-      state: url.searchParams.get('state'),
-      redirectUri: url.searchParams.get('redirectUri') ?? url.searchParams.get('redirect_uri'),
+      code: url.searchParams.get("code"),
+      state: url.searchParams.get("state"),
+      redirectUri:
+        url.searchParams.get("redirectUri") ??
+        url.searchParams.get("redirect_uri"),
     };
   }
 
-  const contentType = (req.headers.get('content-type') || '').toLowerCase();
+  const contentType = (req.headers.get("content-type") || "").toLowerCase();
 
   // Best-effort parsing for common payload formats.
-  if (contentType.includes('application/json')) {
+  if (contentType.includes("application/json")) {
     try {
       const body = await req.json();
       return {
@@ -88,115 +93,136 @@ const parseCallbackPayload = async (req: Request): Promise<CallbackPayload> => {
   // application/x-www-form-urlencoded
   const params = new URLSearchParams(raw);
   return {
-    code: params.get('code'),
-    state: params.get('state'),
-    redirectUri: params.get('redirectUri') ?? params.get('redirect_uri'),
+    code: params.get("code"),
+    state: params.get("state"),
+    redirectUri: params.get("redirectUri") ?? params.get("redirect_uri"),
   };
 };
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('[LS-CALLBACK] Processing OAuth callback request (no auth required)');
+    console.log(
+      "[LS-CALLBACK] Processing OAuth callback request (no auth required)",
+    );
 
     // Create Supabase client with service role (no user auth required)
     const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
-        }
-      }
+        },
+      },
     );
 
     // Parse request payload (supports JSON POST from frontend and GET query params)
     const payload = await parseCallbackPayload(req);
     const code = payload.code ?? undefined;
     const state = payload.state ?? undefined;
-    const redirectUri = (payload.redirectUri ?? undefined) || inferRedirectUri(req);
+    const redirectUri =
+      (payload.redirectUri ?? undefined) || inferRedirectUri(req);
 
-    console.log('[LS-CALLBACK] Request data:', {
+    console.log("[LS-CALLBACK] Request data:", {
       hasCode: !!code,
       hasState: !!state,
-      redirectUri
+      redirectUri,
     });
 
     if (!code || !state || !redirectUri) {
-      console.error('[LS-CALLBACK] Missing required parameters');
+      console.error("[LS-CALLBACK] Missing required parameters");
       return new Response(
         JSON.stringify({
-          error: 'Missing code, state, or redirect URI',
+          error: "Missing code, state, or redirect URI",
           missing: {
             code: !code,
             state: !state,
             redirectUri: !redirectUri,
           },
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Look up state in database
-    console.log('[LS-CALLBACK] Looking up state token...');
+    console.log("[LS-CALLBACK] Looking up state token...");
     const { data: stateData, error: stateError } = await supabaseClient
-      .from('oauth_states')
-      .select('user_id, tenant_id, domain_prefix, expires_at')
-      .eq('state_token', state)
+      .from("oauth_states")
+      .select("user_id, tenant_id, domain_prefix, expires_at")
+      .eq("state_token", state)
       .single();
 
     if (stateError || !stateData) {
-      console.error('[LS-CALLBACK] State lookup failed:', stateError?.message);
+      console.error("[LS-CALLBACK] State lookup failed:", stateError?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired state token' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Invalid or expired state token" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Check if state has expired
     if (new Date(stateData.expires_at) < new Date()) {
-      console.error('[LS-CALLBACK] State token expired');
-      await supabaseClient.from('oauth_states').delete().eq('state_token', state);
-      return new Response(
-        JSON.stringify({ error: 'State token expired' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("[LS-CALLBACK] State token expired");
+      await supabaseClient
+        .from("oauth_states")
+        .delete()
+        .eq("state_token", state);
+      return new Response(JSON.stringify({ error: "State token expired" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const { user_id: userId, tenant_id: tenantId, domain_prefix: domainPrefix } = stateData;
-    console.log('[LS-CALLBACK] State verified for user');
+    const {
+      user_id: userId,
+      tenant_id: tenantId,
+      domain_prefix: domainPrefix,
+    } = stateData;
+    console.log("[LS-CALLBACK] State verified for user");
 
     // Delete used state token
-    await supabaseClient.from('oauth_states').delete().eq('state_token', state);
+    await supabaseClient.from("oauth_states").delete().eq("state_token", state);
 
     // Detect environment and get appropriate credentials
     const environment = detectEnvironment(req);
-    console.log('[LS-CALLBACK] Environment detected:', environment);
+    console.log("[LS-CALLBACK] Environment detected:", environment);
 
     const { clientId, clientSecret } = getLightspeedCredentials(environment);
     if (!clientId || !clientSecret) {
-      console.error(`[LS-CALLBACK] Missing Lightspeed credentials for ${environment}`);
+      console.error(
+        `[LS-CALLBACK] Missing Lightspeed credentials for ${environment}`,
+      );
       return new Response(
         JSON.stringify({
-          error: 'Lightspeed credentials not configured for this environment',
-          environment
+          error: "Lightspeed credentials not configured for this environment",
+          environment,
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
-    console.log('[LS-CALLBACK] Using credentials for:', environment);
+    console.log("[LS-CALLBACK] Using credentials for:", environment);
 
-    console.log('[LS-CALLBACK] Exchanging code for tokens...');
+    console.log("[LS-CALLBACK] Exchanging code for tokens...");
 
     // Exchange code for access token (X-Series)
     const tokenUrl = `https://${domainPrefix}.retail.lightspeed.app/api/1.0/token`;
     const tokenParams = new URLSearchParams({
-      grant_type: 'authorization_code',
+      grant_type: "authorization_code",
       code: code,
       redirect_uri: redirectUri,
       client_id: clientId,
@@ -204,31 +230,38 @@ Deno.serve(async (req) => {
     });
 
     const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: tokenParams.toString(),
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('[LS-CALLBACK] Token exchange failed:', tokenResponse.status, errorText);
+      console.error(
+        "[LS-CALLBACK] Token exchange failed:",
+        tokenResponse.status,
+        errorText,
+      );
       return new Response(
         JSON.stringify({
-          error: 'Failed to exchange authorization code',
-          details: errorText
+          error: "Failed to exchange authorization code",
+          details: errorText,
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const tokenData = await tokenResponse.json();
-    console.log('[LS-CALLBACK] Token exchange successful');
+    console.log("[LS-CALLBACK] Token exchange successful");
 
     // Get account info
     const accountUrl = `https://${domainPrefix}.retail.lightspeed.app/api/2.0/Account.json`;
     const accountResponse = await fetch(accountUrl, {
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
+        Authorization: `Bearer ${tokenData.access_token}`,
       },
     });
 
@@ -236,96 +269,127 @@ Deno.serve(async (req) => {
     if (accountResponse.ok) {
       const accountData = await accountResponse.json();
       retailerName = accountData.Account?.name || domainPrefix;
-      console.log('[LS-CALLBACK] Got retailer name:', retailerName);
+      console.log("[LS-CALLBACK] Got retailer name:", retailerName);
     }
 
     // Calculate expiry
-    const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000));
+    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
     const encryptedAccessToken = await encryptToken(tokenData.access_token);
     const encryptedRefreshToken = tokenData.refresh_token
       ? await encryptToken(tokenData.refresh_token)
       : null;
 
-    console.log('[LS-CALLBACK] Updating connection in database...');
+    console.log("[LS-CALLBACK] Updating connection in database...");
 
     // Update connection with real tokens
     const { error: updateError } = await supabaseClient
-      .from('lightspeed_connections')
+      .from("lightspeed_connections")
       .update({
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
         expires_at: expiresAt.toISOString(),
         retailer_name: retailerName,
-        status: 'connected',
+        status: "connected",
         connected_at: new Date().toISOString(),
       })
-      .eq('tenant_id', tenantId)
-      .eq('domain_prefix', domainPrefix);
+      .eq("tenant_id", tenantId)
+      .eq("domain_prefix", domainPrefix);
 
     if (updateError) {
-      console.error('[LS-CALLBACK] Failed to update connection:', updateError);
+      console.error("[LS-CALLBACK] Failed to update connection:", updateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to save connection', details: updateError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Failed to save connection",
+          details: updateError.message,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[LS-CALLBACK] Connection saved, setting up webhooks automatically...');
+    console.log(
+      "[LS-CALLBACK] Connection saved, setting up webhooks automatically...",
+    );
 
     // ============================================
     // AUTO-SUBSCRIBE WEBHOOKS - No user action needed
     // ============================================
     // Get connection ID first
     const { data: savedConnection } = await supabaseClient
-      .from('lightspeed_connections')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .eq('domain_prefix', domainPrefix)
+      .from("lightspeed_connections")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("domain_prefix", domainPrefix)
       .single();
 
-    let webhookResult: WebhookResult = { verified: false, error: 'Connection ID not found' };
+    let webhookResult: WebhookResult = {
+      verified: false,
+      error: "Connection ID not found",
+    };
     if (savedConnection?.id) {
       try {
-        webhookResult = await ensureLightspeedWebhooks(supabaseClient, savedConnection.id);
-        console.log('[LS-CALLBACK] Webhook setup result:', JSON.stringify(webhookResult));
+        webhookResult = await ensureLightspeedWebhooks(
+          supabaseClient,
+          savedConnection.id,
+        );
+        console.log(
+          "[LS-CALLBACK] Webhook setup result:",
+          JSON.stringify(webhookResult),
+        );
 
         if (webhookResult.verified) {
-          console.log('[LS-CALLBACK] ✓ Webhooks configured:', webhookResult.subscription_id);
+          console.log(
+            "[LS-CALLBACK] ✓ Webhooks configured:",
+            webhookResult.subscription_id,
+          );
         } else {
-          console.warn('[LS-CALLBACK] ⚠ Webhook setup pending:', webhookResult.error);
+          console.warn(
+            "[LS-CALLBACK] ⚠ Webhook setup pending:",
+            webhookResult.error,
+          );
         }
       } catch (webhookError: unknown) {
-        const message = webhookError instanceof Error ? webhookError.message : String(webhookError);
-        console.error('[LS-CALLBACK] Webhook setup error:', message);
+        const message =
+          webhookError instanceof Error
+            ? webhookError.message
+            : String(webhookError);
+        console.error("[LS-CALLBACK] Webhook setup error:", message);
         webhookResult = { verified: false, error: message };
       }
     }
 
-    console.log('[LS-CALLBACK] Connection successful');
+    console.log("[LS-CALLBACK] Connection successful");
 
     return new Response(
       JSON.stringify({
         success: true,
         retailerName,
-        message: 'Lightspeed connected successfully',
+        message: "Lightspeed connected successfully",
         webhooks: {
           configured: webhookResult?.verified || false,
           subscription_id: webhookResult?.subscription_id ?? null,
           error: webhookResult?.error || null,
         },
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
-
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[LS-CALLBACK] Unexpected error:', message);
+    console.error("[LS-CALLBACK] Unexpected error:", message);
     return new Response(
       JSON.stringify({
-        error: 'Internal server error',
-        details: message
+        error: "Internal server error",
+        details: message,
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

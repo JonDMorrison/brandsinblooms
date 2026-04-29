@@ -103,7 +103,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const connectionId =
-      typeof body?.connectionId === "string" && body.connectionId.trim().length > 0
+      typeof body?.connectionId === "string" &&
+      body.connectionId.trim().length > 0
         ? body.connectionId.trim()
         : null;
 
@@ -119,7 +120,10 @@ Deno.serve(async (req) => {
       forcedAction?: string,
     ) => {
       try {
-        const result = await ensureLightspeedWebhooks(serviceClient, connection.id);
+        const result = await ensureLightspeedWebhooks(
+          serviceClient,
+          connection.id,
+        );
         results.push({
           connection_id: connection.id,
           tenant_id: connection.tenant_id,
@@ -168,9 +172,8 @@ Deno.serve(async (req) => {
         throw targetError;
       }
 
-      const targetConnection = (targetConnections?.[0] ?? null) as
-        | LightspeedWebhookConnection
-        | null;
+      const targetConnection = (targetConnections?.[0] ??
+        null) as LightspeedWebhookConnection | null;
 
       if (!targetConnection) {
         return jsonResponse(
@@ -199,17 +202,17 @@ Deno.serve(async (req) => {
         .eq("status", "connected")
         .neq("encrypted_access_token", "pending")
         .eq("webhooks_subscribed", true)
-        .or(`last_webhook_received_at.is.null,last_webhook_received_at.lt.${staleThresholdIso}`);
+        .or(
+          `last_webhook_received_at.is.null,last_webhook_received_at.lt.${staleThresholdIso}`,
+        );
 
       if (tenantId) {
         retryQuery = retryQuery.eq("tenant_id", tenantId);
         staleQuery = staleQuery.eq("tenant_id", tenantId);
       }
 
-      const [retryConnectionsResult, staleConnectionsResult] = await Promise.all([
-        retryQuery,
-        staleQuery,
-      ]);
+      const [retryConnectionsResult, staleConnectionsResult] =
+        await Promise.all([retryQuery, staleQuery]);
 
       if (retryConnectionsResult.error) {
         throw retryConnectionsResult.error;
@@ -220,9 +223,11 @@ Deno.serve(async (req) => {
       }
 
       const retryConnections =
-        (retryConnectionsResult.data as LightspeedWebhookConnection[] | null) ?? [];
+        (retryConnectionsResult.data as LightspeedWebhookConnection[] | null) ??
+        [];
       const staleConnections =
-        (staleConnectionsResult.data as LightspeedWebhookConnection[] | null) ?? [];
+        (staleConnectionsResult.data as LightspeedWebhookConnection[] | null) ??
+        [];
 
       console.log(
         `[LIGHTSPEED-WEBHOOK-HEALTH] Found ${retryConnections.length} retry candidate(s) and ${staleConnections.length} stale candidate(s)`,
@@ -236,7 +241,8 @@ Deno.serve(async (req) => {
         processedConnectionIds.add(connection.id);
 
         if (
-          (connection.webhook_retry_count ?? 0) >= WEBHOOK_RETRY_CONFIG.MAX_RETRIES
+          (connection.webhook_retry_count ?? 0) >=
+          WEBHOOK_RETRY_CONFIG.MAX_RETRIES
         ) {
           results.push({
             connection_id: connection.id,
@@ -292,8 +298,7 @@ Deno.serve(async (req) => {
       total_checked: results.length,
       verified: results.filter((result) => result.verified).length,
       failed: results.filter(
-        (result) =>
-          result.action === "failed" || result.action === "error",
+        (result) => result.action === "failed" || result.action === "error",
       ).length,
       skipped: results.filter((result) => result.action === "skipped").length,
     };
