@@ -122,7 +122,9 @@ function getWebhookErrorMessage(
     (typeof errorData.error === "string" ? errorData.error : null) ||
     (typeof errorData.message === "string" ? errorData.message : null) ||
     (typeof errorData.details === "string" ? errorData.details : null) ||
-    (Array.isArray(errorData.errors) ? JSON.stringify(errorData.errors) : null) ||
+    (Array.isArray(errorData.errors)
+      ? JSON.stringify(errorData.errors)
+      : null) ||
     `Create failed: ${status} — ${errorText.slice(0, 200)}`
   );
 }
@@ -432,20 +434,20 @@ export async function ensureLightspeedWebhooks(
           body: Record<string, unknown>;
         }> = [
           {
-            label: "minimal body",
-            body: { url: webhookUrl },
+            label: 'type="general.webhook"',
+            body: { url: webhookUrl, type: "general.webhook" },
           },
           {
-            label: "type+active fields",
-            body: { url: webhookUrl, active: true, type: "all" },
+            label: 'type="webhook"',
+            body: { url: webhookUrl, type: "webhook" },
           },
           {
-            label: "lowercase webhook wrapper",
-            body: { webhook: { url: webhookUrl, active: true } },
+            label: 'type="all"',
+            body: { url: webhookUrl, type: "all" },
           },
           {
-            label: "events array",
-            body: { url: webhookUrl, events: REQUIRED_EVENTS },
+            label: 'type="url"',
+            body: { url: webhookUrl, type: "url" },
           },
         ];
 
@@ -458,7 +460,7 @@ export async function ensureLightspeedWebhooks(
             attempt.label,
           );
           console.log(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook with body:",
+            "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create body:",
             JSON.stringify(attempt.body),
           );
 
@@ -474,8 +476,7 @@ export async function ensureLightspeedWebhooks(
 
           createErrorText = await createResponse.text();
           console.warn(
-            "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create returned 422 for",
-            attempt.label,
+            `[ENSURE-LIGHTSPEED-WEBHOOKS] ${attempt.label} rejected with 422`,
           );
           console.warn(
             "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create 422 response:",
@@ -502,7 +503,7 @@ export async function ensureLightspeedWebhooks(
       }
 
       if (!createResponse.ok) {
-        const errorText = createErrorText ?? await createResponse.text();
+        const errorText = createErrorText ?? (await createResponse.text());
         console.error(
           "[ENSURE-LIGHTSPEED-WEBHOOKS] Create failed — status:",
           createResponse.status,
@@ -541,8 +542,16 @@ export async function ensureLightspeedWebhooks(
       subscriptionId = getWebhookId(createdWebhook);
       action = "created";
       console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] Create succeeded with attempt:",
+        createAttemptLabel,
+      );
+      console.log(
         "[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:",
         getResponseKeys(createData),
+      );
+      console.log(
+        "[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series create response:",
+        JSON.stringify(createData),
       );
       console.log(
         "[ENSURE-LIGHTSPEED-WEBHOOKS] Created webhook ID:",
