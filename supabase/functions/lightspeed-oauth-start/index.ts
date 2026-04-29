@@ -6,6 +6,21 @@ import { detectEnvironment, getLightspeedCredentials } from '../_shared/environm
 
 console.log('[LS-START] Edge function starting');
 
+const REQUIRED_LIGHTSPEED_SCOPES = [
+  'customers:read',
+  'products:read',
+  'sales:read',
+  'inventory:read',
+  'retailer:read',
+  'webhooks',
+] as const;
+const LIGHTSPEED_SCOPE_STRING = REQUIRED_LIGHTSPEED_SCOPES.join(' ');
+
+const normalizeConfiguredOrigin = (value: string | undefined): string | null => {
+  if (!value || !value.startsWith('http')) return null;
+  return value.replace(/\/$/, '');
+};
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -178,24 +193,36 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build Lightspeed OAuth URL using the origin that initiated the flow
-    const callbackOrigin = (typeof redirectOrigin === 'string' && redirectOrigin.startsWith('http'))
-      ? redirectOrigin
-      : 'https://bloomsuite.app';
+    // Lightspeed requires redirect_uri to exactly match the value registered
+    // for the app. In production, prefer the canonical configured origin rather
+    // than whichever first-party host initiated the flow.
+    const configuredAppOrigin = normalizeConfiguredOrigin(
+      Deno.env.get('APP_ORIGIN') ?? Deno.env.get('APP_BASE_URL') ?? undefined,
+    );
+    const requestOrigin = normalizeConfiguredOrigin(
+      typeof redirectOrigin === 'string' ? redirectOrigin : undefined,
+    );
+    const callbackOrigin = environment === 'production'
+      ? configuredAppOrigin ?? requestOrigin ?? 'https://bloomsuite.app'
+      : requestOrigin ?? configuredAppOrigin ?? 'https://bloomsuite.app';
     const callbackUrl = `${callbackOrigin}/integrations/lightspeed/callback`;
 
     console.log('[LS-START] OAuth Configuration:', {
       environment,
+      configuredAppOrigin,
+      requestOrigin,
       callbackOrigin,
       callbackUrl,
-      domainPrefix
+      domainPrefix,
+      scope: LIGHTSPEED_SCOPE_STRING,
     });
 
-    const authUrl = new URL('https://secure.retail.lightspeed.app/connect');
-    authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('client_id', clientId);
-    authUrl.searchParams.set('redirect_uri', callbackUrl);
-    authUrl.searchParams.set('state', state);
+    const authUrl =
+      `https://secure.retail.lightspeed.app/connect?response_type=code` +
+      `&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+      `&state=${encodeURIComponent(state)}` +
+      `&scope=${encodeURIComponent(LIGHTSPEED_SCOPE_STRING)}`;
 
     console.log('[LS-START] Success! Auth URL created');
 
@@ -207,10 +234,11 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('[LS-START] Error:', error.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[LS-START] Error:', message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

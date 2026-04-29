@@ -93,18 +93,18 @@ const lightspeedWebhookEvents = [
 const webhookModeMatrix: ReactNode[][] = [
   [
     "Real-time",
-    "Webhook exists and verifies as enabled in the Lightspeed account.",
-    "Expect webhook delivery plus background sync paths.",
+    "Webhook is registered, verified, and confirmed as enabled in the Lightspeed account.",
+    "Normal operating mode. Sales, customer, and product events are delivered in real time.",
   ],
   [
     "Sync only",
-    "The account is connected but webhook verification is pending or not confirmed.",
-    "Use manual and scheduled sync paths while reviewing webhook health.",
+    "The connection is active but webhook registration has not been verified yet, or the last verification attempt encountered a transient error.",
+    "Use the 'Verify webhooks' action to retry registration. Background sync paths remain available.",
   ],
   [
     "Unavailable",
-    "The Lightspeed Webhook API is not available for this account type or store.",
-    "Treat the integration as connected without real-time webhook delivery.",
+    "Both X-Series and R-Series webhook endpoint formats returned errors during registration. This should not normally occur on any Lightspeed POS plan.",
+    "Contact support if this state persists after retrying. BloomSuite continues to operate via background sync while webhook delivery is unavailable.",
   ],
 ];
 
@@ -114,9 +114,9 @@ export const lightspeedDocumentation: DocContent = {
   category: lightspeedSeed.categoryLabel,
   pageTitle: "Lightspeed X-Series Integration Guide",
   overview:
-    "Connect Lightspeed X-Series to BloomSuite to sync retail customers, sales, products, and selected real-time updates from a store-specific domain. The current implementation supports domain-prefix-driven OAuth, automatic webhook provisioning when the account allows it, and background sync paths that keep the integration useful even when webhook support is limited or unavailable.",
-  readingTimeMinutes: 16,
-  lastUpdated: "Mar 23, 2026",
+    "Connect Lightspeed X-Series to BloomSuite to sync retail customers, sales, products, and real-time webhook events from a store-specific domain. BloomSuite registers webhooks automatically during OAuth and uses background sync jobs to complement real-time delivery with bulk imports, inventory coverage, and recovery paths.",
+  readingTimeMinutes: 14,
+  lastUpdated: "Apr 29, 2026",
   branding: {
     icon: lightspeedSeed.icon,
     logoSrc: documentationLogoAssets.lightspeed,
@@ -136,19 +136,22 @@ export const lightspeedDocumentation: DocContent = {
             and a hybrid real-time plus sync model for retail data.
           </p>
           <p>
-            Compared with Square, Lightspeed in this repo is more account-
-            dependent. The code can create and verify webhooks when the account
-            exposes the Webhook API, but it also explicitly supports degraded
-            modes where the integration remains usable through background syncs
-            even though real-time delivery is reduced or unavailable.
+            Webhooks are available on all Lightspeed POS plans and BloomSuite
+            registers them automatically during the OAuth connection flow. When
+            webhook registration succeeds, the integration operates in real-time
+            mode — sales, customer, and product events are delivered to
+            BloomSuite within seconds. Background sync jobs complement real-time
+            delivery by handling bulk imports, metric rollups, and inventory
+            data that webhooks do not cover.
           </p>
-          <DocCallout title="Current operating model">
-            Lightspeed should be documented as an account-sensitive integration.
-            OAuth and core sync behavior are live. Webhook behavior varies by
-            account and is reflected back to the UI as
-            <DocInlineCode>Real-time</DocInlineCode>,
-            <DocInlineCode>Sync only</DocInlineCode>, or
-            <DocInlineCode>Unavailable</DocInlineCode>.
+          <DocCallout title="Webhooks vs Business Rules">
+            Lightspeed exposes two separate features that both involve
+            event-driven behavior. <strong>Webhooks</strong> are available on
+            all POS plans and are what BloomSuite uses for real-time event
+            delivery. <strong>Business Rules</strong> are a separate Plus-plan-only
+            automation feature within Lightspeed and are not used by BloomSuite.
+            If Lightspeed support references Business Rules, they are referring
+            to a different capability than the webhooks BloomSuite subscribes to.
           </DocCallout>
         </div>
       ),
@@ -198,9 +201,12 @@ export const lightspeedDocumentation: DocContent = {
                 title: "Expectation setting for webhook support",
                 body: (
                   <p>
-                    Before rollout, assume webhook support may vary by account.
-                    The current code handles this explicitly and does not treat
-                    webhook API access as universal.
+                    Lightspeed webhooks are available on all POS plans.
+                    BloomSuite registers webhooks automatically during the OAuth
+                    connection flow and displays the current delivery status on
+                    the integration detail page. If webhook registration fails
+                    due to a transient API error, use the "Verify webhooks"
+                    action to retry.
                   </p>
                 ),
               },
@@ -260,9 +266,11 @@ export const lightspeedDocumentation: DocContent = {
                 body: (
                   <p>
                     After the callback, BloomSuite stores the retailer name,
-                    domain prefix, tokens, connection state, and current webhook
-                    result. Review the Lightspeed detail page before assuming
-                    the store is operating in full real-time mode.
+                    domain prefix, tokens, and connection state. Webhook
+                    registration runs automatically — check the Webhook Mode
+                    indicator on the detail page to confirm it shows Real-time.
+                    If it shows Sync only, use the "Verify webhooks" action
+                    to retry.
                   </p>
                 ),
               },
@@ -274,7 +282,7 @@ export const lightspeedDocumentation: DocContent = {
           >
             The callback runs webhook provisioning immediately after saving the
             store connection, so you do not need a separate post-connect webhook
-            step when the account supports the API.
+            step.
           </DocCallout>
         </div>
       ),
@@ -286,21 +294,24 @@ export const lightspeedDocumentation: DocContent = {
       content: (
         <div className="space-y-4">
           <p className="text-[15px] leading-7 text-muted-foreground">
-            Lightspeed webhook setup is automatic when the connected account
-            exposes the Webhook API. BloomSuite lists existing webhooks, reuses
-            or enables a matching webhook when possible, creates a new webhook
-            when needed, and then verifies that the webhook exists and is
-            enabled.
+            Lightspeed webhook registration runs automatically during the OAuth
+            connection flow. BloomSuite creates or reuses a webhook subscription
+            pointing at the shared webhook handler endpoint, verifies that the
+            subscription is active, and persists the resulting mode on the
+            connection record. The integration detail page reflects the stored
+            webhook mode in real time.
           </p>
           <DocTable
             headers={["Webhook Mode", "Meaning", "How to Operate"]}
             rows={webhookModeMatrix}
           />
-          <DocCallout title="Account capability changes the mode">
-            If the Lightspeed API returns 403 or 404 for webhook listing,
-            BloomSuite records that as a sync-only condition rather than a hard
-            connection failure. The detail page can still surface the webhook
-            mode as unavailable to make that limitation explicit to operators.
+          <DocCallout title="Webhooks are available on all Lightspeed POS plans">
+            Per Lightspeed support, webhooks are universally available and are
+            not gated by subscription tier. If BloomSuite shows "Sync only" or
+            "Unavailable," use the "Verify webhooks" action in the detail page
+            to retry registration. The most common cause of a failed
+            registration is a transient API error during the initial OAuth
+            callback.
           </DocCallout>
         </div>
       ),
@@ -315,15 +326,25 @@ export const lightspeedDocumentation: DocContent = {
             Lightspeed exposes dedicated sync functions for customers, sales,
             and products. The detail page shows the last sync timestamps and
             current synced counts for those domains, plus a
-            <DocInlineCode>Trigger manual sync</DocInlineCode> action when the
+            <DocInlineCode>Sync Now</DocInlineCode> action when the
             connection is active.
           </p>
           <p>
-            Customer sync paginates through customer records and links them into
-            BloomSuite CRM contacts. Sales sync pulls recent completed sales and
-            derives purchase metrics such as first purchase date and total
-            spend. Product sync exists as a separate path and complements the
-            real-time product update handler.
+            When webhooks are operating in real-time mode, background sync
+            jobs complement webhook delivery by handling bulk imports,
+            historical backfills, and metric aggregation that webhooks do
+            not cover (such as inventory counts from the separate inventory
+            endpoint). When the integration is in sync-only mode, these
+            same background jobs are the primary data pipeline.
+          </p>
+          <p>
+            Customer sync paginates through customer records and links them
+            into BloomSuite CRM contacts. Sales sync pulls recent completed
+            sales and derives purchase metrics such as first purchase date,
+            total spend, and purchase count. Product sync fetches catalog
+            items with pricing, and inventory counts are fetched from the
+            separate <DocInlineCode>/api/2.0/inventory</DocInlineCode>
+            endpoint.
           </p>
         </div>
       ),
@@ -380,10 +401,10 @@ export const lightspeedDocumentation: DocContent = {
       content: (
         <div className="space-y-4">
           <p className="text-[15px] leading-7 text-muted-foreground">
-            The current real-time handler is lighter than the full sync surface,
-            which means the docs should distinguish between events that can be
-            received in real time and the broader record coverage that arrives
-            through import jobs.
+            The real-time handler covers fewer domains than the full sync
+            surface because inventory and historical backfills still come from
+            background jobs, but the events it does receive now trigger full
+            CRM propagation and sales rollup processing.
           </p>
           <DocCodeBlock
             language="text"
@@ -391,12 +412,15 @@ export const lightspeedDocumentation: DocContent = {
             ariaLabel="Lightspeed webhook event coverage"
           />
           <DocCallout
-            variant="warning"
-            title="Webhook parity is not the same as sync parity"
+            variant="info"
+            title="Real-time events carry full processing weight"
           >
-            Real-time Lightspeed events update sales, customers, products, and
-            loyalty balance when received, but the background sync jobs still do
-            most of the heavier import and metric-building work.
+            When webhooks are active, incoming sale, customer, and product events
+            trigger full processing in the webhook handler — including CRM
+            customer upserts, sales rollup recalculation, lifetime value
+            propagation, and catalog product updates. Background sync jobs
+            complement real-time delivery by handling bulk historical imports,
+            inventory counts, and metric aggregation.
           </DocCallout>
         </div>
       ),
@@ -408,17 +432,29 @@ export const lightspeedDocumentation: DocContent = {
       content: (
         <div className={proseClassName}>
           <p>
-            Lightspeed sales sync updates purchase count, total spend, first
-            purchase date, and last purchase date for matched Lightspeed
-            customers. That means first-purchase semantics exist in the synced
-            customer data model even though the webhook handler itself is more
-            lightweight than the Square automation pipeline.
+            Lightspeed sales sync and the real-time webhook handler both
+            update purchase count, total spend, first purchase date, and
+            last purchase date for matched Lightspeed customers. When a
+            webhook sale event is received, the handler recalculates these
+            metrics from the full set of completed sales and propagates
+            the rollup to the linked CRM customer record.
           </p>
           <p>
-            Use Lightspeed data as a source for reporting and customer-state
-            enrichment first. If you need heavier real-time marketing behavior,
-            validate the exact runtime path in the current app instead of
-            assuming full parity with Square automation triggers.
+            The webhook handler processes sale, customer, and product
+            events with full CRM propagation — not just lightweight
+            record updates. This means real-time mode provides
+            near-immediate visibility into customer lifetime value
+            changes, new customer creation, and product catalog
+            updates.
+          </p>
+          <p>
+            For heavier real-time marketing automation (e.g., triggered
+            email workflows based on purchase events), validate the
+            exact automation trigger wiring in the current app. The
+            Lightspeed webhook handler focuses on data integrity and
+            CRM propagation rather than direct automation dispatch,
+            unlike the Square webhook handler which includes full
+            automation trigger support.
           </p>
         </div>
       ),
@@ -432,42 +468,60 @@ export const lightspeedDocumentation: DocContent = {
           <StepList
             steps={[
               {
-                title: "Review Webhook Mode first",
+                title: "Check Webhook Mode on the detail page",
                 body: (
                   <p>
-                    Check whether the connection is operating as Real-time, Sync
-                    only, or Unavailable before you diagnose stale data.
+                    The integration detail page shows the current webhook mode as
+                    Real-time, Sync only, or Unavailable. If the mode is not
+                    Real-time, use the "Verify webhooks" action before
+                    investigating further.
                   </p>
                 ),
               },
               {
-                title: "Use Run diagnostics",
+                title: "Use Verify webhooks to retry registration",
+                body: (
+                  <p>
+                    The "Verify webhooks" action in the detail page actions dropdown
+                    re-runs the webhook registration flow against the connected
+                    Lightspeed store. This is the first action to take when
+                    webhook mode shows Sync only or Unavailable.
+                  </p>
+                ),
+              },
+              {
+                title: "Use Run diagnostics for deeper investigation",
                 body: (
                   <p>
                     The Lightspeed detail page exposes
-                    <DocInlineCode>Run diagnostics</DocInlineCode> as the main
-                    operator action for deeper investigation beyond basic sync
-                    timestamps.
+                    <DocInlineCode>Run diagnostics</DocInlineCode> as the
+                    operator action for verifying token health, API endpoint
+                    reachability, webhook endpoint format detection, sync queue
+                    state, and imported data integrity.
                   </p>
                 ),
               },
               {
-                title: "Trigger manual sync when appropriate",
+                title: "Trigger manual sync when data is stale",
                 body: (
                   <p>
-                    If the store is connected but current data is stale, use
-                    <DocInlineCode>Trigger manual sync</DocInlineCode> before
-                    escalating webhook-specific issues.
+                    If the store is connected and webhook mode is Real-time but
+                    current data looks stale, use
+                    <DocInlineCode>Sync Now</DocInlineCode> to trigger a
+                    background sync before escalating. Webhooks deliver
+                    incremental updates, but a manual sync can backfill any
+                    gaps.
                   </p>
                 ),
               },
               {
-                title: "Use store and activity references already in the UI",
+                title: "Review store and activity references already in the UI",
                 body: (
                   <p>
-                    Review the Store URL, sync logs, and diagnostics destination
-                    shown in the existing Lightspeed detail page before changing
-                    configuration assumptions.
+                    The Store URL, sync logs, webhook mode, and diagnostics
+                    destination are all accessible from the Lightspeed detail
+                    page. Use these existing surfaces before changing
+                    configuration assumptions or contacting Lightspeed support.
                   </p>
                 ),
               },
@@ -486,23 +540,33 @@ export const lightspeedDocumentation: DocContent = {
           rows={[
             [
               "OAuth fails after redirect",
-              "The domain prefix is wrong, the callback URI is mismatched, or the state token has expired",
+              "The domain prefix is wrong, the callback URI is mismatched, or the state token has expired.",
               "Restart the connect flow from BloomSuite and confirm the exact store prefix before retrying.",
             ],
             [
-              "Store is connected but webhook mode is Unavailable",
-              "This account does not expose the Lightspeed Webhook API for BloomSuite to manage",
-              "Treat the connection as sync-driven and use manual or scheduled sync behavior instead of expecting real-time delivery.",
+              "Webhook mode shows Sync only after connecting",
+              "The initial webhook registration during OAuth callback encountered a transient API error or the webhook endpoint format probe did not succeed on the first attempt.",
+              "Use the 'Verify webhooks' action in the detail page to retry. If the issue persists after two retries, run diagnostics and check the webhook endpoint format detection result.",
+            ],
+            [
+              "Webhook mode shows Unavailable",
+              "Both X-Series and R-Series webhook endpoint formats returned 404 or 403 during registration. This is not expected on any Lightspeed POS plan per Lightspeed support.",
+              "Verify webhooks from the detail page, then run diagnostics. If the webhook endpoint format check fails, contact Lightspeed support and reference their confirmation that webhooks are available on all plans.",
             ],
             [
               "Customer counts are lower than expected",
-              "CRM linking only happens when usable email or phone data exists and the customer import has completed",
-              "Review the last customer sync and the stored Lightspeed customer records before assuming data loss.",
+              "CRM linking only happens when usable email or phone data exists and the customer import has completed.",
+              "Review the last customer sync timestamp and the stored Lightspeed customer records before assuming data loss.",
             ],
             [
-              "Sales look stale",
-              "Recent sales sync has not run or is failing before persisting updated sales rows",
-              "Trigger manual sync, then inspect sync logs or diagnostics before altering connection settings.",
+              "Sales look stale despite Real-time webhook mode",
+              "Recent sales sync has not run or webhooks are registered but events are not being delivered by Lightspeed.",
+              "Check the 'Last event' timestamp in the Webhook Configuration section. If no events have been received, run diagnostics to verify the callback URL is reachable and the webhook secret is correctly configured.",
+            ],
+            [
+              "Products show $0 price or 0 stock",
+              "Product prices require expansion parameters in the API request, and stock counts come from a separate inventory endpoint.",
+              "Trigger a manual sync. If prices remain $0 after sync, check the product sync worker logs for API response shape issues.",
             ],
           ]}
         />
@@ -519,11 +583,14 @@ export const lightspeedDocumentation: DocContent = {
             code={lightspeedWebhookEvents}
             ariaLabel="Lightspeed reference event list"
           />
-          <DocCallout title="Automatic provisioning uses a single webhook endpoint">
-            When webhook creation is allowed, BloomSuite creates or reuses a
-            webhook pointing at the shared Lightspeed webhook handler and
-            enables it for all events rather than maintaining a merchant-managed
-            list of individual subscriptions in the UI.
+          <DocCallout title="Webhook registration subscribes to all events">
+            When webhook creation succeeds, BloomSuite registers a single
+            webhook endpoint and subscribes to all available event types
+            rather than maintaining individual per-topic subscriptions.
+            The webhook handler dispatches received events by type and
+            ignores unrecognized event types with a log entry. This means
+            new event types that Lightspeed adds in the future will be
+            received and logged without requiring a code change.
           </DocCallout>
         </div>
       ),
@@ -541,7 +608,9 @@ export const lightspeedDocumentation: DocContent = {
             <p>
               The Lightspeed OAuth start and callback flow is built around the
               store domain prefix and constructs the token and account URLs from
-              that value.
+              that value. The prefix is the part before
+              <DocInlineCode>.retail.lightspeed.app</DocInlineCode> in the
+              store URL.
             </p>
           </div>
           <div>
@@ -549,9 +618,10 @@ export const lightspeedDocumentation: DocContent = {
               Does every Lightspeed account support webhooks?
             </p>
             <p>
-              No. The current code explicitly handles accounts where the Webhook
-              API is unavailable and keeps the connection usable through sync
-              paths instead.
+              Yes. Lightspeed webhooks are available on all POS plans. Business
+              Rules is a separate Plus-plan-only feature that is not related to
+              BloomSuite&apos;s webhook integration. If webhook registration fails,
+              use the "Verify webhooks" action to retry.
             </p>
           </div>
           <div>
@@ -559,19 +629,47 @@ export const lightspeedDocumentation: DocContent = {
               What does Webhook Mode Unavailable mean?
             </p>
             <p>
-              It means BloomSuite could not use the Lightspeed Webhook API for
-              this account. The connection can still exist, but you should not
-              expect real-time event delivery.
+              It means BloomSuite&apos;s webhook registration attempt failed for
+              both the X-Series and R-Series endpoint formats. This should not
+              normally occur on any Lightspeed POS plan. Use the "Verify
+              webhooks" action to retry, and if the issue persists, run
+              diagnostics to identify the specific API error.
             </p>
           </div>
           <div>
             <p className="font-semibold text-foreground">
-              Can I still use BloomSuite if the store is sync-only?
+              What is the difference between webhooks and Business Rules?
             </p>
             <p>
-              Yes. The current implementation includes customer, sales, and
-              product sync paths that continue to provide useful retail data
-              even when webhook capability is reduced.
+              Webhooks are event notifications that Lightspeed sends to
+              BloomSuite when data changes (sales, customers, products).
+              They are available on all POS plans. Business Rules are a
+              separate Lightspeed feature for in-store workflow automation
+              (e.g., loyalty triggers, discount rules) and are limited to
+              Plus plan subscribers. BloomSuite uses webhooks, not Business
+              Rules.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">
+              What happens if webhook registration fails?
+            </p>
+            <p>
+              BloomSuite falls back to sync-only mode, where data is updated
+              through scheduled and manual background sync jobs. The "Verify
+              webhooks" action can retry registration at any time without
+              disconnecting the store.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">
+              Can I still use BloomSuite if the store is in sync-only mode?
+            </p>
+            <p>
+              Yes. Customer, sales, and product sync paths continue to
+              provide full retail data coverage. Sync-only mode means
+              data updates arrive during scheduled or manual sync runs
+              rather than in real time.
             </p>
           </div>
         </div>

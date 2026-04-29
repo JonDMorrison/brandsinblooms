@@ -18,6 +18,42 @@ const hasAuthStorageMatch = (key: string) =>
   key.includes("sb-auth") ||
   key.includes("-auth-token");
 
+const shouldDetectSupabaseSessionInUrl = () => {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const { pathname, search, hash } = window.location;
+
+  if (pathname === "/dashboard" || pathname === "/reset-password") {
+    return true;
+  }
+
+  if (pathname.startsWith("/onboarding")) {
+    return true;
+  }
+
+  // Provider-managed OAuth callbacks also use `?code=` query params.
+  // Letting Supabase auto-consume those codes clears the active app session.
+  if (
+    pathname === "/auth/callback" ||
+    pathname.startsWith("/integrations/")
+  ) {
+    return false;
+  }
+
+  // Keep supporting token/hash based recovery and invite flows even when
+  // they land on a non-standard route.
+  return (
+    search.includes("type=recovery") ||
+    search.includes("type=invite") ||
+    search.includes("type=magiclink") ||
+    search.includes("token_hash=") ||
+    hash.includes("access_token=") ||
+    hash.includes("refresh_token=")
+  );
+};
+
 export const hasPersistedAuthState = () => {
   if (typeof localStorage === "undefined") {
     return false;
@@ -67,7 +103,9 @@ export const forceLogout = async () => {
     // Step 3: Attempt graceful signout (may fail in limbo state)
     try {
       await supabase.auth.signOut({ scope: "global" });
-    } catch (signOutError) {}
+    } catch {
+      // Ignore sign-out cleanup failures and continue forcing local reset.
+    }
 
     // Step 4: Force page reload to completely reset state
     window.location.href = "/auth";
@@ -92,7 +130,7 @@ export const supabase = createClient<Database>(
       storage: localStorage,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: shouldDetectSupabaseSessionInUrl(),
       flowType: "pkce",
     },
   },
@@ -126,7 +164,9 @@ export const signInWithCleanup = async (email: string, password: string) => {
   // Attempt global sign out first
   try {
     await supabase.auth.signOut({ scope: "global" });
-  } catch (err) {}
+  } catch {
+    // Ignore pre-sign-in cleanup failures and continue with fresh credentials.
+  }
 
   // Sign in with email/password
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -148,7 +188,9 @@ export const signUpWithCleanup = async (
   // Attempt global sign out first
   try {
     await supabase.auth.signOut({ scope: "global" });
-  } catch (err) {}
+  } catch {
+    // Ignore pre-sign-up cleanup failures and continue with account creation.
+  }
 
   const redirectUrl = `${window.location.origin}/onboarding`;
 

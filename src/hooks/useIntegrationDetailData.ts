@@ -3709,9 +3709,12 @@ function getLightspeedWebhookMode(
     return "real-time";
   }
 
+  const error = connection?.webhook_last_error ?? "";
   if (
-    connection?.webhook_last_error ===
-    "Lightspeed webhook API not available for this account. Sync-only mode."
+    error.includes("not available") &&
+    (error.includes("Webhook API") || error.includes("webhook API")) &&
+    (error.includes("both X-Series and R-Series") ||
+      error.includes("Sync-only mode"))
   ) {
     return "unavailable";
   }
@@ -7471,6 +7474,54 @@ export function useIntegrationDetailData(
     },
   });
 
+  const verifyLightspeedWebhooksMutation = useMutation({
+    mutationFn: async () => {
+      if (slug !== "lightspeed") {
+        throw new Error(
+          "Webhook verification is only available on the Lightspeed detail page.",
+        );
+      }
+
+      if (!resolved?.lightspeedDetail?.connectionId) {
+        throw new Error("Connect Lightspeed before verifying webhooks.");
+      }
+
+      const { data, error } = await supabase.functions.invoke(
+        "lightspeed-webhook-health",
+        { body: { connectionId: resolved.lightspeedDetail.connectionId } },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(
+          data?.error ?? "Lightspeed webhook verification failed.",
+        );
+      }
+
+      return data;
+    },
+    onSuccess: async (data) => {
+      toast.success(
+        data?.message ?? "Lightspeed webhook verification complete.",
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["integration-detail"] }),
+        queryClient.invalidateQueries({ queryKey: ["integrations-hub"] }),
+      ]);
+    },
+    onError: (error) => {
+      const message = getUserFacingIntegrationError(
+        error,
+        "Lightspeed webhook verification failed.",
+      );
+      toast.error(message);
+    },
+  });
+
   const lightspeedSyncJobs = useMemo<TrackedLightspeedSyncJob[]>(() => {
     return lightspeedTrackedJobIds
       .map((jobId) => lightspeedJobRowsById[jobId])
@@ -8518,6 +8569,9 @@ export function useIntegrationDetailData(
     lightspeedTrackedJobIds,
     lightspeedRealtimeActive: lightspeedTrackedJobIds.length > 0,
     lightspeedSyncState,
+    verifyLightspeedWebhooks: verifyLightspeedWebhooksMutation.mutateAsync,
+    isVerifyingLightspeedWebhooks:
+      verifyLightspeedWebhooksMutation.isPending,
     lightspeedHasStaleJobs,
     triggerLightspeedSync: lightspeedSyncMutation.mutateAsync,
     isLightspeedSyncing: lightspeedSyncState !== "idle",

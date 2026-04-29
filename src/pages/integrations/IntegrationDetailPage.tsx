@@ -1970,6 +1970,18 @@ export default function IntegrationDetailPage() {
                   void detail.refetch();
                 },
               },
+              {
+                label: detail.isVerifyingLightspeedWebhooks
+                  ? "Verifying webhooks…"
+                  : "Verify webhooks",
+                icon: Webhook,
+                disabled:
+                  item.status !== "connected" ||
+                  detail.isVerifyingLightspeedWebhooks,
+                onSelect: () => {
+                  void detail.verifyLightspeedWebhooks();
+                },
+              },
               ...(detail.canAccessLightspeedAdminFeatures
                 ? [
                     {

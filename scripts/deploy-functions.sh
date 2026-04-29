@@ -15,6 +15,7 @@ CORE_FUNCTIONS=(
   birthday-automation-checker
   lapsed-customer-checker
   lightspeed-webhook-handler
+  lightspeed-webhook-health
   square-webhook-handler
   clover-webhook-handler
 )
@@ -78,7 +79,7 @@ echo ""
 for fn in "${FUNCTIONS_TO_DEPLOY[@]}"; do
   printf "[%d/%d] Deploying %-40s " "$((succeeded + failed + 1))" "$total" "$fn"
 
-  if supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt 2>/dev/null; then
+  if npx supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt 2>/dev/null; then
     echo "✓"
     ((succeeded++))
   else

@@ -1,10 +1,13 @@
 /**
  * ensureLightspeedWebhooks - Idempotent webhook subscription manager for Lightspeed
  *
- * IMPORTANT: Lightspeed X-Series has webhook support via the API.
- * R-Series (legacy) does NOT support webhooks - sync-only.
+ * IMPORTANT: Per Lightspeed support (Julien), webhooks are available on ALL
+ * POS plans. Business Rules is a separate Plus-plan-only feature that is NOT
+ * related to webhook event subscriptions.
  *
- * This function handles both cases appropriately.
+ * X-Series uses lowercase /webhooks endpoints without .json suffix.
+ * R-Series (legacy) uses /Webhook.json with capital W and .json suffix.
+ * This function probes X-Series format first and falls back to R-Series.
  */
 
 import { EnsureWebhooksResult, calculateNextRetry } from './types.ts';
@@ -19,6 +22,80 @@ const REQUIRED_EVENTS = [
   'item.updated',
   'loyalty.updated',
 ];
+
+type LightspeedWebhookFormat = 'x-series' | 'r-series';
+
+function shouldTryRSeriesFallback(status: number) {
+  return status === 403 || status === 404 || status === 405 || status >= 500;
+}
+
+function isWebhookUnavailableStatus(status: number | null) {
+  return status === 403 || status === 404;
+}
+
+function extractWebhookCollection(payload: any) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+
+  if (Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload.webhooks)) {
+    return payload.webhooks;
+  }
+
+  if (Array.isArray(payload.Webhook)) {
+    return payload.Webhook;
+  }
+
+  return [];
+}
+
+function extractWebhookRecord(payload: any) {
+  if (Array.isArray(payload)) {
+    return payload[0] ?? null;
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  if (Array.isArray(payload.data)) {
+    return payload.data[0] ?? null;
+  }
+
+  return payload.data ?? payload.webhook ?? payload.Webhook ?? payload;
+}
+
+function getWebhookId(webhook: any) {
+  if (!webhook || typeof webhook !== 'object') {
+    return null;
+  }
+
+  return webhook.id?.toString() ?? webhook.webhookID?.toString() ?? null;
+}
+
+function isWebhookEnabled(webhook: any) {
+  if (!webhook || typeof webhook !== 'object') {
+    return false;
+  }
+
+  return webhook.enabled !== false && webhook.active !== false;
+}
+
+function getResponseKeys(payload: any) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return [];
+  }
+
+  return Object.keys(payload);
+}
 
 export async function ensureLightspeedWebhooks(
   supabase: any,
@@ -87,107 +164,196 @@ export async function ensureLightspeedWebhooks(
     const handlerBaseUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/lightspeed-webhook-handler`;
     const webhookUrl = `${handlerBaseUrl}/${domainPrefix}`;
     const legacyWebhookUrl = handlerBaseUrl;
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    const xSeriesEndpoints = {
+      list: `${baseUrl}/webhooks`,
+      create: `${baseUrl}/webhooks`,
+      update: (id: string) => `${baseUrl}/webhooks/${id}`,
+    };
+    const rSeriesEndpoints = {
+      list: `${baseUrl}/Webhook.json`,
+      create: `${baseUrl}/Webhook.json`,
+      update: (id: string) => `${baseUrl}/Webhook/${id}.json`,
+    };
 
     // 3. List existing webhooks
     console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Fetching existing webhooks...');
-    const listResponse = await fetch(`${baseUrl}/Webhook.json`, {
+    let detectedFormat: LightspeedWebhookFormat = 'x-series';
+    let endpoints = xSeriesEndpoints;
+    let xSeriesStatus: number | null = null;
+    let rSeriesStatus: number | null = null;
+
+    let listResponse = await fetch(xSeriesEndpoints.list, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
+    xSeriesStatus = listResponse.status;
 
-    // Lightspeed may not support webhooks for all account types
-    if (listResponse.status === 404 || listResponse.status === 403) {
-      console.warn('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook API not available - sync-only mode');
+    if (!listResponse.ok && shouldTryRSeriesFallback(listResponse.status)) {
+      console.log(
+        '[ENSURE-LIGHTSPEED-WEBHOOKS] X-Series /webhooks returned',
+        listResponse.status,
+        '- trying R-Series /Webhook.json fallback',
+      );
 
-      await supabase
-        .from('lightspeed_connections')
-        .update({
-          webhooks_subscribed: false,
-          webhook_last_error: 'Lightspeed webhook API not available for this account. Sync-only mode.',
-          webhooks_last_checked_at: new Date().toISOString(),
-        })
-        .eq('id', connectionId);
+      const fallbackResponse = await fetch(rSeriesEndpoints.list, {
+        method: 'GET',
+        headers,
+      });
+      rSeriesStatus = fallbackResponse.status;
 
-      return {
-        success: true,
-        verified: false,
-        subscription_id: null,
-        error: 'Webhook API not available - sync-only',
-        action: 'skipped',
-      };
+      if (fallbackResponse.ok) {
+        listResponse = fallbackResponse;
+        detectedFormat = 'r-series';
+        endpoints = rSeriesEndpoints;
+      } else {
+        listResponse = fallbackResponse;
+      }
     }
 
     if (!listResponse.ok) {
+      const bothFormatsUnavailable =
+        isWebhookUnavailableStatus(xSeriesStatus) &&
+        isWebhookUnavailableStatus(rSeriesStatus);
+
+      if (bothFormatsUnavailable) {
+        console.warn(
+          '[ENSURE-LIGHTSPEED-WEBHOOKS] Both webhook endpoint formats returned unavailable statuses:',
+          { xSeriesStatus, rSeriesStatus },
+        );
+
+        await supabase
+          .from('lightspeed_connections')
+          .update({
+            webhook_registered: false,
+            webhooks_subscribed: false,
+            webhook_last_error:
+              'Lightspeed webhook API not available for both X-Series and R-Series endpoint formats. Sync-only mode.',
+            webhooks_last_checked_at: new Date().toISOString(),
+          })
+          .eq('id', connectionId);
+
+        return {
+          success: true,
+          verified: false,
+          subscription_id: null,
+          error: 'Webhook API not available - sync-only',
+          action: 'skipped',
+        };
+      }
+
       const errorText = await listResponse.text();
-      console.error('[ENSURE-LIGHTSPEED-WEBHOOKS] List failed:', listResponse.status, errorText);
-      await updateConnectionError(supabase, connectionId, `API error: ${listResponse.status}`);
+      const statusDetail = `X-Series ${xSeriesStatus}${rSeriesStatus !== null ? `, R-Series ${rSeriesStatus}` : ''}`;
+      console.error(
+        '[ENSURE-LIGHTSPEED-WEBHOOKS] List failed:',
+        statusDetail,
+        errorText,
+      );
+      await updateConnectionError(
+        supabase,
+        connectionId,
+        `Webhook list failed (${statusDetail})`,
+      );
       return {
         success: false,
         verified: false,
         subscription_id: null,
-        error: `Lightspeed API error: ${listResponse.status}`,
+        error: `Lightspeed API error: ${statusDetail}`,
         action: 'failed',
       };
     }
 
+    console.log(
+      '[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook list succeeded via',
+      detectedFormat,
+      'format',
+    );
+
     const listData = await listResponse.json();
-    const webhooks = listData.Webhook || [];
+    const webhooks = extractWebhookCollection(listData);
     console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Found', webhooks.length, 'existing webhooks');
+    console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Response keys:', getResponseKeys(listData));
+    if (webhooks.length > 0) {
+      console.log(
+        '[ENSURE-LIGHTSPEED-WEBHOOKS] First webhook keys:',
+        getResponseKeys(webhooks[0]),
+      );
+    }
 
     // 4. Find our webhook
     const existingWebhook = webhooks.find((w: any) =>
       w.url === webhookUrl || w.url === legacyWebhookUrl
     );
+    const existingWebhookId = getWebhookId(existingWebhook);
 
     let subscriptionId: string | null = null;
     let action: 'created' | 'updated' | 'verified' = 'verified';
 
-    if (existingWebhook) {
+    if (existingWebhook && existingWebhookId) {
       // Webhook exists - check if it's enabled
-      subscriptionId = existingWebhook.webhookID?.toString() || existingWebhook.id?.toString();
+      subscriptionId = existingWebhookId;
 
-      if (!existingWebhook.enabled || existingWebhook.url !== webhookUrl) {
+      if (!isWebhookEnabled(existingWebhook) || existingWebhook.url !== webhookUrl) {
         // Enable the webhook and migrate legacy generic URLs to the store-specific path.
         console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Updating webhook:', subscriptionId, '=>', webhookUrl);
 
-        await fetch(`${baseUrl}/Webhook/${subscriptionId}.json`, {
+        const updateBody = detectedFormat === 'x-series'
+          ? { url: webhookUrl, enabled: true, active: true }
+          : { Webhook: { enabled: true, url: webhookUrl } };
+
+        const updateResponse = await fetch(endpoints.update(existingWebhookId), {
           method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            Webhook: {
-              enabled: true,
-              url: webhookUrl,
-            }
-          }),
+          headers,
+          body: JSON.stringify(updateBody),
         });
+
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          console.error(
+            '[ENSURE-LIGHTSPEED-WEBHOOKS] Update failed:',
+            updateResponse.status,
+            errorText,
+          );
+          await updateConnectionError(
+            supabase,
+            connectionId,
+            `Update failed: ${updateResponse.status}`,
+          );
+          return {
+            success: false,
+            verified: false,
+            subscription_id: null,
+            error: `Update failed: ${updateResponse.status}`,
+            action: 'failed',
+          };
+        }
 
         action = 'updated';
       }
 
       console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook exists:', subscriptionId);
     } else {
+      if (existingWebhook && !existingWebhookId) {
+        console.warn(
+          '[ENSURE-LIGHTSPEED-WEBHOOKS] Existing webhook matched by URL but had no usable ID - creating a replacement',
+        );
+      }
+
       // Create new webhook
       console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Creating webhook to:', webhookUrl);
 
-      const createResponse = await fetch(`${baseUrl}/Webhook.json`, {
+      const createBody = detectedFormat === 'x-series'
+        ? { url: webhookUrl, enabled: true, active: true }
+        : { Webhook: { url: webhookUrl, enabled: true, event: 'all' } };
+
+      const createResponse = await fetch(endpoints.create, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          Webhook: {
-            url: webhookUrl,
-            enabled: true,
-            event: 'all', // Lightspeed uses 'all' or specific event types
-          }
-        }),
+        headers,
+        body: JSON.stringify(createBody),
       });
 
       if (!createResponse.ok) {
@@ -205,33 +371,32 @@ export async function ensureLightspeedWebhooks(
       }
 
       const createData = await createResponse.json();
-      subscriptionId = createData.Webhook?.webhookID?.toString() || createData.Webhook?.id?.toString();
+      const createdWebhook = extractWebhookRecord(createData);
+      subscriptionId = getWebhookId(createdWebhook);
       action = 'created';
+      console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Create response keys:', getResponseKeys(createData));
       console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Webhook created:', subscriptionId);
     }
 
     // 5. Verify webhook exists
     console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] Verifying...');
-    const verifyResponse = await fetch(`${baseUrl}/Webhook.json`, {
+    const verifyResponse = await fetch(endpoints.list, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     let verified = false;
     if (verifyResponse.ok) {
       const verifyData = await verifyResponse.json();
-      const confirmedWebhook = (verifyData.Webhook || []).find((w: any) =>
-        w.webhookID?.toString() === subscriptionId ||
-        w.id?.toString() === subscriptionId ||
+      const verifyWebhooks = extractWebhookCollection(verifyData);
+      const confirmedWebhook = verifyWebhooks.find((w: any) =>
+        getWebhookId(w) === subscriptionId ||
         w.url === webhookUrl
       );
 
-      if (confirmedWebhook && confirmedWebhook.enabled) {
+      if (confirmedWebhook && isWebhookEnabled(confirmedWebhook)) {
         verified = true;
-        subscriptionId = confirmedWebhook.webhookID?.toString() || confirmedWebhook.id?.toString();
+        subscriptionId = getWebhookId(confirmedWebhook);
         console.log('[ENSURE-LIGHTSPEED-WEBHOOKS] ✓ VERIFIED:', subscriptionId);
       }
     }
@@ -240,6 +405,7 @@ export async function ensureLightspeedWebhooks(
     await supabase
       .from('lightspeed_connections')
       .update({
+        webhook_registered: verified,
         webhooks_subscribed: verified,
         webhook_subscription_id: subscriptionId,
         webhooks_last_checked_at: new Date().toISOString(),
@@ -283,6 +449,7 @@ async function updateConnectionError(supabase: any, connectionId: string, error:
     await supabase
       .from('lightspeed_connections')
       .update({
+        webhook_registered: false,
         webhooks_subscribed: false,
         webhook_last_error: error,
         webhooks_last_checked_at: new Date().toISOString(),
