@@ -484,10 +484,7 @@ export function useIntegrationsHubData() {
     [],
   );
 
-  const items =
-    query.data?.items ??
-    cachedQueryData?.items ??
-    fallbackItems;
+  const items = query.data?.items ?? cachedQueryData?.items ?? fallbackItems;
 
   const itemMap = useMemo(
     () => new Map(items.map((item) => [item.slug, item])),
