@@ -1,4 +1,5 @@
 import { resolveImageSrcToHttps } from "./emailImageUrl.ts";
+import { escapeHtmlAttribute, toHtmlText } from "./htmlContent.ts";
 
 export interface RenderableGalleryImage {
   id?: string;
@@ -110,18 +111,7 @@ function stringValue(...values: unknown[]): string | undefined {
   return undefined;
 }
 
-function escapeAttribute(value: string | undefined): string {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function toHtmlText(value: string | undefined): string {
-  if (!value) return "";
-  return value.includes("<") ? value : value.replace(/\n/g, "<br />");
-}
+const escapeAttribute = escapeHtmlAttribute;
 
 function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
   return toArray(value).flatMap((entry) => {
