@@ -6,6 +6,11 @@ import {
   convertEmailBlockToContentBlock,
   normalizeBlockForSave,
 } from "@/utils/blockFieldMapping";
+import {
+  escapeHtml,
+  formatDraftRichText,
+  formatDraftText,
+} from "@/lib/crm/htmlContent";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
@@ -53,19 +58,6 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function escapeHtml(value: string | null | undefined) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function formatDraftText(value: string | null | undefined) {
-  return escapeHtml(value).replace(/\n/g, "<br />");
 }
 
 function normalizeInputBlocks(
@@ -133,7 +125,7 @@ function renderDraftTextBlock(block: ContentBlock) {
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:${backgroundColor};box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${renderDraftImage(block.imageUrl || block.backgroundImageUrl, block.altText, block.type === "image" ? 360 : 280)}
       ${heading ? `<h2 style="margin:0 0 12px;font-size:28px;line-height:1.2;color:${textColor};">${formatDraftText(heading)}</h2>` : ""}
-      ${body ? `<div style="font-size:16px;line-height:1.7;color:${textColor};">${formatDraftText(body)}</div>` : ""}
+      ${body ? `<div style="font-size:16px;line-height:1.7;color:${textColor};">${formatDraftRichText(body)}</div>` : ""}
       ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.backgroundColor || "#1f4f3f")}
     </section>
   `;
@@ -187,7 +179,7 @@ function renderDraftGallery(block: ContentBlock) {
   return `
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${block.headline || block.title ? `<h2 style="margin:0 0 16px;font-size:28px;line-height:1.2;color:#1f2937;">${formatDraftText(block.headline || block.title)}</h2>` : ""}
-      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">${items}</div>
     </section>
   `;
@@ -240,7 +232,7 @@ function renderDraftProductGallery(block: ContentBlock) {
           ${renderDraftImage(imageUrl, title, 180)}
           <h3 style="margin:0 0 10px;font-size:18px;line-height:1.3;color:#1f2937;">${formatDraftText(title)}</h3>
           ${price ? `<div style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1f4f3f;">${formatDraftText(price)}</div>` : ""}
-          ${description ? `<div style="font-size:14px;line-height:1.6;color:#475569;">${formatDraftText(description)}</div>` : ""}
+          ${description ? `<div style="font-size:14px;line-height:1.6;color:#475569;">${formatDraftRichText(description)}</div>` : ""}
           ${renderDraftButton(buttonText, url, block.backgroundColor || "#1f4f3f")}
         </article>
       `;
@@ -255,7 +247,7 @@ function renderDraftProductGallery(block: ContentBlock) {
   return `
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${block.headline || block.title ? `<h2 style="margin:0 0 16px;font-size:28px;line-height:1.2;color:#1f2937;">${formatDraftText(block.headline || block.title)}</h2>` : ""}
-      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">${cards}</div>
     </section>
   `;
@@ -269,7 +261,7 @@ function renderDraftBlock(block: ContentBlock) {
       return `
         <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);text-align:${block.alignment || "center"};">
           ${block.heading || block.title ? `<h2 style="margin:0 0 12px;font-size:24px;color:#1f2937;">${formatDraftText(block.heading || block.title)}</h2>` : ""}
-          ${block.body || block.content ? `<div style="font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+          ${block.body || block.content ? `<div style="font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
           ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.buttonColor || "#1f4f3f")}
         </section>
       `;
@@ -280,14 +272,14 @@ function renderDraftBlock(block: ContentBlock) {
     case "quote":
       return `
         <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#0f172a;color:#f8fafc;box-shadow:0 10px 28px rgba(15, 23, 42, 0.14);">
-          <blockquote style="margin:0;font-size:22px;line-height:1.5;">${formatDraftText(block.quote || block.body || block.content)}</blockquote>
+          <blockquote style="margin:0;font-size:22px;line-height:1.5;">${formatDraftRichText(block.quote || block.body || block.content)}</blockquote>
           ${block.author || block.authorTitle ? `<div style="margin-top:16px;font-size:14px;opacity:0.82;">${formatDraftText([block.author, block.authorTitle].filter(Boolean).join(" · "))}</div>` : ""}
         </section>
       `;
     case "footer":
       return `
         <section style="padding:24px 32px;margin:0 0 20px;border-radius:24px;background:#e2e8f0;color:#334155;">
-          <div style="font-size:14px;line-height:1.7;">${formatDraftText(block.content || block.body || "Footer details")}</div>
+          <div style="font-size:14px;line-height:1.7;">${formatDraftRichText(block.content || block.body || "Footer details")}</div>
         </section>
       `;
     default:
