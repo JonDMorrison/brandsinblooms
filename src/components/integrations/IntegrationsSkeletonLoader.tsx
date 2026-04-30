@@ -87,20 +87,32 @@ export function IntegrationsSkeletonLoader({
       sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
     >
       <Stack spacing={3}>
-        <Stack spacing={1.25} sx={{ maxWidth: 760 }}>
-          <Skeleton
-            sx={{ width: 132, height: 16, borderRadius: 999 }}
-            variant="rectangular"
-          />
-          <Skeleton
-            sx={{ width: "38%", height: 36, borderRadius: "md" }}
-            variant="rectangular"
-          />
-          <Skeleton
-            sx={{ width: "92%", height: 16, borderRadius: 999 }}
-            variant="rectangular"
-          />
-        </Stack>
+        <Sheet
+          color="neutral"
+          variant="soft"
+          sx={{
+            borderRadius: "xl",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            p: { xs: 2.5, md: 3 },
+            bgcolor: "background.level1",
+          }}
+        >
+          <Stack spacing={1.25} sx={{ maxWidth: 760 }}>
+            <Skeleton
+              sx={{ width: 132, height: 16, borderRadius: 999 }}
+              variant="rectangular"
+            />
+            <Skeleton
+              sx={{ width: { xs: "58%", md: "38%" }, height: 36, borderRadius: "md" }}
+              variant="rectangular"
+            />
+            <Skeleton
+              sx={{ width: "92%", height: 16, borderRadius: 999 }}
+              variant="rectangular"
+            />
+          </Stack>
+        </Sheet>
 
         <Stack spacing={1.5}>
           <Stack
@@ -149,7 +161,7 @@ export function IntegrationsSkeletonLoader({
             gridTemplateColumns: {
               xs: "1fr",
               md: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(4, minmax(0, 1fr))",
+              xl: "repeat(3, minmax(0, 1fr))",
             },
             gap: 2,
           }}

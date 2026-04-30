@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
@@ -2013,6 +2014,22 @@ async function syncLightspeedCustomers(
     console.log(
       `[POS-SYNC-WORKER] Customer sync spend recalculation: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
     );
+
+    await logLightspeedSyncActivity(supabase, {
+      tenantId: connection.tenant_id,
+      connection,
+      job,
+      activityType: "lightspeed.sync.spend.completed",
+      status: spendResult.errors > 0 ? "warning" : "success",
+      title: "Lightspeed spend recalculation completed",
+      descriptionText: `Recalculated customer spend after customers sync for ${getLightspeedStoreLabel(connection)}`,
+      metadata: {
+        trigger_sync_type: "customers",
+        updated_customers: spendResult.updated,
+        unchanged_customers: spendResult.skipped,
+        recalculation_errors: spendResult.errors,
+      },
+    });
   }
 
   await writeJobProgress(supabase, job.id, {
@@ -2218,6 +2235,22 @@ async function syncLightspeedSales(
     console.log(
       `[POS-SYNC-WORKER] Final sales spend recalculation: ${finalSpendResult.updated} updated, ${finalSpendResult.skipped} unchanged, ${finalSpendResult.errors} errors`,
     );
+
+    await logLightspeedSyncActivity(supabase, {
+      tenantId: connection.tenant_id,
+      connection,
+      job,
+      activityType: "lightspeed.sync.spend.completed",
+      status: finalSpendResult.errors > 0 ? "warning" : "success",
+      title: "Lightspeed spend recalculation completed",
+      descriptionText: `Recalculated customer spend after sales sync for ${getLightspeedStoreLabel(connection)}`,
+      metadata: {
+        trigger_sync_type: "sales",
+        updated_customers: finalSpendResult.updated,
+        unchanged_customers: finalSpendResult.skipped,
+        recalculation_errors: finalSpendResult.errors,
+      },
+    });
   }
 
   const nextPage = fetchedRows === 0 ? currentPage : currentPage + 1;
@@ -2600,6 +2633,91 @@ function getLightspeedConnectionUpdate(
     last_product_version_cursor: versionCursor,
     last_synced_at: timestamp,
   };
+}
+
+function getLightspeedStoreLabel(connection: any | null) {
+  return (
+    connection?.retailer_name ?? connection?.domain_prefix ?? "Lightspeed store"
+  );
+}
+
+function getSyncDurationMs(job: any) {
+  if (typeof job?.started_at !== "string") {
+    return null;
+  }
+
+  const startedAt = Date.parse(job.started_at);
+  if (!Number.isFinite(startedAt)) {
+    return null;
+  }
+
+  return Math.max(0, Date.now() - startedAt);
+}
+
+async function logLightspeedSyncActivity(
+  supabase: any,
+  {
+    tenantId,
+    connection,
+    job,
+    activityType,
+    status,
+    title,
+    descriptionText,
+    errorMessage = null,
+    metadata = {},
+    relatedEntities = {},
+  }: {
+    tenantId: string;
+    connection: any | null;
+    job: any;
+    activityType: string;
+    status: "success" | "failed" | "warning";
+    title: string;
+    descriptionText: string;
+    errorMessage?: string | null;
+    metadata?: Record<string, unknown>;
+    relatedEntities?: Record<string, unknown>;
+  },
+) {
+  try {
+    await logActivityEvent(supabase, {
+      tenant_id: tenantId,
+      actor_type: "integration",
+      actor_id: connection?.id ?? null,
+      source: "sync",
+      integration_name: "lightspeed",
+      activity_type: activityType,
+      status,
+      title,
+      description: {
+        parts: [{ type: "text", text: descriptionText }],
+      },
+      metadata: {
+        sync_type: normalizeLightspeedSyncType(job?.sync_type ?? "products"),
+        triggered_by:
+          typeof job?.triggered_by === "string" ? job.triggered_by : null,
+        job_id: job?.id ?? null,
+        connection_id: connection?.id ?? null,
+        domain_prefix: connection?.domain_prefix ?? null,
+        retailer_name: connection?.retailer_name ?? null,
+        duration_ms: getSyncDurationMs(job),
+        ...metadata,
+      },
+      related_entities: {
+        connection_id: connection?.id ?? null,
+        sync_job_id: job?.id ?? null,
+        ...relatedEntities,
+      },
+      links: [{ label: "View integration", href: "/integrations/lightspeed" }],
+      error_message: errorMessage,
+    });
+  } catch (error: any) {
+    console.error(
+      "[POS-SYNC-WORKER] Failed to log Lightspeed activity event:",
+      error?.message ?? error,
+    );
+  }
 }
 
 function splitShopifyTags(tags: unknown) {
@@ -3672,6 +3790,7 @@ Deno.serve(async (req) => {
   );
 
   let job: any = null;
+  let connection: any = null;
   let circuitState: CircuitBreakerState = {
     consecutiveFailures: 0,
     lastFailureAt: null,
@@ -3892,11 +4011,7 @@ Deno.serve(async (req) => {
     }
 
     // Get connection for this provider
-    const connection = await getConnection(
-      supabase,
-      job.tenant_id,
-      job.provider,
-    );
+    connection = await getConnection(supabase, job.tenant_id, job.provider);
 
     // Execute sync based on provider
     let result: SyncResult;
@@ -3951,6 +4066,33 @@ Deno.serve(async (req) => {
       result.terminalStatus === "failed" ||
       result.terminalStatus === "delayed"
     ) {
+      if (job.provider === "lightspeed" && result.terminalStatus === "failed") {
+        const progressTotals = buildProgressTotals(job, result);
+        const syncLabel = getLightspeedSyncLabel(job.sync_type);
+
+        await logLightspeedSyncActivity(supabase, {
+          tenantId: job.tenant_id,
+          connection,
+          job,
+          activityType: `lightspeed.sync.${syncLabel}.failed`,
+          status: "failed",
+          title: `Lightspeed ${syncLabel} sync failed`,
+          descriptionText: `Failed syncing ${syncLabel} for ${getLightspeedStoreLabel(connection)}: ${result.error ?? result.progressMessage ?? "Unknown error"}`,
+          errorMessage: result.error ?? result.progressMessage ?? null,
+          metadata: {
+            fetched_rows: progressTotals.fetchedRows,
+            inserted_rows: progressTotals.insertedRows,
+            skipped_rows: progressTotals.skippedRows,
+            failed_rows: progressTotals.failedRows,
+            current_page:
+              result.currentPage ?? getLightspeedResumePage(job, cursor),
+            total_pages_est:
+              result.totalPagesEst ?? job.total_pages_est ?? null,
+            connection_cursor: result.connectionCursor ?? result.cursor ?? null,
+          },
+        });
+      }
+
       queueFollowUpWorkerRun(supabase, job.provider);
 
       return new Response(
@@ -4057,6 +4199,34 @@ Deno.serve(async (req) => {
 
         console.log(`[POS-SYNC-WORKER] Job ${job.id} completed successfully`);
 
+        if (job.provider === "lightspeed") {
+          const syncLabel = getLightspeedSyncLabel(job.sync_type);
+
+          await logLightspeedSyncActivity(supabase, {
+            tenantId: job.tenant_id,
+            connection,
+            job,
+            activityType: `lightspeed.sync.${syncLabel}.completed`,
+            status: "success",
+            title: `Lightspeed ${syncLabel} sync completed`,
+            descriptionText: `Synced ${progressTotals.insertedRows.toLocaleString()} ${syncLabel} for ${getLightspeedStoreLabel(connection)}`,
+            metadata: {
+              fetched_rows: progressTotals.fetchedRows,
+              inserted_rows: progressTotals.insertedRows,
+              skipped_rows: progressTotals.skippedRows,
+              failed_rows: progressTotals.failedRows,
+              current_page:
+                result.currentPage ??
+                job.current_page ??
+                getLightspeedResumePage(job, cursor),
+              total_pages_est:
+                result.totalPagesEst ?? job.total_pages_est ?? null,
+              connection_cursor:
+                result.connectionCursor ?? result.cursor ?? null,
+            },
+          });
+        }
+
         // Reset circuit breaker on success
         if (circuitStatus.shouldReset || circuitState.consecutiveFailures > 0) {
           await supabase
@@ -4149,6 +4319,24 @@ Deno.serve(async (req) => {
       }
     } catch {
       /* ignore */
+    }
+
+    if (job?.provider === "lightspeed" && job?.tenant_id) {
+      const syncLabel = getLightspeedSyncLabel(job.sync_type ?? "products");
+
+      await logLightspeedSyncActivity(supabase, {
+        tenantId: job.tenant_id,
+        connection,
+        job,
+        activityType: `lightspeed.sync.${syncLabel}.failed`,
+        status: "failed",
+        title: `Lightspeed ${syncLabel} sync failed`,
+        descriptionText: `Failed syncing ${syncLabel} for ${getLightspeedStoreLabel(connection)}: ${error.message}`,
+        errorMessage: error.message,
+        metadata: {
+          failed_rows: toFiniteNumber(job.failed_rows, 0) + 1,
+        },
+      });
     }
 
     return new Response(

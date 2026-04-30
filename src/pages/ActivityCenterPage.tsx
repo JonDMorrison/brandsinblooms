@@ -71,6 +71,7 @@ export default function ActivityCenterPage() {
       status: parseCsvParam(searchParams.get("status")),
       actorTypes: parseCsvParam(searchParams.get("actor")),
       sources: parseCsvParam(searchParams.get("source")),
+      integrationNames: parseCsvParam(searchParams.get("integration")),
       activityTypes: parseCsvParam(searchParams.get("type")),
       segmentIds: parseCsvParam(searchParams.get("segment")),
       personaIds: parseCsvParam(searchParams.get("persona")),
@@ -90,6 +91,7 @@ export default function ActivityCenterPage() {
     Boolean(filters.status?.length) ||
     Boolean(filters.actorTypes?.length) ||
     Boolean(filters.sources?.length) ||
+    Boolean(filters.integrationNames?.length) ||
     Boolean(filters.activityTypes?.length) ||
     Boolean(filters.segmentIds?.length) ||
     Boolean(filters.personaIds?.length);
@@ -432,6 +434,7 @@ function activeCountDisplay(filters: ActivityFeedFilters) {
     filters.status?.length,
     filters.actorTypes?.length,
     filters.sources?.length,
+    filters.integrationNames?.length,
     filters.activityTypes?.length,
     filters.segmentIds?.length,
     filters.personaIds?.length,

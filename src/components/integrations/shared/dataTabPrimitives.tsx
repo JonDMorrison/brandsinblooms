@@ -58,6 +58,10 @@ export type SharedPagination = {
   totalPages: number;
 };
 
+const dataTabSelectButtonSx = {
+  borderRadius: "lg",
+};
+
 type SyncStatusBadgeJob = {
   status: string;
 };
@@ -286,7 +290,12 @@ export function ToolbarSelect<T extends string>({
       size="sm"
       value={value}
       variant="outlined"
-      slotProps={{ button: { "aria-label": ariaLabel } }}
+      slotProps={{
+        button: {
+          "aria-label": ariaLabel,
+          sx: dataTabSelectButtonSx,
+        },
+      }}
       sx={{ minWidth: 160 }}
       onChange={(_, selectedValue) => {
         if (selectedValue) {
@@ -313,17 +322,63 @@ export function StatusFilterPills<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <ButtonGroup size="sm" variant="outlined" color="neutral">
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          variant={option.value === value ? "solid" : "outlined"}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </ButtonGroup>
+    <SegmentedFilterGroup options={options} value={value} onChange={onChange} />
+  );
+}
+
+export function SegmentedFilterGroup<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<SortOption<T>>;
+  value: T | null;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Box
+      sx={{
+        display: "inline-flex",
+        alignItems: "stretch",
+        flexWrap: "nowrap",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "md",
+        overflow: "hidden",
+        backgroundColor: "background.surface",
+      }}
+    >
+      {options.map((option, index) => {
+        const isActive = option.value === value;
+        const isLast = index === options.length - 1;
+
+        return (
+          <Button
+            key={option.value}
+            color="neutral"
+            size="sm"
+            variant={isActive ? "solid" : "plain"}
+            onClick={() => onChange(option.value)}
+            sx={{
+              minWidth: "max-content",
+              borderRadius: 0,
+              border: 0,
+              borderInlineEnd: isLast ? 0 : "1px solid",
+              borderColor: "divider",
+              boxShadow: "none",
+              backgroundColor: isActive ? undefined : "transparent",
+              "&:hover": isActive
+                ? undefined
+                : {
+                    backgroundColor: "neutral.softBg",
+                  },
+            }}
+          >
+            {option.label}
+          </Button>
+        );
+      })}
+    </Box>
   );
 }
 
@@ -344,6 +399,7 @@ export function CategoryMultiSelect({
       size="sm"
       value={value}
       variant="outlined"
+      slotProps={{ button: { sx: dataTabSelectButtonSx } }}
       placeholder="All categories"
       sx={{ minWidth: 180 }}
       renderValue={(selected) => {
@@ -634,6 +690,7 @@ export function DataTabPagination({
           size="sm"
           value={String(pagination.pageSize)}
           variant="outlined"
+          slotProps={{ button: { sx: dataTabSelectButtonSx } }}
           sx={{ minWidth: 88 }}
           disabled={!onPageSizeChange}
           onChange={(_, next) => {

@@ -34,6 +34,9 @@ export function useActivityFeed(
         p_status: filters.status?.length ? filters.status : null,
         p_actor_types: filters.actorTypes?.length ? filters.actorTypes : null,
         p_sources: filters.sources?.length ? filters.sources : null,
+        p_integration_names: filters.integrationNames?.length
+          ? filters.integrationNames
+          : null,
         p_activity_types: filters.activityTypes?.length
           ? filters.activityTypes
           : null,
@@ -62,6 +65,9 @@ export function useActivityFeed(
               ? filters.actorTypes
               : null,
             p_sources: filters.sources?.length ? filters.sources : null,
+            p_integration_names: filters.integrationNames?.length
+              ? filters.integrationNames
+              : null,
             p_activity_types: filters.activityTypes?.length
               ? filters.activityTypes
               : null,

@@ -1,6 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
+import { resolveLightspeedCustomerCrmId } from "../_shared/lightspeed/resolveCustomerCrmId.ts";
 import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
 
 console.log("[LS-WEBHOOK] Edge function starting");
@@ -27,6 +29,125 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: responseHeaders,
+  });
+}
+
+function createDescription(text: string) {
+  return {
+    parts: [{ type: "text", text }],
+  };
+}
+
+function getLightspeedActorId(connection: LightspeedConnection) {
+  return connection.id;
+}
+
+function getLightspeedIntegrationLink(label = "View integration") {
+  return [{ label, href: "/integrations/lightspeed" }];
+}
+
+function getCrmCustomerLink(customerId: string | null) {
+  return customerId
+    ? [{ label: "View customer", href: `/crm/customers/${customerId}` }]
+    : [];
+}
+
+async function logLightspeedWebhookIgnoredEvent(
+  supabase: any,
+  connection: LightspeedConnection,
+  eventType: string,
+  vendWebhookId?: string | null,
+) {
+  if (!eventType || eventType === "unknown") {
+    return;
+  }
+
+  await logActivityEvent(supabase, {
+    tenant_id: connection.tenant_id,
+    actor_type: "integration",
+    actor_id: getLightspeedActorId(connection),
+    source: "webhook",
+    integration_name: "lightspeed",
+    activity_type: "lightspeed.webhook.ignored",
+    status: "warning",
+    title: "Lightspeed webhook event ignored",
+    description: createDescription(
+      `Received unhandled event type: ${eventType}`,
+    ),
+    metadata: {
+      event_type: eventType,
+      vend_webhook_id: vendWebhookId ?? null,
+    },
+    related_entities: {
+      connection_id: connection.id,
+    },
+  });
+}
+
+async function logLightspeedWebhookFailureEvent(
+  supabase: any,
+  connection: LightspeedConnection,
+  eventType: string,
+  error: Error,
+  metadata: Record<string, unknown>,
+) {
+  const activityType =
+    eventType === "sale.update" ||
+    eventType === "sale.completed" ||
+    eventType === "sale.updated"
+      ? "lightspeed.webhook.sale.failed"
+      : eventType === "customer.update" ||
+          eventType === "customer.created" ||
+          eventType === "customer.updated"
+        ? "lightspeed.webhook.customer.failed"
+        : eventType === "inventory.update"
+          ? "lightspeed.webhook.inventory.failed"
+          : eventType === "product.update" ||
+              eventType === "product.updated" ||
+              eventType === "item.updated"
+            ? "lightspeed.webhook.product.failed"
+            : "lightspeed.webhook.failed";
+
+  const title =
+    activityType === "lightspeed.webhook.sale.failed"
+      ? "Lightspeed sale processing failed"
+      : activityType === "lightspeed.webhook.customer.failed"
+        ? "Lightspeed customer update failed"
+        : activityType === "lightspeed.webhook.inventory.failed"
+          ? "Lightspeed inventory update failed"
+          : activityType === "lightspeed.webhook.product.failed"
+            ? "Lightspeed product update failed"
+            : "Lightspeed webhook processing failed";
+
+  await logActivityEvent(supabase, {
+    tenant_id: connection.tenant_id,
+    actor_type: "integration",
+    actor_id: getLightspeedActorId(connection),
+    source: "webhook",
+    integration_name: "lightspeed",
+    activity_type: activityType,
+    status: "failed",
+    title,
+    description: createDescription(error.message),
+    error_message: error.message,
+    metadata: {
+      ...metadata,
+      event_type: eventType,
+      error: error.message,
+    },
+    related_entities: {
+      connection_id: connection.id,
+      ...(metadata.lightspeed_sale_id
+        ? { lightspeed_sale_id: metadata.lightspeed_sale_id }
+        : {}),
+      ...(metadata.lightspeed_customer_id
+        ? { lightspeed_customer_id: metadata.lightspeed_customer_id }
+        : {}),
+      ...(metadata.lightspeed_product_id
+        ? { lightspeed_product_id: metadata.lightspeed_product_id }
+        : {}),
+    },
+    links: getLightspeedIntegrationLink(),
   });
 }
 
@@ -1189,6 +1310,7 @@ async function handleSaleEvent(
   payload: unknown,
   connection: LightspeedConnection,
   supabase: any,
+  vendWebhookId?: string | null,
 ) {
   const payloadObject = asObject(payload) ?? {};
   const extractedSale = asObject(extractSaleFromPayload(payload));
@@ -1348,6 +1470,48 @@ async function handleSaleEvent(
   console.log(
     `[LS-WEBHOOK] ✓ Sale ${saleId} upserted for tenant ${connection.tenant_id}`,
   );
+
+  const crmCustomerId = await resolveLightspeedCustomerCrmId(
+    supabase,
+    connection.tenant_id,
+    mappedSale.lightspeed_customer_id,
+  );
+
+  await logActivityEvent(supabase, {
+    tenant_id: connection.tenant_id,
+    customer_id: crmCustomerId,
+    actor_type: "integration",
+    actor_id: getLightspeedActorId(connection),
+    source: "webhook",
+    integration_name: "lightspeed",
+    activity_type: "lightspeed.webhook.sale.received",
+    status: "success",
+    title: "Lightspeed sale received",
+    description: createDescription(
+      invoiceNumber
+        ? `Sale #${invoiceNumber} — ${Number(mappedSale.total_amount ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}`
+        : `Sale received — ${Number(mappedSale.total_amount ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}`,
+    ),
+    metadata: {
+      vend_webhook_id: vendWebhookId ?? null,
+      lightspeed_sale_id: saleId,
+      invoice_number: invoiceNumber,
+      total_amount: mappedSale.total_amount,
+      lightspeed_customer_id: mappedSale.lightspeed_customer_id,
+      sale_status: mappedSale.status,
+      line_item_count: Array.isArray(mappedSale.line_items)
+        ? mappedSale.line_items.length
+        : 0,
+      payment_method: mappedSale.payment_method ?? null,
+    },
+    related_entities: {
+      connection_id: connection.id,
+      lightspeed_sale_id: saleId,
+      lightspeed_customer_id: mappedSale.lightspeed_customer_id,
+      crm_customer_id: crmCustomerId,
+    },
+    links: getCrmCustomerLink(crmCustomerId),
+  });
 }
 
 // SECURITY: [T1] - Write only to the single matched tenant
@@ -1355,6 +1519,7 @@ async function handleCustomerEvent(
   payload: unknown,
   connection: LightspeedConnection,
   supabase: any,
+  vendWebhookId?: string | null,
 ) {
   const payloadObject = asObject(payload);
   const isVend = payloadObject?._vend_format === true;
@@ -1403,6 +1568,49 @@ async function handleCustomerEvent(
     .update({ last_customer_sync: new Date().toISOString() })
     .eq("id", connection.id);
 
+  const crmCustomerId = await resolveLightspeedCustomerCrmId(
+    supabase,
+    connection.tenant_id,
+    customerId,
+  );
+  const customerName = [providerRow.first_name, providerRow.last_name]
+    .filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    )
+    .join(" ");
+
+  await logActivityEvent(supabase, {
+    tenant_id: connection.tenant_id,
+    customer_id: crmCustomerId,
+    actor_type: "integration",
+    actor_id: getLightspeedActorId(connection),
+    source: "webhook",
+    integration_name: "lightspeed",
+    activity_type: "lightspeed.webhook.customer.updated",
+    status: "success",
+    title: "Lightspeed customer updated",
+    description: createDescription(
+      customerName ||
+        (typeof providerRow.email === "string"
+          ? providerRow.email
+          : customerId),
+    ),
+    metadata: {
+      vend_webhook_id: vendWebhookId ?? null,
+      lightspeed_customer_id: customerId,
+      customer_name: customerName || null,
+      email: typeof providerRow.email === "string" ? providerRow.email : null,
+      phone: typeof providerRow.phone === "string" ? providerRow.phone : null,
+      write_mode: customerWriteResult.mode,
+    },
+    related_entities: {
+      connection_id: connection.id,
+      lightspeed_customer_id: customerId,
+      crm_customer_id: crmCustomerId,
+    },
+    links: getCrmCustomerLink(crmCustomerId),
+  });
+
   if (customerWriteResult.mode === "updated") {
     console.log(
       `[LS-WEBHOOK] ✓ Customer ${customerId} profile updated (spend preserved)`,
@@ -1421,6 +1629,8 @@ async function handleProductEvent(
   payload: unknown,
   connection: LightspeedConnection,
   supabase: any,
+  eventType: string,
+  vendWebhookId?: string | null,
 ) {
   const payloadObject = asObject(payload);
   const isVend = payloadObject?._vend_format === true;
@@ -1497,6 +1707,41 @@ async function handleProductEvent(
       `[LS-WEBHOOK] ✓ Stock count updated for product ${productId}: ${providerRow.inventory_count ?? 0}`,
     );
   }
+
+  const isInventoryEvent = eventType === "inventory.update";
+  await logActivityEvent(supabase, {
+    tenant_id: connection.tenant_id,
+    actor_type: "integration",
+    actor_id: getLightspeedActorId(connection),
+    source: "webhook",
+    integration_name: "lightspeed",
+    activity_type: isInventoryEvent
+      ? "lightspeed.webhook.inventory.updated"
+      : "lightspeed.webhook.product.updated",
+    status: "success",
+    title: isInventoryEvent
+      ? "Lightspeed inventory adjusted"
+      : "Lightspeed product updated",
+    description: createDescription(
+      isInventoryEvent
+        ? `Product ${productId} inventory updated to ${providerRow.inventory_count ?? 0}`
+        : `Product ${productId}${providerRow.name ? ` — ${providerRow.name}` : ""}`,
+    ),
+    metadata: {
+      vend_webhook_id: vendWebhookId ?? null,
+      lightspeed_product_id: productId,
+      product_name: providerRow.name ?? null,
+      sku: providerRow.sku ?? null,
+      inventory_count: providerRow.inventory_count ?? null,
+      price: providerRow.price ?? null,
+      event_subtype: isInventoryEvent ? "inventory" : "product",
+    },
+    related_entities: {
+      connection_id: connection.id,
+      lightspeed_product_id: productId,
+    },
+    links: getLightspeedIntegrationLink(),
+  });
 }
 
 async function dispatchLightspeedEvent(
@@ -1504,32 +1749,51 @@ async function dispatchLightspeedEvent(
   payload: unknown,
   connection: LightspeedConnection,
   supabase: any,
+  vendWebhookId?: string | null,
 ) {
   switch (eventType) {
     case "sale.update":
     case "sale.completed":
     case "sale.updated":
-      await handleSaleEvent(payload, connection, supabase);
+      await handleSaleEvent(payload, connection, supabase, vendWebhookId);
       break;
     case "customer.update":
     case "customer.created":
     case "customer.updated":
-      await handleCustomerEvent(payload, connection, supabase);
+      await handleCustomerEvent(payload, connection, supabase, vendWebhookId);
       break;
     case "product.update":
     case "inventory.update":
     case "product.updated":
     case "item.updated":
-      await handleProductEvent(payload, connection, supabase);
+      await handleProductEvent(
+        payload,
+        connection,
+        supabase,
+        eventType,
+        vendWebhookId,
+      );
       break;
     case "register_closure.create":
     case "register_closure.update":
       console.log(
         "[LS-WEBHOOK] Register closure event received — logged, no handler yet",
       );
+      await logLightspeedWebhookIgnoredEvent(
+        supabase,
+        connection,
+        eventType,
+        vendWebhookId,
+      );
       break;
     default:
       console.log(`[LS-WEBHOOK] Unhandled event type: ${eventType} — ignoring`);
+      await logLightspeedWebhookIgnoredEvent(
+        supabase,
+        connection,
+        eventType,
+        vendWebhookId,
+      );
   }
 }
 
@@ -1729,6 +1993,7 @@ Deno.serve(async (req) => {
       normalizedPayload,
       connection,
       supabase,
+      vendWebhookId,
     );
     console.log(`[LS-WEBHOOK] ✓ ${eventType} handler completed successfully`);
 
@@ -1744,6 +2009,41 @@ Deno.serve(async (req) => {
     console.error(
       "[LS-WEBHOOK] Handler error stack:",
       handlerError.stack ?? "no stack",
+    );
+
+    const normalizedPayloadObject = asObject(normalizedPayload) ?? {};
+    const failedSale = asObject(extractSaleFromPayload(normalizedPayload));
+    const failedCustomer = extractCustomerFromPayload(normalizedPayload);
+    const failedProduct = extractProductFromPayload(normalizedPayload);
+
+    await logLightspeedWebhookFailureEvent(
+      supabase,
+      connection,
+      eventType,
+      handlerError,
+      {
+        vend_webhook_id: vendWebhookId ?? null,
+        lightspeed_sale_id:
+          getFirstNonEmptyString(
+            failedSale?.id,
+            failedSale?.sale_id,
+            failedSale?.saleID,
+            normalizedPayloadObject.id,
+          ) ?? null,
+        lightspeed_customer_id:
+          failedCustomer && (failedCustomer.id ?? failedCustomer.customerID)
+            ? String(failedCustomer.id ?? failedCustomer.customerID)
+            : null,
+        lightspeed_product_id:
+          failedProduct &&
+          (failedProduct.id ?? failedProduct.product_id ?? failedProduct.itemID)
+            ? String(
+                failedProduct.id ??
+                  failedProduct.product_id ??
+                  failedProduct.itemID,
+              )
+            : null,
+      },
     );
 
     return jsonResponse({ success: false, event: eventType }, 200);
