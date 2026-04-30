@@ -224,13 +224,8 @@ export function IntegrationsHubIndex({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const {
-    items,
-    canUseActions,
-    isLoading,
-    isRefreshing,
-    statusUnavailable,
-  } = useIntegrationsHubData();
+  const { items, canUseActions, isLoading, isRefreshing, statusUnavailable } =
+    useIntegrationsHubData();
 
   const queryCategory = forcedCategory
     ? null

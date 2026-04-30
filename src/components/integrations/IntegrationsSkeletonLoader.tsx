@@ -104,7 +104,11 @@ export function IntegrationsSkeletonLoader({
               variant="rectangular"
             />
             <Skeleton
-              sx={{ width: { xs: "58%", md: "38%" }, height: 36, borderRadius: "md" }}
+              sx={{
+                width: { xs: "58%", md: "38%" },
+                height: 36,
+                borderRadius: "md",
+              }}
               variant="rectangular"
             />
             <Skeleton
