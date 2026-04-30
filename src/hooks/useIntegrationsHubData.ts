@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +38,23 @@ function buildMetaChildren(
     },
   ];
 }
+
+type IntegrationsHubQueryData = {
+  items: IntegrationDefinition[];
+  connections: {
+    shopifyConnection: unknown;
+    squareConnection: unknown;
+    cloverConnection: unknown;
+    lightspeedConnection: unknown;
+    mailchimpConnection: unknown;
+    klaviyoConnection: unknown;
+    constantContactConnection: unknown;
+    facebookConnection: unknown;
+    instagramConnection: unknown;
+    googleAnalyticsConnection: unknown;
+    managedDomain: unknown;
+  };
+};
 
 type PostgrestLikeError =
   | {
@@ -146,13 +163,55 @@ async function loadUserScopedMarketingConnections(
 }
 
 export function useIntegrationsHubData() {
-  const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { user, loading: authLoading } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const { hasRole } = useUserRole();
+  const queryClient = useQueryClient();
+
+  const isHubBootstrapPending = authLoading || tenantLoading;
+
+  const cachedQueryData = useMemo(() => {
+    if (!user?.id) {
+      return null;
+    }
+
+    const cachedEntries = queryClient
+      .getQueriesData<IntegrationsHubQueryData>({
+        queryKey: ["integrations-hub"],
+      })
+      .filter(([queryKey, value]) => {
+        if (!value) {
+          return false;
+        }
+
+        const [, cachedTenantId, cachedUserId] = queryKey as [
+          string,
+          string | null,
+          string | null,
+        ];
+
+        if (cachedUserId !== user.id) {
+          return false;
+        }
+
+        if (tenant?.id) {
+          return cachedTenantId === tenant.id;
+        }
+
+        return cachedTenantId !== null;
+      });
+
+    if (tenant?.id) {
+      return cachedEntries[0]?.[1] ?? null;
+    }
+
+    return cachedEntries.length === 1 ? cachedEntries[0][1] : null;
+  }, [queryClient, tenant?.id, user?.id]);
 
   const query = useQuery({
     queryKey: ["integrations-hub", tenant?.id ?? null, user?.id ?? null],
-    enabled: Boolean(user?.id),
+    enabled: Boolean(user?.id) && !isHubBootstrapPending,
+    staleTime: 30_000,
     queryFn: async () => {
       const [
         shopifyResult,
@@ -416,27 +475,44 @@ export function useIntegrationsHubData() {
     },
   });
 
+  const fallbackItems = useMemo(
+    () =>
+      getIntegrationSeeds().map((seed) => ({
+        ...seed,
+        status: seed.defaultStatus,
+      })),
+    [],
+  );
+
   const items =
     query.data?.items ??
-    getIntegrationSeeds().map((seed) => ({
-      ...seed,
-      status: seed.defaultStatus,
-    }));
+    cachedQueryData?.items ??
+    fallbackItems;
 
   const itemMap = useMemo(
     () => new Map(items.map((item) => [item.slug, item])),
     [items],
   );
 
+  const hasResolvedData = Boolean(query.data ?? cachedQueryData);
+  const isLoading =
+    !hasResolvedData &&
+    (authLoading || tenantLoading || (Boolean(user?.id) && query.isLoading));
+  const isRefreshing = hasResolvedData && query.isFetching;
+  const statusUnavailable = Boolean(query.error) && !hasResolvedData;
+
   return {
     items,
     itemMap,
-    connections: query.data?.connections,
+    connections: query.data?.connections ?? cachedQueryData?.connections,
     tenant,
     user,
     canUseActions: hasRole("member"),
-    isLoading: query.isLoading,
+    isLoading,
     isFetching: query.isFetching,
+    isRefreshing,
+    statusUnavailable,
+    error: query.error,
     refetch: query.refetch,
   };
 }

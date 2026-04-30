@@ -1,11 +1,21 @@
-export type ActivityStatus = 'success' | 'failed' | 'pending' | 'warning' | string;
-export type ActivityActorType = 'user' | 'automation' | 'integration' | 'system' | string;
-export type ActivitySource = 'ui' | 'automation' | 'webhook' | 'sync' | string;
+export type ActivityStatus =
+  | "success"
+  | "failed"
+  | "pending"
+  | "warning"
+  | string;
+export type ActivityActorType =
+  | "user"
+  | "automation"
+  | "integration"
+  | "system"
+  | string;
+export type ActivitySource = "ui" | "automation" | "webhook" | "sync" | string;
 
 export type ActivityDescriptionPart =
-  | { type: 'text'; text: string }
-  | { type: 'link'; text: string; href: string; target?: string }
-  | { type: 'mention'; label: string; href?: string }
+  | { type: "text"; text: string }
+  | { type: "link"; text: string; href: string; target?: string }
+  | { type: "mention"; label: string; href?: string }
   | { type: string; [key: string]: unknown };
 
 export interface ActivityDescription {
@@ -44,6 +54,7 @@ export interface ActivityFeedFilters {
   status?: string[];
   actorTypes?: string[];
   sources?: string[];
+  integrationNames?: string[];
   activityTypes?: string[];
   start?: Date | null;
   end?: Date | null;

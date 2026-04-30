@@ -8363,14 +8363,18 @@ export function useIntegrationDetailData(
           return;
         }
         case "lightspeed": {
-          const { error } = await supabase
-            .from("lightspeed_connections")
-            .delete()
-            .eq("id", resolved.disconnectRef.id)
-            .eq("user_id", user.id)
-            .eq("tenant_id", tenant?.id ?? "");
+          const { data, error } = await supabase.functions.invoke(
+            "lightspeed-disconnect",
+            {
+              body: { connectionId: resolved.disconnectRef.id },
+            },
+          );
 
           if (error) throw error;
+          if (data?.error) {
+            throw new Error(data.message ?? "Disconnect failed.");
+          }
+
           return;
         }
         case "provider": {

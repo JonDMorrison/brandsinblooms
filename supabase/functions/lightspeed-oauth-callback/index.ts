@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { encryptToken } from "../_shared/crypto/tokens.ts";
 import {
@@ -16,9 +17,11 @@ type CallbackPayload = {
 };
 
 type WebhookResult = {
+  success?: boolean;
   verified: boolean;
   error?: string | null;
   subscription_id?: string | null;
+  action?: "created" | "updated" | "verified" | "failed" | "skipped";
 };
 
 type OAuthStateRow = {
@@ -28,6 +31,69 @@ type OAuthStateRow = {
   expires_at: string;
   redirect_uri?: string | null;
 };
+
+async function logLightspeedLifecycleActivity(
+  supabase: any,
+  {
+    tenantId,
+    actorId,
+    activityType,
+    source,
+    status,
+    title,
+    descriptionText,
+    connectionId,
+    domainPrefix,
+    retailerName,
+    metadata = {},
+    errorMessage = null,
+  }: {
+    tenantId: string;
+    actorId: string;
+    activityType: string;
+    source: "ui" | "webhook";
+    status: "success" | "failed" | "warning";
+    title: string;
+    descriptionText: string;
+    connectionId: string | null;
+    domainPrefix: string;
+    retailerName: string | null;
+    metadata?: Record<string, unknown>;
+    errorMessage?: string | null;
+  },
+) {
+  try {
+    await logActivityEvent(supabase, {
+      tenant_id: tenantId,
+      actor_type: "user",
+      actor_id: actorId,
+      source,
+      integration_name: "lightspeed",
+      activity_type: activityType,
+      status,
+      title,
+      description: {
+        parts: [{ type: "text", text: descriptionText }],
+      },
+      metadata: {
+        connection_id: connectionId,
+        domain_prefix: domainPrefix,
+        retailer_name: retailerName,
+        ...metadata,
+      },
+      related_entities: {
+        connection_id: connectionId,
+      },
+      links: [{ label: "View integration", href: "/integrations/lightspeed" }],
+      error_message: errorMessage,
+    });
+  } catch (error: any) {
+    console.error(
+      "[LS-CALLBACK] Failed to log activity event:",
+      error?.message ?? error,
+    );
+  }
+}
 
 const getStateLookupErrorText = (
   error:
@@ -490,6 +556,62 @@ Deno.serve(async (req) => {
         console.error("[LS-CALLBACK] Webhook setup error:", message);
         webhookResult = { verified: false, error: message };
       }
+    }
+
+    await logLightspeedLifecycleActivity(supabaseClient, {
+      tenantId,
+      actorId: stateData.user_id,
+      activityType: "lightspeed.connection.established",
+      source: "ui",
+      status: "success",
+      title: "Lightspeed connection established",
+      descriptionText: `Connected ${retailerName || domainPrefix} and enabled Lightspeed syncing`,
+      connectionId: savedConnection?.id ?? null,
+      domainPrefix,
+      retailerName,
+      metadata: {
+        webhook_verified: webhookResult.verified,
+        webhook_subscription_id: webhookResult.subscription_id ?? null,
+      },
+    });
+
+    if (savedConnection?.id && webhookResult.verified) {
+      await logLightspeedLifecycleActivity(supabaseClient, {
+        tenantId,
+        actorId: stateData.user_id,
+        activityType: "lightspeed.webhook.registered",
+        source: "webhook",
+        status: "success",
+        title: "Lightspeed webhooks registered",
+        descriptionText: `Registered Lightspeed webhooks for ${retailerName || domainPrefix}`,
+        connectionId: savedConnection.id,
+        domainPrefix,
+        retailerName,
+        metadata: {
+          subscription_id: webhookResult.subscription_id ?? null,
+          action: webhookResult.action ?? null,
+          verified: webhookResult.verified,
+        },
+      });
+    } else {
+      await logLightspeedLifecycleActivity(supabaseClient, {
+        tenantId,
+        actorId: stateData.user_id,
+        activityType: "lightspeed.webhook.registration.failed",
+        source: "webhook",
+        status: "failed",
+        title: "Lightspeed webhook registration failed",
+        descriptionText: `Webhook registration failed for ${retailerName || domainPrefix}: ${webhookResult.error || "Connection ID not found"}`,
+        connectionId: savedConnection?.id ?? null,
+        domainPrefix,
+        retailerName,
+        metadata: {
+          subscription_id: webhookResult.subscription_id ?? null,
+          action: webhookResult.action ?? null,
+          verified: webhookResult.verified,
+        },
+        errorMessage: webhookResult.error || "Connection ID not found",
+      });
     }
 
     console.log("[LS-CALLBACK] Connection successful");

@@ -15587,6 +15587,7 @@ export type Database = {
           p_actor_types?: string[];
           p_customer_id?: string;
           p_end?: string;
+          p_integration_names?: string[];
           p_limit?: number;
           p_offset?: number;
           p_persona_ids?: string[];

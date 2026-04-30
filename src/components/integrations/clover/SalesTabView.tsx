@@ -15,6 +15,7 @@ import {
   EmptyValue,
   RawDataPre,
   SaleStatusBadge,
+  SegmentedFilterGroup,
   SlideOverField,
   StatusFilterPills,
   TableSearchInput,
@@ -178,29 +179,17 @@ export function SalesTabView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3">
-          {SALES_DATE_PRESETS.map((preset) => {
-            const isActive = activePreset === preset.value;
-            return (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => {
-                  const nextRange = getPresetRange(preset.value);
-                  onDateRangeChange(
-                    nextRange.startDate ?? "",
-                    nextRange.endDate ?? "",
-                  );
-                }}
-                className={
-                  isActive
-                    ? "rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white"
-                    : "rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
-                }
-              >
-                {preset.label}
-              </button>
-            );
-          })}
+          <SegmentedFilterGroup
+            options={SALES_DATE_PRESETS}
+            value={activePreset}
+            onChange={(preset) => {
+              const nextRange = getPresetRange(preset);
+              onDateRangeChange(
+                nextRange.startDate ?? "",
+                nextRange.endDate ?? "",
+              );
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-6 border-b border-gray-100 bg-gray-50 px-5 py-3">

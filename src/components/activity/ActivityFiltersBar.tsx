@@ -39,6 +39,7 @@ const FILTER_PARAM_KEYS = [
   "status",
   "actor",
   "source",
+  "integration",
   "type",
   "start",
   "end",
@@ -164,6 +165,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
   const status = parseCsvParam(searchParams.get("status"));
   const actor = parseCsvParam(searchParams.get("actor"));
   const source = parseCsvParam(searchParams.get("source"));
+  const integration = parseCsvParam(searchParams.get("integration"));
   const type = parseCsvParam(searchParams.get("type"));
   const segmentIds = parseCsvParam(searchParams.get("segment"));
   const personaIds = parseCsvParam(searchParams.get("persona"));
@@ -179,6 +181,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
       status.length ||
       actor.length ||
       source.length ||
+      integration.length ||
       type.length ||
       segmentIds.length ||
       personaIds.length ||
@@ -187,6 +190,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
     ),
   );
   const [customerQuery, setCustomerQuery] = React.useState("");
+  const [integrationQuery, setIntegrationQuery] = React.useState("");
   const [activityTypeQuery, setActivityTypeQuery] = React.useState("");
 
   React.useEffect(() => {
@@ -195,6 +199,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
       status.length ||
       actor.length ||
       source.length ||
+      integration.length ||
       type.length ||
       segmentIds.length ||
       personaIds.length ||
@@ -207,6 +212,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
     actor.length,
     customerId,
     end,
+    integration.length,
     personaIds.length,
     segmentIds.length,
     source.length,
@@ -317,6 +323,64 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
 
   const activityTypeInitialOptions = React.useMemo(() => type, [type]);
 
+  const integrationInitialOptions = React.useMemo(
+    () => integration,
+    [integration],
+  );
+
+  const loadIntegrationOptions = React.useCallback(
+    async (query: string) => {
+      if (!tenant?.id) {
+        return integrationInitialOptions;
+      }
+
+      const { data, error } = await supabase
+        .from("crm_activity_events")
+        .select("integration_name")
+        .eq("tenant_id", tenant.id)
+        .not("integration_name", "is", null)
+        .order("timestamp", { ascending: false })
+        .limit(query.trim() ? 120 : 50);
+
+      if (error) {
+        throw error;
+      }
+
+      const normalizedQuery = query.trim().toLowerCase();
+      const unique = new Set<string>(integrationInitialOptions);
+
+      for (const row of data ?? []) {
+        const value = String(
+          (row as Record<string, unknown>).integration_name ?? "",
+        ).trim();
+
+        if (!value) {
+          continue;
+        }
+
+        if (normalizedQuery && !value.toLowerCase().includes(normalizedQuery)) {
+          continue;
+        }
+
+        unique.add(value);
+      }
+
+      return Array.from(unique).sort((left, right) =>
+        left.localeCompare(right),
+      );
+    },
+    [integrationInitialOptions, tenant?.id],
+  );
+
+  const integrationLookup = useAsyncAutocomplete<string>({
+    query: integrationQuery,
+    enabled: Boolean(tenant?.id && advancedOpen),
+    debounceMs: 250,
+    minQueryLength: 0,
+    initialOptions: integrationInitialOptions,
+    loadOptions: loadIntegrationOptions,
+  });
+
   const loadActivityTypeOptions = React.useCallback(
     async (query: string) => {
       if (!tenant?.id) {
@@ -396,6 +460,14 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
     [activityTypeLookup.options, type],
   );
 
+  const selectedIntegrations = React.useMemo(
+    () =>
+      Array.from(new Set([...integration, ...integrationLookup.options])).sort(
+        (left, right) => left.localeCompare(right),
+      ),
+    [integration, integrationLookup.options],
+  );
+
   const quickFilterValue =
     type.length === 1 &&
     QUICK_ACTIVITY_FILTERS.some((filter) => filter.value === type[0])
@@ -423,6 +495,7 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
     status.length +
     actor.length +
     source.length +
+    integration.length +
     type.length +
     segmentIds.length +
     personaIds.length +
@@ -487,6 +560,14 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
       key: `source:${value}`,
       label: `Source: ${formatActivityLabel(value)}`,
       onRemove: () => removeCsv("source", value),
+    });
+  }
+
+  for (const value of integration) {
+    activePills.push({
+      key: `integration:${value}`,
+      label: `Integration: ${formatActivityLabel(value)}`,
+      onRemove: () => removeCsv("integration", value),
     });
   }
 
@@ -758,6 +839,24 @@ export function ActivityFiltersBar({}: ActivityFiltersBarProps) {
                   onValueChange={(value) =>
                     setCsvParam(
                       "source",
+                      Array.isArray(value) ? [...value] : [],
+                    )
+                  }
+                />
+
+                <JoyAutocomplete<string, true, false, false>
+                  multiple
+                  disableCloseOnSelect
+                  label="Integration"
+                  placeholder="All integrations"
+                  options={selectedIntegrations}
+                  value={integration}
+                  loading={integrationLookup.loading}
+                  inputValue={integrationQuery}
+                  onInputChange={(_, value) => setIntegrationQuery(value)}
+                  onValueChange={(value) =>
+                    setCsvParam(
+                      "integration",
                       Array.isArray(value) ? [...value] : [],
                     )
                   }

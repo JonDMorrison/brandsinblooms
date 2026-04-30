@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 
 const LIGHTSPEED_PAGE_SIZE = 100;
 
@@ -61,6 +62,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let userId: string | null = null;
+  let tenantId: string | null = null;
+  let connection: {
+    id: string;
+    domain_prefix: string | null;
+    retailer_name: string | null;
+  } | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -83,6 +92,7 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       throw new Error("Not authenticated");
     }
+    userId = user.id;
 
     const { data: userData, error: tenantError } = await supabaseClient
       .from("users")
@@ -94,27 +104,50 @@ Deno.serve(async (req) => {
       throw new Error("Tenant not found");
     }
 
-    const tenantId = userData.tenant_id;
+    const resolvedTenantId = userData.tenant_id;
+    tenantId = resolvedTenantId;
     console.log(`[LIGHTSPEED-FULL-SYNC] Tenant: ${tenantId}`);
+
+    const { data: activeLightspeedConnection, error: connectionError } =
+      await supabaseClient
+        .from("lightspeed_connections")
+        .select("id, domain_prefix, retailer_name")
+        .eq("tenant_id", resolvedTenantId)
+        .eq("status", "connected")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (connectionError) {
+      throw new Error(
+        `Failed to load Lightspeed connection: ${connectionError.message}`,
+      );
+    }
+
+    connection = activeLightspeedConnection;
+
+    if (!connection) {
+      throw new Error("No connected Lightspeed store found for this tenant.");
+    }
 
     const [squareConnections, cloverConnections, shopifyConnections] =
       await Promise.all([
         supabaseClient
           .from("square_connections")
           .select("id")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", resolvedTenantId)
           .eq("status", "connected")
           .limit(1),
         supabaseClient
           .from("clover_connections")
           .select("id")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", resolvedTenantId)
           .eq("status", "connected")
           .limit(1),
         supabaseClient
           .from("shopify_connections")
           .select("id")
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", resolvedTenantId)
           .eq("status", "connected")
           .limit(1),
       ]);
@@ -136,7 +169,7 @@ Deno.serve(async (req) => {
             next_retry_at: null,
             updated_at: new Date().toISOString(),
           })
-          .eq("tenant_id", tenantId)
+          .eq("tenant_id", resolvedTenantId)
           .is("provider", null)
           .in("status", ["pending", "delayed", "failed"])
           .select("id");
@@ -178,7 +211,7 @@ Deno.serve(async (req) => {
 
       const { data: enqueueResult, error: enqueueError } =
         await supabaseClient.rpc("enqueue_pos_sync_job", {
-          p_tenant_id: tenantId,
+          p_tenant_id: resolvedTenantId,
           p_provider: "lightspeed",
           p_sync_type: syncJob.queueSyncType,
           p_estimated_rows: syncJob.estimatedRows,
@@ -333,6 +366,40 @@ Deno.serve(async (req) => {
       );
     }
 
+    await logActivityEvent(supabaseClient, {
+      tenant_id: resolvedTenantId,
+      actor_type: "user",
+      actor_id: userId,
+      source: "sync",
+      integration_name: "lightspeed",
+      activity_type: "lightspeed.sync.started",
+      status: "success",
+      title: "Lightspeed sync started",
+      description: {
+        parts: [
+          {
+            type: "text",
+            text: `Syncing customers, sales, and products for ${connection.retailer_name || connection.domain_prefix || "Lightspeed store"}`,
+          },
+        ],
+      },
+      metadata: {
+        sync_type: "full",
+        triggered_by: "full_sync",
+        connection_id: connection.id,
+        domain_prefix: connection.domain_prefix,
+        queued_job_ids: queuedJobs.map((job) => job.id),
+        queued_sync_types: queuedJobs.map((job) => job.label),
+        worker_started: !workerError,
+        queue_warnings: enqueueErrors,
+      },
+      related_entities: {
+        connection_id: connection.id,
+        queued_job_ids: queuedJobs.map((job) => job.id),
+      },
+      links: [{ label: "View integration", href: "/integrations/lightspeed" }],
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -349,6 +416,44 @@ Deno.serve(async (req) => {
     );
   } catch (error: any) {
     console.error("[LIGHTSPEED-FULL-SYNC] Error:", error.message);
+
+    const failureTenantId = tenantId;
+    const failureUserId = userId;
+
+    if (failureTenantId && failureUserId) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+
+      await logActivityEvent(supabaseClient, {
+        tenant_id: failureTenantId,
+        actor_type: "user",
+        actor_id: failureUserId,
+        source: "sync",
+        integration_name: "lightspeed",
+        activity_type: "lightspeed.sync.failed",
+        status: "failed",
+        title: "Lightspeed sync failed",
+        description: {
+          parts: [{ type: "text", text: error.message }],
+        },
+        error_message: error.message,
+        metadata: {
+          sync_type: "full",
+          triggered_by: "full_sync",
+          connection_id: connection?.id ?? null,
+          domain_prefix: connection?.domain_prefix ?? null,
+        },
+        related_entities: {
+          connection_id: connection?.id ?? null,
+        },
+        links: [
+          { label: "View integration", href: "/integrations/lightspeed" },
+        ],
+      });
+    }
+
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
