@@ -191,20 +191,17 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
     [block.id, onUpdate],
   );
 
-  // Handle immediate local updates with content sanitization
+  // Handle immediate local updates. User keystrokes pass through verbatim;
+  // content sanitization (sanitizeAndImproveContent) is intentionally NOT
+  // called here. It collapses trailing whitespace and runs cliché-word
+  // replacements, which dropped the spacebar character mid-word for inputs
+  // bound directly to block.headline/title/content (the input value snapped
+  // back to the trimmed value before the next keystroke arrived). Sanitize at
+  // boundaries instead — AI generation, paste-import, save validation —
+  // never on every keystroke.
   const handleLocalUpdate = useCallback(
     (updates: Partial<ContentBlock>) => {
-      // Sanitize text content automatically
       const sanitizedUpdates = { ...updates };
-      if (updates.content && typeof updates.content === "string") {
-        sanitizedUpdates.content = sanitizeAndImproveContent(updates.content);
-      }
-      if (updates.title && typeof updates.title === "string") {
-        sanitizedUpdates.title = sanitizeAndImproveContent(updates.title);
-      }
-      if (updates.headline && typeof updates.headline === "string") {
-        sanitizedUpdates.headline = sanitizeAndImproveContent(updates.headline);
-      }
 
       if (
         "buttonUrl" in sanitizedUpdates ||
