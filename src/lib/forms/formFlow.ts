@@ -154,7 +154,9 @@ export function getNormalizedFormSteps(
   fields: FormField[],
   settings: Pick<FormSettings, "steps">,
 ): FormStep[] {
-  const normalizedConfigured = reindexFormSteps(getConfiguredFormSteps(settings));
+  const normalizedConfigured = reindexFormSteps(
+    getConfiguredFormSteps(settings),
+  );
 
   if (normalizedConfigured.length === 0) {
     return [createDefaultFormStep(0)];
@@ -178,16 +180,22 @@ export function getNormalizedFormSteps(
 }
 
 export function sortFieldsByStepOrder(
-  fields: FormField[],
-  steps: FormStep[],
+  fields: FormField[] | undefined,
+  steps: FormStep[] | undefined,
 ): FormField[] {
-  const stepOrder = new Map(steps.map((step, index) => [step.index, index]));
+  const normalizedFields = Array.isArray(fields) ? fields : [];
+  const normalizedSteps = Array.isArray(steps) ? steps : [];
+  const stepOrder = new Map(
+    normalizedSteps.map((step, index) => [step.index, index]),
+  );
 
-  return [...fields].sort((leftField, rightField) => {
+  return [...normalizedFields].sort((leftField, rightField) => {
     const leftOrder =
-      stepOrder.get(normalizeFieldStepIndex(leftField)) ?? steps.length;
+      stepOrder.get(normalizeFieldStepIndex(leftField)) ??
+      normalizedSteps.length;
     const rightOrder =
-      stepOrder.get(normalizeFieldStepIndex(rightField)) ?? steps.length;
+      stepOrder.get(normalizeFieldStepIndex(rightField)) ??
+      normalizedSteps.length;
 
     if (leftOrder !== rightOrder) {
       return leftOrder - rightOrder;
@@ -198,12 +206,13 @@ export function sortFieldsByStepOrder(
 }
 
 export function groupFieldsByStep(
-  fields: FormField[],
-  steps: FormStep[],
+  fields: FormField[] | undefined,
+  steps: FormStep[] | undefined,
 ): FormStepGroup[] {
-  const orderedFields = sortFieldsByStepOrder(fields, steps);
+  const normalizedSteps = Array.isArray(steps) ? steps : [];
+  const orderedFields = sortFieldsByStepOrder(fields, normalizedSteps);
 
-  return steps.map((step) => ({
+  return normalizedSteps.map((step) => ({
     step,
     fields: orderedFields.filter(
       (field) => normalizeFieldStepIndex(field) === step.index,
@@ -212,16 +221,16 @@ export function groupFieldsByStep(
 }
 
 export function getOrderedFieldIds(
-  fields: FormField[],
-  steps: FormStep[],
+  fields: FormField[] | undefined,
+  steps: FormStep[] | undefined,
 ): string[] {
   return sortFieldsByStepOrder(fields, steps).map((field) => field.id);
 }
 
 export function getAvailableConditionSourceFields(
-  fields: FormField[],
+  fields: FormField[] | undefined,
   currentFieldId: string,
-  steps: FormStep[],
+  steps: FormStep[] | undefined,
 ): FormField[] {
   const orderedFields = sortFieldsByStepOrder(fields, steps).filter(
     (field) => field.type !== "hidden",

@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { FormSubmission } from "@/types/formBuilder";
 
-type ConnectionState = "connecting" | "live" | "paused";
+type ConnectionState = "connecting" | "live" | "offline";
+
+type SubmissionFilterOptions = Pick<
+  UseFormSubmissionsRealtimeOptions,
+  "formId" | "tenantId"
+>;
 
 interface UseFormSubmissionsRealtimeOptions {
   enabled?: boolean;
@@ -19,12 +24,10 @@ interface UseFormSubmissionsRealtimeOptions {
 interface UseFormSubmissionsRealtimeResult {
   connectionState: ConnectionState;
   isLive: boolean;
+  reconnect: () => void;
 }
 
-function buildFilter({
-  formId,
-  tenantId,
-}: UseFormSubmissionsRealtimeOptions): string {
+function buildFilter({ formId, tenantId }: SubmissionFilterOptions): string {
   return [`tenant_id=eq.${tenantId}`, `form_id=eq.${formId}`].join(",");
 }
 
@@ -35,7 +38,7 @@ function toFormSubmission(row: Record<string, unknown>): FormSubmission {
     form_id: String(row.form_id),
     customer_id:
       typeof row.customer_id === "string" ? row.customer_id : undefined,
-    data: (row.data as Record<string, unknown>) || {},
+    data: (row.data as FormSubmission["data"]) || {},
     metadata:
       (row.metadata as FormSubmission["metadata"]) ||
       ({} as FormSubmission["metadata"]),
@@ -54,8 +57,9 @@ export function useFormSubmissionsRealtime({
   onSubmission,
 }: UseFormSubmissionsRealtimeOptions): UseFormSubmissionsRealtimeResult {
   const [connectionState, setConnectionState] = useState<ConnectionState>(
-    enabled ? "connecting" : "paused",
+    enabled ? "connecting" : "offline",
   );
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const queuedSubmissionsRef = useRef<FormSubmission[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const onSubmissionRef = useRef(onSubmission);
@@ -64,13 +68,17 @@ export function useFormSubmissionsRealtime({
     onSubmissionRef.current = onSubmission;
   }, [onSubmission]);
 
+  const reconnect = useCallback(() => {
+    setConnectionState("connecting");
+    setReconnectNonce((current) => current + 1);
+  }, []);
+
   const filter = useMemo(() => {
     if (!enabled || !formId || !tenantId) {
       return null;
     }
 
     return buildFilter({
-      enabled,
       formId,
       tenantId,
     });
@@ -78,7 +86,7 @@ export function useFormSubmissionsRealtime({
 
   useEffect(() => {
     if (!enabled || !formId || !tenantId || !filter) {
-      setConnectionState("paused");
+      setConnectionState("offline");
       return;
     }
 
@@ -150,7 +158,7 @@ export function useFormSubmissionsRealtime({
             status === "TIMED_OUT" ||
             status === "CLOSED"
           ) {
-            setConnectionState("paused");
+            setConnectionState("offline");
           }
         });
 
@@ -165,16 +173,17 @@ export function useFormSubmissionsRealtime({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        void supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
 
       queuedSubmissionsRef.current = [];
     };
-  }, [channelName, enabled, filter, formId, tenantId]);
+  }, [channelName, enabled, filter, formId, reconnectNonce, tenantId]);
 
   return {
     connectionState,
     isLive: connectionState === "live",
+    reconnect,
   };
 }
