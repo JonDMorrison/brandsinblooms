@@ -454,7 +454,7 @@ function renderGraphicHero(block: RenderableContentBlock): string {
     : imageTag;
 
   return `
-    <section style="padding:0;background:${block.backgroundColor || "#f3f6f3"};">
+    <section style="padding:0;background:${block.backgroundColor || "#ffffff"};">
       ${linkedImage}
       <div style="padding:28px 32px;">
         ${renderBlockHeading(block, block.textColor || "#1f2937")}
@@ -565,7 +565,7 @@ function renderProductGalleryBlock(block: RenderableContentBlock): string {
     .join("");
 
   return `
-    <section style="padding:32px;background:${block.backgroundColor || "#f8faf8"};">
+    <section style="padding:32px;background:${block.backgroundColor || "#ffffff"};">
       ${renderBlockHeading(block, block.textColor || "#1f2937")}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>${cells}</tr>
@@ -603,7 +603,7 @@ function renderProductBlock(block: RenderableContentBlock): string {
 
 function renderQuoteBlock(block: RenderableContentBlock): string {
   return `
-    <section style="padding:32px;background:${block.backgroundColor || "#f8faf8"};">
+    <section style="padding:32px;background:${block.backgroundColor || "#ffffff"};">
       <blockquote style="margin:0;font-size:22px;line-height:1.5;font-style:italic;color:${block.textColor || "#1f2937"};">${toHtmlText(block.quote || block.body || block.content)}</blockquote>
       ${block.author ? `<div style="margin-top:16px;font-size:15px;font-weight:600;color:#1f4f3f;">${toHtmlText(block.author)}</div>` : ""}
       ${block.authorTitle ? `<div style="margin-top:4px;font-size:14px;color:#6b7280;">${toHtmlText(block.authorTitle)}</div>` : ""}
