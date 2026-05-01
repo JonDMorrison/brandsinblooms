@@ -1026,6 +1026,17 @@ function CampaignEditorScreen() {
           color: "danger.600",
           opacity: 1,
         };
+      case "failed":
+        // Terminal state after exhausting retries. Distinct from "error"
+        // (which means "an attempt failed and another retry is pending")
+        // so the user understands no more automatic recovery is happening.
+        return {
+          label:
+            autoSaveMessage ??
+            "We couldn't save your changes. Please copy your work and refresh the page.",
+          color: "danger.600",
+          opacity: 1,
+        };
       case "conflict":
         return {
           label:

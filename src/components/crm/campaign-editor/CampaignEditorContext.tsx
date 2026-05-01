@@ -23,6 +23,11 @@ import {
 } from "@/lib/crm/campaignDraftPersistence";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
 import {
+  AUTO_SAVE_MAX_RETRIES,
+  AUTO_SAVE_RETRY_DELAYS_MS,
+  decideAutoSaveFailure,
+} from "./autoSaveRetryPolicy";
+import {
   useCampaignSending,
   type CampaignSendResult,
 } from "@/hooks/useCampaignSending";
@@ -34,7 +39,15 @@ import type { ContentBlock } from "@/types/emailBuilder";
 
 type Segment = CampaignSegmentSummary;
 type Persona = CampaignPersonaSummary;
-type AutoSaveStatus = "idle" | "saving" | "saved" | "error" | "conflict";
+type AutoSaveStatus =
+  | "idle"
+  | "saving"
+  | "saved"
+  | "error"
+  | "conflict"
+  // The user-facing "we tried 3 times and gave up" terminal state. Distinct
+  // from "error" so the UI can render a different (clearer, scarier) message.
+  | "failed";
 
 export interface CampaignEditorState {
   campaignId: string | null;
@@ -134,7 +147,10 @@ interface CampaignEditorContextValue extends CampaignEditorState {
 }
 
 const AUTO_SAVE_MS = 3000;
-const AUTO_SAVE_RETRY_MS = 10000;
+// Retry policy lives in autoSaveRetryPolicy.ts (extracted for unit testing).
+// New edits cancel pending retries via the keystroke debounce effect — when
+// the user edits, status flips off "error", which fires the retry effect's
+// cleanup and clearTimeout's the queued retry.
 const AUTO_SAVE_SUCCESS_VISIBILITY_MS = 2000;
 const AUDIENCE_RECALC_MS = 300;
 
@@ -279,6 +295,16 @@ export function CampaignEditorProvider({
   const hasHydratedRef = React.useRef(false);
   const lastSavedFingerprintRef = React.useRef<string | null>(null);
   const lastUpdatedAtRef = React.useRef<string | null>(null);
+  // Number of consecutive failures for the current draft fingerprint.
+  // 0 = no failures (or last save succeeded). Bumped in the saveDraft catch
+  // and read by the retry effect to pick the next backoff delay. Reset when
+  // saveDraft fires for a different fingerprint (i.e., user edited) or when
+  // a save succeeds.
+  const autoSaveAttemptRef = React.useRef(0);
+  // The fingerprint of the draft that the current retry sequence is trying
+  // to save. When saveDraft is invoked with a different fingerprint, we
+  // treat it as a fresh attempt and reset autoSaveAttemptRef.
+  const autoSaveLastTriedFingerprintRef = React.useRef<string | null>(null);
   const [autoSavePaused, setAutoSavePausedState] = React.useState(false);
 
   const sending = useCampaignSending({
@@ -725,6 +751,24 @@ export function CampaignEditorProvider({
         return state.campaignId;
       }
 
+      // Treat this as a fresh save attempt (counter reset) whenever the
+      // draft fingerprint differs from what the retry sequence was working
+      // on. Retries call saveDraft with the same fingerprint and preserve
+      // the counter. New edits (or unrelated user-initiated saves) restart
+      // the budget at zero.
+      if (autoSaveLastTriedFingerprintRef.current !== nextFingerprint) {
+        autoSaveAttemptRef.current = 0;
+        autoSaveLastTriedFingerprintRef.current = nextFingerprint;
+      }
+
+      // Clear any pending retry timer — we're firing a save NOW. Without
+      // this, an in-flight save and a queued retry of the same content
+      // could double-fire. Idempotent upserts make that harmless but wasteful.
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+        autoSaveRetryTimerRef.current = null;
+      }
+
       if (autoSaveSuccessTimerRef.current) {
         clearTimeout(autoSaveSuccessTimerRef.current);
       }
@@ -744,6 +788,10 @@ export function CampaignEditorProvider({
 
         lastSavedFingerprintRef.current = nextFingerprint;
         lastUpdatedAtRef.current = saved.updatedAt;
+        // Reset the retry budget on success so the next failure starts
+        // from a fresh attempt count.
+        autoSaveAttemptRef.current = 0;
+        autoSaveLastTriedFingerprintRef.current = null;
 
         setState((current) => ({
           ...current,
@@ -777,13 +825,33 @@ export function CampaignEditorProvider({
           return null;
         }
 
+        autoSaveAttemptRef.current += 1;
+        const decision = decideAutoSaveFailure(autoSaveAttemptRef.current);
+
+        if (decision.kind === "failed") {
+          setState((current) => ({
+            ...current,
+            isSaving: false,
+            autoSaveStatus: "failed",
+            autoSaveMessage: decision.message,
+          }));
+          console.error(
+            `Failed to save campaign draft after ${AUTO_SAVE_MAX_RETRIES} retries`,
+            error,
+          );
+          return null;
+        }
+
         setState((current) => ({
           ...current,
           isSaving: false,
           autoSaveStatus: "error",
-          autoSaveMessage: "Changes not saved — retrying...",
+          autoSaveMessage: decision.message,
         }));
-        console.error("Failed to save campaign draft", error);
+        console.error(
+          `Failed to save campaign draft (attempt ${decision.attempt} of ${AUTO_SAVE_MAX_RETRIES})`,
+          error,
+        );
         return null;
       }
     },
@@ -866,6 +934,13 @@ export function CampaignEditorProvider({
     state.isLocked,
   ]);
 
+  // Schedule the next retry after a failed save. Uses the exponential-style
+  // backoff in AUTO_SAVE_RETRY_DELAYS_MS, indexed by the current attempt
+  // count. Once attempt > AUTO_SAVE_MAX_RETRIES the saveDraft catch sets
+  // status to "failed" instead of "error", so this effect's guard exits
+  // early and no further retries are scheduled. New edits flip status away
+  // from "error" via updateSetup/updateAudience/etc., which fires the
+  // cleanup below and clears the pending timer.
   React.useEffect(() => {
     if (
       state.autoSaveStatus !== "error" ||
@@ -881,13 +956,21 @@ export function CampaignEditorProvider({
       clearTimeout(autoSaveRetryTimerRef.current);
     }
 
+    const attempt = autoSaveAttemptRef.current;
+    if (attempt < 1 || attempt > AUTO_SAVE_MAX_RETRIES) {
+      return;
+    }
+    const delay = AUTO_SAVE_RETRY_DELAYS_MS[attempt - 1];
+
     autoSaveRetryTimerRef.current = setTimeout(() => {
+      autoSaveRetryTimerRef.current = null;
       void saveDraft({ silent: true });
-    }, AUTO_SAVE_RETRY_MS);
+    }, delay);
 
     return () => {
       if (autoSaveRetryTimerRef.current) {
         clearTimeout(autoSaveRetryTimerRef.current);
+        autoSaveRetryTimerRef.current = null;
       }
     };
   }, [
