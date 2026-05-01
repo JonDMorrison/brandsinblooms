@@ -422,6 +422,43 @@ function toEmailBlock(block: ContentBlock, index: number): EmailBlock {
   };
 }
 
+// Wrap a server-rendered email fragment in the iframe-presentation skeleton
+// (gray page background, centered card, drop shadow, hidden preheader).
+// The edge-function-rendered fragment is the source of truth for block
+// content, merge-tag resolution, and footer; this only adds the visual
+// "inbox-like" framing for the dialog's iframe.
+function wrapServerRenderedHtml(
+  fragment: string,
+  preheaderText: string,
+): string {
+  const safePreheader = preheaderText.trim();
+  const hiddenPreheader = safePreheader
+    ? `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${safePreheader.replace(/[<>&"']/g, (c) => ({
+        "<": "&lt;",
+        ">": "&gt;",
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c]!)}</div>`
+    : "";
+
+  return `<!doctype html>
+  <html>
+    <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
+      ${hiddenPreheader}
+      <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 12px 32px rgba(15, 23, 42, 0.08);">
+        ${fragment}
+      </div>
+    </body>
+  </html>`;
+}
+
+// DEPRECATED for the preview pane (Phase 1 of the preview-vs-send fix).
+// Still used by the Send Test path, which posts pre-rendered HTML to
+// send-test-email-v2. The preview pane now sends raw contentBlocks to
+// render-email-preview and wraps the response with wrapServerRenderedHtml
+// above. Kept here so Send Test continues to work; will follow the same
+// edge-function migration in a separate change.
 function buildPreviewHtml(
   blocks: ContentBlock[],
   preheaderText: string,
@@ -698,9 +735,35 @@ export function CampaignPreviewDialog({
     setRenderError(null);
 
     try {
+      // No content yet — skip the edge call and let the renderedHtml-null
+      // branch below fall through to the iframe loading-skeleton state. The
+      // edge function would 400 on an empty payload anyway.
+      if (!Array.isArray(contentBlocks) || contentBlocks.length === 0) {
+        if (requestId !== renderRequestIdRef.current) {
+          return;
+        }
+        setRenderedHtml(
+          wrapServerRenderedHtml(
+            `<div style="padding:48px 24px;font-family:Arial,sans-serif;color:#4B5563;">No email content yet.</div>`,
+            preheaderText,
+          ),
+        );
+        setRenderedSubject(null);
+        setDiagnostics(null);
+        return;
+      }
+
+      // Phase 1 of the preview-vs-send fix: send raw contentBlocks to
+      // render-email-preview so the edge function uses the SAME renderer
+      // (renderContentBlocksToEmailHtml in supabase/functions/_shared/
+      // campaignEmailSource.ts) that the send pipeline uses. The edge
+      // function then layers merge-tag resolution and the auto-injected
+      // compliance footer on top, returning a complete email-body fragment.
+      // We wrap that fragment in the iframe-presentation skeleton below
+      // so the dialog still looks like an inbox preview.
       const body: Record<string, unknown> = {
         tenantId: tenant?.id,
-        html: previewHtml,
+        contentBlocks,
         subject: subjectLine,
         includeFooter: true,
       };
@@ -726,7 +789,10 @@ export function CampaignPreviewDialog({
         return;
       }
 
-      setRenderedHtml((data?.renderedHtml as string | undefined) ?? null);
+      const fragment = (data?.renderedHtml as string | undefined) ?? "";
+      setRenderedHtml(
+        fragment ? wrapServerRenderedHtml(fragment, preheaderText) : null,
+      );
       setRenderedSubject((data?.renderedSubject as string | undefined) ?? null);
       setDiagnostics(
         (data?.diagnostics as PreviewDiagnostics | undefined) ?? null,
@@ -737,14 +803,23 @@ export function CampaignPreviewDialog({
       }
 
       setRenderError(
-        error instanceof Error ? error.message : "Failed to render preview.",
+        error instanceof Error
+          ? error.message
+          : "Preview unavailable. Please save and try again.",
       );
     } finally {
       if (requestId === renderRequestIdRef.current) {
         setIsRendering(false);
       }
     }
-  }, [campaignType, previewCustomer?.id, previewHtml, subjectLine, tenant?.id]);
+  }, [
+    campaignType,
+    contentBlocks,
+    preheaderText,
+    previewCustomer?.id,
+    subjectLine,
+    tenant?.id,
+  ]);
 
   React.useEffect(() => {
     if (!open) {
@@ -771,11 +846,12 @@ export function CampaignPreviewDialog({
     void renderPreview();
   }, [
     campaignType,
+    contentBlocks,
     hasAudienceSelection,
     open,
+    preheaderText,
     previewCustomerQuery.isLoading,
     previewCustomer?.id,
-    previewHtml,
     renderPreview,
     subjectLine,
   ]);
