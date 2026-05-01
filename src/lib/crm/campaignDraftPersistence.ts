@@ -126,7 +126,7 @@ function renderDraftTextBlock(block: ContentBlock) {
       ${renderDraftImage(block.imageUrl || block.backgroundImageUrl, block.altText, block.type === "image" ? 360 : 280)}
       ${heading ? `<h2 style="margin:0 0 12px;font-size:28px;line-height:1.2;color:${textColor};">${formatDraftText(heading)}</h2>` : ""}
       ${body ? `<div style="font-size:16px;line-height:1.7;color:${textColor};">${formatDraftRichText(body)}</div>` : ""}
-      ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.backgroundColor || "#1f4f3f")}
+      ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.buttonColor || "#1f4f3f")}
     </section>
   `;
 }
@@ -233,7 +233,7 @@ function renderDraftProductGallery(block: ContentBlock) {
           <h3 style="margin:0 0 10px;font-size:18px;line-height:1.3;color:#1f2937;">${formatDraftText(title)}</h3>
           ${price ? `<div style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1f4f3f;">${formatDraftText(price)}</div>` : ""}
           ${description ? `<div style="font-size:14px;line-height:1.6;color:#475569;">${formatDraftRichText(description)}</div>` : ""}
-          ${renderDraftButton(buttonText, url, block.backgroundColor || "#1f4f3f")}
+          ${renderDraftButton(buttonText, url, block.buttonColor || "#1f4f3f")}
         </article>
       `;
     })
