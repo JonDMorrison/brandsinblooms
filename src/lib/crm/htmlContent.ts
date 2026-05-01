@@ -15,10 +15,17 @@
 // crm_campaigns.content. Email clients showed the literal tag text. See the
 // "fix: stop double-escaping rich-text HTML" commit for full background.
 //
-// TODO(security): the draft and send-time renderers currently trust whatever
-// HTML the rich-text editor (or a paste source) emits. Run rich-text bodies
-// through DOMPurify or equivalent before embedding to defend against pasted
-// <script>/<iframe>. Tracked separately from the double-escape fix.
+// Security: rich-text bodies are now run through sanitize-html with a strict
+// allowlist before being embedded in the draft preview. The allowlist is
+// scoped to what TipTap's StarterKit + TextAlign + Underline extensions can
+// emit (plus a few defensive aliases). Anything outside the allowlist
+// (e.g., <script>, <iframe>, <img onerror=...>, javascript: URLs in href,
+// inline event handlers) is stripped. The same configuration is mirrored
+// in supabase/functions/_shared/htmlContent.ts.
+
+import sanitizeHtml from "sanitize-html";
+
+import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig";
 
 export function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "")
@@ -37,16 +44,21 @@ export function formatDraftText(value: string | null | undefined): string {
 }
 
 // Rich-text fields (block.body / block.content from the TipTap editor):
-// pass through if the value already contains HTML tags, otherwise escape +
-// newline-convert. The tag-detection regex requires an actual tag name + word
-// boundary so plain text like "<3 days" or "a < b" stays in the escape branch.
+// sanitize and pass through if the value already contains HTML tags;
+// otherwise escape + newline-convert. The tag-detection regex requires an
+// actual tag name + word boundary so plain text like "<3 days" or "a < b"
+// stays in the escape branch.
 //
-// Mirrors supabase/functions/_shared/htmlContent.ts#toHtmlText so the draft
-// preview HTML in crm_campaigns.content matches what the send pipeline would
-// render from metadata.contentBlocks.
+// Mirrors supabase/functions/_shared/htmlContent.ts#toHtmlText. Same input
+// must produce identical output in both files — the sanitize-html
+// configuration lives in htmlContentSanitizeConfig.ts (and a parallel copy
+// in supabase/functions/_shared/htmlContentSanitizeConfig.ts) so any
+// allowlist change is centralized per tree.
 export function formatDraftRichText(value: string | null | undefined): string {
   const str = String(value ?? "");
   if (!str) return "";
-  if (/<\/?[a-z][a-z0-9]*\b/i.test(str)) return str;
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(str)) {
+    return sanitizeHtml(str, RICH_TEXT_SANITIZE_OPTIONS);
+  }
   return escapeHtml(str).replace(/\n/g, "<br />");
 }
