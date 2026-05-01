@@ -36,8 +36,9 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
 
-  // Get background color with fallback - use light neutral and near-black for dark mode compatibility
-  const backgroundColor = block.backgroundColor || '#f5f5f7';
+  // Default to pure white so blocks render flat against the email body
+  // unless the user explicitly picks a section color.
+  const backgroundColor = block.backgroundColor || '#ffffff';
   const textColor = block.textColor || '#111111';
 
   // Get alignment class
