@@ -253,6 +253,50 @@ function renderDraftProductGallery(block: ContentBlock) {
   `;
 }
 
+// Mirrors the send-time renderer in
+// supabase/functions/_shared/campaignEmailSource.ts → renderSocialFollowBlock
+// so the draft preview iframe shows the same social-icon row that recipients
+// will see. Icons are served from the public bloomsuite.app/social-icons
+// path. MUST stay in sync with the keys in
+// supabase/functions/_shared/footerGenerator.ts → socialIcons.
+const DRAFT_SOCIAL_ICON_BASE = "https://bloomsuite.app/social-icons";
+const DRAFT_SOCIAL_PLATFORMS: Array<{ key: string; label: string }> = [
+  { key: "facebook", label: "Facebook" },
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "pinterest", label: "Pinterest" },
+  { key: "youtube", label: "YouTube" },
+  { key: "linkedin", label: "LinkedIn" },
+];
+
+function renderDraftSocialFollow(block: ContentBlock): string {
+  const links = (block as ContentBlock).socialLinks || {};
+  const platforms = DRAFT_SOCIAL_PLATFORMS.filter((p) => {
+    const entry = links[p.key];
+    return entry && entry.enabled === true && typeof entry.url === "string" && entry.url.length > 0;
+  });
+
+  if (platforms.length === 0) return "";
+
+  const iconsHtml = platforms
+    .map((p) => {
+      const url = links[p.key]!.url;
+      return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="display:inline-block;margin:0 8px;text-decoration:none;"><img src="${DRAFT_SOCIAL_ICON_BASE}/${p.key}.png" alt="${p.label}" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" /></a>`;
+    })
+    .join("");
+
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const textColor = block.textColor || "#1f2937";
+  const heading = block.headline || block.title;
+
+  return `
+    <section style="padding:24px 32px;margin:0 0 20px;border-radius:24px;background:${backgroundColor};text-align:center;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
+      ${heading ? `<h2 style="margin:0 0 12px;font-size:22px;line-height:1.2;color:${textColor};">${formatDraftText(heading)}</h2>` : ""}
+      <div>${iconsHtml}</div>
+    </section>
+  `;
+}
+
 function renderDraftBlock(block: ContentBlock) {
   switch (block.type) {
     case "divider":
@@ -282,6 +326,8 @@ function renderDraftBlock(block: ContentBlock) {
           <div style="font-size:14px;line-height:1.7;">${formatDraftRichText(block.content || block.body || "Footer details")}</div>
         </section>
       `;
+    case "social-follow":
+      return renderDraftSocialFollow(block);
     default:
       return renderDraftTextBlock(block);
   }
