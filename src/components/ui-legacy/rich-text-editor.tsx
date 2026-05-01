@@ -125,6 +125,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           variant={isActive ? "default" : "ghost"}
           size="sm"
           onClick={onClick}
+          // Prevent the contenteditable from losing its selection when the
+          // button receives mousedown. Without this, ProseMirror's selection
+          // collapses to a 0-width caret before onClick runs, so inline
+          // marks (bold/italic/underline) and align/list commands no-op.
+          onMouseDown={(event) => event.preventDefault()}
           disabled={disabled}
           className={cn("h-8 w-8 p-0", buttonClassName)}
         >
