@@ -2,29 +2,38 @@ import * as React from "react";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import Dropdown from "@mui/joy/Dropdown";
 import IconButton from "@mui/joy/IconButton";
+import ListItemDecorator from "@mui/joy/ListItemDecorator";
+import Menu from "@mui/joy/Menu";
+import MenuButton from "@mui/joy/MenuButton";
+import MenuItem from "@mui/joy/MenuItem";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import TabPanel from "@mui/joy/TabPanel";
+import Tabs from "@mui/joy/Tabs";
+import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
   AlertCircle,
   ArrowLeft,
   Check,
   CheckCircle2,
+  ChevronDown,
+  Copy,
   ExternalLink,
   Eye,
   FileText,
-  Globe,
   Pencil,
   Rocket,
 } from "lucide-react";
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { FormAnalyticsTab } from "@/components/forms/FormAnalyticsTab";
 import { FormAudienceTab } from "@/components/forms/FormAudienceTab";
@@ -49,13 +58,6 @@ import {
 } from "@/components/joy/JoyDialog";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { PageContainer } from "@/components/joy/PageContainer";
-import {
-  JoyTabs,
-  JoyTabsContent,
-  JoyTabsList,
-  JoyTabsTrigger,
-} from "@/components/joy/JoyTabs";
-import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useFormEditor } from "@/hooks/useFormEditor";
 import {
   type PublishValidationIssue,
@@ -75,104 +77,236 @@ const FORM_EDITOR_TABS = [
 
 type FormEditorTab = (typeof FORM_EDITOR_TABS)[number];
 
-const FORM_EDITOR_TAB_COPY: Record<
-  FormEditorTab,
-  { description: string; label: string }
-> = {
-  analytics: {
-    label: "Analytics",
-    description:
-      "Track submission performance, rejection reasons, and referrers.",
-  },
-  audience: {
-    label: "Audience",
-    description:
-      "Attach personas and tags that should follow accepted submissions.",
-  },
-  build: {
-    label: "Build",
-    description:
-      "Shape the field canvas, step order, and conditional visibility rules.",
-  },
-  compliance: {
-    label: "Compliance",
-    description: "Control consent language and honest operational flags.",
-  },
-  design: {
-    label: "Design",
-    description: "Tune content, spacing, color, and live runtime presentation.",
-  },
-  publish: {
-    label: "Publish",
-    description:
-      "Copy the hosted URL, embed snippets, QR code, and developer endpoints.",
-  },
-  submissions: {
-    label: "Submissions",
-    description:
-      "Inspect captured leads, export the queue, and manage records.",
-  },
+const FORM_EDITOR_TAB_LABELS: Record<FormEditorTab, string> = {
+  analytics: "Analytics",
+  audience: "Audience",
+  build: "Build",
+  compliance: "Compliance",
+  design: "Design",
+  publish: "Publish",
+  submissions: "Submissions",
 };
-
-interface PendingNavigation {
-  replace?: boolean;
-  to: string;
-}
 
 function isFormEditorTab(value: string | null): value is FormEditorTab {
   return value !== null && FORM_EDITOR_TABS.includes(value as FormEditorTab);
 }
 
-function SaveIndicator({
+function SaveStatusIndicator({
   saveStatus,
+  hasUnsavedChanges,
 }: {
+  hasUnsavedChanges: boolean;
   saveStatus: "saved" | "pending" | "saving" | "error";
 }) {
+  const [showSavedFlash, setShowSavedFlash] = React.useState(false);
+  const previousStatusRef = React.useRef(saveStatus);
+
+  React.useEffect(() => {
+    if (saveStatus === "saved" && previousStatusRef.current !== "saved") {
+      setShowSavedFlash(true);
+      const timeoutId = window.setTimeout(() => {
+        setShowSavedFlash(false);
+      }, 1200);
+
+      previousStatusRef.current = saveStatus;
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    previousStatusRef.current = saveStatus;
+    return undefined;
+  }, [saveStatus]);
+
   if (saveStatus === "error") {
     return (
-      <JoyChip
-        size="sm"
-        variant="soft"
-        color="danger"
-        startDecorator={<AlertCircle size={14} />}
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        sx={{ color: "danger.600" }}
       >
-        Save failed
-      </JoyChip>
+        <AlertCircle size={14} />
+        <Typography level="body-xs" sx={{ fontWeight: 500 }}>
+          Save failed
+        </Typography>
+      </Stack>
     );
   }
 
-  if (saveStatus === "saved") {
+  if (saveStatus === "saving") {
     return (
-      <JoyChip
-        size="sm"
-        variant="soft"
-        color="success"
-        startDecorator={<CheckCircle2 size={14} />}
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        sx={{ color: "neutral.600" }}
       >
-        All changes saved
-      </JoyChip>
+        <CircularProgress size="sm" thickness={4} />
+        <Typography level="body-xs" sx={{ fontWeight: 500 }}>
+          Saving...
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (hasUnsavedChanges || saveStatus === "pending") {
+    return (
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        sx={{ color: "neutral.600" }}
+      >
+        <Box
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            backgroundColor: "warning.500",
+          }}
+        />
+        <Typography level="body-xs" sx={{ fontWeight: 500 }}>
+          Unsaved changes
+        </Typography>
+      </Stack>
     );
   }
 
   return (
-    <JoyChip
-      size="sm"
-      variant="soft"
-      color="neutral"
-      startDecorator={<CircularProgress size="sm" thickness={4} />}
+    <Stack
+      direction="row"
+      spacing={0.75}
+      alignItems="center"
+      sx={{
+        color: showSavedFlash ? "success.700" : "neutral.500",
+        opacity: showSavedFlash ? 1 : 0.8,
+        transition: "color 180ms ease, opacity 180ms ease",
+      }}
     >
-      {saveStatus === "saving" ? "Saving" : "Unsaved changes"}
-    </JoyChip>
+      <CheckCircle2 size={14} />
+      <Typography level="body-xs" sx={{ fontWeight: 500 }}>
+        Saved
+      </Typography>
+    </Stack>
+  );
+}
+
+function FormEditorShellSkeleton() {
+  return (
+    <PageContainer
+      fullWidth
+      sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
+    >
+      <Stack spacing={3}>
+        <Sheet
+          variant="outlined"
+          sx={{
+            borderRadius: "xl",
+            overflow: "hidden",
+            backgroundColor: "background.surface",
+          }}
+        >
+          <Box sx={{ px: { xs: 1.25, md: 1.75 }, py: 1.25 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              justifyContent="space-between"
+              useFlexGap
+              flexWrap="wrap"
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ minWidth: 0, flex: 1 }}
+              >
+                <Skeleton variant="circular" width={32} height={32} />
+                <Skeleton variant="text" width={220} height={28} />
+                <Skeleton
+                  variant="rectangular"
+                  width={84}
+                  height={24}
+                  sx={{ borderRadius: 999 }}
+                />
+              </Stack>
+
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                useFlexGap
+                flexWrap="wrap"
+              >
+                <Skeleton variant="text" width={96} height={18} />
+                <Skeleton
+                  variant="rectangular"
+                  width={76}
+                  height={24}
+                  sx={{ borderRadius: 999 }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  width={72}
+                  height={24}
+                  sx={{ borderRadius: 999 }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  width={36}
+                  height={36}
+                  sx={{ borderRadius: "sm" }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  width={76}
+                  height={36}
+                  sx={{ borderRadius: "sm" }}
+                />
+                <Skeleton
+                  variant="rectangular"
+                  width={92}
+                  height={36}
+                  sx={{ borderRadius: "sm" }}
+                />
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box sx={{ px: { xs: 1, md: 1.5 }, py: 0.75 }}>
+            <Stack direction="row" spacing={1} sx={{ overflow: "hidden" }}>
+              {Array.from({ length: 7 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  variant="rectangular"
+                  width={88}
+                  height={32}
+                  sx={{ borderRadius: 999, flexShrink: 0 }}
+                />
+              ))}
+            </Stack>
+          </Box>
+        </Sheet>
+
+        <Stack spacing={1.5}>
+          <Skeleton variant="text" width="24%" height={18} />
+          <Skeleton
+            variant="rectangular"
+            height={520}
+            sx={{ borderRadius: "xl" }}
+          />
+        </Stack>
+      </Stack>
+    </PageContainer>
   );
 }
 
 export default function FormEditorPage() {
   const { formId } = useParams<{ formId: string }>();
-  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
-  const [isExitSaving, setIsExitSaving] = React.useState(false);
   const [isPublishing, setIsPublishing] = React.useState(false);
   const [isNameEditing, setIsNameEditing] = React.useState(false);
   const [isPublishValidationOpen, setIsPublishValidationOpen] =
@@ -180,13 +314,10 @@ export default function FormEditorPage() {
   const [isPublishSuccessOpen, setIsPublishSuccessOpen] = React.useState(false);
   const [isUnpublishConfirmOpen, setIsUnpublishConfirmOpen] =
     React.useState(false);
-  const [pendingNavigation, setPendingNavigation] =
-    React.useState<PendingNavigation | null>(null);
   const [highlightedPublishIssue, setHighlightedPublishIssue] =
     React.useState<PublishValidationIssue | null>(null);
   const nameInputRef = React.useRef<HTMLInputElement | null>(null);
-  const currentPathRef = React.useRef("");
-  const pendingNavigationRef = React.useRef<PendingNavigation | null>(null);
+  const exitFlushRequestedRef = React.useRef(false);
 
   const {
     tenantId,
@@ -211,10 +342,11 @@ export default function FormEditorPage() {
     retrySave,
     updateStatus,
   } = useFormEditor(formId);
+  const saveNowRef = React.useRef(saveNow);
+  const shouldPersistOnExitRef = React.useRef(false);
 
   const rawTab = searchParams.get("tab");
   const activeTab: FormEditorTab = isFormEditorTab(rawTab) ? rawTab : "build";
-  const tabMeta = FORM_EDITOR_TAB_COPY[activeTab];
   const publishValidationIssues = React.useMemo(
     () => validateFormForPublish({ name, fields, settings }),
     [fields, name, settings],
@@ -223,27 +355,19 @@ export default function FormEditorPage() {
     () => (form ? getPublicFormUrl(form.embed_key) : ""),
     [form],
   );
-  const currentPath = `${location.pathname}${location.search}${location.hash}`;
   const configuredStepCount = settings.steps?.length
     ? settings.steps.length
     : 1;
-
-  useBeforeUnload({ when: hasUnsavedChanges });
-
-  const guardedNavigate = React.useCallback(
-    (to: string, options?: { replace?: boolean }) => {
-      if (hasUnsavedChanges) {
-        setPendingNavigation({
-          to,
-          replace: options?.replace,
-        });
-        return;
-      }
-
-      navigate(to, options);
-    },
-    [hasUnsavedChanges, navigate],
-  );
+  const shouldPersistOnExit =
+    hasUnsavedChanges || saveStatus === "pending" || saveStatus === "saving";
+  const shouldFlushEditorState = shouldPersistOnExit || saveStatus === "error";
+  const statusChipColor = form?.status === "published" ? "success" : "neutral";
+  const statusChipLabel =
+    form?.status === "published"
+      ? "Published"
+      : form?.status === "archived"
+        ? "Archived"
+        : "Draft";
 
   React.useEffect(() => {
     if (rawTab === activeTab) {
@@ -256,12 +380,9 @@ export default function FormEditorPage() {
   }, [activeTab, rawTab, searchParams, setSearchParams]);
 
   React.useEffect(() => {
-    currentPathRef.current = currentPath;
-  }, [currentPath]);
-
-  React.useEffect(() => {
-    pendingNavigationRef.current = pendingNavigation;
-  }, [pendingNavigation]);
+    saveNowRef.current = saveNow;
+    shouldPersistOnExitRef.current = shouldPersistOnExit;
+  }, [saveNow, shouldPersistOnExit]);
 
   React.useEffect(() => {
     if (!highlightedPublishIssue) {
@@ -297,30 +418,14 @@ export default function FormEditorPage() {
   }, [isNameEditing]);
 
   React.useEffect(() => {
-    if (!hasUnsavedChanges) {
-      return;
-    }
-
-    const handlePopState = () => {
-      const attemptedPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-
-      if (attemptedPath === currentPathRef.current) {
+    return () => {
+      if (exitFlushRequestedRef.current || !shouldPersistOnExitRef.current) {
         return;
       }
 
-      if (!pendingNavigationRef.current) {
-        setPendingNavigation({
-          to: attemptedPath || "/crm/forms",
-          replace: true,
-        });
-      }
-
-      navigate(currentPathRef.current, { replace: true });
+      void saveNowRef.current({ force: true });
     };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [hasUnsavedChanges, navigate]);
+  }, []);
 
   const handleTabChange = (nextTab: string | number | null) => {
     if (!isFormEditorTab(String(nextTab))) {
@@ -331,6 +436,21 @@ export default function FormEditorPage() {
     nextParams.set("tab", String(nextTab));
     setSearchParams(nextParams, { replace: true });
   };
+
+  const handleOpenPublishTab = React.useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", "publish");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const handleBackToForms = React.useCallback(() => {
+    if (shouldFlushEditorState) {
+      exitFlushRequestedRef.current = true;
+      void saveNow({ force: true });
+    }
+
+    navigate("/crm/forms");
+  }, [navigate, saveNow, shouldFlushEditorState]);
 
   const handlePublishToggle = async () => {
     if (!form) {
@@ -347,8 +467,8 @@ export default function FormEditorPage() {
       return;
     }
 
-    if (hasUnsavedChanges) {
-      const saved = await saveNow();
+    if (shouldFlushEditorState) {
+      const saved = await saveNow({ force: true });
       if (!saved) {
         return;
       }
@@ -360,9 +480,7 @@ export default function FormEditorPage() {
 
     if (nextForm) {
       setIsPublishSuccessOpen(true);
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set("tab", "publish");
-      setSearchParams(nextParams, { replace: true });
+      handleOpenPublishTab();
     }
   };
 
@@ -401,93 +519,13 @@ export default function FormEditorPage() {
     }
   };
 
-  const handleDiscardAndLeave = React.useCallback(() => {
-    if (!pendingNavigationRef.current) {
-      return;
-    }
-
-    const destination = pendingNavigationRef.current;
-    setPendingNavigation(null);
-    setIsExitSaving(false);
-    navigate(
-      destination.to,
-      destination.replace ? { replace: true } : undefined,
-    );
-  }, [navigate]);
-
-  const handleCancelLeave = React.useCallback(() => {
-    setPendingNavigation(null);
-    setIsExitSaving(false);
-  }, []);
-
-  const handleSaveAndLeave = React.useCallback(async () => {
-    if (!pendingNavigationRef.current) {
-      return;
-    }
-
-    setIsExitSaving(true);
-    const saved = await saveNow({ force: true });
-
-    if (saved) {
-      const destination = pendingNavigationRef.current;
-      setPendingNavigation(null);
-      setIsExitSaving(false);
-      navigate(
-        destination.to,
-        destination.replace ? { replace: true } : undefined,
-      );
-      return;
-    }
-
-    setIsExitSaving(false);
-  }, [navigate, saveNow]);
-
-  const handleManualSave = React.useCallback(async () => {
-    const saved = await saveNow({ force: true });
-
-    if (saved) {
-      toast.success("Form saved");
-    }
-  }, [saveNow]);
-
   const handleNameSave = React.useCallback(async () => {
     setIsNameEditing(false);
     await saveNow({ force: true });
   }, [saveNow]);
 
-  const isManualSaveDisabled =
-    saveStatus === "saving" ||
-    isStatusUpdating ||
-    (!hasUnsavedChanges && saveStatus !== "error");
-
   if (isLoading) {
-    return (
-      <PageContainer
-        fullWidth
-        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
-      >
-        <Stack spacing={3}>
-          <Skeleton
-            variant="rectangular"
-            height={192}
-            animation="wave"
-            sx={{ borderRadius: "lg" }}
-          />
-          <Skeleton
-            variant="rectangular"
-            height={56}
-            animation="wave"
-            sx={{ borderRadius: "lg" }}
-          />
-          <Skeleton
-            variant="rectangular"
-            height={640}
-            animation="wave"
-            sx={{ borderRadius: "lg" }}
-          />
-        </Stack>
-      </PageContainer>
-    );
+    return <FormEditorShellSkeleton />;
   }
 
   if (loadError || !form) {
@@ -518,7 +556,7 @@ export default function FormEditorPage() {
               bloomVariant="ghost"
               color="neutral"
               startDecorator={<ArrowLeft size={16} />}
-              onClick={() => guardedNavigate("/crm/forms")}
+              onClick={() => navigate("/crm/forms")}
             >
               Back to forms
             </JoyButton>
@@ -529,141 +567,201 @@ export default function FormEditorPage() {
   }
 
   return (
-    <JoyTabs value={activeTab} onValueChange={handleTabChange}>
-      <Sheet
-        variant="plain"
+    <Tabs
+      value={activeTab}
+      onChange={(_, nextTab) => handleTabChange(nextTab)}
+      sx={{ width: "100%" }}
+    >
+      <Box
         sx={{
           position: "sticky",
           top: 0,
-          zIndex: 5,
-          borderBottom: "1px solid",
-          borderColor: "neutral.200",
-          backgroundColor: "rgba(255,255,255,0.9)",
-          backdropFilter: "blur(12px)",
+          zIndex: 4,
+          py: { xs: 2, md: 3 },
+          backgroundColor: "background.body",
         }}
       >
-        <PageContainer
-          fullWidth
-          sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
-        >
-          <Stack spacing={3}>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  xl: "minmax(0, 1.1fr) 360px",
-                },
-                gap: 2,
-                alignItems: "start",
-              }}
-            >
-              <Stack spacing={2.25} sx={{ minWidth: 0 }}>
+        <PageContainer fullWidth sx={{ px: { xs: 2, md: 3 }, py: 0 }}>
+          <Sheet
+            variant="outlined"
+            sx={{
+              borderRadius: "xl",
+              overflow: "hidden",
+              backgroundColor: "background.surface",
+              boxShadow: "var(--joy-shadow-sm)",
+            }}
+          >
+            <Box sx={{ px: { xs: 1.25, md: 1.75 }, py: 1.25 }}>
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                justifyContent="space-between"
+                useFlexGap
+                flexWrap="wrap"
+              >
                 <Stack
                   direction="row"
                   spacing={1}
                   alignItems="center"
+                  sx={{ minWidth: 0, flex: 1 }}
+                >
+                  <Tooltip title="Back to forms">
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      color="neutral"
+                      onClick={handleBackToForms}
+                    >
+                      <ArrowLeft size={16} />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    useFlexGap
+                    flexWrap="wrap"
+                    sx={{ minWidth: 0 }}
+                  >
+                    {isNameEditing ? (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        alignItems="center"
+                        sx={{ minWidth: 0 }}
+                      >
+                        <JoyInput
+                          ref={nameInputRef}
+                          value={name}
+                          onValueChange={setName}
+                          onBlur={() => {
+                            void handleNameSave();
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              void handleNameSave();
+                              return;
+                            }
+
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setName(form.name);
+                              setIsNameEditing(false);
+                            }
+                          }}
+                          placeholder="Form name"
+                          variant="plain"
+                          sx={{
+                            minWidth: { xs: 220, sm: 280 },
+                            maxWidth: { xs: "100%", md: 520 },
+                            "--Input-minHeight": "34px",
+                            px: 0.5,
+                            fontSize: "1rem",
+                            fontWeight: 600,
+                            borderRadius: "md",
+                            backgroundColor: "background.surface",
+                            boxShadow:
+                              highlightedPublishIssue?.target === "header:name"
+                                ? "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.24)"
+                                : "none",
+                          }}
+                        />
+                        <IconButton
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            void handleNameSave();
+                          }}
+                        >
+                          <Check size={16} />
+                        </IconButton>
+                      </Stack>
+                    ) : (
+                      <Box
+                        onClick={() => setIsNameEditing(true)}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.5,
+                          minWidth: 0,
+                          px: 0.25,
+                          py: 0.25,
+                          borderRadius: "md",
+                          cursor: "text",
+                          boxShadow:
+                            highlightedPublishIssue?.target === "header:name"
+                              ? "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.24)"
+                              : "none",
+                          "&:hover .form-name-edit": {
+                            opacity: 1,
+                            transform: "translateX(0)",
+                          },
+                        }}
+                      >
+                        <Typography
+                          level="title-md"
+                          noWrap
+                          sx={{
+                            fontWeight: 600,
+                            letterSpacing: "-0.01em",
+                            minWidth: 0,
+                          }}
+                        >
+                          {name || "Untitled form"}
+                        </Typography>
+                        <IconButton
+                          className="form-name-edit"
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          sx={{
+                            opacity: 0,
+                            transform: "translateX(-2px)",
+                            transition:
+                              "opacity 160ms ease, transform 160ms ease",
+                            flexShrink: 0,
+                          }}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => setIsNameEditing(true)}
+                        >
+                          <Pencil size={14} />
+                        </IconButton>
+                      </Box>
+                    )}
+
+                    <JoyChip size="sm" variant="soft" color={statusChipColor}>
+                      {statusChipLabel}
+                    </JoyChip>
+                  </Stack>
+                </Stack>
+
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  justifyContent="flex-end"
                   useFlexGap
                   flexWrap="wrap"
                 >
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<ArrowLeft size={16} />}
-                    onClick={() => guardedNavigate("/crm/forms")}
-                  >
-                    Back to forms
-                  </JoyButton>
-                  <JoyChip size="sm" variant="soft" color="neutral">
-                    Form builder
-                  </JoyChip>
-                  <JoyChip
-                    size="sm"
-                    variant="soft"
-                    color={
-                      form.status === "published"
-                        ? "success"
-                        : form.status === "archived"
-                          ? "neutral"
-                          : "warning"
-                    }
-                  >
-                    {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
-                  </JoyChip>
-                </Stack>
-
-                <Box sx={{ position: "relative", maxWidth: 860 }}>
-                  <JoyInput
-                    ref={nameInputRef}
-                    value={name}
-                    onValueChange={setName}
-                    onBlur={() => {
-                      void handleNameSave();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        void handleNameSave();
-                      }
-                    }}
-                    readOnly={!isNameEditing}
-                    placeholder="Form name"
-                    variant="plain"
-                    sx={{
-                      minHeight: "auto",
-                      px: 0,
-                      pr: 6,
-                      fontSize: { xs: "2rem", md: "2.75rem" },
-                      fontWeight: 700,
-                      lineHeight: 1.1,
-                      border: "none",
-                      backgroundColor: "transparent",
-                      boxShadow: "none",
-                      ...(highlightedPublishIssue?.target === "header:name"
-                        ? {
-                            borderRadius: "lg",
-                            boxShadow:
-                              "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.18)",
-                            px: 1,
-                          }
-                        : null),
-                    }}
+                  <SaveStatusIndicator
+                    saveStatus={saveStatus}
+                    hasUnsavedChanges={hasUnsavedChanges}
                   />
-                  <IconButton
-                    color="neutral"
-                    variant="plain"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      if (isNameEditing) {
-                        void handleNameSave();
-                        return;
-                      }
-
-                      setIsNameEditing(true);
-                    }}
-                    sx={{
-                      position: "absolute",
-                      right: 0,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                    }}
-                  >
-                    {isNameEditing ? <Check size={16} /> : <Pencil size={16} />}
-                  </IconButton>
-                </Box>
-
-                <Typography
-                  level="body-md"
-                  color="neutral"
-                  sx={{ maxWidth: 760 }}
-                >
-                  Build the visitor journey, refine the public presentation,
-                  inspect submissions, and ship the final embed from one
-                  workspace.
-                </Typography>
-
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <SaveIndicator saveStatus={saveStatus} />
+                  {saveStatus === "error" ? (
+                    <JoyButton
+                      size="sm"
+                      bloomVariant="ghost"
+                      color="danger"
+                      onClick={() => void retrySave()}
+                    >
+                      Retry
+                    </JoyButton>
+                  ) : null}
                   <JoyChip size="sm" variant="soft" color="neutral">
                     {fields.length} field{fields.length === 1 ? "" : "s"}
                   </JoyChip>
@@ -671,120 +769,151 @@ export default function FormEditorPage() {
                     {configuredStepCount} step
                     {configuredStepCount === 1 ? "" : "s"}
                   </JoyChip>
-                  {saveStatus === "error" ? (
-                    <JoyButton
-                      bloomVariant="ghost"
-                      color="danger"
-                      onClick={() => void retrySave()}
+                  <Divider
+                    orientation="vertical"
+                    sx={{ height: 24, display: { xs: "none", md: "block" } }}
+                  />
+                  <Tooltip title="Preview form">
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      color="neutral"
+                      onClick={() => setIsPreviewOpen(true)}
                     >
-                      Retry save
-                    </JoyButton>
-                  ) : null}
-                </Stack>
-              </Stack>
-
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  useFlexGap
-                  flexWrap="wrap"
-                  justifyContent={{ xs: "flex-start", xl: "flex-end" }}
-                >
+                      <Eye size={16} />
+                    </IconButton>
+                  </Tooltip>
+                  <Dropdown>
+                    <MenuButton
+                      size="sm"
+                      variant="plain"
+                      color="neutral"
+                      endDecorator={<ChevronDown size={14} />}
+                    >
+                      Tools
+                    </MenuButton>
+                    <Menu placement="bottom-end">
+                      <MenuItem onClick={handleOpenPublishTab}>
+                        <ListItemDecorator>
+                          <Rocket size={16} />
+                        </ListItemDecorator>
+                        Open publish tab
+                      </MenuItem>
+                      <MenuItem onClick={() => void copyPublicFormUrl()}>
+                        <ListItemDecorator>
+                          <Copy size={16} />
+                        </ListItemDecorator>
+                        Copy public URL
+                      </MenuItem>
+                      <MenuItem
+                        disabled={!publicFormUrl}
+                        onClick={() => {
+                          window.open(
+                            publicFormUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }}
+                      >
+                        <ListItemDecorator>
+                          <ExternalLink size={16} />
+                        </ListItemDecorator>
+                        Open public form
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => navigate(`/crm/forms/${form.id}/docs`)}
+                      >
+                        <ListItemDecorator>
+                          <FileText size={16} />
+                        </ListItemDecorator>
+                        Open docs
+                      </MenuItem>
+                    </Menu>
+                  </Dropdown>
                   <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    onClick={() => void handleManualSave()}
-                    disabled={isManualSaveDisabled}
-                  >
-                    Save
-                  </JoyButton>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<Eye size={16} />}
-                    onClick={() => setIsPreviewOpen(true)}
-                  >
-                    Preview
-                  </JoyButton>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<Rocket size={16} />}
-                    onClick={() => {
-                      const nextParams = new URLSearchParams(searchParams);
-                      nextParams.set("tab", "publish");
-                      setSearchParams(nextParams, { replace: true });
-                    }}
-                  >
-                    Publish tools
-                  </JoyButton>
-                  <JoyButton
-                    startDecorator={<Globe size={16} />}
+                    size="sm"
                     onClick={() => void handlePublishToggle()}
                     disabled={isPublishing || isStatusUpdating}
                   >
                     {form.status === "published" ? "Unpublish" : "Publish"}
                   </JoyButton>
                 </Stack>
-
-                <JoyCard>
-                  <JoyCardHeader
-                    title={tabMeta.label}
-                    description={tabMeta.description}
-                  />
-                  <JoyCardContent sx={{ pt: 2, gap: 1 }}>
-                    <Typography level="body-xs" color="neutral">
-                      Tabs persist in the URL, so you can share or reload this
-                      editor without losing your place.
-                    </Typography>
-                  </JoyCardContent>
-                </JoyCard>
               </Stack>
             </Box>
 
-            <JoyTabsList
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "repeat(2, minmax(0, 1fr))",
-                  md: "repeat(4, minmax(0, 1fr))",
-                  xl: "repeat(7, minmax(0, 1fr))",
-                },
-              }}
-            >
-              {FORM_EDITOR_TABS.map((tab) => (
-                <JoyTabsTrigger
-                  key={tab}
-                  value={tab}
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    justifyContent: "flex-start",
-                    minWidth: 0,
-                    py: 1.5,
-                    textAlign: "left",
-                  }}
-                >
-                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                    {FORM_EDITOR_TAB_COPY[tab].label}
-                  </Typography>
-                  <Typography level="body-xs" color="neutral">
-                    {FORM_EDITOR_TAB_COPY[tab].description}
-                  </Typography>
-                </JoyTabsTrigger>
-              ))}
-            </JoyTabsList>
-          </Stack>
+            <Divider />
+
+            <Box sx={{ px: { xs: 1, md: 1.5 } }}>
+              <TabList
+                variant="plain"
+                sx={{
+                  gap: 0,
+                  minHeight: 44,
+                  py: 0,
+                  backgroundColor: "background.surface",
+                  borderRadius: 0,
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  flexWrap: "nowrap",
+                  scrollbarWidth: "none",
+                  maskImage: {
+                    xs: "linear-gradient(to right, black 0%, black calc(100% - 28px), transparent 100%)",
+                    lg: "none",
+                  },
+                  WebkitMaskImage: {
+                    xs: "linear-gradient(to right, black 0%, black calc(100% - 28px), transparent 100%)",
+                    lg: "none",
+                  },
+                  "&::-webkit-scrollbar": {
+                    display: "none",
+                  },
+                }}
+              >
+                {FORM_EDITOR_TABS.map((tab) => (
+                  <Tab
+                    key={tab}
+                    value={tab}
+                    disableIndicator
+                    sx={{
+                      flex: "0 0 auto",
+                      minHeight: 44,
+                      px: 1.5,
+                      borderRadius: 0,
+                      backgroundColor: "transparent",
+                      color: "neutral.500",
+                      borderBottom: "2px solid transparent",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      "&:hover": {
+                        backgroundColor: "transparent",
+                        color: "neutral.700",
+                      },
+                      "&.Mui-selected": {
+                        backgroundColor: "transparent",
+                        color: "primary.700",
+                        borderBottomColor: "primary.500",
+                        fontWeight: 600,
+                      },
+                    }}
+                  >
+                    {FORM_EDITOR_TAB_LABELS[tab]}
+                  </Tab>
+                ))}
+              </TabList>
+            </Box>
+          </Sheet>
         </PageContainer>
-      </Sheet>
+      </Box>
 
       <PageContainer
         fullWidth
-        sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}
+        sx={{
+          px: { xs: 2, md: 3 },
+          pt: { xs: 2, md: 3 },
+          pb: { xs: 3, md: 4 },
+        }}
       >
-        <JoyTabsContent value="build">
+        <TabPanel value="build" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormBuildTab
             fields={fields}
             updateFields={setFields}
@@ -795,9 +924,9 @@ export default function FormEditorPage() {
             onApplyTemplate={applyTemplate}
             publishValidationIssue={highlightedPublishIssue}
           />
-        </JoyTabsContent>
+        </TabPanel>
 
-        <JoyTabsContent value="design">
+        <TabPanel value="design" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormDesignTab
             settings={settings}
             onSettingsChange={setSettings}
@@ -806,96 +935,153 @@ export default function FormEditorPage() {
             formName={name}
             uploadEmbedKey={form.embed_key}
           />
-        </JoyTabsContent>
+        </TabPanel>
 
-        <JoyTabsContent value="submissions">
-          <FormSubmissionsTab form={form} tenantId={tenantId} />
-        </JoyTabsContent>
+        <TabPanel value="submissions" sx={{ px: 0, pt: 0, pb: 0 }}>
+          <FormSubmissionsTab
+            form={form}
+            tenantId={tenantId}
+            onOpenPublishTab={handleOpenPublishTab}
+          />
+        </TabPanel>
 
-        <JoyTabsContent value="analytics">
+        <TabPanel value="analytics" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormAnalyticsTab
             formId={form.id}
             tenantId={tenantId}
             isPublished={form.status === "published"}
-            onOpenShare={() => {
-              const nextParams = new URLSearchParams(searchParams);
-              nextParams.set("tab", "publish");
-              setSearchParams(nextParams, { replace: true });
-            }}
+            onOpenShare={handleOpenPublishTab}
           />
-        </JoyTabsContent>
+        </TabPanel>
 
-        <JoyTabsContent value="audience">
+        <TabPanel value="audience" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormAudienceTab audience={audience} onAudienceChange={setAudience} />
-        </JoyTabsContent>
+        </TabPanel>
 
-        <JoyTabsContent value="compliance">
+        <TabPanel value="compliance" sx={{ px: 0, pt: 0, pb: 0 }}>
           <FormComplianceTab
             compliance={compliance}
             onComplianceChange={setCompliance}
             hasPhoneField={fields.some((field) => field.type === "phone")}
             hasEmailField={fields.some((field) => field.type === "email")}
+            notificationEmails={settings.notification_emails || []}
+            onNotificationEmailsChange={(notification_emails) =>
+              setSettings({
+                ...settings,
+                notification_emails,
+              })
+            }
           />
-        </JoyTabsContent>
+        </TabPanel>
 
-        <JoyTabsContent value="publish">
-          <FormPublishTab form={form} />
-        </JoyTabsContent>
+        <TabPanel value="publish" sx={{ px: 0, pt: 0, pb: 0 }}>
+          <FormPublishTab
+            form={form}
+            isActive={activeTab === "publish"}
+            publishValidationIssues={publishValidationIssues}
+            onPublish={handlePublishToggle}
+            onUnpublish={() => {
+              setIsUnpublishConfirmOpen(true);
+            }}
+            isStatusUpdating={isPublishing || isStatusUpdating}
+          />
+        </TabPanel>
       </PageContainer>
 
-      <JoyDialog
+      <Modal
         open={isPublishValidationOpen}
         onClose={() => setIsPublishValidationOpen(false)}
-        title="Resolve publish blockers"
-        description="Publishing stays disabled until each issue below is fixed."
       >
-        <JoyDialogContent sx={{ pt: 0 }}>
-          <Stack spacing={1.25}>
-            {publishValidationIssues.map((issue) => (
-              <Sheet
-                key={issue.id}
-                variant="soft"
-                sx={{
-                  borderRadius: "lg",
-                  p: 2,
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={2}
-                  justifyContent="space-between"
-                  alignItems={{ xs: "flex-start", sm: "center" }}
+        <ModalDialog
+          variant="outlined"
+          sx={{
+            width: "min(100%, 560px)",
+            maxWidth: 560,
+            borderRadius: "var(--joy-radius-lg)",
+            p: 0,
+            overflow: "hidden",
+            backgroundColor: "background.surface",
+          }}
+        >
+          <Stack spacing={0}>
+            <Box sx={{ p: 2.5 }}>
+              <Stack spacing={0.75}>
+                <Typography level="title-lg">
+                  Resolve publish blockers
+                </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Publishing stays disabled until each issue below is fixed.
+                </Typography>
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            <Stack spacing={1.25} sx={{ p: 2.5 }}>
+              {publishValidationIssues.map((issue) => (
+                <Sheet
+                  key={issue.id}
+                  variant="soft"
+                  color="warning"
+                  sx={{
+                    borderRadius: "lg",
+                    p: 2,
+                  }}
                 >
-                  <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                      {issue.description}
-                    </Typography>
-                    <Typography level="body-sm" color="neutral">
-                      {issue.fixHint}
-                    </Typography>
-                  </Stack>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="primary"
-                    onClick={() => handleFixPublishIssue(issue)}
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={2}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
                   >
-                    Fix
-                  </JoyButton>
-                </Stack>
-              </Sheet>
-            ))}
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="flex-start"
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
+                      <AlertCircle size={16} />
+                      <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                        <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                          {issue.description}
+                        </Typography>
+                        <Typography level="body-sm" color="neutral">
+                          {issue.fixHint}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <JoyButton
+                      bloomVariant="ghost"
+                      color="primary"
+                      onClick={() => handleFixPublishIssue(issue)}
+                    >
+                      Fix
+                    </JoyButton>
+                  </Stack>
+                </Sheet>
+              ))}
+            </Stack>
+
+            <Divider />
+
+            <Box
+              sx={{
+                p: 2,
+                display: "flex",
+                justifyContent: "flex-end",
+              }}
+            >
+              <JoyButton
+                bloomVariant="ghost"
+                color="neutral"
+                onClick={() => setIsPublishValidationOpen(false)}
+              >
+                Close
+              </JoyButton>
+            </Box>
           </Stack>
-        </JoyDialogContent>
-        <JoyDialogActions>
-          <JoyButton
-            bloomVariant="ghost"
-            color="neutral"
-            onClick={() => setIsPublishValidationOpen(false)}
-          >
-            Close
-          </JoyButton>
-        </JoyDialogActions>
-      </JoyDialog>
+        </ModalDialog>
+      </Modal>
 
       <JoyDialog
         open={isPublishSuccessOpen}
@@ -931,7 +1117,17 @@ export default function FormEditorPage() {
                 </Stack>
               </JoyCardContent>
             </JoyCard>
-            <FormPublishTab form={form} analyticsSurface="publish-success" />
+            <FormPublishTab
+              form={form}
+              analyticsSurface="publish-success"
+              isActive={isPublishSuccessOpen}
+              publishValidationIssues={publishValidationIssues}
+              onPublish={handlePublishToggle}
+              onUnpublish={() => {
+                setIsUnpublishConfirmOpen(true);
+              }}
+              isStatusUpdating={isPublishing || isStatusUpdating}
+            />
           </Stack>
         </JoyDialogContent>
         <JoyDialogActions>
@@ -949,43 +1145,9 @@ export default function FormEditorPage() {
         compliance={compliance}
         formName={name}
         uploadEmbedKey={form.embed_key}
+        isPublished={form.status === "published"}
+        publicUrl={publicFormUrl || undefined}
       />
-
-      <JoyDialog
-        open={pendingNavigation !== null}
-        onClose={() => {
-          if (!isExitSaving) {
-            handleCancelLeave();
-          }
-        }}
-        title="Unsaved changes"
-        description="You have unsaved changes. Save before leaving this form or discard them."
-      >
-        <JoyDialogActions>
-          <JoyButton
-            onClick={() => void handleSaveAndLeave()}
-            disabled={isExitSaving}
-          >
-            {isExitSaving ? "Saving..." : "Save and leave"}
-          </JoyButton>
-          <JoyButton
-            bloomVariant="ghost"
-            color="danger"
-            onClick={handleDiscardAndLeave}
-            disabled={isExitSaving}
-          >
-            Discard
-          </JoyButton>
-          <JoyButton
-            bloomVariant="ghost"
-            color="neutral"
-            onClick={handleCancelLeave}
-            disabled={isExitSaving}
-          >
-            Cancel
-          </JoyButton>
-        </JoyDialogActions>
-      </JoyDialog>
 
       <JoyAlertDialog
         open={isUnpublishConfirmOpen}
@@ -997,6 +1159,6 @@ export default function FormEditorPage() {
         loading={isPublishing}
         variant="warning"
       />
-    </JoyTabs>
+    </Tabs>
   );
 }

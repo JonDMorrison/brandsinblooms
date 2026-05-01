@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
 const PERSONA_SELECT_FIELDS =
   "id, persona_name, persona_description, is_custom, created_at, updated_at, tenant_id, user_id, metadata";
@@ -30,6 +31,11 @@ export interface PersonaMutationInput {
 export interface PersonaUpdateInput extends PersonaMutationInput {
   id: string;
 }
+
+type CRMPersonaInsert = Database["public"]["Tables"]["crm_personas"]["Insert"];
+type CRMPersonaUpdate = Database["public"]["Tables"]["crm_personas"]["Update"];
+
+const EMPTY_PERSONAS: CRMPersona[] = [];
 
 const normalizeDescription = (value?: string | null) => {
   const trimmed = value?.trim();
@@ -52,6 +58,11 @@ const buildDuplicateName = (baseName: string, existingNames: string[]) => {
 
   return candidate;
 };
+
+const toCRMPersona = (persona: CRMPersona): CRMPersona => ({
+  ...persona,
+  metadata: normalizePersonaMetadata(persona.metadata),
+});
 
 export const useCRMPersonas = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -77,14 +88,11 @@ export const useCRMPersonas = () => {
         throw error;
       }
 
-      return (data ?? []).map((persona) => ({
-        ...(persona as CRMPersona),
-        metadata: normalizePersonaMetadata((persona as any).metadata),
-      }));
+      return (data ?? []).map((persona) => toCRMPersona(persona as CRMPersona));
     },
   });
 
-  const allPersonas = personasQuery.data ?? [];
+  const allPersonas = personasQuery.data ?? EMPTY_PERSONAS;
 
   const knownPersonaNames = useMemo(() => {
     return [
@@ -139,16 +147,19 @@ export const useCRMPersonas = () => {
 
       ensureUniquePersonaName(name);
 
+      const payload: CRMPersonaInsert = {
+        persona_name: name,
+        persona_description: normalizeDescription(input.description),
+        metadata:
+          (normalizePersonaMetadata(input.metadata) ?? {}) as CRMPersonaInsert["metadata"],
+        tenant_id: tenant.id,
+        user_id: user.id,
+        is_custom: true,
+      };
+
       const { data, error } = await supabase
         .from("crm_personas")
-        .insert({
-          persona_name: name,
-          persona_description: normalizeDescription(input.description),
-          metadata: normalizePersonaMetadata(input.metadata) ?? {},
-          tenant_id: tenant.id,
-          user_id: user.id,
-          is_custom: true,
-        } as any)
+        .insert(payload)
         .select(PERSONA_SELECT_FIELDS)
         .single();
 
@@ -156,10 +167,7 @@ export const useCRMPersonas = () => {
         throw error;
       }
 
-      return {
-        ...(data as CRMPersona),
-        metadata: normalizePersonaMetadata((data as any).metadata),
-      };
+      return toCRMPersona(data as CRMPersona);
     },
     onSuccess: async () => {
       await invalidatePersonaQueries();
@@ -185,14 +193,17 @@ export const useCRMPersonas = () => {
 
       ensureUniquePersonaName(name, input.id);
 
+      const payload: CRMPersonaUpdate = {
+        persona_name: name,
+        persona_description: normalizeDescription(input.description),
+        metadata:
+          (normalizePersonaMetadata(input.metadata) ?? {}) as CRMPersonaUpdate["metadata"],
+        updated_at: new Date().toISOString(),
+      };
+
       const { data, error } = await supabase
         .from("crm_personas")
-        .update({
-          persona_name: name,
-          persona_description: normalizeDescription(input.description),
-          metadata: normalizePersonaMetadata(input.metadata) ?? {},
-          updated_at: new Date().toISOString(),
-        } as any)
+        .update(payload)
         .eq("id", input.id)
         .eq("tenant_id", tenant.id)
         .select(PERSONA_SELECT_FIELDS)
@@ -202,10 +213,7 @@ export const useCRMPersonas = () => {
         throw error;
       }
 
-      return {
-        ...(data as CRMPersona),
-        metadata: normalizePersonaMetadata((data as any).metadata),
-      };
+      return toCRMPersona(data as CRMPersona);
     },
     onSuccess: async () => {
       await invalidatePersonaQueries();
@@ -353,6 +361,12 @@ export const useCRMPersonas = () => {
     personas: filteredPersonas,
     allPersonas,
     loading: authLoading || tenantLoading || personasQuery.isLoading,
+    error:
+      personasQuery.error instanceof Error
+        ? personasQuery.error
+        : personasQuery.error
+          ? new Error("Failed to load personas.")
+          : null,
     searchTerm,
     setSearchTerm,
     fetchPersonas,
