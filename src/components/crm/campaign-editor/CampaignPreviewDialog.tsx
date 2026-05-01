@@ -39,6 +39,7 @@ import type {
   GlobalSettings,
 } from "@/types/emailBuilder";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
+import { normalizeContentBlocksForEmailAssets } from "@/utils/emailImageUrl";
 import { generateNewsletterFooterHtml } from "@/utils/newsletterFooterHtml";
 import { normalizeBlockForSave } from "@/utils/blockFieldMapping";
 
@@ -80,6 +81,51 @@ const HERO_BACKGROUND_LAYOUTS = new Set([
   "background",
   "overlay",
 ]);
+
+const PREVIEW_RESPONSIVE_STYLES = `
+  @media only screen and (max-width: 599px) {
+    .preview-mobile-stack {
+      display: block !important;
+    }
+
+    .preview-mobile-stack-item {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .preview-mobile-stack-item + .preview-mobile-stack-item {
+      margin-top: 24px !important;
+    }
+
+    .preview-mobile-stack-image,
+    .mobile-stack-image {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    .mobile-stack-table,
+    .mobile-stack-table tbody,
+    .mobile-stack-table tr,
+    .mobile-stack-table .mobile-stack-cell {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .mobile-stack-table .mobile-stack-cell {
+      box-sizing: border-box !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    .mobile-stack-table .mobile-stack-cell + .mobile-stack-cell {
+      padding-top: 16px !important;
+    }
+  }
+`;
 
 function chunkIds(ids: string[], size = 200) {
   const chunks: string[][] = [];
@@ -362,8 +408,12 @@ function renderImageTextBlock(
     globalSettings.subheadingFont || globalSettings.fontFamily;
 
   const imageNode = imageUrl ? (
-    <div style={{ flex: isStacked ? undefined : "0 0 46%", minWidth: 0 }}>
+    <div
+      className="preview-mobile-stack-item"
+      style={{ flex: isStacked ? undefined : "0 0 46%", minWidth: 0 }}
+    >
       <img
+        className="preview-mobile-stack-image"
         src={imageUrl}
         alt={block.altText || title}
         style={{
@@ -377,7 +427,7 @@ function renderImageTextBlock(
   ) : null;
 
   const copyNode = (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div className="preview-mobile-stack-item" style={{ flex: 1, minWidth: 0 }}>
       {title ? (
         <h2
           style={{
@@ -434,6 +484,7 @@ function renderImageTextBlock(
       }}
     >
       <div
+        className="preview-mobile-stack"
         style={{
           display: "flex",
           flexDirection: isStacked
@@ -491,11 +542,14 @@ function wrapServerRenderedHtml(
   return `<!doctype html>
   <html>
     <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <style>
         a[href], button {
           pointer-events: none !important;
           cursor: default !important;
         }
+
+        ${PREVIEW_RESPONSIVE_STYLES}
       </style>
     </head>
     <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
@@ -581,11 +635,14 @@ function buildPreviewHtml(
   return `<!doctype html>
   <html>
     <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
       <style>
         a[href], button {
           pointer-events: none !important;
           cursor: default !important;
         }
+
+        ${PREVIEW_RESPONSIVE_STYLES}
       </style>
     </head>
     <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
@@ -612,6 +669,7 @@ export function CampaignPreviewDialog({
     campaignType,
     status,
     contentBlocks,
+    updateContent,
     smsMessage,
     subjectLine,
     preheaderText,
@@ -718,6 +776,34 @@ export function CampaignPreviewDialog({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }, []);
 
+  const ensureEmailSafeBlocks = React.useCallback(
+    async (blocks: ContentBlock[]) => {
+      if (!Array.isArray(blocks) || blocks.length === 0) {
+        return blocks;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        return blocks;
+      }
+
+      const normalizedBlocks = await normalizeContentBlocksForEmailAssets(
+        blocks,
+        user.id,
+      );
+
+      if (normalizedBlocks !== blocks) {
+        updateContent({ contentBlocks: normalizedBlocks });
+      }
+
+      return normalizedBlocks;
+    },
+    [updateContent],
+  );
+
   const sendTestEmail = React.useCallback(async () => {
     const email = testEmail.trim();
 
@@ -741,6 +827,8 @@ export function CampaignPreviewDialog({
     setSendTestState(null);
 
     try {
+      const normalizedBlocks = await ensureEmailSafeBlocks(contentBlocks);
+
       const { data, error } = await supabase.functions.invoke(
         "send-test-email-v2",
         {
@@ -748,7 +836,7 @@ export function CampaignPreviewDialog({
             toEmail: email,
             subject: subjectLine || "Test Email Campaign",
             campaignId: campaignId ?? undefined,
-            contentBlocks,
+            contentBlocks: normalizedBlocks,
             html: previewHtml,
             sampleCustomer: SAMPLE_PREVIEW_CUSTOMER,
           },
@@ -791,6 +879,7 @@ export function CampaignPreviewDialog({
   }, [
     campaignId,
     contentBlocks,
+    ensureEmailSafeBlocks,
     previewHtml,
     subjectLine,
     testEmail,
@@ -856,9 +945,11 @@ export function CampaignPreviewDialog({
       // compliance footer on top, returning a complete email-body fragment.
       // We wrap that fragment in the iframe-presentation skeleton below
       // so the dialog still looks like an inbox preview.
+      const normalizedBlocks = await ensureEmailSafeBlocks(contentBlocks);
+
       const body: Record<string, unknown> = {
         tenantId: tenant?.id,
-        contentBlocks,
+        contentBlocks: normalizedBlocks,
         subject: subjectLine,
         includeFooter: true,
         exactSendPreview: true,
@@ -888,7 +979,7 @@ export function CampaignPreviewDialog({
       const fragment = (data?.renderedHtml as string | undefined) ?? "";
       const shouldUseLocalPreview =
         Boolean(previewHtml) &&
-        hostedPreviewFragmentLooksStale(contentBlocks, fragment);
+        hostedPreviewFragmentLooksStale(normalizedBlocks, fragment);
 
       setRenderedHtml(
         shouldUseLocalPreview
@@ -922,6 +1013,7 @@ export function CampaignPreviewDialog({
     preheaderText,
     previewCustomer,
     previewHtml,
+    ensureEmailSafeBlocks,
     subjectLine,
     tenant?.id,
   ]);

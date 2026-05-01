@@ -11,6 +11,7 @@ import {
   formatDraftRichText,
   formatDraftText,
 } from "@/lib/crm/htmlContent";
+import { normalizeContentBlocksForEmailAssets } from "@/utils/emailImageUrl";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
@@ -273,7 +274,12 @@ function renderDraftSocialFollow(block: ContentBlock): string {
   const links = (block as ContentBlock).socialLinks || {};
   const platforms = DRAFT_SOCIAL_PLATFORMS.filter((p) => {
     const entry = links[p.key];
-    return entry && entry.enabled === true && typeof entry.url === "string" && entry.url.length > 0;
+    return (
+      entry &&
+      entry.enabled === true &&
+      typeof entry.url === "string" &&
+      entry.url.length > 0
+    );
   });
 
   if (platforms.length === 0) return "";
@@ -434,7 +440,10 @@ async function syncCampaignBlocksBackup(
 
 export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
   const { tenantId, userId } = await getAuthenticatedWriterContext();
-  const contentBlocks = normalizeInputBlocks(input.contentBlocks);
+  const contentBlocks = await normalizeContentBlocksForEmailAssets(
+    normalizeInputBlocks(input.contentBlocks),
+    userId,
+  );
   const content =
     input.campaignType === "sms"
       ? input.smsMessage

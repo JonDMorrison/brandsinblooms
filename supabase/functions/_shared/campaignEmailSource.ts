@@ -85,6 +85,36 @@ export interface CampaignEmailSource {
   warning?: string;
 }
 
+const RESPONSIVE_EMAIL_STYLES = `<style>
+  @media only screen and (max-width: 599px) {
+    .mobile-stack-table,
+    .mobile-stack-table tbody,
+    .mobile-stack-table tr,
+    .mobile-stack-table .mobile-stack-cell {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    .mobile-stack-table .mobile-stack-cell {
+      box-sizing: border-box !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    .mobile-stack-table .mobile-stack-cell + .mobile-stack-cell {
+      padding-top: 16px !important;
+    }
+
+    .mobile-stack-image {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+    }
+  }
+</style>`;
+
 type CampaignSourceClient = {
   from: (table: string) => {
     select: (columns: string) => {
@@ -1238,13 +1268,17 @@ function renderImageTextBlock(block: RenderableContentBlock): string {
   const reverse =
     block.layout === "image-right" || block.layout === "two-column-right";
   const alignment = getAlignment(block, "left");
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const tableDirection = reverse ? "rtl" : "ltr";
+  const imageAlt =
+    block.altText || block.title || block.headline || "Campaign image";
   const imageCell = `
-    <td style="width:50%;padding:${reverse ? "0 0 0 12px" : "0 12px 0 0"};vertical-align:top;">
-      <img src="${escapeAttribute(block.imageUrl)}" alt="${escapeAttribute(block.altText || block.title || "Campaign image")}" style="display:block;width:100%;height:auto;border:0;border-radius:16px;" />
+    <td class="mobile-stack-cell" dir="ltr" width="50%" valign="top" style="width:50%;padding:${reverse ? "0 0 0 12px" : "0 12px 0 0"};vertical-align:top;">
+      <img class="mobile-stack-image" src="${escapeAttribute(block.imageUrl)}" alt="${escapeAttribute(imageAlt)}" width="280" style="display:block;width:100%;max-width:280px;height:auto;border:0;border-radius:16px;outline:none;text-decoration:none;" />
     </td>
   `;
   const textCell = `
-    <td style="width:50%;padding:${reverse ? "0 12px 0 0" : "0 0 0 12px"};vertical-align:top;text-align:${alignment};">
+    <td class="mobile-stack-cell" dir="ltr" width="50%" valign="top" style="width:50%;padding:${reverse ? "0 12px 0 0" : "0 0 0 12px"};vertical-align:top;text-align:${alignment};">
       ${renderBlockHeading(block, block.textColor || "#1f2937")}
       ${renderBlockBody(block, block.textColor || "#374151")}
       ${renderButton(
@@ -1261,10 +1295,10 @@ function renderImageTextBlock(block: RenderableContentBlock): string {
   `;
 
   return `
-    <section style="padding:32px;background:${block.backgroundColor || "#ffffff"};">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <section style="padding:32px;background:${backgroundColor};">
+      <table class="mobile-stack-table" dir="${tableDirection}" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;table-layout:fixed;">
         <tr>
-          ${reverse ? `${textCell}${imageCell}` : `${imageCell}${textCell}`}
+          ${imageCell}${textCell}
         </tr>
       </table>
     </section>
@@ -1576,7 +1610,7 @@ export function renderContentBlocksToEmailHtml(
   const renderedBlocks = normalizedBlocks
     .map((block) => renderBlock(block))
     .join("");
-  return `<div style="margin:0 auto;max-width:680px;background:#ffffff;">${renderedBlocks}</div>`;
+  return `${RESPONSIVE_EMAIL_STYLES}<div style="margin:0 auto;max-width:680px;background:#ffffff;">${renderedBlocks}</div>`;
 }
 
 function extractMetadataContentBlocks(
