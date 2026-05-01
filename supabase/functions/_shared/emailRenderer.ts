@@ -47,6 +47,8 @@ export interface RenderEmailParams {
   mode: "preview" | "send";
   /** If true, appends the footer. Default: true for send, false for preview */
   includeFooter?: boolean;
+  /** Controls whether footer links are preview-safe anchors or real send links. */
+  footerLinkMode?: "preview" | "send";
   /** If true, rewrites links for click tracking. Default: true for send, false for preview */
   enableLinkTracking?: boolean;
   trackedLinkMap?: Map<string, string> | null;
@@ -75,6 +77,8 @@ export interface CompanyProfileShape {
   city?: string | null;
   state_province?: string | null;
   postal_code?: string | null;
+  country?: string | null;
+  footer_legal_text?: string | null;
   facebook_url?: string | null;
   instagram_url?: string | null;
   tiktok_url?: string | null;
@@ -89,6 +93,31 @@ export interface CompanyProfileShape {
       background?: string;
       text?: string;
       link?: string;
+      backgroundColor?: string;
+      textColor?: string;
+      linkColor?: string;
+      dividerColor?: string;
+      logoBackgroundColor?: string;
+      logoTextColor?: string;
+    };
+    footer_settings?: {
+      showPhone?: boolean;
+      showLogo?: boolean;
+      showManagePreferences?: boolean;
+      addressLine2?: string;
+      city?: string;
+      region?: string;
+      postalCode?: string;
+      country?: string;
+      email?: string;
+      websiteUrl?: string;
+      complianceText?: string;
+      facebookUrl?: string;
+      instagramUrl?: string;
+      tiktokUrl?: string;
+      pinterestUrl?: string;
+      youtubeUrl?: string;
+      linkedinUrl?: string;
     };
   } | null;
 }
@@ -258,6 +287,7 @@ export function renderEmailForRecipient(
     companyProfile,
     mode,
     includeFooter = mode === "send",
+    footerLinkMode = mode === "send" ? "send" : "preview",
     enableLinkTracking = mode === "send",
     trackedLinkMap = null,
   } = params;
@@ -310,6 +340,7 @@ export function renderEmailForRecipient(
       customer,
       companyProfile,
       tenantId,
+      footerLinkMode,
     );
   }
 
@@ -373,7 +404,7 @@ function buildMergeData(
 
   if (customer) {
     const mergeData = createMergeTagDataFromCustomer(
-      customer as Record<string, unknown>,
+      customer as unknown as Record<string, unknown>,
       {
         company_name: companyProfile?.company_name || undefined,
         address:
@@ -400,7 +431,7 @@ function buildMergeData(
   return {
     first_name: "Friend",
     last_name: "Customer",
-    email: "customer@example.com",
+    email: "customer@your-domain.test",
     phone: "",
     company: {
       name: companyProfile?.company_name || "Your Company",
@@ -426,24 +457,36 @@ function appendFooter(
   customer: CustomerShape,
   companyProfile: CompanyProfileShape | null | undefined,
   tenantId: string,
+  footerLinkMode: "preview" | "send",
 ): string {
   // Generate unsubscribe token and links
   const unsubscribeToken = btoa(`${customer.email}:${tenantId}`);
-  const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
-  const preferencesLink = unsubscribeLink.replace(
+  const liveUnsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
+  const livePreferencesLink = liveUnsubscribeLink.replace(
     "handle-unsubscribe",
     "manage-preferences",
   );
+  const unsubscribeLink =
+    footerLinkMode === "preview" ? "#unsubscribe" : liveUnsubscribeLink;
+  const preferencesLink =
+    footerLinkMode === "preview" ? "#preferences" : livePreferencesLink;
+  const footerColors = companyProfile?.feature_flags?.footer_colors;
+  const footerColorsRecord = footerColors as
+    | Record<string, string | undefined>
+    | undefined;
 
   // Build profile data for footer generator (include feature_flags for logo)
   const profileData: CompanyProfileData = {
     company_name: companyProfile?.company_name || "Your Company",
     company_phone: companyProfile?.company_phone || "",
     company_email: companyProfile?.company_email || "",
+    website_url: companyProfile?.website_url || "",
     street_address: companyProfile?.street_address || "",
     city: companyProfile?.city || "",
     state_province: companyProfile?.state_province || "",
     postal_code: companyProfile?.postal_code || "",
+    country: companyProfile?.country || "",
+    footer_legal_text: companyProfile?.footer_legal_text || "",
     facebook_url: companyProfile?.facebook_url || "",
     instagram_url: companyProfile?.instagram_url || "",
     tiktok_url: companyProfile?.tiktok_url || "",
@@ -451,7 +494,27 @@ function appendFooter(
     youtube_url: companyProfile?.youtube_url || "",
     linkedin_url: companyProfile?.linkedin_url || "",
     brand_primary_color: companyProfile?.brand_primary_color || "#283024",
-    feature_flags: companyProfile?.feature_flags || undefined,
+    feature_flags: companyProfile?.feature_flags
+      ? {
+          company_logo_url:
+            companyProfile.feature_flags.company_logo_url || undefined,
+          footer_colors: footerColors
+            ? {
+                backgroundColor:
+                  footerColorsRecord?.backgroundColor ||
+                  footerColorsRecord?.background,
+                textColor:
+                  footerColorsRecord?.textColor || footerColorsRecord?.text,
+                linkColor:
+                  footerColorsRecord?.linkColor || footerColorsRecord?.link,
+                dividerColor: footerColorsRecord?.dividerColor,
+                logoBackgroundColor: footerColorsRecord?.logoBackgroundColor,
+                logoTextColor: footerColorsRecord?.logoTextColor,
+              }
+            : undefined,
+          footer_settings: companyProfile.feature_flags.footer_settings,
+        }
+      : undefined,
   };
 
   // Generate footer with placeholders then replace
@@ -484,6 +547,7 @@ function stripExistingFooter(html: string): string {
   let strippedHtml = html;
 
   const patterns = [
+    /<!-- BLOOMSUITE_FOOTER_START -->[\s\S]*?<!-- BLOOMSUITE_FOOTER_END -->/gi,
     /<div[^>]*style="[^"]*margin-top:\s*40px[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*<\/div>\s*$))/gi,
     /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?<div[^>]*style="[^"]*max-width:\s*640px[^"]*"[^>]*>[\s\S]*?[Uu]nsubscribe[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi,
     /<div[^>]*style="[^"]*background-color[^"]*"[^>]*>[\s\S]*?social-icons[\s\S]*?<\/div>\s*<\/div>(?=\s*(<\/body>|<\/html>|<\/div>\s*$))/gi,

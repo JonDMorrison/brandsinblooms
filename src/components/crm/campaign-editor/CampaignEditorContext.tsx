@@ -283,9 +283,12 @@ export function CampaignEditorProvider({
     createInitialState(searchParams),
   );
   const [isLoading, setIsLoading] = React.useState(Boolean(campaignId));
+  const campaignIdRef = React.useRef<string | null>(state.campaignId);
+  const campaignStatusRef = React.useRef<CampaignStatus>(state.status);
   const autosaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const saveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
   const autoSaveRetryTimerRef = React.useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -306,6 +309,14 @@ export function CampaignEditorProvider({
   // treat it as a fresh attempt and reset autoSaveAttemptRef.
   const autoSaveLastTriedFingerprintRef = React.useRef<string | null>(null);
   const [autoSavePaused, setAutoSavePausedState] = React.useState(false);
+
+  React.useEffect(() => {
+    campaignIdRef.current = state.campaignId;
+  }, [state.campaignId]);
+
+  React.useEffect(() => {
+    campaignStatusRef.current = state.status;
+  }, [state.status]);
 
   const sending = useCampaignSending({
     navigateOnSuccess: false,
@@ -736,19 +747,46 @@ export function CampaignEditorProvider({
     [draftPayload],
   );
 
-  const saveDraft = React.useCallback(
-    async (options?: { silent?: boolean; status?: CampaignStatus }) => {
-      const requestedStatus = options?.status ?? draftPayload.status;
-      const nextFingerprint = buildDraftFingerprint({
-        ...draftPayload,
-        status: requestedStatus,
-      });
+  const syncPersistedCampaignVersion = React.useCallback(
+    ({
+      campaignId: nextCampaignId,
+      status: nextStatus,
+      updatedAt,
+    }: {
+      campaignId?: string | null;
+      status?: CampaignStatus;
+      updatedAt?: string | null;
+    }) => {
+      if (typeof nextCampaignId === "string" || nextCampaignId === null) {
+        campaignIdRef.current = nextCampaignId;
+      }
 
+      if (nextStatus) {
+        campaignStatusRef.current = nextStatus;
+      }
+
+      if (updatedAt !== undefined) {
+        lastUpdatedAtRef.current = updatedAt;
+      }
+    },
+    [],
+  );
+
+  const runDraftSave = React.useCallback(
+    async ({
+      payload,
+      fingerprint,
+      requestedStatus,
+    }: {
+      payload: typeof draftPayload;
+      fingerprint: string;
+      requestedStatus: CampaignStatus;
+    }) => {
       if (
-        nextFingerprint === lastSavedFingerprintRef.current &&
-        requestedStatus === state.status
+        fingerprint === lastSavedFingerprintRef.current &&
+        requestedStatus === campaignStatusRef.current
       ) {
-        return state.campaignId;
+        return campaignIdRef.current;
       }
 
       // Treat this as a fresh save attempt (counter reset) whenever the
@@ -756,9 +794,14 @@ export function CampaignEditorProvider({
       // on. Retries call saveDraft with the same fingerprint and preserve
       // the counter. New edits (or unrelated user-initiated saves) restart
       // the budget at zero.
-      if (autoSaveLastTriedFingerprintRef.current !== nextFingerprint) {
+      if (autoSaveLastTriedFingerprintRef.current !== fingerprint) {
         autoSaveAttemptRef.current = 0;
-        autoSaveLastTriedFingerprintRef.current = nextFingerprint;
+        autoSaveLastTriedFingerprintRef.current = fingerprint;
+      }
+
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
       }
 
       // Clear any pending retry timer — we're firing a save NOW. Without
@@ -771,6 +814,7 @@ export function CampaignEditorProvider({
 
       if (autoSaveSuccessTimerRef.current) {
         clearTimeout(autoSaveSuccessTimerRef.current);
+        autoSaveSuccessTimerRef.current = null;
       }
 
       setState((current) => ({
@@ -779,15 +823,20 @@ export function CampaignEditorProvider({
         autoSaveStatus: "saving",
         autoSaveMessage: null,
       }));
+
       try {
         const saved = await persistCampaignDraft({
-          ...draftPayload,
+          ...payload,
           expectedUpdatedAt: lastUpdatedAtRef.current,
           status: requestedStatus,
         });
 
-        lastSavedFingerprintRef.current = nextFingerprint;
-        lastUpdatedAtRef.current = saved.updatedAt;
+        lastSavedFingerprintRef.current = fingerprint;
+        syncPersistedCampaignVersion({
+          campaignId: saved.id,
+          status: saved.status,
+          updatedAt: saved.updatedAt,
+        });
         // Reset the retry budget on success so the next failure starts
         // from a fresh attempt count.
         autoSaveAttemptRef.current = 0;
@@ -855,7 +904,35 @@ export function CampaignEditorProvider({
         return null;
       }
     },
-    [draftPayload, state.campaignId, state.status],
+    [syncPersistedCampaignVersion],
+  );
+
+  const saveDraft = React.useCallback(
+    async (options?: { silent?: boolean; status?: CampaignStatus }) => {
+      const requestedStatus = options?.status ?? draftPayload.status;
+      const nextFingerprint = buildDraftFingerprint({
+        ...draftPayload,
+        status: requestedStatus,
+      });
+
+      const queuedSave = saveQueueRef.current
+        .catch(() => undefined)
+        .then(() =>
+          runDraftSave({
+            payload: draftPayload,
+            fingerprint: nextFingerprint,
+            requestedStatus,
+          }),
+        );
+
+      saveQueueRef.current = queuedSave.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      return queuedSave;
+    },
+    [draftPayload, runDraftSave],
   );
 
   const setAutoSavePaused = React.useCallback((paused: boolean) => {
@@ -1135,12 +1212,20 @@ export function CampaignEditorProvider({
               scheduled_at: effectiveSendAt.toISOString(),
             },
           );
+          syncPersistedCampaignVersion({
+            campaignId: savedCampaignId,
+            status: scheduled.status,
+            updatedAt: scheduled.updatedAt,
+          });
           setState((current) => ({
             ...current,
             campaignId: savedCampaignId,
             status: scheduled.status,
             isDirty: false,
             isLocked: isLockedCampaignStatus(scheduled.status),
+            lastSavedAt: scheduled.updatedAt
+              ? new Date(scheduled.updatedAt)
+              : current.lastSavedAt,
           }));
           if (!options?.suppressToasts) {
             toast.success("Campaign scheduled");
@@ -1159,12 +1244,20 @@ export function CampaignEditorProvider({
 
         if (state.campaignType === "sms") {
           const queued = await updateCampaignStatus(savedCampaignId, "queued");
+          syncPersistedCampaignVersion({
+            campaignId: savedCampaignId,
+            status: queued.status,
+            updatedAt: queued.updatedAt,
+          });
           setState((current) => ({
             ...current,
             campaignId: savedCampaignId,
             status: queued.status,
             isDirty: false,
             isLocked: true,
+            lastSavedAt: queued.updatedAt
+              ? new Date(queued.updatedAt)
+              : current.lastSavedAt,
           }));
           if (!options?.suppressToasts) {
             toast.success("SMS campaign queued");
@@ -1207,7 +1300,15 @@ export function CampaignEditorProvider({
         };
       }
     },
-    [campaignId, captureDraftSnapshot, navigate, saveDraft, sending, state],
+    [
+      campaignId,
+      captureDraftSnapshot,
+      navigate,
+      saveDraft,
+      sending,
+      state,
+      syncPersistedCampaignVersion,
+    ],
   );
 
   const pause = React.useCallback(async () => {
@@ -1245,14 +1346,22 @@ export function CampaignEditorProvider({
     const cancelled = await updateCampaignStatus(state.campaignId, "failed", {
       send_blocked_reason: "cancelled_by_user",
     });
+    syncPersistedCampaignVersion({
+      campaignId: state.campaignId,
+      status: cancelled.status,
+      updatedAt: cancelled.updatedAt,
+    });
     setState((current) => ({
       ...current,
       status: cancelled.status,
       sendBlockedReason: cancelled.sendBlockedReason,
       isLocked: isLockedCampaignStatus(cancelled.status),
+      lastSavedAt: cancelled.updatedAt
+        ? new Date(cancelled.updatedAt)
+        : current.lastSavedAt,
     }));
     toast.success("Campaign cancelled");
-  }, [state.campaignId]);
+  }, [state.campaignId, syncPersistedCampaignVersion]);
 
   const value = React.useMemo<CampaignEditorContextValue>(
     () => ({

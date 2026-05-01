@@ -1,17 +1,31 @@
-import React, { useRef } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Textarea } from '@/components/ui-legacy/textarea';
-import { NativeSelect } from '@/components/ui-legacy/NativeSelect';
-import { MediaSelectorImage, MediaSelectorImageHandle } from '@/components/crm/MediaSelectorImage';
-import { Edit, Copy, Trash2, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
-import { Button } from '@/components/ui-legacy/button';
-import { cn } from '@/lib/utils';
-import { ContextualToolbar } from '../contextual/ContextualToolbar';
-import { EditMode } from '@/hooks/useBlockEditMode';
-import { sanitizeWeekNumbers } from '@/utils/weekNumberSanitizer';
-import { SafeHtml } from '@/components/ui-legacy/safe-html';
+import React, { useRef } from "react";
+import { ContentBlock } from "@/types/emailBuilder";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import { NativeSelect } from "@/components/ui-legacy/NativeSelect";
+import {
+  MediaSelectorImage,
+  MediaSelectorImageHandle,
+} from "@/components/crm/MediaSelectorImage";
+import {
+  Edit,
+  Copy,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+} from "lucide-react";
+import { Button } from "@/components/ui-legacy/button";
+import { cn } from "@/lib/utils";
+import { ContextualToolbar } from "../contextual/ContextualToolbar";
+import { EditMode } from "@/hooks/useBlockEditMode";
+import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
+import { SafeHtml } from "@/components/ui-legacy/safe-html";
+import {
+  OPACITY_DEFAULTS,
+  normalizeOpacityToDecimal,
+} from "@/utils/opacityUtils";
 
 interface EmailSafeHeroBlockProps {
   block: ContentBlock;
@@ -24,31 +38,106 @@ interface EmailSafeHeroBlockProps {
   isGenerating?: boolean;
 }
 
-export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({ 
-  block, 
-  onUpdate, 
-  onDuplicate, 
-  onDelete, 
+export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
+  block,
+  onUpdate,
+  onDuplicate,
+  onDelete,
   isPreview,
   editMode,
   onModeChange,
-  isGenerating = false
+  isGenerating = false,
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
 
   // Default to pure white so blocks render flat against the email body
   // unless the user explicitly picks a section color.
-  const backgroundColor = block.backgroundColor || '#ffffff';
-  const textColor = block.textColor || '#111111';
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const textColor = block.textColor || "#111111";
+  const backgroundImageUrl = block.backgroundImageUrl || block.imageUrl || "";
+  const buttonText = block.buttonText || block.ctaText;
+  const buttonUrl = block.buttonUrl || block.ctaUrl || "#";
+  const subtitle = block.subtitle || "";
+  const body = block.body || "";
+  const issueInfo =
+    typeof block.content === "string" && block.content !== block.body
+      ? block.content
+      : "";
+  const backgroundOpacityDecimal = normalizeOpacityToDecimal(
+    block.backgroundOpacity,
+    OPACITY_DEFAULTS.backgroundImage,
+  );
+  const colorOverlayDecimal = backgroundImageUrl
+    ? normalizeOpacityToDecimal(
+        block.colorOverlayOpacity,
+        OPACITY_DEFAULTS.colorOverlay,
+      )
+    : 0;
+  const darkOverlayDecimal = backgroundImageUrl
+    ? normalizeOpacityToDecimal(
+        block.darkOverlayOpacity,
+        OPACITY_DEFAULTS.darkOverlay,
+      )
+    : 0;
+  const imageOverlayDecimal = backgroundImageUrl
+    ? normalizeOpacityToDecimal(
+        block.overlayOpacity,
+        OPACITY_DEFAULTS.imageOverlay,
+      )
+    : 0;
 
   // Get alignment class
-  const alignClass = block.textAlign === 'center' ? 'text-center' 
-    : block.textAlign === 'right' ? 'text-right' 
-    : 'text-left';
+  const alignClass =
+    block.textAlign === "center"
+      ? "text-center"
+      : block.textAlign === "right"
+        ? "text-right"
+        : "text-left";
 
-  // Live preview component
-  const PreviewContent = () => (
-    <div className="relative overflow-hidden rounded-lg group">
+  const renderPreviewContent = () => (
+    <div
+      className="relative overflow-hidden rounded-lg group min-h-[360px]"
+      style={{
+        backgroundColor: backgroundImageUrl ? undefined : backgroundColor,
+      }}
+    >
+      {backgroundImageUrl && (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${backgroundImageUrl})`,
+            opacity: backgroundOpacityDecimal,
+          }}
+        />
+      )}
+
+      {backgroundImageUrl && darkOverlayDecimal > 0 && (
+        <div
+          className="absolute inset-0 bg-black"
+          style={{ opacity: darkOverlayDecimal }}
+        />
+      )}
+
+      {backgroundImageUrl && colorOverlayDecimal > 0 && (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundColor,
+            opacity: colorOverlayDecimal,
+          }}
+        />
+      )}
+
+      {backgroundImageUrl && imageOverlayDecimal > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundColor: block.overlayColor || "#000000",
+            opacity: imageOverlayDecimal,
+          }}
+        />
+      )}
+
       {/* Contextual Toolbar */}
       {onModeChange && (
         <ContextualToolbar
@@ -61,78 +150,84 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         />
       )}
 
-      {/* Top Section - Solid Background with Text */}
-      <div 
-        className="p-8 md:p-12"
-        style={{ backgroundColor, color: textColor }}
+      <div
+        className={cn(
+          "relative z-10 p-8 md:p-12 min-h-[360px] flex items-center justify-center",
+          alignClass,
+        )}
+        style={{ color: textColor }}
       >
-        {/* Eyebrow/Category */}
-        {block.eyebrow && (
-          <p className={cn("text-sm uppercase tracking-wider opacity-80 mb-2", alignClass)}>
-            {block.eyebrow}
-          </p>
-        )}
-
-        {/* Headline */}
-        <SafeHtml 
-          content={sanitizeWeekNumbers(block.headline || block.title || "Your Headline Here")}
-          className={cn("text-3xl md:text-4xl font-bold mb-4 leading-tight [&>*]:m-0", alignClass)}
-          type="general"
-        />
-
-        {/* Subtitle/Body */}
-        {(block.body || block.subtitle) && (
-          <SafeHtml 
-            content={sanitizeWeekNumbers(block.body || block.subtitle || "")}
-            className={cn("text-lg opacity-90 mb-4 [&>*]:m-0", alignClass)}
-            type="general"
-          />
-        )}
-
-        {/* Issue Number - using content field, but only if it's different from body */}
-        {block.content && typeof block.content === 'string' && block.content !== block.body && (
-          <SafeHtml 
-            content={sanitizeWeekNumbers(block.content)}
-            className={cn("text-sm opacity-70", alignClass)}
-            type="general"
-          />
-        )}
-
-        {/* CTA Button */}
-        {block.ctaText && (
-          <div className={cn("mt-6", alignClass)}>
-            <a 
-              href={block.ctaUrl || '#'}
-              className="inline-block px-6 py-3 rounded-md font-medium transition-colors"
-              style={{ 
-                backgroundColor: textColor, 
-                color: backgroundColor 
-              }}
+        <div className="w-full max-w-3xl">
+          {/* Eyebrow/Category */}
+          {block.eyebrow && (
+            <p
+              className={cn(
+                "text-sm uppercase tracking-wider opacity-80 mb-2",
+                alignClass,
+              )}
             >
-              {block.ctaText}
-            </a>
-          </div>
-        )}
-      </div>
+              {block.eyebrow}
+            </p>
+          )}
 
-      {/* Bottom Section - Full Width Image */}
-      {block.imageUrl && (
-        <div className="w-full">
-          <img 
-            src={block.imageUrl} 
-            alt={block.altText || ''}
-            className="w-full h-auto object-cover"
-            style={{ maxHeight: '400px' }}
+          {/* Headline */}
+          <SafeHtml
+            content={sanitizeWeekNumbers(
+              block.headline || block.title || "Your Headline Here",
+            )}
+            className={cn(
+              "text-3xl md:text-4xl font-bold mb-4 leading-tight [&>*]:m-0",
+              alignClass,
+            )}
+            type="general"
           />
-        </div>
-      )}
 
-      {/* Image placeholder when no image */}
-      {!block.imageUrl && !isPreview && (
-        <div className="w-full h-48 bg-muted flex items-center justify-center text-muted-foreground">
-          <span>Click to add an image below the header</span>
+          {subtitle && (
+            <SafeHtml
+              content={sanitizeWeekNumbers(subtitle)}
+              className={cn("text-lg opacity-90 mb-4 [&>*]:m-0", alignClass)}
+              type="general"
+            />
+          )}
+
+          {body && body !== subtitle && (
+            <SafeHtml
+              content={sanitizeWeekNumbers(body)}
+              className={cn(
+                "text-base md:text-lg opacity-90 mb-4 [&>*]:m-0",
+                alignClass,
+              )}
+              type="general"
+            />
+          )}
+
+          {/* Issue Number - using content field, but only if it's different from body */}
+          {issueInfo && (
+            <SafeHtml
+              content={sanitizeWeekNumbers(issueInfo)}
+              className={cn("text-sm opacity-70", alignClass)}
+              type="general"
+            />
+          )}
+
+          {/* CTA Button */}
+          {buttonText && (
+            <div className={cn("mt-6", alignClass)}>
+              <a
+                href={buttonUrl}
+                className="inline-block px-6 py-3 rounded-md font-medium transition-colors"
+                style={{
+                  backgroundColor: "transparent",
+                  color: textColor,
+                  border: `1px solid ${textColor}`,
+                }}
+              >
+                {buttonText}
+              </a>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Loading indicator */}
       {isGenerating && (
@@ -144,7 +239,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
   );
 
   if (isPreview) {
-    return <PreviewContent />;
+    return renderPreviewContent();
   }
 
   return (
@@ -153,7 +248,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
       <div className="space-y-2">
         <Label>Live Preview</Label>
         <div className="border rounded-lg overflow-hidden">
-          <PreviewContent />
+          {renderPreviewContent()}
         </div>
       </div>
 
@@ -163,7 +258,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Label htmlFor="eyebrow">Eyebrow Text (Optional)</Label>
           <Input
             id="eyebrow"
-            value={block.eyebrow || ''}
+            value={block.eyebrow || ""}
             onChange={(e) => onUpdate({ eyebrow: e.target.value })}
             placeholder="e.g., THIS WEEK, SPECIAL OFFER"
           />
@@ -172,7 +267,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Label htmlFor="issueInfo">Issue/Date Info (Optional)</Label>
           <Input
             id="issueInfo"
-            value={typeof block.content === 'string' ? block.content : ''}
+            value={typeof block.content === "string" ? block.content : ""}
             onChange={(e) => onUpdate({ content: e.target.value })}
             placeholder="e.g., Issue #12 • December 2024"
           />
@@ -183,7 +278,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         <Label htmlFor="headline">Headline</Label>
         <Input
           id="headline"
-          value={block.headline || ''}
+          value={block.headline || ""}
           onChange={(e) => onUpdate({ headline: e.target.value })}
           onKeyDown={(e) => e.stopPropagation()}
           placeholder="Enter your main headline"
@@ -194,7 +289,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
         <Label htmlFor="body">Subtitle / Body Text</Label>
         <Textarea
           id="body"
-          value={block.body || ''}
+          value={block.body || ""}
           onChange={(e) => onUpdate({ body: e.target.value })}
           placeholder="Enter subtitle or description"
           rows={2}
@@ -206,7 +301,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Label htmlFor="ctaText">Button Text (Optional)</Label>
           <Input
             id="ctaText"
-            value={block.ctaText || ''}
+            value={block.ctaText || ""}
             onChange={(e) => onUpdate({ ctaText: e.target.value })}
             placeholder="e.g., Shop Now"
           />
@@ -215,7 +310,7 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Label htmlFor="ctaUrl">Button Link</Label>
           <Input
             id="ctaUrl"
-            value={block.ctaUrl || ''}
+            value={block.ctaUrl || ""}
             onChange={(e) => onUpdate({ ctaUrl: e.target.value })}
             placeholder="https://..."
           />
@@ -267,8 +362,8 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Button
             type="button"
             size="sm"
-            variant={block.textAlign === 'left' ? 'default' : 'ghost'}
-            onClick={() => onUpdate({ textAlign: 'left' })}
+            variant={block.textAlign === "left" ? "default" : "ghost"}
+            onClick={() => onUpdate({ textAlign: "left" })}
             className="h-8 w-8 p-0"
           >
             <AlignLeft className="h-4 w-4" />
@@ -276,8 +371,12 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Button
             type="button"
             size="sm"
-            variant={block.textAlign === 'center' || !block.textAlign ? 'default' : 'ghost'}
-            onClick={() => onUpdate({ textAlign: 'center' })}
+            variant={
+              block.textAlign === "center" || !block.textAlign
+                ? "default"
+                : "ghost"
+            }
+            onClick={() => onUpdate({ textAlign: "center" })}
             className="h-8 w-8 p-0"
           >
             <AlignCenter className="h-4 w-4" />
@@ -285,8 +384,8 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
           <Button
             type="button"
             size="sm"
-            variant={block.textAlign === 'right' ? 'default' : 'ghost'}
-            onClick={() => onUpdate({ textAlign: 'right' })}
+            variant={block.textAlign === "right" ? "default" : "ghost"}
+            onClick={() => onUpdate({ textAlign: "right" })}
             className="h-8 w-8 p-0"
           >
             <AlignRight className="h-4 w-4" />
@@ -295,12 +394,14 @@ export const EmailSafeHeroBlock: React.FC<EmailSafeHeroBlockProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Hero Image (Below Text)</Label>
+        <Label>Background Image</Label>
         <MediaSelectorImage
           ref={mediaSelectorRef}
-          src={block.imageUrl}
-          onChange={(imageUrl) => onUpdate({ imageUrl })}
-          contentContext={block.headline || block.body || 'hero image'}
+          src={backgroundImageUrl}
+          onChange={(imageUrl) =>
+            onUpdate({ backgroundImageUrl: imageUrl, imageUrl: undefined })
+          }
+          contentContext={block.headline || block.body || "hero background"}
           className="h-32"
         />
       </div>

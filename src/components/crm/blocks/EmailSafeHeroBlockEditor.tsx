@@ -9,6 +9,7 @@ import { Button } from '@/components/ui-legacy/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui-legacy/collapsible';
 import { Eye, ChevronDown, Settings } from 'lucide-react';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { normalizeDateInputValue } from '@/utils/dateInputValue';
 
 interface EmailSafeHeroBlockEditorProps {
   block: ContentBlock;
@@ -174,7 +175,7 @@ export const EmailSafeHeroBlockEditor: React.FC<EmailSafeHeroBlockEditorProps> =
           <Input
             id="publishDate"
             type="date"
-            value={block.publishDate || ''}
+            value={normalizeDateInputValue(block.publishDate)}
             onChange={(e) => updateField('publishDate', e.target.value)}
           />
         </div>

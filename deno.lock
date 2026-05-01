@@ -70,6 +70,7 @@
     "npm:@types/node@^22.5.5": "22.19.17",
     "npm:@types/react-dom@^18.3.0": "18.3.7_@types+react@18.3.28",
     "npm:@types/react@^18.3.3": "18.3.28",
+    "npm:@types/sanitize-html@^2.16.1": "2.16.1",
     "npm:@uptrace/web@^2.0.2": "2.3.0",
     "npm:@vitejs/plugin-react-swc@^3.5.0": "3.11.0_vite@5.4.21__@types+node@22.19.17_@types+node@22.19.17",
     "npm:@vitest/ui@^3.2.4": "3.2.4_vitest@3.2.4_@types+node@22.19.17_jsdom@26.1.0",
@@ -109,6 +110,8 @@
     "npm:recharts@^2.12.7": "2.15.4_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:resend@2.0.0": "2.0.0",
     "npm:resend@2.1.0": "2.1.0",
+    "npm:sanitize-html@2.17.3": "2.17.3",
+    "npm:sanitize-html@^2.17.3": "2.17.3",
     "npm:sonner@^2.0.6": "2.0.7_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:supabase@^2.72.8": "2.88.1",
     "npm:swiper@^12.0.1": "12.1.3",
@@ -3102,6 +3105,12 @@
         "csstype"
       ]
     },
+    "@types/sanitize-html@2.16.1": {
+      "integrity": "sha512-n9wjs8bCOTyN/ynwD8s/nTcTreIHB1vf31vhLMGqUPNHaweKC4/fAl4Dj+hUlCTKYgm4P3k83fmiFfzkZ6sgMA==",
+      "dependencies": [
+        "htmlparser2@10.1.0"
+      ]
+    },
     "@types/use-sync-external-store@0.0.6": {
       "integrity": "sha512-zFDAD+tlpf2r4asuHEj0XH6pY6i0g5NeAHPn+15wk3BV6JA69eERFXC1gyGThDkVa1zCyKr5jox1+2LbV/AMLg=="
     },
@@ -4009,6 +4018,9 @@
     "entities@6.0.1": {
       "integrity": "sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g=="
     },
+    "entities@7.0.1": {
+      "integrity": "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="
+    },
     "error-ex@1.3.4": {
       "integrity": "sha512-sqQamAnR14VgCr1A618A3sGrygcpK+HEbenA/HiEAkkUwcZIIB/tgWqHFxWgOyDh4nB4JCRimh79dR5Ywc9MDQ==",
       "dependencies": [
@@ -4485,8 +4497,17 @@
         "@selderee/plugin-htmlparser2",
         "deepmerge",
         "dom-serializer",
-        "htmlparser2",
+        "htmlparser2@8.0.2",
         "selderee"
+      ]
+    },
+    "htmlparser2@10.1.0": {
+      "integrity": "sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==",
+      "dependencies": [
+        "domelementtype",
+        "domhandler",
+        "domutils",
+        "entities@7.0.1"
       ]
     },
     "htmlparser2@8.0.2": {
@@ -4616,6 +4637,9 @@
     },
     "is-number@7.0.0": {
       "integrity": "sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng=="
+    },
+    "is-plain-object@5.0.0": {
+      "integrity": "sha512-VRSzKkbMm5jMDoKLbltAkFQ5Qr7VDiTFGXxYFXXowVj387GeGNOCsOH6Msy00SGZ3Fp84b1Naa1psqgcCIEP5Q=="
     },
     "is-potential-custom-element-name@1.0.1": {
       "integrity": "sha512-bCYeRA2rVibKZd+s2625gGnGF/t7DSqDs4dP7CrLA1m7jKWz6pps0LpYLJN8Q64HtmPKJ1hrN3nzPNKFEKOUiQ=="
@@ -5069,6 +5093,9 @@
         "json-parse-even-better-errors",
         "lines-and-columns"
       ]
+    },
+    "parse-srcset@1.0.2": {
+      "integrity": "sha512-/2qh0lav6CmI15FzA3i/2Bzk2zCgQhGMkvhOhKNcBVQ1ldgpbfiNTVslmooUmWJcADi1f1kIeynbDRVzNlfR6Q=="
     },
     "parse5@7.3.0": {
       "integrity": "sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==",
@@ -5761,6 +5788,17 @@
     },
     "safer-buffer@2.1.2": {
       "integrity": "sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg=="
+    },
+    "sanitize-html@2.17.3": {
+      "integrity": "sha512-Kn4srCAo2+wZyvCNKCSyB2g8RQ8IkX/gQs2uqoSRNu5t9I2qvUyAVvRDiFUVAiX3N3PNuwStY0eNr+ooBHVWEg==",
+      "dependencies": [
+        "deepmerge",
+        "escape-string-regexp",
+        "htmlparser2@10.1.0",
+        "is-plain-object",
+        "parse-srcset",
+        "postcss"
+      ]
     },
     "saxes@6.0.0": {
       "integrity": "sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==",
@@ -6580,6 +6618,7 @@
         "npm:@types/node@^22.5.5",
         "npm:@types/react-dom@^18.3.0",
         "npm:@types/react@^18.3.3",
+        "npm:@types/sanitize-html@^2.16.1",
         "npm:@uptrace/web@^2.0.2",
         "npm:@vitejs/plugin-react-swc@^3.5.0",
         "npm:@vitest/ui@^3.2.4",
@@ -6616,6 +6655,7 @@
         "npm:react-swipeable-list@^1.10.0",
         "npm:react@^18.3.1",
         "npm:recharts@^2.12.7",
+        "npm:sanitize-html@^2.17.3",
         "npm:sonner@^2.0.6",
         "npm:supabase@^2.72.8",
         "npm:swiper@^12.0.1",

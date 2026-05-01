@@ -498,13 +498,16 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
   // Create local edit mode for contextual components
   const localEditMode = editMode;
+  const usesBackgroundImageField =
+    block.type === "newsletter-header" || block.type === "email-safe-hero";
 
   // Handle image selection from MediaSelector
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    // For newsletter headers, update backgroundImageUrl instead of imageUrl
-    if (block.type === "newsletter-header") {
+    // Hero-style blocks store their image as a background layer.
+    if (usesBackgroundImageField) {
       handleLocalUpdate({
         backgroundImageUrl: imageUrl,
+        imageUrl: undefined,
         altText: metadata?.alt || metadata?.description || block.altText,
       });
     } else {
@@ -598,9 +601,10 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
 
       if (imageUrl) {
         // Update the block with the generated image
-        if (block.type === "newsletter-header") {
+        if (usesBackgroundImageField) {
           handleLocalUpdate({
             backgroundImageUrl: imageUrl,
+            imageUrl: undefined,
             isGeneratingImage: false,
             imageGenerationError: undefined,
           });
@@ -690,7 +694,8 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 : undefined
             }
             onOpenOverlayDialog={
-              block.type === "newsletter-header" &&
+              (block.type === "newsletter-header" ||
+                block.type === "email-safe-hero") &&
               (block.imageUrl || block.backgroundImageUrl)
                 ? () => setIsOverlayDialogOpen(true)
                 : undefined

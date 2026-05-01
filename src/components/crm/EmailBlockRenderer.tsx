@@ -1,5 +1,10 @@
 import React from "react";
 import { EmailBlock, GlobalSettings } from "@/types/emailBuilder";
+import { formatDraftRichText } from "@/lib/crm/htmlContent";
+import {
+  OPACITY_DEFAULTS,
+  normalizeOpacityToDecimal,
+} from "@/utils/opacityUtils";
 
 interface EmailBlockRendererProps {
   block: EmailBlock;
@@ -22,6 +27,13 @@ interface ProductGalleryContent {
   url?: string;
 }
 
+const HERO_BACKGROUND_LAYOUTS = new Set([
+  "image-background",
+  "image-overlay",
+  "background",
+  "overlay",
+]);
+
 export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
   block,
   globalSettings,
@@ -30,6 +42,296 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
   const baseStyle = {
     fontFamily: globalSettings.fontFamily,
     fontSize: globalSettings.fontSize,
+  };
+
+  const getTextAlign = (
+    fallback: React.CSSProperties["textAlign"] = "left",
+  ): React.CSSProperties["textAlign"] => {
+    const value = block.content.alignment || block.content.textAlign;
+    return value === "left" ||
+      value === "right" ||
+      value === "center" ||
+      value === "justify"
+      ? value
+      : fallback;
+  };
+
+  const getHeroAlignment = () => {
+    const value = getTextAlign("center");
+    return value === "left" || value === "right" ? value : "center";
+  };
+
+  const formatPublishDateLabel = (value?: string) => {
+    if (!value) {
+      return "";
+    }
+
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return "";
+    }
+
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+      ? new Date(`${trimmed}T00:00:00`)
+      : new Date(trimmed);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return trimmed;
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(parsed);
+  };
+
+  const renderHeroButton = (textColor: string, outline = false) => {
+    const label =
+      block.cta_text || block.content.buttonText || block.content.ctaText;
+    const url =
+      block.cta_url || block.content.buttonUrl || block.content.ctaUrl;
+
+    if (!label || !url) {
+      return null;
+    }
+
+    return (
+      <div style={{ marginTop: "24px" }}>
+        <a
+          href={url}
+          style={{
+            display: "inline-block",
+            padding: "12px 24px",
+            backgroundColor: outline
+              ? "transparent"
+              : globalSettings.buttonStyle.backgroundColor,
+            color: outline ? textColor : globalSettings.buttonStyle.textColor,
+            borderRadius: globalSettings.buttonStyle.cornerRadius,
+            border: outline ? `1px solid ${textColor}` : "none",
+            textDecoration: "none",
+            fontWeight: "bold",
+            fontSize: "16px",
+            fontFamily: globalSettings.buttonFont || globalSettings.fontFamily,
+          }}
+        >
+          {label}
+        </a>
+      </div>
+    );
+  };
+
+  const renderLayeredHero = ({
+    minHeight,
+    titleSize,
+    subtitleSize,
+    defaultBackgroundColor = globalSettings.headerStyle.backgroundColor ||
+      "#1F2937",
+    defaultTextColor = globalSettings.headerStyle.textColor || "#FFFFFF",
+    includeBody = false,
+    includeIssueInfo = false,
+    showPublishDate = false,
+    outlineButton = false,
+  }: {
+    minHeight: number;
+    titleSize: string;
+    subtitleSize: string;
+    defaultBackgroundColor?: string;
+    defaultTextColor?: string;
+    includeBody?: boolean;
+    includeIssueInfo?: boolean;
+    showPublishDate?: boolean;
+    outlineButton?: boolean;
+  }) => {
+    const backgroundImageUrl =
+      block.image_url || block.content.backgroundImageUrl || "";
+    const backgroundColor =
+      block.content.backgroundColor || defaultBackgroundColor;
+    const textColor = block.content.textColor || defaultTextColor;
+    const title =
+      block.content.title || block.content.headline || "Header Title";
+    const subtitle = block.content.subtitle || "";
+    const body = includeBody
+      ? block.content.body || block.content.content || ""
+      : "";
+    const issueInfo =
+      includeIssueInfo && block.content.content !== block.content.body
+        ? block.content.content || ""
+        : "";
+    const publishDate = showPublishDate
+      ? formatPublishDateLabel(block.content.publishDate)
+      : "";
+    const alignment = getHeroAlignment();
+    const backgroundOpacity = normalizeOpacityToDecimal(
+      block.content.backgroundOpacity,
+      OPACITY_DEFAULTS.backgroundImage,
+    );
+    const colorOverlayOpacity = backgroundImageUrl
+      ? normalizeOpacityToDecimal(
+          block.content.colorOverlayOpacity,
+          OPACITY_DEFAULTS.colorOverlay,
+        )
+      : 0;
+    const darkOverlayOpacity = backgroundImageUrl
+      ? normalizeOpacityToDecimal(
+          block.content.darkOverlayOpacity,
+          OPACITY_DEFAULTS.darkOverlay,
+        )
+      : 0;
+    const imageOverlayOpacity = backgroundImageUrl
+      ? normalizeOpacityToDecimal(
+          block.content.overlayOpacity,
+          OPACITY_DEFAULTS.imageOverlay,
+        )
+      : 0;
+    const contentMargin =
+      alignment === "center"
+        ? "0 auto"
+        : alignment === "right"
+          ? "0 0 0 auto"
+          : "0 auto 0 0";
+
+    return (
+      <div
+        style={{
+          ...baseStyle,
+          position: "relative",
+          overflow: "hidden",
+          minHeight: `${minHeight}px`,
+          padding: "48px 32px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor,
+          textAlign: alignment as "left" | "center" | "right",
+          color: textColor,
+        }}
+      >
+        {backgroundImageUrl ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: `url(${backgroundImageUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              opacity: backgroundOpacity,
+            }}
+          />
+        ) : null}
+        {backgroundImageUrl && darkOverlayOpacity > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: "#000000",
+              opacity: darkOverlayOpacity,
+            }}
+          />
+        ) : null}
+        {backgroundImageUrl && colorOverlayOpacity > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor,
+              opacity: colorOverlayOpacity,
+            }}
+          />
+        ) : null}
+        {backgroundImageUrl && imageOverlayOpacity > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundColor: block.content.overlayColor || "#000000",
+              opacity: imageOverlayOpacity,
+            }}
+          />
+        ) : null}
+
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+            maxWidth: "640px",
+            margin: contentMargin,
+          }}
+        >
+          <h1
+            style={{
+              margin: "0 0 12px 0",
+              fontSize: titleSize,
+              fontWeight: "bold",
+              lineHeight: 1.1,
+              fontFamily:
+                globalSettings.headlineFont || globalSettings.fontFamily,
+            }}
+          >
+            {title}
+          </h1>
+          {subtitle ? (
+            <p
+              style={{
+                margin: 0,
+                fontSize: subtitleSize,
+                lineHeight: 1.5,
+                opacity: 0.92,
+                fontFamily:
+                  globalSettings.subheadingFont || globalSettings.fontFamily,
+              }}
+            >
+              {subtitle}
+            </p>
+          ) : null}
+          {includeBody && body && body !== subtitle ? (
+            <div
+              style={{
+                margin: subtitle ? "16px 0 0 0" : 0,
+                fontSize: "17px",
+                lineHeight: 1.65,
+                opacity: 0.92,
+                fontFamily:
+                  globalSettings.bodyFont || globalSettings.fontFamily,
+              }}
+              dangerouslySetInnerHTML={{ __html: formatDraftRichText(body) }}
+            ></div>
+          ) : null}
+          {issueInfo ? (
+            <div
+              style={{
+                marginTop: "14px",
+                fontSize: "13px",
+                lineHeight: 1.5,
+                opacity: 0.72,
+                fontFamily:
+                  globalSettings.bodyFont || globalSettings.fontFamily,
+              }}
+              dangerouslySetInnerHTML={{
+                __html: formatDraftRichText(issueInfo),
+              }}
+            ></div>
+          ) : null}
+          {publishDate ? (
+            <div
+              style={{
+                marginTop: "24px",
+                fontSize: "18px",
+                lineHeight: 1.5,
+                opacity: 0.82,
+                fontFamily:
+                  globalSettings.bodyFont || globalSettings.fontFamily,
+              }}
+            >
+              {`\u{1F4C5} ${publishDate}`}
+            </div>
+          ) : null}
+          {renderHeroButton(textColor, outlineButton)}
+        </div>
+      </div>
+    );
   };
 
   const renderHeader = () => (
@@ -97,13 +399,16 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
             marginBottom: hasButton ? "16px" : "0",
             fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
           }}
-        >
-          {block.content.content || "Add your text content here..."}
-        </div>
+          dangerouslySetInnerHTML={{
+            __html: formatDraftRichText(
+              block.content.content || "Add your text content here...",
+            ),
+          }}
+        ></div>
         {hasButton && (
           <div
             style={{
-              textAlign: (block.content.alignment as any) || "left",
+              textAlign: getTextAlign("left"),
               marginTop: "16px",
             }}
           >
@@ -141,7 +446,7 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
         style={{
           padding: "0",
           width: "100%",
-          textAlign: (block.content.alignment as any) || "center",
+          textAlign: getTextAlign("center"),
         }}
       >
         <img
@@ -176,6 +481,39 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     const galleryImages = Array.isArray(block.content.galleryImages)
       ? (block.content.galleryImages as GalleryImageContent[])
       : [];
+    const galleryColumnsRaw = Number(
+      block.content.galleryColumns || block.content.columns || 3,
+    );
+    const galleryColumns =
+      Number.isFinite(galleryColumnsRaw) && galleryColumnsRaw > 0
+        ? Math.min(3, Math.max(1, galleryColumnsRaw))
+        : 3;
+    const galleryGap =
+      block.content.galleryGap === "small"
+        ? 8
+        : block.content.galleryGap === "large"
+          ? 16
+          : 12;
+    const galleryRadius =
+      block.content.galleryImageRadius === "none"
+        ? "0px"
+        : block.content.galleryImageRadius === "small"
+          ? "6px"
+          : block.content.galleryImageRadius === "large"
+            ? "16px"
+            : "12px";
+    const galleryButtonLabel =
+      block.cta_text || block.content.buttonText || block.content.ctaText;
+    const galleryButtonUrl =
+      block.cta_url || block.content.buttonUrl || block.content.ctaUrl || "";
+    const galleryButtonColor =
+      block.content.buttonColor ||
+      globalSettings.buttonStyle.backgroundColor ||
+      "#2E7D32";
+    const galleryButtonRadius =
+      block.content.isRounded === false
+        ? globalSettings.buttonStyle.cornerRadius
+        : "999px";
 
     if (!galleryImages.length) {
       return null;
@@ -198,39 +536,88 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           </h2>
         )}
         {block.content.body && (
-          <p
+          <div
             style={{
               margin: "0 0 16px 0",
               color: "#6B7280",
               textAlign: "center" as const,
               fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
             }}
-          >
-            {block.content.body}
-          </p>
+            dangerouslySetInnerHTML={{
+              __html: formatDraftRichText(block.content.body),
+            }}
+          ></div>
         )}
         <div
           style={{
             display: "grid",
-            gap: "12px",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: `${galleryGap}px`,
+            gridTemplateColumns: `repeat(${galleryColumns}, minmax(0, 1fr))`,
           }}
         >
           {galleryImages.map((image, index) => (
-            <img
+            <div
               key={image.id || `gallery-image-${index}`}
-              src={image.url || ""}
-              alt={image.alt || ""}
               style={{
                 width: "100%",
-                height: "auto",
-                display: "block",
-                borderRadius: "8px",
-                objectFit: "cover",
+                height: "200px",
+                overflow: "hidden",
+                borderRadius: galleryRadius,
               }}
-            />
+            >
+              <img
+                src={image.url || ""}
+                alt={image.alt || ""}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                  objectFit: "cover",
+                  objectPosition: "center",
+                }}
+              />
+            </div>
           ))}
         </div>
+        {galleryButtonLabel ? (
+          <div style={{ marginTop: "20px", textAlign: "center" as const }}>
+            {galleryButtonUrl ? (
+              <a
+                href={galleryButtonUrl}
+                style={{
+                  display: "inline-block",
+                  padding: "12px 24px",
+                  backgroundColor: galleryButtonColor,
+                  color: "#FFFFFF",
+                  borderRadius: galleryButtonRadius,
+                  textDecoration: "none",
+                  fontWeight: "bold",
+                  fontSize: "16px",
+                  fontFamily:
+                    globalSettings.buttonFont || globalSettings.fontFamily,
+                }}
+              >
+                {galleryButtonLabel}
+              </a>
+            ) : (
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "12px 24px",
+                  backgroundColor: galleryButtonColor,
+                  color: "#FFFFFF",
+                  borderRadius: galleryButtonRadius,
+                  fontWeight: "bold",
+                  fontSize: "16px",
+                  fontFamily:
+                    globalSettings.buttonFont || globalSettings.fontFamily,
+                }}
+              >
+                {galleryButtonLabel}
+              </span>
+            )}
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -261,16 +648,17 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           </h2>
         )}
         {block.content.body && (
-          <p
+          <div
             style={{
               margin: "0 0 16px 0",
               color: "#6B7280",
               textAlign: "center" as const,
               fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
             }}
-          >
-            {block.content.body}
-          </p>
+            dangerouslySetInnerHTML={{
+              __html: formatDraftRichText(block.content.body),
+            }}
+          ></div>
         )}
         <div
           style={{
@@ -338,31 +726,131 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
     );
   };
 
-  const renderButton = () => (
-    <div
-      style={{
-        padding: "16px 24px",
-        textAlign: (block.content.alignment as any) || "center",
-      }}
-    >
-      <a
-        href={block.cta_url || block.content.url || "#"}
+  const renderButton = () => {
+    const headline =
+      block.content.headline || block.content.title || block.content.heading;
+    const subheading = block.content.subtitle || block.content.subheading;
+    const body = block.content.body || block.content.content || "";
+    const buttonLabel =
+      block.cta_text ||
+      block.content.buttonText ||
+      block.content.ctaText ||
+      block.content.text ||
+      "Click Here";
+    const buttonUrl =
+      block.cta_url ||
+      block.content.buttonUrl ||
+      block.content.ctaUrl ||
+      block.content.url ||
+      "";
+    const buttonColor =
+      block.content.buttonColor ||
+      globalSettings.buttonStyle.backgroundColor ||
+      "#2E7D32";
+    const buttonBorderRadius =
+      block.content.isRounded === false
+        ? globalSettings.buttonStyle.cornerRadius
+        : "999px";
+    const buttonSize = block.content.buttonSize || "medium";
+    const buttonPadding =
+      buttonSize === "small"
+        ? "8px 16px"
+        : buttonSize === "large"
+          ? "16px 32px"
+          : "12px 24px";
+    const buttonFontSize =
+      buttonSize === "small"
+        ? "14px"
+        : buttonSize === "large"
+          ? "18px"
+          : "16px";
+
+    return (
+      <div
         style={{
-          display: "inline-block",
-          padding: "12px 24px",
-          backgroundColor: globalSettings.buttonStyle.backgroundColor,
-          color: globalSettings.buttonStyle.textColor,
-          borderRadius: globalSettings.buttonStyle.cornerRadius,
-          textDecoration: "none",
-          fontWeight: "bold",
-          fontSize: "16px",
-          fontFamily: globalSettings.buttonFont || globalSettings.fontFamily,
+          ...baseStyle,
+          padding: "32px 24px",
+          textAlign: getTextAlign("center"),
+          backgroundColor: block.content.backgroundColor || "#ffffff",
         }}
       >
-        {block.cta_text || block.content.text || "Click Here"}
-      </a>
-    </div>
-  );
+        {headline ? (
+          <h2
+            style={{
+              margin: "0 0 8px 0",
+              fontSize: "24px",
+              fontWeight: "bold",
+              color: block.content.textColor || "#1f2937",
+              fontFamily:
+                globalSettings.subheadingFont || globalSettings.fontFamily,
+            }}
+          >
+            {headline}
+          </h2>
+        ) : null}
+        {subheading ? (
+          <p
+            style={{
+              margin: "0 0 12px 0",
+              fontSize: "16px",
+              color: block.content.textColor || "#6b7280",
+              fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
+            }}
+          >
+            {subheading}
+          </p>
+        ) : null}
+        {body ? (
+          <div
+            style={{
+              marginBottom: "20px",
+              lineHeight: "1.6",
+              color: block.content.textColor || "#4b5563",
+              fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
+            }}
+            dangerouslySetInnerHTML={{
+              __html: formatDraftRichText(body),
+            }}
+          />
+        ) : null}
+        {buttonUrl ? (
+          <a
+            href={buttonUrl}
+            style={{
+              display: "inline-block",
+              padding: buttonPadding,
+              backgroundColor: buttonColor,
+              color: globalSettings.buttonStyle.textColor,
+              borderRadius: buttonBorderRadius,
+              textDecoration: "none",
+              fontWeight: "bold",
+              fontSize: buttonFontSize,
+              fontFamily:
+                globalSettings.buttonFont || globalSettings.fontFamily,
+            }}
+          >
+            {buttonLabel}
+          </a>
+        ) : (
+          <span
+            style={{
+              display: "inline-block",
+              padding: buttonPadding,
+              backgroundColor: buttonColor,
+              color: globalSettings.buttonStyle.textColor,
+              borderRadius: buttonBorderRadius,
+              fontWeight: "bold",
+              fontSize: buttonFontSize,
+              fontFamily:
+                globalSettings.buttonFont || globalSettings.fontFamily,
+            }}
+          >
+            {buttonLabel}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   const renderImageText = () => {
     const layout = block.content.layout || "image-left";
@@ -409,7 +897,9 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
             fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
           }}
           dangerouslySetInnerHTML={{
-            __html: block.content.content || block.content.body || "",
+            __html: formatDraftRichText(
+              block.content.content || block.content.body || "",
+            ),
           }}
         />
         {hasButton && (
@@ -514,9 +1004,12 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
               fontSize: "14px",
               fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
             }}
-          >
-            {block.content.description || "Product description"}
-          </p>
+            dangerouslySetInnerHTML={{
+              __html: formatDraftRichText(
+                block.content.description || "Product description",
+              ),
+            }}
+          ></p>
           <div
             style={{
               display: "flex",
@@ -562,52 +1055,39 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
 
     switch (block.block_type) {
       case "header":
-      case "newsletter-header":
-        return renderHeader();
-      case "email-safe-hero":
-        // Email-safe hero can have a background image
         if (block.image_url || block.content?.backgroundImageUrl) {
-          const bgUrl = block.image_url || block.content?.backgroundImageUrl;
-          return (
-            <div
-              style={{
-                ...baseStyle,
-                backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${bgUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                color: "#FFFFFF",
-                padding: "48px 24px",
-                textAlign: "center" as const,
-              }}
-            >
-              <h1
-                style={{
-                  margin: "0 0 8px 0",
-                  fontSize: "28px",
-                  fontWeight: "bold",
-                  fontFamily:
-                    globalSettings.headlineFont || globalSettings.fontFamily,
-                }}
-              >
-                {block.content.title || block.content.headline || ""}
-              </h1>
-              {(block.content.subtitle || block.content.body) && (
-                <p
-                  style={{
-                    margin: "0",
-                    fontSize: "16px",
-                    opacity: 0.9,
-                    fontFamily:
-                      globalSettings.subheadingFont || globalSettings.fontFamily,
-                  }}
-                >
-                  {block.content.subtitle || block.content.body}
-                </p>
-              )}
-            </div>
-          );
+          return renderLayeredHero({
+            minHeight: 300,
+            titleSize: "42px",
+            subtitleSize: "20px",
+            includeBody: true,
+            defaultBackgroundColor:
+              globalSettings.headerStyle.backgroundColor || "#1F2937",
+            defaultTextColor: globalSettings.headerStyle.textColor || "#FFFFFF",
+          });
         }
         return renderHeader();
+      case "newsletter-header":
+        return renderLayeredHero({
+          minHeight: 400,
+          titleSize: "48px",
+          subtitleSize: "22px",
+          defaultBackgroundColor: "#1F2937",
+          defaultTextColor: "#FFFFFF",
+          showPublishDate: true,
+          outlineButton: true,
+        });
+      case "email-safe-hero":
+        return renderLayeredHero({
+          minHeight: 360,
+          titleSize: "44px",
+          subtitleSize: "22px",
+          defaultBackgroundColor: "#F5F5F7",
+          defaultTextColor: "#111111",
+          includeBody: true,
+          includeIssueInfo: true,
+          outlineButton: true,
+        });
       case "graphic-hero":
         // Graphic hero is a single clickable image — always full width
         return block.image_url ? (
@@ -622,14 +1102,24 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
                 <img
                   src={block.image_url}
                   alt={block.content?.altText || ""}
-                  style={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
+                  style={{
+                    width: "100%",
+                    maxWidth: "100%",
+                    height: "auto",
+                    display: "block",
+                  }}
                 />
               </a>
             ) : (
               <img
                 src={block.image_url}
                 alt={block.content?.altText || ""}
-                style={{ width: "100%", maxWidth: "100%", height: "auto", display: "block" }}
+                style={{
+                  width: "100%",
+                  maxWidth: "100%",
+                  height: "auto",
+                  display: "block",
+                }}
               />
             )}
           </div>
@@ -650,6 +1140,18 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
       case "text":
         return renderText();
       case "image-text":
+        if (
+          HERO_BACKGROUND_LAYOUTS.has(block.content?.layout || "") &&
+          (block.image_url || block.content?.backgroundImageUrl)
+        ) {
+          return renderLayeredHero({
+            minHeight: 320,
+            titleSize: "40px",
+            subtitleSize: "20px",
+            includeBody: true,
+            outlineButton: true,
+          });
+        }
         return renderImageText();
       case "image":
         // Don't render image blocks if they're actually text blocks
@@ -677,9 +1179,12 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
           >
             <p
               style={{ margin: "0 0 8px 0", fontSize: "18px", lineHeight: 1.6 }}
-            >
-              "{block.content?.quote || block.content?.content || ""}"
-            </p>
+              dangerouslySetInnerHTML={{
+                __html: formatDraftRichText(
+                  block.content?.quote || block.content?.content || "",
+                ),
+              }}
+            ></p>
             {block.content?.author && (
               <p
                 style={{

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { cn } from "@/lib/utils";
+import { formatDraftRichText, formatDraftText } from "@/lib/crm/htmlContent";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { ImageTextBlock } from "./ImageTextBlock";
 import { CTAButton } from "@/components/ui-legacy/CTAButton";
@@ -210,8 +211,8 @@ export const TextBlock: React.FC<TextBlockProps> = ({
                 color: block.textColor || "inherit",
               }}
               dangerouslySetInnerHTML={{
-                __html: sanitizeWeekNumbers(
-                  block.headline || block.title || "",
+                __html: formatDraftText(
+                  sanitizeWeekNumbers(block.headline || block.title || ""),
                 ),
               }}
             />
@@ -222,23 +223,24 @@ export const TextBlock: React.FC<TextBlockProps> = ({
           )}
 
           {/* Text content */}
-          <div
-            className="prose max-w-none"
-            style={{
-              fontSize: block.fontSize || "16px",
-              fontFamily: block.fontFamily || "inherit",
-            }}
-            dangerouslySetInnerHTML={{
-              __html: (() => {
-                // Prioritize non-empty content from either field
-                const content = block.content || block.body || "";
-                return (
-                  sanitizeWeekNumbers(content) ||
-                  '<p class="text-sm text-muted-foreground italic">Click to add content</p>'
-                );
-              })(),
-            }}
-          />
+          {block.content || block.body ? (
+            <div
+              className="prose max-w-none"
+              style={{
+                fontSize: block.fontSize || "16px",
+                fontFamily: block.fontFamily || "inherit",
+              }}
+              dangerouslySetInnerHTML={{
+                __html: formatDraftRichText(
+                  sanitizeWeekNumbers(block.content || block.body || ""),
+                ),
+              }}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              Click to add content
+            </p>
+          )}
 
           {/* CTA Button */}
           <CTAButton block={block} />

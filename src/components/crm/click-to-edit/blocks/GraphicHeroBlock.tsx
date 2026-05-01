@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ContentBlock } from "@/types/emailBuilder";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
@@ -26,7 +26,29 @@ interface GraphicHeroBlockProps {
   isGenerating?: boolean;
 }
 
-export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
+function areGraphicHeroBlockPropsEqual(
+  previousProps: GraphicHeroBlockProps,
+  nextProps: GraphicHeroBlockProps,
+) {
+  return (
+    previousProps.block.id === nextProps.block.id &&
+    previousProps.block.imageUrl === nextProps.block.imageUrl &&
+    previousProps.block.altText === nextProps.block.altText &&
+    previousProps.block.ctaUrl === nextProps.block.ctaUrl &&
+    previousProps.isPreview === nextProps.isPreview &&
+    previousProps.editMode === nextProps.editMode &&
+    previousProps.isGenerating === nextProps.isGenerating &&
+    previousProps.validationErrors?.buttonUrl ===
+      nextProps.validationErrors?.buttonUrl &&
+    previousProps.validationErrors?.imageUrl ===
+      nextProps.validationErrors?.imageUrl &&
+    Boolean(previousProps.onModeChange) === Boolean(nextProps.onModeChange) &&
+    Boolean(previousProps.onClose) === Boolean(nextProps.onClose) &&
+    Boolean(previousProps.onCancel) === Boolean(nextProps.onCancel)
+  );
+}
+
+const GraphicHeroBlockComponent: React.FC<GraphicHeroBlockProps> = ({
   block,
   onUpdate,
   onDuplicate,
@@ -40,9 +62,58 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
   isGenerating = false,
 }) => {
   const mediaSelectorRef = useRef<MediaSelectorImageHandle>(null);
+  const requestedImageUrlRef = useRef(block.imageUrl || "");
+  const [displayedImageUrl, setDisplayedImageUrl] = useState(
+    block.imageUrl || "",
+  );
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
-  // Live preview component - just the image (text is baked in)
-  const PreviewContent = () => (
+  // Keep the current asset mounted until a new image URL has loaded.
+  useEffect(() => {
+    const nextImageUrl = block.imageUrl || "";
+    requestedImageUrlRef.current = nextImageUrl;
+
+    if (!nextImageUrl) {
+      setDisplayedImageUrl("");
+      setIsImageLoading(false);
+      return;
+    }
+
+    if (nextImageUrl === displayedImageUrl) {
+      setIsImageLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const preloadedImage = new Image();
+
+    setIsImageLoading(true);
+
+    preloadedImage.onload = () => {
+      if (cancelled || requestedImageUrlRef.current !== nextImageUrl) {
+        return;
+      }
+
+      setDisplayedImageUrl(nextImageUrl);
+      setIsImageLoading(false);
+    };
+
+    preloadedImage.onerror = () => {
+      if (cancelled || requestedImageUrlRef.current !== nextImageUrl) {
+        return;
+      }
+
+      setIsImageLoading(false);
+    };
+
+    preloadedImage.src = nextImageUrl;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [block.imageUrl, displayedImageUrl]);
+
+  const renderPreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group">
       {/* Contextual Toolbar */}
       {onModeChange && (
@@ -57,22 +128,33 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
       )}
 
       {/* The Graphic Hero - just an image with optional link */}
-      {block.imageUrl ? (
+      {displayedImageUrl ? (
         block.ctaUrl ? (
           <a href={block.ctaUrl} target="_blank" rel="noopener noreferrer">
             <img
-              src={block.imageUrl}
+              src={displayedImageUrl}
               alt={block.altText || ""}
               className="w-full h-auto object-cover"
+              decoding="async"
             />
           </a>
         ) : (
           <img
-            src={block.imageUrl}
+            src={displayedImageUrl}
             alt={block.altText || ""}
             className="w-full h-auto object-cover"
+            decoding="async"
           />
         )
+      ) : block.imageUrl ? (
+        <div
+          className={cn(
+            "w-full flex items-center justify-center text-muted-foreground bg-muted",
+            isPreview ? "h-48" : "h-64",
+          )}
+        >
+          <span className="text-sm">Loading image...</span>
+        </div>
       ) : (
         <div
           className={cn(
@@ -90,6 +172,10 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
         </div>
       )}
 
+      {isImageLoading && displayedImageUrl ? (
+        <div className="absolute inset-0 bg-background/10 pointer-events-none" />
+      ) : null}
+
       {/* Loading indicator */}
       {isGenerating && (
         <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
@@ -100,7 +186,7 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
   );
 
   if (isPreview) {
-    return <PreviewContent />;
+    return renderPreviewContent();
   }
 
   return (
@@ -109,7 +195,7 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
       <div className="space-y-2">
         <Label>Live Preview</Label>
         <div className="border rounded-lg overflow-hidden">
-          <PreviewContent />
+          {renderPreviewContent()}
         </div>
       </div>
 
@@ -192,3 +278,8 @@ export const GraphicHeroBlock: React.FC<GraphicHeroBlockProps> = ({
     </div>
   );
 };
+
+export const GraphicHeroBlock = React.memo(
+  GraphicHeroBlockComponent,
+  areGraphicHeroBlockPropsEqual,
+);

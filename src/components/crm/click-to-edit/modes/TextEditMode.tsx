@@ -9,6 +9,7 @@ import { Input } from "@/components/ui-legacy/input";
 import { AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
 import { cn } from "@/lib/utils";
+import { normalizeDateInputValue } from "@/utils/dateInputValue";
 
 interface TextEditModeProps {
   block: ContentBlock;
@@ -59,7 +60,9 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
     block.ctaText || block.buttonText || "",
   );
   const [ctaUrl, setCtaUrl] = useState(block.ctaUrl || block.buttonUrl || "");
-  const [publishDate, setPublishDate] = useState(block.publishDate || "");
+  const [publishDate, setPublishDate] = useState(
+    normalizeDateInputValue(block.publishDate),
+  );
   const [backgroundColor, setBackgroundColor] = useState(
     block.backgroundColor || "#2d5a27",
   );
@@ -73,7 +76,7 @@ export const TextEditMode: React.FC<TextEditModeProps> = ({
     setAltText(block.altText || "");
     setCtaText(block.ctaText || block.buttonText || "");
     setCtaUrl(block.ctaUrl || block.buttonUrl || "");
-    setPublishDate(block.publishDate || "");
+    setPublishDate(normalizeDateInputValue(block.publishDate));
     setBackgroundColor(block.backgroundColor || "#2d5a27");
     setTextColor(block.textColor || "#ffffff");
   }, [block.id]); // Only sync when block ID changes, not on every update

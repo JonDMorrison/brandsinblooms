@@ -28,6 +28,7 @@ import { EmailBlockRenderer } from "@/components/crm/EmailBlockRenderer";
 import { JoyDialog, JoyDialogContent } from "@/components/joy/JoyDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useCompanyInfo } from "@/hooks/useCompanyInfo";
+import { buildFooterProps, useFooterSettings } from "@/hooks/useFooterSettings";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useCampaignEditor } from "@/components/crm/campaign-editor/CampaignEditorContext";
@@ -37,6 +38,8 @@ import type {
   EmailBlock,
   GlobalSettings,
 } from "@/types/emailBuilder";
+import { formatDraftRichText } from "@/lib/crm/htmlContent";
+import { generateNewsletterFooterHtml } from "@/utils/newsletterFooterHtml";
 import { normalizeBlockForSave } from "@/utils/blockFieldMapping";
 
 const PAGE_SIZE = 1000;
@@ -44,7 +47,7 @@ const PAGE_SIZE = 1000;
 const SAMPLE_PREVIEW_CUSTOMER = {
   first_name: "Jane",
   last_name: "Gardener",
-  email: "jane@example.com",
+  email: "jane@your-domain.test",
   phone: "(555) 123-4567",
 };
 
@@ -70,6 +73,13 @@ type SendTestState =
   | { tone: "danger"; message: string };
 
 type PreviewCompanyInfo = ReturnType<typeof useCompanyInfo>["companyInfo"];
+
+const HERO_BACKGROUND_LAYOUTS = new Set([
+  "image-background",
+  "image-overlay",
+  "background",
+  "overlay",
+]);
 
 function chunkIds(ids: string[], size = 200) {
   const chunks: string[][] = [];
@@ -301,6 +311,40 @@ function buildPreviewGlobalSettings(
   };
 }
 
+function blockNeedsHeroOverlayParity(block: ContentBlock): boolean {
+  const hasBackgroundHeroImage = Boolean(
+    block.backgroundImageUrl ||
+    (block.type === "email-safe-hero" && block.imageUrl) ||
+    (block.imageUrl && HERO_BACKGROUND_LAYOUTS.has(block.layout || "")),
+  );
+
+  if (!hasBackgroundHeroImage) {
+    return false;
+  }
+
+  return (
+    block.type === "header" ||
+    block.type === "newsletter-header" ||
+    block.type === "email-safe-hero" ||
+    (block.type === "image-text" &&
+      HERO_BACKGROUND_LAYOUTS.has(block.layout || ""))
+  );
+}
+
+function hostedPreviewFragmentLooksStale(
+  blocks: ContentBlock[],
+  fragment: string,
+): boolean {
+  if (!blocks.some(blockNeedsHeroOverlayParity)) {
+    return false;
+  }
+
+  return (
+    !fragment.includes("<td background=") &&
+    !fragment.includes("schemas-microsoft-com:vml")
+  );
+}
+
 function renderImageTextBlock(
   block: ContentBlock,
   globalSettings: GlobalSettings,
@@ -349,17 +393,15 @@ function renderImageTextBlock(
         </h2>
       ) : null}
       {body ? (
-        <p
+        <div
           style={{
             margin: 0,
             color: "#374151",
             lineHeight: 1.7,
             fontFamily: textFont,
-            whiteSpace: "pre-wrap",
           }}
-        >
-          {body}
-        </p>
+          dangerouslySetInnerHTML={{ __html: formatDraftRichText(body) }}
+        ></div>
       ) : null}
       {buttonText ? (
         <div style={{ marginTop: "16px" }}>
@@ -433,17 +475,29 @@ function wrapServerRenderedHtml(
 ): string {
   const safePreheader = preheaderText.trim();
   const hiddenPreheader = safePreheader
-    ? `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${safePreheader.replace(/[<>&"']/g, (c) => ({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[c]!)}</div>`
+    ? `<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${safePreheader.replace(
+        /[<>&"']/g,
+        (c) =>
+          ({
+            "<": "&lt;",
+            ">": "&gt;",
+            "&": "&amp;",
+            '"': "&quot;",
+            "'": "&#39;",
+          })[c]!,
+      )}</div>`
     : "";
 
   return `<!doctype html>
   <html>
+    <head>
+      <style>
+        a[href], button {
+          pointer-events: none !important;
+          cursor: default !important;
+        }
+      </style>
+    </head>
     <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
       ${hiddenPreheader}
       <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 12px 32px rgba(15, 23, 42, 0.08);">
@@ -463,6 +517,7 @@ function buildPreviewHtml(
   blocks: ContentBlock[],
   preheaderText: string,
   globalSettings: GlobalSettings,
+  footerHtml: string,
 ) {
   const hiddenPreheader = preheaderText.trim()
     ? renderToStaticMarkup(
@@ -525,10 +580,19 @@ function buildPreviewHtml(
 
   return `<!doctype html>
   <html>
+    <head>
+      <style>
+        a[href], button {
+          pointer-events: none !important;
+          cursor: default !important;
+        }
+      </style>
+    </head>
     <body style="margin:0;background:#F3F4F6;padding:24px 12px;">
       ${hiddenPreheader}
       <div style="max-width:680px;margin:0 auto;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 12px 32px rgba(15, 23, 42, 0.08);">
         ${sections}
+        ${footerHtml}
       </div>
     </body>
   </html>`;
@@ -544,6 +608,7 @@ export function CampaignPreviewDialog({
   const { tenant } = useTenant();
   const { companyInfo } = useCompanyInfo();
   const {
+    campaignId,
     campaignType,
     status,
     contentBlocks,
@@ -553,6 +618,7 @@ export function CampaignPreviewDialog({
     selectedSegments,
     selectedPersonas,
   } = useCampaignEditor();
+  const { footerSettings, campaignOverrides } = useFooterSettings(campaignId);
   const [viewMode, setViewMode] = React.useState<"desktop" | "mobile">(
     "desktop",
   );
@@ -601,6 +667,24 @@ export function CampaignPreviewDialog({
     () => buildPreviewGlobalSettings(companyInfo),
     [companyInfo],
   );
+  const previewFooterHtml = React.useMemo(() => {
+    if (campaignType !== "email") {
+      return "";
+    }
+
+    const footerProps = buildFooterProps(
+      footerSettings,
+      companyInfo,
+      "#unsubscribe",
+      "#preferences",
+      campaignOverrides,
+    );
+
+    return generateNewsletterFooterHtml(
+      footerProps,
+      typeof window !== "undefined" ? window.location.origin : undefined,
+    );
+  }, [campaignType, campaignOverrides, companyInfo, footerSettings]);
   const previewHtml = React.useMemo(() => {
     if (campaignType !== "email") {
       return "";
@@ -610,8 +694,15 @@ export function CampaignPreviewDialog({
       contentBlocks,
       preheaderText,
       previewGlobalSettings,
+      previewFooterHtml,
     );
-  }, [campaignType, contentBlocks, preheaderText, previewGlobalSettings]);
+  }, [
+    campaignType,
+    contentBlocks,
+    preheaderText,
+    previewFooterHtml,
+    previewGlobalSettings,
+  ]);
 
   const previewCustomer = previewCustomerQuery.data ?? null;
   const previewRecipientLabel = previewCustomer
@@ -656,6 +747,8 @@ export function CampaignPreviewDialog({
           body: {
             toEmail: email,
             subject: subjectLine || "Test Email Campaign",
+            campaignId: campaignId ?? undefined,
+            contentBlocks,
             html: previewHtml,
             sampleCustomer: SAMPLE_PREVIEW_CUSTOMER,
           },
@@ -695,7 +788,14 @@ export function CampaignPreviewDialog({
     } finally {
       setIsSendingTest(false);
     }
-  }, [previewHtml, subjectLine, testEmail, validateEmail]);
+  }, [
+    campaignId,
+    contentBlocks,
+    previewHtml,
+    subjectLine,
+    testEmail,
+    validateEmail,
+  ]);
 
   React.useEffect(() => {
     if (!open || campaignType !== "email") {
@@ -742,12 +842,7 @@ export function CampaignPreviewDialog({
         if (requestId !== renderRequestIdRef.current) {
           return;
         }
-        setRenderedHtml(
-          wrapServerRenderedHtml(
-            `<div style="padding:48px 24px;font-family:Arial,sans-serif;color:#4B5563;">No email content yet.</div>`,
-            preheaderText,
-          ),
-        );
+        setRenderedHtml(previewHtml);
         setRenderedSubject(null);
         setDiagnostics(null);
         return;
@@ -766,6 +861,7 @@ export function CampaignPreviewDialog({
         contentBlocks,
         subject: subjectLine,
         includeFooter: true,
+        exactSendPreview: true,
       };
 
       if (previewCustomer?.id) {
@@ -790,8 +886,16 @@ export function CampaignPreviewDialog({
       }
 
       const fragment = (data?.renderedHtml as string | undefined) ?? "";
+      const shouldUseLocalPreview =
+        Boolean(previewHtml) &&
+        hostedPreviewFragmentLooksStale(contentBlocks, fragment);
+
       setRenderedHtml(
-        fragment ? wrapServerRenderedHtml(fragment, preheaderText) : null,
+        shouldUseLocalPreview
+          ? previewHtml
+          : fragment
+            ? wrapServerRenderedHtml(fragment, preheaderText)
+            : null,
       );
       setRenderedSubject((data?.renderedSubject as string | undefined) ?? null);
       setDiagnostics(
@@ -816,7 +920,8 @@ export function CampaignPreviewDialog({
     campaignType,
     contentBlocks,
     preheaderText,
-    previewCustomer?.id,
+    previewCustomer,
+    previewHtml,
     subjectLine,
     tenant?.id,
   ]);
@@ -1168,7 +1273,7 @@ export function CampaignPreviewDialog({
                               component="iframe"
                               srcDoc={renderedHtml}
                               title="Mobile campaign preview"
-                              sandbox="allow-same-origin allow-scripts"
+                              sandbox=""
                               sx={{
                                 width: "100%",
                                 height: 680,
@@ -1184,7 +1289,7 @@ export function CampaignPreviewDialog({
                           component="iframe"
                           srcDoc={renderedHtml}
                           title="Campaign preview"
-                          sandbox="allow-same-origin allow-scripts"
+                          sandbox=""
                           sx={{
                             width: "100%",
                             minHeight: 720,
@@ -1229,7 +1334,7 @@ export function CampaignPreviewDialog({
                             type="email"
                             value={testEmail}
                             startDecorator={<Mail size={14} />}
-                            placeholder="you@example.com"
+                            placeholder="you@your-domain.test"
                             onChange={(event) => {
                               setTestEmail(event.target.value);
                               if (sendTestState?.tone === "danger") {

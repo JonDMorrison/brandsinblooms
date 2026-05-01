@@ -78,6 +78,7 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { JoySelect } from "@/components/joy/JoySelect";
 import { JoyTextarea } from "@/components/joy/JoyTextarea";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
+import { getTodayDateInputValue } from "@/utils/dateInputValue";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
@@ -237,6 +238,21 @@ function createBlockId(prefix: string) {
 
 function createManualBlock(kind: string): ContentBlock | null {
   switch (kind) {
+    case "newsletter_header":
+      return {
+        id: createBlockId("newsletter_header"),
+        type: "newsletter-header",
+        source: "manual",
+        title: "Newsletter title",
+        subtitle: "Add an issue summary or supporting line.",
+        issueNumber: "",
+        publishDate: getTodayDateInputValue(),
+        backgroundImageUrl: "",
+        alignment: "center",
+        padding: "large",
+        visible: true,
+        collapsed: false,
+      };
     case "hero_safe":
     case "header":
     case "hero":
@@ -247,6 +263,7 @@ function createManualBlock(kind: string): ContentBlock | null {
         headline: "Hero headline",
         subtitle: "Add a concise supporting message.",
         eyebrow: "Featured",
+        backgroundImageUrl: "",
         textAlign: "center",
         backgroundColor: "#f5f5f7",
         textColor: "#111111",
@@ -333,6 +350,22 @@ function createManualBlock(kind: string): ContentBlock | null {
         visible: true,
         collapsed: false,
       };
+    case "product":
+      return {
+        id: createBlockId("product"),
+        type: "product",
+        source: "manual",
+        headline: "Featured product",
+        title: "Featured product",
+        body: "Describe the product, bundle, or seasonal offer.",
+        content: "Describe the product, bundle, or seasonal offer.",
+        imageUrl: "",
+        altText: "",
+        buttonText: "View product",
+        buttonUrl: "",
+        visible: true,
+        collapsed: false,
+      };
     case "cta_button":
     case "button":
       return {
@@ -356,6 +389,36 @@ function createManualBlock(kind: string): ContentBlock | null {
         content: "solid",
         dividerThickness: 1,
         margin: "medium",
+        visible: true,
+        collapsed: false,
+      };
+    case "quote":
+      return {
+        id: createBlockId("quote"),
+        type: "quote",
+        source: "manual",
+        quote: "Add a customer testimonial or featured quote.",
+        author: "",
+        authorTitle: "",
+        alignment: "center",
+        padding: "large",
+        visible: true,
+        collapsed: false,
+      };
+    case "social_follow":
+      return {
+        id: createBlockId("social_follow"),
+        type: "social-follow",
+        source: "manual",
+        headline: "Follow along",
+        body: "Stay connected with us on social media.",
+        socialLinks: {
+          facebook: { enabled: false, url: "" },
+          instagram: { enabled: false, url: "" },
+          twitter: { enabled: false, url: "" },
+          youtube: { enabled: false, url: "" },
+        },
+        textAlign: "center",
         visible: true,
         collapsed: false,
       };
@@ -614,6 +677,12 @@ const BLOCK_PICKER_SECTIONS = [
     heading: "Hero & Headers",
     items: [
       {
+        id: "newsletter_header",
+        icon: <Mail size={20} />,
+        name: "Newsletter Header",
+        description: "Issue title, date, and masthead styling",
+      },
+      {
         id: "hero_safe",
         icon: <Sparkles size={20} />,
         name: "Email Safe Hero",
@@ -655,6 +724,12 @@ const BLOCK_PICKER_SECTIONS = [
         name: "Product Gallery",
         description: "2×2 product grid with badges",
       },
+      {
+        id: "product",
+        icon: <ShoppingBag size={20} />,
+        name: "Product Card",
+        description: "Single featured product with image and CTA",
+      },
     ],
   },
   {
@@ -677,6 +752,24 @@ const BLOCK_PICKER_SECTIONS = [
         icon: <Minus size={20} />,
         name: "Divider",
         description: "Horizontal line separator",
+      },
+      {
+        id: "quote",
+        icon: <MessageSquare size={20} />,
+        name: "Quote",
+        description: "Testimonial or highlighted pull quote",
+      },
+      {
+        id: "social_follow",
+        icon: <Users size={20} />,
+        name: "Social Follow",
+        description: "Link readers to your social profiles",
+      },
+      {
+        id: "footer",
+        icon: <LayoutTemplate size={20} />,
+        name: "Footer",
+        description: "Custom footer copy above the compliance footer",
       },
     ],
   },
@@ -2302,7 +2395,10 @@ function CampaignEditorScreen() {
                               spacing={1}
                               alignItems="center"
                             >
-                              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "neutral.500" }}
+                              >
                                 Color:
                               </Typography>
                               <input
@@ -2321,7 +2417,10 @@ function CampaignEditorScreen() {
                                   padding: 0,
                                 }}
                               />
-                              <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "neutral.400" }}
+                              >
                                 {emailBorderColor}
                               </Typography>
                             </Stack>

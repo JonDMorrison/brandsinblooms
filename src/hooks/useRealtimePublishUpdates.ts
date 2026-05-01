@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 // Removed sonner import - using global toast replacement
@@ -14,6 +14,11 @@ interface PublishUpdate {
 export const useRealtimePublishUpdates = (onUpdate?: (update: PublishUpdate) => void) => {
   const { user } = useAuth();
   const [updates, setUpdates] = useState<PublishUpdate[]>([]);
+  const onUpdateRef = useRef(onUpdate);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
 
   useEffect(() => {
     if (!user) return;
@@ -40,9 +45,7 @@ export const useRealtimePublishUpdates = (onUpdate?: (update: PublishUpdate) => 
           }
           // Remove success toast - users can see status in the UI
           
-          if (onUpdate) {
-            onUpdate(update);
-          }
+          onUpdateRef.current?.(update);
         }
       )
       .subscribe();
@@ -50,7 +53,7 @@ export const useRealtimePublishUpdates = (onUpdate?: (update: PublishUpdate) => 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, onUpdate]);
+  }, [user]);
 
   return { updates };
 };
