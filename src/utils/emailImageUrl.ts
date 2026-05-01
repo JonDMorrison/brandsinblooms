@@ -17,6 +17,9 @@
  * - Framework-specific paths (/_next/image, /api/...)
  */
 
+import { ImageUploader } from "@/lib/image/imageUploader";
+import type { ContentBlock } from "@/types/emailBuilder";
+
 // Known safe Supabase storage domains for this project
 const SUPABASE_STORAGE_PATTERN =
   /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/storage\/v1\/object\/public\//i;
@@ -35,14 +38,87 @@ const TRUSTED_CDN_PATTERNS = [
 const BLOCKED_URL_PATTERNS = [
   /^data:/i, // Data URIs
   /^blob:/i, // Blob URLs
-  /^\/[^\/]/, // Relative paths starting with /
+  /^\/[^/]/, // Relative paths starting with /
   /^\.\//, // Relative paths starting with ./
-  /^\.?\.\//, // Relative paths starting with ../
+  /^\.\.\//, // Relative paths starting with ../
   /localhost/i, // Localhost URLs
   /127\.0\.0\.1/, // Localhost IP
   /\/_next\//i, // Next.js image proxy
   /\/api\//i, // API routes
 ];
+
+const TRANSIENT_IMAGE_URL_PATTERNS = [/^data:image\//i, /^blob:/i];
+const EMAIL_SAFE_IMAGE_UPLOAD_FOLDER = "email-safe-images";
+const transientImageUploadCache = new Map<string, Promise<string>>();
+
+function isTransientImageUrl(url: string | undefined | null): boolean {
+  if (!url || typeof url !== "string") {
+    return false;
+  }
+
+  const trimmedUrl = url.trim();
+  return TRANSIENT_IMAGE_URL_PATTERNS.some((pattern) =>
+    pattern.test(trimmedUrl),
+  );
+}
+
+async function transientImageUrlToBlob(url: string): Promise<Blob> {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to read transient image URL (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error(
+      `Unsupported transient image type: ${blob.type || "unknown"}`,
+    );
+  }
+
+  return blob;
+}
+
+async function uploadTransientImageUrl(params: {
+  imageUrl: string;
+  userId: string;
+  blockId: string;
+  fieldName: string;
+}): Promise<string> {
+  const { imageUrl, userId, blockId, fieldName } = params;
+  const trimmedUrl = imageUrl.trim();
+  const cachedUpload = transientImageUploadCache.get(trimmedUrl);
+
+  if (cachedUpload) {
+    return cachedUpload;
+  }
+
+  const pendingUpload = (async () => {
+    const blob = await transientImageUrlToBlob(trimmedUrl);
+    const uploader = new ImageUploader("content-assets");
+    const uploaded = await uploader.uploadProcessedImage(
+      blob,
+      `${blockId}-${fieldName}`,
+      "",
+      {
+        folder: `${userId}/${EMAIL_SAFE_IMAGE_UPLOAD_FOLDER}`,
+      },
+    );
+
+    return (
+      uploaded.publicUrl || buildEmailAssetUrl("content-assets", uploaded.path)
+    );
+  })();
+
+  transientImageUploadCache.set(trimmedUrl, pendingUpload);
+
+  try {
+    return await pendingUpload;
+  } catch (error) {
+    transientImageUploadCache.delete(trimmedUrl);
+    throw error;
+  }
+}
 
 /**
  * Validates if a URL is safe for use in email HTML.
@@ -143,9 +219,9 @@ export function normalizeSupabaseStorageUrl(
   // Try to extract bucket and path from various URL formats
   const patterns = [
     // /storage/v1/object/public/bucket/path
-    /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)$/i,
+    /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/i,
     // /storage/v1/object/authenticated/bucket/path (convert to public)
-    /\/storage\/v1\/object\/authenticated\/([^\/]+)\/(.+)$/i,
+    /\/storage\/v1\/object\/authenticated\/([^/]+)\/(.+)$/i,
   ];
 
   for (const pattern of patterns) {
@@ -193,9 +269,9 @@ export function getEmailSafeImageUrl(
  * @returns A copy of the block with sanitized image URLs
  */
 export function sanitizeBlockImageUrls(
-  block: Record<string, any>,
-): Record<string, any> {
-  const result = { ...block };
+  block: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...block };
 
   // Common image URL fields in email blocks
   const imageFields = [
@@ -215,17 +291,67 @@ export function sanitizeBlockImageUrls(
   return result;
 }
 
+export async function normalizeContentBlocksForEmailAssets(
+  blocks: ContentBlock[],
+  userId: string | null | undefined,
+): Promise<ContentBlock[]> {
+  if (!Array.isArray(blocks) || blocks.length === 0 || !userId) {
+    return blocks;
+  }
+
+  let didChange = false;
+
+  const normalizedBlocks = await Promise.all(
+    blocks.map(async (block) => {
+      let nextBlock = block;
+
+      for (const fieldName of ["imageUrl", "backgroundImageUrl"] as const) {
+        const currentValue = block[fieldName];
+
+        if (!isTransientImageUrl(currentValue)) {
+          continue;
+        }
+
+        const uploadedUrl = await uploadTransientImageUrl({
+          imageUrl: currentValue,
+          userId,
+          blockId: block.id,
+          fieldName,
+        });
+
+        if (uploadedUrl !== currentValue) {
+          if (nextBlock === block) {
+            nextBlock = { ...block };
+          }
+
+          nextBlock[fieldName] = uploadedUrl;
+          didChange = true;
+        }
+      }
+
+      return nextBlock;
+    }),
+  );
+
+  return didChange ? normalizedBlocks : blocks;
+}
+
 /**
  * Debug utility: Log all image URLs in blocks that would be filtered
  *
  * @param blocks - Array of email blocks
  */
-export function debugBlockImageUrls(blocks: Array<Record<string, any>>): void {
+export function debugBlockImageUrls(
+  blocks: Array<Record<string, unknown>>,
+): void {
   blocks.forEach((block, index) => {
     const imageFields = ["imageUrl", "backgroundImageUrl", "logoUrl"];
     for (const field of imageFields) {
       const url = block[field];
       if (url && !isEmailSafeImageUrl(url)) {
+        console.warn(
+          `[emailImageUrl] Block ${index} has non-email-safe ${field}: ${String(url).slice(0, 120)}`,
+        );
       }
     }
   });

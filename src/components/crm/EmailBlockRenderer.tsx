@@ -853,55 +853,98 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
   };
 
   const renderImageText = () => {
-    const layout = block.content.layout || "image-left";
-    const isImageRight = layout === "image-right";
+    const layout = block.content.layout || "two-column-left";
+    const isFullWidth = layout === "full-width";
+    const isImageRight =
+      layout === "image-right" || layout === "two-column-right";
+    const imageUrl =
+      block.image_url ||
+      block.content.imageUrl ||
+      block.content.backgroundImageUrl ||
+      "";
+    const hasImage = Boolean(imageUrl);
+    const title =
+      block.content.headline ||
+      block.content.title ||
+      block.content.heading ||
+      "";
+    const subtitle = block.content.subtitle || block.content.subheading || "";
+    const body = block.content.content || block.content.body || "";
+    const backgroundColor = block.content.backgroundColor || "#ffffff";
+    const headingColor = block.content.textColor || "#111827";
+    const bodyColor = block.content.textColor || "#374151";
+    const alignment = getTextAlign("left");
+    const buttonBackgroundColor =
+      block.content.buttonColor || globalSettings.buttonStyle.backgroundColor;
     const hasButton =
       (block.cta_text || block.content.buttonText) &&
       (block.cta_url || block.content.buttonUrl);
 
-    const imageColumn = block.image_url ? (
-      <div style={{ width: "50%", flexShrink: 0 }}>
+    const imageColumn = hasImage ? (
+      <div style={{ width: "50%", flexShrink: 0, minWidth: 0 }}>
         <img
-          src={block.image_url}
-          alt={block.content.alt || ""}
+          src={imageUrl}
+          alt={block.content.altText || block.content.alt || title}
           style={{
             width: "100%",
             maxWidth: "100%",
             height: "auto",
             display: "block",
-            borderRadius: "8px",
+            borderRadius: "12px",
+            objectFit: "cover",
           }}
         />
       </div>
     ) : null;
 
     const textColumn = (
-      <div style={{ flex: 1, padding: "0 16px" }}>
-        {block.content.title && (
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          textAlign: alignment,
+        }}
+      >
+        {title && (
           <h2
             style={{
               margin: "0 0 8px 0",
               fontSize: "20px",
               fontWeight: "bold",
+              color: headingColor,
               fontFamily:
                 globalSettings.subheadingFont || globalSettings.fontFamily,
             }}
           >
-            {block.content.title}
+            {title}
           </h2>
         )}
-        <div
-          style={{
-            lineHeight: "1.6",
-            color: "#374151",
-            fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
-          }}
-          dangerouslySetInnerHTML={{
-            __html: formatDraftRichText(
-              block.content.content || block.content.body || "",
-            ),
-          }}
-        />
+        {subtitle && (
+          <p
+            style={{
+              margin: "0 0 12px 0",
+              fontSize: "15px",
+              lineHeight: 1.6,
+              color: bodyColor,
+              fontFamily:
+                globalSettings.subheadingFont || globalSettings.fontFamily,
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+        {body && (
+          <div
+            style={{
+              lineHeight: "1.6",
+              color: bodyColor,
+              fontFamily: globalSettings.bodyFont || globalSettings.fontFamily,
+            }}
+            dangerouslySetInnerHTML={{
+              __html: formatDraftRichText(body),
+            }}
+          />
+        )}
         {hasButton && (
           <div style={{ marginTop: "16px" }}>
             <a
@@ -909,12 +952,14 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
               style={{
                 display: "inline-block",
                 padding: "12px 24px",
-                backgroundColor: globalSettings.buttonStyle.backgroundColor,
+                backgroundColor: buttonBackgroundColor,
                 color: globalSettings.buttonStyle.textColor,
                 borderRadius: globalSettings.buttonStyle.cornerRadius,
                 textDecoration: "none",
                 fontWeight: "bold",
                 fontSize: "16px",
+                fontFamily:
+                  globalSettings.buttonFont || globalSettings.fontFamily,
               }}
             >
               {block.cta_text || block.content.buttonText || "Click Here"}
@@ -924,14 +969,45 @@ export const EmailBlockRenderer: React.FC<EmailBlockRendererProps> = ({
       </div>
     );
 
+    if (!hasImage || isFullWidth) {
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            padding: "24px",
+            backgroundColor,
+            textAlign: alignment,
+          }}
+        >
+          {hasImage ? (
+            <div style={{ marginBottom: "20px" }}>
+              <img
+                src={imageUrl}
+                alt={block.content.altText || block.content.alt || title}
+                style={{
+                  width: "100%",
+                  maxWidth: "100%",
+                  height: "auto",
+                  display: "block",
+                  borderRadius: "12px",
+                }}
+              />
+            </div>
+          ) : null}
+          {textColumn}
+        </div>
+      );
+    }
+
     return (
       <div
         style={{
           ...baseStyle,
-          padding: "16px 24px",
+          padding: "24px",
+          backgroundColor,
           display: "flex",
           alignItems: "flex-start",
-          gap: "16px",
+          gap: "24px",
         }}
       >
         {isImageRight ? (
