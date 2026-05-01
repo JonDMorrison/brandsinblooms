@@ -1,5 +1,6 @@
 import { resolveImageSrcToHttps } from "./emailImageUrl.ts";
 import { escapeHtmlAttribute, toHtmlText } from "./htmlContent.ts";
+import { socialIcons } from "./footerGenerator.ts";
 
 export interface RenderableGalleryImage {
   id?: string;
@@ -42,6 +43,7 @@ export interface RenderableContentBlock {
   authorTitle?: string;
   galleryImages?: RenderableGalleryImage[];
   galleryItems?: RenderableGalleryItem[];
+  socialLinks?: Record<string, { enabled?: boolean; url?: string }>;
 }
 
 export interface CampaignEmailSource {
@@ -136,6 +138,30 @@ function normalizeGalleryImages(value: unknown): RenderableGalleryImage[] {
       } satisfies RenderableGalleryImage,
     ];
   });
+}
+
+function normalizeSocialLinks(
+  value: unknown,
+):
+  | Record<string, { enabled?: boolean; url?: string }>
+  | undefined {
+  const record = toRecord(value);
+  if (Object.keys(record).length === 0) return undefined;
+
+  const result: Record<string, { enabled?: boolean; url?: string }> = {};
+  for (const [key, raw] of Object.entries(record)) {
+    const entry = toRecord(raw);
+    const enabled =
+      typeof entry.enabled === "boolean" ? entry.enabled : undefined;
+    const url = typeof entry.url === "string" ? entry.url.trim() : undefined;
+    if (enabled === undefined && (url === undefined || url === "")) continue;
+    result[key.toLowerCase()] = {
+      ...(enabled === undefined ? {} : { enabled }),
+      ...(url ? { url } : {}),
+    };
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 function normalizeGalleryItems(value: unknown): RenderableGalleryItem[] {
@@ -307,6 +333,12 @@ function normalizeContentBlock(
         nested.galleryItems ??
         record.products ??
         nested.products,
+    ),
+    socialLinks: normalizeSocialLinks(
+      record.socialLinks ??
+        nested.socialLinks ??
+        record.social_links ??
+        nested.social_links,
     ),
   };
 }
@@ -601,6 +633,63 @@ function renderProductBlock(block: RenderableContentBlock): string {
   `;
 }
 
+function renderSocialFollowBlock(block: RenderableContentBlock): string {
+  const links = block.socialLinks || {};
+  const activeIcons = Object.entries(links)
+    .filter(([key, data]) =>
+      data?.enabled === true &&
+      typeof data?.url === "string" &&
+      data.url.length > 0 &&
+      Object.prototype.hasOwnProperty.call(socialIcons, key)
+    )
+    .map(
+      ([key, data]) => `
+        <a href="${escapeAttribute(data!.url!)}" target="_blank" rel="noopener" style="display:inline-block;margin:0 8px;text-decoration:none;">
+          ${socialIcons[key]}
+        </a>
+      `,
+    );
+
+  if (activeIcons.length === 0) return "";
+
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const textColor = block.textColor || "#1f2937";
+  const alignment = block.alignment || "center";
+
+  return `
+    <section style="padding:24px 32px;background:${backgroundColor};text-align:${alignment};">
+      ${renderBlockHeading(block, textColor)}
+      <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="${alignment}" style="margin:${alignment === "center" ? "0 auto" : "0"};">
+        <tr>
+          <td align="${alignment}" style="padding:8px 0;">
+            ${activeIcons.join("")}
+          </td>
+        </tr>
+      </table>
+    </section>
+  `;
+}
+
+function renderFooterBlock(block: RenderableContentBlock): string {
+  // User-authored footer block. Renders inline with the rest of the campaign
+  // content; the auto-injected compliance footer (legal address +
+  // unsubscribe links from emailRenderer.ts → footerGenerator.ts) is
+  // appended AFTER the campaign HTML at send time, so this block sits above
+  // it in the final email.
+  const body = block.body || block.content;
+  if (!body && !block.headline && !block.title) return "";
+
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const textColor = block.textColor || "#334155";
+
+  return `
+    <section style="padding:24px 32px;background:${backgroundColor};text-align:${block.alignment || "left"};">
+      ${renderBlockHeading(block, textColor)}
+      ${body ? `<div style="font-size:14px;line-height:1.7;color:${textColor};">${toHtmlText(body)}</div>` : ""}
+    </section>
+  `;
+}
+
 function renderQuoteBlock(block: RenderableContentBlock): string {
   return `
     <section style="padding:32px;background:${block.backgroundColor || "#ffffff"};">
@@ -636,6 +725,10 @@ function renderBlock(block: RenderableContentBlock): string {
       return renderProductBlock(block);
     case "quote":
       return renderQuoteBlock(block);
+    case "social-follow":
+      return renderSocialFollowBlock(block);
+    case "footer":
+      return renderFooterBlock(block);
     case "plain_text":
     case "text":
     default:

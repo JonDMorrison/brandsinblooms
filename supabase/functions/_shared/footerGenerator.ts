@@ -55,8 +55,12 @@ const DEFAULT_FOOTER_COLORS: FooterStyleConfig = {
   dividerColor: '#E5E7EB',
 };
 
-// PNG social icons hosted on deployed app
-const socialIcons: Record<string, string> = {
+// PNG social icons hosted on deployed app.
+// Exported so that the campaign-content renderer in campaignEmailSource.ts
+// can reuse the exact same icon markup for user-authored social-follow
+// blocks — keeping per-tenant social rows visually identical to the
+// auto-injected unsubscribe footer's social row.
+export const socialIcons: Record<string, string> = {
   facebook: `<img src="${ICON_BASE_URL}/facebook.png" alt="Facebook" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
   instagram: `<img src="${ICON_BASE_URL}/instagram.png" alt="Instagram" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
   tiktok: `<img src="${ICON_BASE_URL}/tiktok.png" alt="TikTok" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`,
