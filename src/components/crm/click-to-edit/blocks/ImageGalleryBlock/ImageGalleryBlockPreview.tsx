@@ -251,19 +251,11 @@ export const ImageGalleryBlockPreview: React.FC<
 
       {/* Empty State - only when nothing at all */}
       {!hasHeadline && !hasBody && galleryImages.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <div className="flex justify-center gap-2 mb-2">
-            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
-              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-            </div>
-            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
-              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-            </div>
-            <div className="w-16 h-12 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-300">
-              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-            </div>
-          </div>
-          <p className="text-sm">Hover over slots to add images</p>
+        <div className="text-center py-4 text-muted-foreground">
+          <p className="text-sm font-medium">Gallery slots are ready</p>
+          <p className="text-xs mt-1">
+            Use the 200px placeholders above to add or generate images
+          </p>
         </div>
       )}
 

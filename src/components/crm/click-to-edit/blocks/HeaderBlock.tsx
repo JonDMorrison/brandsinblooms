@@ -59,8 +59,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
     enabled: !isPreview,
     shouldAutoFetch: false, // Disable automatic fetching for existing blocks
   });
-  // Live preview component that can be reused
-  const PreviewContent = () => (
+  const renderPreviewContent = () => (
     <div className="relative overflow-hidden rounded-lg group min-h-[300px]">
       {/* Background Image - bottom layer */}
       {block.backgroundImageUrl && (
@@ -173,7 +172,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
   );
 
   if (isPreview) {
-    return <PreviewContent />;
+    return renderPreviewContent();
   }
 
   return (
@@ -182,7 +181,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-2">
         <Label>Live Preview</Label>
         <div className="border rounded-lg overflow-hidden">
-          <PreviewContent />
+          {renderPreviewContent()}
         </div>
       </div>
 
@@ -198,7 +197,9 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
             placeholder="Enter headline"
             maxLength={80}
           />
-          <TipBox>Keep under 60 characters — longer headlines get cut on mobile</TipBox>
+          <TipBox>
+            Keep under 60 characters — longer headlines get cut on mobile
+          </TipBox>
         </div>
         <div className="space-y-2">
           <Label htmlFor="alignment">Text Alignment</Label>
@@ -305,18 +306,28 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
       <div className="space-y-3">
         <Label>Text Contrast</Label>
         <div className="grid grid-cols-4 gap-2">
-          {([
-            { key: "none", label: "None", bg: "#000000", opacity: 0 },
-            { key: "light", label: "Light", bg: "#ffffff", opacity: 30 },
-            { key: "dark", label: "Dark", bg: "#000000", opacity: 40 },
-            { key: "strong", label: "Strong", bg: "#000000", opacity: 65 },
-          ] as const).map((preset) => {
+          {(
+            [
+              { key: "none", label: "None", bg: "#000000", opacity: 0 },
+              { key: "light", label: "Light", bg: "#ffffff", opacity: 30 },
+              { key: "dark", label: "Dark", bg: "#000000", opacity: 40 },
+              { key: "strong", label: "Strong", bg: "#000000", opacity: 65 },
+            ] as const
+          ).map((preset) => {
             const current = block.colorOverlayOpacity ?? 50;
-            const currentBg = (block.backgroundColor || "#000000").toLowerCase();
+            const currentBg = (
+              block.backgroundColor || "#000000"
+            ).toLowerCase();
             const isActive =
               (preset.key === "none" && current <= 5) ||
-              (preset.key === "light" && currentBg.startsWith("#fff") && current > 5 && current <= 35) ||
-              (preset.key === "dark" && !currentBg.startsWith("#fff") && current > 5 && current <= 50) ||
+              (preset.key === "light" &&
+                currentBg.startsWith("#fff") &&
+                current > 5 &&
+                current <= 35) ||
+              (preset.key === "dark" &&
+                !currentBg.startsWith("#fff") &&
+                current > 5 &&
+                current <= 50) ||
               (preset.key === "strong" && current > 50);
             return (
               <button
@@ -349,7 +360,10 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({
             );
           })}
         </div>
-        <TipBox>Dark backgrounds with white text increase readability for promotional emails</TipBox>
+        <TipBox>
+          Dark backgrounds with white text increase readability for promotional
+          emails
+        </TipBox>
       </div>
 
       <div className="space-y-2">

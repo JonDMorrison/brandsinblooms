@@ -8,6 +8,7 @@ import {
   Sprout,
   LayoutTemplate,
 } from "lucide-react";
+import { getTodayDateInputValue } from "@/utils/dateInputValue";
 
 interface StructurePickerProps {
   gardenCenterName: string;
@@ -96,7 +97,7 @@ function buildOptions(
           title: "Spring Has Arrived", subtitle: `${name} is ready for the season.`,
           headline: "Spring Has Arrived", body: "",
           content: "", imageUrl: "", ctaText: "", ctaUrl: "",
-          publishDate: new Date().toLocaleDateString(),
+          publishDate: getTodayDateInputValue(),
           backgroundImageUrl: "", alignment: "center", padding: "large",
           source: "manual", visible: true, collapsed: false,
         },

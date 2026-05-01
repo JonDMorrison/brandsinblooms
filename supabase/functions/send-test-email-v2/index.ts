@@ -24,6 +24,7 @@ interface TestSendPayload {
   toEmail: string;
   subject?: string;
   html?: string;
+  contentBlocks?: RenderableContentBlock[] | null;
   customerId?: string;
   sampleCustomer?: {
     first_name?: string;
@@ -49,6 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
       toEmail,
       subject,
       html,
+      contentBlocks,
       customerId,
       sampleCustomer,
       campaignId,
@@ -141,6 +143,11 @@ const handler = async (req: Request): Promise<Response> => {
         ? subject.trim()
         : "Test Email";
 
+    if (Array.isArray(contentBlocks) && contentBlocks.length > 0) {
+      resolvedContentBlocks = contentBlocks;
+      resolvedHtml = "";
+    }
+
     if (campaignId) {
       const { data: campaignRecord, error: campaignError } =
         await supabaseClient
@@ -162,20 +169,22 @@ const handler = async (req: Request): Promise<Response> => {
           resolvedSubject = campaignRecord.subject_line.trim();
         }
 
-        const source = await resolveCampaignEmailSource(campaignSourceClient, {
-          id: campaignRecord.id,
-          metadata: campaignRecord.metadata,
-          content: campaignRecord.content,
-        });
-        if (source.contentBlocks.length > 0) {
-          resolvedContentBlocks = source.contentBlocks;
-          resolvedHtml = "";
-        } else if (!providedHtml && source.html.trim().length > 0) {
-          resolvedHtml = source.html.trim();
-        }
+        if (!resolvedContentBlocks) {
+          const source = await resolveCampaignEmailSource(campaignSourceClient, {
+            id: campaignRecord.id,
+            metadata: campaignRecord.metadata,
+            content: campaignRecord.content,
+          });
+          if (source.contentBlocks.length > 0) {
+            resolvedContentBlocks = source.contentBlocks;
+            resolvedHtml = "";
+          } else if (!providedHtml && source.html.trim().length > 0) {
+            resolvedHtml = source.html.trim();
+          }
 
-        if (source.warning) {
-          console.warn(`[send-test-email-v2] ${source.warning}`);
+          if (source.warning) {
+            console.warn(`[send-test-email-v2] ${source.warning}`);
+          }
         }
       }
     }

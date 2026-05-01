@@ -7,6 +7,7 @@ import { ClickToEditEmailBuilder } from "./click-to-edit/ClickToEditEmailBuilder
 import { FooterBlock } from "./click-to-edit/blocks/FooterBlock";
 import { BlockLayoutModal, LayoutType } from "./BlockLayoutModal";
 import { mediaSelector } from "@/utils/mediaSelector";
+import { getTodayDateInputValue } from "@/utils/dateInputValue";
 import { RegenerateBlockButton } from "./RegenerateBlockButton";
 import { NextBlockSuggestion } from "./NextBlockSuggestion";
 import type { ClickToEditBlockEditSession } from "./click-to-edit/ClickToEditBlock";
@@ -61,7 +62,7 @@ function createSuggestedBlock(kind: SuggestedBlockKind): ContentBlock | null {
         headline: "",
         subtitle: "",
         eyebrow: "",
-        imageUrl: "",
+        backgroundImageUrl: "",
         altText: "",
         ctaText: "",
         ctaUrl: "",
@@ -147,13 +148,13 @@ const mapLayoutToBlock = async (
           subtitle: "",
           eyebrow: "",
           publishDate: "",
-          imageUrl: "",
+          backgroundImageUrl: "",
           altText: "",
           ctaText: "",
           ctaUrl: "",
           textAlign: "center",
-          backgroundColor: undefined,
-          textColor: undefined,
+          backgroundColor: "#f5f5f7",
+          textColor: "#111111",
           padding: "large",
           shouldFetchImage: false,
           isGeneratingImage: false,
@@ -181,7 +182,7 @@ const mapLayoutToBlock = async (
           title: "",
           subtitle: "",
           issueNumber: "",
-          publishDate: new Date().toLocaleDateString(),
+          publishDate: getTodayDateInputValue(),
           backgroundImageUrl: "",
           alignment: "center",
           padding: "large",

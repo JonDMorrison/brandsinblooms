@@ -50,6 +50,147 @@ interface ClickToEditEmailBuilderProps {
   onEditSessionChange?: (session: ClickToEditBlockEditSession | null) => void;
 }
 
+function normalizeBuilderRenderableBlock(block: ContentBlock): ContentBlock {
+  switch (block.type) {
+    case "cta": {
+      return {
+        ...block,
+        type: "button",
+        headline: block.headline || block.title || block.heading || "",
+        title: block.title || block.headline || block.heading || "",
+        body:
+          block.body ||
+          (typeof block.content === "string" ? block.content : "") ||
+          "",
+        content:
+          (typeof block.content === "string" ? block.content : block.body) ||
+          "",
+        buttonText: block.buttonText || block.ctaText || "",
+        buttonUrl: block.buttonUrl || block.ctaUrl || "",
+        ctaText: block.ctaText || block.buttonText || "",
+        ctaUrl: block.ctaUrl || block.buttonUrl || "",
+        textAlign: block.textAlign || block.alignment || "center",
+        alignment: block.alignment || block.textAlign || "center",
+      };
+    }
+    case "quote": {
+      const quoteBody =
+        block.quote ||
+        block.body ||
+        (typeof block.content === "string" ? block.content : "") ||
+        "";
+
+      return {
+        ...block,
+        type: "text",
+        headline: block.headline || block.title || "",
+        title: block.title || block.headline || "",
+        body: quoteBody,
+        content: quoteBody,
+        textAlign: block.textAlign || block.alignment || "center",
+        alignment: block.alignment || block.textAlign || "center",
+      };
+    }
+    case "product": {
+      const buttonUrl = block.buttonUrl || block.ctaUrl || "";
+
+      return {
+        ...block,
+        type: "image-text",
+        headline: block.headline || block.title || "",
+        title: block.title || block.headline || "",
+        body:
+          block.body ||
+          (typeof block.content === "string" ? block.content : "") ||
+          "",
+        content:
+          (typeof block.content === "string" ? block.content : block.body) ||
+          "",
+        imageUrl: block.imageUrl || block.backgroundImageUrl || "",
+        altText:
+          block.altText || block.title || block.headline || "Product image",
+        buttonText:
+          block.buttonText ||
+          block.ctaText ||
+          (buttonUrl ? "View Product" : ""),
+        buttonUrl,
+        ctaText:
+          block.ctaText ||
+          block.buttonText ||
+          (buttonUrl ? "View Product" : ""),
+        ctaUrl: block.ctaUrl || block.buttonUrl || "",
+        layout: block.layout || "image-left",
+        textAlign: block.textAlign || block.alignment || "left",
+        alignment: block.alignment || block.textAlign || "left",
+      };
+    }
+    default:
+      return block;
+  }
+}
+
+function normalizeBuilderBlockUpdates(
+  originalBlock: ContentBlock,
+  updates: Partial<ContentBlock>,
+): Partial<ContentBlock> {
+  const nextUpdates: Partial<ContentBlock> = { ...updates };
+
+  if (typeof updates.headline === "string" && updates.title === undefined) {
+    nextUpdates.title = updates.headline;
+  }
+
+  if (typeof updates.body === "string" && updates.content === undefined) {
+    nextUpdates.content = updates.body;
+  }
+
+  if (
+    typeof updates.buttonText === "string" &&
+    updates.ctaText === undefined
+  ) {
+    nextUpdates.ctaText = updates.buttonText;
+  }
+
+  if (typeof updates.buttonUrl === "string" && updates.ctaUrl === undefined) {
+    nextUpdates.ctaUrl = updates.buttonUrl;
+  }
+
+  switch (originalBlock.type) {
+    case "quote": {
+      const quoteValue =
+        typeof updates.body === "string"
+          ? updates.body
+          : typeof updates.content === "string"
+            ? updates.content
+            : undefined;
+
+      if (quoteValue !== undefined) {
+        nextUpdates.quote = quoteValue;
+      }
+      break;
+    }
+    case "product": {
+      if (
+        typeof updates.buttonText === "string" &&
+        updates.ctaText === undefined
+      ) {
+        nextUpdates.ctaText = updates.buttonText;
+      }
+
+      if (
+        typeof updates.buttonUrl === "string" &&
+        updates.ctaUrl === undefined
+      ) {
+        nextUpdates.ctaUrl = updates.buttonUrl;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return nextUpdates;
+}
+
 export const ClickToEditEmailBuilder: React.FC<
   ClickToEditEmailBuilderProps
 > = ({
@@ -321,17 +462,20 @@ export const ClickToEditEmailBuilder: React.FC<
   };
 
   const renderBlock = (block: ContentBlock) => {
+    const renderableBlock = normalizeBuilderRenderableBlock(block);
     const props = {
-      block,
+      block: renderableBlock,
       onUpdate: (updates: Partial<ContentBlock>) =>
-        updateBlock(block.id, updates),
+        updateBlock(block.id, normalizeBuilderBlockUpdates(block, updates)),
     };
 
     const isHeaderGeneratingImage =
-      (block.type === "header" || block.type === "newsletter-header") &&
-      (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
+      (renderableBlock.type === "header" ||
+        renderableBlock.type === "newsletter-header") &&
+      (isGeneratingHeaderImage ||
+        (renderableBlock as any).isGeneratingImage === true);
 
-    switch (block.type) {
+    switch (renderableBlock.type) {
       case "header":
         return (
           <HeaderBlock
@@ -448,22 +592,25 @@ export const ClickToEditEmailBuilder: React.FC<
           />
         );
       default:
-        return <div>Unknown block type</div>;
+        return <div>{`Unknown block type: ${block.type}`}</div>;
     }
   };
 
   const renderBlockPreview = (block: ContentBlock) => {
+    const renderableBlock = normalizeBuilderRenderableBlock(block);
     const props = {
-      block,
+      block: renderableBlock,
       onUpdate: (updates: Partial<ContentBlock>) =>
-        updateBlock(block.id, updates),
+        updateBlock(block.id, normalizeBuilderBlockUpdates(block, updates)),
     };
 
     const isHeaderGeneratingImage =
-      (block.type === "header" || block.type === "newsletter-header") &&
-      (isGeneratingHeaderImage || (block as any).isGeneratingImage === true);
+      (renderableBlock.type === "header" ||
+        renderableBlock.type === "newsletter-header") &&
+      (isGeneratingHeaderImage ||
+        (renderableBlock as any).isGeneratingImage === true);
 
-    switch (block.type) {
+    switch (renderableBlock.type) {
       case "header":
         return (
           <HeaderBlock
@@ -580,7 +727,7 @@ export const ClickToEditEmailBuilder: React.FC<
           />
         );
       default:
-        return <div>Unknown block type</div>;
+        return <div>{`Unknown block type: ${block.type}`}</div>;
     }
   };
 

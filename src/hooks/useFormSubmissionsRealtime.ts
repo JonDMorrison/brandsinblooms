@@ -58,6 +58,11 @@ export function useFormSubmissionsRealtime({
   );
   const queuedSubmissionsRef = useRef<FormSubmission[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const onSubmissionRef = useRef(onSubmission);
+
+  useEffect(() => {
+    onSubmissionRef.current = onSubmission;
+  }, [onSubmission]);
 
   const filter = useMemo(() => {
     if (!enabled || !formId || !tenantId) {
@@ -68,10 +73,8 @@ export function useFormSubmissionsRealtime({
       enabled,
       formId,
       tenantId,
-      channelName,
-      onSubmission,
     });
-  }, [channelName, enabled, formId, onSubmission, tenantId]);
+  }, [enabled, formId, tenantId]);
 
   useEffect(() => {
     if (!enabled || !formId || !tenantId || !filter) {
@@ -82,14 +85,15 @@ export function useFormSubmissionsRealtime({
     let isMounted = true;
 
     const flushQueuedSubmissions = () => {
-      if (!queuedSubmissionsRef.current.length || !onSubmission) {
+      const handleSubmission = onSubmissionRef.current;
+      if (!queuedSubmissionsRef.current.length || !handleSubmission) {
         return;
       }
 
       const queuedSubmissions = [...queuedSubmissionsRef.current];
       queuedSubmissionsRef.current = [];
       queuedSubmissions.forEach((submission) =>
-        onSubmission(submission, { animate: false }),
+        handleSubmission(submission, { animate: false }),
       );
     };
 
@@ -127,7 +131,7 @@ export function useFormSubmissionsRealtime({
               return;
             }
 
-            onSubmission?.(submission, { animate: true });
+            onSubmissionRef.current?.(submission, { animate: true });
           },
         )
         .subscribe((status) => {
@@ -167,7 +171,7 @@ export function useFormSubmissionsRealtime({
 
       queuedSubmissionsRef.current = [];
     };
-  }, [channelName, enabled, filter, formId, onSubmission, tenantId]);
+  }, [channelName, enabled, filter, formId, tenantId]);
 
   return {
     connectionState,

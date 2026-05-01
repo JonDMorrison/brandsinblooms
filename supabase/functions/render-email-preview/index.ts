@@ -95,7 +95,7 @@ async function buildTrackedLinkMap({
     );
   }
 
-  (existingLinks ?? []).forEach((link) => {
+  (existingLinks ?? []).forEach((link: any) => {
     const linkId = typeof link?.id === "string" ? link.id : null;
     const linkUrl = typeof link?.url === "string" ? link.url : null;
     if (linkId && linkUrl) {
@@ -143,7 +143,7 @@ async function buildTrackedLinkMap({
     return map;
   }
 
-  (insertedLinks ?? []).forEach((link) => {
+  (insertedLinks ?? []).forEach((link: any) => {
     const linkId = typeof link?.id === "string" ? link.id : null;
     const linkUrl = typeof link?.url === "string" ? link.url : null;
     if (linkId && linkUrl) {
@@ -268,9 +268,9 @@ serve(async (req) => {
     } else if (sampleCustomer) {
       // Use sample customer data
       customer = {
-        email: sampleCustomer.email || "customer@example.com",
+        email: sampleCustomer.email || "preview@your-domain.test",
         first_name: sampleCustomer.first_name || "Jane",
-        last_name: sampleCustomer.last_name || "Doe",
+        last_name: sampleCustomer.last_name || "Gardener",
         phone: sampleCustomer.phone || "",
       };
     }
@@ -302,6 +302,8 @@ serve(async (req) => {
             city: profileData.city,
             state_province: profileData.state_province,
             postal_code: profileData.postal_code,
+            country: profileData.country,
+            footer_legal_text: profileData.footer_legal_text,
             facebook_url: profileData.facebook_url,
             instagram_url: profileData.instagram_url,
             tiktok_url: profileData.tiktok_url,
@@ -349,6 +351,7 @@ serve(async (req) => {
       companyProfile,
       mode: renderMode,
       includeFooter: renderMode === "send" ? true : includeFooter,
+      footerLinkMode: "preview",
       enableLinkTracking: shouldTrackLinks,
       trackedLinkMap,
     });

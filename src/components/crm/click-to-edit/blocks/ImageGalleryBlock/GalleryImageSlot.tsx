@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui-legacy/button';
-import { X, Loader2, ImageIcon } from 'lucide-react';
-import { GallerySlotActionMenu } from './GallerySlotActionMenu';
+import React, { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui-legacy/button";
+import { X, Loader2, ImageIcon } from "lucide-react";
+import { GallerySlotActionMenu } from "./GallerySlotActionMenu";
 
 interface GalleryImage {
   id: string;
@@ -19,14 +19,14 @@ interface GalleryImageSlotProps {
   onOpenAIDialog: () => void;
   onOpenMediaSelector: () => void;
   onAutoPickImage?: () => void;
-  borderRadius?: 'none' | 'small' | 'medium' | 'large';
+  borderRadius?: "none" | "small" | "medium" | "large";
 }
 
 const radiusMap = {
-  none: 'rounded-none',
-  small: 'rounded',
-  medium: 'rounded-lg',
-  large: 'rounded-xl',
+  none: "rounded-none",
+  small: "rounded",
+  medium: "rounded-lg",
+  large: "rounded-xl",
 };
 
 export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
@@ -38,7 +38,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   onOpenAIDialog,
   onOpenMediaSelector,
   onAutoPickImage,
-  borderRadius = 'medium',
+  borderRadius = "medium",
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -54,9 +54,9 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
     return (
       <div
         className={cn(
-          "aspect-[4/3] bg-gray-200 flex items-center justify-center",
-          "border border-gray-300",
-          radiusMap[borderRadius]
+          "w-full h-[200px] bg-gray-100 flex items-center justify-center overflow-hidden",
+          "border-2 border-dashed border-gray-300",
+          radiusMap[borderRadius],
         )}
       >
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -71,8 +71,8 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
     return (
       <div
         className={cn(
-          "aspect-[4/3] relative group overflow-hidden",
-          radiusMap[borderRadius]
+          "w-full h-[200px] relative group overflow-hidden",
+          radiusMap[borderRadius],
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -80,15 +80,15 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
         <img
           src={image.url}
           alt={image.alt || `Gallery image ${index + 1}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover object-center block"
         />
-        
+
         {/* Hover overlay */}
         <div
           className={cn(
             "absolute inset-0 bg-black/30",
             "transition-opacity duration-200",
-            isHovered ? "opacity-100" : "opacity-0"
+            isHovered ? "opacity-100" : "opacity-0",
           )}
         />
 
@@ -97,7 +97,7 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
           className={cn(
             "absolute top-2 right-2 flex items-center gap-1",
             "transition-opacity duration-200",
-            isHovered ? "opacity-100" : "opacity-0"
+            isHovered ? "opacity-100" : "opacity-0",
           )}
         >
           <GallerySlotActionMenu
@@ -126,23 +126,28 @@ export const GalleryImageSlot: React.FC<GalleryImageSlotProps> = ({
   return (
     <div
       className={cn(
-        "aspect-[4/3] bg-gray-200 border border-gray-300 relative group",
+        "w-full h-[200px] bg-gray-100 border-2 border-dashed border-gray-300 relative group overflow-hidden",
         "flex flex-col items-center justify-center gap-2",
-        "hover:bg-gray-300/70 transition-colors",
-        radiusMap[borderRadius]
+        "hover:bg-gray-200/80 transition-colors",
+        radiusMap[borderRadius],
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
-      <span className="text-xs text-muted-foreground">Add Image</span>
-      
+      <span className="text-xs font-medium text-muted-foreground">
+        Add Image
+      </span>
+      <span className="text-[11px] text-muted-foreground/80">
+        Upload or generate artwork
+      </span>
+
       {/* Top-right toolbar - visible on hover */}
       <div
         className={cn(
           "absolute top-2 right-2",
           "transition-opacity duration-200",
-          isHovered ? "opacity-100" : "opacity-0"
+          isHovered ? "opacity-100" : "opacity-0",
         )}
       >
         <GallerySlotActionMenu
