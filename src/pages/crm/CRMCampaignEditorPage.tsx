@@ -1612,7 +1612,9 @@ function CampaignEditorScreen() {
             >
               Review & Send
             </Typography>
-            <Typography sx={{ fontSize: "13px", color: "neutral.400", mt: 0.5 }}>
+            <Typography
+              sx={{ fontSize: "13px", color: "neutral.400", mt: 0.5 }}
+            >
               Verify everything is set before sending.
             </Typography>
           </Box>
