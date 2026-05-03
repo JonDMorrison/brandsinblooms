@@ -252,6 +252,9 @@ const EmailSendingSettings = lazyRetry(
 const CRMCampaignEditorPage = lazyRetry(
   () => import("@/pages/crm/CRMCampaignEditorPage"),
 );
+const CampaignStudioPage = lazyRetry(
+  () => import("@/pages/crm/CampaignStudioPage"),
+);
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
   "SavedBlocksPage",
@@ -440,6 +443,24 @@ function renderProtectedSidebarLazyPage(
           </Suspense>
         </ChunkErrorBoundary>
       </SidebarLayout>
+    </ProtectedRoute>
+  );
+}
+
+function renderProtectedFullscreenLazyPage(
+  page: React.ReactElement,
+  skeleton: ProtectedSidebarSkeletonVariant,
+  options: ProtectedSidebarLazyPageOptions = CRM_LAZY_PAGE_OPTIONS,
+) {
+  const { dashboardHref, linkLabel } = options;
+
+  return (
+    <ProtectedRoute>
+      <ChunkErrorBoundary dashboardHref={dashboardHref} linkLabel={linkLabel}>
+        <Suspense fallback={<PageSkeleton variant={skeleton} />}>
+          {page}
+        </Suspense>
+      </ChunkErrorBoundary>
     </ProtectedRoute>
   );
 }
@@ -856,6 +877,20 @@ function App() {
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignEditorPage />,
                 "form",
+              )}
+            />
+            <Route
+              path="/crm/campaigns/:campaignId/edit"
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignEditorPage />,
+                "form",
+              )}
+            />
+            <Route
+              path="/crm/campaigns/:id/studio"
+              element={renderProtectedFullscreenLazyPage(
+                <CampaignStudioPage />,
+                "dashboard",
               )}
             />
             <Route

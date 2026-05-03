@@ -31,11 +31,13 @@ import {
   useCampaignSending,
   type CampaignSendResult,
 } from "@/hooks/useCampaignSending";
+import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
+import type { StudioBlock } from "@/types/studioBlocks";
 import type { SendError } from "@/utils/campaignSendingErrors";
-import type { ContentBlock } from "@/types/emailBuilder";
 
 type Segment = CampaignSegmentSummary;
 type Persona = CampaignPersonaSummary;
@@ -64,7 +66,7 @@ export interface CampaignEditorState {
   selectedPersonas: Persona[];
   audienceCount: number | null;
   isAudienceLoading: boolean;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
@@ -179,7 +181,7 @@ function areDatesEqual(left: Date | null, right: Date | null) {
   return left.getTime() === right.getTime();
 }
 
-function areContentBlocksEqual(left: ContentBlock[], right: ContentBlock[]) {
+function areContentBlocksEqual(left: StudioBlock[], right: StudioBlock[]) {
   if (left === right) return true;
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -195,7 +197,7 @@ function buildDraftFingerprint(input: {
   senderEmail: string;
   fromEmailDomainId: string | null;
   replyTo: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
@@ -279,6 +281,7 @@ export function CampaignEditorProvider({
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { senderConfig } = useSenderConfiguration();
+  const { designSystem } = useDesignSystem();
   const [state, setState] = React.useState<CampaignEditorState>(() =>
     createInitialState(searchParams),
   );
@@ -486,6 +489,12 @@ export function CampaignEditorProvider({
             senderConfig.replyToEmail ||
             senderConfig.senderEmail ||
             "",
+          contentBlocks:
+            current.campaignType === "email"
+              ? ensureFooterBlockCompliance(current.contentBlocks, {
+                  designSystem,
+                })
+              : current.contentBlocks,
         };
 
         lastSavedFingerprintRef.current = buildDraftFingerprint({
@@ -514,7 +523,73 @@ export function CampaignEditorProvider({
       });
       setIsLoading(false);
     }
-  }, [campaignId, senderConfig]);
+  }, [campaignId, designSystem, senderConfig]);
+
+  React.useEffect(() => {
+    setState((current) => {
+      if (current.campaignType !== "email") {
+        return current;
+      }
+
+      const nextContentBlocks = ensureFooterBlockCompliance(
+        current.contentBlocks,
+        {
+          designSystem,
+        },
+      );
+
+      if (areContentBlocksEqual(current.contentBlocks, nextContentBlocks)) {
+        return current;
+      }
+
+      const nextState = {
+        ...current,
+        contentBlocks: nextContentBlocks,
+      };
+
+      if (!current.campaignId && !current.isDirty) {
+        lastSavedFingerprintRef.current = buildDraftFingerprint({
+          campaignId: nextState.campaignId,
+          campaignType: nextState.campaignType,
+          status: nextState.status,
+          name: nextState.name,
+          subjectLine: nextState.subjectLine,
+          preheaderText: nextState.preheaderText,
+          senderName: nextState.senderName,
+          senderEmail: nextState.senderEmail,
+          fromEmailDomainId: senderConfig?.fromEmailDomainId ?? null,
+          replyTo: nextState.replyTo,
+          contentBlocks: nextState.contentBlocks,
+          smsMessage: nextState.smsMessage,
+          sendAt: nextState.sendAt,
+          sendImmediately: nextState.sendImmediately,
+          segments: nextState.selectedSegments,
+          personas: nextState.selectedPersonas,
+          sourceContentTaskId: nextState.sourceContentTaskId,
+          sourceSegmentId: nextState.sourceSegmentId,
+          sourcePersonaId: nextState.sourcePersonaId,
+        });
+
+        return nextState;
+      }
+
+      return {
+        ...nextState,
+        isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
+      };
+    });
+  }, [
+    designSystem,
+    senderConfig?.fromEmailDomainId,
+    state.campaignType,
+    state.contentBlocks,
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -1116,31 +1191,43 @@ export function CampaignEditorProvider({
 
   const updateContent = React.useCallback<
     CampaignEditorContextValue["updateContent"]
-  >((next) => {
-    setState((current) => {
-      const nextBlocks = next.contentBlocks ?? current.contentBlocks;
-      const nextSmsMessage = next.smsMessage ?? current.smsMessage;
+  >(
+    (next) => {
+      setState((current) => {
+        const nextBlocks =
+          current.campaignType === "email"
+            ? ensureFooterBlockCompliance(
+                next.contentBlocks ?? current.contentBlocks,
+                {
+                  designSystem,
+                },
+              )
+            : (next.contentBlocks ?? current.contentBlocks);
+        const nextSmsMessage = next.smsMessage ?? current.smsMessage;
 
-      if (
-        areContentBlocksEqual(current.contentBlocks, nextBlocks) &&
-        current.smsMessage === nextSmsMessage
-      ) {
-        return current;
-      }
+        if (
+          areContentBlocksEqual(current.contentBlocks, nextBlocks) &&
+          current.smsMessage === nextSmsMessage
+        ) {
+          return current;
+        }
 
-      return {
-        ...current,
-        ...next,
-        isDirty: true,
-        autoSaveStatus:
-          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
-        autoSaveMessage:
-          current.autoSaveStatus === "conflict"
-            ? current.autoSaveMessage
-            : null,
-      };
-    });
-  }, []);
+        return {
+          ...current,
+          ...next,
+          contentBlocks: nextBlocks,
+          isDirty: true,
+          autoSaveStatus:
+            current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+          autoSaveMessage:
+            current.autoSaveStatus === "conflict"
+              ? current.autoSaveMessage
+              : null,
+        };
+      });
+    },
+    [designSystem],
+  );
 
   const updateSchedule = React.useCallback<
     CampaignEditorContextValue["updateSchedule"]

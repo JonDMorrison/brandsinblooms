@@ -18,6 +18,28 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/styled"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      react: path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
+      "react/jsx-runtime": path.resolve(
+        __dirname,
+        "./node_modules/react/jsx-runtime.js",
+      ),
+      "react/jsx-dev-runtime": path.resolve(
+        __dirname,
+        "./node_modules/react/jsx-dev-runtime.js",
+      ),
+      "@emotion/react": path.resolve(
+        __dirname,
+        "./node_modules/@emotion/react",
+      ),
+      "@emotion/styled": path.resolve(
+        __dirname,
+        "./node_modules/@emotion/styled",
+      ),
+      "@emotion/cache": path.resolve(
+        __dirname,
+        "./node_modules/@emotion/cache",
+      ),
     },
   },
   build: {
@@ -51,6 +73,9 @@ export default defineConfig(({ mode }) => ({
     include: [
       "react",
       "react-dom",
+      "@emotion/react",
+      "@emotion/styled",
+      "@emotion/cache",
       "react-router-dom",
       "@supabase/supabase-js",
       "@mui/joy/LinearProgress",

@@ -10,6 +10,11 @@ import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchCampaignEditorRecord,
+  persistCampaignDraft,
+  type CampaignSegmentSummary,
+} from "@/lib/crm/campaignEditor";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyDialog,
@@ -122,32 +127,40 @@ export function CalendarNewsletterDialog({
       const [hours, minutes] = formData.schedule_time.split(":");
       scheduledAt.setHours(Number(hours), Number(minutes), 0, 0);
 
-      const payload = {
-        tenant_id: tenant.id,
-        user_id: user.id,
-        name: formData.name,
-        subject_line: formData.subject_line,
-        preheader_text: formData.preheader_text,
-        segment_id: formData.segment_id || null,
-        scheduled_at: scheduledAt.toISOString(),
+      const existingRecord =
+        mode === "edit" && existingNewsletter?.id
+          ? await fetchCampaignEditorRecord(existingNewsletter.id)
+          : null;
+
+      const selectedSegment = segments.find(
+        (segment) => segment.id === formData.segment_id,
+      );
+      const nextSegments: CampaignSegmentSummary[] = selectedSegment
+        ? [selectedSegment]
+        : [];
+
+      await persistCampaignDraft({
+        campaignId: existingRecord?.id ?? existingNewsletter?.id ?? null,
+        campaignType: "email",
         status: "scheduled",
-        delivery_method: "custom_domain",
-      };
-
-      if (mode === "edit" && existingNewsletter) {
-        const { error } = await supabase
-          .from("crm_campaigns")
-          .update(payload)
-          .eq("id", existingNewsletter.id)
-          .eq("tenant_id", tenant.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("crm_campaigns")
-          .insert([payload]);
-        if (error) throw error;
-      }
+        name: formData.name,
+        subjectLine: formData.subject_line,
+        preheaderText: formData.preheader_text,
+        senderName:
+          existingRecord?.senderName ?? existingNewsletter?.sender_name ?? "",
+        senderEmail:
+          existingRecord?.senderEmail ?? existingNewsletter?.sender_email ?? "",
+        fromEmailDomainId: existingRecord?.fromEmailDomainId ?? null,
+        replyTo:
+          existingRecord?.replyTo ?? existingNewsletter?.sender_email ?? "",
+        contentBlocks: existingRecord?.contentBlocks ?? [],
+        smsMessage: existingRecord?.smsMessage ?? "",
+        sendAt: scheduledAt,
+        sendImmediately: false,
+        segments: nextSegments,
+        personas: existingRecord?.personas ?? [],
+        sourceContentTaskId: existingRecord?.sourceContentTaskId ?? null,
+      });
 
       onSuccess();
       onClose();

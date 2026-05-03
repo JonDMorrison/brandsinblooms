@@ -37,7 +37,7 @@ export function useDashboardInsights(): DashboardInsights {
       // Also check legacy POS tables
       const { data: squareConn } = await supabase
         .from("square_connections")
-        .select("id, last_sync_at")
+        .select("id, last_synced_at")
         .eq("tenant_id", tenant.id)
         .limit(1)
         .maybeSingle();
@@ -46,11 +46,17 @@ export function useDashboardInsights(): DashboardInsights {
       const hasConnection = !!posConn || !!squareConn;
 
       if (!hasConnection) {
-        return { hasPOSConnection: false, primaryPOSProvider: null, lastSyncAt: null, insights: [] };
+        return {
+          hasPOSConnection: false,
+          primaryPOSProvider: null,
+          lastSyncAt: null,
+          insights: [],
+        };
       }
 
       const provider = posConn?.platform || (squareConn ? "square" : null);
-      const lastSync = posConn?.last_sync_at || squareConn?.last_sync_at || null;
+      const lastSync =
+        posConn?.last_sync_at || squareConn?.last_synced_at || null;
 
       // Get system segments
       const { data: segments } = await supabase
@@ -62,10 +68,17 @@ export function useDashboardInsights(): DashboardInsights {
         .gt("customer_count", 0);
 
       if (!segments || segments.length < 2) {
-        return { hasPOSConnection: true, primaryPOSProvider: provider, lastSyncAt: lastSync, insights: [] };
+        return {
+          hasPOSConnection: true,
+          primaryPOSProvider: provider,
+          lastSyncAt: lastSync,
+          insights: [],
+        };
       }
 
-      const segMap = Object.fromEntries(segments.map((s) => [s.name, s.customer_count]));
+      const segMap = Object.fromEntries(
+        segments.map((s) => [s.name, s.customer_count]),
+      );
       const insights: Insight[] = [];
 
       // Lapsed with Rewards
@@ -75,8 +88,14 @@ export function useDashboardInsights(): DashboardInsights {
           .from("crm_customers")
           .select("loyalty_rewards_balance.sum()")
           .eq("tenant_id", tenant.id)
-          .gte("last_visit_date", new Date(Date.now() - 365 * 86400000).toISOString())
-          .lt("last_visit_date", new Date(Date.now() - 180 * 86400000).toISOString())
+          .gte(
+            "last_visit_date",
+            new Date(Date.now() - 365 * 86400000).toISOString(),
+          )
+          .lt(
+            "last_visit_date",
+            new Date(Date.now() - 180 * 86400000).toISOString(),
+          )
           .gt("loyalty_rewards_balance", 0);
 
         // Fallback: count-based insight if aggregate fails
@@ -125,7 +144,12 @@ export function useDashboardInsights(): DashboardInsights {
       // Sort by business value
       insights.sort((a, b) => b.value - a.value);
 
-      return { hasPOSConnection: true, primaryPOSProvider: provider, lastSyncAt: lastSync, insights };
+      return {
+        hasPOSConnection: true,
+        primaryPOSProvider: provider,
+        lastSyncAt: lastSync,
+        insights,
+      };
     },
     enabled: !!tenant?.id,
     staleTime: 300_000,
@@ -133,7 +157,13 @@ export function useDashboardInsights(): DashboardInsights {
   });
 
   if (isLoading || !data) {
-    return { hasPOSConnection: false, primaryPOSProvider: null, lastSyncAt: null, insights: [], loaded: !isLoading };
+    return {
+      hasPOSConnection: false,
+      primaryPOSProvider: null,
+      lastSyncAt: null,
+      insights: [],
+      loaded: !isLoading,
+    };
   }
 
   return { ...data, loaded: true };

@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   generateServerFooterHtml,
   type CompanyProfileData,
-} from "../_shared/footerGenerator.ts";
+} from "../_shared/emailFooter.ts";
 import {
   resolveSender,
   buildFromAddress,

@@ -1,17 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
-import type { ContentBlock, EmailBlock } from "@/types/emailBuilder";
+import type { ContentBlock } from "@/types/emailBuilder";
+import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import {
-  convertEmailBlockToContentBlock,
-  normalizeBlockForSave,
-} from "@/utils/blockFieldMapping";
+  ensureFooterBlockCompliance,
+  type FooterCompanyProfile,
+} from "@/lib/studio/footerCompliance";
+import type { StudioBlock } from "@/types/studioBlocks";
 import {
   escapeHtml,
   formatDraftRichText,
   formatDraftText,
 } from "@/lib/crm/htmlContent";
-import { normalizeContentBlocksForEmailAssets } from "@/utils/emailImageUrl";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
@@ -29,7 +30,7 @@ export interface PersistCampaignRecordInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;
@@ -62,26 +63,51 @@ function toRecord(value: unknown): Record<string, unknown> {
 }
 
 function normalizeInputBlocks(
-  blocks: Array<ContentBlock | EmailBlock | Record<string, unknown>>,
+  blocks: Array<StudioBlock | Record<string, unknown>>,
 ) {
-  return blocks.flatMap((block) => {
+  return blocks.flatMap((block, index) => {
     if (!block || typeof block !== "object") {
-      return [] as ContentBlock[];
+      return [] as StudioBlock[];
     }
 
     const candidate = block as Record<string, unknown>;
     if (typeof candidate.type === "string") {
-      return [candidate as ContentBlock];
-    }
-
-    if (typeof candidate.block_type === "string") {
       return [
-        convertEmailBlockToContentBlock(candidate as unknown as EmailBlock),
+        {
+          ...candidate,
+          id:
+            typeof candidate.id === "string" && candidate.id.trim().length > 0
+              ? candidate.id
+              : `content-block-${index}`,
+          order: typeof candidate.order === "number" ? candidate.order : index,
+          visible: candidate.visible !== false,
+        } as StudioBlock,
       ];
     }
 
-    return [] as ContentBlock[];
+    return [] as StudioBlock[];
   });
+}
+
+function toJsonSafe<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function renderEmptyDraftPreviewHtml() {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campaign draft preview</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#f5f7fb;font-family:Arial, Helvetica, sans-serif;">
+    <div style="max-width:720px;margin:0 auto;padding:32px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);color:#475569;">
+      <h1 style="margin:0 0 12px;font-size:24px;line-height:1.2;color:#0f172a;">Campaign draft preview</h1>
+      <p style="margin:0;font-size:16px;line-height:1.7;">No content blocks have been added yet.</p>
+    </div>
+  </body>
+</html>`;
 }
 
 function renderDraftButton(
@@ -339,27 +365,25 @@ function renderDraftBlock(block: ContentBlock) {
   }
 }
 
-// Draft preview HTML only. This intentionally excludes send-time footer,
-// tracked links, and merge-tag resolution.
-export function renderDraftPreviewHtml(blocks: ContentBlock[]) {
+export function renderDraftPreviewHtml(
+  blocks: StudioBlock[],
+  subjectLine = "Campaign draft preview",
+  preheaderText = "",
+) {
   const visibleBlocks = blocks.filter((block) => block.visible !== false);
   if (visibleBlocks.length === 0) {
     return "";
   }
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Campaign draft preview</title>
-  </head>
-  <body style="margin:0;padding:24px;background:#f5f7fb;font-family:Arial, Helvetica, sans-serif;">
-    <div style="max-width:720px;margin:0 auto;">
-      ${visibleBlocks.map((block) => renderDraftBlock(block)).join("")}
-    </div>
-  </body>
-</html>`;
+  const footerBlock =
+    visibleBlocks.find((block) => block.type === "footer") ?? null;
+
+  return generateEmailHtml({
+    blocks: visibleBlocks,
+    subject: subjectLine || "Campaign draft preview",
+    previewText: preheaderText,
+    footer: footerBlock,
+  });
 }
 
 async function getAuthenticatedWriterContext() {
@@ -401,15 +425,71 @@ function buildCampaignMetadata(
     campaignType: input.campaignType,
     replyTo: input.replyTo,
     smsMessage: input.smsMessage,
-    contentBlocks: input.contentBlocks,
     sourceSegmentId: input.sourceSegmentId,
     sourcePersonaId: input.sourcePersonaId,
+    contentBlocks: input.contentBlocks,
   } satisfies Record<string, unknown>;
+}
+
+function buildCampaignBlockRows(
+  campaignId: string,
+  contentBlocks: StudioBlock[],
+): Database["public"]["Tables"]["campaign_blocks"]["Insert"][] {
+  return contentBlocks.map((block, index) => {
+    const record = block as Record<string, unknown>;
+    const headline =
+      typeof record.headline === "string"
+        ? record.headline
+        : typeof record.title === "string"
+          ? record.title
+          : null;
+    const imageUrl =
+      typeof record.imageUrl === "string"
+        ? record.imageUrl
+        : typeof record.backgroundImageUrl === "string"
+          ? record.backgroundImageUrl
+          : null;
+    const ctaText =
+      typeof record.buttonText === "string"
+        ? record.buttonText
+        : typeof record.ctaText === "string"
+          ? record.ctaText
+          : null;
+    const ctaUrl =
+      typeof record.buttonUrl === "string"
+        ? record.buttonUrl
+        : typeof record.ctaUrl === "string"
+          ? record.ctaUrl
+          : null;
+    const source =
+      typeof record.source === "string" && record.source.length > 0
+        ? record.source
+        : "manual";
+    const personaTag =
+      typeof record.personaTag === "string"
+        ? record.personaTag
+        : typeof record.persona_tag === "string"
+          ? record.persona_tag
+          : null;
+
+    return {
+      campaign_id: campaignId,
+      block_type: block.type,
+      content: toJsonSafe(record),
+      headline,
+      image_url: imageUrl,
+      cta_text: ctaText,
+      cta_url: ctaUrl,
+      source,
+      persona_tag: personaTag,
+      order_index: typeof record.order === "number" ? record.order : index,
+    };
+  });
 }
 
 async function syncCampaignBlocksBackup(
   campaignId: string,
-  contentBlocks: ContentBlock[],
+  contentBlocks: StudioBlock[],
 ) {
   const { error: deleteError } = await supabase
     .from("campaign_blocks")
@@ -424,32 +504,81 @@ async function syncCampaignBlocksBackup(
     return;
   }
 
-  const blockRows = contentBlocks.map((block, index) => ({
-    campaign_id: campaignId,
-    ...normalizeBlockForSave(block, index),
-  }));
-
+  const rows = buildCampaignBlockRows(campaignId, contentBlocks);
   const { error: insertError } = await supabase
     .from("campaign_blocks")
-    .insert(blockRows);
+    .insert(rows);
 
   if (insertError) {
     throw insertError;
   }
 }
 
+async function loadWriterCompanyProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("company_profiles")
+    .select(
+      `
+      company_name,
+      company_email,
+      company_phone,
+      website_url,
+      street_address,
+      city,
+      state_province,
+      postal_code,
+      country,
+      location_info,
+      email_domain,
+      brand_primary_color,
+      brand_secondary_color,
+      brand_accent_color,
+      brand_text_color,
+      facebook_url,
+      instagram_url,
+      tiktok_url,
+      pinterest_url,
+      youtube_url,
+      linkedin_url,
+      footer_legal_text,
+      feature_flags
+      `,
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load company profile for footer injection", error);
+    return null;
+  }
+
+  return (data as FooterCompanyProfile | null) ?? null;
+}
+
 export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
   const { tenantId, userId } = await getAuthenticatedWriterContext();
-  const contentBlocks = await normalizeContentBlocksForEmailAssets(
-    normalizeInputBlocks(input.contentBlocks),
-    userId,
+  const rawContentBlocks = normalizeInputBlocks(input.contentBlocks);
+  const companyProfile =
+    input.campaignType === "email"
+      ? await loadWriterCompanyProfile(userId)
+      : null;
+  const contentBlocks = toJsonSafe(
+    input.campaignType === "email"
+      ? ensureFooterBlockCompliance(rawContentBlocks, {
+          companyProfile,
+        })
+      : rawContentBlocks,
   );
   const content =
     input.campaignType === "sms"
       ? input.smsMessage
-      : contentBlocks.length > 0
-        ? renderDraftPreviewHtml(contentBlocks)
-        : (input.legacyContentHtml?.trim() ?? "");
+      : renderDraftPreviewHtml(
+          contentBlocks,
+          input.subjectLine,
+          input.preheaderText,
+        ) ||
+        input.legacyContentHtml?.trim() ||
+        renderEmptyDraftPreviewHtml();
   const nowIso = new Date().toISOString();
 
   const basePayload = {
@@ -586,14 +715,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     campaignRow = insertedRow as CampaignRow;
   }
 
-  try {
-    await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
-  } catch (error) {
-    console.warn(
-      "campaign_blocks backup sync failed; metadata.contentBlocks remains authoritative",
-      error,
-    );
-  }
+  await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
 
   return {
     campaign: campaignRow,
@@ -611,6 +733,7 @@ export async function writeCampaignDraftSnapshot(params: {
   preheaderText: string;
   smsMessage: string;
   contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   segmentIds: string[];
   personaIds: string[];
 }) {
