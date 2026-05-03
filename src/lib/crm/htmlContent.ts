@@ -21,7 +21,7 @@
 // pulls Node-only parsing dependencies into Vite, so this file mirrors the
 // same policy with a DOM-based sanitizer.
 
-import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig";
+import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig.ts";
 
 const ALLOWED_TAGS = new Set(RICH_TEXT_SANITIZE_OPTIONS.allowedTags ?? []);
 const ALLOWED_ATTRIBUTES = (RICH_TEXT_SANITIZE_OPTIONS.allowedAttributes ??

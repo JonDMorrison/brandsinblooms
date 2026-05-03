@@ -4,8 +4,8 @@ import type {
   SocialLink,
   StudioBlock,
 } from "../../types/studioBlocks.ts";
-import { formatDraftRichText } from "@/lib/crm/htmlContent";
-import type { StudioDesignSystem } from "@/lib/studio/designSystem";
+import { formatDraftRichText } from "@/lib/crm/htmlContent.ts";
+import type { StudioDesignSystem } from "@/lib/studio/designSystem.ts";
 
 export type EmailFooterLinks = {
   unsubscribeUrl?: string;

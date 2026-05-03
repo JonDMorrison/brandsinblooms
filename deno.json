@@ -3,6 +3,7 @@
         "test:edge": "deno test --allow-env --allow-net --allow-read supabase/functions"
     },
     "imports": {
+        "@/": "./src/",
         "@std/assert": "jsr:@std/assert@^1.0.13",
         "@std/testing/mock": "jsr:@std/testing@^1.0.14/mock",
         "@std/async": "jsr:@std/async@^1.0.13",
