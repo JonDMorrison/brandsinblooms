@@ -24,6 +24,8 @@ const corsHeaders = {
 
 const DEFAULT_BATCH_SIZE_PER_JOB = 50;
 
+const HTML_ENTITY_PATTERN = /&(nbsp|amp|lt|gt|quot|#0*39|#x27);/i;
+
 type CampaignReputationPolicy = {
   score: number;
   tier: "normal" | "throttled" | "restricted" | "critical";
@@ -159,6 +161,38 @@ function randomIntInclusive(min: number, max: number): number {
   return Math.floor(Math.random() * (hi - lo + 1)) + lo;
 }
 
+function decodeHtmlEntities(value: string): string {
+  let decoded = value;
+
+  for (let index = 0; index < 2; index += 1) {
+    const nextValue = decoded
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&#0*39;/gi, "'")
+      .replace(/&#x27;/gi, "'")
+      .replace(/&quot;/gi, '"')
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&amp;/gi, "&");
+
+    if (nextValue === decoded) {
+      break;
+    }
+
+    decoded = nextValue;
+  }
+
+  return decoded;
+}
+
+function normalizeLegacyCampaignHtml(value: string): string {
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(value) || !HTML_ENTITY_PATTERN.test(value)) {
+    return value;
+  }
+
+  const decoded = decodeHtmlEntities(value);
+  return /<\/?[a-z][a-z0-9]*\b/i.test(decoded) ? decoded : value;
+}
+
 /**
  * Strip existing footer from HTML content
  */
@@ -214,7 +248,9 @@ function buildEmailPayload(
     current_date: new Date().toLocaleDateString(),
   };
 
-  let emailContent = convertLegacyTags(campaign.content || "");
+  let emailContent = normalizeLegacyCampaignHtml(
+    convertLegacyTags(campaign.content || ""),
+  );
   let emailSubject = convertLegacyTags(campaign.subject_line || "Newsletter");
 
   emailContent = renderMergeTags(emailContent, mergeTagData);

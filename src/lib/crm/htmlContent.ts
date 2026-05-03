@@ -54,6 +54,41 @@ const DISCARD_CONTENT_TAGS = new Set([
   "img",
 ]);
 
+const RICH_TEXT_ENTITY_PATTERN =
+  /&(nbsp|amp|lt|gt|quot|#0*39|#x27);/i;
+
+function decodeHtmlEntities(value: string): string {
+  let decoded = value;
+
+  for (let index = 0; index < 2; index += 1) {
+    const nextValue = decoded
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&#0*39;/gi, "'")
+      .replace(/&#x27;/gi, "'")
+      .replace(/&quot;/gi, '"')
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&amp;/gi, "&");
+
+    if (nextValue === decoded) {
+      break;
+    }
+
+    decoded = nextValue;
+  }
+
+  return decoded;
+}
+
+function normalizeRichTextInput(value: string): string {
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(value) || !RICH_TEXT_ENTITY_PATTERN.test(value)) {
+    return value;
+  }
+
+  const decoded = decodeHtmlEntities(value);
+  return /<\/?[a-z][a-z0-9]*\b/i.test(decoded) ? decoded : value;
+}
+
 function sanitizeStyleAttribute(styleValue: string): string {
   const safeDeclarations: string[] = [];
 
@@ -113,6 +148,109 @@ function isAllowedUrl(
     allowedForTag.size > 0 ? allowedForTag : ALLOWED_SCHEMES;
 
   return allowedSchemes.has(schemeMatch[1].toLowerCase());
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function sanitizeAttributesWithoutDom(tagName: string, rawAttributes: string) {
+  const allowedAttributes = new Set([
+    ...GLOBAL_ALLOWED_ATTRIBUTES,
+    ...(ALLOWED_ATTRIBUTES[tagName] ?? []),
+  ]);
+  const sanitizedAttributes = new Map<string, string>();
+  const attributePattern =
+    /([^\s=\/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = attributePattern.exec(rawAttributes)) !== null) {
+    const name = match[1].toLowerCase();
+
+    if (name === "/" || name.startsWith("on") || !allowedAttributes.has(name)) {
+      continue;
+    }
+
+    const value = match[2] ?? match[3] ?? match[4] ?? "";
+
+    if (name === "style") {
+      const safeStyle = sanitizeStyleAttribute(value);
+
+      if (safeStyle) {
+        sanitizedAttributes.set(name, safeStyle);
+      }
+
+      continue;
+    }
+
+    if (value && !isAllowedUrl(tagName, name, value)) {
+      continue;
+    }
+
+    sanitizedAttributes.set(name, value);
+  }
+
+  if ((sanitizedAttributes.get("target") ?? "").toLowerCase() === "_blank") {
+    const relTokens = new Set(
+      (sanitizedAttributes.get("rel") ?? "")
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+
+    relTokens.add("noopener");
+    relTokens.add("noreferrer");
+    sanitizedAttributes.set("rel", Array.from(relTokens).join(" "));
+  }
+
+  return Array.from(sanitizedAttributes.entries())
+    .map(([name, value]) =>
+      value ? ` ${name}="${escapeHtmlAttribute(value)}"` : ` ${name}`,
+    )
+    .join("");
+}
+
+function sanitizeRichTextHtmlWithoutDom(value: string): string {
+  let sanitized = value.replace(/<!--[\s\S]*?-->/g, "");
+  const discardTagPattern = Array.from(DISCARD_CONTENT_TAGS).join("|");
+
+  sanitized = sanitized.replace(
+    new RegExp(
+      `<\\s*(${discardTagPattern})\\b[^>]*>[\\s\\S]*?<\\s*\\/\\s*\\1\\s*>`,
+      "gi",
+    ),
+    "",
+  );
+  sanitized = sanitized.replace(
+    new RegExp(`<\\s*(${discardTagPattern})\\b[^>]*\\/?>`, "gi"),
+    "",
+  );
+
+  return sanitized.replace(
+    /<\s*(\/?)\s*([a-z][a-z0-9-]*)\b([^>]*)>/gi,
+    (_match, closingSlash: string, rawTagName: string, rawAttributes: string) => {
+      const tagName = rawTagName.toLowerCase();
+
+      if (!ALLOWED_TAGS.has(tagName)) {
+        return "";
+      }
+
+      if (closingSlash) {
+        return `</${tagName}>`;
+      }
+
+      const sanitizedAttributes = sanitizeAttributesWithoutDom(
+        tagName,
+        rawAttributes,
+      );
+
+      return `<${tagName}${sanitizedAttributes}>`;
+    },
+  );
 }
 
 function enforceBlankTargetRel(element: Element) {
@@ -211,12 +349,14 @@ function sanitizeChildren(node: ParentNode) {
 }
 
 function sanitizeRichTextHtml(value: string): string {
+  const normalizedValue = normalizeRichTextInput(value);
+
   if (typeof document === "undefined") {
-    return escapeHtml(value);
+    return sanitizeRichTextHtmlWithoutDom(normalizedValue);
   }
 
   const container = document.createElement("div");
-  container.innerHTML = value;
+  container.innerHTML = normalizedValue;
   sanitizeChildren(container);
   return container.innerHTML;
 }
@@ -249,8 +389,9 @@ export function formatDraftText(value: string | null | undefined): string {
 export function formatDraftRichText(value: string | null | undefined): string {
   const str = String(value ?? "");
   if (!str) return "";
-  if (/<\/?[a-z][a-z0-9]*\b/i.test(str)) {
-    return sanitizeRichTextHtml(str);
+  const normalized = normalizeRichTextInput(str);
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(normalized)) {
+    return sanitizeRichTextHtml(normalized);
   }
   return escapeHtml(str).replace(/\n/g, "<br />");
 }
