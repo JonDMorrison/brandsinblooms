@@ -22,13 +22,14 @@ import {
 import {
   generateServerFooterHtml,
   type CompanyProfileData,
-} from "./footerGenerator.ts";
+} from "./emailFooter.ts";
 import { rewriteLinksSync } from "./linkRewriter.ts";
 import {
   renderContentBlocksToEmailHtml,
   type RenderableContentBlock,
-} from "./campaignEmailSource.ts";
+} from "./campaignEmailContent.ts";
 import { sanitizeEmailHtmlImageSources } from "./emailImageUrl.ts";
+import type { ServerCompanyProfileShape } from "./resolveDesignSystem.ts";
 
 // ============================================================================
 // TYPES
@@ -40,6 +41,7 @@ export interface RenderEmailParams {
   automationId?: string;
   automationNodeId?: string;
   subject?: string;
+  previewText?: string;
   html?: string;
   contentBlocks?: RenderableContentBlock[] | null;
   customer: CustomerShape | null;
@@ -67,60 +69,7 @@ export interface CustomerShape {
   custom_fields?: Record<string, unknown>;
 }
 
-export interface CompanyProfileShape {
-  company_name?: string | null;
-  location_info?: string | null;
-  company_email?: string | null;
-  company_phone?: string | null;
-  website_url?: string | null;
-  street_address?: string | null;
-  city?: string | null;
-  state_province?: string | null;
-  postal_code?: string | null;
-  country?: string | null;
-  footer_legal_text?: string | null;
-  facebook_url?: string | null;
-  instagram_url?: string | null;
-  tiktok_url?: string | null;
-  pinterest_url?: string | null;
-  youtube_url?: string | null;
-  linkedin_url?: string | null;
-  brand_primary_color?: string | null;
-  brand_secondary_color?: string | null;
-  feature_flags?: {
-    company_logo_url?: string;
-    footer_colors?: {
-      background?: string;
-      text?: string;
-      link?: string;
-      backgroundColor?: string;
-      textColor?: string;
-      linkColor?: string;
-      dividerColor?: string;
-      logoBackgroundColor?: string;
-      logoTextColor?: string;
-    };
-    footer_settings?: {
-      showPhone?: boolean;
-      showLogo?: boolean;
-      showManagePreferences?: boolean;
-      addressLine2?: string;
-      city?: string;
-      region?: string;
-      postalCode?: string;
-      country?: string;
-      email?: string;
-      websiteUrl?: string;
-      complianceText?: string;
-      facebookUrl?: string;
-      instagramUrl?: string;
-      tiktokUrl?: string;
-      pinterestUrl?: string;
-      youtubeUrl?: string;
-      linkedinUrl?: string;
-    };
-  } | null;
-}
+export type CompanyProfileShape = ServerCompanyProfileShape;
 
 export interface RenderDiagnostics {
   usedTags: string[];
@@ -281,6 +230,7 @@ export function renderEmailForRecipient(
     tenantId,
     campaignId,
     subject = "",
+    previewText = "",
     html = "",
     contentBlocks,
     customer,
@@ -292,10 +242,19 @@ export function renderEmailForRecipient(
     trackedLinkMap = null,
   } = params;
 
-  const sourceHtml =
-    Array.isArray(contentBlocks) && contentBlocks.length > 0
-      ? renderContentBlocksToEmailHtml(contentBlocks)
-      : html;
+  const hasContentBlocks =
+    Array.isArray(contentBlocks) && contentBlocks.length > 0;
+  const footerLinks = buildFooterLinks(customer, tenantId, footerLinkMode);
+  const sourceHtml = hasContentBlocks
+    ? renderContentBlocksToEmailHtml(contentBlocks, {
+        subject,
+        previewText,
+        companyProfile,
+        footerLinks,
+      })
+    : typeof html === "string" && html.trim().length > 0
+      ? html
+      : `<html><body><div style="font-family:Arial,sans-serif;padding:32px;"><h1 style="font-size:24px;margin:0 0 12px;">Campaign content unavailable</h1><p style="margin:0;color:#475569;line-height:1.6;">No renderable HTML is stored for this campaign.</p></div></body></html>`;
 
   console.log(
     `[emailRenderer] mode=${mode}, tenantId=${tenantId}, customer=${customer?.email || "sample"}`,
@@ -334,7 +293,7 @@ export function renderEmailForRecipient(
   const renderedSubject = renderMergeTags(normalizedSubject, mergeData);
 
   // Step 8: Append footer if requested (for send mode)
-  if (includeFooter && mode === "send" && customer) {
+  if (includeFooter && mode === "send" && customer && !hasContentBlocks) {
     renderedHtml = appendFooter(
       renderedHtml,
       customer,
@@ -449,6 +408,30 @@ function buildMergeData(
   };
 }
 
+function buildFooterLinks(
+  customer: CustomerShape | null,
+  tenantId: string,
+  footerLinkMode: "preview" | "send",
+) {
+  if (!customer?.email || footerLinkMode === "preview") {
+    return {
+      unsubscribeUrl: "#unsubscribe",
+      preferencesUrl: "#preferences",
+    };
+  }
+
+  const unsubscribeToken = btoa(`${customer.email}:${tenantId}`);
+  const unsubscribeUrl = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
+
+  return {
+    unsubscribeUrl,
+    preferencesUrl: unsubscribeUrl.replace(
+      "handle-unsubscribe",
+      "manage-preferences",
+    ),
+  };
+}
+
 /**
  * Append footer to email HTML
  */
@@ -459,17 +442,7 @@ function appendFooter(
   tenantId: string,
   footerLinkMode: "preview" | "send",
 ): string {
-  // Generate unsubscribe token and links
-  const unsubscribeToken = btoa(`${customer.email}:${tenantId}`);
-  const liveUnsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
-  const livePreferencesLink = liveUnsubscribeLink.replace(
-    "handle-unsubscribe",
-    "manage-preferences",
-  );
-  const unsubscribeLink =
-    footerLinkMode === "preview" ? "#unsubscribe" : liveUnsubscribeLink;
-  const preferencesLink =
-    footerLinkMode === "preview" ? "#preferences" : livePreferencesLink;
+  const footerLinks = buildFooterLinks(customer, tenantId, footerLinkMode);
   const footerColors = companyProfile?.feature_flags?.footer_colors;
   const footerColorsRecord = footerColors as
     | Record<string, string | undefined>
@@ -524,8 +497,8 @@ function appendFooter(
     "{{PREFERENCES_URL}}",
   );
   const footer = footerTemplate
-    .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, unsubscribeLink)
-    .replace(/\{\{PREFERENCES_URL\}\}/g, preferencesLink);
+    .replace(/\{\{UNSUBSCRIBE_URL\}\}/g, footerLinks.unsubscribeUrl)
+    .replace(/\{\{PREFERENCES_URL\}\}/g, footerLinks.preferencesUrl);
 
   // Strip existing footer first
   const strippedHtml = stripExistingFooter(html);

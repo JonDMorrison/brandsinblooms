@@ -15,17 +15,211 @@
 // crm_campaigns.content. Email clients showed the literal tag text. See the
 // "fix: stop double-escaping rich-text HTML" commit for full background.
 //
-// Security: rich-text bodies are now run through sanitize-html with a strict
-// allowlist before being embedded in the draft preview. The allowlist is
-// scoped to what TipTap's StarterKit + TextAlign + Underline extensions can
-// emit (plus a few defensive aliases). Anything outside the allowlist
-// (e.g., <script>, <iframe>, <img onerror=...>, javascript: URLs in href,
-// inline event handlers) is stripped. The same configuration is mirrored
-// in supabase/functions/_shared/htmlContent.ts.
-
-import sanitizeHtml from "sanitize-html";
+// Security: rich-text bodies are sanitized against the same strict allowlist
+// used by the edge-function renderer before being embedded in the draft
+// preview. The browser bundle cannot import sanitize-html directly because it
+// pulls Node-only parsing dependencies into Vite, so this file mirrors the
+// same policy with a DOM-based sanitizer.
 
 import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig";
+
+const ALLOWED_TAGS = new Set(RICH_TEXT_SANITIZE_OPTIONS.allowedTags ?? []);
+const ALLOWED_ATTRIBUTES = (RICH_TEXT_SANITIZE_OPTIONS.allowedAttributes ??
+  {}) as Record<string, string[]>;
+const GLOBAL_ALLOWED_ATTRIBUTES = new Set(ALLOWED_ATTRIBUTES["*"] ?? []);
+const ALLOWED_STYLE_RULES =
+  ((RICH_TEXT_SANITIZE_OPTIONS.allowedStyles ?? {})["*"] as
+    | Record<string, RegExp[]>
+    | undefined) ?? {};
+const ALLOWED_SCHEMES = new Set(
+  RICH_TEXT_SANITIZE_OPTIONS.allowedSchemes ?? [],
+);
+const ALLOWED_SCHEMES_BY_TAG =
+  (RICH_TEXT_SANITIZE_OPTIONS.allowedSchemesByTag ?? {}) as Record<
+    string,
+    string[]
+  >;
+const URL_SCHEME_ATTRIBUTES = new Set(
+  RICH_TEXT_SANITIZE_OPTIONS.allowedSchemesAppliedToAttributes ?? [],
+);
+const DISCARD_CONTENT_TAGS = new Set([
+  ...(RICH_TEXT_SANITIZE_OPTIONS.nonTextTags ?? []),
+  "iframe",
+  "object",
+  "embed",
+  "form",
+  "input",
+  "select",
+  "button",
+  "img",
+]);
+
+function sanitizeStyleAttribute(styleValue: string): string {
+  const safeDeclarations: string[] = [];
+
+  for (const declaration of styleValue.split(";")) {
+    const separatorIndex = declaration.indexOf(":");
+
+    if (separatorIndex < 0) {
+      continue;
+    }
+
+    const property = declaration.slice(0, separatorIndex).trim().toLowerCase();
+    const value = declaration
+      .slice(separatorIndex + 1)
+      .trim()
+      .replace(/\s+/g, " ");
+    const allowedPatterns = ALLOWED_STYLE_RULES[property];
+
+    if (!property || !value || !allowedPatterns) {
+      continue;
+    }
+
+    if (allowedPatterns.some((pattern) => pattern.test(value))) {
+      safeDeclarations.push(`${property}:${value}`);
+    }
+  }
+
+  return safeDeclarations.join(";");
+}
+
+function isAllowedUrl(
+  tagName: string,
+  attributeName: string,
+  value: string,
+): boolean {
+  if (!URL_SCHEME_ATTRIBUTES.has(attributeName)) {
+    return true;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  if (trimmed.startsWith("//")) {
+    return false;
+  }
+
+  const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.-]*):/i);
+
+  if (!schemeMatch) {
+    return true;
+  }
+
+  const allowedForTag = new Set(ALLOWED_SCHEMES_BY_TAG[tagName] ?? []);
+  const allowedSchemes =
+    allowedForTag.size > 0 ? allowedForTag : ALLOWED_SCHEMES;
+
+  return allowedSchemes.has(schemeMatch[1].toLowerCase());
+}
+
+function enforceBlankTargetRel(element: Element) {
+  if (element.tagName.toLowerCase() !== "a") {
+    return;
+  }
+
+  if (element.getAttribute("target")?.toLowerCase() !== "_blank") {
+    return;
+  }
+
+  const relTokens = new Set(
+    (element.getAttribute("rel") ?? "")
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean),
+  );
+
+  relTokens.add("noopener");
+  relTokens.add("noreferrer");
+  element.setAttribute("rel", Array.from(relTokens).join(" "));
+}
+
+function sanitizeAttributes(element: Element, tagName: string) {
+  const allowedAttributes = new Set([
+    ...GLOBAL_ALLOWED_ATTRIBUTES,
+    ...(ALLOWED_ATTRIBUTES[tagName] ?? []),
+  ]);
+
+  for (const attribute of Array.from(element.attributes)) {
+    const name = attribute.name.toLowerCase();
+
+    if (name.startsWith("on") || !allowedAttributes.has(name)) {
+      element.removeAttribute(attribute.name);
+      continue;
+    }
+
+    if (name === "style") {
+      const safeStyle = sanitizeStyleAttribute(attribute.value);
+
+      if (safeStyle) {
+        element.setAttribute("style", safeStyle);
+      } else {
+        element.removeAttribute(attribute.name);
+      }
+
+      continue;
+    }
+
+    if (!isAllowedUrl(tagName, name, attribute.value)) {
+      element.removeAttribute(attribute.name);
+    }
+  }
+
+  enforceBlankTargetRel(element);
+}
+
+function unwrapElement(element: Element) {
+  const fragment = document.createDocumentFragment();
+
+  while (element.firstChild) {
+    fragment.appendChild(element.firstChild);
+  }
+
+  element.replaceWith(fragment);
+}
+
+function sanitizeChildren(node: ParentNode) {
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === 8) {
+      child.remove();
+      continue;
+    }
+
+    if (child.nodeType !== 1) {
+      continue;
+    }
+
+    const element = child as Element;
+    const tagName = element.tagName.toLowerCase();
+
+    if (!ALLOWED_TAGS.has(tagName)) {
+      if (DISCARD_CONTENT_TAGS.has(tagName)) {
+        element.remove();
+        continue;
+      }
+
+      sanitizeChildren(element);
+      unwrapElement(element);
+      continue;
+    }
+
+    sanitizeAttributes(element, tagName);
+    sanitizeChildren(element);
+  }
+}
+
+function sanitizeRichTextHtml(value: string): string {
+  if (typeof document === "undefined") {
+    return escapeHtml(value);
+  }
+
+  const container = document.createElement("div");
+  container.innerHTML = value;
+  sanitizeChildren(container);
+  return container.innerHTML;
+}
 
 export function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "")
@@ -50,15 +244,13 @@ export function formatDraftText(value: string | null | undefined): string {
 // stays in the escape branch.
 //
 // Mirrors supabase/functions/_shared/htmlContent.ts#toHtmlText. Same input
-// must produce identical output in both files — the sanitize-html
-// configuration lives in htmlContentSanitizeConfig.ts (and a parallel copy
-// in supabase/functions/_shared/htmlContentSanitizeConfig.ts) so any
-// allowlist change is centralized per tree.
+// should stay semantically aligned in both trees, with the shared allowlist
+// data living in htmlContentSanitizeConfig.ts and the edge-function copy.
 export function formatDraftRichText(value: string | null | undefined): string {
   const str = String(value ?? "");
   if (!str) return "";
   if (/<\/?[a-z][a-z0-9]*\b/i.test(str)) {
-    return sanitizeHtml(str, RICH_TEXT_SANITIZE_OPTIONS);
+    return sanitizeRichTextHtml(str);
   }
   return escapeHtml(str).replace(/\n/g, "<br />");
 }

@@ -15,7 +15,6 @@ import { useGeneratedBundle } from "@/hooks/useGeneratedBundle";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { Loader2, ImageIcon, Camera } from "lucide-react";
-import { EmailPreview } from "@/components/crm/EmailPreview";
 import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { convertNewsletterToCRM_Direct } from "@/utils/newsletterToCrmSync";
 import { buildEmailHtmlFromNewsletter } from "@/utils/newsletterToCrmConverter";
@@ -421,7 +420,7 @@ export function GeneratedContentModal({
       );
 
       toast({
-        title: "Opening Block Builder",
+        title: "Opening Campaign Draft",
         description: "Transferring newsletter content...",
       });
 
@@ -549,7 +548,7 @@ export function GeneratedContentModal({
                             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                             data-testid="send-to-block-builder"
                           >
-                            Send to Block builder
+                            Open Campaign Draft
                           </Button>
                         </div>
                       ) : item.channel === "blog" ? (

@@ -5,11 +5,7 @@ import {
   isCampaignStatus,
   type CampaignStatus,
 } from "@/constants/campaignStatuses";
-import type { ContentBlock } from "@/types/emailBuilder";
-import {
-  normalizeBlockFromDatabase,
-  type DatabaseBlock,
-} from "@/utils/blockFieldMapping";
+import type { StudioBlock } from "@/types/studioBlocks";
 import {
   persistCampaignRecord,
   type CampaignDraftConflictError,
@@ -22,6 +18,8 @@ type CampaignSegmentRow =
   Database["public"]["Tables"]["campaign_segments"]["Row"];
 type CampaignPersonaRow =
   Database["public"]["Tables"]["campaign_personas"]["Row"];
+type CampaignBlockBackupRow =
+  Database["public"]["Tables"]["campaign_blocks"]["Row"];
 
 export type CampaignChannel = "email" | "sms" | "newsletter";
 export type EditorCampaignType = "email" | "sms";
@@ -78,7 +76,7 @@ export interface CampaignEditorRecord extends CampaignCatalogItem {
   deliveryMethod: string | null;
   fromEmailDomainId: string | null;
   replyTo: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   segments: CampaignSegmentSummary[];
   personas: CampaignPersonaSummary[];
@@ -97,7 +95,7 @@ export interface PersistCampaignDraftInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo?: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
@@ -216,8 +214,10 @@ function mapPersonaSummary(row: PersonaRow): CampaignPersonaSummary {
   };
 }
 
-function normalizeLegacyProductGalleryBlock(block: ContentBlock): ContentBlock {
-  return block.type === "image-gallery" && block.galleryItems !== undefined
+function normalizeLegacyProductGalleryBlock(block: StudioBlock): StudioBlock {
+  const record = block as StudioBlock & { galleryItems?: unknown };
+
+  return block.type === "image-gallery" && record.galleryItems !== undefined
     ? {
         ...block,
         type: "product-gallery",
@@ -226,17 +226,84 @@ function normalizeLegacyProductGalleryBlock(block: ContentBlock): ContentBlock {
 }
 
 export function normalizeLoadedContentBlocks(
-  blocks: ContentBlock[],
-): ContentBlock[] {
+  blocks: StudioBlock[],
+): StudioBlock[] {
   return blocks.map(normalizeLegacyProductGalleryBlock);
 }
 
-function toContentBlocks(value: unknown): ContentBlock[] {
+function toContentBlocks(value: unknown): StudioBlock[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return normalizeLoadedContentBlocks(value as ContentBlock[]);
+  return normalizeLoadedContentBlocks(value as StudioBlock[]);
+}
+
+function toContentBlockFromBackupRow(
+  row: CampaignBlockBackupRow,
+): StudioBlock | null {
+  const content = toRecord(row.content);
+  const type =
+    typeof content.type === "string" && content.type.length > 0
+      ? content.type
+      : row.block_type;
+
+  if (!type) {
+    return null;
+  }
+
+  return {
+    ...content,
+    id:
+      typeof content.id === "string" && content.id.length > 0
+        ? content.id
+        : row.id,
+    type,
+    headline:
+      typeof content.headline === "string"
+        ? content.headline
+        : (row.headline ?? undefined),
+    imageUrl:
+      typeof content.imageUrl === "string"
+        ? content.imageUrl
+        : (row.image_url ?? undefined),
+    ctaText:
+      typeof content.ctaText === "string"
+        ? content.ctaText
+        : (row.cta_text ?? undefined),
+    ctaUrl:
+      typeof content.ctaUrl === "string"
+        ? content.ctaUrl
+        : (row.cta_url ?? undefined),
+    source:
+      typeof content.source === "string" && content.source.length > 0
+        ? content.source
+        : (row.source ?? "manual"),
+    personaTag:
+      typeof content.personaTag === "string"
+        ? content.personaTag
+        : (row.persona_tag ?? undefined),
+    order: typeof content.order === "number" ? content.order : row.order_index,
+    visible: content.visible !== false,
+  } as StudioBlock;
+}
+
+async function fetchCampaignBlocksFromBackup(campaignId: string) {
+  const { data, error } = await supabase
+    .from("campaign_blocks")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .order("order_index", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return normalizeLoadedContentBlocks(
+    (data ?? [])
+      .map(toContentBlockFromBackupRow)
+      .filter((block): block is StudioBlock => block !== null),
+  );
 }
 
 export async function fetchCampaignCatalog(tenantId: string) {
@@ -264,25 +331,17 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
     throw campaignError;
   }
 
-  const [
-    { data: blockRows },
-    { data: campaignSegments },
-    { data: campaignPersonas },
-  ] = await Promise.all([
-    supabase
-      .from("campaign_blocks")
-      .select("*")
-      .eq("campaign_id", campaignId)
-      .order("order_index", { ascending: true }),
-    supabase
-      .from("campaign_segments")
-      .select("segment_id")
-      .eq("campaign_id", campaignId),
-    supabase
-      .from("campaign_personas")
-      .select("persona_id")
-      .eq("campaign_id", campaignId),
-  ]);
+  const [{ data: campaignSegments }, { data: campaignPersonas }] =
+    await Promise.all([
+      supabase
+        .from("campaign_segments")
+        .select("segment_id")
+        .eq("campaign_id", campaignId),
+      supabase
+        .from("campaign_personas")
+        .select("persona_id")
+        .eq("campaign_id", campaignId),
+    ]);
 
   const segmentIds = Array.from(
     new Set(
@@ -316,12 +375,11 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
 
   const mapped = mapCampaignCatalogItem(campaignRow);
   const metadata = toRecord(campaignRow.metadata);
-  const metadataBlocks = toContentBlocks(metadata.contentBlocks);
-  const hydratedBlockRows = (blockRows ?? []).map((row) =>
-    normalizeLegacyProductGalleryBlock(
-      normalizeBlockFromDatabase(row as DatabaseBlock),
-    ),
-  );
+  const metadataContentBlocks = toContentBlocks(metadata.contentBlocks);
+  const contentBlocks =
+    metadataContentBlocks.length > 0
+      ? metadataContentBlocks
+      : await fetchCampaignBlocksFromBackup(campaignId);
 
   return {
     ...mapped,
@@ -329,7 +387,7 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
     deliveryMethod: campaignRow.delivery_method,
     fromEmailDomainId: campaignRow.from_email_domain_id,
     replyTo: extractReplyTo(campaignRow),
-    contentBlocks: metadataBlocks.length ? metadataBlocks : hydratedBlockRows,
+    contentBlocks,
     smsMessage: extractSmsMessage(campaignRow),
     segments: (segments ?? []).map(mapSegmentSummary),
     personas: (personas ?? []).map(mapPersonaSummary),

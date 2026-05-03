@@ -8,7 +8,6 @@ import MenuButton from "@mui/joy/MenuButton";
 import MenuItem from "@mui/joy/MenuItem";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   addMonths,
   addWeeks,
@@ -29,6 +28,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { CatalogStatsStrip } from "@/components/crm/catalog/CatalogStatsStrip";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useAuth } from "@/contexts/AuthContext";
+import useMediaQuery from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
 import { useRouteState } from "@/hooks/useRouteState";
 import { useTenant } from "@/hooks/useTenant";
@@ -37,6 +37,7 @@ import {
   type UnifiedCalendarEvent,
 } from "@/hooks/useUnifiedCalendarData";
 import { supabase } from "@/integrations/supabase/client";
+import { persistCampaignDraft } from "@/lib/crm/campaignEditor";
 import { applyTenantUserScope } from "@/utils/tenantScope";
 import { CampaignOverviewDialog } from "./calendar/CampaignOverviewDialog";
 import { CalendarCampaignCreateDialog } from "./calendar/CalendarCampaignCreateDialog";
@@ -363,18 +364,23 @@ export const CalendarView = React.memo(function CalendarView({
           }
 
           const scheduledAt = new Date(`${date}T09:00:00`);
-          const { error } = await supabase.from("crm_campaigns").insert({
-            tenant_id: tenant.id,
-            user_id: user.id,
-            name: title,
-            subject_line: title,
-            preheader_text: notes || null,
-            scheduled_at: scheduledAt.toISOString(),
-            status: "scheduled",
-            delivery_method: "custom_domain",
-          });
 
-          if (error) throw error;
+          await persistCampaignDraft({
+            campaignType: "email",
+            status: "scheduled",
+            name: title,
+            subjectLine: title,
+            preheaderText: notes,
+            senderName: "",
+            senderEmail: "",
+            replyTo: "",
+            contentBlocks: [],
+            smsMessage: "",
+            sendAt: scheduledAt,
+            sendImmediately: false,
+            segments: [],
+            personas: [],
+          });
         }
 
         setQuickAddOpen(false);

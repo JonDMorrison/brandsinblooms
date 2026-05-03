@@ -1,6 +1,5 @@
 import { extendTheme } from "@mui/joy/styles";
 import type { PaletteRange } from "@mui/joy/styles";
-import { unstable_createBreakpoints as createBreakpoints } from "@mui/system/createBreakpoints";
 
 declare module "@mui/joy/styles" {
   interface ColorPalettePropOverrides {
@@ -385,16 +384,6 @@ const bloomSpacing = (...values: Array<number | string>) => {
     .join(" ");
 };
 
-const joyBreakpoints = createBreakpoints({
-  values: {
-    xs: 0,
-    sm: 600,
-    md: 900,
-    lg: 1200,
-    xl: 1536,
-  },
-});
-
 const interactiveTransition =
   "background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease";
 
@@ -433,7 +422,6 @@ const disabledControlStyles = {
 };
 
 export const joyTheme = extendTheme({
-  breakpoints: joyBreakpoints,
   focus: {
     thickness: "2px",
     selector: "&.Mui-focusVisible, &:focus-visible",
