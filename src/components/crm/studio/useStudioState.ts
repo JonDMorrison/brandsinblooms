@@ -290,8 +290,11 @@ export function useStudioState({
           designSystem,
         );
         nextSelectedBlockId = nextBlock.id;
-        const footerIndex = current.findIndex((block) => block.type === "footer");
-        const lastContentIndex = footerIndex === -1 ? current.length : footerIndex;
+        const footerIndex = current.findIndex(
+          (block) => block.type === "footer",
+        );
+        const lastContentIndex =
+          footerIndex === -1 ? current.length : footerIndex;
         const nextIndex =
           blockType === "footer"
             ? current.length

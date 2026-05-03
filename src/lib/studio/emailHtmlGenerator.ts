@@ -1016,13 +1016,13 @@ function renderImageTextBlock(
 
   const availableWidth = EMAIL_WIDTH - padding * 2 - 24;
   const imageWidth = Math.floor(availableWidth * (split.image / 100));
-  const imageCell = `<td class="responsive-column" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
-  const textCell = `<td class="responsive-column" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-left:12px;">${content}</td>`;
+  const imageCell = `<td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
+  const textCell = `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-left:12px;">${content}</td>`;
   const reverse = layout === "image-right";
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-right:12px;">${content}</td><td class="responsive-column" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
   );
 }
 
@@ -1090,7 +1090,7 @@ function renderProductCardBlock(
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:24px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${backgroundColor};"><tr>${imageUrl ? `<td class="responsive-column" width="46%" valign="top" style="width:46%;vertical-align:top;padding:24px 12px 24px 24px;"><img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || productName)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border:0;outline:none;text-decoration:none;border-radius:10px;" /></td>` : ""}<td class="responsive-column" width="${imageUrl ? "54" : "100"}%" valign="middle" style="width:${imageUrl ? "54" : "100"}%;vertical-align:middle;padding:${imageUrl ? "24px 24px 24px 12px" : "24px"};">${badge}<h2 style="font-family:${getFontStack(designSystem, "headline")};font-size:22px;line-height:1.25;color:${textColor};margin:0 0 8px;">${escapeHtml(productName)}</h2>${price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:16px;line-height:1.4;color:${textColor};font-weight:700;margin-bottom:8px;">${escapeHtml(price)}</div>` : ""}${descriptionHtml ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.6;color:${textColor};opacity:0.74;">${descriptionHtml}</div>` : ""}${renderButton(block, designSystem, { align: "left", marginTop: 18 })}</td></tr></table></div>`,
+    `<div class="mobile-padding" style="padding:24px;background-color:${backgroundColor};"><table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${backgroundColor};"><tr>${imageUrl ? `<td class="responsive-column product-card-image" width="46%" valign="top" style="width:46%;vertical-align:top;padding:24px 12px 24px 24px;"><img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || productName)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border:0;outline:none;text-decoration:none;border-radius:10px;" /></td>` : ""}<td class="responsive-column product-card-details" width="${imageUrl ? "54" : "100"}%" valign="middle" style="width:${imageUrl ? "54" : "100"}%;vertical-align:middle;padding:${imageUrl ? "24px 24px 24px 12px" : "24px"};">${badge}<h2 style="font-family:${getFontStack(designSystem, "headline")};font-size:22px;line-height:1.25;color:${textColor};margin:0 0 8px;">${escapeHtml(productName)}</h2>${price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:16px;line-height:1.4;color:${textColor};font-weight:700;margin-bottom:8px;">${escapeHtml(price)}</div>` : ""}${descriptionHtml ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.6;color:${textColor};opacity:0.74;">${descriptionHtml}</div>` : ""}${renderButton(block, designSystem, { align: "left", marginTop: 18 })}</td></tr></table></div>`,
   );
 }
 
@@ -1136,7 +1136,7 @@ function renderImageGalleryBlock(block: StudioBlock) {
 
     return renderSection(
       backgroundColor,
-      `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="66.666%" valign="top" style="width:66.666%;vertical-align:top;padding-right:${gap / 2}px;">${renderGalleryImageCell(
+      `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" class="feature-grid-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column gallery-grid-item feature-grid-main" width="66.666%" valign="top" style="width:66.666%;vertical-align:top;padding-right:${gap / 2}px;">${renderGalleryImageCell(
         featured,
         1,
         0,
@@ -1147,7 +1147,7 @@ function renderImageGalleryBlock(block: StudioBlock) {
         .replace(
           /<\/td>$/,
           "",
-        )}</td><td class="responsive-column" width="33.333%" valign="top" style="width:33.333%;vertical-align:top;padding-left:${gap / 2}px;">${sideRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${sideRows}</table>` : ""}</td></tr></table></div>`,
+        )}</td><td class="responsive-column feature-grid-side" width="33.333%" valign="top" style="width:33.333%;vertical-align:top;padding-left:${gap / 2}px;">${sideRows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${sideRows}</table>` : ""}</td></tr></table></div>`,
     );
   }
 
@@ -1160,7 +1160,7 @@ function renderImageGalleryBlock(block: StudioBlock) {
         )
           .map(
             () =>
-              `<td width="${100 / columns}%" style="width:${100 / columns}%;padding:${gap / 2}px;">&nbsp;</td>`,
+              `<td class="gallery-grid-placeholder" width="${100 / columns}%" style="width:${100 / columns}%;padding:${gap / 2}px;">&nbsp;</td>`,
           )
           .join("")}</tr>`,
     )
@@ -1168,7 +1168,7 @@ function renderImageGalleryBlock(block: StudioBlock) {
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${rowHtml}</table></div>`,
+    `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" class="gallery-grid" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${rowHtml}</table></div>`,
   );
 }
 
@@ -1185,7 +1185,7 @@ function renderGalleryImageCell(
   const linked = safeUrl(image.linkUrl)
     ? `<a href="${escapeAttribute(safeUrl(image.linkUrl))}" target="_blank" style="text-decoration:none;">${imageHtml}</a>`
     : imageHtml;
-  return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;vertical-align:top;padding:${gap / 2}px;">${linked}</td>`;
+  return `<td class="responsive-column gallery-grid-item" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;vertical-align:top;padding:${gap / 2}px;">${linked}</td>`;
 }
 
 function renderProductGalleryBlock(
@@ -1215,7 +1215,7 @@ function renderProductGalleryBlock(
         )
           .map(
             () =>
-              `<td width="${100 / columns}%" style="width:${100 / columns}%;padding:${gap / 2}px;">&nbsp;</td>`,
+              `<td class="product-grid-placeholder" width="${100 / columns}%" style="width:${100 / columns}%;padding:${gap / 2}px;">&nbsp;</td>`,
           )
           .join("")}</tr>`,
     )
@@ -1223,7 +1223,7 @@ function renderProductGalleryBlock(
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${rowHtml}</table></div>`,
+    `<div class="mobile-padding" style="padding:16px;background-color:${backgroundColor};"><table role="presentation" class="product-grid" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">${rowHtml}</table></div>`,
   );
 }
 
@@ -1246,7 +1246,7 @@ function renderProductCell(
     textAlign: "center",
   };
 
-  return `<td class="responsive-column" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;vertical-align:top;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${cardBackgroundColor};overflow:hidden;"><tr><td>${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(product.name || "Product image")}" width="${Math.floor((EMAIL_WIDTH - 64) / columns)}" height="${imageHeight}" style="display:block;width:100%;height:${imageHeight}px;object-fit:cover;border:0;outline:none;text-decoration:none;border-radius:12px 12px 0 0;" />` : ""}</td></tr><tr><td align="center" style="padding:18px;text-align:center;">${block.showBadges !== false && product.badgeText ? `<div style="display:inline-block;background-color:${safeColor(product.badgeColor, "#111827")};color:#ffffff;border-radius:999px;padding:4px 9px;font-family:${getFontStack(designSystem, "button")};font-size:10px;font-weight:700;margin-bottom:8px;">${textBlock(product.badgeText)}</div>` : ""}${product.name ? `<div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.3;font-weight:700;color:${textColor};margin-bottom:6px;">${textBlock(product.name)}</div>` : ""}${block.showPrices !== false && product.price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.4;font-weight:700;color:${textColor};margin-bottom:8px;">${textBlock(product.price)}${product.originalPrice ? ` <span style="font-weight:400;text-decoration:line-through;opacity:0.45;">${textBlock(product.originalPrice)}</span>` : ""}</div>` : ""}${product.description ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:13px;line-height:1.55;color:${textColor};opacity:0.68;">${textBlock(product.description)}</div>` : ""}${block.showCtaButtons !== false ? renderButton(ctaBlock, designSystem, { align: "center", marginTop: 14 }) : ""}</td></tr></table></td>`;
+  return `<td class="responsive-column product-grid-item" width="${100 / columns}%" valign="top" style="width:${100 / columns}%;vertical-align:top;padding:${gap / 2}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${cardBackgroundColor};overflow:hidden;"><tr><td>${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(product.name || "Product image")}" width="${Math.floor((EMAIL_WIDTH - 64) / columns)}" height="${imageHeight}" style="display:block;width:100%;height:${imageHeight}px;object-fit:cover;border:0;outline:none;text-decoration:none;border-radius:12px 12px 0 0;" />` : ""}</td></tr><tr><td align="center" style="padding:18px;text-align:center;">${block.showBadges !== false && product.badgeText ? `<div style="display:inline-block;background-color:${safeColor(product.badgeColor, "#111827")};color:#ffffff;border-radius:999px;padding:4px 9px;font-family:${getFontStack(designSystem, "button")};font-size:10px;font-weight:700;margin-bottom:8px;">${textBlock(product.badgeText)}</div>` : ""}${product.name ? `<div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.3;font-weight:700;color:${textColor};margin-bottom:6px;">${textBlock(product.name)}</div>` : ""}${block.showPrices !== false && product.price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.4;font-weight:700;color:${textColor};margin-bottom:8px;">${textBlock(product.price)}${product.originalPrice ? ` <span style="font-weight:400;text-decoration:line-through;opacity:0.45;">${textBlock(product.originalPrice)}</span>` : ""}</div>` : ""}${product.description ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:13px;line-height:1.55;color:${textColor};opacity:0.68;">${sanitizeRichHtml(product.description, designSystem)}</div>` : ""}${block.showCtaButtons !== false ? renderButton(ctaBlock, designSystem, { align: "center", marginTop: 14 }) : ""}</td></tr></table></td>`;
 }
 
 function renderCtaBlock(
@@ -1869,8 +1869,43 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
     @media only screen and (max-width: 599px) {
       .responsive-column { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
       .responsive-column + .responsive-column { padding-top:16px !important; }
-      .responsive-image { width:100% !important; height:auto !important; }
+      .responsive-image { width:100% !important; max-width:100% !important; height:auto !important; }
       .mobile-padding { padding:16px !important; }
+      .gallery-grid,
+      .product-grid,
+      .feature-grid-container,
+      .image-text-row,
+      .product-card-row,
+      .feature-grid-side table { width:100% !important; }
+      .gallery-grid tr,
+      .product-grid tr,
+      .feature-grid-container tr,
+      .image-text-row tr,
+      .product-card-row tr { display:block !important; width:100% !important; }
+      .gallery-grid-item,
+      .product-grid-item,
+      .feature-grid-main,
+      .feature-grid-side,
+      .product-card-image,
+      .product-card-details,
+      .image-text-image,
+      .image-text-content { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
+      .gallery-grid-item,
+      .feature-grid-main,
+      .feature-grid-side { padding-bottom:8px !important; }
+      .product-grid-item,
+      .product-card-image,
+      .product-card-details,
+      .image-text-image,
+      .image-text-content { padding-bottom:12px !important; }
+      .gallery-grid-item img,
+      .product-grid-item img,
+      .feature-grid-main img,
+      .feature-grid-side img,
+      .product-card-image img,
+      .image-text-image img { width:100% !important; max-width:100% !important; height:auto !important; }
+      .gallery-grid-placeholder,
+      .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
     }
   </style>
   <!--<![endif]-->

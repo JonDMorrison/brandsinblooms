@@ -624,8 +624,9 @@ function CampaignStudioPageContent() {
   const activeCanvasDragBlock = React.useMemo(
     () =>
       activeCanvasDragBlockId
-        ? studio.blocks.find((block) => block.id === activeCanvasDragBlockId) ??
-          null
+        ? (studio.blocks.find(
+            (block) => block.id === activeCanvasDragBlockId,
+          ) ?? null)
         : null,
     [activeCanvasDragBlockId, studio.blocks],
   );
