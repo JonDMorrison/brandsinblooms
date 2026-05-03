@@ -28,6 +28,12 @@ function normalizeBlocks(
   return ensureFooterBlockCompliance(blocks, { designSystem });
 }
 
+function reindexBlocks(blocks: StudioBlock[]) {
+  return blocks.map((block, index) =>
+    block.order === index ? block : { ...block, order: index },
+  );
+}
+
 function areBlocksEqual(left: StudioBlock[], right: StudioBlock[]) {
   if (left === right) {
     return true;
@@ -265,7 +271,7 @@ export function useStudioState({
 
   const addBlock = React.useCallback(
     (blockType: StudioBlockType, insertAtIndex?: number) => {
-      let selectedBlockId: string | null = null;
+      let nextSelectedBlockId: string | null = null;
 
       setBlocks((current) => {
         if (blockType === "footer") {
@@ -274,7 +280,7 @@ export function useStudioState({
           );
 
           if (existingFooter) {
-            selectedBlockId = existingFooter.id;
+            nextSelectedBlockId = existingFooter.id;
             return current;
           }
         }
@@ -283,27 +289,29 @@ export function useStudioState({
           createStudioBlock(blockType, designSystem),
           designSystem,
         );
-        selectedBlockId = nextBlock.id;
+        nextSelectedBlockId = nextBlock.id;
+        const footerIndex = current.findIndex((block) => block.type === "footer");
+        const lastContentIndex = footerIndex === -1 ? current.length : footerIndex;
         const nextIndex =
           blockType === "footer"
             ? current.length
             : insertAtIndex == null
-              ? current.length
-              : Math.max(0, Math.min(insertAtIndex, current.length));
+              ? lastContentIndex
+              : Math.max(0, Math.min(insertAtIndex, lastContentIndex));
         const nextBlocks = [...current];
 
         nextBlocks.splice(nextIndex, 0, nextBlock);
-        return normalizeBlocks(nextBlocks, designSystem);
+        return normalizeBlocks(reindexBlocks(nextBlocks), designSystem);
       });
 
-      if (selectedBlockId) {
-        setSelectedBlockId(selectedBlockId);
+      if (nextSelectedBlockId) {
+        setSelectedBlockId(nextSelectedBlockId);
 
         if (
           blockType !== "footer" ||
-          !blocks.some((block) => block.id === selectedBlockId)
+          !blocks.some((block) => block.id === nextSelectedBlockId)
         ) {
-          pulseInsertedBlock(selectedBlockId);
+          pulseInsertedBlock(nextSelectedBlockId);
         }
       }
     },
@@ -329,7 +337,7 @@ export function useStudioState({
       removalTimeoutsRef.current[blockId] = window.setTimeout(() => {
         setBlocks((current) =>
           normalizeBlocks(
-            current.filter((block) => block.id !== blockId),
+            reindexBlocks(current.filter((block) => block.id !== blockId)),
             designSystem,
           ),
         );
@@ -367,7 +375,7 @@ export function useStudioState({
 
         const nextBlocks = [...current];
         nextBlocks.splice(sourceIndex + 1, 0, duplicateBlock);
-        return normalizeBlocks(nextBlocks, designSystem);
+        return normalizeBlocks(reindexBlocks(nextBlocks), designSystem);
       });
 
       if (duplicateId) {
@@ -416,7 +424,7 @@ export function useStudioState({
         const nextBlocks = [...current];
         const [movedBlock] = nextBlocks.splice(sourceIndex, 1);
         nextBlocks.splice(targetIndex, 0, movedBlock);
-        return normalizeBlocks(nextBlocks, designSystem);
+        return normalizeBlocks(reindexBlocks(nextBlocks), designSystem);
       });
     },
     [designSystem],
@@ -442,7 +450,7 @@ export function useStudioState({
         const nextBlocks = [...current];
         const [movedBlock] = nextBlocks.splice(fromIndex, 1);
         nextBlocks.splice(toIndex, 0, movedBlock);
-        return normalizeBlocks(nextBlocks, designSystem);
+        return normalizeBlocks(reindexBlocks(nextBlocks), designSystem);
       });
     },
     [designSystem],

@@ -564,6 +564,9 @@ function CampaignStudioPageContent() {
   const [externalUpdateMessage, setExternalUpdateMessage] = React.useState<
     string | null
   >(null);
+  const [activeCanvasDragBlockId, setActiveCanvasDragBlockId] = React.useState<
+    string | null
+  >(null);
   const [loadRevision, setLoadRevision] = React.useState(0);
   const loadStudioCampaignRef = React.useRef(studio.loadCampaign);
   const isLoadingRef = React.useRef(isLoading);
@@ -618,6 +621,14 @@ function CampaignStudioPageContent() {
 
   const hasUnsavedChanges =
     !isLoading && currentFingerprint !== savedFingerprint;
+  const activeCanvasDragBlock = React.useMemo(
+    () =>
+      activeCanvasDragBlockId
+        ? studio.blocks.find((block) => block.id === activeCanvasDragBlockId) ??
+          null
+        : null,
+    [activeCanvasDragBlockId, studio.blocks],
+  );
 
   const retryLoadCampaign = React.useCallback(() => {
     setLoadRevision((current) => current + 1);
@@ -1009,10 +1020,18 @@ function CampaignStudioPageContent() {
         | undefined;
 
       if (activeData?.kind === "library-block") {
+        setActiveCanvasDragBlockId(null);
         studio.beginSidebarDrag(activeData.blockType);
-      } else {
-        studio.clearSidebarDragState();
+        return;
       }
+
+      if (activeData?.kind === "canvas-block") {
+        setActiveCanvasDragBlockId(activeData.blockId);
+      } else {
+        setActiveCanvasDragBlockId(null);
+      }
+
+      studio.clearSidebarDragState();
     },
     [studio],
   );
@@ -1055,16 +1074,21 @@ function CampaignStudioPageContent() {
       const activeData = event.active.data.current as
         | StudioDragData
         | undefined;
+      const overId = event.over?.id;
 
       if (activeData?.kind === "library-block") {
-        const insertIndex = parseStudioInsertionDropId(event.over?.id);
+        const insertIndex = parseStudioInsertionDropId(overId);
 
         if (insertIndex !== null) {
           studio.addBlock(activeData.blockType, insertIndex);
-        } else {
+        } else if (
+          overId === STUDIO_CANVAS_APPEND_DROP_ID ||
+          overId === STUDIO_CANVAS_EMPTY_DROP_ID
+        ) {
           studio.addBlock(activeData.blockType);
         }
 
+        setActiveCanvasDragBlockId(null);
         studio.clearSidebarDragState();
         return;
       }
@@ -1082,12 +1106,14 @@ function CampaignStudioPageContent() {
         }
       }
 
+      setActiveCanvasDragBlockId(null);
       studio.clearSidebarDragState();
     },
     [studio],
   );
 
   const handleDragCancel = React.useCallback(() => {
+    setActiveCanvasDragBlockId(null);
     studio.clearSidebarDragState();
   }, [studio]);
 
@@ -1399,6 +1425,11 @@ function CampaignStudioPageContent() {
             <BlockDragOverlay
               type={studio.activeSidebarDragBlock.type}
               label={studio.activeSidebarDragBlock.label}
+            />
+          ) : activeCanvasDragBlock ? (
+            <BlockDragOverlay
+              type={activeCanvasDragBlock.type}
+              label={activeCanvasDragBlock.label}
             />
           ) : null}
         </DragOverlay>
