@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   LOCKED_STATUSES,
@@ -35,6 +35,7 @@ import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveNewsletterIdeaDraftSeed } from "@/lib/studio/newsletterIdeaSeed";
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
 import type { StudioBlock } from "@/types/studioBlocks";
 import type { SendError } from "@/utils/campaignSendingErrors";
@@ -232,15 +233,25 @@ function buildDraftFingerprint(input: {
 
 function createInitialState(
   searchParams: URLSearchParams,
+  designSystem: ReturnType<typeof useDesignSystem>["designSystem"],
+  locationState: unknown,
 ): CampaignEditorState {
+  const newsletterSeed = resolveNewsletterIdeaDraftSeed({
+    searchParams,
+    designSystem,
+    locationState,
+  });
+  const hasSeededNewsletterDraft =
+    (newsletterSeed?.contentBlocks.length ?? 0) > 0;
+
   return {
     campaignId: null,
     campaignType: "email",
     status: "draft",
     sendBlockedReason: null,
-    name: "",
-    subjectLine: "",
-    preheaderText: "",
+    name: newsletterSeed?.name ?? "",
+    subjectLine: newsletterSeed?.subjectLine ?? "",
+    preheaderText: newsletterSeed?.preheaderText ?? "",
     senderName: "",
     senderEmail: "",
     replyTo: "",
@@ -248,11 +259,11 @@ function createInitialState(
     selectedPersonas: [],
     audienceCount: null,
     isAudienceLoading: false,
-    contentBlocks: [],
+    contentBlocks: newsletterSeed?.contentBlocks ?? [],
     smsMessage: "",
     sendAt: null,
     sendImmediately: true,
-    isDirty: false,
+    isDirty: hasSeededNewsletterDraft,
     isSaving: false,
     lastSavedAt: null,
     autoSaveStatus: "idle",
@@ -277,13 +288,14 @@ export function CampaignEditorProvider({
   children: React.ReactNode;
   campaignId?: string | null;
 }) {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { senderConfig } = useSenderConfiguration();
   const { designSystem } = useDesignSystem();
   const [state, setState] = React.useState<CampaignEditorState>(() =>
-    createInitialState(searchParams),
+    createInitialState(searchParams, designSystem, location.state),
   );
   const [isLoading, setIsLoading] = React.useState(Boolean(campaignId));
   const campaignIdRef = React.useRef<string | null>(state.campaignId);
@@ -497,27 +509,29 @@ export function CampaignEditorProvider({
               : current.contentBlocks,
         };
 
-        lastSavedFingerprintRef.current = buildDraftFingerprint({
-          campaignId: nextState.campaignId,
-          campaignType: nextState.campaignType,
-          status: nextState.status,
-          name: nextState.name,
-          subjectLine: nextState.subjectLine,
-          preheaderText: nextState.preheaderText,
-          senderName: nextState.senderName,
-          senderEmail: nextState.senderEmail,
-          fromEmailDomainId: senderConfig.fromEmailDomainId ?? null,
-          replyTo: nextState.replyTo,
-          contentBlocks: nextState.contentBlocks,
-          smsMessage: nextState.smsMessage,
-          sendAt: nextState.sendAt,
-          sendImmediately: nextState.sendImmediately,
-          segments: nextState.selectedSegments,
-          personas: nextState.selectedPersonas,
-          sourceContentTaskId: nextState.sourceContentTaskId,
-          sourceSegmentId: nextState.sourceSegmentId,
-          sourcePersonaId: nextState.sourcePersonaId,
-        });
+        if (!current.isDirty) {
+          lastSavedFingerprintRef.current = buildDraftFingerprint({
+            campaignId: nextState.campaignId,
+            campaignType: nextState.campaignType,
+            status: nextState.status,
+            name: nextState.name,
+            subjectLine: nextState.subjectLine,
+            preheaderText: nextState.preheaderText,
+            senderName: nextState.senderName,
+            senderEmail: nextState.senderEmail,
+            fromEmailDomainId: senderConfig.fromEmailDomainId ?? null,
+            replyTo: nextState.replyTo,
+            contentBlocks: nextState.contentBlocks,
+            smsMessage: nextState.smsMessage,
+            sendAt: nextState.sendAt,
+            sendImmediately: nextState.sendImmediately,
+            segments: nextState.selectedSegments,
+            personas: nextState.selectedPersonas,
+            sourceContentTaskId: nextState.sourceContentTaskId,
+            sourceSegmentId: nextState.sourceSegmentId,
+            sourcePersonaId: nextState.sourcePersonaId,
+          });
+        }
 
         return nextState;
       });
@@ -858,6 +872,7 @@ export function CampaignEditorProvider({
       requestedStatus: CampaignStatus;
     }) => {
       if (
+        campaignIdRef.current &&
         fingerprint === lastSavedFingerprintRef.current &&
         requestedStatus === campaignStatusRef.current
       ) {

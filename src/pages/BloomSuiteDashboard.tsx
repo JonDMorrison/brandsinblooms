@@ -93,6 +93,28 @@ type DashboardStatCardProps = {
   onClick?: () => void;
 };
 
+const statCardLabelSx = {
+  fontSize: "13px",
+  fontWeight: 500,
+  lineHeight: 1.4,
+  color: "neutral.500",
+} as const;
+
+const statCardValueSx = {
+  fontFamily: "var(--joy-fontFamily-display)",
+  fontSize: "28px",
+  fontWeight: 700,
+  lineHeight: 1.05,
+  letterSpacing: "-0.03em",
+  color: "neutral.900",
+} as const;
+
+const statCardFooterSx = {
+  fontSize: "12px",
+  fontWeight: 500,
+  lineHeight: 1.4,
+} as const;
+
 function DashboardStatCard({
   label,
   value,
@@ -115,6 +137,8 @@ function DashboardStatCard({
       sx={{
         width: "100%",
         height: "100%",
+        position: "relative",
+        overflow: "hidden",
         appearance: "none",
         border: "1px solid",
         borderColor: "neutral.200",
@@ -147,20 +171,19 @@ function DashboardStatCard({
           justifyContent="space-between"
           alignItems="flex-start"
         >
-          {loading ? (
-            <Skeleton sx={{ width: 88, height: 12, borderRadius: "999px" }} />
-          ) : (
-            <Typography
-              sx={{
-                fontSize: "13px",
-                fontWeight: 500,
-                lineHeight: 1.4,
-                color: "neutral.500",
-              }}
-            >
-              {label}
-            </Typography>
-          )}
+          <Typography sx={statCardLabelSx}>
+            {loading ? (
+              <Skeleton
+                variant="text"
+                animation="wave"
+                sx={{ width: 76, display: "block", transform: "none" }}
+              >
+                Customers
+              </Skeleton>
+            ) : (
+              label
+            )}
+          </Typography>
 
           <Box
             sx={{
@@ -181,47 +204,42 @@ function DashboardStatCard({
             }}
           >
             {loading ? (
-              <Skeleton sx={{ width: 20, height: 20, borderRadius: "999px" }} />
+              <Skeleton
+                variant="circular"
+                animation="wave"
+                sx={{ width: 20, height: 20 }}
+              />
             ) : (
               icon
             )}
           </Box>
         </Stack>
 
-        {loading ? (
-          <Skeleton
-            sx={{
-              width: "68%",
-              maxWidth: 120,
-              height: 34,
-              borderRadius: "10px",
-            }}
-          />
-        ) : (
-          <Typography
-            sx={{
-              fontFamily: "var(--joy-fontFamily-display)",
-              fontSize: "28px",
-              fontWeight: 700,
-              lineHeight: 1.05,
-              letterSpacing: "-0.03em",
-              color: "neutral.900",
-            }}
-          >
-            {value}
-          </Typography>
-        )}
+        <Typography sx={statCardValueSx}>
+          {loading ? (
+            <Skeleton
+              variant="text"
+              animation="wave"
+              sx={{ width: 112, display: "block", transform: "none" }}
+            >
+              00,000
+            </Skeleton>
+          ) : (
+            value
+          )}
+        </Typography>
 
         <Box sx={{ minHeight: 18, display: "flex", alignItems: "center" }}>
           {loading ? (
-            <Skeleton
-              sx={{
-                width: "72%",
-                maxWidth: 132,
-                height: 12,
-                borderRadius: "999px",
-              }}
-            />
+            <Typography sx={{ ...statCardFooterSx, color: "neutral.400" }}>
+              <Skeleton
+                variant="text"
+                animation="wave"
+                sx={{ width: 152, display: "block", transform: "none" }}
+              >
+                100.0% vs last month
+              </Skeleton>
+            </Typography>
           ) : change ? (
             <Stack direction="row" spacing={0.5} alignItems="center">
               <ChangeIcon
@@ -230,14 +248,7 @@ function DashboardStatCard({
                   color: `var(--joy-palette-${change.direction === "down" ? "danger" : "success"}-600)`,
                 }}
               />
-              <Typography
-                sx={{
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  lineHeight: 1.4,
-                  color: changeColor,
-                }}
-              >
+              <Typography sx={{ ...statCardFooterSx, color: changeColor }}>
                 {change.value}
               </Typography>
             </Stack>
@@ -488,16 +499,18 @@ export const BloomSuiteDashboard = () => {
     {
       label: "Social accounts",
       value: socialStatus.statusMessage,
-      tone: socialStatus.status === "ready" ? "success" : "warning",
+      tone: socialStatus.status === "connected" ? "success" : "warning",
       statusLabel:
-        socialStatus.status === "ready" ? "Ready" : "Needs attention",
+        socialStatus.status === "connected" ? "Ready" : "Needs attention",
+      highlighted: false,
     },
     {
       label: "SMS readiness",
       value: twilioStatus.statusMessage,
-      tone: twilioStatus.status === "ready" ? "success" : "warning",
+      tone: twilioStatus.status === "connected" ? "success" : "warning",
       statusLabel:
-        twilioStatus.status === "ready" ? "Ready" : "Needs attention",
+        twilioStatus.status === "connected" ? "Ready" : "Needs attention",
+      highlighted: false,
     },
     {
       label: "POS sync",
@@ -506,6 +519,7 @@ export const BloomSuiteDashboard = () => {
         : "No POS integration connected",
       tone: posAnalytics?.hasIntegration ? "success" : "warning",
       statusLabel: posAnalytics?.hasIntegration ? "Ready" : "Needs attention",
+      highlighted: false,
     },
     {
       label: "Website tools",
@@ -532,7 +546,7 @@ export const BloomSuiteDashboard = () => {
         : socialStatus.statusMessage,
       color: loadingConnections
         ? ("neutral" as const)
-        : socialStatus.status === "ready"
+        : socialStatus.status === "connected"
           ? ("success" as const)
           : ("warning" as const),
     },
@@ -544,7 +558,7 @@ export const BloomSuiteDashboard = () => {
         : twilioStatus.statusMessage,
       color: loadingTwilio
         ? ("neutral" as const)
-        : twilioStatus.status === "ready"
+        : twilioStatus.status === "connected"
           ? ("success" as const)
           : ("warning" as const),
     },

@@ -14,6 +14,10 @@ import { NewsletterLayoutPicker } from "@/components/NewsletterLayoutPicker";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { NewsletterPicker } from "@/components/newsletter/NewsletterPicker";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import {
+  buildNewsletterIdeaEditorSearchParams,
+  type NewsletterIdeaNavigationState,
+} from "@/lib/studio/newsletterIdeaSeed";
 import { NewsletterIdea } from "@/types/newsletter";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
@@ -123,16 +127,38 @@ function IdeaQuickAccessCardSkeleton() {
       }}
     >
       <Stack spacing={2} sx={{ height: "100%" }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Skeleton variant="rectangular" sx={{ width: 120, height: 10, borderRadius: "sm" }} />
-          <Skeleton variant="rectangular" sx={{ width: 80, height: 24, borderRadius: 999 }} />
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 120, height: 10, borderRadius: "sm" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 80, height: 24, borderRadius: 999 }}
+          />
         </Stack>
 
         <Stack spacing={1}>
-          <Skeleton variant="rectangular" sx={{ width: "58%", height: 20, borderRadius: "sm" }} />
-          <Skeleton variant="rectangular" sx={{ width: "100%", height: 12, borderRadius: "sm" }} />
-          <Skeleton variant="rectangular" sx={{ width: "92%", height: 12, borderRadius: "sm" }} />
-          <Skeleton variant="rectangular" sx={{ width: "76%", height: 12, borderRadius: "sm" }} />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "58%", height: 20, borderRadius: "sm" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "100%", height: 12, borderRadius: "sm" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "92%", height: 12, borderRadius: "sm" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: "76%", height: 12, borderRadius: "sm" }}
+          />
         </Stack>
 
         <Skeleton
@@ -155,7 +181,8 @@ function IdeaQuickAccessCard({
   idea: NewsletterIdea;
   onUseIdea: (idea: NewsletterIdea) => void;
 }) {
-  const weekLabel = idea.badge ?? (idea.weekNumber ? `Week ${idea.weekNumber}` : "Weekly");
+  const weekLabel =
+    idea.badge ?? (idea.weekNumber ? `Week ${idea.weekNumber}` : "Weekly");
 
   return (
     <Card
@@ -170,8 +197,21 @@ function IdeaQuickAccessCard({
       }}
     >
       <Stack spacing={1.5} sx={{ height: "100%" }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-          <Typography level="body-xs" sx={{ color: "text.tertiary", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={1.5}
+        >
+          <Typography
+            level="body-xs"
+            sx={{
+              color: "text.tertiary",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontWeight: 600,
+            }}
+          >
             {`Weekly · ${weekLabel}`}
           </Typography>
 
@@ -217,19 +257,6 @@ function IdeaQuickAccessCard({
   );
 }
 
-function buildNewsletterEditorParams(idea: NewsletterIdea, layout: LayoutKey) {
-  return new URLSearchParams({
-    type: "newsletter",
-    flow: "template-picker",
-    templateId: idea.id,
-    layout,
-    source: "picker",
-    title: idea.title,
-    description: idea.description,
-    category: idea.category,
-  });
-}
-
 export const NewsletterNewPage = () => {
   const [showPicker, setShowPicker] = useState(false);
   const [quickAccessIdea, setQuickAccessIdea] = useState<NewsletterIdea | null>(
@@ -266,7 +293,9 @@ export const NewsletterNewPage = () => {
     () =>
       orderedWeeklyIdeas.find(
         (idea) => idea.weekNumber === currentWeekNumber,
-      ) ?? orderedWeeklyIdeas[0] ?? null,
+      ) ??
+      orderedWeeklyIdeas[0] ??
+      null,
     [currentWeekNumber, orderedWeeklyIdeas],
   );
 
@@ -287,7 +316,9 @@ export const NewsletterNewPage = () => {
       return orderedWeeklyIdeas[1] ?? orderedWeeklyIdeas[0] ?? null;
     }
 
-    return orderedWeeklyIdeas[(currentIndex + 1) % orderedWeeklyIdeas.length] ?? null;
+    return (
+      orderedWeeklyIdeas[(currentIndex + 1) % orderedWeeklyIdeas.length] ?? null
+    );
   }, [currentWeekIdea, orderedWeeklyIdeas]);
 
   const showIdeaSkeletons = loading && orderedWeeklyIdeas.length === 0;
@@ -307,8 +338,18 @@ export const NewsletterNewPage = () => {
       return;
     }
 
-    const params = buildNewsletterEditorParams(quickAccessIdea, selectedLayout);
-    navigate(`/crm/campaigns/new?${params.toString()}`);
+    const params = buildNewsletterIdeaEditorSearchParams(
+      quickAccessIdea,
+      selectedLayout,
+    );
+    const navigationState = {
+      newsletterIdea: quickAccessIdea,
+      newsletterLayout: selectedLayout,
+    } satisfies NewsletterIdeaNavigationState;
+
+    navigate(`/crm/campaigns/new?${params.toString()}`, {
+      state: navigationState,
+    });
     handleCloseQuickAccessLayout();
   };
 
@@ -321,7 +362,8 @@ export const NewsletterNewPage = () => {
               Create a Newsletter
             </Typography>
             <Typography level="body-md" sx={{ color: "text.secondary" }}>
-              Start from scratch, explore weekly ideas, or let AI craft something new.
+              Start from scratch, explore weekly ideas, or let AI craft
+              something new.
             </Typography>
           </Stack>
 
@@ -423,7 +465,10 @@ export const NewsletterNewPage = () => {
         />
       </PageContainer>
 
-      <Modal open={Boolean(quickAccessIdea)} onClose={handleCloseQuickAccessLayout}>
+      <Modal
+        open={Boolean(quickAccessIdea)}
+        onClose={handleCloseQuickAccessLayout}
+      >
         <ModalDialog
           layout="center"
           sx={{
@@ -442,7 +487,7 @@ export const NewsletterNewPage = () => {
           {quickAccessIdea ? (
             <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
               <NewsletterLayoutPicker
-                ideaTitle={quickAccessIdea.title}
+                idea={quickAccessIdea}
                 onBack={handleCloseQuickAccessLayout}
                 onChange={setSelectedLayout}
                 onContinue={handleContinueQuickAccess}

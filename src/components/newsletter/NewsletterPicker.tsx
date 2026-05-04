@@ -13,6 +13,10 @@ import { Sparkles, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NewsletterLayoutPicker } from "../NewsletterLayoutPicker";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import {
+  buildNewsletterIdeaEditorSearchParams,
+  type NewsletterIdeaNavigationState,
+} from "@/lib/studio/newsletterIdeaSeed";
 import { NewsletterIdea } from "@/types/newsletter";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { IdeaGrid } from "./IdeaGrid";
@@ -135,18 +139,19 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   const handleContinue = () => {
     if (!selectedIdea || !selectedLayout) return;
 
-    const params = new URLSearchParams({
-      type: "newsletter",
-      flow: "template-picker",
-      templateId: selectedIdea.id,
-      layout: selectedLayout,
-      source: "picker",
-      title: selectedIdea.title,
-      description: selectedIdea.description,
-      category: selectedIdea.category,
-    });
+    const params = buildNewsletterIdeaEditorSearchParams(
+      selectedIdea,
+      selectedLayout,
+    );
 
-    navigate(`/crm/campaigns/new?${params.toString()}`);
+    const navigationState = {
+      newsletterIdea: selectedIdea,
+      newsletterLayout: selectedLayout,
+    } satisfies NewsletterIdeaNavigationState;
+
+    navigate(`/crm/campaigns/new?${params.toString()}`, {
+      state: navigationState,
+    });
     onClose();
   };
 
@@ -398,7 +403,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
             ) : selectedIdea ? (
               <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
                 <NewsletterLayoutPicker
-                  ideaTitle={selectedIdea.title}
+                  idea={selectedIdea}
                   onBack={handleBack}
                   onChange={setSelectedLayout}
                   onContinue={handleContinue}
