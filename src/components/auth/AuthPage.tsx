@@ -1,23 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
-import { toast } from 'sonner';
-import { Loader2, Mail, Lock, User } from 'lucide-react';
-import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui-legacy/button";
+import { Input } from "@/components/ui-legacy/input";
+import { Label } from "@/components/ui-legacy/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui-legacy/tabs";
+import { toast } from "sonner";
+import { Loader2, Mail, Lock, User } from "lucide-react";
+import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [companyName, setCompanyName] = useState("");
 
   // Show success message if navigated from password reset
   useEffect(() => {
@@ -25,14 +36,14 @@ export const AuthPage = () => {
     if (message) {
       toast.success(message);
       // Clear the state
-      navigate('/auth', { replace: true, state: {} });
+      navigate("/auth", { replace: true, state: {} });
     }
   }, [location, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
@@ -46,11 +57,11 @@ export const AuthPage = () => {
       if (error) {
         toast.error(error.message);
       } else if (data.user) {
-        toast.success('Signed in successfully!');
-        navigate('/dashboard');
+        toast.success("Signed in successfully!");
+        navigate("/dashboard");
       }
     } catch (error) {
-      toast.error('An unexpected error occurred');
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -59,12 +70,12 @@ export const AuthPage = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !fullName || !companyName) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long');
+      toast.error("Password must be at least 8 characters long");
       return;
     }
 
@@ -78,8 +89,8 @@ export const AuthPage = () => {
             full_name: fullName,
             company_name: companyName,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
       });
 
       if (error) {
@@ -87,34 +98,33 @@ export const AuthPage = () => {
       } else if (data.user) {
         // Send admin notification about new signup
         try {
-          await supabase.functions.invoke('send-admin-notification', {
+          await supabase.functions.invoke("send-admin-notification", {
             body: {
-              type: 'trial_signup',
+              type: "trial_signup",
               user_id: data.user.id,
               user_email: data.user.email || email,
               user_name: fullName,
-              company_name: companyName
-            }
+              company_name: companyName,
+            },
           });
         } catch (notifError) {
-          console.error('Failed to send admin notification:', notifError);
+          console.error("Failed to send admin notification:", notifError);
           // Don't block signup flow if notification fails
         }
 
         if (data.user.email_confirmed_at) {
-          toast.success('Account created successfully!');
-          navigate('/onboarding');
+          toast.success("Account created successfully!");
+          navigate("/onboarding");
         } else {
-          toast.success('Please check your email to confirm your account');
+          toast.success("Please check your email to confirm your account");
         }
       }
     } catch (error) {
-      toast.error('An unexpected error occurred');
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
@@ -122,7 +132,9 @@ export const AuthPage = () => {
       <div className="flex items-center justify-center pt-8 pb-16 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">BloomSuite</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              BloomSuite
+            </h1>
             <p className="text-gray-600">Welcome back to your marketing hub</p>
           </div>
 
@@ -139,7 +151,7 @@ export const AuthPage = () => {
                   <TabsTrigger value="signin">Sign In</TabsTrigger>
                   <TabsTrigger value="signup">Create Account</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="signin">
                   <form onSubmit={handleSignIn} className="space-y-4">
                     <div className="space-y-2">
@@ -158,7 +170,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="signin-password">Password</Label>
                       <div className="relative">
@@ -175,7 +187,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? (
                         <>
@@ -183,10 +195,10 @@ export const AuthPage = () => {
                           Signing in...
                         </>
                       ) : (
-                        'Sign In'
+                        "Sign In"
                       )}
                     </Button>
-                    
+
                     <div className="text-center">
                       <Link
                         to="/forgot-password"
@@ -197,7 +209,7 @@ export const AuthPage = () => {
                     </div>
                   </form>
                 </TabsContent>
-                
+
                 <TabsContent value="signup">
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
@@ -216,7 +228,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="company-name">Company Name</Label>
                       <div className="relative">
@@ -233,7 +245,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="signup-email">Email</Label>
                       <div className="relative">
@@ -250,7 +262,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="signup-password">Password</Label>
                       <div className="relative">
@@ -268,7 +280,7 @@ export const AuthPage = () => {
                         />
                       </div>
                     </div>
-                    
+
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? (
                         <>
@@ -276,7 +288,7 @@ export const AuthPage = () => {
                           Creating account...
                         </>
                       ) : (
-                        'Create Account'
+                        "Create Account"
                       )}
                     </Button>
                   </form>
@@ -284,10 +296,10 @@ export const AuthPage = () => {
               </Tabs>
             </CardContent>
           </Card>
-          
+
           <div className="text-center mt-6">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="text-sm text-gray-600 hover:underline"
             >
               ← Back to homepage
