@@ -8,6 +8,7 @@ import { Label } from '@/components/ui-legacy/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
 import { Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
+import { toast } from 'sonner';
 
 export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -20,19 +21,34 @@ export const ForgotPasswordPage = () => {
 
     setLoading(true);
     try {
-      // Always call the API, but never show if email exists or not
-      await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getOAuthRedirectUri('/reset-password')
       });
+
+      if (error) {
+        const rawMessage = (error.message || '').toLowerCase();
+
+        console.error('Password reset error:', error);
+
+        if (error.status === 429 || rawMessage.includes('rate')) {
+          toast.error('Too many requests. Please try again in a few minutes.');
+          return;
+        }
+
+        if (rawMessage.includes('redirect') || rawMessage.includes('not allowed')) {
+          toast.error('Something went wrong. Please try again later.');
+          return;
+        }
+
+        // Preserve anti-enumeration behavior for all other API-level errors.
+        navigate('/forgot-password/sent', { state: { email } });
+        return;
+      }
       
-      // Always navigate to success page regardless of API response
-      // This prevents email enumeration attacks
       navigate('/forgot-password/sent', { state: { email } });
     } catch (error) {
-      // Log error but don't show to user for security
       console.error('Password reset error:', error);
-      // Still navigate to success page
-      navigate('/forgot-password/sent', { state: { email } });
+      toast.error('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
