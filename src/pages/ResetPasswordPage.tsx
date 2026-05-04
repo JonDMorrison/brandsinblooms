@@ -15,13 +15,16 @@ import { toast } from "sonner";
 import { Loader2, Lock, AlertCircle } from "lucide-react";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { getAuthErrorMessage } from "@/utils/errorHandling";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
+  const { clearRecoveryMode } = useAuth();
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     // The Supabase client (detectSessionInUrl: true, flowType: "pkce")
@@ -80,14 +83,15 @@ export const ResetPasswordPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
+    if (password.length < 8) {
+      setFormError("Password must be at least 8 characters long.");
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      setFormError("Passwords do not match.");
       return;
     }
 
@@ -98,12 +102,16 @@ export const ResetPasswordPage = () => {
       });
 
       if (error) {
-        toast.error(getAuthErrorMessage(error));
+        setFormError(getAuthErrorMessage(error));
       } else {
+        clearRecoveryMode();
         toast.success("Password updated successfully!");
 
         // Sign out the user after password reset
-        await supabase.auth.signOut();
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) {
+          console.error("Password reset sign-out error:", signOutError);
+        }
 
         // Navigate to login with success message
         navigate("/auth", {
@@ -114,7 +122,7 @@ export const ResetPasswordPage = () => {
         });
       }
     } catch (error) {
-      toast.error("An unexpected error occurred");
+      setFormError(getAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -189,6 +197,13 @@ export const ResetPasswordPage = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {formError && (
+                  <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="password">New Password</Label>
                   <div className="relative">
@@ -196,12 +211,17 @@ export const ResetPasswordPage = () => {
                     <Input
                       id="password"
                       type="password"
-                      placeholder="Enter new password (min 6 characters)"
+                      placeholder="Enter new password (min 8 characters)"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (formError) {
+                          setFormError(null);
+                        }
+                      }}
                       className="pl-10"
                       disabled={loading}
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                   </div>
@@ -216,10 +236,15 @@ export const ResetPasswordPage = () => {
                       type="password"
                       placeholder="Confirm your new password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (formError) {
+                          setFormError(null);
+                        }
+                      }}
                       className="pl-10"
                       disabled={loading}
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                   </div>
@@ -228,7 +253,7 @@ export const ResetPasswordPage = () => {
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>Your password must:</p>
                   <ul className="list-disc list-inside ml-2">
-                    <li>Be at least 6 characters long</li>
+                    <li>Be at least 8 characters long</li>
                     <li>Match the confirmation password</li>
                   </ul>
                 </div>

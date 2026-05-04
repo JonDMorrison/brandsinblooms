@@ -15,6 +15,7 @@ import {
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
+import { RecoveryRoute } from "@/components/RecoveryRoute";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
@@ -501,9 +502,9 @@ function App() {
               <Route
                 path="/reset-password"
                 element={
-                  <PublicRoute>
+                  <RecoveryRoute>
                     <ResetPasswordPage />
-                  </PublicRoute>
+                  </RecoveryRoute>
                 }
               />
               <Route

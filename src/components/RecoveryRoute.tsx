@@ -1,18 +1,17 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { hasPersistedAuthState } from "@/integrations/supabase/client";
 
-interface PublicRouteProps {
+interface RecoveryRouteProps {
   children: React.ReactNode;
 }
 
 const AUTH_REHYDRATION_GRACE_MS = 5000;
 
-export const PublicRoute = ({ children }: PublicRouteProps) => {
+export const RecoveryRoute = ({ children }: RecoveryRouteProps) => {
   const { user, loading, isRecoveryMode } = useAuth();
-  const location = useLocation();
   const [isAwaitingRehydration, setIsAwaitingRehydration] = useState(false);
   const hasPersistedSession = !user && hasPersistedAuthState();
 
@@ -41,12 +40,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  if (user && location.pathname === "/reset-password" && isRecoveryMode) {
-    return <>{children}</>;
-  }
-
-  // If user is authenticated, always redirect to dashboard
-  if (user) {
+  if (user && !isRecoveryMode) {
     return <Navigate to="/dashboard" replace />;
   }
 

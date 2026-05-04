@@ -7,13 +7,59 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isRecoveryMode: boolean;
   authError: string | null;
   isInLimboState: boolean;
   signOut: () => Promise<void>;
   forceReset: () => Promise<void>;
+  clearRecoveryMode: () => void;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+
+const RECOVERY_MODE_STORAGE_KEY = "bloomsuite.auth.recovery-mode";
+
+const getPersistedRecoveryMode = () => {
+  if (typeof sessionStorage === "undefined") {
+    return false;
+  }
+
+  return sessionStorage.getItem(RECOVERY_MODE_STORAGE_KEY) === "true";
+};
+
+const persistRecoveryMode = (enabled: boolean) => {
+  if (typeof sessionStorage === "undefined") {
+    return;
+  }
+
+  if (enabled) {
+    sessionStorage.setItem(RECOVERY_MODE_STORAGE_KEY, "true");
+    return;
+  }
+
+  sessionStorage.removeItem(RECOVERY_MODE_STORAGE_KEY);
+};
+
+const isRecoveryCandidateLocation = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const { pathname, search, hash } = window.location;
+
+  if (pathname !== "/reset-password") {
+    return false;
+  }
+
+  return (
+    search.includes("type=recovery") ||
+    search.includes("code=") ||
+    search.includes("token_hash=") ||
+    hash.includes("type=recovery") ||
+    hash.includes("access_token=") ||
+    hash.includes("refresh_token=")
+  );
+};
 
 export const useAuth = () => {
   const context = React.useContext(AuthContext);
@@ -24,16 +70,23 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  if (!React || !React.useState) {
-    console.error("❌ React or useState is not available!");
-    return <div>React Error: Please refresh the page</div>;
-  }
-
   const [user, setUser] = React.useState<User | null>(null);
   const [session, setSession] = React.useState<Session | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = React.useState(() =>
+    getPersistedRecoveryMode(),
+  );
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [isInLimboState, setIsInLimboState] = React.useState(false);
+
+  const updateRecoveryMode = React.useCallback((enabled: boolean) => {
+    setIsRecoveryMode(enabled);
+    persistRecoveryMode(enabled);
+  }, []);
+
+  const clearRecoveryMode = React.useCallback(() => {
+    updateRecoveryMode(false);
+  }, [updateRecoveryMode]);
 
   // Detect limbo state (authenticated but stuck in redirect loops)
   React.useEffect(() => {
@@ -65,6 +118,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
 
+      const recoveryCandidate = isRecoveryCandidateLocation();
+
+      // Supabase may emit SIGNED_IN before PASSWORD_RECOVERY for reset links.
+      // Treat reset-password exchanges with recovery params as recovery mode so
+      // the route layer does not redirect before PASSWORD_RECOVERY arrives.
+      if (
+        event === "PASSWORD_RECOVERY" ||
+        ((event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+          session?.user &&
+          (recoveryCandidate || getPersistedRecoveryMode()))
+      ) {
+        updateRecoveryMode(true);
+      }
+
       // Handle specific events
       if (
         event === "INITIAL_SESSION" ||
@@ -79,6 +146,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(null);
         setAuthError(null);
         setIsInLimboState(false);
+        updateRecoveryMode(false);
       }
 
       if (event === "TOKEN_REFRESHED") {
@@ -97,6 +165,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setSession(session);
       setUser(session?.user ?? null);
+
+      if (session?.user && (isRecoveryCandidateLocation() || getPersistedRecoveryMode())) {
+        updateRecoveryMode(true);
+      } else if (!session?.user && !isRecoveryCandidateLocation()) {
+        updateRecoveryMode(false);
+      }
+
       setLoading(false);
     });
 
@@ -104,7 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [updateRecoveryMode]);
 
   const signOut = async () => {
     try {
@@ -159,12 +234,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session,
       loading,
       isAuthenticated: !!user && !!session,
+      isRecoveryMode,
       authError,
       isInLimboState,
       signOut,
       forceReset,
+      clearRecoveryMode,
     }),
-    [user, session, loading, authError, isInLimboState],
+    [
+      user,
+      session,
+      loading,
+      isRecoveryMode,
+      authError,
+      isInLimboState,
+      clearRecoveryMode,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
