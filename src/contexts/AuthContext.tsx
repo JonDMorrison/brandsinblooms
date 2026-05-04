@@ -166,7 +166,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
 
-      if (session?.user && (isRecoveryCandidateLocation() || getPersistedRecoveryMode())) {
+      if (
+        session?.user &&
+        (isRecoveryCandidateLocation() || getPersistedRecoveryMode())
+      ) {
         updateRecoveryMode(true);
       } else if (!session?.user && !isRecoveryCandidateLocation()) {
         updateRecoveryMode(false);
