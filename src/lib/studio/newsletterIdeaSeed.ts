@@ -48,11 +48,7 @@ const HEADER_LIKE_SOURCE_TYPES = new Set([
   "graphic-hero",
   "newsletter-header",
 ]);
-const CTA_LIKE_SOURCE_TYPES = new Set([
-  "button",
-  "cta",
-  "call-to-action",
-]);
+const CTA_LIKE_SOURCE_TYPES = new Set(["button", "cta", "call-to-action"]);
 const FOOTER_LIKE_SOURCE_TYPES = new Set(["footer"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -210,7 +206,9 @@ export function buildNewsletterIdeaEditorSearchParams(
     title: idea.title,
     description: idea.description,
     category: idea.category,
-    [TEMPLATE_BLOCKS_SEARCH_PARAM]: serializeTemplateBlocks(idea.templateBlocks),
+    [TEMPLATE_BLOCKS_SEARCH_PARAM]: serializeTemplateBlocks(
+      idea.templateBlocks,
+    ),
   });
 
   if (idea.badge) {
@@ -218,10 +216,7 @@ export function buildNewsletterIdeaEditorSearchParams(
   }
 
   if (idea.estimatedReadTime) {
-    searchParams.set(
-      ESTIMATED_READ_TIME_SEARCH_PARAM,
-      idea.estimatedReadTime,
-    );
+    searchParams.set(ESTIMATED_READ_TIME_SEARCH_PARAM, idea.estimatedReadTime);
   }
 
   return searchParams;
@@ -305,9 +300,7 @@ function getTemplateBlockSubheading(
   return normalizeText(templateBlock.subheading);
 }
 
-function getTemplateBlockTagLabel(
-  templateBlock: NewsletterIdeaTemplateBlock,
-) {
+function getTemplateBlockTagLabel(templateBlock: NewsletterIdeaTemplateBlock) {
   return normalizeText(templateBlock.tagLabel);
 }
 
@@ -323,20 +316,14 @@ function getTemplateBlockButtonText(
   templateBlock: NewsletterIdeaTemplateBlock,
 ) {
   return trimString(
-    templateBlock.buttonText ??
-      templateBlock.ctaText ??
-      templateBlock.cta_text,
+    templateBlock.buttonText ?? templateBlock.ctaText ?? templateBlock.cta_text,
   );
 }
 
-function getTemplateBlockButtonUrl(
-  templateBlock: NewsletterIdeaTemplateBlock,
-) {
+function getTemplateBlockButtonUrl(templateBlock: NewsletterIdeaTemplateBlock) {
   return (
     trimString(
-      templateBlock.buttonUrl ??
-        templateBlock.ctaUrl ??
-        templateBlock.cta_url,
+      templateBlock.buttonUrl ?? templateBlock.ctaUrl ?? templateBlock.cta_url,
     ) || DEFAULT_CTA_URL
   );
 }
@@ -349,7 +336,9 @@ function getTemplateBlockImageAlt(
   templateBlock: NewsletterIdeaTemplateBlock,
   fallback: string,
 ) {
-  return trimString(templateBlock.imageAlt ?? templateBlock.altText) || fallback;
+  return (
+    trimString(templateBlock.imageAlt ?? templateBlock.altText) || fallback
+  );
 }
 
 function getTemplateBlockQuoteText(
@@ -577,9 +566,13 @@ function mapTemplateBlockToStudioBlock(
       const block = createStudioBlock("quote", designSystem);
       return {
         ...block,
-        quoteText: getTemplateBlockQuoteText(templateBlock, body || title || idea.title),
+        quoteText: getTemplateBlockQuoteText(
+          templateBlock,
+          body || title || idea.title,
+        ),
         authorName: trimString(templateBlock.authorName) || "Campaign Studio",
-        authorTitle: normalizeText(templateBlock.authorTitle) || toIdeaLabel(idea),
+        authorTitle:
+          normalizeText(templateBlock.authorTitle) || toIdeaLabel(idea),
       } satisfies StudioBlock;
     }
     case "divider": {
@@ -606,7 +599,8 @@ function mapTemplateBlockToStudioBlock(
     case "product":
     case "product-card": {
       const block = createStudioBlock("product-card", designSystem);
-      const productName = title || trimString(templateBlock.productName) || idea.title;
+      const productName =
+        title || trimString(templateBlock.productName) || idea.title;
 
       return {
         ...block,
@@ -674,7 +668,9 @@ function mapTemplateBlockToStudioBlock(
           trimString(templateBlock.businessName) || title || block.businessName,
         address: normalizeText(templateBlock.address) || block.address,
         complianceText:
-          normalizeText(templateBlock.complianceText) || body || block.complianceText,
+          normalizeText(templateBlock.complianceText) ||
+          body ||
+          block.complianceText,
         websiteUrl: websiteUrl || block.websiteUrl,
         showWebsiteLink: Boolean(websiteUrl || block.websiteUrl),
         footerSocialLinks: Array.isArray(templateBlock.socialLinks)
@@ -772,11 +768,17 @@ function buildSeedBlocks(
     blocks.push(...buildFallbackBlocks(idea, designSystem));
   }
 
-  if (!hasSourceCtaBlock && !blocks.some((block) => block.type === "call-to-action")) {
+  if (
+    !hasSourceCtaBlock &&
+    !blocks.some((block) => block.type === "call-to-action")
+  ) {
     blocks.push(buildCtaBlock(idea, designSystem));
   }
 
-  if (!hasSourceFooterBlock && !blocks.some((block) => block.type === "footer")) {
+  if (
+    !hasSourceFooterBlock &&
+    !blocks.some((block) => block.type === "footer")
+  ) {
     blocks.push(buildFooterBlock(designSystem));
   }
 
