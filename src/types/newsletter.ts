@@ -56,8 +56,7 @@ type NewsletterIdeaStudioFieldSubset = Pick<
   | "badgeText"
 >;
 
-export interface NewsletterIdeaTemplateBlock
-  extends Partial<NewsletterIdeaStudioFieldSubset> {
+export interface NewsletterIdeaTemplateBlock extends Partial<NewsletterIdeaStudioFieldSubset> {
   type: NewsletterIdeaTemplateBlockType;
   title?: string;
   content?: string;
@@ -75,13 +74,19 @@ export interface NewsletterIdea {
   id: string;
   title: string;
   description: string;
-  category: 'holiday' | 'seasonal' | 'product' | 'ai-generated' | 'general' | 'weekly';
+  category:
+    | "holiday"
+    | "seasonal"
+    | "product"
+    | "ai-generated"
+    | "general"
+    | "weekly";
   badge?: string;
   previewHtml?: string;
   templateBlocks: NewsletterIdeaTemplateBlock[];
   heroQuery?: string;
   estimatedReadTime?: string;
-  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  difficulty?: "beginner" | "intermediate" | "advanced";
   priority?: number;
   daysUntil?: number;
   weekNumber?: number;
@@ -90,7 +95,7 @@ export interface NewsletterIdea {
 export interface NewsletterTemplate {
   id: string;
   name: string;
-  layout: 'block-builder' | 'simple-email';
+  layout: "block-builder" | "simple-email";
   thumbnail: string;
   description: string;
   isDefault?: boolean;
