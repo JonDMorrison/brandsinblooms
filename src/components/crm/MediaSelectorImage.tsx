@@ -1,9 +1,7 @@
 import React, { useState, useImperativeHandle, forwardRef } from "react";
-import { MediaSelectorSidebar } from "./MediaSelectorSidebar";
-import { AIPersonalizationDialog } from "./AIPersonalizationDialog";
 import { Camera, Upload, Sparkles, Wand2 } from "lucide-react";
 import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
-import { supabase } from "@/integrations/supabase/client";
+import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { useToast } from "@/hooks/use-toast";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { getCurrentSeason } from "@/utils/seasonalUtils";
@@ -89,17 +87,23 @@ export const MediaSelectorImage = forwardRef<
     },
     ref,
   ) => {
-    const [isSelecting, setIsSelecting] = useState(false);
-    const [isPersonalizing, setIsPersonalizing] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isAutoPickGenerating, setIsAutoPickGenerating] = useState(false);
     const { toast } = useToast();
     const { generateSingleImage } = useAIImageGeneration();
+    const { open } = useAIImageStudio();
 
     // Expose openDialog method to parent components
     useImperativeHandle(ref, () => ({
       openDialog: () => {
-        setIsSelecting(true);
+        open({
+          browseOnly: true,
+          channel: contentType,
+          contentContext,
+          contextLabel: "Choose an image from your library, uploads, or AI.",
+          defaultTab: "my-images",
+          onSelect: handleImageSelect,
+        });
       },
     }));
 
@@ -114,11 +118,14 @@ export const MediaSelectorImage = forwardRef<
     const handleSelectClick = (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setIsSelecting(true);
-    };
-
-    const handleClose = () => {
-      setIsSelecting(false);
+      open({
+        browseOnly: true,
+        channel: contentType,
+        contentContext,
+        contextLabel: "Choose an image from your library, uploads, or AI.",
+        defaultTab: "my-images",
+        onSelect: handleImageSelect,
+      });
     };
 
     // Handle Auto Pick button click
@@ -223,36 +230,23 @@ export const MediaSelectorImage = forwardRef<
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setIsPersonalizing(true);
+                  open({
+                    channel: contentType,
+                    contentContext,
+                    contextLabel:
+                      "Generate with AI or switch to your saved images.",
+                    defaultTab: "ai",
+                    onSelect: handleImageSelect,
+                  });
                 }}
                 className="bg-secondary hover:bg-secondary/90 text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors pointer-events-auto"
               >
                 <Sparkles className="w-4 h-4" />
-                Personalize with AI
+                Generate with AI
               </button>
             </div>
           )}
         </div>
-
-        {/* Sidebar */}
-        <MediaSelectorSidebar
-          isOpen={isSelecting}
-          onClose={handleClose}
-          onImageSelect={handleImageSelect}
-          contentContext={contentContext}
-          selectedImageUrl={src}
-        />
-
-        {/* AI Personalization Dialog */}
-        <AIPersonalizationDialog
-          open={isPersonalizing}
-          onOpenChange={setIsPersonalizing}
-          contentContext={contentContext}
-          onImageSelect={(imageUrl) => {
-            handleImageSelect(imageUrl);
-            setIsPersonalizing(false);
-          }}
-        />
       </>
     );
   },
