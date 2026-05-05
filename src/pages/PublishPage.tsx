@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
-import { Search, Send, Filter } from "lucide-react";
+import { Search, Send, Filter, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useTenant } from "@/hooks/useTenant";
@@ -78,6 +78,12 @@ const PublishPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<ComposerMode>("edit");
   const [selectedItem, setSelectedItem] = useState<PublishItem | null>(null);
+
+  // Track task IDs that were just inserted by a template or blank-compose
+  // prefill but haven't been touched by the user. If the user clicks Cancel
+  // without editing, we soft-delete the row to prevent orphan drafts piling
+  // up in the Ready queue (the original Maple Park bug pattern).
+  const freshPrefillTaskIdsRef = useRef<Set<string>>(new Set());
 
   // Convert dashboard data to PublishItem format (ready to post)
   const publishItems: PublishItem[] = useMemo(() => {
@@ -475,7 +481,9 @@ const PublishPage = () => {
         queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
         await refetch?.();
 
-        // Auto-open the drawer on the freshly inserted task.
+        // Auto-open the drawer on the freshly inserted task. Mark it as a
+        // fresh prefill so onCancelUntouched can soft-delete if the user
+        // backs out without editing.
         const newItem: PublishItem = {
           taskId: (inserted as any).id,
           tenantId: tenant.id,
@@ -489,6 +497,7 @@ const PublishPage = () => {
           status: "review",
           attachments: null,
         };
+        freshPrefillTaskIdsRef.current.add(newItem.taskId);
         setSelectedItem(newItem);
         setDrawerMode("edit");
         setDrawerOpen(true);
@@ -507,6 +516,77 @@ const PublishPage = () => {
     refetch,
   ]);
 
+  // Blank-composer entry: inserts an empty content_tasks row and opens the
+  // composer drawer pointed at it. Called from (a) the ?compose=blank URL
+  // handler below, when the user clicks "Start blank" on the dashboard
+  // PostComposerModal, and (b) the "New Post" button on this page so direct
+  // visitors to /publish have a discoverable entry point. The orphan-on-Cancel
+  // case is handled separately by the freshPrefillTaskIdRef logic.
+  const openBlankComposer = useCallback(async () => {
+    if (!user || !tenant) return;
+    try {
+      const insertPayload: any = {
+        user_id: user.id,
+        tenant_id: tenant.id,
+        post_type: "instagram",
+        ai_output: "",
+        status: "review",
+      };
+      const { data: inserted, error: insertError } = await supabase
+        .from("content_tasks" as any)
+        .insert(insertPayload)
+        .select("*")
+        .single();
+      if (insertError || !inserted) {
+        console.error("Blank composer: insert failed", insertError);
+        toast({
+          title: "Couldn't start a new post",
+          description: "Try again in a moment.",
+          variant: "destructive",
+        });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+      await refetch?.();
+      const newItem: PublishItem = {
+        taskId: (inserted as any).id,
+        tenantId: tenant.id,
+        platform: "instagram",
+        accountId: null,
+        accountName: null,
+        caption: "",
+        firstComment: null,
+        mediaUrl: null,
+        scheduledFor: null,
+        status: "review",
+        attachments: null,
+      };
+      // Track for cancel-without-edit cleanup (parallel to template flow).
+      freshPrefillTaskIdsRef.current.add(newItem.taskId);
+      setSelectedItem(newItem);
+      setDrawerMode("edit");
+      setDrawerOpen(true);
+    } catch (e) {
+      console.error("Blank composer error:", e);
+    }
+  }, [user, tenant, queryClient, refetch, toast]);
+
+  // ?compose=blank URL handler — opens an empty composer when the user clicks
+  // "Start blank" on PostComposerModal. Strips the param after consuming so a
+  // refresh doesn't reopen the dialog.
+  const [blankComposeDone, setBlankComposeDone] = useState(false);
+  useEffect(() => {
+    if (blankComposeDone || !user || !tenant || tenantLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("compose") !== "blank") return;
+    setBlankComposeDone(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("compose");
+    const qs = url.searchParams.toString();
+    window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+    void openBlankComposer();
+  }, [blankComposeDone, user, tenant, tenantLoading, openBlankComposer]);
+
   // Drawer handlers
   const handleOpenDrawer = (item: PublishItem, mode: ComposerMode) => {
     setSelectedItem(item);
@@ -519,6 +599,29 @@ const PublishPage = () => {
     setSelectedItem(null);
   };
 
+  // Soft-delete the row if the user opened a fresh template/blank prefill,
+  // didn't edit anything, and clicked Cancel. This complements the strict
+  // unique index added in Fix C: instead of leaving cancelled drafts in the
+  // queue (the Maple Park pattern), they vanish from view immediately. Still
+  // recoverable server-side via deleted_at = <timestamp>.
+  const handleCancelUntouched = useCallback(
+    async (taskId: string) => {
+      if (!freshPrefillTaskIdsRef.current.has(taskId)) return;
+      freshPrefillTaskIdsRef.current.delete(taskId);
+      try {
+        await supabase
+          .from("content_tasks")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", taskId);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await refetch?.();
+      } catch (e) {
+        console.error("Cancel-untouched soft-delete failed:", e);
+      }
+    },
+    [queryClient, refetch],
+  );
+
   // Save draft handler
   const handleSaveDraft = useCallback(
     async (
@@ -528,12 +631,14 @@ const PublishPage = () => {
         mediaUrl?: string | null;
         firstComment?: string | null;
         accountId?: string | null;
+        platform?: "facebook" | "instagram";
       },
     ) => {
       const updateData: any = {};
       if (partial.caption !== undefined) updateData.ai_output = partial.caption;
       if (partial.mediaUrl !== undefined)
         updateData.image_url = partial.mediaUrl;
+      if (partial.platform !== undefined) updateData.post_type = partial.platform;
       // Note: firstComment is Instagram-specific and not stored in content_tasks
       // Note: accountId is not stored in content_tasks - it's passed to publish functions
 
@@ -556,6 +661,10 @@ const PublishPage = () => {
 
       if (error) throw error;
 
+      // Once a fresh prefill has been edited and saved, it's no longer a
+      // candidate for cancel-without-edit cleanup.
+      freshPrefillTaskIdsRef.current.delete(taskId);
+
       // Update local state optimistically
       const updated: PublishItem = {
         ...(selectedItem as PublishItem),
@@ -563,6 +672,9 @@ const PublishPage = () => {
         mediaUrl: data.image_url || null,
         firstComment: (data as any).first_comment || null,
         accountId: (data as any).account_id || null,
+        platform: (data.post_type ?? selectedItem?.platform ?? "instagram") as
+          | "facebook"
+          | "instagram",
       };
       setSelectedItem(updated);
 
@@ -726,8 +838,8 @@ const PublishPage = () => {
         </div>
 
         {/* Search Bar */}
-        <div className="flex gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap gap-3 sm:gap-4">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               placeholder="Search posts by caption, platform, or account..."
@@ -736,8 +848,12 @@ const PublishPage = () => {
               className="pl-10"
             />
           </div>
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" aria-label="Filter">
             <Filter className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => void openBlankComposer()}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            New Post
           </Button>
         </div>
       </div>
@@ -763,18 +879,29 @@ const PublishPage = () => {
           {/* Ready to Post Content List */}
           <div className="space-y-4">
             {filteredReadyItems.length === 0 ? (
+              // Three distinct empty states:
+              //   1. searchTerm active → "No matching content"
+              //   2. all items are >30 days old → "No recent content" + the
+              //      olderReadyItems toggle (rendered outside this branch
+              //      below). This is Maple Park's case — without the toggle
+              //      surfacing, their 12 stale rows were unreachable.
+              //   3. tenant truly has no content → first-touch empty state
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
                   <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <CardTitle className="mb-2">
-                    {publishItems.length === 0
-                      ? "No content ready to publish"
-                      : "No matching content"}
+                    {searchTerm
+                      ? "No matching content"
+                      : olderReadyItems.length > 0
+                        ? "No recent content"
+                        : "No content ready to publish"}
                   </CardTitle>
                   <CardDescription>
-                    {publishItems.length === 0
-                      ? "Approved content from the Create Flow will appear here ready for publishing."
-                      : "Try adjusting your search terms to find content."}
+                    {searchTerm
+                      ? "Try adjusting your search terms to find content."
+                      : olderReadyItems.length > 0
+                        ? `All your content is more than 30 days old. Show older items below to review or archive.`
+                        : "Approved content from the Create Flow will appear here ready for publishing."}
                   </CardDescription>
                 </CardContent>
               </Card>
@@ -801,22 +928,27 @@ const PublishPage = () => {
                     />
                   </div>
                 ))}
-                {olderReadyItems.length > 0 ? (
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowOlderReady((current) => !current)}
-                    >
-                      {showOlderReady
-                        ? `Hide older items (${olderReadyItems.length})`
-                        : `Show older items (${olderReadyItems.length})`}
-                    </Button>
-                  </div>
-                ) : null}
               </>
             )}
+            {/* Older-items toggle is rendered OUTSIDE the empty/non-empty
+                ternary so it stays accessible even when recentReadyItems is
+                empty (the Maple Park case). Hidden when there are zero older
+                items or a search term is active (search applies to all items
+                already). */}
+            {olderReadyItems.length > 0 && !searchTerm ? (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOlderReady((current) => !current)}
+                >
+                  {showOlderReady
+                    ? `Hide older items (${olderReadyItems.length})`
+                    : `Show older items (${olderReadyItems.length})`}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </TabsContent>
 
@@ -878,6 +1010,7 @@ const PublishPage = () => {
         onSaveDraft={handleSaveDraft}
         onPublishNow={handlePublishNow}
         onSchedule={handleSchedule}
+        onCancelUntouched={handleCancelUntouched}
       />
     </div>
   );

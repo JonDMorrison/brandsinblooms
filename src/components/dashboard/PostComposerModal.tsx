@@ -38,9 +38,11 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
   });
   const [schedulePost, setSchedulePost] = useState(false);
 
-  // Tertiary action: blank composer (no template prefill).
+  // Tertiary action: blank composer (no template prefill). PublishPage reads
+  // ?compose=blank and opens the composer drawer with an empty caption so the
+  // user lands directly in the editor instead of on the list view.
   const handleStartBlank = () => {
-    navigate("/publish");
+    navigate("/publish?compose=blank");
     onClose();
   };
 

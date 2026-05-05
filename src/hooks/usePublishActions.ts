@@ -32,14 +32,11 @@ export function usePublishActions() {
       throw new Error(`Failed to prepare content: ${updateError.message}`);
     }
 
-    // Validate required fields before publishing
+    // Validate required fields before publishing. The throw is caught by
+    // ComposerDrawer's handlePublishNow, which surfaces a toast already —
+    // so we don't also call reportSoftFail here (that path was producing
+    // a duplicate Warning + Error toast for the same condition).
     if (!input.caption?.trim() || !input.mediaUrl) {
-      reportSoftFail('publish_blocked_missing_media', { 
-        taskId, 
-        platform: input.platform,
-        hasCaption: !!input.caption?.trim(),
-        hasMediaUrl: !!input.mediaUrl
-      });
       throw new Error('Both caption and media are required for publishing');
     }
 
@@ -121,15 +118,10 @@ export function usePublishActions() {
       throw new Error(`Failed to prepare content: ${updateError.message}`);
     }
 
-    // Validate required fields before scheduling
+    // Validate required fields before scheduling. As with publish (above),
+    // the throw is caught and toasted by ComposerDrawer's handleSchedule —
+    // no need to also reportSoftFail and produce a redundant toast.
     if (!input.caption?.trim() || !input.mediaUrl) {
-      reportSoftFail('publish_blocked_missing_media', { 
-        taskId, 
-        platform: input.platform,
-        hasCaption: !!input.caption?.trim(),
-        hasMediaUrl: !!input.mediaUrl,
-        mode: 'schedule'
-      });
       throw new Error('Both caption and media are required for scheduling');
     }
 
