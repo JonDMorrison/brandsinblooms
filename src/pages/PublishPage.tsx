@@ -36,6 +36,7 @@ import type {
   ScheduleInput,
 } from "@/types/publish";
 import { findPostTemplate } from "@/lib/social/postTemplates";
+import { isWithinRecencyWindow } from "@/lib/social/publishItemRecency";
 
 interface GeneratedContent {
   id: string;
@@ -112,6 +113,7 @@ const PublishPage = () => {
             task.image_url || (task.attachments as any)?.image?.url || null,
           scheduledFor: scheduledPost?.publish_at || null,
           status: task.status.toLowerCase() as PublishItem["status"],
+          createdAt: task.created_at ?? null,
           attachments: task.attachments,
         };
       });
@@ -149,6 +151,7 @@ const PublishPage = () => {
               task.image_url || (task.attachments as any)?.image?.url || null,
             scheduledFor: null,
             status: "published" as const,
+            createdAt: task.created_at ?? null,
             attachments: task.attachments,
             publishedAt: scheduledPost?.publish_at || task.created_at,
           };
@@ -175,8 +178,16 @@ const PublishPage = () => {
       }));
   }, [dashboardData]);
 
+  // Older-than-30-days items are hidden by default and surfaced behind a
+  // toggle. content_tasks accumulate without lifecycle (Maple Park had a
+  // queue of 6-month-stale Halloween content visible by default), so we
+  // filter the visual default to "last 30 days" without throwing away the
+  // older items entirely. Boundary logic lives in
+  // src/lib/social/publishItemRecency.ts and is unit-tested there.
+  const [showOlderReady, setShowOlderReady] = useState(false);
+
   // Filter ready items by search term
-  const filteredReadyItems = useMemo(() => {
+  const searchFilteredReadyItems = useMemo(() => {
     if (!searchTerm) return publishItems;
     const term = searchTerm.toLowerCase();
     return publishItems.filter(
@@ -186,6 +197,27 @@ const PublishPage = () => {
         item.accountName?.toLowerCase().includes(term),
     );
   }, [publishItems, searchTerm]);
+
+  // Split into recent (≤30d) vs older (>30d). Default view shows only recent;
+  // user can expand "Older" to see the rest.
+  const recentReadyItems = useMemo(
+    () =>
+      searchFilteredReadyItems.filter((item) =>
+        isWithinRecencyWindow(item.createdAt),
+      ),
+    [searchFilteredReadyItems],
+  );
+  const olderReadyItems = useMemo(
+    () =>
+      searchFilteredReadyItems.filter(
+        (item) => !isWithinRecencyWindow(item.createdAt),
+      ),
+    [searchFilteredReadyItems],
+  );
+
+  const filteredReadyItems = showOlderReady
+    ? searchFilteredReadyItems
+    : recentReadyItems;
 
   // Filter published items by search term
   const filteredPublishedItems = useMemo(() => {
@@ -574,37 +606,93 @@ const PublishPage = () => {
     [schedule, refetch, queryClient],
   );
 
-  // Delete handler
-  const handleDelete = useCallback(
+  // Archive (soft-delete) handler with 5-second undo.
+  //
+  // Sets content_tasks.deleted_at = now() so the row stops appearing in
+  // useDashboardData's query (which filters deleted_at IS NULL). The user
+  // gets a toast with an Undo action that clears deleted_at if clicked
+  // within 5 seconds. After the toast dismisses, the soft-delete is
+  // effectively permanent for the UI but the row is still recoverable
+  // server-side.
+  //
+  // Optimistic UX: we issue the DB update immediately, then surface the
+  // undo. If the DB update fails we surface an error toast and refetch to
+  // restore the original state.
+  const archivedItemsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+  const handleArchive = useCallback(
     async (item: PublishItem) => {
-      if (
-        !confirm(
-          "Are you sure you want to delete this content? This action cannot be undone.",
-        )
-      ) {
-        return;
-      }
+      const taskId = item.taskId;
+      const archivedAt = new Date().toISOString();
 
       try {
         const { error } = await supabase
           .from("content_tasks")
-          .delete()
-          .eq("id", item.taskId);
+          .update({ deleted_at: archivedAt } as any)
+          .eq("id", taskId);
 
         if (error) throw error;
 
+        // Refresh data to remove the archived item from the list
+        await refetch?.();
+
         toast({
-          title: "Content deleted",
-          description: "The content has been successfully deleted.",
+          title: "Item archived",
+          description: "Click Undo to restore.",
+          action: (
+            <button
+              type="button"
+              onClick={async () => {
+                const pending = archivedItemsRef.current.get(taskId);
+                if (pending) {
+                  clearTimeout(pending);
+                  archivedItemsRef.current.delete(taskId);
+                }
+
+                try {
+                  const { error: undoError } = await supabase
+                    .from("content_tasks")
+                    .update({ deleted_at: null } as any)
+                    .eq("id", taskId);
+
+                  if (undoError) throw undoError;
+
+                  await refetch?.();
+                  toast({
+                    title: "Item restored",
+                  });
+                } catch (undoError: any) {
+                  console.error("Archive undo error:", undoError);
+                  toast({
+                    title: "Couldn't restore item",
+                    description:
+                      undoError.message ||
+                      "Please refresh and try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="text-sm font-semibold underline-offset-2 hover:underline"
+            >
+              Undo
+            </button>
+          ),
+          duration: 5000,
         });
 
-        // Refresh data to remove the deleted item
-        refetch?.();
+        // Track the timeout so a second click on Undo can cancel it. The
+        // archive itself is already persisted; this timer just clears the
+        // tracking map entry once the undo window closes.
+        const timeout = setTimeout(() => {
+          archivedItemsRef.current.delete(taskId);
+        }, 5000);
+        archivedItemsRef.current.set(taskId, timeout);
       } catch (error: any) {
-        console.error("Delete error:", error);
+        console.error("Archive error:", error);
         toast({
           title: "Error",
-          description: error.message || "Failed to delete content",
+          description: error.message || "Failed to archive content",
           variant: "destructive",
         });
       }
@@ -691,27 +779,43 @@ const PublishPage = () => {
                 </CardContent>
               </Card>
             ) : (
-              filteredReadyItems.map((item) => (
-                <div
-                  key={`ready-${item.taskId}-${filteredReadyItems.length}`}
-                  ref={(element) => {
-                    cardRefs.current[item.taskId] = element;
-                  }}
-                  className={cn(
-                    "transition-all duration-300 rounded-[28px]",
-                    activeHighlightTaskId === item.taskId &&
-                      "ring-2 ring-primary ring-offset-2 shadow-lg",
-                  )}
-                >
-                  <PostCard
-                    item={item}
-                    onEdit={(item) => handleOpenDrawer(item, "edit")}
-                    onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                    onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                    onDelete={handleDelete}
-                  />
-                </div>
-              ))
+              <>
+                {filteredReadyItems.map((item) => (
+                  <div
+                    key={`ready-${item.taskId}-${filteredReadyItems.length}`}
+                    ref={(element) => {
+                      cardRefs.current[item.taskId] = element;
+                    }}
+                    className={cn(
+                      "transition-all duration-300 rounded-[28px]",
+                      activeHighlightTaskId === item.taskId &&
+                        "ring-2 ring-primary ring-offset-2 shadow-lg",
+                    )}
+                  >
+                    <PostCard
+                      item={item}
+                      onEdit={(item) => handleOpenDrawer(item, "edit")}
+                      onPublishNow={(item) => handleOpenDrawer(item, "edit")}
+                      onSchedule={(item) => handleOpenDrawer(item, "schedule")}
+                      onDelete={handleArchive}
+                    />
+                  </div>
+                ))}
+                {olderReadyItems.length > 0 ? (
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowOlderReady((current) => !current)}
+                    >
+                      {showOlderReady
+                        ? `Hide older items (${olderReadyItems.length})`
+                        : `Show older items (${olderReadyItems.length})`}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </TabsContent>
@@ -754,7 +858,7 @@ const PublishPage = () => {
                     onEdit={(item) => handleOpenDrawer(item, "edit")}
                     onPublishNow={(item) => handleOpenDrawer(item, "edit")}
                     onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                    onDelete={handleDelete}
+                    onDelete={handleArchive}
                   />
                 </div>
               ))

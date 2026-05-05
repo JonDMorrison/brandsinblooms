@@ -35,6 +35,10 @@ export type PublishItem = {
   isCarousel?: boolean;      // indicates if post is a carousel
   scheduledFor?: string | null; // ISO timestamp (UTC) if scheduled
   status: PostStatus;
+  // ISO timestamp of when the underlying content_tasks row was created.
+  // Used by /publish to show when the draft was generated and to filter
+  // out items older than 30 days behind an "Older" toggle.
+  createdAt?: string | null;
   // optional source data you already load:
   attachments?: Record<string, any> | null;
 };

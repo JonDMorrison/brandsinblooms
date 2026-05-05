@@ -4,10 +4,21 @@ import { Card } from '@/components/ui-legacy/card';
 import { Button } from '@/components/ui-legacy/button';
 import { ActionGroup } from '@/components/ui-legacy/action-group';
 import { Badge } from '@/components/ui-legacy/badge';
-import { Facebook, Instagram, Clock, Send, Edit3, Trash2, Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Facebook, Instagram, Clock, Send, Edit3, Archive, Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import type { PublishItem } from '@/types/publish';
+
+// "Generated 6 months ago" / "Generated 3 days ago". Falls back silently
+// if the timestamp is missing or unparseable so a render never crashes
+// over a malformed createdAt. Used only for non-published items —
+// published rows already show their own publish-date line.
+function formatGeneratedRelative(createdAt: string | null | undefined): string | null {
+  if (!createdAt) return null;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return null;
+  return `Generated ${formatDistanceToNow(t, { addSuffix: true })}`;
+}
 
 export type PostCardProps = {
   item: PublishItem;
@@ -94,9 +105,11 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
               size="sm"
               onClick={handleDelete}
               disabled={disabled || isDeleting}
-              className="w-8 h-8 p-0 text-gray-400 hover:text-red-500"
+              className="w-8 h-8 p-0 text-gray-400 hover:text-amber-600"
+              title="Archive item"
+              aria-label="Archive item"
             >
-              <Trash2 className="w-4 h-4" />
+              <Archive className="w-4 h-4" />
             </Button>
             <MoreHorizontal className="w-5 h-5 text-gray-700" />
           </div>
@@ -147,6 +160,13 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
           {item.status === 'published' && publishedAt && (
             <div className="text-xs text-gray-500 mb-3">
               {format(new Date(publishedAt), 'MMMM d, yyyy')}
+            </div>
+          )}
+
+          {/* Generated date — shown for non-published items so users see when a draft was authored */}
+          {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
+            <div className="text-xs text-gray-500 mb-3" data-testid="post-generated-date">
+              {formatGeneratedRelative(item.createdAt)}
             </div>
           )}
         </div>
@@ -232,9 +252,11 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
               size="sm"
               onClick={handleDelete}
               disabled={disabled || isDeleting}
-              className="w-8 h-8 p-0 text-gray-400 hover:text-red-500"
+              className="w-8 h-8 p-0 text-gray-400 hover:text-amber-600"
+              title="Archive item"
+              aria-label="Archive item"
             >
-              <Trash2 className="w-4 h-4" />
+              <Archive className="w-4 h-4" />
             </Button>
             <MoreHorizontal className="w-5 h-5 text-gray-600" />
           </div>
@@ -285,6 +307,16 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
         {item.status === 'published' && publishedAt && (
           <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50">
             Published {format(new Date(publishedAt), 'MMMM d, yyyy')}
+          </div>
+        )}
+
+        {/* Generated date — shown for non-published items */}
+        {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
+          <div
+            className="px-4 py-2 text-xs text-gray-500 bg-gray-50"
+            data-testid="post-generated-date"
+          >
+            {formatGeneratedRelative(item.createdAt)}
           </div>
         )}
 
@@ -382,6 +414,17 @@ export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSc
             <div className="flex items-center gap-2 text-sm text-gray-500 bg-green-50 px-2 py-1 rounded">
               <Clock className="w-4 h-4" />
               <span>Published {format(new Date(publishedAt), 'MMM d, h:mm a')}</span>
+            </div>
+          )}
+
+          {/* Generated date — shown for non-published items */}
+          {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
+            <div
+              className="flex items-center gap-2 text-xs text-gray-500"
+              data-testid="post-generated-date"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>{formatGeneratedRelative(item.createdAt)}</span>
             </div>
           )}
         </div>
