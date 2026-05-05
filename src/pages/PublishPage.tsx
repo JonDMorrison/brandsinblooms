@@ -35,6 +35,7 @@ import type {
   PublishNowInput,
   ScheduleInput,
 } from "@/types/publish";
+import { findPostTemplate } from "@/lib/social/postTemplates";
 
 interface GeneratedContent {
   id: string;
@@ -361,6 +362,118 @@ const PublishPage = () => {
       setLoading(false);
     }
   }, [user, isLoading]);
+
+  // Template-prefill: when the URL has ?template=<id>, look up the template
+  // (defined in src/lib/social/postTemplates.ts), insert a new content_tasks
+  // row with the template content, and auto-open the composer drawer pointed
+  // at it. Marks "done" in localStorage so a refresh doesn't double-insert,
+  // and strips ?template= from the URL after processing.
+  const [templatePrefillDone, setTemplatePrefillDone] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const templateId = params.get("template");
+    if (
+      !templateId ||
+      templatePrefillDone ||
+      !user ||
+      !tenant ||
+      tenantLoading
+    ) {
+      return;
+    }
+
+    const template = findPostTemplate(templateId);
+    if (!template) {
+      // Unknown template id — clean the URL and do nothing.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("template");
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+      setTemplatePrefillDone(true);
+      return;
+    }
+
+    const prefillKey = `publish-prefill:template:${templateId}:${tenant.id}`;
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("template");
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+    };
+
+    if (localStorage.getItem(prefillKey) === "done") {
+      cleanUrl();
+      setTemplatePrefillDone(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        const insertPayload: any = {
+          user_id: user.id,
+          tenant_id: tenant.id,
+          // Default to instagram (most common single-image social platform);
+          // user can switch via the composer drawer's account picker.
+          post_type: "instagram",
+          ai_output: template.content,
+          status: "review",
+        };
+
+        const { data: inserted, error: insertError } = await supabase
+          .from("content_tasks" as any)
+          .insert(insertPayload)
+          .select("*")
+          .single();
+
+        if (insertError || !inserted) {
+          console.error(
+            "Template prefill: content_tasks insert failed",
+            insertError,
+          );
+          cleanUrl();
+          setTemplatePrefillDone(true);
+          return;
+        }
+
+        localStorage.setItem(prefillKey, "done");
+        cleanUrl();
+        setTemplatePrefillDone(true);
+
+        // Refresh the dashboard data so the new task appears in the list.
+        queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await refetch?.();
+
+        // Auto-open the drawer on the freshly inserted task.
+        const newItem: PublishItem = {
+          taskId: (inserted as any).id,
+          tenantId: tenant.id,
+          platform: "instagram",
+          accountId: null,
+          accountName: null,
+          caption: template.content,
+          firstComment: null,
+          mediaUrl: null,
+          scheduledFor: null,
+          status: "review",
+          attachments: null,
+        };
+        setSelectedItem(newItem);
+        setDrawerMode("edit");
+        setDrawerOpen(true);
+      } catch (e) {
+        console.error("Template prefill error:", e);
+        cleanUrl();
+        setTemplatePrefillDone(true);
+      }
+    })();
+  }, [
+    templatePrefillDone,
+    user,
+    tenant,
+    tenantLoading,
+    queryClient,
+    refetch,
+  ]);
 
   // Drawer handlers
   const handleOpenDrawer = (item: PublishItem, mode: ComposerMode) => {
