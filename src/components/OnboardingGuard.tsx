@@ -20,6 +20,7 @@ const ONBOARDING_EXEMPT_PATHS = [
   "/auth/callback",
   "/account-setup",
   "/settings",
+  "/oauth/authorize",
   "/oauth/callback",
   "/integrations/lightspeed/callback",
   "/integrations/square/callback",

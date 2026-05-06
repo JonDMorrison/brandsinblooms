@@ -13,6 +13,7 @@ import {
   GripVertical,
   ImagePlus,
   Plus,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -26,8 +27,13 @@ import type { StudioBlock } from "@/components/crm/studio/studioCanvasTypes";
 import StudioAlignmentToggle from "@/components/crm/studio/fields/StudioAlignmentToggle";
 import StudioColorPicker from "@/components/crm/studio/fields/StudioColorPicker";
 import StudioImageUpload, {
+  ensureCampaignStudioImageUrl,
+  type StudioImageApplyEvent,
+  type StudioImageAIAspectRatioHint,
+  type StudioImageAIRequest,
   uploadStudioImageFile,
 } from "@/components/crm/studio/fields/StudioImageUpload";
+import type { AIImageStudioSelectionMetadata } from "@/components/crm/ai-image-studio/types";
 import LayoutPresetPicker from "@/components/crm/studio/fields/LayoutPresetPicker";
 import StudioRichTextField from "@/components/crm/studio/fields/StudioRichTextField";
 import StudioSliderField from "@/components/crm/studio/fields/StudioSliderField";
@@ -35,10 +41,16 @@ import StudioSwitchField from "@/components/crm/studio/fields/StudioSwitchField"
 import StudioTextField from "@/components/crm/studio/fields/StudioTextField";
 import StudioToggleField from "@/components/crm/studio/fields/StudioToggleField";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
+import type { EditorCampaignType } from "@/lib/crm/campaignEditor";
 import {
   getStudioLayoutPresets,
   type LayoutPreset,
 } from "@/lib/studio/layoutPresets";
+import { buildStudioCampaignContext } from "@/components/crm/studio/studioAIContext";
+import type {
+  CampaignImageFieldSourceRecord,
+  CampaignImageGalleryItem,
+} from "@/components/crm/studio/useStudioState";
 import type {
   GalleryImage,
   GalleryProduct,
@@ -57,12 +69,34 @@ type UpdateField = (
   value: StudioBlock[keyof StudioBlock],
 ) => void;
 
+type RequestAIImage = (request: StudioImageAIRequest) => void;
+
+type TrackCampaignImageUsage = (
+  fieldKey: string,
+  event: StudioImageApplyEvent | null,
+) => void;
+
+type ResolveCampaignImageFieldSource = (
+  fieldKey: string,
+  url?: string,
+) => CampaignImageFieldSourceRecord | null;
+
 type BlockPropertiesPanelProps = {
+  campaignImageGallery: CampaignImageGalleryItem[];
+  campaignName: string;
+  campaignType: EditorCampaignType;
   selectedBlockId: string | null;
   blocks: StudioBlock[];
   open: boolean;
   onClose: () => void;
+  onRequestAIImage?: RequestAIImage;
+  onTrackCampaignImageUsage?: TrackCampaignImageUsage;
+  onRestoreComplete?: () => void;
+  onScrollPositionChange?: (scrollTop: number) => void;
   onUpdateBlockField: OnUpdateBlockField;
+  resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
+  restoreScrollPosition?: number | null;
+  suppressed?: boolean;
 };
 
 type PanelSectionProps = {
@@ -318,6 +352,8 @@ function ProductEntryRow({ index }: { index: number }) {
               label="Image"
               compact
               defaultFilled={index === 0}
+              aiAspectRatioHint="portrait"
+              blockContext={`Product Gallery item ${index + 1} image`}
             />
           </Box>
           <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
@@ -541,16 +577,49 @@ function getImageGallerySlotCount(block: StudioBlock) {
   }
 }
 
+function getCampaignImageSourceFromMetadata(
+  metadata?: AIImageStudioSelectionMetadata,
+) {
+  switch (metadata?.source) {
+    case "ai-generated":
+      return "ai-generated" as const;
+    case "upload":
+      return "upload" as const;
+    case "content_asset":
+    case "global_image_gallery":
+    default:
+      return "library" as const;
+  }
+}
+
+function getImageGalleryFieldKey(blockId: string, slotIndex: number) {
+  return `${blockId}:galleryImages:${slotIndex}`;
+}
+
+function getProductGalleryFieldKey(blockId: string, productId: string) {
+  return `${blockId}:galleryProducts:${productId}:imageUrl`;
+}
+
 function ImageGalleryManager({
   block,
+  campaignContext,
+  campaignImageGallery,
+  onTrackCampaignImageUsage,
   updateField,
+  onRequestAIImage,
+  resolveCampaignImageFieldSource,
 }: {
   block: StudioBlock;
+  campaignContext: StudioImageAIRequest["campaignContext"];
+  campaignImageGallery: CampaignImageGalleryItem[];
+  onTrackCampaignImageUsage?: TrackCampaignImageUsage;
   updateField: UpdateField;
+  onRequestAIImage?: RequestAIImage;
+  resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
 }) {
   const images = block.galleryImages ?? [];
-  const [expandedImageId, setExpandedImageId] = React.useState<string | null>(
-    images[0]?.id ?? null,
+  const [activeSlotIndex, setActiveSlotIndex] = React.useState<number | null>(
+    images.length > 0 ? 0 : null,
   );
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
   const [uploading, setUploading] = React.useState(false);
@@ -559,12 +628,175 @@ function ImageGalleryManager({
   const multiInputRef = React.useRef<HTMLInputElement | null>(null);
   const pendingSlotIndexRef = React.useRef<number | null>(null);
   const slotCount = Math.max(getImageGallerySlotCount(block), images.length);
-  const expandedImage = images.find((image) => image.id === expandedImageId);
+  const activeImage =
+    activeSlotIndex === null ? null : (images[activeSlotIndex] ?? null);
 
   const setImages = React.useCallback(
     (nextImages: GalleryImage[]) => updateField("galleryImages", nextImages),
     [updateField],
   );
+
+  const trackSlotImage = React.useCallback(
+    (slotIndex: number, event: StudioImageApplyEvent | null) => {
+      onTrackCampaignImageUsage?.(
+        getImageGalleryFieldKey(block.id, slotIndex),
+        event,
+      );
+    },
+    [block.id, onTrackCampaignImageUsage],
+  );
+
+  React.useEffect(() => {
+    if (activeSlotIndex === null) {
+      if (images.length > 0) {
+        setActiveSlotIndex(0);
+      }
+      return;
+    }
+
+    if (activeSlotIndex >= slotCount) {
+      setActiveSlotIndex(slotCount > 0 ? slotCount - 1 : null);
+    }
+  }, [activeSlotIndex, images.length, slotCount]);
+
+  const setImageAtSlot = React.useCallback(
+    (
+      slotIndex: number,
+      nextUrl: string,
+      event?: StudioImageApplyEvent | null,
+    ) => {
+      const nextImages = [...images];
+      const currentImage = nextImages[slotIndex];
+      nextImages[slotIndex] = currentImage
+        ? { ...currentImage, url: nextUrl }
+        : createGalleryImage(nextUrl);
+      setImages(
+        nextImages.filter((image): image is GalleryImage => Boolean(image)),
+      );
+      setActiveSlotIndex(slotIndex);
+      trackSlotImage(slotIndex, event ?? null);
+    },
+    [images, setImages, trackSlotImage],
+  );
+
+  const buildSlotLabel = React.useCallback(
+    (slotIndex: number) =>
+      `Image Gallery — Slot ${slotIndex + 1} of ${slotCount}`,
+    [slotCount],
+  );
+
+  const buildSlotSelectionHandler = React.useCallback(
+    (slotIndex: number) =>
+      async (imageUrl: string, metadata?: AIImageStudioSelectionMetadata) => {
+        try {
+          const resolvedImageUrl = await ensureCampaignStudioImageUrl(imageUrl);
+          setImageAtSlot(slotIndex, resolvedImageUrl, {
+            blockLabel: campaignContext?.blockLabel,
+            gallerySource: getCampaignImageSourceFromMetadata(metadata),
+            prompt:
+              metadata?.altText || campaignContext?.contentSummary || undefined,
+            source: getCampaignImageSourceFromMetadata(metadata),
+            timestamp: Date.now(),
+            url: resolvedImageUrl,
+          });
+          setErrorMessage(null);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Could not use the selected AI image.";
+          setErrorMessage(message);
+        }
+      },
+    [campaignContext, setImageAtSlot],
+  );
+
+  const buildSlotContinuationFlow = React.useCallback(
+    (startingSlotIndex: number) => {
+      const slotIndexes = Array.from(
+        { length: slotCount - startingSlotIndex },
+        (_, offset) => startingSlotIndex + offset,
+      );
+
+      if (slotIndexes.length <= 1) {
+        return undefined;
+      }
+
+      let currentIndex = 0;
+
+      return {
+        advanceToNextTarget: () => {
+          const nextSlotIndex = slotIndexes[currentIndex + 1];
+
+          if (nextSlotIndex === undefined) {
+            return null;
+          }
+
+          currentIndex += 1;
+          setActiveSlotIndex(nextSlotIndex);
+
+          return {
+            aiAspectRatioHint: "square",
+            assignmentLabel: buildSlotLabel(nextSlotIndex),
+            blockContext: buildSlotLabel(nextSlotIndex),
+            blockId: block.id,
+            campaignContext,
+            onSelect: buildSlotSelectionHandler(nextSlotIndex),
+          } satisfies StudioImageAIRequest;
+        },
+        hasNextTarget: () => currentIndex + 1 < slotIndexes.length,
+      } satisfies NonNullable<StudioImageAIRequest["multiBlockFlow"]>;
+    },
+    [
+      block.id,
+      buildSlotLabel,
+      buildSlotSelectionHandler,
+      campaignContext,
+      slotCount,
+    ],
+  );
+
+  const requestAIForSlot = React.useCallback(
+    (slotIndex: number, request?: StudioImageAIRequest) => {
+      if (!onRequestAIImage) {
+        return;
+      }
+
+      setActiveSlotIndex(slotIndex);
+
+      onRequestAIImage({
+        ...(request ?? {
+          aiAspectRatioHint: "square",
+          blockContext: buildSlotLabel(slotIndex),
+          blockId: block.id,
+          campaignContext,
+          onSelect: buildSlotSelectionHandler(slotIndex),
+        }),
+        assignmentLabel: buildSlotLabel(slotIndex),
+        blockContext: buildSlotLabel(slotIndex),
+        blockId: block.id,
+        campaignContext,
+        multiBlockFlow: buildSlotContinuationFlow(slotIndex),
+      });
+    },
+    [
+      block.id,
+      buildSlotContinuationFlow,
+      buildSlotLabel,
+      buildSlotSelectionHandler,
+      campaignContext,
+      onRequestAIImage,
+    ],
+  );
+
+  const handleGenerateAllWithAI = React.useCallback(() => {
+    if (!onRequestAIImage || slotCount === 0) {
+      return;
+    }
+
+    const firstEmptySlotIndex = images.length < slotCount ? images.length : 0;
+    requestAIForSlot(firstEmptySlotIndex);
+  }, [images.length, onRequestAIImage, requestAIForSlot, slotCount]);
 
   const uploadFiles = React.useCallback(
     async (files: FileList | null, targetIndex: number | null) => {
@@ -587,9 +819,16 @@ function ImageGalleryManager({
         if (targetIndex === null) {
           const nextImages = [...images, ...uploadedImages];
           setImages(nextImages);
-          setExpandedImageId(
-            uploadedImages[0]?.id ?? nextImages[0]?.id ?? null,
-          );
+          setActiveSlotIndex(nextImages.length - uploadedImages.length);
+          uploadedImages.forEach((image, index) => {
+            trackSlotImage(images.length + index, {
+              blockLabel: campaignContext?.blockLabel,
+              gallerySource: "upload",
+              source: "upload",
+              timestamp: Date.now(),
+              url: image.url,
+            });
+          });
           return;
         }
 
@@ -611,7 +850,14 @@ function ImageGalleryManager({
           (image): image is GalleryImage => Boolean(image),
         );
         setImages(compactImages);
-        setExpandedImageId(nextImages[targetIndex].id);
+        setActiveSlotIndex(targetIndex);
+        trackSlotImage(targetIndex, {
+          blockLabel: campaignContext?.blockLabel,
+          gallerySource: "upload",
+          source: "upload",
+          timestamp: Date.now(),
+          url: firstImage.url,
+        });
       } catch (error) {
         setErrorMessage(
           error instanceof Error ? error.message : "Upload failed.",
@@ -629,7 +875,7 @@ function ImageGalleryManager({
         }
       }
     },
-    [images, setImages],
+    [campaignContext?.blockLabel, images, setImages, trackSlotImage],
   );
 
   const updateImage = React.useCallback(
@@ -645,13 +891,25 @@ function ImageGalleryManager({
 
   const removeImage = React.useCallback(
     (imageId: string) => {
+      const removedIndex = images.findIndex((image) => image.id === imageId);
       const nextImages = images.filter((image) => image.id !== imageId);
       setImages(nextImages);
-      setExpandedImageId((current) =>
-        current === imageId ? (nextImages[0]?.id ?? null) : current,
-      );
+      if (removedIndex >= 0) {
+        trackSlotImage(removedIndex, null);
+      }
+      setActiveSlotIndex((current) => {
+        if (current === null) {
+          return nextImages.length > 0 ? 0 : null;
+        }
+
+        return current >= nextImages.length
+          ? nextImages.length > 0
+            ? nextImages.length - 1
+            : null
+          : current;
+      });
     },
-    [images, setImages],
+    [images, setImages, trackSlotImage],
   );
 
   return (
@@ -690,7 +948,7 @@ function ImageGalleryManager({
       >
         {Array.from({ length: slotCount }).map((_slot, index) => {
           const image = images[index];
-          const selected = image?.id === expandedImageId;
+          const selected = index === activeSlotIndex;
 
           return (
             <Sheet
@@ -720,8 +978,9 @@ function ImageGalleryManager({
               }}
               onDragEnd={() => setDraggedIndex(null)}
               onClick={() => {
+                setActiveSlotIndex(index);
+
                 if (image) {
-                  setExpandedImageId(image.id);
                   return;
                 }
 
@@ -778,6 +1037,19 @@ function ImageGalleryManager({
                       variant="plain"
                       color="neutral"
                       size="sm"
+                      aria-label="Generate image with AI"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        requestAIForSlot(index);
+                      }}
+                      sx={{ minWidth: 20, minHeight: 20, color: "#ffffff" }}
+                    >
+                      <Sparkles size={12} />
+                    </IconButton>
+                    <IconButton
+                      variant="plain"
+                      color="neutral"
+                      size="sm"
                       aria-label="Remove image"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -799,34 +1071,63 @@ function ImageGalleryManager({
                   <Typography level="body-xs" sx={{ fontSize: "10px" }}>
                     {uploading ? "..." : "Add"}
                   </Typography>
+                  {onRequestAIImage ? (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      color="primary"
+                      startDecorator={<Sparkles size={12} />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        requestAIForSlot(index);
+                      }}
+                      sx={{ minHeight: 22, px: 0.25, fontSize: "10px" }}
+                    >
+                      AI
+                    </Button>
+                  ) : null}
                 </Stack>
               )}
             </Sheet>
           );
         })}
       </Box>
-      <Button
-        variant="soft"
-        color="neutral"
-        size="sm"
-        startDecorator={<Plus size={14} />}
-        onClick={() => multiInputRef.current?.click()}
-        sx={{
-          alignSelf: "flex-start",
-          borderRadius: "10px",
-          fontSize: "13px",
-          px: 1.5,
-          bgcolor: "rgba(15, 23, 42, 0.04)",
-        }}
-      >
-        Add Images
-      </Button>
+      <Stack direction="row" spacing={0.75} flexWrap="wrap">
+        <Button
+          variant="soft"
+          color="neutral"
+          size="sm"
+          startDecorator={<Plus size={14} />}
+          onClick={() => multiInputRef.current?.click()}
+          sx={{
+            alignSelf: "flex-start",
+            borderRadius: "10px",
+            fontSize: "13px",
+            px: 1.5,
+            bgcolor: "rgba(15, 23, 42, 0.04)",
+          }}
+        >
+          Add Images
+        </Button>
+        {onRequestAIImage ? (
+          <Button
+            variant="soft"
+            color="primary"
+            size="sm"
+            startDecorator={<Sparkles size={14} />}
+            onClick={handleGenerateAllWithAI}
+            sx={{ borderRadius: "10px", fontSize: "13px", px: 1.5 }}
+          >
+            Generate all with AI
+          </Button>
+        ) : null}
+      </Stack>
       {errorMessage ? (
         <Typography level="body-xs" sx={{ color: "danger.600" }}>
           {errorMessage}
         </Typography>
       ) : null}
-      {expandedImage ? (
+      {activeSlotIndex !== null ? (
         <Sheet
           variant="plain"
           sx={{
@@ -848,25 +1149,57 @@ function ImageGalleryManager({
                 textTransform: "uppercase",
               }}
             >
-              Selected Image
+              Gallery Slot {activeSlotIndex + 1}
             </Typography>
-            <StudioTextField
-              label="Alt Text"
-              placeholder="Describe this image"
-              value={expandedImage.alt}
-              onChange={(value) =>
-                updateImage(expandedImage.id, { alt: value })
+            <StudioImageUpload
+              label="Image"
+              height={84}
+              emptyText="Upload image"
+              value={activeImage?.url ?? ""}
+              onChange={(value) => setImageAtSlot(activeSlotIndex, value)}
+              blockContext={buildSlotLabel(activeSlotIndex)}
+              aiAspectRatioHint="square"
+              blockId={block.id}
+              campaignContext={campaignContext}
+              campaignImages={campaignImageGallery}
+              imageSourceRecord={resolveCampaignImageFieldSource?.(
+                getImageGalleryFieldKey(block.id, activeSlotIndex),
+                activeImage?.url,
+              )}
+              onApplyImage={(event) => trackSlotImage(activeSlotIndex, event)}
+              onClearImage={() => trackSlotImage(activeSlotIndex, null)}
+              onRequestAIImage={(request) =>
+                requestAIForSlot(activeSlotIndex, request)
               }
             />
-            <StudioTextField
-              label="Link URL"
-              placeholder="https://..."
-              type="url"
-              value={expandedImage.linkUrl ?? ""}
-              onChange={(value) =>
-                updateImage(expandedImage.id, { linkUrl: value })
-              }
-            />
+            {activeImage ? (
+              <>
+                <StudioTextField
+                  label="Alt Text"
+                  placeholder="Describe this image"
+                  value={activeImage.alt}
+                  onChange={(value) =>
+                    updateImage(activeImage.id, { alt: value })
+                  }
+                />
+                <StudioTextField
+                  label="Link URL"
+                  placeholder="https://..."
+                  type="url"
+                  value={activeImage.linkUrl ?? ""}
+                  onChange={(value) =>
+                    updateImage(activeImage.id, { linkUrl: value })
+                  }
+                />
+              </>
+            ) : (
+              <Typography
+                level="body-xs"
+                sx={{ color: "neutral.500", fontSize: "11px" }}
+              >
+                Upload or generate an image for this slot.
+              </Typography>
+            )}
           </Stack>
         </Sheet>
       ) : null}
@@ -876,10 +1209,20 @@ function ImageGalleryManager({
 
 function ProductGalleryManager({
   block,
+  campaignContext,
+  campaignImageGallery,
+  onTrackCampaignImageUsage,
   updateField,
+  onRequestAIImage,
+  resolveCampaignImageFieldSource,
 }: {
   block: StudioBlock;
+  campaignContext: StudioImageAIRequest["campaignContext"];
+  campaignImageGallery: CampaignImageGalleryItem[];
+  onTrackCampaignImageUsage?: TrackCampaignImageUsage;
   updateField: UpdateField;
+  onRequestAIImage?: RequestAIImage;
+  resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
 }) {
   const products = block.galleryProducts ?? [];
   const [expandedProductId, setExpandedProductId] = React.useState<
@@ -902,6 +1245,116 @@ function ProductGalleryManager({
       );
     },
     [products, setProducts],
+  );
+
+  const trackProductImage = React.useCallback(
+    (productId: string, event: StudioImageApplyEvent | null) => {
+      onTrackCampaignImageUsage?.(
+        getProductGalleryFieldKey(block.id, productId),
+        event,
+      );
+    },
+    [block.id, onTrackCampaignImageUsage],
+  );
+
+  const buildProductCellLabel = React.useCallback(
+    (index: number) =>
+      `Product Gallery — Cell ${index + 1} of ${products.length}`,
+    [products.length],
+  );
+
+  const buildProductSelectionHandler = React.useCallback(
+    (productId: string) =>
+      async (imageUrl: string, metadata?: AIImageStudioSelectionMetadata) => {
+        const resolvedImageUrl = await ensureCampaignStudioImageUrl(imageUrl);
+        updateProduct(productId, { imageUrl: resolvedImageUrl });
+        trackProductImage(productId, {
+          blockLabel: campaignContext?.blockLabel,
+          gallerySource: getCampaignImageSourceFromMetadata(metadata),
+          prompt:
+            metadata?.altText || campaignContext?.contentSummary || undefined,
+          source: getCampaignImageSourceFromMetadata(metadata),
+          timestamp: Date.now(),
+          url: resolvedImageUrl,
+        });
+      },
+    [campaignContext, trackProductImage, updateProduct],
+  );
+
+  const buildProductContinuationFlow = React.useCallback(
+    (startingIndex: number) => {
+      const remainingProducts = products.slice(startingIndex);
+
+      if (remainingProducts.length <= 1) {
+        return undefined;
+      }
+
+      let currentIndex = 0;
+
+      return {
+        advanceToNextTarget: () => {
+          const nextProduct = remainingProducts[currentIndex + 1];
+          const nextProductIndex = startingIndex + currentIndex + 1;
+
+          if (!nextProduct) {
+            return null;
+          }
+
+          currentIndex += 1;
+          setExpandedProductId(nextProduct.id);
+
+          return {
+            aiAspectRatioHint: "portrait",
+            assignmentLabel: buildProductCellLabel(nextProductIndex),
+            blockContext: buildProductCellLabel(nextProductIndex),
+            blockId: block.id,
+            campaignContext,
+            onSelect: buildProductSelectionHandler(nextProduct.id),
+          } satisfies StudioImageAIRequest;
+        },
+        hasNextTarget: () => currentIndex + 1 < remainingProducts.length,
+      } satisfies NonNullable<StudioImageAIRequest["multiBlockFlow"]>;
+    },
+    [
+      block.id,
+      buildProductCellLabel,
+      buildProductSelectionHandler,
+      campaignContext,
+      products,
+    ],
+  );
+
+  const requestAIForProduct = React.useCallback(
+    (index: number, productId: string, request?: StudioImageAIRequest) => {
+      if (!onRequestAIImage) {
+        return;
+      }
+
+      setExpandedProductId(productId);
+
+      onRequestAIImage({
+        ...(request ?? {
+          aiAspectRatioHint: "portrait",
+          blockContext: buildProductCellLabel(index),
+          blockId: block.id,
+          campaignContext,
+          onSelect: buildProductSelectionHandler(productId),
+        }),
+        assignmentLabel: buildProductCellLabel(index),
+        blockContext: buildProductCellLabel(index),
+        blockId: block.id,
+        campaignContext,
+        multiBlockFlow: buildProductContinuationFlow(index),
+      });
+    },
+    [
+      block.id,
+      buildProductCellLabel,
+      buildProductContinuationFlow,
+      buildProductSelectionHandler,
+      campaignContext,
+      onRequestAIImage,
+    ],
   );
 
   const removeProduct = React.useCallback(
@@ -1075,6 +1528,22 @@ function ProductGalleryManager({
                     value={product.imageUrl}
                     onChange={(value) =>
                       updateProduct(product.id, { imageUrl: value })
+                    }
+                    blockContext={buildProductCellLabel(index)}
+                    aiAspectRatioHint="portrait"
+                    blockId={block.id}
+                    campaignContext={campaignContext}
+                    campaignImages={campaignImageGallery}
+                    imageSourceRecord={resolveCampaignImageFieldSource?.(
+                      getProductGalleryFieldKey(block.id, product.id),
+                      product.imageUrl,
+                    )}
+                    onApplyImage={(event) =>
+                      trackProductImage(product.id, event)
+                    }
+                    onClearImage={() => trackProductImage(product.id, null)}
+                    onRequestAIImage={(request) =>
+                      requestAIForProduct(index, product.id, request)
                     }
                   />
                   <StudioTextField
@@ -1361,10 +1830,22 @@ function SocialLinksManager({
 
 function PanelContent({
   block,
+  campaignImageGallery,
+  campaignName,
+  campaignType,
+  onTrackCampaignImageUsage,
   onUpdateBlockField,
+  onRequestAIImage,
+  resolveCampaignImageFieldSource,
 }: {
   block: StudioBlock;
+  campaignImageGallery: CampaignImageGalleryItem[];
+  campaignName: string;
+  campaignType: EditorCampaignType;
+  onTrackCampaignImageUsage?: TrackCampaignImageUsage;
   onUpdateBlockField: OnUpdateBlockField;
+  onRequestAIImage?: RequestAIImage;
+  resolveCampaignImageFieldSource?: ResolveCampaignImageFieldSource;
 }) {
   const { designSystem } = useDesignSystem();
   const {
@@ -1389,6 +1870,49 @@ function PanelContent({
       onUpdateBlockField(block.id, field, value);
     },
     [block.id, onUpdateBlockField],
+  );
+  const buildAIUploadProps = React.useCallback(
+    ({
+      aiAspectRatioHint,
+      blockContext,
+      fieldKey,
+      value,
+    }: {
+      aiAspectRatioHint: StudioImageAIAspectRatioHint;
+      blockContext: string;
+      fieldKey: string;
+      value?: string;
+    }) => {
+      const campaignContext = buildStudioCampaignContext({
+        aspectRatioHint: aiAspectRatioHint,
+        block,
+        campaignName,
+        campaignType,
+      });
+
+      return {
+        aiAspectRatioHint,
+        blockContext,
+        blockId: block.id,
+        campaignContext,
+        campaignImages: campaignImageGallery,
+        imageSourceRecord: resolveCampaignImageFieldSource?.(fieldKey, value),
+        onApplyImage: (event: StudioImageApplyEvent) =>
+          onTrackCampaignImageUsage?.(fieldKey, event),
+        onClearImage: () => onTrackCampaignImageUsage?.(fieldKey, null),
+        onRequestAIImage,
+      };
+    },
+    [
+      block,
+      block.id,
+      campaignImageGallery,
+      campaignName,
+      campaignType,
+      onRequestAIImage,
+      onTrackCampaignImageUsage,
+      resolveCampaignImageFieldSource,
+    ],
   );
   const selectPreset = React.useCallback(
     (preset: LayoutPreset) => applyPreset(block, preset, onUpdateBlockField),
@@ -1546,6 +2070,15 @@ function PanelContent({
                           emptyText="Upload or drag image"
                           value={block.imageUrl ?? ""}
                           onChange={(value) => updateField("imageUrl", value)}
+                          {...buildAIUploadProps({
+                            aiAspectRatioHint: "landscape",
+                            blockContext:
+                              block.heroStyle === "image-overlay"
+                                ? "Email Safe Hero background image"
+                                : "Email Safe Hero hero image",
+                            fieldKey: `${block.id}:imageUrl`,
+                            value: block.imageUrl ?? "",
+                          })}
                         />
                         <StudioTextField
                           label="Image Alt Text"
@@ -1682,6 +2215,12 @@ function PanelContent({
                       emptyText="Upload or drag image"
                       value={block.imageUrl ?? ""}
                       onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "square",
+                        blockContext: "Image + Text image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
                     />
                     <StudioTextField
                       label="Alt Text"
@@ -2349,6 +2888,12 @@ function PanelContent({
                       emptyText="Upload or drag image"
                       value={block.imageUrl ?? ""}
                       onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext: "Graphic Hero image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
                     />
                     <StudioTextField
                       label="Alt Text"
@@ -2694,6 +3239,12 @@ function PanelContent({
                       emptyText="Upload or drag image"
                       value={block.imageUrl ?? ""}
                       onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext: "Full-Width Image block image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
                     />
                     <StudioTextField
                       label="Alt Text"
@@ -3041,7 +3592,19 @@ function PanelContent({
                 content: (
                   <ImageGalleryManager
                     block={block}
+                    campaignContext={buildStudioCampaignContext({
+                      aspectRatioHint: "square",
+                      block,
+                      campaignName,
+                      campaignType,
+                    })}
+                    campaignImageGallery={campaignImageGallery}
+                    onTrackCampaignImageUsage={onTrackCampaignImageUsage}
                     updateField={updateField}
+                    onRequestAIImage={onRequestAIImage}
+                    resolveCampaignImageFieldSource={
+                      resolveCampaignImageFieldSource
+                    }
                   />
                 ),
               },
@@ -3138,7 +3701,19 @@ function PanelContent({
                 content: (
                   <ProductGalleryManager
                     block={block}
+                    campaignContext={buildStudioCampaignContext({
+                      aspectRatioHint: "portrait",
+                      block,
+                      campaignName,
+                      campaignType,
+                    })}
+                    campaignImageGallery={campaignImageGallery}
+                    onTrackCampaignImageUsage={onTrackCampaignImageUsage}
                     updateField={updateField}
+                    onRequestAIImage={onRequestAIImage}
+                    resolveCampaignImageFieldSource={
+                      resolveCampaignImageFieldSource
+                    }
                   />
                 ),
               },
@@ -3503,6 +4078,12 @@ function PanelContent({
                       emptyText="Upload logo"
                       value={block.logoUrl ?? ""}
                       onChange={(value) => updateField("logoUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext: "Footer logo",
+                        fieldKey: `${block.id}:logoUrl`,
+                        value: block.logoUrl ?? "",
+                      })}
                     />
                     <StudioSliderField
                       label="Logo Size"
@@ -3702,6 +4283,12 @@ function PanelContent({
                       emptyText="Upload logo"
                       value={block.logoUrl ?? ""}
                       onChange={(value) => updateField("logoUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext: "Newsletter Header logo",
+                        fieldKey: `${block.id}:logoUrl`,
+                        value: block.logoUrl ?? "",
+                      })}
                     />
                     <StudioSliderField
                       label="Logo Size"
@@ -3858,6 +4445,13 @@ function PanelContent({
                         updateField("authorImageUrl", value);
                         updateField("authorAvatarUrl", value);
                       }}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "square",
+                        blockContext: "Quote author image",
+                        fieldKey: `${block.id}:authorImageUrl`,
+                        value:
+                          block.authorImageUrl ?? block.authorAvatarUrl ?? "",
+                      })}
                     />
                     <StudioSliderField
                       label="Avatar Size"
@@ -4064,6 +4658,12 @@ function PanelContent({
                       emptyText="Upload product image"
                       value={block.imageUrl ?? ""}
                       onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "portrait",
+                        blockContext: "Product Card image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
                     />
                     <StudioToggleField
                       label="Image Fit"
@@ -4246,11 +4846,21 @@ function PanelContent({
 }
 
 export default function BlockPropertiesPanel({
+  campaignImageGallery,
+  campaignName,
+  campaignType,
   selectedBlockId,
   blocks,
   open,
   onClose,
+  onRequestAIImage,
+  onTrackCampaignImageUsage,
+  onRestoreComplete,
+  onScrollPositionChange,
   onUpdateBlockField,
+  resolveCampaignImageFieldSource,
+  restoreScrollPosition,
+  suppressed = false,
 }: BlockPropertiesPanelProps) {
   const block = React.useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
@@ -4258,34 +4868,90 @@ export default function BlockPropertiesPanel({
   );
   const blockDefinition = block ? STUDIO_BLOCK_LOOKUP[block.type] : null;
   const Icon = blockDefinition?.icon;
+  const panelVisible = open && !suppressed;
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const pendingRestoreRef = React.useRef(false);
+  const previousPanelVisibleRef = React.useRef(panelVisible);
+
+  React.useEffect(() => {
+    if (panelVisible && !previousPanelVisibleRef.current) {
+      pendingRestoreRef.current = true;
+    }
+
+    previousPanelVisibleRef.current = panelVisible;
+  }, [panelVisible]);
+
+  React.useLayoutEffect(() => {
+    if (
+      panelVisible &&
+      scrollContainerRef.current &&
+      typeof restoreScrollPosition === "number"
+    ) {
+      scrollContainerRef.current.scrollTop = restoreScrollPosition;
+    }
+  }, [panelVisible, restoreScrollPosition, selectedBlockId]);
 
   return (
     <Sheet
+      onTransitionEnd={(event) => {
+        if (!pendingRestoreRef.current || !panelVisible) {
+          return;
+        }
+
+        if (
+          event.propertyName !== "width" &&
+          event.propertyName !== "transform"
+        ) {
+          return;
+        }
+
+        pendingRestoreRef.current = false;
+        onRestoreComplete?.();
+      }}
       sx={{
-        display: { xs: "none", md: "grid" },
-        width: 340,
+        display: "grid",
+        position: { xs: "fixed", md: "relative" },
+        inset: { xs: 0, md: "auto" },
+        width: { xs: "100vw", md: 340 },
         maxWidth: "100%",
         boxSizing: "border-box",
         minHeight: 0,
+        height: { xs: "100dvh", md: "auto" },
         gridTemplateRows: "auto minmax(0, 1fr)",
         overflow: "hidden",
         bgcolor: "background.surface",
-        boxShadow: open
-          ? "-1px 0 0 0 rgba(15, 23, 42, 0.06), -14px 0 30px -28px rgba(15, 23, 42, 0.35)"
+        borderTop: { xs: "none", md: "none" },
+        borderTopColor: { xs: "rgba(15, 23, 42, 0.08)", md: "transparent" },
+        boxShadow: panelVisible
+          ? {
+              xs: "0 -18px 32px -24px rgba(15, 23, 42, 0.35)",
+              md: "-1px 0 0 0 rgba(15, 23, 42, 0.06), -14px 0 30px -28px rgba(15, 23, 42, 0.35)",
+            }
           : "none",
         transition:
-          "width 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease",
+          "width 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 120ms ease",
+        transform: {
+          xs: panelVisible ? "translateY(0)" : "translateY(100%)",
+          md: "none",
+        },
+        opacity: panelVisible ? 1 : 0,
+        pointerEvents: panelVisible ? "auto" : "none",
+        zIndex: (theme) =>
+          panelVisible
+            ? (theme.vars.zIndex.modal ?? theme.zIndex.modal) - 2
+            : "auto",
       }}
     >
       <Sheet
         sx={{
-          height: 52,
+          minHeight: 52,
           px: 2.5,
-          py: 1,
-          boxShadow: open ? "0 1px 0 0 rgba(15, 23, 42, 0.07)" : "none",
-          opacity: open ? 1 : 0,
+          py: { xs: 1.25, md: 1 },
+          pt: { xs: "calc(12px + env(safe-area-inset-top, 0px))", md: 1 },
+          boxShadow: panelVisible ? "0 1px 0 0 rgba(15, 23, 42, 0.07)" : "none",
+          opacity: panelVisible ? 1 : 0,
           transition: "opacity 120ms ease, box-shadow 200ms ease",
-          pointerEvents: open ? "auto" : "none",
+          pointerEvents: panelVisible ? "auto" : "none",
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1}>
@@ -4346,6 +5012,10 @@ export default function BlockPropertiesPanel({
       </Sheet>
 
       <Box
+        ref={scrollContainerRef}
+        onScroll={(event) => {
+          onScrollPositionChange?.(event.currentTarget.scrollTop);
+        }}
         sx={{
           minHeight: 0,
           overflowX: "hidden",
@@ -4354,19 +5024,28 @@ export default function BlockPropertiesPanel({
           maxWidth: "100%",
           boxSizing: "border-box",
           px: 0,
-          py: 0,
-          opacity: open ? 1 : 0,
-          transition: open
+          py: {
+            xs: "0 0 calc(16px + env(safe-area-inset-bottom, 0px))",
+            md: 0,
+          },
+          opacity: panelVisible ? 1 : 0,
+          transition: panelVisible
             ? "opacity 120ms ease 100ms"
             : "opacity 120ms ease 0ms",
-          pointerEvents: open ? "auto" : "none",
+          pointerEvents: panelVisible ? "auto" : "none",
         }}
       >
         {block ? (
           <PanelContent
             key={block.id}
             block={block}
+            campaignImageGallery={campaignImageGallery}
+            campaignName={campaignName}
+            campaignType={campaignType}
+            onTrackCampaignImageUsage={onTrackCampaignImageUsage}
+            onRequestAIImage={onRequestAIImage}
             onUpdateBlockField={onUpdateBlockField}
+            resolveCampaignImageFieldSource={resolveCampaignImageFieldSource}
           />
         ) : null}
       </Box>

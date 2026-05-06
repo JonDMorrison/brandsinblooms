@@ -20,10 +20,14 @@ import {
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, User } from "lucide-react";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
+import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const returnTo = getSafeOAuthReturnTo(
+    new URLSearchParams(location.search).get("returnTo"),
+  );
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +40,10 @@ export const AuthPage = () => {
     if (message) {
       toast.success(message);
       // Clear the state
-      navigate("/auth", { replace: true, state: {} });
+      navigate(
+        { pathname: "/auth", search: location.search },
+        { replace: true, state: {} },
+      );
     }
   }, [location, navigate]);
 
@@ -58,7 +65,7 @@ export const AuthPage = () => {
         toast.error(error.message);
       } else if (data.user) {
         toast.success("Signed in successfully!");
-        navigate("/dashboard");
+        navigate(returnTo ?? "/dashboard");
       }
     } catch (error) {
       toast.error("An unexpected error occurred");

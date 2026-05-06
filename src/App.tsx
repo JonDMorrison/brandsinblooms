@@ -161,6 +161,9 @@ const AuthCallbackPage = lazyNamed(
   () => import("@/pages/AuthCallbackPage"),
   "AuthCallbackPage",
 );
+const OAuthAuthorizePage = lazyRetry(
+  () => import("@/pages/OAuthAuthorizePage"),
+);
 const CallbackPage = lazyRetry(
   () => import("@/pages/integrations/lightspeed/CallbackPage"),
 );
@@ -1039,6 +1042,7 @@ function App() {
             </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
             <Route element={<CallbackLazyBoundary />}>
+              <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route
                 path="/integrations/lightspeed/callback"

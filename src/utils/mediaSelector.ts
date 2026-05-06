@@ -1,5 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
-import { ImageAttachment } from "@/lib/contentTypes";
+import {
+  formatFallbackImages,
+  getRelevantFallbacks,
+} from "@/services/gardenCenterFallbacks";
 
 interface MediaSelectorOptions {
   prompt: string;
@@ -19,22 +21,13 @@ export const mediaSelector = async (
 ): Promise<MediaSelectorResult> => {
   const { prompt, count = 1 } = options;
   try {
-    // First try to get content-specific image from Unsplash
-    const { data, error } = await supabase.functions.invoke(
-      "fetch-unsplash-images",
-      {
-        body: {
-          query: prompt,
-          maxImages: count,
-          orientation: "squarish",
-          orderBy: "relevant",
-          contentFilter: "high",
-        },
-      },
+    const suggestions = formatFallbackImages(
+      getRelevantFallbacks(prompt, count),
+      prompt,
     );
 
-    if (!error && data?.images && data.images.length > 0) {
-      const selectedImage = data.images[0];
+    if (suggestions.length > 0) {
+      const selectedImage = suggestions[0];
       return {
         url: selectedImage.download_url,
         thumb: selectedImage.thumb_url,
@@ -50,13 +43,16 @@ export const mediaSelector = async (
 };
 
 const createGardenFallbackResult = (prompt: string): MediaSelectorResult => {
-  // Use a curated garden center image as ultimate fallback
+  const [fallbackImage] = formatFallbackImages(
+    getRelevantFallbacks(prompt, 1),
+    prompt,
+  );
+
   return {
-    url: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1200&h=800&fit=crop",
-    thumb:
-      "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=400&h=400&fit=crop",
-    alt: `Beautiful garden plants - ${prompt}`,
-    photographer: "Unsplash",
+    url: fallbackImage?.download_url || "",
+    thumb: fallbackImage?.thumb_url,
+    alt: fallbackImage?.alt || `Beautiful garden plants - ${prompt}`,
+    photographer: fallbackImage?.photographer || "BloomSuite Studio",
   };
 };
 
