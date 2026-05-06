@@ -1,28 +1,19 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { HomepageFeatureHighlightsSection } from "./HomepageFeatureHighlightsSection";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
-  TRUST_LOGOS,
-  TRUST_STRIP_CAPTION,
 } from "./content/featureHighlightsContent";
 
 describe("HomepageFeatureHighlightsSection", () => {
-  it("renders the trust strip and standard feature section header", () => {
+  it("renders the standard feature section header", () => {
+    // The trust strip + 6 logos at the top of the Features section was
+    // removed — the full Integrations section further down covers the
+    // same ground with more detail. The trust assertions that used to
+    // live in this test were removed alongside the markup.
     render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
-
-    const trustStrip = screen.getByLabelText(TRUST_STRIP_CAPTION);
-    const primaryLogoList = within(trustStrip).getByRole("list");
-
-    expect(screen.getByText(TRUST_STRIP_CAPTION)).toBeInTheDocument();
-    expect(within(primaryLogoList).getAllByRole("listitem")).toHaveLength(
-      TRUST_LOGOS.length,
-    );
-    for (const logo of TRUST_LOGOS) {
-      expect(within(primaryLogoList).getByText(logo.label)).toBeInTheDocument();
-    }
 
     expect(
       screen.getByText(FEATURE_SECTION_HEADER.eyebrow),

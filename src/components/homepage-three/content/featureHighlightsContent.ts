@@ -1,9 +1,9 @@
-import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
-
-export interface TrustLogoConfig {
-  label: string;
-  src?: string;
-}
+// The trust strip ("Connects to the tools you already use" + 6 logos) was
+// removed from the top of the Features section — the full Integrations
+// section further down covers the same ground with more detail. The
+// TrustLogoConfig / TRUST_STRIP_CAPTION / TRUST_LOGOS exports and the
+// providerLogoAssets import that fed the strip's logos were dropped at
+// the same time.
 
 export type FeatureHighlightId =
   | "smart-crm"
@@ -25,17 +25,6 @@ export const FEATURE_SECTION_HEADER = {
   headline: "What you get with BloomSuite",
   subtext: "Six tools in one workspace. No spreadsheets, no patchwork systems.",
 };
-
-export const TRUST_STRIP_CAPTION = "Connects to the tools you already use";
-
-export const TRUST_LOGOS: TrustLogoConfig[] = [
-  { label: "Lightspeed", src: providerLogoAssets.lightspeed },
-  { label: "Stripe", src: providerLogoAssets.stripe },
-  { label: "Shopify", src: providerLogoAssets.shopify },
-  { label: "Mailchimp", src: providerLogoAssets.mailchimp },
-  { label: "Square", src: providerLogoAssets.square },
-  { label: "Cloudflare", src: providerLogoAssets.cloudflare },
-];
 
 export const FEATURE_HIGHLIGHTS: FeatureHighlightConfig[] = [
   {
