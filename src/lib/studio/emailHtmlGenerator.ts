@@ -195,6 +195,20 @@ function getDesignSystemSocialUrl(
   );
 }
 
+// Defense against malformed addresses where an email ended up inside
+// the postal-line of a multi-line address (we saw this on a tenant
+// whose footer rendered "Chilliwack, BC, info@flowerhousemarket.ca").
+// The dedicated email line below already lists the address, so an
+// email-shaped fragment in the postal line is always wrong.
+const FOOTER_EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function stripEmailFragmentsFromAddressLine(line: string): string {
+  return line
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part && !FOOTER_EMAIL_SHAPE.test(part))
+    .join(", ");
+}
+
 function getFooterContactLines(
   block: StudioBlock,
   designSystem: StudioDesignSystem | null | undefined,
@@ -204,7 +218,7 @@ function getFooterContactLines(
     stringValue(designSystem?.company.addressLines),
   )
     .split(/\n+/)
-    .map((line) => stringValue(line))
+    .map((line) => stripEmailFragmentsFromAddressLine(stringValue(line)))
     .filter(Boolean);
 
   if (stringValue(designSystem?.company.phone)) {
