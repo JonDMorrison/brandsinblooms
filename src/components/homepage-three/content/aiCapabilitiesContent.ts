@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { PenTool, TrendingUp, Zap } from "lucide-react";
+import { Calendar, PenTool, TrendingUp, Zap } from "lucide-react";
 
 export interface AiCapabilityCardConfig {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -25,10 +25,10 @@ export interface AiChatTurnConfig {
 }
 
 export const AI_CAPABILITIES_HEADER = {
-  chip: "AI",
-  headline: "AI that knows your customers.",
+  chip: "Your marketing assistant",
+  headline: "Like a marketing team you can talk to.",
   subtext:
-    "Trained on your sales history and brand voice. It drafts, segments, and suggests. You approve.",
+    "Ask for what you need. Customer lists, a Mother's Day campaign, social posts for the week, a re-engagement sequence for slow weeks. Your assistant does the work and brings it back for you to review.",
 };
 
 export const AI_CHAT_DEMO = {
@@ -85,24 +85,31 @@ export const AI_CAPABILITY_CARDS_LABEL = "AI capability cards";
 
 export const AI_CAPABILITY_CARDS: AiCapabilityCardConfig[] = [
   {
-    icon: TrendingUp,
-    title: "Forecast and prevent",
+    icon: Calendar,
+    title: "Plans the work",
     description:
-      "Spot churn risk, forecast Mother's Day demand, and flag inventory shortfalls before they hit the floor.",
+      "Tell it what's coming up. Mother's Day, end of season, a slow Tuesday. Get a campaign brief, target audience, and ready-to-schedule copy back.",
     delayMs: 1400,
   },
   {
     icon: PenTool,
-    title: "AI copywriter",
+    title: "Drafts anything",
     description:
-      "Email subject lines, product descriptions, and social posts in your brand voice. You review, AI drafts.",
+      "Email subjects, product descriptions, social posts, blog articles. Pick the channel and the angle. Get a draft in your store's voice.",
     delayMs: 1500,
   },
   {
     icon: Zap,
-    title: "24/7 workflows",
+    title: "Handles the small stuff",
     description:
-      "Tag new customers, send follow-ups, post restock alerts, and reply to reviews. Automatic and always on.",
+      "Tags new customers, sends follow-ups, posts restock alerts, replies to common reviews. The repetitive work that eats your week.",
     delayMs: 1600,
+  },
+  {
+    icon: TrendingUp,
+    title: "Watches the data",
+    description:
+      "Surfaces customers worth a phone call, campaigns worth repeating, and a daily summary of what changed. The reading you'd do if you had time.",
+    delayMs: 1700,
   },
 ];
