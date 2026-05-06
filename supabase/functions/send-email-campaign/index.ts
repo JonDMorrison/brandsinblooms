@@ -2227,7 +2227,10 @@ serve(async (req: Request) => {
       },
     );
   } catch (error: any) {
+    // Stack is logged to function logs (server-side) but not returned to
+    // the API caller, to avoid leaking internal paths in error responses.
     console.error("❌ CRITICAL ERROR:", error);
+    console.error("❌ STACK:", error?.stack);
 
     let userMessage = "Internal server error";
     let statusCode = 500;
