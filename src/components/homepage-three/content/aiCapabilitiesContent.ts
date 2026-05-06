@@ -26,16 +26,17 @@ export interface AiChatTurnConfig {
 
 export const AI_CAPABILITIES_HEADER = {
   chip: "Your marketing assistant",
-  headline: "Like a marketing team you can talk to.",
+  headline:
+    "Now you have a marketing team that thinks, plans, and works through the weekend.",
   subtext:
     "Ask for what you need. Customer lists, a Mother's Day campaign, social posts for the week, a re-engagement sequence for slow weeks. Your assistant does the work and brings it back for you to review.",
 };
 
 export const AI_CHAT_DEMO = {
-  assistantLabel: "AI Assistant",
+  assistantLabel: "Marketing Assistant",
   statusLabel: "Online",
-  chatDemoLabel: "Scripted AI assistant chat demo",
-  typingLabel: "AI is typing",
+  chatDemoLabel: "Scripted marketing assistant chat demo",
+  typingLabel: "Assistant is typing",
   initialDelayMs: 1900,
   typingSpeedMs: 35,
   aiTypingDelayMs: 800,
