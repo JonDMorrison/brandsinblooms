@@ -8,81 +8,13 @@ import { FileUp } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
-import {
-  getFontFamilyCss,
-  getFormWidthValue,
-  getSpacingValue,
-} from "@/lib/forms/designSettings";
+import type { FormBuilderTokens } from "@/components/forms/build/formBuilderTokens";
 import { getConsentText } from "@/lib/forms/fieldRegistry";
 import {
-  DEFAULT_FORM_SETTINGS,
   type FormCompliance,
   type FormField,
   type FormSettings,
 } from "@/types/formBuilder";
-
-export interface FormBuilderTokens {
-  backgroundColor: string;
-  fieldRadius: string;
-  fontFamily: string;
-  formMaxWidth: string;
-  hoverTint: string;
-  mutedTextColor: string;
-  primaryColor: string;
-  spacing: string;
-  strongBorderColor: string;
-  subtleBorderColor: string;
-  surfaceColor: string;
-  textColor: string;
-}
-
-function toRgba(hex: string, alpha: number) {
-  const normalized = hex.replace("#", "");
-  const expanded =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((char) => `${char}${char}`)
-          .join("")
-      : normalized;
-
-  const red = Number.parseInt(expanded.slice(0, 2), 16);
-  const green = Number.parseInt(expanded.slice(2, 4), 16);
-  const blue = Number.parseInt(expanded.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-export function createFormBuilderTokens(
-  settings: FormSettings,
-): FormBuilderTokens {
-  const theme = settings.theme ?? DEFAULT_FORM_SETTINGS.theme;
-  const primaryColor =
-    theme.primary_color ??
-    DEFAULT_FORM_SETTINGS.theme.primary_color ??
-    "#22C55E";
-  const textColor =
-    theme.text_color ?? DEFAULT_FORM_SETTINGS.theme.text_color ?? "#1F2937";
-  const backgroundColor =
-    theme.background_color ??
-    DEFAULT_FORM_SETTINGS.theme.background_color ??
-    "#FFFFFF";
-
-  return {
-    backgroundColor,
-    fieldRadius: theme.border_radius ?? "8px",
-    fontFamily: getFontFamilyCss(theme.font_family),
-    formMaxWidth: getFormWidthValue(settings.form_width),
-    hoverTint: toRgba(primaryColor, 0.06),
-    mutedTextColor: toRgba(textColor, 0.72),
-    primaryColor,
-    spacing: getSpacingValue(theme.spacing),
-    strongBorderColor: toRgba(textColor, 0.18),
-    subtleBorderColor: toRgba(textColor, 0.1),
-    surfaceColor: "#FFFFFF",
-    textColor,
-  };
-}
 
 function resolveInputVariant(settings: FormSettings) {
   switch (settings.theme.input_style) {
@@ -97,6 +29,7 @@ function resolveInputVariant(settings: FormSettings) {
 }
 
 interface FormFieldPreviewProps {
+  compact?: boolean;
   field: FormField;
   compliance: FormCompliance;
   settings: FormSettings;
@@ -104,32 +37,37 @@ interface FormFieldPreviewProps {
 }
 
 export function FormFieldPreview({
+  compact = false,
   field,
   compliance,
   settings,
   tokens,
 }: FormFieldPreviewProps) {
   const inputVariant = resolveInputVariant(settings);
+  const previewRadius = compact ? "md" : "lg";
+  const helpText = compact ? null : field.help_text?.trim();
   const sharedInputSx = {
-    borderRadius: tokens.fieldRadius,
+    borderRadius: compact ? previewRadius : tokens.fieldRadius,
     fontFamily: tokens.fontFamily,
     "& .MuiInput-input": {
       fontFamily: tokens.fontFamily,
+      fontSize: compact ? "0.875rem" : undefined,
+    },
+    "& .MuiSelect-button": {
+      fontSize: compact ? "0.875rem" : undefined,
     },
   } as const;
 
-  const helpText = field.help_text?.trim();
-
   if (field.type === "hidden") {
     return (
-      <Stack spacing={1}>
+      <Stack spacing={compact ? 0.75 : 1}>
         <Sheet
           variant="soft"
           color="neutral"
           sx={{
-            borderRadius: "lg",
-            px: 1.5,
-            py: 1.25,
+            borderRadius: previewRadius,
+            px: compact ? 1.1 : 1.5,
+            py: compact ? 0.9 : 1.25,
           }}
         >
           <Stack spacing={0.375}>
@@ -152,16 +90,17 @@ export function FormFieldPreview({
 
   if (field.type === "checkbox") {
     return (
-      <Stack spacing={1}>
+      <Stack spacing={compact ? 0.75 : 1}>
         <Checkbox
           disabled
           checked={Boolean(field.default_value)}
           label={field.label}
           overlay
+          size={compact ? "sm" : "md"}
           sx={{
-            borderRadius: "lg",
-            px: 1.25,
-            py: 1,
+            borderRadius: previewRadius,
+            px: compact ? 1 : 1.25,
+            py: compact ? 0.75 : 1,
             border: "1px solid",
             borderColor: "neutral.200",
             backgroundColor: "background.surface",
@@ -178,16 +117,17 @@ export function FormFieldPreview({
 
   if (field.type === "email_consent" || field.type === "sms_consent") {
     return (
-      <Stack spacing={1}>
+      <Stack spacing={compact ? 0.75 : 1}>
         <Checkbox
           disabled
           checked={false}
           label={getConsentText(field.type, compliance) || field.label}
           overlay
+          size={compact ? "sm" : "md"}
           sx={{
-            borderRadius: "lg",
-            px: 1.25,
-            py: 1,
+            borderRadius: previewRadius,
+            px: compact ? 1 : 1.25,
+            py: compact ? 0.75 : 1,
             border: "1px solid",
             borderColor: "warning.200",
             backgroundColor: "warning.softBg",
@@ -207,23 +147,27 @@ export function FormFieldPreview({
     const maxFileSizeMb = field.rules?.max_file_size_mb ?? 10;
 
     return (
-      <Stack spacing={1}>
+      <Stack spacing={compact ? 0.75 : 1}>
         <Sheet
           variant="plain"
           sx={{
-            borderRadius: "lg",
+            borderRadius: previewRadius,
             border: "1px dashed",
             borderColor: tokens.strongBorderColor,
             backgroundColor: tokens.hoverTint,
-            px: 2,
-            py: 2.5,
+            px: compact ? 1.25 : 2,
+            py: compact ? 1.25 : 2.5,
           }}
         >
-          <Stack spacing={1.25} alignItems="center" textAlign="center">
+          <Stack
+            spacing={compact ? 0.75 : 1.25}
+            alignItems="center"
+            textAlign="center"
+          >
             <Box
               sx={{
-                width: 40,
-                height: 40,
+                width: compact ? 32 : 40,
+                height: compact ? 32 : 40,
                 display: "grid",
                 placeItems: "center",
                 borderRadius: "999px",
@@ -258,9 +202,10 @@ export function FormFieldPreview({
 
   if (field.type === "select") {
     return (
-      <Stack spacing={1}>
+      <Stack spacing={compact ? 0.75 : 1}>
         <JoySelect
           disabled
+          size={compact ? "sm" : "md"}
           variant={inputVariant}
           value=""
           placeholder={field.placeholder || "Select an option"}
@@ -280,9 +225,10 @@ export function FormFieldPreview({
   }
 
   return (
-    <Stack spacing={1}>
+    <Stack spacing={compact ? 0.75 : 1}>
       <JoyInput
         disabled
+        size={compact ? "sm" : "md"}
         variant={inputVariant}
         type={
           field.type === "email"

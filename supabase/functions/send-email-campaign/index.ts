@@ -20,7 +20,8 @@ import {
   type CompanyProfileShape,
   type CustomerShape,
 } from "../_shared/emailRenderer.ts";
-import { resolveCampaignEmailSource } from "../_shared/campaignEmailSource.ts";
+import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -693,15 +694,7 @@ serve(async (req: Request) => {
     // Get company profile
     const { data: companyProfile } = await supabase
       .from("company_profiles")
-      .select(
-        `
-        email_auth_status, custom_sender_email, company_name, location_info,
-        street_address, city, state_province, postal_code, country,
-        website_url, company_email, company_phone,
-        facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
-        footer_legal_text, brand_primary_color, brand_text_color, feature_flags
-      `,
-      )
+      .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
       .eq("user_id", campaign.user_id)
       .single();
 
@@ -1569,6 +1562,7 @@ serve(async (req: Request) => {
       tenantId: campaign.tenant_id,
       campaignId,
       subject: campaign.subject_line || campaign.subject || "",
+      previewText: campaign.preheader_text || campaign.preheader || "",
       html: campaignEmailSource.html,
       contentBlocks: campaignEmailSource.contentBlocks,
       customer: representativeCustomer
@@ -1898,12 +1892,10 @@ serve(async (req: Request) => {
       for (let offset = 0; offset < batchMessageUpserts.length; ) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
-          const resp = await supabase
-            .from("email_messages")
-            .upsert(chunk, {
-              onConflict: "campaign_id,customer_id,retry_sequence",
-              ignoreDuplicates: true,
-            });
+          const resp = await supabase.from("email_messages").upsert(chunk, {
+            onConflict: "campaign_id,customer_id,retry_sequence",
+            ignoreDuplicates: true,
+          });
 
           if (resp.error) {
             const code = (resp.error as any)?.code;

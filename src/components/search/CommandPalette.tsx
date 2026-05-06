@@ -10,7 +10,6 @@ import Box from "@mui/joy/Box";
 import Modal from "@mui/joy/Modal";
 import Sheet from "@mui/joy/Sheet";
 import { useColorScheme } from "@mui/joy/styles";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import { CommandPaletteFilterBar } from "@/components/search/CommandPaletteFilterBar";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CommandPaletteFooter } from "@/components/search/CommandPaletteFooter";
@@ -76,6 +75,7 @@ import { useCommandPaletteSearch } from "@/components/search/useCommandPaletteSe
 import { useCommandPaletteNavigation } from "@/components/search/useCommandPaletteNavigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
+import useMediaQuery from "@/hooks/use-media-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
@@ -119,7 +119,9 @@ export function CommandPalette({
   const { user } = useAuth();
   const { mode, setMode } = useColorScheme();
   const { cloneCampaign } = useCampaignCloning();
-  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const prefersReducedMotion = useMediaQuery(
+    "(prefers-reduced-motion: reduce)",
+  );
   const dialogLabelId = useId();
   const listboxId = useId();
   const filterTabListId = useId();
@@ -130,9 +132,12 @@ export function CommandPalette({
   const [analyticsQuery, setAnalyticsQuery] = useState("");
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(open);
-  const [recentSearches, setRecentSearches] = useState<RecentSearchQueryEntry[]>([]);
+  const [recentSearches, setRecentSearches] = useState<
+    RecentSearchQueryEntry[]
+  >([]);
   const [recentItems, setRecentItems] = useState<RecentSearchItemEntry[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<SearchFilterValue>("all");
+  const [selectedFilter, setSelectedFilter] =
+    useState<SearchFilterValue>("all");
   const [hasUserSelectedFilter, setHasUserSelectedFilter] = useState(false);
   const [focusedFilterIndex, setFocusedFilterIndex] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -328,7 +333,10 @@ export function CommandPalette({
     user?.id ?? "anonymous",
   );
   const quickActions = useMemo(() => getQuickActionEntries(6), []);
-  const jumpTo = useMemo(() => getContextualJumpToEntries(pathname, 6), [pathname]);
+  const jumpTo = useMemo(
+    () => getContextualJumpToEntries(pathname, 6),
+    [pathname],
+  );
   const applyItemOverride = (item: SearchResultItem): SearchResultItem => {
     const override = itemOverrides[item.id];
 
@@ -393,17 +401,23 @@ export function CommandPalette({
     return nextCounts;
   }, [pathname, rawResults]);
   const visibleFilters = useMemo(
-    () => (trimmedSearchQuery && !isCommandMode ? getVisibleSearchFilters(rawResults, pathname) : []),
+    () =>
+      trimmedSearchQuery && !isCommandMode
+        ? getVisibleSearchFilters(rawResults, pathname)
+        : [],
     [isCommandMode, pathname, rawResults, trimmedSearchQuery],
   );
   const boostedResults = useMemo(
     () =>
       applyRouteVisitBoost(
         rawResults,
-        recentItemsWithOverrides.reduce<Record<string, number>>((counts, entry) => {
-          counts[entry.item.route] = entry.count;
-          return counts;
-        }, {}),
+        recentItemsWithOverrides.reduce<Record<string, number>>(
+          (counts, entry) => {
+            counts[entry.item.route] = entry.count;
+            return counts;
+          },
+          {},
+        ),
       ),
     [rawResults, recentItemsWithOverrides],
   );
@@ -420,7 +434,9 @@ export function CommandPalette({
       return [];
     }
 
-    const items = applyOverridesToItems(getCommandSearchItems(debouncedQuery, pathname));
+    const items = applyOverridesToItems(
+      getCommandSearchItems(debouncedQuery, pathname),
+    );
 
     if (items.length === 0) {
       return [];
@@ -440,17 +456,24 @@ export function CommandPalette({
     () =>
       isCommandMode
         ? []
-        :
-      buildSearchSuggestions({
-        query,
-        recentItems: recentItemsWithOverrides,
-        recentSearches: recentSearchTerms,
-        results,
-      }),
-    [isCommandMode, query, recentItemsWithOverrides, recentSearchTerms, results],
+        : buildSearchSuggestions({
+            query,
+            recentItems: recentItemsWithOverrides,
+            recentSearches: recentSearchTerms,
+            results,
+          }),
+    [
+      isCommandMode,
+      query,
+      recentItemsWithOverrides,
+      recentSearchTerms,
+      results,
+    ],
   );
   const showFilterBar =
-    !isCommandMode && trimmedSearchQuery.length > 0 && visibleFilters.length > 0;
+    !isCommandMode &&
+    trimmedSearchQuery.length > 0 &&
+    visibleFilters.length > 0;
 
   useEffect(() => {
     if (!trimmedSearchQuery) {
@@ -647,7 +670,11 @@ export function CommandPalette({
     const params = new URLSearchParams(queryString);
     const routeConnectionId = params.get("connection");
 
-    if (routeProvider && routeConnectionId && SUPPORTED_SYNC_PROVIDERS.has(routeProvider)) {
+    if (
+      routeProvider &&
+      routeConnectionId &&
+      SUPPORTED_SYNC_PROVIDERS.has(routeProvider)
+    ) {
       return {
         provider: routeProvider,
         connectionId: routeConnectionId,
@@ -810,7 +837,9 @@ export function CommandPalette({
           return;
         }
         case "sync-pos": {
-          const syncTarget = await resolveSyncTarget(action.execution.integrationRoute);
+          const syncTarget = await resolveSyncTarget(
+            action.execution.integrationRoute,
+          );
           const { error } = await supabase.functions.invoke(
             `${syncTarget.provider}-sync`,
             {
@@ -835,7 +864,9 @@ export function CommandPalette({
       }
     } catch (error) {
       const description =
-        error instanceof Error ? error.message : "The action could not be completed.";
+        error instanceof Error
+          ? error.message
+          : "The action could not be completed.";
       setActionError(item.id, description);
     } finally {
       setPendingActionId((currentActionId) =>
@@ -846,27 +877,31 @@ export function CommandPalette({
 
   const handleSelectItem = (item: SearchResultItem) => {
     const commandId = getCommandIdFromSearchItem(item);
-    const rankedGroups = trimmedSearchQuery ? displayedResults : navigableGroups;
-    const resultRankPosition = rankedGroups.reduce(
-      (position, group) => {
-        if (position > 0) {
-          return position;
-        }
+    const rankedGroups = trimmedSearchQuery
+      ? displayedResults
+      : navigableGroups;
+    const resultRankPosition = rankedGroups.reduce((position, group) => {
+      if (position > 0) {
+        return position;
+      }
 
-        const itemIndex = group.results.findIndex((candidate) => candidate.id === item.id);
+      const itemIndex = group.results.findIndex(
+        (candidate) => candidate.id === item.id,
+      );
 
-        if (itemIndex === -1) {
-          return 0;
-        }
+      if (itemIndex === -1) {
+        return 0;
+      }
 
-        const previousCount = rankedGroups
-          .slice(0, rankedGroups.indexOf(group))
-          .reduce((count, currentGroup) => count + currentGroup.results.length, 0);
+      const previousCount = rankedGroups
+        .slice(0, rankedGroups.indexOf(group))
+        .reduce(
+          (count, currentGroup) => count + currentGroup.results.length,
+          0,
+        );
 
-        return previousCount + itemIndex + 1;
-      },
-      0,
-    );
+      return previousCount + itemIndex + 1;
+    }, 0);
 
     if (commandId) {
       if (trimmedSearchQuery) {
@@ -922,18 +957,17 @@ export function CommandPalette({
     closeActionMenu,
     setActiveActionByIndex,
     setActiveItemById,
-  } =
-    useCommandPaletteNavigation({
-      getItemActions,
-      groups: navigableGroups,
-      enabled: isMounted,
-      onClose,
-      onOpenInNewTab: handleOpenInNewTab,
-      onSelectAction: (item, action) => {
-        void executePaletteAction(item, action);
-      },
-      onSelect: handleSelectItem,
-    });
+  } = useCommandPaletteNavigation({
+    getItemActions,
+    groups: navigableGroups,
+    enabled: isMounted,
+    onClose,
+    onOpenInNewTab: handleOpenInNewTab,
+    onSelectAction: (item, action) => {
+      void executePaletteAction(item, action);
+    },
+    onSelect: handleSelectItem,
+  });
 
   const focusFilterChip = (index: number) => {
     if (visibleFilters.length === 0) {
@@ -1028,14 +1062,22 @@ export function CommandPalette({
     }
 
     const filterLabel =
-      effectiveFilter === "all" ? "all results" : SEARCH_GROUP_METADATA[effectiveFilter].title;
+      effectiveFilter === "all"
+        ? "all results"
+        : SEARCH_GROUP_METADATA[effectiveFilter].title;
 
     announce(
       resultCount > 0
         ? `${resultCount} results in ${filterLabel}.`
         : `No results for ${trimmedSearchQuery}.`,
     );
-  }, [effectiveFilter, isDatabaseLoading, open, resultCount, trimmedSearchQuery]);
+  }, [
+    effectiveFilter,
+    isDatabaseLoading,
+    open,
+    resultCount,
+    trimmedSearchQuery,
+  ]);
 
   useEffect(() => {
     if (!open || !analyticsQuery || showShortcuts) {
@@ -1072,7 +1114,13 @@ export function CommandPalette({
   ]);
 
   useEffect(() => {
-    if (!open || !analyticsQuery || isDatabaseLoading || resultCount > 0 || showShortcuts) {
+    if (
+      !open ||
+      !analyticsQuery ||
+      isDatabaseLoading ||
+      resultCount > 0 ||
+      showShortcuts
+    ) {
       return;
     }
 
@@ -1090,7 +1138,16 @@ export function CommandPalette({
       query: analyticsQuery,
       source: openSource,
     });
-  }, [analyticsQuery, effectiveFilter, isDatabaseLoading, open, openSource, pathname, resultCount, showShortcuts]);
+  }, [
+    analyticsQuery,
+    effectiveFilter,
+    isDatabaseLoading,
+    open,
+    openSource,
+    pathname,
+    resultCount,
+    showShortcuts,
+  ]);
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "?" && !trimmedSearchQuery) {
@@ -1109,7 +1166,9 @@ export function CommandPalette({
     event.stopPropagation();
   };
 
-  const handlePaletteKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handlePaletteKeyDownCapture = (
+    event: KeyboardEvent<HTMLDivElement>,
+  ) => {
     if (event.key !== "Tab") {
       return;
     }
@@ -1187,7 +1246,8 @@ export function CommandPalette({
             overflow: "hidden",
             borderRadius: "var(--joy-radius-lg)",
             backgroundColor: "hsl(var(--card))",
-            border: "1px solid rgba(var(--joy-palette-neutral-mainChannel) / 0.1)",
+            border:
+              "1px solid rgba(var(--joy-palette-neutral-mainChannel) / 0.1)",
             boxShadow: "0 28px 80px rgba(15, 23, 42, 0.18)",
             opacity: isVisible ? 1 : 0,
             transform: isVisible
@@ -1233,7 +1293,9 @@ export function CommandPalette({
             {liveAnnouncement}
           </Box>
           <CommandPaletteInput
-            activeDescendantId={activeItem ? getPaletteOptionId(activeItem.id) : undefined}
+            activeDescendantId={
+              activeItem ? getPaletteOptionId(activeItem.id) : undefined
+            }
             ariaControlsId={listboxId}
             dialogLabelId={dialogLabelId}
             inputRef={inputRef}
@@ -1307,7 +1369,9 @@ export function CommandPalette({
 
           <CommandPaletteFooter
             activeFilter={effectiveFilter}
-            onToggleShortcuts={() => setShowShortcuts((currentValue) => !currentValue)}
+            onToggleShortcuts={() =>
+              setShowShortcuts((currentValue) => !currentValue)
+            }
             resultCount={resultCount}
             shortcutsOpen={showShortcuts}
           />

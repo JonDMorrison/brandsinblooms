@@ -2,7 +2,13 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, KeyRound, Mail } from "lucide-react";
-import { AuthButton, AuthCard, AuthInput, AuthLayout } from "@/components/auth";
+import {
+  AuthAlert,
+  AuthButton,
+  AuthCard,
+  AuthInput,
+  AuthLayout,
+} from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
@@ -23,6 +29,7 @@ export const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   const [emailValue, setEmailValue] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleEmailBlur = () => {
     setEmailError(validateEmail(emailValue));
@@ -30,6 +37,8 @@ export const ForgotPasswordPage = () => {
 
   const handleEmailChange = (nextEmail: string) => {
     setEmailValue(nextEmail);
+    setSubmitError(null);
+
     if (emailError) {
       setEmailError(validateEmail(nextEmail, true));
     }
@@ -42,6 +51,7 @@ export const ForgotPasswordPage = () => {
 
     setEmailValue(email);
     setEmailError(nextEmailError);
+    setSubmitError(null);
 
     if (nextEmailError) {
       return;
@@ -49,12 +59,38 @@ export const ForgotPasswordPage = () => {
 
     setLoading(true);
     try {
-      await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: getOAuthRedirectUri("/reset-password"),
       });
+
+      if (error) {
+        const rawMessage = (error.message || "").toLowerCase();
+
+        console.error("Password reset error:", error);
+
+        if (error.status === 429 || rawMessage.includes("rate")) {
+          setSubmitError(
+            "Too many requests. Please try again in a few minutes.",
+          );
+          return;
+        }
+
+        if (
+          rawMessage.includes("redirect") ||
+          rawMessage.includes("not allowed")
+        ) {
+          setSubmitError("Something went wrong. Please try again later.");
+          return;
+        }
+
+        navigate("/forgot-password/sent", { state: { email } });
+        return;
+      }
+
       navigate("/forgot-password/sent", { state: { email } });
-    } catch {
-      navigate("/forgot-password/sent", { state: { email } });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      setSubmitError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -86,6 +122,12 @@ export const ForgotPasswordPage = () => {
               No worries. Enter your email and we'll send you a reset link.
             </p>
           </div>
+
+          {submitError ? (
+            <AuthAlert variant="error" onDismiss={() => setSubmitError(null)}>
+              {submitError}
+            </AuthAlert>
+          ) : null}
 
           <form
             onSubmit={handleSubmit}

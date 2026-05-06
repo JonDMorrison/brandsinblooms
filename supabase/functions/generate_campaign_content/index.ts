@@ -420,11 +420,16 @@ serve(async (req) => {
         
         console.log(`✅ [${contentType.toUpperCase()}] Content generated in ${contentGenerationTime}ms (${content.length} chars, ${Math.round(topicValidation.score * 100)}% topic alignment)`);
 
-        // Step 2: Insert task into database IMMEDIATELY
-        console.log(`💾 [${contentType.toUpperCase()}] Inserting task into database...`);
+        // Step 2: Upsert task into database IMMEDIATELY.
+        // Conflict target matches content_tasks_natural_key_uniq (NULLS NOT
+        // DISTINCT, partial on deleted_at IS NULL AND scheduled_date IS NOT
+        // NULL). If a duplicate slot already exists, the new generation
+        // wins — avoids 23505 errors when this function is invoked twice
+        // for the same campaign+post_type+date.
+        console.log(`💾 [${contentType.toUpperCase()}] Upserting task into database...`);
         const { data: task, error: insertError } = await supabase
           .from('content_tasks')
-          .insert({
+          .upsert({
             campaign_id,
             post_type: contentType,
             ai_output: content,
@@ -436,6 +441,8 @@ serve(async (req) => {
             tenant_id,
             created_by_user_id: user_id,
             notes: `Generated for ${campaign_title} campaign`
+          }, {
+            onConflict: 'tenant_id,user_id,campaign_id,plan_id,post_type,scheduled_date'
           })
           .select()
           .single();

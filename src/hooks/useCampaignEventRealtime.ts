@@ -68,6 +68,11 @@ export function useCampaignEventRealtime({
   const queuedEventsRef = useRef<EmailTrackingEventRow[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const channelInstanceIdRef = useRef(Math.random().toString(36).slice(2));
+  const onEventRef = useRef(onEvent);
+
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   const filter = useMemo(() => {
     if (!enabled || !campaignId || !tenantId) return null;
@@ -76,18 +81,13 @@ export function useCampaignEventRealtime({
       tenantId,
       recipientEmail,
       providerMessageId,
-      enabled,
-      channelName,
-      onEvent,
     });
   }, [
+    enabled,
     campaignId,
     tenantId,
     recipientEmail,
     providerMessageId,
-    enabled,
-    channelName,
-    onEvent,
   ]);
 
   useEffect(() => {
@@ -99,10 +99,11 @@ export function useCampaignEventRealtime({
     let isMounted = true;
 
     const flushQueuedEvents = () => {
-      if (!queuedEventsRef.current.length || !onEvent) return;
+      const handleEvent = onEventRef.current;
+      if (!queuedEventsRef.current.length || !handleEvent) return;
       const queued = [...queuedEventsRef.current];
       queuedEventsRef.current = [];
-      queued.forEach((event) => onEvent(event, { animate: false }));
+      queued.forEach((event) => handleEvent(event, { animate: false }));
     };
 
     const handleVisibilityChange = () => {
@@ -129,7 +130,7 @@ export function useCampaignEventRealtime({
             schema: "public",
             table: "email_tracking_events",
             filter,
-          } as any,
+          } as never,
           (payload) => {
             const nextEvent = payload.new as EmailTrackingEventRow;
             const normalizedType = normalizeTrackingEventType(
@@ -142,7 +143,7 @@ export function useCampaignEventRealtime({
               return;
             }
 
-            onEvent?.(nextEvent, { animate: true });
+            onEventRef.current?.(nextEvent, { animate: true });
           },
         )
         .subscribe((status) => {
@@ -179,7 +180,7 @@ export function useCampaignEventRealtime({
       }
       queuedEventsRef.current = [];
     };
-  }, [enabled, campaignId, tenantId, filter, channelName, onEvent]);
+  }, [enabled, campaignId, tenantId, filter, channelName]);
 
   return {
     connectionState,

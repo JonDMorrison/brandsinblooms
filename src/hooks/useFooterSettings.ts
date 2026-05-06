@@ -347,6 +347,14 @@ export function buildFooterProps(
     youtubeUrl?: string;
     linkedinUrl?: string;
     footerLegalText?: string;
+    brandFooterColors?: {
+      backgroundColor?: string;
+      textColor?: string;
+      linkColor?: string;
+      dividerColor?: string;
+      logoBackgroundColor?: string;
+      logoTextColor?: string;
+    };
   },
   unsubscribeUrl: string,
   managePreferencesUrl?: string,
@@ -380,6 +388,7 @@ export function buildFooterProps(
 
   // Apply styling overrides if available
   const footerStyling = campaignOverrides?.footerStyling;
+  const brandFooterColors = companyInfo.brandFooterColors;
 
   return {
     logoUrl: footerSettings.showLogo ? companyInfo.logoUrl : undefined,
@@ -406,7 +415,17 @@ export function buildFooterProps(
     legalText,
     footerBackgroundColor:
       footerStyling?.backgroundColor ||
+      brandFooterColors?.backgroundColor ||
       campaignOverrides?.footerBackgroundColor,
+    footerTextColor: footerStyling?.textColor || brandFooterColors?.textColor,
+    footerLinkColor: footerStyling?.linkColor || brandFooterColors?.linkColor,
+    footerDividerColor:
+      footerStyling?.dividerColor || brandFooterColors?.dividerColor,
+    footerLogoBackgroundColor:
+      footerStyling?.logoBackgroundColor ||
+      brandFooterColors?.logoBackgroundColor,
+    footerLogoTextColor:
+      footerStyling?.logoTextColor || brandFooterColors?.logoTextColor,
     brandPrimaryColor: companyInfo.brandPrimaryColor,
     brandSecondaryColor: companyInfo.brandSecondaryColor,
   };

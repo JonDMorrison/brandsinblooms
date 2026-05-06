@@ -77,6 +77,33 @@ verify_jwt = true
 [functions.oauth-callback]
 verify_jwt = false
 
+[functions.oauth-discovery]
+verify_jwt = false
+
+[functions.oauth-jwks]
+verify_jwt = false
+
+[functions.oauth-token]
+verify_jwt = false
+
+[functions.oauth-userinfo]
+verify_jwt = false
+
+[functions.oauth-revoke]
+verify_jwt = false
+
+[functions.oauth-provision-user]
+verify_jwt = false
+
+[functions.oauth-subscription-status]
+verify_jwt = false
+
+[functions.oauth-authorize-init]
+verify_jwt = false
+
+[functions.oauth-authorize-complete]
+verify_jwt = false
+
 [functions.ga-report-data]
 verify_jwt = true
 

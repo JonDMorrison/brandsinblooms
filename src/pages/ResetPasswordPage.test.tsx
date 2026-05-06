@@ -16,6 +16,10 @@ import { ResetPasswordPage } from "./ResetPasswordPage";
 const successMessage =
   "Password reset successful. Please sign in with your new password.";
 
+const authMocks = vi.hoisted(() => ({
+  clearRecoveryMode: vi.fn(),
+}));
+
 const supabaseMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   onAuthStateChange: vi.fn(),
@@ -33,6 +37,12 @@ vi.mock("@/integrations/supabase/client", () => ({
       updateUser: supabaseMocks.updateUser,
     },
   },
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    clearRecoveryMode: authMocks.clearRecoveryMode,
+  }),
 }));
 
 vi.mock("@/components/homepage-three/performance/useDeviceTier", () => ({
@@ -202,6 +212,7 @@ describe("ResetPasswordPage", () => {
     });
 
     expect(supabaseMocks.signOut).toHaveBeenCalledTimes(1);
+    expect(authMocks.clearRecoveryMode).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Password updated!")).toBeInTheDocument();
 
     await act(async () => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
@@ -13,6 +13,10 @@ import { Sparkles, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NewsletterLayoutPicker } from "../NewsletterLayoutPicker";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
+import {
+  buildNewsletterIdeaEditorSearchParams,
+  type NewsletterIdeaNavigationState,
+} from "@/lib/studio/newsletterIdeaSeed";
 import { NewsletterIdea } from "@/types/newsletter";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { IdeaGrid } from "./IdeaGrid";
@@ -36,6 +40,8 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
 }) => {
   const navigate = useNavigate();
   const { ideas, templates, loading, generateAIIdeas } = useNewsletterIdeas();
+  const ideasScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollToGeneratedResultsRef = useRef(false);
 
   const [currentStep, setCurrentStep] = useState<PickerStep>("ideas");
   const [selectedIdea, setSelectedIdea] = useState<NewsletterIdea | null>(null);
@@ -44,10 +50,15 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   >(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const currentWeekNumber = useMemo(() => getCurrentWeekNumber(), []);
   const currentWeekIdea = useMemo(
-    () => ideas.find((idea) => idea.weekNumber === currentWeekNumber) ?? null,
+    () =>
+      ideas.find(
+        (idea) =>
+          idea.category === "weekly" && idea.weekNumber === currentWeekNumber,
+      ) ?? null,
     [currentWeekNumber, ideas],
   );
 
@@ -61,6 +72,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
     setCurrentStep("ideas");
     setSelectedLayout(null);
     setSelectedIdea(null);
+    setGenerationError(null);
   }, [isOpen]);
 
   useEffect(() => {
@@ -70,6 +82,31 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
 
     setSelectedIdea(currentWeekIdea);
   }, [currentWeekIdea, isOpen, selectedIdea]);
+
+  useEffect(() => {
+    if (isOpen || !ideasScrollContainerRef.current) {
+      return;
+    }
+
+    ideasScrollContainerRef.current.scrollTop = 0;
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (generatingAI || !shouldScrollToGeneratedResultsRef.current) {
+      return;
+    }
+
+    shouldScrollToGeneratedResultsRef.current = false;
+
+    const scrollContainer = ideasScrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [generatingAI, ideas]);
 
   const handleSelectIdea = (idea: NewsletterIdea) => {
     setSelectedIdea(idea);
@@ -86,10 +123,14 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
     }
 
     setGeneratingAI(true);
+    setGenerationError(null);
+    ideasScrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     try {
-      await generateAIIdeas(prompt);
+      const generatedIdeas = await generateAIIdeas(prompt);
+      shouldScrollToGeneratedResultsRef.current = generatedIdeas.length > 0;
     } catch (error) {
       console.error("Failed to generate AI ideas:", error);
+      setGenerationError("Something went wrong. Try again.");
     } finally {
       setGeneratingAI(false);
     }
@@ -98,18 +139,19 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   const handleContinue = () => {
     if (!selectedIdea || !selectedLayout) return;
 
-    const params = new URLSearchParams({
-      type: "newsletter",
-      flow: "template-picker",
-      templateId: selectedIdea.id,
-      layout: selectedLayout,
-      source: "picker",
-      title: selectedIdea.title,
-      description: selectedIdea.description,
-      category: selectedIdea.category,
-    });
+    const params = buildNewsletterIdeaEditorSearchParams(
+      selectedIdea,
+      selectedLayout,
+    );
 
-    navigate(`/crm/campaigns/new?${params.toString()}`);
+    const navigationState = {
+      newsletterIdea: selectedIdea,
+      newsletterLayout: selectedLayout,
+    } satisfies NewsletterIdeaNavigationState;
+
+    navigate(`/crm/campaigns/new?${params.toString()}`, {
+      state: navigationState,
+    });
     onClose();
   };
 
@@ -336,6 +378,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
                 <Divider sx={{ borderColor: "neutral.100" }} />
 
                 <Box
+                  ref={ideasScrollContainerRef}
                   sx={{
                     flex: 1,
                     minHeight: 0,
@@ -349,7 +392,10 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
                     currentWeekIdeaId={currentWeekIdea?.id ?? null}
                     onSelectIdea={handleSelectIdea}
                     onGenerateIdeas={handleGenerateAI}
-                    loading={loading || generatingAI}
+                    onRetryGenerate={() => handleGenerateAI()}
+                    loading={loading && ideas.length === 0}
+                    generating={generatingAI}
+                    generatedError={generationError}
                     selectedIdeaId={selectedIdea?.id ?? null}
                   />
                 </Box>
@@ -357,7 +403,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
             ) : selectedIdea ? (
               <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
                 <NewsletterLayoutPicker
-                  ideaTitle={selectedIdea.title}
+                  idea={selectedIdea}
                   onBack={handleBack}
                   onChange={setSelectedLayout}
                   onContinue={handleContinue}

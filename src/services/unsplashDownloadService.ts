@@ -17,6 +17,30 @@ export interface DownloadResult {
   error?: string;
 }
 
+export async function prepareUnsplashAssetFile(
+  data: UnsplashDownloadData,
+): Promise<File> {
+  if (data.downloadLocation) {
+    try {
+      await trackUnsplashDownload(data.downloadLocation);
+    } catch (error) {
+      console.warn("[DOWNLOAD] Unsplash tracking failed before save", error);
+    }
+  }
+
+  const downloadUrl = getDownloadUrl(data);
+  const response = await fetch(downloadUrl);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Unsplash image: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  return new File([blob], generateAttributedFilename(data), {
+    type: blob.type || "image/jpeg",
+  });
+}
+
 /**
  * Downloads an Unsplash image with proper attribution tracking
  */
@@ -24,18 +48,9 @@ export async function downloadUnsplashImage(
   data: UnsplashDownloadData,
 ): Promise<DownloadResult> {
   try {
-    // Track download with Unsplash API if download_location is available
-    if (data.downloadLocation) {
-      try {
-        await trackUnsplashDownload(data.downloadLocation);
-      } catch (error) {
-        // Continue with download even if tracking fails
-      }
-    }
-
-    // Use highest quality URL available
-    const downloadUrl = getDownloadUrl(data);
-    const filename = generateAttributedFilename(data);
+    const file = await prepareUnsplashAssetFile(data);
+    const downloadUrl = URL.createObjectURL(file);
+    const filename = file.name;
 
     // Create download link and trigger download
     const link = document.createElement("a");
@@ -47,6 +62,7 @@ export async function downloadUnsplashImage(
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
     return {
       success: true,
       downloadUrl,

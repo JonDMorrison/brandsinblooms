@@ -1,6 +1,5 @@
 /**
- * Curated garden center fallback images and improved placeholder system
- * Replaces random Lorem Picsum with relevant, high-quality garden center images
+ * Curated garden center fallback images and lightweight placeholder assets.
  */
 
 interface FallbackImage {
@@ -12,56 +11,143 @@ interface FallbackImage {
   category: string;
 }
 
-// Curated garden center fallback images from Unsplash (using photo IDs for consistency)
+function createImageDataUrl(
+  title: string,
+  subtitle: string,
+  startColor: string,
+  endColor: string,
+  width: number,
+  height: number,
+) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="${startColor}" />
+          <stop offset="100%" stop-color="${endColor}" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" rx="24" fill="url(#bg)" />
+      <circle cx="${Math.round(width * 0.18)}" cy="${Math.round(height * 0.2)}" r="${Math.round(width * 0.08)}" fill="rgba(255,255,255,0.16)" />
+      <circle cx="${Math.round(width * 0.82)}" cy="${Math.round(height * 0.22)}" r="${Math.round(width * 0.06)}" fill="rgba(255,255,255,0.14)" />
+      <path d="M0 ${Math.round(height * 0.74)} C ${Math.round(width * 0.2)} ${Math.round(height * 0.62)}, ${Math.round(width * 0.42)} ${Math.round(height * 0.88)}, ${Math.round(width * 0.6)} ${Math.round(height * 0.76)} S ${Math.round(width * 0.86)} ${Math.round(height * 0.62)}, ${width} ${Math.round(height * 0.74)} L ${width} ${height} L 0 ${height} Z" fill="rgba(255,255,255,0.12)" />
+      <text x="48" y="${Math.round(height * 0.56)}" fill="#ffffff" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${Math.max(28, Math.round(width * 0.05))}" font-weight="700">${title}</text>
+      <text x="48" y="${Math.round(height * 0.66)}" fill="rgba(255,255,255,0.82)" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${Math.max(18, Math.round(width * 0.028))}">${subtitle}</text>
+    </svg>
+  `;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 const GARDEN_CENTER_FALLBACKS: FallbackImage[] = [
   {
     id: "plants-colorful-display",
-    thumb_url:
-      "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=400&h=400&fit=crop",
-    download_url:
-      "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=1200&h=800&fit=crop",
+    thumb_url: createImageDataUrl(
+      "Seasonal Blooms",
+      "Curated garden color story",
+      "#3d8b6d",
+      "#79c28b",
+      400,
+      400,
+    ),
+    download_url: createImageDataUrl(
+      "Seasonal Blooms",
+      "Curated garden color story",
+      "#3d8b6d",
+      "#79c28b",
+      1200,
+      800,
+    ),
     alt: "Beautiful colorful flowers in garden center display",
-    photographer: "Unsplash",
+    photographer: "BloomSuite Studio",
     category: "plants",
   },
   {
     id: "greenhouse-plants",
-    thumb_url:
-      "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=400&h=400&fit=crop",
-    download_url:
-      "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=1200&h=800&fit=crop",
+    thumb_url: createImageDataUrl(
+      "Greenhouse Rows",
+      "Indoor plant merchandising",
+      "#486a4a",
+      "#8dc27d",
+      400,
+      400,
+    ),
+    download_url: createImageDataUrl(
+      "Greenhouse Rows",
+      "Indoor plant merchandising",
+      "#486a4a",
+      "#8dc27d",
+      1200,
+      800,
+    ),
     alt: "Greenhouse interior with rows of potted plants",
-    photographer: "Unsplash",
+    photographer: "BloomSuite Studio",
     category: "greenhouse",
   },
   {
     id: "garden-tools",
-    thumb_url:
-      "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=400&h=400&fit=crop",
-    download_url:
-      "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=1200&h=800&fit=crop",
+    thumb_url: createImageDataUrl(
+      "Garden Tools",
+      "Merchandising essentials",
+      "#785a3d",
+      "#d0a35b",
+      400,
+      400,
+    ),
+    download_url: createImageDataUrl(
+      "Garden Tools",
+      "Merchandising essentials",
+      "#785a3d",
+      "#d0a35b",
+      1200,
+      800,
+    ),
     alt: "Professional gardening tools and equipment",
-    photographer: "Unsplash",
+    photographer: "BloomSuite Studio",
     category: "tools",
   },
   {
     id: "herb-garden",
-    thumb_url:
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=400&fit=crop",
-    download_url:
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1200&h=800&fit=crop",
+    thumb_url: createImageDataUrl(
+      "Edible Garden",
+      "Fresh herbs and kitchen greens",
+      "#2e6a57",
+      "#89c9b0",
+      400,
+      400,
+    ),
+    download_url: createImageDataUrl(
+      "Edible Garden",
+      "Fresh herbs and kitchen greens",
+      "#2e6a57",
+      "#89c9b0",
+      1200,
+      800,
+    ),
     alt: "Fresh herbs and vegetables in garden center",
-    photographer: "Unsplash",
+    photographer: "BloomSuite Studio",
     category: "herbs",
   },
   {
     id: "landscape-garden",
-    thumb_url:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&h=400&fit=crop",
-    download_url:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&h=800&fit=crop",
+    thumb_url: createImageDataUrl(
+      "Landscape View",
+      "Outdoor design inspiration",
+      "#345f77",
+      "#8db2c8",
+      400,
+      400,
+    ),
+    download_url: createImageDataUrl(
+      "Landscape View",
+      "Outdoor design inspiration",
+      "#345f77",
+      "#8db2c8",
+      1200,
+      800,
+    ),
     alt: "Beautiful landscape garden with trees and plants",
-    photographer: "Unsplash",
+    photographer: "BloomSuite Studio",
     category: "landscape",
   },
 ];
@@ -123,26 +209,7 @@ export const formatFallbackImages = (
     download_url: img.download_url,
     alt: `${img.alt} - ${query}`,
     photographer: img.photographer,
-    unsplash_id: img.id,
     query: query,
+    source: "curated",
   }));
-};
-
-/**
- * Check if Unsplash API is available by testing a simple request
- */
-export const checkUnsplashAvailability = async (): Promise<boolean> => {
-  try {
-    // Test with a minimal request to the single image endpoint
-    const response = await fetch("/api/unsplash-test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ test: true }),
-      signal: AbortSignal.timeout(5000), // 5 second timeout
-    });
-
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
 };

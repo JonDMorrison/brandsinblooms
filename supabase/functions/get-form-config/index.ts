@@ -259,6 +259,7 @@ const SETTINGS_ALLOWLIST = {
     secondary_color: true, // Secondary color (hex)
     text_color: true, // Text color (hex)
     background_color: true, // Form background (hex)
+    background_style: true, // Page background treatment for hosted forms
     font_family: true, // Font family name
     border_radius: true, // Border radius (px or rem)
     spacing: true, // Spacing density: 'compact' | 'normal' | 'relaxed'
@@ -552,7 +553,13 @@ function sanitizeField(
   return sanitized;
 }
 
-function sanitizeVisibilityRules(value: unknown): Record<string, unknown>[] {
+type SanitizedVisibilityRule = {
+  field_id: string;
+  operator: string;
+  value?: string;
+};
+
+function sanitizeVisibilityRules(value: unknown): SanitizedVisibilityRule[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -586,7 +593,7 @@ function sanitizeVisibilityRules(value: unknown): Record<string, unknown>[] {
           : {}),
       };
     })
-    .filter((rule): rule is Record<string, unknown> => rule !== null)
+    .filter((rule): rule is SanitizedVisibilityRule => rule !== null)
     .slice(0, 20);
 }
 

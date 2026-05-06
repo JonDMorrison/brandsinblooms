@@ -17,6 +17,7 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type ResetField = "password" | "confirmPassword";
 
@@ -75,6 +76,7 @@ const validateConfirmPassword = (value: string, password: string) => {
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
+  const { clearRecoveryMode } = useAuth();
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -97,13 +99,12 @@ export const ResetPasswordPage = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (resolved) return;
+      if (!mounted || resolved) return;
 
       if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
         resolved = true;
         window.history.replaceState(null, "", "/reset-password");
         setIsValidToken(true);
-        return;
       }
     });
 
@@ -199,7 +200,7 @@ export const ResetPasswordPage = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: password,
+        password,
       });
 
       if (error) {
@@ -207,7 +208,13 @@ export const ResetPasswordPage = () => {
         return;
       }
 
-      await supabase.auth.signOut();
+      clearRecoveryMode();
+
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error("Password reset sign-out error:", signOutError);
+      }
+
       setResetSucceeded(true);
       successTimerRef.current = window.setTimeout(() => {
         navigate("/auth", {

@@ -7,17 +7,11 @@ import {
   Search,
   Image as ImageIcon,
   Loader2,
-  Download,
   Edit3,
   Camera,
   ArrowLeft,
 } from "lucide-react";
-import { useUnsplash } from "@/hooks/useUnsplash";
 import { useContentAssets } from "@/hooks/useContentAssets";
-import {
-  downloadUnsplashImage,
-  copyAttributionToClipboard,
-} from "@/services/unsplashDownloadService";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { extractImageSummary } from "@/utils/imageContentSummary";
@@ -50,9 +44,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
-  // Removed preview state - thumbnails now directly select images
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
 
   // Helper to normalize fallback images to expected shape
@@ -94,41 +87,29 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     const loadDefaultSuggestions = async () => {
       if (searchResults.length === 0 && !showingSuggestions) {
         setShowingSuggestions(true);
+        setSearchLoading(true);
         const rawQuery = contentContext
           ? extractImageSummary(contentContext)
           : "garden center";
         const defaultQuery = validateImageQuery(rawQuery);
 
         try {
-          const results = await searchImages(defaultQuery);
-          const finalResults = supplementWithFallbacks(results, defaultQuery);
+          const finalResults = supplementWithFallbacks([], defaultQuery);
           setSearchResults(finalResults);
 
-          // Auto-select first image if requested and no image already selected
+          // Auto-select first image only when caller explicitly opts in
+          // (autoSelectFirst). The previous "auto-select to avoid showing
+          // placeholder" branch silently applied an unrelated stock image
+          // the moment the picker opened — and because the parent
+          // ImageSelectButton dismisses the modal on selection in modal
+          // mode, users never got to pick. Bail to placeholder instead.
           if (autoSelectFirst && !selectedImageUrl && finalResults.length > 0) {
             const firstImage = finalResults[0];
             const imageMetadata = {
-              source: firstImage.source || "unsplash",
+              source: firstImage.source || "curated",
               alt_text: firstImage.alt,
               photographer: firstImage.photographer,
               photographer_url: firstImage.photographer_url,
-              unsplash_id: firstImage.id,
-              thumb: firstImage.thumb_url || firstImage.thumb,
-              download_location: firstImage.download_location,
-            };
-            handleImageSelect(
-              firstImage.url || firstImage.download_url,
-              imageMetadata,
-            );
-          } else if (!selectedImageUrl && finalResults.length > 0) {
-            // If no image is selected, auto-select the first one anyway to avoid showing placeholder
-            const firstImage = finalResults[0];
-            const imageMetadata = {
-              source: firstImage.source || "unsplash",
-              alt_text: firstImage.alt,
-              photographer: firstImage.photographer,
-              photographer_url: firstImage.photographer_url,
-              unsplash_id: firstImage.id,
               thumb: firstImage.thumb_url || firstImage.thumb,
               download_location: firstImage.download_location,
             };
@@ -139,6 +120,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           }
         } catch (error) {
           console.error("[MediaSelector] Error loading suggestions:", error);
+        } finally {
+          setSearchLoading(false);
         }
       }
     };
@@ -146,7 +129,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     loadDefaultSuggestions();
   }, [
     contentContext,
-    searchImages,
     searchResults.length,
     showingSuggestions,
     selectedImageUrl,
@@ -159,12 +141,14 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     const cleanQuery = validateImageQuery(searchQuery);
 
     setShowingSuggestions(false);
+    setSearchLoading(true);
     try {
-      const results = await searchImages(cleanQuery);
-      const finalResults = supplementWithFallbacks(results, cleanQuery);
+      const finalResults = supplementWithFallbacks([], cleanQuery);
       setSearchResults(finalResults);
     } catch (error) {
       console.error("[MediaSelector] Search error:", error);
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -180,55 +164,16 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   const handleThumbnailClick = (image: any, index: number) => {
     const imageMetadata = {
-      source: "unsplash",
+      source: image.source || "curated",
       alt_text: image.alt,
       photographer: image.photographer,
       photographer_url: image.photographer_url,
-      unsplash_id: image.id,
       thumb: image.thumb,
       download_location: image.download_location,
     };
 
     // Directly call handleImageSelect instead of going to preview mode
     handleImageSelect(image.url, imageMetadata);
-  };
-
-  const handleDownload = async (image: any, event?: React.MouseEvent) => {
-    event?.stopPropagation();
-
-    if (!image.photographer || !image.id) {
-      toast.error("Unable to download: Missing image information");
-      return;
-    }
-
-    try {
-      const result = await downloadUnsplashImage({
-        imageUrl: image.url,
-        photographer: image.photographer,
-        photographerUrl: image.photographer_url,
-        unsplashId: image.id,
-        downloadLocation: image.download_location,
-      });
-
-      if (result.success) {
-        toast.success(`Downloaded: ${result.filename}`);
-
-        const copied = await copyAttributionToClipboard(
-          image.photographer,
-          image.photographer_url,
-          "copy",
-        );
-
-        if (copied) {
-          toast.success("Attribution copied to clipboard");
-        }
-      } else {
-        toast.error(`Download failed: ${result.error}`);
-      }
-    } catch (error) {
-      console.error("[MediaSelector] Download error:", error);
-      toast.error("Download failed");
-    }
   };
 
   const handleFileUpload = async (
@@ -287,15 +232,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
                 </Button>
-                {selectedImageMetadata?.source === "unsplash" &&
-                  selectedImageMetadata?.photographer && (
-                    <Button
-                      size="sm"
-                      onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
-                  )}
               </div>
             </div>
           ) : (
@@ -321,11 +257,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             />
             <Button
               onClick={handleSearch}
-              disabled={unsplashLoading}
+              disabled={searchLoading}
               size="sm"
               variant="outline"
             >
-              {unsplashLoading ? (
+              {searchLoading ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
                 <Search className="h-3 w-3" />
@@ -430,7 +366,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         )}
 
         {/* Loading State */}
-        {unsplashLoading && (
+        {searchLoading && (
           <div className="space-y-3">
             <h4 className="text-sm font-medium text-gray-700">
               Loading Images...
@@ -449,7 +385,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         )}
 
         {/* No Results */}
-        {!unsplashLoading &&
+        {!searchLoading &&
           searchResults.length === 0 &&
           !showingSuggestions && (
             <div className="text-center py-8">
@@ -505,20 +441,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   }
                 }}
               />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                {selectedImageMetadata?.source === "unsplash" &&
-                  selectedImageMetadata?.photographer && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                      className="bg-white/90 hover:bg-white"
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
-                  )}
-              </div>
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2"></div>
               {selectedImageMetadata?.photographer && (
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3">
                   <p className="text-white text-sm">
@@ -566,11 +489,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               />
               <Button
                 onClick={handleSearch}
-                disabled={unsplashLoading}
+                disabled={searchLoading}
                 variant="outline"
                 size="sm"
               >
-                {unsplashLoading ? (
+                {searchLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Search className="h-4 w-4" />
@@ -683,7 +606,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           )}
 
           {/* Loading State */}
-          {unsplashLoading && searchResults.length === 0 && (
+          {searchLoading && searchResults.length === 0 && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 gap-3">
                 {Array.from({ length: 3 }).map((_, index) => (
@@ -697,7 +620,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           )}
 
           {/* No Results */}
-          {!unsplashLoading &&
+          {!searchLoading &&
             searchResults.length === 0 &&
             !showingSuggestions && (
               <div className="text-center py-8">

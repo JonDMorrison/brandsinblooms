@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui-legacy/button";
 import { Textarea } from "@/components/ui-legacy/textarea";
-import { Label } from "@/components/ui-legacy/label";
 import { Badge } from "@/components/ui-legacy/badge";
 import {
   Card,
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui-legacy/card";
 import { CarouselImageSelector } from "@/components/social/CarouselImageSelector";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
-import { AIPersonalizationDialog } from "@/components/crm/AIPersonalizationDialog";
+import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import {
   ArrowLeft,
   Eye,
@@ -42,13 +41,10 @@ const CarouselComposerPage = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
-  const [showAIDialog, setShowAIDialog] = useState(false);
-  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(
-    null,
-  );
 
   const { generateImageForChannel, isGenerating: isSingleImageGenerating } =
     useImageGeneration();
+  const { open } = useAIImageStudio();
 
   const validation = validateCarouselPost(platform, {
     platform,
@@ -127,23 +123,21 @@ const CarouselComposerPage = () => {
   };
 
   const handleImageSelect = (index: number) => {
-    setEditingImageIndex(index);
-    setShowAIDialog(true);
-  };
-
-  const handleAIImageSelect = (imageUrl: string) => {
-    if (editingImageIndex !== null) {
-      const newImages = [...carouselImages];
-      newImages[editingImageIndex] = imageUrl;
-      setCarouselImages(newImages);
-    } else {
-      // Add new image
-      if (carouselImages.length < 10) {
-        setCarouselImages([...carouselImages, imageUrl]);
-      }
-    }
-    setShowAIDialog(false);
-    setEditingImageIndex(null);
+    open({
+      browseOnly: true,
+      channel: platform,
+      contentContext:
+        caption || "Create beautiful carousel images for social media",
+      contextLabel: `Replace image ${index + 1} from your library, uploads, or AI.`,
+      defaultTab: "my-images",
+      onSelect: (imageUrl) => {
+        setCarouselImages((previousImages) => {
+          const nextImages = [...previousImages];
+          nextImages[index] = imageUrl;
+          return nextImages;
+        });
+      },
+    });
   };
 
   const handlePublish = async () => {
@@ -233,14 +227,28 @@ const CarouselComposerPage = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setEditingImageIndex(null);
-                        setShowAIDialog(true);
+                        open({
+                          channel: platform,
+                          contentContext:
+                            caption ||
+                            "Create beautiful carousel images for social media",
+                          contextLabel:
+                            "Add a carousel image from your library, Unsplash, upload, or AI.",
+                          defaultTab: "my-images",
+                          onSelect: (imageUrl) => {
+                            setCarouselImages((previousImages) =>
+                              previousImages.length < 10
+                                ? [...previousImages, imageUrl]
+                                : previousImages,
+                            );
+                          },
+                        });
                       }}
                       disabled={carouselImages.length >= 10}
                       className="gap-2"
                     >
-                      <ImagePlus className="w-4 h-4" />
-                      Add Image
+                      <Sparkles className="w-4 h-4" />
+                      AI Image Studio
                     </Button>
                     <Button
                       variant="outline"
@@ -415,18 +423,6 @@ const CarouselComposerPage = () => {
           isCarousel={true}
         />
       )}
-
-      {/* AI Personalization Dialog */}
-      <AIPersonalizationDialog
-        open={showAIDialog}
-        onOpenChange={setShowAIDialog}
-        onImageSelect={handleAIImageSelect}
-        channel={platform}
-        contentContext={
-          caption || "Create beautiful carousel images for social media"
-        }
-        contextType="carousel_builder"
-      />
     </ProtectedPageWrapper>
   );
 };

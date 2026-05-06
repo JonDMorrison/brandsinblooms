@@ -1,11 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { resolveAudienceRecipientIds } from "@/lib/computeAudienceRecipientCount";
-import type { ContentBlock, EmailBlock } from "@/types/emailBuilder";
+import type { ContentBlock } from "@/types/emailBuilder";
+import { generateEmailHtml } from "@/lib/studio/emailHtmlGenerator";
 import {
-  convertEmailBlockToContentBlock,
-  normalizeBlockForSave,
-} from "@/utils/blockFieldMapping";
+  ensureFooterBlockCompliance,
+  type FooterCompanyProfile,
+} from "@/lib/studio/footerCompliance";
+import type { StudioBlock } from "@/types/studioBlocks";
+import {
+  escapeHtml,
+  formatDraftRichText,
+  formatDraftText,
+} from "@/lib/crm/htmlContent";
 
 type CampaignRow = Database["public"]["Tables"]["crm_campaigns"]["Row"];
 type CampaignStatus = CampaignRow["status"];
@@ -23,7 +30,7 @@ export interface PersistCampaignRecordInput {
   senderEmail: string;
   fromEmailDomainId?: string | null;
   replyTo: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;
@@ -55,40 +62,52 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function escapeHtml(value: string | null | undefined) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function formatDraftText(value: string | null | undefined) {
-  return escapeHtml(value).replace(/\n/g, "<br />");
-}
-
 function normalizeInputBlocks(
-  blocks: Array<ContentBlock | EmailBlock | Record<string, unknown>>,
+  blocks: Array<StudioBlock | Record<string, unknown>>,
 ) {
-  return blocks.flatMap((block) => {
+  return blocks.flatMap((block, index) => {
     if (!block || typeof block !== "object") {
-      return [] as ContentBlock[];
+      return [] as StudioBlock[];
     }
 
     const candidate = block as Record<string, unknown>;
     if (typeof candidate.type === "string") {
-      return [candidate as ContentBlock];
-    }
-
-    if (typeof candidate.block_type === "string") {
       return [
-        convertEmailBlockToContentBlock(candidate as unknown as EmailBlock),
+        {
+          ...candidate,
+          id:
+            typeof candidate.id === "string" && candidate.id.trim().length > 0
+              ? candidate.id
+              : `content-block-${index}`,
+          order: typeof candidate.order === "number" ? candidate.order : index,
+          visible: candidate.visible !== false,
+        } as StudioBlock,
       ];
     }
 
-    return [] as ContentBlock[];
+    return [] as StudioBlock[];
   });
+}
+
+function toJsonSafe<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function renderEmptyDraftPreviewHtml() {
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Campaign draft preview</title>
+  </head>
+  <body style="margin:0;padding:24px;background:#f5f7fb;font-family:Arial, Helvetica, sans-serif;">
+    <div style="max-width:720px;margin:0 auto;padding:32px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);color:#475569;">
+      <h1 style="margin:0 0 12px;font-size:24px;line-height:1.2;color:#0f172a;">Campaign draft preview</h1>
+      <p style="margin:0;font-size:16px;line-height:1.7;">No content blocks have been added yet.</p>
+    </div>
+  </body>
+</html>`;
 }
 
 function renderDraftButton(
@@ -133,8 +152,8 @@ function renderDraftTextBlock(block: ContentBlock) {
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:${backgroundColor};box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${renderDraftImage(block.imageUrl || block.backgroundImageUrl, block.altText, block.type === "image" ? 360 : 280)}
       ${heading ? `<h2 style="margin:0 0 12px;font-size:28px;line-height:1.2;color:${textColor};">${formatDraftText(heading)}</h2>` : ""}
-      ${body ? `<div style="font-size:16px;line-height:1.7;color:${textColor};">${formatDraftText(body)}</div>` : ""}
-      ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.backgroundColor || "#1f4f3f")}
+      ${body ? `<div style="font-size:16px;line-height:1.7;color:${textColor};">${formatDraftRichText(body)}</div>` : ""}
+      ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.buttonColor || "#1f4f3f")}
     </section>
   `;
 }
@@ -187,7 +206,7 @@ function renderDraftGallery(block: ContentBlock) {
   return `
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${block.headline || block.title ? `<h2 style="margin:0 0 16px;font-size:28px;line-height:1.2;color:#1f2937;">${formatDraftText(block.headline || block.title)}</h2>` : ""}
-      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">${items}</div>
     </section>
   `;
@@ -240,8 +259,8 @@ function renderDraftProductGallery(block: ContentBlock) {
           ${renderDraftImage(imageUrl, title, 180)}
           <h3 style="margin:0 0 10px;font-size:18px;line-height:1.3;color:#1f2937;">${formatDraftText(title)}</h3>
           ${price ? `<div style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1f4f3f;">${formatDraftText(price)}</div>` : ""}
-          ${description ? `<div style="font-size:14px;line-height:1.6;color:#475569;">${formatDraftText(description)}</div>` : ""}
-          ${renderDraftButton(buttonText, url, block.backgroundColor || "#1f4f3f")}
+          ${description ? `<div style="font-size:14px;line-height:1.6;color:#475569;">${formatDraftRichText(description)}</div>` : ""}
+          ${renderDraftButton(buttonText, url, block.buttonColor || "#1f4f3f")}
         </article>
       `;
     })
@@ -255,8 +274,57 @@ function renderDraftProductGallery(block: ContentBlock) {
   return `
     <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
       ${block.headline || block.title ? `<h2 style="margin:0 0 16px;font-size:28px;line-height:1.2;color:#1f2937;">${formatDraftText(block.headline || block.title)}</h2>` : ""}
-      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+      ${block.body || block.content ? `<div style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">${cards}</div>
+    </section>
+  `;
+}
+
+// Mirrors the send-time renderer in
+// supabase/functions/_shared/campaignEmailSource.ts → renderSocialFollowBlock
+// so the draft preview iframe shows the same social-icon row that recipients
+// will see. Icons are served from the public bloomsuite.app/social-icons
+// path. MUST stay in sync with the keys in
+// supabase/functions/_shared/footerGenerator.ts → socialIcons.
+const DRAFT_SOCIAL_ICON_BASE = "https://bloomsuite.app/social-icons";
+const DRAFT_SOCIAL_PLATFORMS: Array<{ key: string; label: string }> = [
+  { key: "facebook", label: "Facebook" },
+  { key: "instagram", label: "Instagram" },
+  { key: "tiktok", label: "TikTok" },
+  { key: "pinterest", label: "Pinterest" },
+  { key: "youtube", label: "YouTube" },
+  { key: "linkedin", label: "LinkedIn" },
+];
+
+function renderDraftSocialFollow(block: ContentBlock): string {
+  const links = (block as ContentBlock).socialLinks || {};
+  const platforms = DRAFT_SOCIAL_PLATFORMS.filter((p) => {
+    const entry = links[p.key];
+    return (
+      entry &&
+      entry.enabled === true &&
+      typeof entry.url === "string" &&
+      entry.url.length > 0
+    );
+  });
+
+  if (platforms.length === 0) return "";
+
+  const iconsHtml = platforms
+    .map((p) => {
+      const url = links[p.key]!.url;
+      return `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="display:inline-block;margin:0 8px;text-decoration:none;"><img src="${DRAFT_SOCIAL_ICON_BASE}/${p.key}.png" alt="${p.label}" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" /></a>`;
+    })
+    .join("");
+
+  const backgroundColor = block.backgroundColor || "#ffffff";
+  const textColor = block.textColor || "#1f2937";
+  const heading = block.headline || block.title;
+
+  return `
+    <section style="padding:24px 32px;margin:0 0 20px;border-radius:24px;background:${backgroundColor};text-align:center;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);">
+      ${heading ? `<h2 style="margin:0 0 12px;font-size:22px;line-height:1.2;color:${textColor};">${formatDraftText(heading)}</h2>` : ""}
+      <div>${iconsHtml}</div>
     </section>
   `;
 }
@@ -269,7 +337,7 @@ function renderDraftBlock(block: ContentBlock) {
       return `
         <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#ffffff;box-shadow:0 10px 28px rgba(15, 23, 42, 0.08);text-align:${block.alignment || "center"};">
           ${block.heading || block.title ? `<h2 style="margin:0 0 12px;font-size:24px;color:#1f2937;">${formatDraftText(block.heading || block.title)}</h2>` : ""}
-          ${block.body || block.content ? `<div style="font-size:16px;line-height:1.7;color:#475569;">${formatDraftText(block.body || block.content)}</div>` : ""}
+          ${block.body || block.content ? `<div style="font-size:16px;line-height:1.7;color:#475569;">${formatDraftRichText(block.body || block.content)}</div>` : ""}
           ${renderDraftButton(block.buttonText || block.ctaText, block.buttonUrl || block.ctaUrl, block.buttonColor || "#1f4f3f")}
         </section>
       `;
@@ -280,42 +348,42 @@ function renderDraftBlock(block: ContentBlock) {
     case "quote":
       return `
         <section style="padding:28px 32px;margin:0 0 20px;border-radius:24px;background:#0f172a;color:#f8fafc;box-shadow:0 10px 28px rgba(15, 23, 42, 0.14);">
-          <blockquote style="margin:0;font-size:22px;line-height:1.5;">${formatDraftText(block.quote || block.body || block.content)}</blockquote>
+          <blockquote style="margin:0;font-size:22px;line-height:1.5;">${formatDraftRichText(block.quote || block.body || block.content)}</blockquote>
           ${block.author || block.authorTitle ? `<div style="margin-top:16px;font-size:14px;opacity:0.82;">${formatDraftText([block.author, block.authorTitle].filter(Boolean).join(" · "))}</div>` : ""}
         </section>
       `;
     case "footer":
       return `
         <section style="padding:24px 32px;margin:0 0 20px;border-radius:24px;background:#e2e8f0;color:#334155;">
-          <div style="font-size:14px;line-height:1.7;">${formatDraftText(block.content || block.body || "Footer details")}</div>
+          <div style="font-size:14px;line-height:1.7;">${formatDraftRichText(block.content || block.body || "Footer details")}</div>
         </section>
       `;
+    case "social-follow":
+      return renderDraftSocialFollow(block);
     default:
       return renderDraftTextBlock(block);
   }
 }
 
-// Draft preview HTML only. This intentionally excludes send-time footer,
-// tracked links, and merge-tag resolution.
-export function renderDraftPreviewHtml(blocks: ContentBlock[]) {
+export function renderDraftPreviewHtml(
+  blocks: StudioBlock[],
+  subjectLine = "Campaign draft preview",
+  preheaderText = "",
+) {
   const visibleBlocks = blocks.filter((block) => block.visible !== false);
   if (visibleBlocks.length === 0) {
     return "";
   }
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Campaign draft preview</title>
-  </head>
-  <body style="margin:0;padding:24px;background:#f5f7fb;font-family:Arial, Helvetica, sans-serif;">
-    <div style="max-width:720px;margin:0 auto;">
-      ${visibleBlocks.map((block) => renderDraftBlock(block)).join("")}
-    </div>
-  </body>
-</html>`;
+  const footerBlock =
+    visibleBlocks.find((block) => block.type === "footer") ?? null;
+
+  return generateEmailHtml({
+    blocks: visibleBlocks,
+    subject: subjectLine || "Campaign draft preview",
+    previewText: preheaderText,
+    footer: footerBlock,
+  });
 }
 
 async function getAuthenticatedWriterContext() {
@@ -357,15 +425,71 @@ function buildCampaignMetadata(
     campaignType: input.campaignType,
     replyTo: input.replyTo,
     smsMessage: input.smsMessage,
-    contentBlocks: input.contentBlocks,
     sourceSegmentId: input.sourceSegmentId,
     sourcePersonaId: input.sourcePersonaId,
+    contentBlocks: input.contentBlocks,
   } satisfies Record<string, unknown>;
+}
+
+function buildCampaignBlockRows(
+  campaignId: string,
+  contentBlocks: StudioBlock[],
+): Database["public"]["Tables"]["campaign_blocks"]["Insert"][] {
+  return contentBlocks.map((block, index) => {
+    const record = block as Record<string, unknown>;
+    const headline =
+      typeof record.headline === "string"
+        ? record.headline
+        : typeof record.title === "string"
+          ? record.title
+          : null;
+    const imageUrl =
+      typeof record.imageUrl === "string"
+        ? record.imageUrl
+        : typeof record.backgroundImageUrl === "string"
+          ? record.backgroundImageUrl
+          : null;
+    const ctaText =
+      typeof record.buttonText === "string"
+        ? record.buttonText
+        : typeof record.ctaText === "string"
+          ? record.ctaText
+          : null;
+    const ctaUrl =
+      typeof record.buttonUrl === "string"
+        ? record.buttonUrl
+        : typeof record.ctaUrl === "string"
+          ? record.ctaUrl
+          : null;
+    const source =
+      typeof record.source === "string" && record.source.length > 0
+        ? record.source
+        : "manual";
+    const personaTag =
+      typeof record.personaTag === "string"
+        ? record.personaTag
+        : typeof record.persona_tag === "string"
+          ? record.persona_tag
+          : null;
+
+    return {
+      campaign_id: campaignId,
+      block_type: block.type,
+      content: toJsonSafe(record),
+      headline,
+      image_url: imageUrl,
+      cta_text: ctaText,
+      cta_url: ctaUrl,
+      source,
+      persona_tag: personaTag,
+      order_index: typeof record.order === "number" ? record.order : index,
+    };
+  });
 }
 
 async function syncCampaignBlocksBackup(
   campaignId: string,
-  contentBlocks: ContentBlock[],
+  contentBlocks: StudioBlock[],
 ) {
   const { error: deleteError } = await supabase
     .from("campaign_blocks")
@@ -380,29 +504,81 @@ async function syncCampaignBlocksBackup(
     return;
   }
 
-  const blockRows = contentBlocks.map((block, index) => ({
-    campaign_id: campaignId,
-    ...normalizeBlockForSave(block, index),
-  }));
-
+  const rows = buildCampaignBlockRows(campaignId, contentBlocks);
   const { error: insertError } = await supabase
     .from("campaign_blocks")
-    .insert(blockRows);
+    .insert(rows);
 
   if (insertError) {
     throw insertError;
   }
 }
 
+async function loadWriterCompanyProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("company_profiles")
+    .select(
+      `
+      company_name,
+      company_email,
+      company_phone,
+      website_url,
+      street_address,
+      city,
+      state_province,
+      postal_code,
+      country,
+      location_info,
+      email_domain,
+      brand_primary_color,
+      brand_secondary_color,
+      brand_accent_color,
+      brand_text_color,
+      facebook_url,
+      instagram_url,
+      tiktok_url,
+      pinterest_url,
+      youtube_url,
+      linkedin_url,
+      footer_legal_text,
+      feature_flags
+      `,
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Failed to load company profile for footer injection", error);
+    return null;
+  }
+
+  return (data as FooterCompanyProfile | null) ?? null;
+}
+
 export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
   const { tenantId, userId } = await getAuthenticatedWriterContext();
-  const contentBlocks = normalizeInputBlocks(input.contentBlocks);
+  const rawContentBlocks = normalizeInputBlocks(input.contentBlocks);
+  const companyProfile =
+    input.campaignType === "email"
+      ? await loadWriterCompanyProfile(userId)
+      : null;
+  const contentBlocks = toJsonSafe(
+    input.campaignType === "email"
+      ? ensureFooterBlockCompliance(rawContentBlocks, {
+          companyProfile,
+        })
+      : rawContentBlocks,
+  );
   const content =
     input.campaignType === "sms"
       ? input.smsMessage
-      : contentBlocks.length > 0
-        ? renderDraftPreviewHtml(contentBlocks)
-        : (input.legacyContentHtml?.trim() ?? "");
+      : renderDraftPreviewHtml(
+          contentBlocks,
+          input.subjectLine,
+          input.preheaderText,
+        ) ||
+        input.legacyContentHtml?.trim() ||
+        renderEmptyDraftPreviewHtml();
   const nowIso = new Date().toISOString();
 
   const basePayload = {
@@ -539,14 +715,7 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     campaignRow = insertedRow as CampaignRow;
   }
 
-  try {
-    await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
-  } catch (error) {
-    console.warn(
-      "campaign_blocks backup sync failed; metadata.contentBlocks remains authoritative",
-      error,
-    );
-  }
+  await syncCampaignBlocksBackup(campaignRow.id, contentBlocks);
 
   return {
     campaign: campaignRow,
@@ -564,6 +733,7 @@ export async function writeCampaignDraftSnapshot(params: {
   preheaderText: string;
   smsMessage: string;
   contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   segmentIds: string[];
   personaIds: string[];
 }) {

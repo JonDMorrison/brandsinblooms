@@ -12,6 +12,7 @@ import {
   AuthTabGroup,
 } from "@/components/auth";
 import { Building2, Leaf, Lock, Mail, User } from "lucide-react";
+import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
 
 type AuthMode = "signin" | "signup";
 type SignInField = "email" | "password";
@@ -98,6 +99,9 @@ const validateSignUp = (form: SignUpFormState) => ({
 export const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const returnTo = getSafeOAuthReturnTo(
+    new URLSearchParams(location.search).get("returnTo"),
+  );
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<AuthMode>(() =>
     getModeFromHash(location.hash),
@@ -191,13 +195,20 @@ export const AuthPage = () => {
       setAlert({ variant: "success", content: message });
       navigate(
         {
-          pathname: "/auth",
+          pathname: location.pathname,
+          search: location.search,
           hash: location.hash,
         },
         { replace: true, state: {} },
       );
     }
-  }, [location.hash, location.state, navigate]);
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+  ]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     if (nextMode === mode) {
@@ -243,7 +254,7 @@ export const AuthPage = () => {
       if (error) {
         setAlert({ variant: "error", content: mapSignInError(error) });
       } else if (data.user) {
-        navigate("/dashboard");
+        navigate(returnTo ?? "/dashboard");
       }
     } catch (error) {
       setAlert({ variant: "error", content: mapSignInError(error) });
