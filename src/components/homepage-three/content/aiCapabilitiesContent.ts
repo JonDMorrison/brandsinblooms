@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { Lightbulb, PenTool, TrendingUp, Zap } from "lucide-react";
+import { PenTool, TrendingUp, Zap } from "lucide-react";
 
 export interface AiCapabilityCardConfig {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -25,10 +25,10 @@ export interface AiChatTurnConfig {
 }
 
 export const AI_CAPABILITIES_HEADER = {
-  chip: "AI Powered",
-  headline: "Intelligence Built In",
+  chip: "AI",
+  headline: "AI that knows your customers.",
   subtext:
-    "Every feature is powered by AI that learns, adapts, and works alongside you.",
+    "Trained on your sales history and brand voice. It drafts, segments, and suggests. You approve.",
 };
 
 export const AI_CHAT_DEMO = {
@@ -86,30 +86,23 @@ export const AI_CAPABILITY_CARDS_LABEL = "AI capability cards";
 export const AI_CAPABILITY_CARDS: AiCapabilityCardConfig[] = [
   {
     icon: TrendingUp,
-    title: "Predict & Prevent",
+    title: "Forecast and prevent",
     description:
-      "Forecast demand, identify churn risk, and get actionable suggestions before issues surface.",
+      "Spot churn risk, forecast Mother's Day demand, and flag inventory shortfalls before they hit the floor.",
     delayMs: 1400,
   },
   {
     icon: PenTool,
-    title: "AI Copywriter",
+    title: "AI copywriter",
     description:
-      "Email copy, product descriptions, and social posts — written in your brand voice automatically.",
+      "Email subject lines, product descriptions, and social posts in your brand voice. You review, AI drafts.",
     delayMs: 1500,
   },
   {
     icon: Zap,
-    title: "24/7 Workflows",
+    title: "24/7 workflows",
     description:
-      "Tag customers, send follow-ups, restock alerts, reply to reviews — all running autonomously.",
+      "Tag new customers, send follow-ups, post restock alerts, and reply to reviews. Automatic and always on.",
     delayMs: 1600,
-  },
-  {
-    icon: Lightbulb,
-    title: "Explained Analytics",
-    description:
-      "Revenue dipped? Your AI tells you why and recommends the next move.",
-    delayMs: 1700,
   },
 ];

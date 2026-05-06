@@ -2,16 +2,13 @@ import type { CSSProperties } from "react";
 import { MonitorDot } from "lucide-react";
 import {
   GlassScreenshotFrame,
-  GlassStatCard,
   GlassStepCard,
   SectionHeader,
 } from "./glass";
 import {
-  HOW_IT_WORKS_HEADER,
   HOW_IT_WORKS_SCREENSHOT,
   HOW_IT_WORKS_STEPS,
   IMPACT_SECTION_HEADER,
-  IMPACT_STATS,
 } from "./content/impactHowItWorksContent";
 import "./homepageImpact.css";
 
@@ -34,54 +31,22 @@ export const HomepageImpactHowItWorksSection = ({
     data-testid="homepage-impact-how-it-works"
   >
     <div className="hp-impact-section__inner">
-      <section className="hp-impact-stats" aria-label="BloomSuite impact stats">
-        <SectionHeader
-          eyebrow={IMPACT_SECTION_HEADER.eyebrow}
-          headline={IMPACT_SECTION_HEADER.headline}
-          subtext={IMPACT_SECTION_HEADER.subtext}
-          align="center"
-          isActive={isActive}
-          className="hp-impact-stats__header"
-        />
-
-        <div className="hp-impact-stats__grid">
-          {IMPACT_STATS.map((stat) => (
-            <GlassStatCard
-              key={stat.label}
-              value={stat.value}
-              suffix={stat.suffix}
-              label={stat.label}
-              decimals={stat.decimals ?? 0}
-              durationMs={1200}
-              delayMs={stat.delayMs}
-              animate={motionEnabled}
-              isActive={isActive}
-              announceOnComplete
-              finalValueLabel={stat.screenReaderValue}
-              className="hp-impact-stat-card"
-              style={
-                {
-                  "--hp-impact-stat-delay": `${stat.delayMs}ms`,
-                } as CSSProperties
-              }
-            />
-          ))}
-        </div>
-      </section>
+      {/* TEMP: impact stats block (Real Impact / 0% / 0× / 0K+ / 0.0%) hidden
+          until verified numbers are available. The IMPACT_SECTION_HEADER now
+          drives the Getting Started header above the 3-step onboarding block. */}
+      <SectionHeader
+        eyebrow={IMPACT_SECTION_HEADER.eyebrow}
+        headline={IMPACT_SECTION_HEADER.headline}
+        subtext={IMPACT_SECTION_HEADER.subtext}
+        align="center"
+        isActive={isActive}
+        className="hp-how-it-works__section-header"
+      />
 
       <section
         className="hp-how-it-works"
         aria-label="How BloomSuite onboarding works"
       >
-        <header className="hp-how-it-works__header">
-          <h3 className="hp-how-it-works__headline">
-            {HOW_IT_WORKS_HEADER.headline}
-          </h3>
-          <p className="hp-how-it-works__subtext">
-            {HOW_IT_WORKS_HEADER.subtext}
-          </p>
-        </header>
-
         <div className="hp-how-it-works__body">
           <GlassScreenshotFrame
             src={screenshotSrc}

@@ -10,6 +10,7 @@ import {
   type FooterLinkConfig,
   type PricingPlanConfig,
 } from "./content/pricingCtaFooterContent";
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 import "./homepagePricingCta.css";
 
 interface HomepagePricingCtaFooterSectionProps {
@@ -20,27 +21,11 @@ interface HomepagePricingCtaFooterSectionProps {
 }
 
 const BloomSuiteFooterMark = () => (
-  <svg
-    aria-hidden="true"
+  <img
+    src={bloomsuiteLogo}
+    alt="BloomSuite"
     className="hp-pricing-footer__mark"
-    viewBox="0 0 44 44"
-    role="img"
-  >
-    <path
-      d="M22 36V17"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeWidth="3.5"
-    />
-    <path d="M22 20C12 20 8 14 9 7c7-1 13 3 13 13Z" fill="currentColor" />
-    <path
-      d="M22 23c10 0 14-6 13-13-7-1-13 3-13 13Z"
-      fill="currentColor"
-      opacity="0.74"
-    />
-    <circle cx="22" cy="37" r="3.25" fill="currentColor" opacity="0.92" />
-  </svg>
+  />
 );
 
 const renderCaption = (caption: string) => {

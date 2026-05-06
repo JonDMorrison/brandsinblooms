@@ -22,7 +22,8 @@ import { HomepageHeroSection } from "./HomepageHeroSection";
 import { HomepageImpactHowItWorksSection } from "./HomepageImpactHowItWorksSection";
 import { HomepageIntegrationsEcosystemSection } from "./HomepageIntegrationsEcosystemSection";
 import { HomepagePricingCtaFooterSection } from "./HomepagePricingCtaFooterSection";
-import { HomepageTestimonialsSocialProofSection } from "./HomepageTestimonialsSocialProofSection";
+// TEMP: testimonials hidden until verified quotes are sourced
+// import { HomepageTestimonialsSocialProofSection } from "./HomepageTestimonialsSocialProofSection";
 import { HOMEPAGE_SEO, HOMEPAGE_STRUCTURED_DATA } from "./homepageSeo";
 import { trackHomepageEvent } from "./homepageTelemetry";
 import { useDeviceTier } from "./performance/useDeviceTier";
@@ -39,6 +40,7 @@ import {
   HOMEPAGE_TRANSITIONS,
   getHomepageNavTargetIndex,
 } from "./sectionConfig";
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 import "./homepageThree.css";
 
 const LazyNanoLeafParticles = lazy(() =>
@@ -289,38 +291,7 @@ const getParticleTintForTransition = ({
 };
 
 const BloomSuiteMark = () => (
-  <svg
-    aria-hidden="true"
-    className="hp-logo-mark"
-    viewBox="0 0 44 44"
-    role="img"
-  >
-    <path
-      className="hp-logo-mark__stem"
-      d="M22 36V17"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeWidth="3.5"
-    />
-    <path
-      className="hp-logo-mark__leaf"
-      d="M22 20C12 20 8 14 9 7c7-1 13 3 13 13Z"
-      fill="currentColor"
-    />
-    <path
-      className="hp-logo-mark__leaf hp-logo-mark__leaf--right"
-      d="M22 23c10 0 14-6 13-13-7-1-13 3-13 13Z"
-      fill="currentColor"
-    />
-    <circle
-      className="hp-logo-mark__seed"
-      cx="22"
-      cy="37"
-      r="3.25"
-      fill="currentColor"
-    />
-  </svg>
+  <img src={bloomsuiteLogo} alt="BloomSuite" className="hp-logo-mark" />
 );
 
 interface NavigationShellProps {
@@ -989,12 +960,13 @@ export const HomepagePresentation = () => {
                     isActive={isCurrent}
                     motionEnabled={motionEnabled}
                   />
-                ) : section.id === "testimonials" ? (
+                ) : /* TEMP: testimonials hidden until verified quotes are sourced
+                section.id === "testimonials" ? (
                   <HomepageTestimonialsSocialProofSection
                     isActive={isCurrent}
                     motionEnabled={motionEnabled}
                   />
-                ) : section.id === "start" ? (
+                ) : */ section.id === "start" ? (
                   <HomepagePricingCtaFooterSection
                     isActive={isCurrent}
                     motionEnabled={motionEnabled}

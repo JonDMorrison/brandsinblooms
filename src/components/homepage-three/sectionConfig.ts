@@ -1,7 +1,6 @@
 import type { ParticleTint } from "./particles/atmosphere";
 import type { TransitionPairConfig } from "./sectionEngine";
 import { PRICING_SECTION_HEADER } from "./content/pricingCtaFooterContent";
-import { TESTIMONIALS_SECTION_HEADER } from "./content/testimonialsSocialProofContent";
 
 export type HomepageNavCategory =
   | "features"
@@ -115,19 +114,6 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     particleTint: "sage",
   },
   {
-    id: "testimonials",
-    slug: "testimonials",
-    name: TESTIMONIALS_SECTION_HEADER.eyebrow,
-    navCategory: "integrations",
-    eyebrow: TESTIMONIALS_SECTION_HEADER.eyebrow,
-    title: TESTIMONIALS_SECTION_HEADER.headline,
-    summary: TESTIMONIALS_SECTION_HEADER.subtext,
-    accent: "leaf",
-    surface: "light",
-    particleDensity: 0.4,
-    particleTint: "sage",
-  },
-  {
     id: "start",
     slug: "start",
     name: "Pricing",
@@ -159,8 +145,7 @@ export const HOMEPAGE_TRANSITIONS: TransitionPairConfig[] = [
   { from: 2, to: 3, type: "dissolve", durationMs: 800 },
   { from: 3, to: 4, type: "dissolve", durationMs: 800 },
   { from: 4, to: 5, type: "crossfade-hold", durationMs: 600 },
-  { from: 5, to: 6, type: "crossfade-hold", durationMs: 600 },
-  { from: 6, to: 7, type: "scale-fade", durationMs: 700 },
+  { from: 5, to: 6, type: "scale-fade", durationMs: 700 },
 ];
 
 export const getHomepageSectionIndexBySlug = (slug: string) =>

@@ -3,15 +3,17 @@ import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { HomepageImpactHowItWorksSection } from "./HomepageImpactHowItWorksSection";
 import {
-  HOW_IT_WORKS_HEADER,
   HOW_IT_WORKS_SCREENSHOT,
   HOW_IT_WORKS_STEPS,
   IMPACT_SECTION_HEADER,
-  IMPACT_STATS,
 } from "./content/impactHowItWorksContent";
 
+// The original "Real Impact / Why Teams Choose BloomSuite" stats block
+// (40% / 3× / 10K+ / 99.9%) is hidden until verified numbers are
+// available. IMPACT_SECTION_HEADER now drives the Getting Started header
+// above the 3-step onboarding panel ("Up and running in a week.").
 describe("HomepageImpactHowItWorksSection", () => {
-  it("renders the centered impact header and inactive zeroed counters before section entry", () => {
+  it("renders the Getting Started header and no impact stat cards", () => {
     const { container } = render(
       <HomepageImpactHowItWorksSection isActive={false} motionEnabled />,
     );
@@ -22,62 +24,8 @@ describe("HomepageImpactHowItWorksSection", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(IMPACT_SECTION_HEADER.subtext)).toBeInTheDocument();
 
-    const statCards = Array.from(
-      container.querySelectorAll(".hp-impact-stat-card"),
-    );
-    expect(statCards).toHaveLength(IMPACT_STATS.length);
-    for (const [index, stat] of IMPACT_STATS.entries()) {
-      expect(statCards[index]).toHaveAttribute(
-        "data-counter-target",
-        `${stat.value.toLocaleString(undefined, {
-          maximumFractionDigits: stat.decimals ?? 0,
-          minimumFractionDigits: stat.decimals ?? 0,
-        })}${stat.suffix}`,
-      );
-      expect(statCards[index]).toHaveAttribute(
-        "data-counter-duration-ms",
-        "1200",
-      );
-      expect(statCards[index]).toHaveAttribute(
-        "data-counter-delay-ms",
-        String(stat.delayMs),
-      );
-      expect(
-        within(statCards[index] as HTMLElement).getByText(stat.label),
-      ).toBeInTheDocument();
-      expect(
-        within(statCards[index] as HTMLElement).getByText(
-          `${(0).toLocaleString(undefined, {
-            maximumFractionDigits: stat.decimals ?? 0,
-            minimumFractionDigits: stat.decimals ?? 0,
-          })}${stat.suffix}`,
-        ),
-      ).toBeInTheDocument();
-      expect(
-        statCards[index].querySelector(".hp-stat-card__sr-value")?.textContent,
-      ).toBe("");
-    }
-  });
-
-  it("renders final counter values and polite screen-reader announcements in static mode", () => {
-    const { container } = render(
-      <HomepageImpactHowItWorksSection isActive motionEnabled={false} />,
-    );
-
-    const statCards = Array.from(
-      container.querySelectorAll(".hp-impact-stat-card"),
-    );
-
-    for (const [index, stat] of IMPACT_STATS.entries()) {
-      expect(
-        within(statCards[index] as HTMLElement).getByText(
-          stat.screenReaderValue,
-        ),
-      ).toHaveAttribute("aria-live", "polite");
-      expect(
-        within(statCards[index] as HTMLElement).getByText(stat.label),
-      ).toBeInTheDocument();
-    }
+    expect(container.querySelectorAll(".hp-impact-stat-card")).toHaveLength(0);
+    expect(container.querySelector(".hp-impact-stats")).toBeNull();
   });
 
   it("renders the onboarding screenshot placeholder and accepts a real source", () => {
@@ -89,8 +37,6 @@ describe("HomepageImpactHowItWorksSection", () => {
       />,
     );
 
-    expect(screen.getByText(HOW_IT_WORKS_HEADER.headline)).toBeInTheDocument();
-    expect(screen.getByText(HOW_IT_WORKS_HEADER.subtext)).toBeInTheDocument();
     expect(
       screen.getByText(HOW_IT_WORKS_SCREENSHOT.chromeUrl),
     ).toBeInTheDocument();

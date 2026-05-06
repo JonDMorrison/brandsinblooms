@@ -15,10 +15,10 @@ export interface CrmTrustMetricConfig {
 }
 
 export const CRM_SHOWCASE_HEADER = {
-  eyebrow: "YOUR COMMAND CENTER",
-  headline: "A CRM That Actually Works",
+  eyebrow: "Your CRM",
+  headline: "A CRM shaped like a garden centre.",
   subtext:
-    "Every customer, every conversation, every sale — organized and intelligent.",
+    "Built around how plant retail actually works. Seasonal customers, big spring buyers, repeat florist orders, and walk-ins who become regulars.",
 };
 
 export const CRM_SCREENSHOT = {
@@ -29,29 +29,27 @@ export const CRM_SCREENSHOT = {
 export const CRM_CALLOUTS: CrmCalloutConfig[] = [
   {
     icon: Users,
-    title: "360° Customer Profiles",
+    title: "360 customer view",
     description:
-      "Purchase history, preferences, lifecycle stage, and predictive insights — all in one view.",
+      "Every purchase, every email open, every message in one profile. Pulled from your POS, not retyped.",
     delayMs: 500,
   },
   {
     icon: Filter,
-    title: "AI Auto-Segmentation",
+    title: "Smart segmentation",
     description:
-      "Customers grouped by behavior, value, and engagement — automatically, no manual work.",
+      "Spring buyers, dormant customers, big spenders. Segments update as customers behave differently.",
     delayMs: 600,
   },
   {
     icon: Inbox,
-    title: "Every Channel, One Inbox",
+    title: "Unified inbox",
     description:
-      "Email, SMS, social messages, and reviews — all conversations in one place.",
+      "Email, SMS, social messages, and reviews in one place. Reply once, log everywhere.",
     delayMs: 700,
   },
 ];
 
-export const CRM_TRUST_METRICS: CrmTrustMetricConfig[] = [
-  { value: "4.9/5", label: "Average Rating", showStars: true },
-  { value: "99.9%", label: "Uptime SLA" },
-  { value: "< 2 min", label: "Setup Time" },
-];
+// Stats strip (4.9/5, 99.9%, < 2 min) hidden until verified.
+// Keeping the export with an empty array so existing consumers compile.
+export const CRM_TRUST_METRICS: CrmTrustMetricConfig[] = [];
