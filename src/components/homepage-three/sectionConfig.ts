@@ -25,7 +25,13 @@ export interface HomepageSectionConfig {
 export interface HomepageNavItemConfig {
   label: string;
   category: HomepageNavCategory;
+  // In-page section to scroll to when this nav item is clicked.
   targetSlug: string;
+  // Optional react-router route. When set, clicking the nav item navigates
+  // to this route instead of scrolling to the in-page section. Used for
+  // pages that live outside the scroll-locked homepage (e.g. /pricing).
+  // Falls back to in-page scroll when omitted.
+  targetHref?: string;
 }
 
 export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
@@ -136,7 +142,12 @@ export const HOMEPAGE_NAV_ITEMS: HomepageNavItemConfig[] = [
     category: "integrations",
     targetSlug: "integrations",
   },
-  { label: "Pricing", category: "pricing", targetSlug: "start" },
+  {
+    label: "Pricing",
+    category: "pricing",
+    targetSlug: "start",
+    targetHref: "/pricing",
+  },
 ];
 
 export const HOMEPAGE_TRANSITIONS: TransitionPairConfig[] = [
