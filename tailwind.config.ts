@@ -51,11 +51,11 @@ export default {
       },
       colors: {
         ...colors,
-        // Keep Tailwind primary green for storefront and content surfaces.
+        // Keep Tailwind primary brand teal for storefront and content surfaces.
         // Admin and tenant dashboards use the Joy theme primary teal instead.
         primary: {
           ...colors.primary,
-          DEFAULT: "#15803d", // Garden green for blog polish
+          DEFAULT: "#3E7C77", // BloomSuite brand teal (homepage --hp-green-500)
         },
         // Enhanced brand tokens with new BloomSuite palette
         "brand-navy": {
@@ -186,13 +186,13 @@ export default {
             "--tw-prose-body": "#374151",
             "--tw-prose-headings": "#111827",
             "--tw-prose-lead": "#4b5563",
-            "--tw-prose-links": "#15803d",
+            "--tw-prose-links": "#3E7C77",
             "--tw-prose-bold": "#111827",
-            "--tw-prose-counters": "#15803d",
-            "--tw-prose-bullets": "#15803d",
+            "--tw-prose-counters": "#3E7C77",
+            "--tw-prose-bullets": "#3E7C77",
             "--tw-prose-hr": "#e5e7eb",
             "--tw-prose-quotes": "#111827",
-            "--tw-prose-quote-borders": "#15803d",
+            "--tw-prose-quote-borders": "#3E7C77",
             "--tw-prose-captions": "#6b7280",
             "--tw-prose-code": "#111827",
             "--tw-prose-pre-code": "#e5e7eb",
