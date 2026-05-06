@@ -1,23 +1,19 @@
 import React from "react";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
 import IconButton from "@mui/joy/IconButton";
 import Link from "@mui/joy/Link";
 import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { format, formatDistanceToNow } from "date-fns";
-import {
-  Check,
-  CheckCheck,
-  Copy,
-  Download,
-  RefreshCcw,
-  Search,
-} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Check, ChevronRight, Download, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 import type {
+  AIImageStudioAspectRatio,
   AIImageStudioImageResult,
   AIImageStudioStylePreset,
 } from "./types";
@@ -39,6 +35,7 @@ interface AIImageStudioImageActionButtonsProps {
 
 interface AIImageStudioImageResultCardProps {
   activeVariationMessageId?: string;
+  aspectRatio?: AIImageStudioAspectRatio;
   generatedAt: Date;
   image: AIImageStudioImageResult;
   isHighlighted?: boolean;
@@ -64,8 +61,26 @@ function slugify(value: string) {
 
 function buildDownloadFilename(prompt: string) {
   const promptSlug = slugify(prompt) || "ai-generated-image";
-  const timestamp = format(new Date(), "yyyyMMdd-HHmm");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
   return `${promptSlug}-${timestamp}.png`;
+}
+
+async function downloadImageAsset(imageUrl: string, prompt: string) {
+  const response = await fetch(imageUrl);
+
+  if (!response.ok) {
+    throw new Error(`Failed to download image: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = downloadUrl;
+  link.download = buildDownloadFilename(prompt);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(downloadUrl);
 }
 
 function formatStylePreset(stylePreset?: AIImageStudioStylePreset) {
@@ -79,217 +94,137 @@ function formatStylePreset(stylePreset?: AIImageStudioStylePreset) {
 export function AIImageStudioImageActionButtons({
   generatedAt: _generatedAt,
   image,
-  onRegenerate,
   onUseImage,
   prompt,
   tone = "default",
 }: AIImageStudioImageActionButtonsProps) {
   const isMobile = useMediaQuery("(max-width: 767.95px)");
-  const actionSize = isMobile ? "md" : "sm";
-  const minimumTapTarget = isMobile ? 44 : 36;
-  const [copied, setCopied] = React.useState(false);
-  const [useConfirmed, setUseConfirmed] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!copied) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setCopied(false);
-    }, 400);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [copied]);
-
-  React.useEffect(() => {
-    if (!useConfirmed) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setUseConfirmed(false);
-    }, 450);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [useConfirmed]);
+  const [usePending, setUsePending] = React.useState(false);
 
   const handleDownload = React.useCallback(async () => {
     try {
-      const response = await fetch(image.imageUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = buildDownloadFilename(prompt);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(downloadUrl);
+      await downloadImageAsset(image.imageUrl, prompt);
     } catch (error) {
       console.error("Failed to download AI image:", error);
       toast.error("Couldn’t download the image. Try again.");
     }
   }, [image.imageUrl, prompt]);
 
-  const handleCopy = React.useCallback(async () => {
-    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-      toast.error("Clipboard access denied. Try downloading instead.");
+  const handleUseImage = React.useCallback(async () => {
+    if (!onUseImage) {
       return;
     }
 
+    setUsePending(true);
+
     try {
-      const response = await fetch(image.imageUrl);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          [blob.type || image.mimeType || "image/png"]: blob,
-        }),
-      ]);
-      setCopied(true);
-    } catch (error) {
-      console.error("Failed to copy AI image to clipboard:", error);
-      toast.error("Clipboard access denied. Try downloading instead.");
+      await onUseImage();
+    } finally {
+      setUsePending(false);
     }
-  }, [image.imageUrl, image.mimeType]);
-
-  const handleUseImage = React.useCallback(async () => {
-    setUseConfirmed(true);
-    await onUseImage?.();
   }, [onUseImage]);
-
-  const actionButtonSx =
-    tone === "dark"
-      ? {
-          minWidth: minimumTapTarget,
-          minHeight: minimumTapTarget,
-          borderColor: "rgba(255,255,255,0.26)",
-          color: "rgba(255,255,255,0.9)",
-          backgroundColor: "rgba(255,255,255,0.04)",
-          "&:hover": {
-            backgroundColor: "rgba(255,255,255,0.08)",
-            borderColor: "rgba(255,255,255,0.38)",
-          },
-        }
-      : {
-          minWidth: minimumTapTarget,
-          minHeight: minimumTapTarget,
-        };
-
-  const iconAnimationSx = {
-    transition: "transform 200ms ease, opacity 200ms ease",
-    transform: copied || useConfirmed ? "scale(1.08)" : "scale(1)",
-  } as const;
 
   return (
     <Stack
       direction="row"
-      spacing={0.5}
+      spacing={0.75}
       alignItems="center"
-      justifyContent={tone === "dark" ? "center" : "flex-start"}
-      sx={{
-        minHeight: isMobile ? 44 : 36,
-        flexWrap: tone === "dark" ? "wrap" : "nowrap",
-      }}
+      justifyContent={tone === "dark" ? "center" : "flex-end"}
+      sx={{ minHeight: isMobile ? 44 : 36 }}
     >
-      <Tooltip title={useConfirmed ? "Selected" : "Use This Image"}>
-        <IconButton
-          aria-label="Use this image"
-          color={tone === "dark" ? "neutral" : "primary"}
-          onClick={() => {
-            void handleUseImage();
-          }}
-          size={actionSize}
-          sx={actionButtonSx}
-          variant={tone === "dark" ? "outlined" : "soft"}
-        >
-          <Box sx={iconAnimationSx}>
-            {useConfirmed ? (
-              <CheckCheck size={16} strokeWidth={2.2} />
-            ) : (
-              <Check size={16} strokeWidth={2.2} />
-            )}
-          </Box>
-        </IconButton>
-      </Tooltip>
-
       <Tooltip title="Download">
         <IconButton
-          aria-label="Download image"
+          aria-label="Download"
           color="neutral"
           onClick={() => {
             void handleDownload();
           }}
-          size={actionSize}
-          sx={actionButtonSx}
-          variant={tone === "dark" ? "outlined" : "plain"}
+          size="sm"
+          sx={{
+            minHeight: isMobile ? 44 : undefined,
+            minWidth: isMobile ? 44 : undefined,
+            backgroundColor:
+              tone === "dark" ? "rgba(255,255,255,0.08)" : undefined,
+            color: tone === "dark" ? "common.white" : undefined,
+          }}
+          variant={tone === "dark" ? "soft" : "soft"}
         >
           <Download size={16} strokeWidth={2.1} />
         </IconButton>
       </Tooltip>
-
-      <Tooltip title="Regenerate">
-        <IconButton
-          aria-label="Regenerate image"
-          color="neutral"
-          onClick={onRegenerate}
-          size={actionSize}
-          sx={actionButtonSx}
-          variant={tone === "dark" ? "outlined" : "plain"}
-        >
-          <RefreshCcw size={16} strokeWidth={2.1} />
-        </IconButton>
-      </Tooltip>
-
-      <Tooltip
-        open={copied ? true : undefined}
-        title={copied ? "Copied!" : "Copy to Clipboard"}
+      <Button
+        color="primary"
+        loading={usePending}
+        onClick={() => {
+          void handleUseImage();
+        }}
+        size="sm"
+        startDecorator={<Check size={14} strokeWidth={2.2} />}
+        sx={{
+          minHeight: isMobile ? 44 : undefined,
+          ...(tone === "dark"
+            ? {
+                bgcolor: "var(--joy-palette-brandNavy-solidBg)",
+                "&:hover": {
+                  bgcolor: "var(--joy-palette-brandNavy-solidHoverBg)",
+                },
+              }
+            : null),
+        }}
+        variant="solid"
       >
-        <IconButton
-          aria-label="Copy image to clipboard"
-          color="neutral"
-          onClick={() => {
-            void handleCopy();
-          }}
-          size={actionSize}
-          sx={actionButtonSx}
-          variant={tone === "dark" ? "outlined" : "plain"}
-        >
-          <Box sx={iconAnimationSx}>
-            {copied ? (
-              <Check size={16} strokeWidth={2.2} />
-            ) : (
-              <Copy size={16} strokeWidth={2.1} />
-            )}
-          </Box>
-        </IconButton>
-      </Tooltip>
+        Use
+      </Button>
     </Stack>
   );
 }
 
+function resolveAspectRatioValue(
+  image: AIImageStudioImageResult,
+  aspectRatio?: AIImageStudioAspectRatio,
+) {
+  if (image.dimensions?.width && image.dimensions?.height) {
+    return `${image.dimensions.width} / ${image.dimensions.height}`;
+  }
+
+  switch (aspectRatio) {
+    case "16:9":
+      return "16 / 9";
+    case "9:16":
+      return "9 / 16";
+    case "1:1":
+    default:
+      return "1 / 1";
+  }
+}
+
+const thinScrollbarSx = {
+  scrollbarWidth: "thin",
+  scrollbarColor: "var(--joy-palette-neutral-outlinedBorder) transparent",
+  "&::-webkit-scrollbar": {
+    width: "5px",
+    height: "5px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.4)",
+    borderRadius: "10px",
+  },
+  "&::-webkit-scrollbar-thumb:hover": {
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.7)",
+  },
+} as const;
+
 export function AIImageStudioImageResultCard({
   activeVariationMessageId,
+  aspectRatio,
   generatedAt,
   image,
   isHighlighted = false,
   isHistorical = false,
   onPreview,
-  onRegenerate,
   onUseImage,
   onVariationSelect,
   promptForAlt,
@@ -300,8 +235,9 @@ export function AIImageStudioImageResultCard({
 }: AIImageStudioImageResultCardProps) {
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [imageLoaded, setImageLoaded] = React.useState(false);
-  const [showBurst, setShowBurst] = React.useState(false);
+  const [loadFailed, setLoadFailed] = React.useState(false);
   const canHover = useMediaQuery("(hover: hover)");
+  const isMobile = useMediaQuery("(max-width: 767.95px)");
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -309,230 +245,277 @@ export function AIImageStudioImageResultCard({
     height: number;
     width: number;
   } | null>(image.dimensions ?? null);
+  const [usePending, setUsePending] = React.useState(false);
   const formattedStylePreset = formatStylePreset(stylePreset);
   const resolvedDimensions = image.dimensions || naturalDimensions;
   const hasVariations = showVariationStrip && (variationGroup?.length || 0) > 1;
-  const hideActionsUntilHover = isHistorical && canHover;
+  const ratio = resolveAspectRatioValue(image, aspectRatio);
 
   React.useEffect(() => {
     setImageLoaded(false);
-    setShowBurst(false);
+    setLoadFailed(false);
   }, [image.id, image.imageUrl]);
 
-  React.useEffect(() => {
-    if (!showBurst) {
+  const handleDownload = React.useCallback(async () => {
+    try {
+      await downloadImageAsset(
+        image.imageUrl,
+        promptForAlt || promptForDetails,
+      );
+    } catch (error) {
+      console.error("Failed to download AI image:", error);
+      toast.error("Couldn’t download the image. Try again.");
+    }
+  }, [image.imageUrl, promptForAlt, promptForDetails]);
+
+  const handleUseImage = React.useCallback(async () => {
+    if (!onUseImage) {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setShowBurst(false);
-    }, 400);
+    setUsePending(true);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [showBurst]);
+    try {
+      await onUseImage();
+    } finally {
+      setUsePending(false);
+    }
+  }, [onUseImage]);
 
   return (
-    <Stack spacing={0.75}>
+    <Stack spacing={0.875}>
       <Box
         sx={{
-          borderRadius: "8px",
+          borderRadius: "12px",
           overflow: "hidden",
+          backgroundColor: "background.level1",
+          boxShadow: "sm",
           border: "1px solid",
           borderColor: isHighlighted ? "primary.400" : "divider",
-          backgroundColor: "background.level1",
-          animation:
-            isHighlighted && !prefersReducedMotion
-              ? "aiImageStudioVariationPulse 300ms ease-out"
-              : "none",
-          "&:hover .aiImageStudioActionBar, &:focus-within .aiImageStudioActionBar":
-            hideActionsUntilHover
-              ? {
-                  opacity: 1,
-                  visibility: "visible",
-                  transform: "translateY(0)",
-                }
-              : {},
-          "@keyframes aiImageStudioVariationPulse": {
-            from: {
-              boxShadow:
-                "0 0 0 0 rgba(var(--joy-palette-primary-mainChannel) / 0.24)",
-            },
-            to: {
-              boxShadow:
-                "0 0 0 8px rgba(var(--joy-palette-primary-mainChannel) / 0)",
-            },
-          },
         }}
       >
         <Box
-          component="button"
-          onClick={onPreview}
-          type="button"
           sx={{
             position: "relative",
             width: "100%",
-            border: "none",
-            p: 0,
-            m: 0,
-            backgroundColor: "background.level2",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            cursor: "zoom-in",
-            overflow: "hidden",
-            "&:hover .aiImageStudioPreviewOverlay": {
-              opacity: 1,
-            },
-            "&:focus-visible": {
-              outline:
-                "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.32)",
-              outlineOffset: -2,
-            },
+            display: "block",
+            "&:hover .aiImageStudioCardOverlay": canHover
+              ? {
+                  opacity: 1,
+                }
+              : undefined,
+            "&:hover .aiImageStudioCardActions": canHover
+              ? {
+                  opacity: 1,
+                  transform: "translateY(0)",
+                }
+              : undefined,
           }}
         >
-          {!imageLoaded ? (
+          <Box sx={{ position: "relative", width: "100%", aspectRatio: ratio }}>
             <Box
-              aria-hidden="true"
+              component="button"
+              onClick={onPreview}
+              type="button"
               sx={{
                 position: "absolute",
                 inset: 0,
-                background:
-                  "linear-gradient(115deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.08) 10%, rgba(var(--joy-palette-primary-mainChannel) / 0.08) 35%, rgba(var(--joy-palette-neutral-mainChannel) / 0.08) 60%)",
-                backgroundSize: "200% 100%",
-                animation: prefersReducedMotion
+                border: "none",
+                p: 0,
+                m: 0,
+                backgroundColor: "transparent",
+                cursor: "zoom-in",
+                zIndex: 0,
+                "&:focus-visible": {
+                  outline: "2px solid var(--joy-palette-primary-300)",
+                  outlineOffset: -2,
+                },
+              }}
+            />
+
+            {!imageLoaded && !loadFailed ? (
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "background.level1",
+                  transition: "opacity 200ms ease",
+                  opacity: imageLoaded ? 0 : 1,
+                  zIndex: 1,
+                  pointerEvents: "none",
+                }}
+              >
+                <CircularProgress
+                  color="primary"
+                  size="md"
+                  thickness={3}
+                  variant="soft"
+                />
+              </Box>
+            ) : null}
+
+            {loadFailed ? (
+              <Stack
+                spacing={1}
+                alignItems="center"
+                justifyContent="center"
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundColor: "background.level1",
+                  color: "text.tertiary",
+                  zIndex: 1,
+                  pointerEvents: "none",
+                }}
+              >
+                <ImageOff size={32} strokeWidth={1.8} />
+                <Typography level="body-xs" textColor="text.tertiary">
+                  Image failed to load
+                </Typography>
+              </Stack>
+            ) : null}
+
+            <Box
+              component="img"
+              alt={promptForAlt || "AI generated image."}
+              loading="lazy"
+              onError={() => {
+                setLoadFailed(true);
+                setImageLoaded(false);
+              }}
+              onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
+                const target = event.currentTarget;
+
+                if (target.naturalWidth && target.naturalHeight) {
+                  setNaturalDimensions({
+                    width: target.naturalWidth,
+                    height: target.naturalHeight,
+                  });
+                }
+
+                setLoadFailed(false);
+                setImageLoaded(true);
+              }}
+              src={image.imageUrl}
+              sx={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                objectFit: isHistorical ? "contain" : "cover",
+                position: "relative",
+                zIndex: 1,
+                opacity: imageLoaded ? 1 : 0,
+                transform: imageLoaded ? "scale(1)" : "scale(0.98)",
+                transition: prefersReducedMotion
                   ? "none"
-                  : "aiImageStudioCardShimmer 1.4s linear infinite",
-                "@keyframes aiImageStudioCardShimmer": {
-                  from: {
-                    backgroundPosition: "200% 0",
-                  },
-                  to: {
-                    backgroundPosition: "-200% 0",
-                  },
-                },
-              }}
-            />
-          ) : null}
-
-          <Box
-            component="img"
-            alt={promptForAlt || "AI generated image."}
-            onLoad={(event: React.SyntheticEvent<HTMLImageElement>) => {
-              const target = event.currentTarget;
-
-              if (target.naturalWidth && target.naturalHeight) {
-                setNaturalDimensions({
-                  width: target.naturalWidth,
-                  height: target.naturalHeight,
-                });
-              }
-
-              setImageLoaded(true);
-              setShowBurst(!prefersReducedMotion);
-            }}
-            src={image.imageUrl}
-            sx={{
-              display: "block",
-              width: "auto",
-              maxWidth: "100%",
-              height: "auto",
-              maxHeight: isHistorical ? 240 : 360,
-              objectFit: "contain",
-              opacity: imageLoaded ? 1 : 0,
-              transform: imageLoaded ? "scale(1)" : "scale(0.97)",
-              transition: prefersReducedMotion
-                ? "none"
-                : "opacity 600ms ease, transform 600ms ease",
-            }}
-            loading="lazy"
-          />
-
-          {showBurst && !prefersReducedMotion ? (
-            <Box
-              aria-hidden="true"
-              sx={{
-                position: "absolute",
-                inset: -24,
+                  : "opacity 400ms ease, transform 400ms ease",
                 pointerEvents: "none",
-                background:
-                  "radial-gradient(circle, rgba(var(--joy-palette-primary-mainChannel) / 0.08) 0%, rgba(var(--joy-palette-primary-mainChannel) / 0.03) 24%, rgba(var(--joy-palette-primary-mainChannel) / 0) 70%)",
-                animation: "aiImageStudioCardBurst 400ms ease-out forwards",
-                "@keyframes aiImageStudioCardBurst": {
-                  from: {
-                    opacity: 0,
-                    transform: "scale(0.84)",
-                  },
-                  to: {
-                    opacity: 1,
-                    transform: "scale(1.12)",
-                  },
-                },
               }}
             />
-          ) : null}
 
-          <Box
-            className="aiImageStudioPreviewOverlay"
-            sx={{
-              position: "absolute",
-              inset: 0,
-              opacity: 0,
-              transition: prefersReducedMotion ? "none" : "opacity 200ms ease",
-              background:
-                "linear-gradient(transparent 50%, rgba(0,0,0,0.4) 100%)",
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "center",
-              pb: 1.5,
-              pointerEvents: "none",
-            }}
-          >
-            <Box
-              sx={{
-                width: 30,
-                height: 30,
-                borderRadius: "999px",
-                backgroundColor: "rgba(255,255,255,0.14)",
-                color: "common.white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              <Search size={15} strokeWidth={2.2} />
-            </Box>
+            {!isMobile ? (
+              <>
+                <Box
+                  className="aiImageStudioCardOverlay"
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    opacity: 0,
+                    transition: prefersReducedMotion
+                      ? "none"
+                      : "opacity 200ms ease",
+                    background:
+                      "linear-gradient(transparent 60%, rgba(0,0,0,0.35) 100%)",
+                    pointerEvents: "none",
+                    zIndex: 2,
+                  }}
+                />
+                <Stack
+                  className="aiImageStudioCardActions"
+                  direction="row"
+                  spacing={0.75}
+                  sx={{
+                    position: "absolute",
+                    right: 10,
+                    bottom: 10,
+                    opacity: 0,
+                    transform: "translateY(6px)",
+                    transition: prefersReducedMotion
+                      ? "none"
+                      : "opacity 150ms ease, transform 150ms ease",
+                    zIndex: 3,
+                  }}
+                >
+                  <Tooltip title="Download">
+                    <IconButton
+                      aria-label="Download"
+                      color="neutral"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void handleDownload();
+                      }}
+                      size="sm"
+                      variant="soft"
+                    >
+                      <Download size={16} strokeWidth={2.1} />
+                    </IconButton>
+                  </Tooltip>
+                  <Button
+                    color="primary"
+                    loading={usePending}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleUseImage();
+                    }}
+                    size="sm"
+                    startDecorator={<Check size={14} strokeWidth={2.2} />}
+                    variant="solid"
+                  >
+                    Use
+                  </Button>
+                </Stack>
+              </>
+            ) : null}
           </Box>
         </Box>
 
-        <Box
-          className="aiImageStudioActionBar"
-          sx={{
-            borderTop: "1px solid",
-            borderColor: "divider",
-            backgroundColor: "background.level1",
-            px: 0.5,
-            py: 0.25,
-            opacity: hideActionsUntilHover ? 0 : 1,
-            visibility: hideActionsUntilHover ? "hidden" : "visible",
-            transform: hideActionsUntilHover
-              ? "translateY(6px)"
-              : "translateY(0)",
-            transition: prefersReducedMotion
-              ? "none"
-              : "opacity 180ms ease, transform 180ms ease, visibility 180ms ease",
-          }}
-        >
-          <AIImageStudioImageActionButtons
-            generatedAt={generatedAt}
-            image={image}
-            onRegenerate={onRegenerate}
-            onUseImage={onUseImage}
-            prompt={promptForAlt || promptForDetails}
-          />
-        </Box>
+        {isMobile ? (
+          <Stack
+            direction="row"
+            spacing={1}
+            justifyContent="flex-end"
+            sx={{ px: 1, py: 1, backgroundColor: "background.surface" }}
+          >
+            <IconButton
+              aria-label="Download"
+              color="neutral"
+              onClick={() => {
+                void handleDownload();
+              }}
+              size="sm"
+              sx={{ minHeight: 44, minWidth: 44 }}
+              variant="soft"
+            >
+              <Download size={16} strokeWidth={2.1} />
+            </IconButton>
+            <Button
+              color="primary"
+              loading={usePending}
+              onClick={() => {
+                void handleUseImage();
+              }}
+              size="sm"
+              startDecorator={<Check size={14} strokeWidth={2.2} />}
+              sx={{ minHeight: 44 }}
+              variant="solid"
+            >
+              Use
+            </Button>
+          </Stack>
+        ) : null}
       </Box>
 
       <Box>
@@ -544,9 +527,21 @@ export function AIImageStudioImageResultCard({
             typography: "body-xs",
             textDecoration: "none",
             cursor: "pointer",
+            color: "text.tertiary",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.5,
           }}
           underline="none"
         >
+          <ChevronRight
+            size={12}
+            strokeWidth={2.1}
+            style={{
+              transform: detailsOpen ? "rotate(90deg)" : "rotate(0deg)",
+              transition: "transform 200ms ease",
+            }}
+          />
           Details
         </Link>
 
@@ -560,10 +555,18 @@ export function AIImageStudioImageResultCard({
             transform: detailsOpen ? "translateY(0)" : "translateY(-4px)",
           }}
         >
-          <Stack spacing={1} sx={{ pt: 0.75 }}>
+          <Stack
+            spacing={1}
+            sx={{
+              pt: 0.875,
+              pl: "12px",
+              borderLeft: "2px solid",
+              borderColor: "divider",
+            }}
+          >
             <Typography
               level="body-xs"
-              textColor="text.secondary"
+              textColor="text.tertiary"
               sx={{ whiteSpace: "pre-wrap" }}
             >
               <Typography
@@ -643,13 +646,7 @@ export function AIImageStudioImageResultCard({
           <Stack
             direction="row"
             spacing={0.75}
-            sx={{
-              overflowX: "auto",
-              scrollbarWidth: "thin",
-              "&::-webkit-scrollbar": {
-                height: 6,
-              },
-            }}
+            sx={{ overflowX: "auto", ...thinScrollbarSx }}
           >
             {variationGroup?.map((variation) => (
               <Box

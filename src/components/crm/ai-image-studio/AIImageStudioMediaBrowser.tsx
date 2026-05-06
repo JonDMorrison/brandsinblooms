@@ -1,31 +1,24 @@
 import React from "react";
-import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import Chip from "@mui/joy/Chip";
 import CircularProgress from "@mui/joy/CircularProgress";
 import FormHelperText from "@mui/joy/FormHelperText";
-import IconButton from "@mui/joy/IconButton";
 import Input from "@mui/joy/Input";
+import Link from "@mui/joy/Link";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { useContentAssets } from "@/hooks/useContentAssets";
-import { useUnsplash } from "@/hooks/useUnsplash";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  generateAttributionText,
-  prepareUnsplashAssetFile,
-} from "@/services/unsplashDownloadService";
-import { extractImageSummary } from "@/utils/imageContentSummary";
 import { toast } from "sonner";
 import {
-  Check,
+  Image as ImageIcon,
   ImagePlus,
   Images,
-  RefreshCw,
   Search,
   Sparkles,
+  Upload,
   UploadCloud,
 } from "lucide-react";
 import type {
@@ -46,19 +39,8 @@ interface AIImageStudioMediaBrowserProps {
     imageUrl: string,
     metadata: AIImageStudioSelectionMetadata,
   ) => void | Promise<void>;
+  onTabChange?: (tab: AIImageStudioTab) => void;
   paddingX: number;
-}
-
-interface UnsplashBrowserImage {
-  alt: string;
-  download_location?: string;
-  download_url?: string;
-  id: string;
-  photographer: string;
-  photographer_url?: string;
-  thumb?: string;
-  thumb_url?: string;
-  url: string;
 }
 
 interface AIImageLibraryRow {
@@ -77,7 +59,6 @@ interface AIImageLibraryRow {
     storage_path: string;
   } | null;
   global_image_id: string;
-  user_prompt: string;
 }
 
 type MediaLibraryItemSource = "content_asset" | "global_image_gallery";
@@ -98,17 +79,61 @@ interface MediaLibraryItem {
   thumbnailUrl: string;
 }
 
-function aspectRatioToValue(aspectRatio?: AIImageStudioAspectRatio) {
-  switch (aspectRatio) {
-    case "16:9":
-      return "16 / 9";
-    case "9:16":
-      return "9 / 16";
-    case "1:1":
-    default:
-      return "1 / 1";
-  }
-}
+const thinScrollbarSx = {
+  scrollbarWidth: "thin",
+  scrollbarColor: "var(--joy-palette-neutral-outlinedBorder) transparent",
+  "&::-webkit-scrollbar": {
+    width: "5px",
+    height: "5px",
+  },
+  "&::-webkit-scrollbar-track": {
+    backgroundColor: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.4)",
+    borderRadius: "10px",
+  },
+  "&::-webkit-scrollbar-thumb:hover": {
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.7)",
+  },
+} as const;
+
+const galleryGridSx = {
+  display: "grid",
+  gap: "10px",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+} as const;
+
+const mediaPanelAnimationSx = {
+  "@keyframes aiImageStudioGalleryShimmer": {
+    from: {
+      backgroundPosition: "200% 0",
+    },
+    to: {
+      backgroundPosition: "-200% 0",
+    },
+  },
+  "@keyframes aiImageStudioGalleryCardEnter": {
+    from: {
+      opacity: 0,
+      transform: "translateY(8px)",
+    },
+    to: {
+      opacity: 1,
+      transform: "translateY(0)",
+    },
+  },
+  "@keyframes aiImageStudioPreviewEnter": {
+    from: {
+      opacity: 0,
+      transform: "scale(0.95)",
+    },
+    to: {
+      opacity: 1,
+      transform: "scale(1)",
+    },
+  },
+} as const;
 
 function parseDimensions(
   input: unknown,
@@ -186,198 +211,571 @@ function mergeUniqueLibraryItems(items: MediaLibraryItem[]) {
   });
 }
 
-function MediaCard({
-  actionLabel = "Use image",
-  aspectRatio,
-  isBusy,
-  item,
-  onClick,
-  sourceLabel,
-}: {
-  actionLabel?: string;
-  aspectRatio?: AIImageStudioAspectRatio;
-  isBusy: boolean;
-  item: {
-    altText?: string;
-    byline?: string;
-    createdAt?: string;
-    displayTitle: string;
-    id: string;
-    subtitle: string;
-    thumbnailUrl: string;
-  };
-  onClick: () => void;
-  sourceLabel: string;
-}) {
+function formatMediaDate(createdAt?: string) {
+  if (!createdAt) {
+    return "";
+  }
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getMediaSourceLabel(source: MediaLibraryItemSource) {
+  return source === "global_image_gallery" ? "AI-generated" : "Uploaded";
+}
+
+function getMediaTitle(
+  item: Pick<MediaLibraryItem, "altText" | "displayTitle" | "prompt">,
+) {
+  return item.displayTitle || item.prompt || item.altText || "Image";
+}
+
+function MediaCardSkeleton() {
   return (
-    <Button
-      color="neutral"
-      disabled={isBusy}
-      onClick={onClick}
+    <Box
       sx={{
-        p: 0,
+        aspectRatio: "1 / 1",
+        borderRadius: "12px",
+        bgcolor: "background.level1",
         overflow: "hidden",
-        borderRadius: "20px",
-        display: "block",
-        textAlign: "left",
-        backgroundColor: "transparent",
+        position: "relative",
         border: "1px solid",
-        borderColor: "divider",
-        transition:
-          "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
-        "&:hover": {
-          transform: "translateY(-2px)",
-          boxShadow: "md",
-          borderColor: "primary.300",
-          backgroundColor: "transparent",
+        borderColor: "neutral.100",
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent)",
+          backgroundSize: "200% 100%",
+          animation: "aiImageStudioGalleryShimmer 1.4s ease-in-out infinite",
         },
       }}
-      variant="plain"
-    >
-      <Sheet
-        sx={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "background.surface",
-        }}
-      >
-        <AspectRatio ratio={aspectRatioToValue(aspectRatio)}>
-          <Box sx={{ position: "relative", height: "100%" }}>
-            <img
-              alt={item.altText || item.displayTitle}
-              loading="lazy"
-              src={item.thumbnailUrl}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
-
-            <Stack
-              direction="row"
-              spacing={0.75}
-              sx={{ position: "absolute", top: 10, left: 10, right: 10 }}
-            >
-              <Chip color="neutral" size="sm" variant="soft">
-                {sourceLabel}
-              </Chip>
-              {item.createdAt ? (
-                <Chip color="neutral" size="sm" variant="soft">
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Chip>
-              ) : null}
-            </Stack>
-
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(7, 11, 8, 0.02) 20%, rgba(7, 11, 8, 0.64) 100%)",
-              }}
-            />
-
-            <Stack
-              spacing={0.75}
-              sx={{
-                position: "absolute",
-                left: 12,
-                right: 12,
-                bottom: 12,
-                color: "common.white",
-              }}
-            >
-              <Typography level="title-sm" sx={{ color: "common.white" }}>
-                {item.displayTitle}
-              </Typography>
-              <Typography
-                level="body-xs"
-                sx={{ color: "rgba(255,255,255,0.82)" }}
-              >
-                {item.subtitle}
-              </Typography>
-              {item.byline ? (
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "rgba(255,255,255,0.68)" }}
-                >
-                  {item.byline}
-                </Typography>
-              ) : null}
-            </Stack>
-          </Box>
-        </AspectRatio>
-
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{ px: 1.25, py: 1 }}
-        >
-          <Typography level="body-xs" textColor="text.tertiary">
-            {actionLabel}
-          </Typography>
-          {isBusy ? (
-            <CircularProgress size="sm" thickness={3} />
-          ) : (
-            <IconButton color="primary" size="sm" variant="soft">
-              <Check size={15} strokeWidth={2.2} />
-            </IconButton>
-          )}
-        </Stack>
-      </Sheet>
-    </Button>
+    />
   );
 }
 
-function EmptyState({
-  description,
-  icon,
-  title,
+function MediaCard({
+  isBusy,
+  isMobile,
+  isRevealed,
+  item,
+  onPreview,
+  onReveal,
+  onUse,
 }: {
-  description: string;
-  icon: React.ReactNode;
-  title: string;
+  isBusy: boolean;
+  isMobile: boolean;
+  isRevealed: boolean;
+  item: MediaLibraryItem;
+  onPreview: () => void;
+  onReveal: () => void;
+  onUse: () => void;
+}) {
+  const [imageLoaded, setImageLoaded] = React.useState(false);
+  const [loadFailed, setLoadFailed] = React.useState(false);
+  const isAiGenerated = item.source === "global_image_gallery";
+  const title = getMediaTitle(item);
+  const dateLabel = formatMediaDate(item.createdAt);
+  const overlayVisible = isMobile && isRevealed;
+
+  React.useEffect(() => {
+    setImageLoaded(false);
+    setLoadFailed(false);
+  }, [item.thumbnailUrl]);
+
+  const handlePreviewClick = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+
+      if (isMobile && !isRevealed) {
+        onReveal();
+        return;
+      }
+
+      onPreview();
+    },
+    [isMobile, isRevealed, onPreview, onReveal],
+  );
+
+  return (
+    <Box
+      data-ai-gallery-card="true"
+      sx={{
+        aspectRatio: "1 / 1",
+        borderRadius: "12px",
+        overflow: "hidden",
+        position: "relative",
+        cursor: "pointer",
+        border: "1px solid",
+        borderColor: "neutral.100",
+        bgcolor: "background.level1",
+        animation: "aiImageStudioGalleryCardEnter 300ms ease both",
+        "&:hover .ai-gallery-card-overlay": !isMobile
+          ? {
+              opacity: 1,
+            }
+          : undefined,
+        "&:hover .ai-gallery-card-image": !isMobile
+          ? {
+              transform: "scale(1.04)",
+            }
+          : undefined,
+        "&:hover .ai-gallery-card-use": !isMobile
+          ? {
+              opacity: 1,
+              pointerEvents: "auto",
+              transform: "translateY(0)",
+            }
+          : undefined,
+      }}
+    >
+      {!imageLoaded && !loadFailed ? (
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "background.level1",
+            zIndex: 1,
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent)",
+              backgroundSize: "200% 100%",
+              animation:
+                "aiImageStudioGalleryShimmer 1.4s ease-in-out infinite",
+            },
+          }}
+        />
+      ) : null}
+
+      {loadFailed ? (
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "background.level2",
+            color: "text.tertiary",
+            opacity: 0.3,
+            zIndex: 1,
+          }}
+        >
+          <ImageIcon size={24} strokeWidth={1.8} />
+        </Stack>
+      ) : null}
+
+      <Box
+        component="img"
+        alt={item.altText || title}
+        className="ai-gallery-card-image"
+        loading="lazy"
+        onError={() => {
+          setLoadFailed(true);
+          setImageLoaded(false);
+        }}
+        onLoad={() => {
+          setLoadFailed(false);
+          setImageLoaded(true);
+        }}
+        src={item.thumbnailUrl}
+        sx={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          display: "block",
+          opacity: imageLoaded && !loadFailed ? 1 : 0,
+          transform: overlayVisible ? "scale(1.04)" : "scale(1)",
+          transition: "opacity 300ms ease, transform 0.4s ease",
+        }}
+      />
+
+      <Box
+        component="button"
+        aria-label={`Preview ${title}`}
+        onClick={handlePreviewClick}
+        type="button"
+        sx={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 2,
+          border: "none",
+          bgcolor: "transparent",
+          p: 0,
+          cursor: "pointer",
+          "&:focus-visible": {
+            outline: "2px solid var(--joy-palette-primary-300)",
+            outlineOffset: -2,
+          },
+        }}
+      />
+
+      <Box
+        aria-label={getMediaSourceLabel(item.source)}
+        sx={{
+          position: "absolute",
+          top: 8,
+          left: 8,
+          width: 22,
+          height: 22,
+          borderRadius: "6px",
+          bgcolor: "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: isAiGenerated ? "primary.500" : "text.secondary",
+          zIndex: 4,
+          pointerEvents: "none",
+        }}
+      >
+        {isAiGenerated ? (
+          <Sparkles size={12} strokeWidth={2} />
+        ) : (
+          <Upload size={12} strokeWidth={2} />
+        )}
+      </Box>
+
+      <Box
+        className="ai-gallery-card-overlay"
+        sx={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 3,
+          opacity: overlayVisible ? 1 : 0,
+          pointerEvents: "none",
+          transition: "opacity 200ms ease",
+          background:
+            "linear-gradient(0deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)",
+        }}
+      >
+        <Stack
+          direction="row"
+          alignItems="flex-end"
+          justifyContent="space-between"
+          spacing={1}
+          sx={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            p: "10px 12px",
+          }}
+        >
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              sx={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "common.white",
+                lineHeight: 1.3,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {title}
+            </Typography>
+            {dateLabel ? (
+              <Typography
+                sx={{
+                  fontSize: "11px",
+                  fontWeight: 400,
+                  color: "common.white",
+                  lineHeight: 1.3,
+                  opacity: 0.65,
+                  mt: "2px",
+                }}
+              >
+                {dateLabel}
+              </Typography>
+            ) : null}
+          </Box>
+
+          <Button
+            className="ai-gallery-card-use"
+            color="primary"
+            loading={isBusy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onUse();
+            }}
+            size="sm"
+            sx={{
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: 600,
+              px: "14px",
+              py: "5px",
+              minHeight: isMobile ? 44 : 28,
+              boxShadow: "sm",
+              opacity: overlayVisible ? 1 : 0,
+              transform: overlayVisible ? "translateY(0)" : "translateY(4px)",
+              transition: "opacity 200ms ease, transform 200ms ease",
+              pointerEvents: overlayVisible ? "auto" : "none",
+              flexShrink: 0,
+            }}
+            variant="solid"
+          >
+            Use
+          </Button>
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
+
+function MediaPreviewLightbox({
+  isBusy,
+  item,
+  onClose,
+  onUse,
+}: {
+  isBusy: boolean;
+  item: MediaLibraryItem;
+  onClose: () => void;
+  onUse: () => void;
+}) {
+  const title = getMediaTitle(item);
+  const dateLabel = formatMediaDate(item.createdAt);
+  const sourceLabel = getMediaSourceLabel(item.source);
+
+  return (
+    <Box
+      onClick={onClose}
+      sx={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 10,
+        bgcolor: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 3,
+      }}
+    >
+      <Stack
+        alignItems="center"
+        spacing={2}
+        onClick={(event) => event.stopPropagation()}
+        sx={{
+          width: "100%",
+          height: "100%",
+          maxWidth: 560,
+          minHeight: 0,
+          animation: "aiImageStudioPreviewEnter 250ms ease-out both",
+        }}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box
+            component="img"
+            alt={item.altText || title}
+            src={item.imageUrl}
+            sx={{
+              display: "block",
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+              borderRadius: "12px",
+              boxShadow: "xl",
+            }}
+          />
+        </Box>
+
+        <Stack
+          spacing={0.5}
+          alignItems="center"
+          textAlign="center"
+          sx={{ maxWidth: 520 }}
+        >
+          <Typography
+            sx={{
+              fontSize: "13px",
+              color: "common.white",
+              opacity: 0.85,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {title}
+          </Typography>
+          <Typography
+            sx={{ fontSize: "13px", color: "common.white", opacity: 0.75 }}
+          >
+            {[dateLabel, sourceLabel].filter(Boolean).join(" · ")}
+          </Typography>
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1.25}
+          justifyContent="center"
+          useFlexGap
+          flexWrap="wrap"
+        >
+          <Button
+            color="primary"
+            loading={isBusy}
+            onClick={() => onUse()}
+            size="md"
+            variant="solid"
+          >
+            Use This Image
+          </Button>
+          <Button
+            color="neutral"
+            onClick={onClose}
+            size="md"
+            sx={{
+              borderColor: "rgba(255,255,255,0.3)",
+              color: "common.white",
+              "&:hover": {
+                borderColor: "rgba(255,255,255,0.48)",
+                bgcolor: "rgba(255,255,255,0.08)",
+              },
+            }}
+            variant="outlined"
+          >
+            Close
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+function LibraryEmptyState({
+  onGenerate,
+  onUpload,
+}: {
+  onGenerate: () => void;
+  onUpload: () => void;
 }) {
   return (
-    <Sheet
+    <Box
       sx={{
-        borderRadius: "24px",
-        border: "1px dashed",
-        borderColor: "divider",
-        backgroundColor: "background.level1",
-        py: 6,
-        px: 3,
+        minHeight: 360,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
       }}
-      variant="soft"
     >
-      <Stack spacing={1.25} alignItems="center" textAlign="center">
-        <Box sx={{ color: "primary.500", display: "inline-flex" }}>{icon}</Box>
-        <Typography level="title-sm">{title}</Typography>
-        <Typography level="body-sm" textColor="text.tertiary">
-          {description}
+      <Stack spacing={0.5} alignItems="center">
+        <Box
+          sx={{ color: "text.tertiary", opacity: 0.25, display: "inline-flex" }}
+        >
+          <Images size={48} strokeWidth={1.6} />
+        </Box>
+        <Typography
+          sx={{
+            fontSize: "15px",
+            fontWeight: 500,
+            color: "text.secondary",
+            mt: "12px",
+          }}
+        >
+          No images yet
         </Typography>
+        <Typography
+          sx={{ fontSize: "13px", color: "text.tertiary", mt: "4px" }}
+        >
+          Generate your first image or upload one
+        </Typography>
+        <Stack
+          direction="row"
+          spacing="10px"
+          justifyContent="center"
+          sx={{ mt: "16px" }}
+        >
+          <Button
+            color="primary"
+            onClick={onGenerate}
+            size="sm"
+            startDecorator={<Sparkles size={14} strokeWidth={2} />}
+            variant="solid"
+          >
+            Generate with AI
+          </Button>
+          <Button
+            color="neutral"
+            onClick={onUpload}
+            size="sm"
+            startDecorator={<Upload size={14} strokeWidth={2} />}
+            variant="outlined"
+          >
+            Upload
+          </Button>
+        </Stack>
       </Stack>
-    </Sheet>
+    </Box>
+  );
+}
+
+function SearchEmptyState({ onClearSearch }: { onClearSearch: () => void }) {
+  return (
+    <Box
+      sx={{
+        minHeight: 320,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+      }}
+    >
+      <Stack spacing={0.75} alignItems="center">
+        <Box
+          sx={{ color: "text.tertiary", opacity: 0.3, display: "inline-flex" }}
+        >
+          <Search size={32} strokeWidth={1.8} />
+        </Box>
+        <Typography sx={{ fontSize: "14px", color: "text.secondary" }}>
+          No images match your search
+        </Typography>
+        <Link
+          component="button"
+          level="body-sm"
+          color="primary"
+          onClick={onClearSearch}
+          underline="none"
+        >
+          Clear search
+        </Link>
+      </Stack>
+    </Box>
   );
 }
 
 export function AIImageStudioMediaBrowser({
   activeTab,
-  aspectRatioHint,
-  contentContext = "",
   onSelect,
+  onTabChange,
   paddingX,
 }: AIImageStudioMediaBrowserProps) {
+  const isMobile = useMediaQuery("(max-width: 767.95px)");
   const { assets, loading: isAssetsLoading, uploadAsset } = useContentAssets();
-  const {
-    getCuratedCollectionImages,
-    loading: isUnsplashLoading,
-    searchImages,
-  } = useUnsplash();
   const [libraryAiItems, setLibraryAiItems] = React.useState<
     MediaLibraryItem[]
   >([]);
@@ -388,15 +786,16 @@ export function AIImageStudioMediaBrowser({
     React.useState(LIBRARY_PAGE_SIZE);
   const [librarySearchInput, setLibrarySearchInput] = React.useState("");
   const [librarySearch, setLibrarySearch] = React.useState("");
-  const [unsplashQueryInput, setUnsplashQueryInput] = React.useState("");
-  const [unsplashQuery, setUnsplashQuery] = React.useState("");
-  const [unsplashResults, setUnsplashResults] = React.useState<
-    UnsplashBrowserImage[]
-  >([]);
   const [uploadHover, setUploadHover] = React.useState(false);
   const [activeSelectionId, setActiveSelectionId] = React.useState<
     string | null
   >(null);
+  const [revealedCardId, setRevealedCardId] = React.useState<string | null>(
+    null,
+  );
+  const [previewItem, setPreviewItem] = React.useState<MediaLibraryItem | null>(
+    null,
+  );
   const librarySentinelRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const uploadInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -410,16 +809,6 @@ export function AIImageStudioMediaBrowser({
       window.clearTimeout(timeoutId);
     };
   }, [librarySearchInput]);
-
-  React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setUnsplashQuery(unsplashQueryInput.trim());
-    }, 260);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [unsplashQueryInput]);
 
   const loadLibraryPage = React.useCallback(
     async (nextPage: number) => {
@@ -553,51 +942,6 @@ export function AIImageStudioMediaBrowser({
     void loadLibraryPage(1);
   }, [activeTab, libraryPage, loadLibraryPage]);
 
-  React.useEffect(() => {
-    if (activeTab !== "unsplash") {
-      return;
-    }
-
-    let isCancelled = false;
-
-    const loadUnsplashResults = async () => {
-      try {
-        const initialQuery =
-          unsplashQuery || extractImageSummary(contentContext);
-        const images = unsplashQuery
-          ? await searchImages(unsplashQuery, true)
-          : initialQuery
-            ? await searchImages(initialQuery, true)
-            : await getCuratedCollectionImages(1);
-
-        if (isCancelled) {
-          return;
-        }
-
-        setUnsplashResults(images as UnsplashBrowserImage[]);
-
-        if (!unsplashQueryInput && initialQuery) {
-          setUnsplashQueryInput(initialQuery);
-        }
-      } catch (error) {
-        console.error("Failed to load Unsplash images:", error);
-      }
-    };
-
-    void loadUnsplashResults();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    activeTab,
-    contentContext,
-    getCuratedCollectionImages,
-    searchImages,
-    unsplashQuery,
-    unsplashQueryInput,
-  ]);
-
   const uploadItems = React.useMemo<MediaLibraryItem[]>(() => {
     return assets.map((asset) => ({
       id: `asset-${asset.id}`,
@@ -679,7 +1023,31 @@ export function AIImageStudioMediaBrowser({
 
   React.useEffect(() => {
     setVisibleLibraryCount(LIBRARY_PAGE_SIZE);
+    setRevealedCardId(null);
   }, [librarySearch]);
+
+  React.useEffect(() => {
+    setRevealedCardId(null);
+    setPreviewItem(null);
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    if (!previewItem) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPreviewItem(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewItem]);
 
   React.useEffect(() => {
     if (
@@ -746,60 +1114,95 @@ export function AIImageStudioMediaBrowser({
     [onSelect, uploadAsset],
   );
 
-  const handleUnsplashSelect = React.useCallback(
-    async (image: UnsplashBrowserImage) => {
-      setActiveSelectionId(`unsplash-${image.id}`);
+  const handlePanelClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isMobile) {
+        return;
+      }
 
-      try {
-        const file = await prepareUnsplashAssetFile({
-          imageUrl: image.download_url || image.url,
-          photographer: image.photographer,
-          photographerUrl: image.photographer_url,
-          unsplashId: image.id,
-          downloadLocation: image.download_location,
-        });
-
-        const asset = await uploadAsset(file, ["unsplash", image.photographer]);
-        if (!asset?.url) {
-          throw new Error("Failed to store Unsplash image.");
-        }
-
-        await onSelect(asset.url, {
-          altText: image.alt,
-          attribution: generateAttributionText(
-            image.photographer,
-            image.photographer_url,
-            "copy",
-          ),
-          dimensions: parseDimensions(asset.dimensions),
-          photographer: image.photographer,
-          photographerUrl: image.photographer_url,
-          source: "unsplash",
-          unsplashId: image.id,
-        });
-      } catch (error) {
-        console.error("Unsplash selection failed:", error);
-        toast.error("Couldn’t save that Unsplash image.");
-      } finally {
-        setActiveSelectionId(null);
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        !target.closest("[data-ai-gallery-card='true']")
+      ) {
+        setRevealedCardId(null);
       }
     },
-    [onSelect, uploadAsset],
+    [isMobile],
   );
+
+  const clearLibrarySearch = React.useCallback(() => {
+    setLibrarySearchInput("");
+    setLibrarySearch("");
+  }, []);
+
+  const renderMediaCard = React.useCallback(
+    (item: MediaLibraryItem) => (
+      <MediaCard
+        key={item.id}
+        isBusy={activeSelectionId === item.id}
+        isMobile={isMobile}
+        isRevealed={revealedCardId === item.id}
+        item={item}
+        onPreview={() => setPreviewItem(item)}
+        onReveal={() => setRevealedCardId(item.id)}
+        onUse={() => {
+          setRevealedCardId(null);
+          void handleSelectExisting(item);
+        }}
+      />
+    ),
+    [activeSelectionId, handleSelectExisting, isMobile, revealedCardId],
+  );
+
+  const previewOverlay = previewItem ? (
+    <MediaPreviewLightbox
+      isBusy={activeSelectionId === previewItem.id}
+      item={previewItem}
+      onClose={() => setPreviewItem(null)}
+      onUse={() => {
+        const item = previewItem;
+        setPreviewItem(null);
+        setRevealedCardId(null);
+        void handleSelectExisting(item);
+      }}
+    />
+  ) : null;
+
+  const isInitialLibraryLoading =
+    !librarySearch &&
+    visibleLibraryItems.length === 0 &&
+    (isAssetsLoading || libraryPage === 0 || isLibraryLoading);
+  const hasSearchResultsEmptyState =
+    !!librarySearch &&
+    filteredLibraryItems.length === 0 &&
+    !isInitialLibraryLoading;
+  const hasLibraryEmptyState =
+    !librarySearch &&
+    filteredLibraryItems.length === 0 &&
+    !isInitialLibraryLoading;
 
   if (activeTab === "my-images") {
     return (
       <Box
         ref={panelRef}
+        data-ai-image-studio-scroll-container="true"
+        onClick={handlePanelClick}
         sx={{
           flex: 1,
           minHeight: 0,
-          overflowY: "auto",
+          overflowY: previewItem ? "hidden" : "auto",
+          overscrollBehaviorY: "contain",
+          bgcolor: "background.body",
           px: paddingX,
           py: 2,
+          position: "relative",
+          WebkitOverflowScrolling: "touch",
+          ...thinScrollbarSx,
+          ...mediaPanelAnimationSx,
         }}
       >
-        <Stack spacing={2}>
+        <Stack spacing={2} sx={{ minHeight: "100%" }}>
           <Input
             placeholder="Search images, prompts, or file names..."
             startDecorator={<Search size={16} />}
@@ -807,142 +1210,37 @@ export function AIImageStudioMediaBrowser({
             onChange={(event) => setLibrarySearchInput(event.target.value)}
           />
 
-          {isAssetsLoading && libraryAiItems.length === 0 ? (
-            <Stack alignItems="center" justifyContent="center" sx={{ py: 6 }}>
-              <CircularProgress size="sm" thickness={3} />
-            </Stack>
-          ) : visibleLibraryItems.length === 0 ? (
-            <EmptyState
-              description="Generated images and uploads will appear here together once they land in your library."
-              icon={<Images size={26} strokeWidth={1.9} />}
-              title="No images yet"
+          {isInitialLibraryLoading ? (
+            <Box sx={galleryGridSx}>
+              {Array.from({ length: 6 }).map((_, index) => (
+                <MediaCardSkeleton key={index} />
+              ))}
+            </Box>
+          ) : hasSearchResultsEmptyState ? (
+            <SearchEmptyState onClearSearch={clearLibrarySearch} />
+          ) : hasLibraryEmptyState ? (
+            <LibraryEmptyState
+              onGenerate={() => onTabChange?.("ai")}
+              onUpload={() => onTabChange?.("upload")}
             />
           ) : (
             <>
-              <Box
-                sx={{
-                  display: "grid",
-                  gap: 1.5,
-                  gridTemplateColumns: {
-                    xs: "repeat(2, minmax(0, 1fr))",
-                    sm: "repeat(3, minmax(0, 1fr))",
-                  },
-                }}
-              >
-                {visibleLibraryItems.map((item) => (
-                  <MediaCard
-                    key={item.id}
-                    aspectRatio={aspectRatioHint}
-                    isBusy={activeSelectionId === item.id}
-                    item={item}
-                    onClick={() => {
-                      void handleSelectExisting(item);
-                    }}
-                    sourceLabel={
-                      item.source === "content_asset" ? "Upload" : "AI"
-                    }
-                  />
-                ))}
+              <Box sx={galleryGridSx}>
+                {visibleLibraryItems.map((item) => renderMediaCard(item))}
               </Box>
 
-              <Box ref={librarySentinelRef} sx={{ height: 24 }} />
+              <Box ref={librarySentinelRef} sx={{ height: 1 }} />
 
               {isLibraryLoading ? (
-                <Stack alignItems="center" sx={{ py: 1.5 }}>
-                  <CircularProgress size="sm" thickness={3} />
+                <Stack alignItems="center" sx={{ my: "16px" }}>
+                  <CircularProgress color="neutral" size="sm" variant="soft" />
                 </Stack>
               ) : null}
             </>
           )}
         </Stack>
-      </Box>
-    );
-  }
 
-  if (activeTab === "unsplash") {
-    return (
-      <Box
-        ref={panelRef}
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          px: paddingX,
-          py: 2,
-        }}
-      >
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1}>
-            <Input
-              placeholder="Search Unsplash…"
-              startDecorator={<Search size={16} />}
-              sx={{ flex: 1 }}
-              value={unsplashQueryInput}
-              onChange={(event) => setUnsplashQueryInput(event.target.value)}
-            />
-            <IconButton
-              aria-label="Refresh Unsplash results"
-              color="neutral"
-              onClick={() => {
-                setUnsplashQueryInput("");
-                setUnsplashQuery("");
-              }}
-              size="sm"
-              variant="plain"
-            >
-              <RefreshCw size={16} strokeWidth={1.9} />
-            </IconButton>
-          </Stack>
-
-          <Typography level="body-sm" textColor="text.tertiary">
-            Selecting an Unsplash image saves a stable copy into your library
-            before it is used.
-          </Typography>
-
-          {isUnsplashLoading && unsplashResults.length === 0 ? (
-            <Stack alignItems="center" justifyContent="center" sx={{ py: 6 }}>
-              <CircularProgress size="sm" thickness={3} />
-            </Stack>
-          ) : unsplashResults.length === 0 ? (
-            <EmptyState
-              description="Try a broader subject or a seasonal phrase to surface editorial-quality photography."
-              icon={<Sparkles size={26} strokeWidth={1.9} />}
-              title="No Unsplash matches"
-            />
-          ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gap: 1.5,
-                gridTemplateColumns: {
-                  xs: "repeat(2, minmax(0, 1fr))",
-                  sm: "repeat(3, minmax(0, 1fr))",
-                },
-              }}
-            >
-              {unsplashResults.map((image) => (
-                <MediaCard
-                  key={image.id}
-                  actionLabel="Save and use"
-                  aspectRatio={aspectRatioHint}
-                  isBusy={activeSelectionId === `unsplash-${image.id}`}
-                  item={{
-                    altText: image.alt,
-                    byline: `Photo by ${image.photographer}`,
-                    displayTitle: image.alt || "Unsplash photo",
-                    id: image.id,
-                    subtitle: "Unsplash",
-                    thumbnailUrl: image.thumb_url || image.thumb || image.url,
-                  }}
-                  onClick={() => {
-                    void handleUnsplashSelect(image);
-                  }}
-                  sourceLabel="Unsplash"
-                />
-              ))}
-            </Box>
-          )}
-        </Stack>
+        {previewOverlay}
       </Box>
     );
   }
@@ -950,12 +1248,20 @@ export function AIImageStudioMediaBrowser({
   return (
     <Box
       ref={panelRef}
+      data-ai-image-studio-scroll-container="true"
+      onClick={handlePanelClick}
       sx={{
         flex: 1,
         minHeight: 0,
-        overflowY: "auto",
+        overflowY: previewItem ? "hidden" : "auto",
+        overscrollBehaviorY: "contain",
+        bgcolor: "background.body",
         px: paddingX,
         py: 2,
+        position: "relative",
+        WebkitOverflowScrolling: "touch",
+        ...thinScrollbarSx,
+        ...mediaPanelAnimationSx,
       }}
     >
       <Stack spacing={2.5}>
@@ -1046,32 +1352,14 @@ export function AIImageStudioMediaBrowser({
         {uploadItems.length > 0 ? (
           <Stack spacing={1.25}>
             <Typography level="title-sm">Recent uploads</Typography>
-            <Box
-              sx={{
-                display: "grid",
-                gap: 1.5,
-                gridTemplateColumns: {
-                  xs: "repeat(2, minmax(0, 1fr))",
-                  sm: "repeat(3, minmax(0, 1fr))",
-                },
-              }}
-            >
-              {uploadItems.slice(0, 6).map((item) => (
-                <MediaCard
-                  key={item.id}
-                  aspectRatio={aspectRatioHint}
-                  isBusy={activeSelectionId === item.id}
-                  item={item}
-                  onClick={() => {
-                    void handleSelectExisting(item);
-                  }}
-                  sourceLabel="Upload"
-                />
-              ))}
+            <Box sx={galleryGridSx}>
+              {uploadItems.slice(0, 6).map((item) => renderMediaCard(item))}
             </Box>
           </Stack>
         ) : null}
       </Stack>
+
+      {previewOverlay}
     </Box>
   );
 }

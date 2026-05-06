@@ -1,5 +1,8 @@
-import { fetchSmartImage } from "./unsplashService";
 import { extractKeywordsFromContent } from "@/utils/markdownUtils";
+import {
+  formatFallbackImages,
+  getRelevantFallbacks,
+} from "@/services/gardenCenterFallbacks";
 
 export async function attachImagesToTask(
   taskId: string | null,
@@ -31,7 +34,10 @@ export async function attachImagesToTask(
     } else {
       secondary = "garden center nursery plants";
     }
-    const image = await fetchSmartImage(primary, secondary);
+    const [image] = formatFallbackImages(
+      getRelevantFallbacks(`${primary} ${secondary}`.trim(), 1),
+      primary,
+    );
 
     if (image) {
       return { image };
@@ -59,7 +65,10 @@ export async function attachMultipleImagesToTask(
 
     const images = [];
     for (const keyword of allKeywords) {
-      const image = await fetchSmartImage(keyword, "garden");
+      const [image] = formatFallbackImages(
+        getRelevantFallbacks(`${keyword} garden`, 1),
+        keyword,
+      );
       if (image) images.push(image);
     }
 

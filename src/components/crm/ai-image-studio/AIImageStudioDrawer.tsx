@@ -5,6 +5,7 @@ import Tab from "@mui/joy/Tab";
 import TabList from "@mui/joy/TabList";
 import Tabs from "@mui/joy/Tabs";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { STUDIO_BLOCK_LOOKUP } from "@/components/crm/studio/blockLibraryData";
 import { supabase } from "@/integrations/supabase/client";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
 import { AIChatPersistenceService } from "@/services/aiChatPersistence";
@@ -17,16 +18,20 @@ import { AIImageStudioMediaBrowser } from "./AIImageStudioMediaBrowser";
 import { AIImageStudioPreviewLightbox } from "./AIImageStudioPreviewLightbox";
 import type {
   AIImageStudioAspectRatio,
+  AIImageStudioCampaignContext,
   AIImageStudioDrawerProps,
   AIImageStudioGenerationConfig,
   AIImageStudioImageResult,
   AIImageStudioMessage,
+  AIImageStudioOpenOptions,
   AIImageStudioSelectionMetadata,
   AIImageStudioTab,
 } from "./types";
 
 const DEFAULT_GENERATION_CONFIG: AIImageStudioGenerationConfig = {
   aspectRatio: "1:1",
+  colorPalette: "auto",
+  mood: "natural",
   stylePreset: "photographic",
   quality: "standard",
 };
@@ -39,8 +44,7 @@ const FALLBACK_THINKING_MESSAGES = [
   "Applying finishing touches...",
 ];
 
-const INITIAL_HISTORY_MESSAGE_LIMIT = 100;
-const LOAD_MORE_HISTORY_MESSAGE_LIMIT = 50;
+const HISTORY_MESSAGE_BATCH_SIZE = 10;
 
 const stylePromptDescriptors: Record<
   AIImageStudioGenerationConfig["stylePreset"],
@@ -75,15 +79,33 @@ const qualityPromptDescriptors: Record<
   hd: "High-definition detail with premium texture fidelity and crisp finishing.",
 };
 
+const moodPromptDescriptors: Record<
+  AIImageStudioGenerationConfig["mood"],
+  string | null
+> = {
+  natural: null,
+  warm: "warm golden lighting, cozy atmosphere",
+  cool: "cool blue-toned lighting, crisp atmosphere",
+  dramatic: "dramatic chiaroscuro lighting, high contrast",
+  soft: "soft diffused lighting, gentle and airy",
+  vibrant: "vibrant saturated colors, bold and energetic",
+};
+
+const colorPalettePromptDescriptors: Record<
+  AIImageStudioGenerationConfig["colorPalette"],
+  string | null
+> = {
+  auto: null,
+  "earth-tones": "using Earth Tones color palette",
+  "fresh-greens": "using Fresh Greens color palette",
+  "soft-pastels": "using Soft Pastels color palette",
+  monochrome: "using Monochrome color palette",
+};
+
 const LAST_USED_TAB_STORAGE_KEY = "ai-image-studio:last-tab";
 
 function isAIImageStudioTab(value: string | null): value is AIImageStudioTab {
-  return (
-    value === "ai" ||
-    value === "my-images" ||
-    value === "unsplash" ||
-    value === "upload"
-  );
+  return value === "ai" || value === "my-images" || value === "upload";
 }
 
 function normalizeThinkingMessages(thinkingText?: string | null) {
@@ -104,16 +126,167 @@ function normalizeThinkingMessages(thinkingText?: string | null) {
   return extractedMessages;
 }
 
+function truncateSuggestionText(value: string, maxLength = 80) {
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+
+  if (normalizedValue.length <= maxLength) {
+    return normalizedValue;
+  }
+
+  return `${normalizedValue.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function resolveRecommendedAspectRatio(
+  aspectRatioHint?: AIImageStudioAspectRatio,
+  campaignContext?: AIImageStudioCampaignContext,
+) {
+  if (aspectRatioHint) {
+    return aspectRatioHint;
+  }
+
+  switch (campaignContext?.aspectRatioHint) {
+    case "landscape":
+      return "16:9";
+    case "portrait":
+      return "9:16";
+    case "square":
+      return "1:1";
+    default:
+      return null;
+  }
+}
+
+function buildCampaignAwarePrompt(
+  prompt: string,
+  contentContext: string,
+  campaignContext?: AIImageStudioCampaignContext,
+) {
+  const contextParts = [
+    campaignContext?.campaignName
+      ? `Campaign: ${campaignContext.campaignName}.`
+      : null,
+    campaignContext?.blockLabel
+      ? `Target block: ${campaignContext.blockLabel}.`
+      : null,
+    campaignContext?.contentSummary
+      ? `Visible copy cues: ${campaignContext.contentSummary}.`
+      : null,
+    contentContext.trim() ? `Field context: ${contentContext.trim()}.` : null,
+  ].filter(Boolean);
+
+  if (contextParts.length === 0) {
+    return prompt;
+  }
+
+  return `${prompt} ${contextParts.join(" ")}`;
+}
+
+function buildBlockAwareThinkingMessages(
+  thinkingText: string | null | undefined,
+  campaignContext?: AIImageStudioCampaignContext,
+) {
+  const baseMessages = normalizeThinkingMessages(thinkingText);
+  const blockLabel = campaignContext?.blockLabel?.trim();
+
+  if (!blockLabel) {
+    return baseMessages;
+  }
+
+  const normalizedBlockLabel = blockLabel.toLowerCase();
+  if (
+    baseMessages.some((message) =>
+      message.toLowerCase().includes(normalizedBlockLabel),
+    )
+  ) {
+    return baseMessages;
+  }
+
+  const contextualMessage = `Framing this for ${blockLabel}...`;
+  return [baseMessages[0] ?? FALLBACK_THINKING_MESSAGES[0], contextualMessage]
+    .concat(baseMessages.slice(1))
+    .slice(0, 5);
+}
+
+function buildWelcomeSuggestions(
+  campaignContext?: AIImageStudioCampaignContext,
+) {
+  const contentValues = Object.values(
+    campaignContext?.blockContent ?? {},
+  ).filter(Boolean);
+
+  if (!campaignContext || contentValues.length === 0) {
+    return undefined;
+  }
+
+  const blockFallbacks: Record<string, string> = {
+    "call-to-action": "clean CTA hero image with strong focal product styling",
+    "email-safe-hero": "premium hero image with seasonal floral storytelling",
+    footer: "brand sign-off image with subtle botanical texture",
+    "full-width-image":
+      "immersive editorial scene with premium botanical detail",
+    "graphic-hero": "bold campaign visual with refined color contrast",
+    "image-gallery": "cohesive gallery set with elevated floral art direction",
+    "image-text": "editorial lifestyle scene with room for supporting copy",
+    "newsletter-header":
+      "campaign masthead visual with elegant seasonal atmosphere",
+    "plain-text": "supporting editorial image with calm premium composition",
+    "product-card":
+      "product spotlight with polished background and soft natural light",
+    "product-gallery":
+      "cohesive product series with premium merchandising detail",
+    quote: "portrait-led lifestyle image with soft botanical depth",
+    "social-follow":
+      "brand-forward social graphic with refined botanical accents",
+  };
+
+  const headline =
+    campaignContext.blockContent.headline ||
+    campaignContext.blockContent.title ||
+    campaignContext.blockContent.quoteText ||
+    contentValues[0];
+  const supportCopy =
+    campaignContext.blockContent.subheading ||
+    campaignContext.blockContent.bodyText ||
+    campaignContext.blockContent.description ||
+    contentValues[1];
+  const fallback =
+    blockFallbacks[campaignContext.blockType] ||
+    `on-brand image for ${campaignContext.blockLabel}`;
+
+  const suggestions = [
+    headline ? `${headline}, premium botanical campaign image` : null,
+    supportCopy
+      ? `${supportCopy}, warm editorial lighting, refined composition`
+      : null,
+    `${campaignContext.campaignName}, ${fallback}`,
+  ]
+    .map((suggestion) =>
+      suggestion ? truncateSuggestionText(suggestion) : null,
+    )
+    .filter((suggestion): suggestion is string => Boolean(suggestion));
+
+  return suggestions.filter(
+    (suggestion, index) =>
+      suggestions.findIndex(
+        (candidate) => candidate.toLowerCase() === suggestion.toLowerCase(),
+      ) === index,
+  );
+}
+
 function buildConfiguredPrompt(
   prompt: string,
   generationConfig: AIImageStudioGenerationConfig,
 ) {
   return [
+    moodPromptDescriptors[generationConfig.mood],
+    colorPalettePromptDescriptors[generationConfig.colorPalette],
     stylePromptDescriptors[generationConfig.stylePreset],
     aspectRatioPromptDescriptors[generationConfig.aspectRatio],
     qualityPromptDescriptors[generationConfig.quality],
     prompt,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function resolveInlineError(errorText?: string | null) {
@@ -148,28 +321,74 @@ function resolveInlineError(errorText?: string | null) {
   };
 }
 
+function mergePrependedMessages(
+  existingMessages: AIImageStudioMessage[],
+  olderMessages: AIImageStudioMessage[],
+) {
+  if (olderMessages.length === 0) {
+    return existingMessages;
+  }
+
+  const lastOlderMessage = [...olderMessages]
+    .reverse()
+    .find((message) => message.type !== "session_divider");
+  const firstExistingMessage = existingMessages.find(
+    (message) => message.type !== "session_divider",
+  );
+
+  const shouldRemoveBoundaryDivider =
+    !!lastOlderMessage?.sessionId &&
+    lastOlderMessage.sessionId === firstExistingMessage?.sessionId &&
+    existingMessages[0]?.type === "session_divider" &&
+    existingMessages[0].sessionInfo?.sessionId === lastOlderMessage.sessionId;
+
+  return [
+    ...olderMessages,
+    ...(shouldRemoveBoundaryDivider
+      ? existingMessages.slice(1)
+      : existingMessages),
+  ];
+}
+
 export function AIImageStudioDrawer({
   open,
   onClose,
-  onImageSelect,
-  aspectRatioHint,
+  onImageSelect: initialOnImageSelect,
+  aspectRatioHint: initialAspectRatioHint,
+  assignmentLabel: initialAssignmentLabel,
   browseOnly = false,
   channel = "newsletter",
-  contentContext = "",
-  contextLabel,
+  contentContext: initialContentContext = "",
+  contextLabel: initialContextLabel,
+  campaignContext: initialCampaignContext,
   defaultTab = "ai",
-  blockId,
-  contextType = "email_block",
+  blockId: initialBlockId,
+  contextType: initialContextType = "email_block",
+  getCurrentOptions,
+  multiBlockFlow: initialMultiBlockFlow,
+  subscribeToOptions,
 }: AIImageStudioDrawerProps) {
   const isMobile = useMediaQuery("(max-width: 767.95px)");
+  const isMobileLandscape = useMediaQuery(
+    "(max-width: 767.95px) and (orientation: landscape)",
+  );
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
   const contentPaddingX = isMobile ? 2 : 3;
   const titleId = React.useId();
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
-  const messagesEndRef = React.useRef<HTMLDivElement | null>(null);
   const promptInputRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const mobileSwipeTimeoutRef = React.useRef<number | null>(null);
+  const mobileSwipeGestureRef = React.useRef<{
+    canDrag: boolean;
+    isDragging: boolean;
+    lastTimestamp: number;
+    lastY: number;
+    startX: number;
+    startY: number;
+    velocity: number;
+  } | null>(null);
   const activeGenerationRef = React.useRef<{
     loadingMessageId: string;
     prompt: string;
@@ -197,6 +416,18 @@ export function AIImageStudioDrawer({
   const [selectedImageRecordId, setSelectedImageRecordId] = React.useState<
     string | null
   >(null);
+  const [selectionConfirmationLabel, setSelectionConfirmationLabel] =
+    React.useState<string | null>(null);
+  const [mobileKeyboardInset, setMobileKeyboardInset] = React.useState(0);
+  const [mobileSwipeDismissDuration, setMobileSwipeDismissDuration] =
+    React.useState(220);
+  const [mobileSwipeOffset, setMobileSwipeOffset] = React.useState(0);
+  const [mobileSwipePhase, setMobileSwipePhase] = React.useState<
+    "idle" | "dragging" | "settling" | "dismissing"
+  >("idle");
+  const [mobileViewportHeight, setMobileViewportHeight] = React.useState(
+    typeof window === "undefined" ? 0 : window.innerHeight,
+  );
 
   const [currentSessionId, setCurrentSessionId] = React.useState<string | null>(
     null,
@@ -212,23 +443,110 @@ export function AIImageStudioDrawer({
     image: AIImageStudioImageResult;
     message: AIImageStudioMessage;
   } | null>(null);
+  const [liveOptions, setLiveOptions] =
+    React.useState<AIImageStudioOpenOptions | null>(null);
   const { abortGeneration, generateSingleImageDetailed, isGenerating } =
     useAIImageGeneration();
 
-  const lastMessageId =
-    messages.length > 0 ? messages[messages.length - 1]?.id : null;
+  React.useEffect(() => {
+    if (!open) {
+      setLiveOptions(null);
+      return;
+    }
+
+    const initialOptions = getCurrentOptions?.() ?? null;
+
+    if (initialOptions) {
+      setLiveOptions(initialOptions);
+    }
+
+    if (!subscribeToOptions) {
+      return;
+    }
+
+    return subscribeToOptions((nextOptions) => {
+      setLiveOptions(nextOptions);
+    });
+  }, [getCurrentOptions, open, subscribeToOptions]);
+
+  const onImageSelect = liveOptions?.onSelect ?? initialOnImageSelect;
+  const aspectRatioHint =
+    liveOptions?.aspectRatioHint ?? initialAspectRatioHint;
+  const assignmentLabel =
+    liveOptions?.assignmentLabel ?? initialAssignmentLabel;
+  const blockId = liveOptions?.blockId ?? initialBlockId;
+  const campaignContext =
+    liveOptions?.campaignContext ?? initialCampaignContext;
+  const contentContext = liveOptions?.contentContext ?? initialContentContext;
+  const contextLabel = liveOptions?.contextLabel ?? initialContextLabel;
+  const contextType = liveOptions?.contextType ?? initialContextType;
+  const multiBlockFlow = liveOptions?.multiBlockFlow ?? initialMultiBlockFlow;
 
   const subtitle = React.useMemo(() => {
     if (contextLabel?.trim()) {
       return contextLabel;
     }
 
+    if (assignmentLabel?.trim()) {
+      return assignmentLabel.trim();
+    }
+
     if (browseOnly) {
-      return "Choose from your recent images, Unsplash, or a fresh upload.";
+      return "Choose from your recent images or a fresh upload.";
     }
 
     return "Generate, browse, or upload without leaving your flow.";
-  }, [browseOnly, contextLabel]);
+  }, [assignmentLabel, browseOnly, contextLabel]);
+
+  const contextBreadcrumb = React.useMemo(() => {
+    const targetLabel =
+      assignmentLabel?.trim() || campaignContext?.blockLabel?.trim();
+
+    if (!campaignContext?.campaignName?.trim() || !targetLabel) {
+      return undefined;
+    }
+
+    return `For: ${campaignContext.campaignName} → ${targetLabel}`;
+  }, [assignmentLabel, campaignContext]);
+
+  const recommendedAspectRatio = React.useMemo(
+    () => resolveRecommendedAspectRatio(aspectRatioHint, campaignContext),
+    [aspectRatioHint, campaignContext],
+  );
+
+  const welcomeSuggestions = React.useMemo(
+    () => buildWelcomeSuggestions(campaignContext),
+    [campaignContext],
+  );
+
+  const welcomeDescription = React.useMemo(() => {
+    const targetLabel =
+      assignmentLabel?.trim() || campaignContext?.blockLabel?.trim();
+
+    if (!targetLabel) {
+      return undefined;
+    }
+
+    return `Use the live copy from this ${targetLabel} block as a starting point, then refine the art direction.`;
+  }, [assignmentLabel, campaignContext]);
+
+  const selectionConfirmation = React.useMemo(() => {
+    if (!selectionConfirmationLabel) {
+      return null;
+    }
+
+    const blockLookupEntry = campaignContext?.blockType
+      ? STUDIO_BLOCK_LOOKUP[
+          campaignContext.blockType as keyof typeof STUDIO_BLOCK_LOOKUP
+        ]
+      : undefined;
+    const BlockIcon = blockLookupEntry?.icon;
+
+    return {
+      blockLabel: selectionConfirmationLabel,
+      icon: BlockIcon ? <BlockIcon size={16} strokeWidth={1.9} /> : undefined,
+    };
+  }, [campaignContext, selectionConfirmationLabel]);
 
   const clearThinkingPhaseTimer = React.useCallback(() => {
     if (thinkingPhaseTimeoutRef.current !== null) {
@@ -244,16 +562,19 @@ export function AIImageStudioDrawer({
     }
   }, []);
 
-  React.useEffect(() => {
-    if (!open || isInitialLoad || !lastMessageId) {
-      return;
+  const clearMobileSwipeTimer = React.useCallback(() => {
+    if (mobileSwipeTimeoutRef.current !== null) {
+      window.clearTimeout(mobileSwipeTimeoutRef.current);
+      mobileSwipeTimeoutRef.current = null;
     }
+  }, []);
 
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
-  }, [isInitialLoad, lastMessageId, open]);
+  const resetMobileSwipeState = React.useCallback(() => {
+    mobileSwipeGestureRef.current = null;
+    setMobileSwipeOffset(0);
+    setMobileSwipePhase("idle");
+    setMobileSwipeDismissDuration(220);
+  }, []);
 
   React.useEffect(() => {
     if (!open) {
@@ -273,9 +594,80 @@ export function AIImageStudioDrawer({
     return () => {
       clearThinkingPhaseTimer();
       clearCloseAfterUseTimer();
+      clearMobileSwipeTimer();
       abortGeneration();
     };
-  }, [abortGeneration, clearCloseAfterUseTimer, clearThinkingPhaseTimer]);
+  }, [
+    abortGeneration,
+    clearCloseAfterUseTimer,
+    clearMobileSwipeTimer,
+    clearThinkingPhaseTimer,
+  ]);
+
+  React.useEffect(() => {
+    if (!isMobile || !open) {
+      setMobileKeyboardInset(0);
+      return;
+    }
+
+    const updateViewportMetrics = () => {
+      const visualViewport = window.visualViewport;
+      const nextViewportHeight = Math.round(
+        visualViewport?.height ?? window.innerHeight,
+      );
+      const nextKeyboardInset = visualViewport
+        ? Math.max(
+            0,
+            Math.round(
+              window.innerHeight -
+                (visualViewport.height + visualViewport.offsetTop),
+            ),
+          )
+        : 0;
+
+      setMobileViewportHeight(nextViewportHeight);
+      setMobileKeyboardInset(nextKeyboardInset);
+    };
+
+    updateViewportMetrics();
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", updateViewportMetrics);
+    visualViewport?.addEventListener("scroll", updateViewportMetrics);
+    window.addEventListener("resize", updateViewportMetrics);
+
+    return () => {
+      visualViewport?.removeEventListener("resize", updateViewportMetrics);
+      visualViewport?.removeEventListener("scroll", updateViewportMetrics);
+      window.removeEventListener("resize", updateViewportMetrics);
+    };
+  }, [isMobile, open]);
+
+  React.useEffect(() => {
+    if (!open) {
+      clearMobileSwipeTimer();
+      mobileSwipeGestureRef.current = null;
+
+      if (mobileSwipePhase !== "dismissing") {
+        resetMobileSwipeState();
+        return;
+      }
+
+      mobileSwipeTimeoutRef.current = window.setTimeout(() => {
+        resetMobileSwipeState();
+        mobileSwipeTimeoutRef.current = null;
+      }, mobileSwipeDismissDuration + 32);
+      return;
+    }
+
+    resetMobileSwipeState();
+  }, [
+    clearMobileSwipeTimer,
+    mobileSwipeDismissDuration,
+    mobileSwipePhase,
+    open,
+    resetMobileSwipeState,
+  ]);
 
   const initializeSession = React.useCallback(async () => {
     try {
@@ -301,7 +693,7 @@ export function AIImageStudioDrawer({
       for (const dbMessage of dbMessages) {
         if (dbMessage.sessionId !== lastSessionId) {
           uiMessages.push({
-            id: `divider-${dbMessage.sessionId}`,
+            id: `divider-${dbMessage.sessionId}-${dbMessage.id}`,
             type: "session_divider",
             content: "",
             timestamp: new Date(dbMessage.session.createdAt),
@@ -395,12 +787,12 @@ export function AIImageStudioDrawer({
 
     try {
       const dbMessages = await AIChatPersistenceService.loadGlobalMessages(
-        INITIAL_HISTORY_MESSAGE_LIMIT,
+        HISTORY_MESSAGE_BATCH_SIZE,
       );
       const uiMessages = await convertGlobalMessagesToUI(dbMessages);
 
       setMessages(uiMessages);
-      setHasMoreMessages(dbMessages.length === INITIAL_HISTORY_MESSAGE_LIMIT);
+      setHasMoreMessages(dbMessages.length === HISTORY_MESSAGE_BATCH_SIZE);
       setOldestLoadedTimestamp(
         dbMessages.length > 0 ? dbMessages[0].createdAt : null,
       );
@@ -429,8 +821,14 @@ export function AIImageStudioDrawer({
       });
       setIsEnhancing(false);
       setIsSettingsOpen(false);
+      setIsInitialLoad(true);
+      setIsLoadingHistory(false);
+      setHasMoreMessages(true);
+      setMessages([]);
+      setOldestLoadedTimestamp(null);
       setHistoryLoadError(false);
       setPreviewState(null);
+      setSelectionConfirmationLabel(null);
       setSelectedImage(null);
       setSelectedImageRecordId(null);
       return;
@@ -467,6 +865,21 @@ export function AIImageStudioDrawer({
   ]);
 
   React.useEffect(() => {
+    if (!open || !aspectRatioHint) {
+      return;
+    }
+
+    setGenerationConfig((currentConfig) =>
+      currentConfig.aspectRatio === aspectRatioHint
+        ? currentConfig
+        : {
+            ...currentConfig,
+            aspectRatio: aspectRatioHint,
+          },
+    );
+  }, [aspectRatioHint, open]);
+
+  React.useEffect(() => {
     if (!open) {
       return;
     }
@@ -486,12 +899,68 @@ export function AIImageStudioDrawer({
     };
   }, [activeTab, open]);
 
+  const scheduleCloseAfterSelection = React.useCallback(() => {
+    clearCloseAfterUseTimer();
+    closeAfterUseTimeoutRef.current = window.setTimeout(() => {
+      onClose();
+      closeAfterUseTimeoutRef.current = null;
+    }, 500);
+  }, [clearCloseAfterUseTimer, onClose]);
+
+  const finalizeSelection = React.useCallback(
+    (
+      imageUrl: string,
+      metadata?: AIImageStudioSelectionMetadata,
+      confirmationLabel?: string,
+    ) => {
+      onImageSelect(imageUrl, metadata);
+      setPreviewState(null);
+      setSelectionConfirmationLabel(
+        confirmationLabel ||
+          assignmentLabel?.trim() ||
+          campaignContext?.blockLabel?.trim() ||
+          "selected block",
+      );
+
+      if (multiBlockFlow?.hasNextTarget()) {
+        const targetLabel =
+          confirmationLabel ||
+          assignmentLabel?.trim() ||
+          campaignContext?.blockLabel?.trim() ||
+          "current target";
+
+        setMessages((previousMessages) => [
+          ...previousMessages,
+          {
+            id: crypto.randomUUID(),
+            type: "assistant",
+            content: `Applied to ${targetLabel}. Continue to the next target or finish here.`,
+            actions: [
+              { id: "next-target", label: "Next slot" },
+              { id: "done", label: "Done" },
+            ],
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+
+      scheduleCloseAfterSelection();
+    },
+    [
+      assignmentLabel,
+      campaignContext,
+      multiBlockFlow,
+      onImageSelect,
+      scheduleCloseAfterSelection,
+    ],
+  );
+
   const handleSelectMedia = React.useCallback(
     async (imageUrl: string, metadata: AIImageStudioSelectionMetadata) => {
-      onImageSelect(imageUrl, metadata);
-      onClose();
+      finalizeSelection(imageUrl, metadata);
     },
-    [onClose, onImageSelect],
+    [finalizeSelection],
   );
 
   const buildGeneratedImageMetadata = React.useCallback(
@@ -510,7 +979,7 @@ export function AIImageStudioDrawer({
   );
 
   const loadMoreMessages = React.useCallback(async () => {
-    if (!oldestLoadedTimestamp || isLoadingHistory) {
+    if (!oldestLoadedTimestamp || isLoadingHistory || !hasMoreMessages) {
       return;
     }
 
@@ -518,7 +987,7 @@ export function AIImageStudioDrawer({
 
     try {
       const olderMessages = await AIChatPersistenceService.loadGlobalMessages(
-        LOAD_MORE_HISTORY_MESSAGE_LIMIT,
+        HISTORY_MESSAGE_BATCH_SIZE,
         oldestLoadedTimestamp,
       );
 
@@ -528,19 +997,210 @@ export function AIImageStudioDrawer({
       }
 
       const uiMessages = await convertGlobalMessagesToUI(olderMessages);
-      setMessages((previousMessages) => [...uiMessages, ...previousMessages]);
-      setOldestLoadedTimestamp(olderMessages[0].createdAt);
-      setHasMoreMessages(
-        olderMessages.length === LOAD_MORE_HISTORY_MESSAGE_LIMIT,
+      setMessages((previousMessages) =>
+        mergePrependedMessages(previousMessages, uiMessages),
       );
+      setOldestLoadedTimestamp(olderMessages[0].createdAt);
+      setHasMoreMessages(olderMessages.length === HISTORY_MESSAGE_BATCH_SIZE);
     } catch (error) {
       console.error("Failed to load older AI image studio messages:", error);
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [convertGlobalMessagesToUI, isLoadingHistory, oldestLoadedTimestamp]);
+  }, [
+    convertGlobalMessagesToUI,
+    hasMoreMessages,
+    isLoadingHistory,
+    oldestLoadedTimestamp,
+  ]);
 
   const handleConversationScroll = React.useCallback(() => {}, []);
+
+  const canStartMobileSwipe = React.useCallback((target: HTMLElement) => {
+    if (
+      target.closest(
+        "textarea, input, select, button, a, label, [role='button'], [role='tab'], [contenteditable='true']",
+      )
+    ) {
+      return false;
+    }
+
+    if (target.closest("[data-ai-image-studio-drag-handle='true']")) {
+      return true;
+    }
+
+    const scrollContainer = target.closest<HTMLElement>(
+      "[data-ai-image-studio-scroll-container='true']",
+    );
+
+    if (!scrollContainer) {
+      return true;
+    }
+
+    return scrollContainer.scrollTop <= 0;
+  }, []);
+
+  const handleMobileTouchStart = React.useCallback<
+    React.TouchEventHandler<HTMLDivElement>
+  >(
+    (event) => {
+      if (!isMobile || event.touches.length !== 1) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !canStartMobileSwipe(target)) {
+        mobileSwipeGestureRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      mobileSwipeGestureRef.current = {
+        canDrag: true,
+        isDragging: false,
+        lastTimestamp: event.timeStamp,
+        lastY: touch.clientY,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        velocity: 0,
+      };
+      clearMobileSwipeTimer();
+      setMobileSwipePhase("idle");
+      setMobileSwipeOffset(0);
+    },
+    [canStartMobileSwipe, clearMobileSwipeTimer, isMobile],
+  );
+
+  const handleMobileTouchMove = React.useCallback<
+    React.TouchEventHandler<HTMLDivElement>
+  >(
+    (event) => {
+      if (!isMobile || event.touches.length !== 1) {
+        return;
+      }
+
+      const gesture = mobileSwipeGestureRef.current;
+      if (!gesture?.canDrag) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - gesture.startX;
+      const deltaY = touch.clientY - gesture.startY;
+
+      if (!gesture.isDragging) {
+        if (Math.abs(deltaY) < 6) {
+          return;
+        }
+
+        if (deltaY <= 0 || Math.abs(deltaY) <= Math.abs(deltaX)) {
+          gesture.canDrag = false;
+          return;
+        }
+
+        gesture.isDragging = true;
+        setMobileSwipePhase("dragging");
+      }
+
+      const deltaTime = Math.max(event.timeStamp - gesture.lastTimestamp, 1);
+      gesture.velocity = (touch.clientY - gesture.lastY) / deltaTime;
+      gesture.lastTimestamp = event.timeStamp;
+      gesture.lastY = touch.clientY;
+
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+
+      setMobileSwipeOffset(Math.max(0, deltaY));
+    },
+    [isMobile],
+  );
+
+  const handleMobileTouchEnd = React.useCallback<
+    React.TouchEventHandler<HTMLDivElement>
+  >(() => {
+    if (!isMobile) {
+      return;
+    }
+
+    const gesture = mobileSwipeGestureRef.current;
+    if (!gesture) {
+      return;
+    }
+
+    mobileSwipeGestureRef.current = null;
+
+    if (!gesture.isDragging) {
+      return;
+    }
+
+    const shouldDismiss = mobileSwipeOffset >= 80;
+
+    if (!shouldDismiss) {
+      setMobileSwipePhase("settling");
+      setMobileSwipeOffset(0);
+      clearMobileSwipeTimer();
+      mobileSwipeTimeoutRef.current = window.setTimeout(
+        () => {
+          resetMobileSwipeState();
+          mobileSwipeTimeoutRef.current = null;
+        },
+        prefersReducedMotion ? 0 : 240,
+      );
+      return;
+    }
+
+    const dismissVelocity = Math.abs(gesture.velocity);
+    const dismissDuration = prefersReducedMotion
+      ? 0
+      : Math.max(
+          140,
+          Math.min(320, Math.round(260 - Math.min(dismissVelocity * 120, 120))),
+        );
+
+    setMobileSwipeDismissDuration(dismissDuration);
+    setMobileSwipePhase("dismissing");
+    window.requestAnimationFrame(() => {
+      setMobileSwipeOffset(
+        Math.max(mobileViewportHeight || window.innerHeight, mobileSwipeOffset),
+      );
+    });
+    onClose();
+  }, [
+    clearMobileSwipeTimer,
+    isMobile,
+    mobileSwipeOffset,
+    mobileViewportHeight,
+    onClose,
+    prefersReducedMotion,
+    resetMobileSwipeState,
+  ]);
+
+  const mobileFooterMaxHeight = React.useMemo(() => {
+    if (!isMobile || mobileViewportHeight <= 0) {
+      return null;
+    }
+
+    if (isMobileLandscape) {
+      return Math.max(180, Math.floor(mobileViewportHeight * 0.3));
+    }
+
+    return Math.min(420, Math.floor(mobileViewportHeight * 0.48));
+  }, [isMobile, isMobileLandscape, mobileViewportHeight]);
+
+  const mobileSwipeProgress =
+    isMobile && mobileViewportHeight > 0
+      ? Math.min(
+          1,
+          mobileSwipeOffset / Math.max(mobileViewportHeight * 0.45, 1),
+        )
+      : 0;
+  const mobileBackdropOpacity = isMobile
+    ? Math.max(0, 0.6 * (1 - mobileSwipeProgress))
+    : 0.6;
+  const mobileBackdropBlur = isMobile
+    ? Math.max(0, 20 * (1 - mobileSwipeProgress))
+    : 20;
 
   const ensureSessionId = React.useCallback(async () => {
     if (currentSessionId) {
@@ -556,34 +1216,43 @@ export function AIImageStudioDrawer({
     return sessionId;
   }, [blockId, channel, contextType, currentSessionId]);
 
-  const fetchThinkingMessages = React.useCallback(async (prompt: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-thinking-text",
-        {
-          body: { prompt },
-        },
-      );
+  const fetchThinkingMessages = React.useCallback(
+    async (prompt: string) => {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "generate-thinking-text",
+          {
+            body: { campaignContext, prompt },
+          },
+        );
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        return {
+          statusMessages: buildBlockAwareThinkingMessages(
+            data?.thinkingText,
+            campaignContext,
+          ),
+          fullText: data?.thinkingText as string | undefined,
+        };
+      } catch (error) {
+        console.error(
+          "Failed to fetch AI image studio thinking messages:",
+          error,
+        );
+        return {
+          statusMessages: buildBlockAwareThinkingMessages(
+            null,
+            campaignContext,
+          ),
+          fullText: null,
+        };
       }
-
-      return {
-        statusMessages: normalizeThinkingMessages(data?.thinkingText),
-        fullText: data?.thinkingText as string | undefined,
-      };
-    } catch (error) {
-      console.error(
-        "Failed to fetch AI image studio thinking messages:",
-        error,
-      );
-      return {
-        statusMessages: FALLBACK_THINKING_MESSAGES,
-        fullText: null,
-      };
-    }
-  }, []);
+    },
+    [campaignContext],
+  );
 
   const revealEnhancedPrompt = React.useCallback(async (text: string) => {
     const sequenceId = promptRevealSequenceRef.current + 1;
@@ -622,7 +1291,7 @@ export function AIImageStudioDrawer({
       const { data, error } = await supabase.functions.invoke(
         "enhance-image-prompt",
         {
-          body: { prompt: trimmedPrompt },
+          body: { campaignContext, prompt: trimmedPrompt },
         },
       );
 
@@ -641,19 +1310,28 @@ export function AIImageStudioDrawer({
     } finally {
       setIsEnhancing(false);
     }
-  }, [inputPrompt, isEnhancing, isGenerating, revealEnhancedPrompt]);
+  }, [
+    campaignContext,
+    inputPrompt,
+    isEnhancing,
+    isGenerating,
+    revealEnhancedPrompt,
+  ]);
 
   const generateImages = React.useCallback(
     async (prompt: string, options?: { clearPromptOnSuccess?: boolean }) => {
       const requestId = crypto.randomUUID();
-      const promptWithContext = contentContext.trim()
-        ? `${prompt} Context: ${contentContext.trim()}.`
-        : prompt;
+      const promptWithContext = buildCampaignAwarePrompt(
+        prompt,
+        contentContext,
+        campaignContext,
+      );
       const configuredPrompt = buildConfiguredPrompt(
         promptWithContext,
         generationConfig,
       );
 
+      setSelectionConfirmationLabel(null);
       setSelectedImage(null);
       setSelectedImageRecordId(null);
 
@@ -716,7 +1394,10 @@ export function AIImageStudioDrawer({
             aspectRatio: generationConfig.aspectRatio,
             generationConfig,
             sessionId,
-            statusMessages: FALLBACK_THINKING_MESSAGES,
+            statusMessages: buildBlockAwareThinkingMessages(
+              null,
+              campaignContext,
+            ),
             timestamp: new Date(),
             userPrompt: prompt,
           },
@@ -741,7 +1422,10 @@ export function AIImageStudioDrawer({
                 ? {
                     ...message,
                     loadingPhase: "thinking",
-                    statusMessages: FALLBACK_THINKING_MESSAGES,
+                    statusMessages: buildBlockAwareThinkingMessages(
+                      null,
+                      campaignContext,
+                    ),
                   }
                 : message,
             ),
@@ -936,6 +1620,7 @@ export function AIImageStudioDrawer({
       }
     },
     [
+      campaignContext,
       clearThinkingPhaseTimer,
       contentContext,
       ensureSessionId,
@@ -997,22 +1682,9 @@ export function AIImageStudioDrawer({
         });
       }
 
-      onImageSelect(image.imageUrl, buildGeneratedImageMetadata(image));
-      clearCloseAfterUseTimer();
-      closeAfterUseTimeoutRef.current = window.setTimeout(() => {
-        setPreviewState(null);
-        onClose();
-        closeAfterUseTimeoutRef.current = null;
-      }, 400);
+      finalizeSelection(image.imageUrl, buildGeneratedImageMetadata(image));
     },
-    [
-      blockId,
-      buildGeneratedImageMetadata,
-      clearCloseAfterUseTimer,
-      contextType,
-      onClose,
-      onImageSelect,
-    ],
+    [blockId, buildGeneratedImageMetadata, contextType, finalizeSelection],
   );
 
   const handleRegenerateFromResult = React.useCallback(
@@ -1040,21 +1712,68 @@ export function AIImageStudioDrawer({
       }
     }
 
-    onImageSelect(selectedImage, {
+    finalizeSelection(selectedImage, {
       altText: inputPrompt || contentContext || "AI image",
       source: "ai-generated",
     });
-    onClose();
   }, [
     blockId,
     contextType,
     contentContext,
+    finalizeSelection,
     inputPrompt,
-    onClose,
-    onImageSelect,
     selectedImage,
     selectedImageRecordId,
   ]);
+
+  const handleMessageAction = React.useCallback(
+    (actionId: "done" | "next-target", message: AIImageStudioMessage) => {
+      setMessages((previousMessages) =>
+        previousMessages.map((entry) =>
+          entry.id === message.id ? { ...entry, actions: undefined } : entry,
+        ),
+      );
+
+      if (actionId === "done") {
+        onClose();
+        return;
+      }
+
+      const nextTarget = multiBlockFlow?.advanceToNextTarget() ?? null;
+
+      if (!nextTarget) {
+        onClose();
+        return;
+      }
+
+      const nextLabel =
+        nextTarget.assignmentLabel?.trim() ||
+        nextTarget.campaignContext?.blockLabel?.trim() ||
+        nextTarget.contextLabel?.trim() ||
+        "next target";
+
+      setActiveTab("ai");
+      setInputPrompt("");
+      setPreviewState(null);
+      setSelectedImage(null);
+      setSelectedImageRecordId(null);
+      setSelectionConfirmationLabel(nextLabel);
+      setMessages((previousMessages) => [
+        ...previousMessages,
+        {
+          id: crypto.randomUUID(),
+          type: "assistant",
+          content: `Ready for ${nextLabel}.`,
+          timestamp: new Date(),
+        },
+      ]);
+
+      window.requestAnimationFrame(() => {
+        promptInputRef.current?.focus();
+      });
+    },
+    [multiBlockFlow, onClose],
+  );
 
   const handleSuggestionSelect = React.useCallback((suggestion: string) => {
     console.info("[AIImageStudioDrawer] Suggestion selected:", suggestion);
@@ -1108,18 +1827,18 @@ export function AIImageStudioDrawer({
   return (
     <>
       <Drawer
+        key={isMobile ? "mobile" : "desktop"}
         anchor={isMobile ? "bottom" : "right"}
         aria-labelledby={titleId}
         aria-modal="true"
-        keepMounted
         onClose={() => onClose()}
         open={open}
         slotProps={{
           backdrop: {
             sx: {
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              backgroundColor: `rgba(0, 0, 0, ${mobileBackdropOpacity})`,
+              backdropFilter: `blur(${mobileBackdropBlur}px)`,
+              WebkitBackdropFilter: `blur(${mobileBackdropBlur}px)`,
               transition: prefersReducedMotion
                 ? "none"
                 : "opacity var(--Drawer-transitionDuration) var(--Drawer-transitionFunction)",
@@ -1135,11 +1854,27 @@ export function AIImageStudioDrawer({
               border: "none",
               borderLeft: isMobile ? "none" : "1px solid",
               borderColor: "divider",
-              width: isMobile ? "100vw" : "520px",
+              width: isMobile ? "100vw" : "620px",
               maxWidth: "100vw",
-              maxHeight: "100dvh",
+              height: isMobile
+                ? `${Math.max(mobileViewportHeight, 1)}px`
+                : "100dvh",
+              maxHeight: isMobile
+                ? `${Math.max(mobileViewportHeight, 1)}px`
+                : "100dvh",
+              bottom: isMobile ? `${mobileKeyboardInset}px` : 0,
               p: 0,
               overflow: "hidden",
+              transition:
+                isMobile && mobileSwipePhase !== "idle"
+                  ? prefersReducedMotion
+                    ? "none"
+                    : `transform ${mobileSwipeDismissDuration}ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1)`
+                  : undefined,
+              transform:
+                isMobile && mobileSwipePhase !== "idle"
+                  ? `translateY(${mobileSwipeOffset}px)`
+                  : undefined,
             },
           },
         }}
@@ -1147,7 +1882,7 @@ export function AIImageStudioDrawer({
           zIndex: (theme) => theme.vars.zIndex.modal ?? theme.zIndex.modal,
           "--Drawer-transitionDuration": prefersReducedMotion ? "0ms" : "300ms",
           "--Drawer-transitionFunction": "cubic-bezier(0.22, 1, 0.36, 1)",
-          "--Drawer-horizontalSize": "520px",
+          "--Drawer-horizontalSize": "620px",
           "--Drawer-verticalSize": "100dvh",
         }}
       >
@@ -1155,7 +1890,7 @@ export function AIImageStudioDrawer({
           onChange={(_, value) => {
             setActiveTab(value as AIImageStudioTab);
           }}
-          sx={{ height: "100%" }}
+          sx={{ height: "100%", bgcolor: "transparent" }}
           value={activeTab}
         >
           <Box
@@ -1166,16 +1901,7 @@ export function AIImageStudioDrawer({
               flexDirection: "column",
               minHeight: 0,
               height: "100%",
-              backgroundColor: "background.surface",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                inset: 0,
-                pointerEvents: "none",
-                background:
-                  "radial-gradient(circle at 50% 0%, rgba(var(--joy-palette-primary-mainChannel) / 0.05) 0%, rgba(var(--joy-palette-primary-mainChannel) / 0.025) 24%, rgba(var(--joy-palette-primary-mainChannel) / 0) 60%)",
-                zIndex: -1,
-              },
+              backgroundColor: "background.body",
               "@keyframes aiImageStudioTabFade": {
                 from: {
                   opacity: 0,
@@ -1190,6 +1916,8 @@ export function AIImageStudioDrawer({
           >
             <AIImageStudioHeader
               closeButtonRef={closeButtonRef}
+              contextBreadcrumb={contextBreadcrumb}
+              isMobile={isMobile}
               onClose={onClose}
               paddingX={contentPaddingX}
               subtitle={subtitle}
@@ -1198,25 +1926,92 @@ export function AIImageStudioDrawer({
               <TabList
                 disableUnderline
                 sx={{
-                  p: 0.5,
-                  borderRadius: "999px",
-                  backgroundColor: "background.level1",
+                  bgcolor: "background.level1",
+                  borderRadius: "10px",
+                  p: "4px",
                   display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                  gap: 0.5,
+                  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                  gap: "4px",
+                  "& [role='tab']": {
+                    minHeight: isMobile ? 44 : undefined,
+                    minWidth: isMobile ? 44 : undefined,
+                  },
                 }}
                 variant="plain"
               >
-                <Tab indicatorInset value="ai">
+                <Tab
+                  sx={{
+                    bgcolor: "transparent",
+                    color: "text.secondary",
+                    fontWeight: 500,
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    py: "6px",
+                    px: "14px",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      bgcolor: "background.level2",
+                      color: "text.primary",
+                    },
+                    "&.Mui-selected": {
+                      bgcolor: "background.surface",
+                      color: "text.primary",
+                      fontWeight: 600,
+                      boxShadow: "sm",
+                    },
+                  }}
+                  value="ai"
+                >
                   AI Generate
                 </Tab>
-                <Tab indicatorInset value="my-images">
+                <Tab
+                  sx={{
+                    bgcolor: "transparent",
+                    color: "text.secondary",
+                    fontWeight: 500,
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    py: "6px",
+                    px: "14px",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      bgcolor: "background.level2",
+                      color: "text.primary",
+                    },
+                    "&.Mui-selected": {
+                      bgcolor: "background.surface",
+                      color: "text.primary",
+                      fontWeight: 600,
+                      boxShadow: "sm",
+                    },
+                  }}
+                  value="my-images"
+                >
                   My Images
                 </Tab>
-                <Tab indicatorInset value="unsplash">
-                  Unsplash
-                </Tab>
-                <Tab indicatorInset value="upload">
+                <Tab
+                  sx={{
+                    bgcolor: "transparent",
+                    color: "text.secondary",
+                    fontWeight: 500,
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    py: "6px",
+                    px: "14px",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      bgcolor: "background.level2",
+                      color: "text.primary",
+                    },
+                    "&.Mui-selected": {
+                      bgcolor: "background.surface",
+                      color: "text.primary",
+                      fontWeight: 600,
+                      boxShadow: "sm",
+                    },
+                  }}
+                  value="upload"
+                >
                   Upload
                 </Tab>
               </TabList>
@@ -1224,13 +2019,30 @@ export function AIImageStudioDrawer({
 
             <Box
               key={activeTab}
+              onTouchCancel={handleMobileTouchEnd}
+              onTouchEnd={handleMobileTouchEnd}
+              onTouchMove={handleMobileTouchMove}
+              onTouchStart={handleMobileTouchStart}
               sx={{
                 flex: 1,
                 minHeight: 0,
                 display: "flex",
                 flexDirection: "column",
+                paddingInlineStart: isMobile
+                  ? "env(safe-area-inset-left, 0px)"
+                  : 0,
+                paddingInlineEnd: isMobile
+                  ? "env(safe-area-inset-right, 0px)"
+                  : 0,
                 animation:
                   "aiImageStudioTabFade 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+                "& button, & [role='button'], & [role='tab'], & .MuiChip-root":
+                  isMobile
+                    ? {
+                        minHeight: 44,
+                        minWidth: 44,
+                      }
+                    : undefined,
               }}
             >
               {activeTab === "ai" ? (
@@ -1241,10 +2053,8 @@ export function AIImageStudioDrawer({
                   isInitialLoad={isInitialLoad}
                   isLoadingHistory={isLoadingHistory}
                   messages={messages}
-                  messagesEndRef={messagesEndRef}
-                  onLoadMoreHistory={() => {
-                    void loadMoreMessages();
-                  }}
+                  onMessageAction={handleMessageAction}
+                  onLoadMoreHistory={loadMoreMessages}
                   onPreviewImage={handlePreviewImage}
                   onRegenerate={handleRegenerateFromResult}
                   onRetry={handleRetry}
@@ -1255,6 +2065,9 @@ export function AIImageStudioDrawer({
                   onSuggestionSelect={handleSuggestionSelect}
                   onUseImage={(image) => handleUseGeneratedImage(image)}
                   paddingX={contentPaddingX}
+                  welcomeBlockLabel={campaignContext?.blockLabel}
+                  welcomeDescription={welcomeDescription}
+                  welcomeSuggestions={welcomeSuggestions}
                 />
               ) : (
                 <AIImageStudioMediaBrowser
@@ -1262,12 +2075,18 @@ export function AIImageStudioDrawer({
                   aspectRatioHint={aspectRatioHint}
                   contentContext={contentContext}
                   onSelect={handleSelectMedia}
+                  onTabChange={setActiveTab}
                   paddingX={contentPaddingX}
                 />
               )}
 
               <Box
                 sx={{
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 2,
+                  flexShrink: 0,
+                  backgroundColor: "background.surface",
                   overflow: "hidden",
                   maxHeight: activeTab === "ai" ? 420 : 0,
                   opacity: activeTab === "ai" ? 1 : 0,
@@ -1279,6 +2098,7 @@ export function AIImageStudioDrawer({
                 }}
               >
                 <AIImageStudioInputArea
+                  footerMaxHeight={mobileFooterMaxHeight}
                   generationConfig={generationConfig}
                   inputPrompt={inputPrompt}
                   isEnhancing={isEnhancing}
@@ -1296,6 +2116,8 @@ export function AIImageStudioDrawer({
                   onUseImage={handleUseImage}
                   paddingX={contentPaddingX}
                   promptInputRef={promptInputRef}
+                  recommendedAspectRatio={recommendedAspectRatio}
+                  selectionConfirmation={selectionConfirmation}
                   selectedImage={selectedImage}
                 />
               </Box>

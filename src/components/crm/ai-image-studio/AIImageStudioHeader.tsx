@@ -10,6 +10,8 @@ interface AIImageStudioHeaderProps {
   titleId: string;
   onClose: () => void;
   closeButtonRef: React.RefObject<HTMLButtonElement | null>;
+  contextBreadcrumb?: string;
+  isMobile?: boolean;
   paddingX: number;
   subtitle?: string;
   children?: React.ReactNode;
@@ -19,6 +21,8 @@ export function AIImageStudioHeader({
   titleId,
   onClose,
   closeButtonRef,
+  contextBreadcrumb,
+  isMobile = false,
   paddingX,
   subtitle,
   children,
@@ -26,12 +30,13 @@ export function AIImageStudioHeader({
   return (
     <Box
       component="header"
+      data-ai-image-studio-drag-handle="true"
       sx={{
         position: "sticky",
         top: 0,
         zIndex: 1,
         px: paddingX,
-        pt: 2,
+        pt: isMobile ? "calc(12px + env(safe-area-inset-top, 0px))" : 2,
         pb: 1.5,
         backgroundColor: "background.surface",
         backdropFilter: "blur(18px)",
@@ -48,7 +53,7 @@ export function AIImageStudioHeader({
           <Box
             aria-hidden="true"
             sx={{
-              color: "primary.500",
+              color: "var(--joy-palette-brandNavy-500)",
               display: "inline-flex",
               mt: 0.125,
               flexShrink: 0,
@@ -58,14 +63,35 @@ export function AIImageStudioHeader({
           </Box>
 
           <Stack spacing={0.375} sx={{ minWidth: 0, flex: 1 }}>
-            <Typography id={titleId} level="title-md" fontWeight="lg">
+            <Typography
+              id={titleId}
+              level="title-md"
+              sx={{ color: "text.primary", fontSize: "16px", fontWeight: 700 }}
+            >
               AI Image Studio
             </Typography>
+            {contextBreadcrumb ? (
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: "text.tertiary",
+                  fontSize: "12px",
+                  fontWeight: 400,
+                }}
+              >
+                {contextBreadcrumb}
+              </Typography>
+            ) : null}
             <Typography
-              level="body-sm"
-              textColor="text.tertiary"
+              level="body-xs"
               noWrap
-              sx={{ minWidth: 0 }}
+              sx={{
+                minWidth: 0,
+                color: "text.tertiary",
+                fontSize: "12px",
+                fontWeight: 400,
+                opacity: 0.7,
+              }}
             >
               {subtitle || "Describe your vision - I'll bring it to life"}
             </Typography>
@@ -84,6 +110,9 @@ export function AIImageStudioHeader({
             height: 44,
             flexShrink: 0,
             borderRadius: "999px",
+            "&:hover": {
+              backgroundColor: "background.level2",
+            },
             "&:focus-visible": {
               outline:
                 "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.32)",

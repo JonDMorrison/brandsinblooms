@@ -1,11 +1,12 @@
 import React from "react";
 import Button from "@mui/joy/Button";
 import Box from "@mui/joy/Box";
+import Chip from "@mui/joy/Chip";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { format, isToday, isYesterday } from "date-fns";
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { ArrowDown } from "lucide-react";
 import { AISessionDivider } from "../ai-session-divider";
 import { AIImageStudioMessage } from "./AIImageStudioMessage";
@@ -20,8 +21,11 @@ interface AIImageStudioConversationProps {
   historyLoadError: boolean;
   isInitialLoad: boolean;
   isLoadingHistory: boolean;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  onLoadMoreHistory: () => void;
+  onMessageAction?: (
+    actionId: "done" | "next-target",
+    message: AIImageStudioMessage,
+  ) => void;
+  onLoadMoreHistory: () => void | Promise<void>;
   onPreviewImage: (
     image: NonNullable<AIImageStudioMessage["images"]>[number],
     message: AIImageStudioMessage,
@@ -36,6 +40,9 @@ interface AIImageStudioConversationProps {
     message: AIImageStudioMessage,
   ) => void | Promise<void>;
   paddingX: number;
+  welcomeBlockLabel?: string;
+  welcomeDescription?: string;
+  welcomeSuggestions?: string[];
 }
 
 function normalizePrompt(prompt?: string | null) {
@@ -98,29 +105,6 @@ function AIImageStudioConversationSkeleton() {
   );
 }
 
-function AIImageStudioTimestampSeparator({ timestamp }: { timestamp: Date }) {
-  return (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 0.5 }}>
-      <Box sx={{ flex: 1, height: 1, backgroundColor: "divider" }} />
-      <Box
-        sx={{
-          px: 1,
-          py: 0.375,
-          borderRadius: "999px",
-          backgroundColor: "background.level1",
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Typography level="body-xs" textColor="text.tertiary">
-          {format(timestamp, "h:mm a")}
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1, height: 1, backgroundColor: "divider" }} />
-    </Stack>
-  );
-}
-
 function formatDateGroupLabel(timestamp: Date) {
   if (isToday(timestamp)) {
     return "Today";
@@ -135,35 +119,63 @@ function formatDateGroupLabel(timestamp: Date) {
 
 function AIImageStudioDateHeader({ timestamp }: { timestamp: Date }) {
   return (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 0.75 }}>
-      <Box sx={{ flex: 1, height: 1, backgroundColor: "divider" }} />
-      <Typography level="body-xs" textColor="text.tertiary">
+    <Stack alignItems="center" sx={{ py: 0.75 }}>
+      <Typography
+        level="body-xs"
+        textColor="text.tertiary"
+        sx={{
+          px: 1.25,
+          py: 0.5,
+          borderRadius: "999px",
+          backgroundColor: "background.level1",
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         {formatDateGroupLabel(timestamp)}
       </Typography>
-      <Box sx={{ flex: 1, height: 1, backgroundColor: "divider" }} />
     </Stack>
   );
 }
 
 const scrollbarSx = {
   scrollbarWidth: "thin",
-  scrollbarColor:
-    "var(--joy-palette-neutral-outlinedBorder) var(--joy-palette-background-level1)",
+  scrollbarColor: "var(--joy-palette-neutral-outlinedBorder) transparent",
   "&::-webkit-scrollbar": {
-    width: "6px",
+    width: "5px",
   },
   "&::-webkit-scrollbar-track": {
-    backgroundColor: "background.level1",
-    borderRadius: "999px",
+    backgroundColor: "transparent",
   },
   "&::-webkit-scrollbar-thumb": {
-    backgroundColor: "neutral.outlinedBorder",
-    borderRadius: "999px",
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.4)",
+    borderRadius: "10px",
   },
   "&:hover::-webkit-scrollbar-thumb": {
-    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.4)",
+    backgroundColor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.7)",
   },
 } as const;
+
+const LOAD_MORE_TOP_THRESHOLD_PX = 60;
+const NEAR_BOTTOM_THRESHOLD_PX = 100;
+const SCROLL_THROTTLE_MS = 200;
+
+function getLatestMessageToken(messages: AIImageStudioMessage[]) {
+  const message = messages[messages.length - 1];
+
+  if (!message) {
+    return null;
+  }
+
+  return [
+    message.id,
+    message.type,
+    message.content,
+    message.images?.length || 0,
+    message.statusMessages?.join("|") || "",
+    message.actions?.length || 0,
+  ].join(":");
+}
 
 export function AIImageStudioConversation({
   currentSessionId,
@@ -172,7 +184,7 @@ export function AIImageStudioConversation({
   historyLoadError,
   isInitialLoad,
   isLoadingHistory,
-  messagesEndRef,
+  onMessageAction,
   onLoadMoreHistory,
   onPreviewImage,
   onRegenerate,
@@ -182,16 +194,27 @@ export function AIImageStudioConversation({
   onSuggestionSelect,
   onUseImage,
   paddingX,
+  welcomeBlockLabel,
+  welcomeDescription,
+  welcomeSuggestions,
 }: AIImageStudioConversationProps) {
   const conversationRef = React.useRef<HTMLDivElement | null>(null);
   const messageRefs = React.useRef(new Map<string, HTMLDivElement>());
   const highlightTimeoutRef = React.useRef<number | null>(null);
-  const lastMessageIdRef = React.useRef<string | null>(null);
+  const latestMessageTokenRef = React.useRef<string | null>(null);
+  const initialScrollCompleteRef = React.useRef(false);
+  const lastTopLoadCheckRef = React.useRef(0);
+  const isLoadMoreRequestPendingRef = React.useRef(false);
+  const prependScrollSnapshotRef = React.useRef<{
+    firstMessageId: string | null;
+    scrollHeight: number;
+    scrollTop: number;
+  } | null>(null);
   const nearBottomRef = React.useRef(true);
   const [highlightedMessageId, setHighlightedMessageId] = React.useState<
     string | null
   >(null);
-  const [showNewImageReady, setShowNewImageReady] = React.useState(false);
+  const [showNewMessageReady, setShowNewMessageReady] = React.useState(false);
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -215,6 +238,27 @@ export function AIImageStudioConversation({
       }
     };
   }, []);
+
+  const scrollToBottom = React.useCallback(
+    (instant = false) => {
+      const container = conversationRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      if (instant) {
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      });
+    },
+    [prefersReducedMotion],
+  );
 
   const variationGroupsByKey = React.useMemo(() => {
     const groups = new Map<string, AIImageStudioVariationItem[]>();
@@ -267,43 +311,82 @@ export function AIImageStudioConversation({
     return latestIds;
   }, [messages]);
 
-  React.useEffect(() => {
-    if (isInitialLoad) {
-      return;
-    }
-
-    const lastMessageId =
-      messages.length > 0 ? messages[messages.length - 1]?.id : null;
-    if (!lastMessageId || lastMessageId === lastMessageIdRef.current) {
-      return;
-    }
-
-    lastMessageIdRef.current = lastMessageId;
-
+  React.useLayoutEffect(() => {
+    const snapshot = prependScrollSnapshotRef.current;
     const container = conversationRef.current;
-    if (!container) {
+
+    if (!snapshot || !container) {
       return;
     }
 
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    const shouldAutoScroll = nearBottomRef.current || distanceFromBottom <= 60;
+    const firstMessageId = messages[0]?.id || null;
 
-    if (shouldAutoScroll) {
+    if (firstMessageId && firstMessageId !== snapshot.firstMessageId) {
+      const addedHeight = container.scrollHeight - snapshot.scrollHeight;
+      container.scrollTop = snapshot.scrollTop + addedHeight;
+      prependScrollSnapshotRef.current = null;
+      return;
+    }
+
+    if (!isLoadingHistory) {
+      prependScrollSnapshotRef.current = null;
+    }
+  }, [isLoadingHistory, messages]);
+
+  React.useLayoutEffect(() => {
+    if (isInitialLoad) {
+      initialScrollCompleteRef.current = false;
+      latestMessageTokenRef.current = null;
+      setShowNewMessageReady(false);
+      return;
+    }
+
+    if (messages.length === 0) {
+      initialScrollCompleteRef.current = true;
+      latestMessageTokenRef.current = null;
+      setShowNewMessageReady(false);
+      return;
+    }
+
+    if (initialScrollCompleteRef.current) {
+      return;
+    }
+
+    scrollToBottom(true);
+    initialScrollCompleteRef.current = true;
+    latestMessageTokenRef.current = getLatestMessageToken(messages);
+    nearBottomRef.current = true;
+    setShowNewMessageReady(false);
+  }, [isInitialLoad, messages, scrollToBottom]);
+
+  React.useEffect(() => {
+    if (isInitialLoad || !initialScrollCompleteRef.current) {
+      return;
+    }
+
+    const latestMessageToken = getLatestMessageToken(messages);
+
+    if (!latestMessageToken) {
+      latestMessageTokenRef.current = null;
+      return;
+    }
+
+    if (latestMessageToken === latestMessageTokenRef.current) {
+      return;
+    }
+
+    latestMessageTokenRef.current = latestMessageToken;
+
+    if (nearBottomRef.current) {
       window.requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-        });
+        scrollToBottom(false);
       });
-      setShowNewImageReady(false);
+      setShowNewMessageReady(false);
       return;
     }
 
-    if (messages[messages.length - 1]?.type === "images") {
-      setShowNewImageReady(true);
-    }
-  }, [isInitialLoad, messages, messagesEndRef]);
+    setShowNewMessageReady(true);
+  }, [isInitialLoad, messages, scrollToBottom]);
 
   const handleVariationSelect = React.useCallback(
     (messageId: string) => {
@@ -336,41 +419,129 @@ export function AIImageStudioConversation({
       const container = event.currentTarget;
       const distanceFromBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight;
-      const isNearBottom = distanceFromBottom <= 60;
+      const isAtBottom = distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX;
 
-      nearBottomRef.current = isNearBottom;
+      nearBottomRef.current = isAtBottom;
 
-      if (isNearBottom && showNewImageReady) {
-        setShowNewImageReady(false);
+      if (isAtBottom && showNewMessageReady) {
+        setShowNewMessageReady(false);
+      }
+
+      const now = window.performance.now();
+      const shouldCheckTop =
+        now - lastTopLoadCheckRef.current >= SCROLL_THROTTLE_MS;
+
+      if (
+        shouldCheckTop &&
+        container.scrollTop <= LOAD_MORE_TOP_THRESHOLD_PX &&
+        hasMoreMessages &&
+        !isInitialLoad &&
+        !isLoadingHistory &&
+        !isLoadMoreRequestPendingRef.current &&
+        messages.length > 0
+      ) {
+        lastTopLoadCheckRef.current = now;
+        isLoadMoreRequestPendingRef.current = true;
+        prependScrollSnapshotRef.current = {
+          firstMessageId: messages[0]?.id || null,
+          scrollHeight: container.scrollHeight,
+          scrollTop: container.scrollTop,
+        };
+
+        void Promise.resolve(onLoadMoreHistory())
+          .catch(() => {
+            prependScrollSnapshotRef.current = null;
+          })
+          .finally(() => {
+            isLoadMoreRequestPendingRef.current = false;
+          });
       }
 
       onScroll(event);
     },
-    [onScroll, showNewImageReady],
+    [
+      hasMoreMessages,
+      isInitialLoad,
+      isLoadingHistory,
+      messages,
+      onLoadMoreHistory,
+      onScroll,
+      showNewMessageReady,
+    ],
   );
 
   const scrollToLatest = React.useCallback(() => {
     nearBottomRef.current = true;
-    setShowNewImageReady(false);
-    messagesEndRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [messagesEndRef, prefersReducedMotion]);
+    setShowNewMessageReady(false);
+    scrollToBottom(false);
+  }, [scrollToBottom]);
+
+  const renderItems = React.useMemo(() => {
+    const items: Array<
+      | { key: string; kind: "session"; message: AIImageStudioMessage }
+      | { key: string; kind: "message"; message: AIImageStudioMessage }
+      | { key: string; kind: "ai-group"; messages: AIImageStudioMessage[] }
+    > = [];
+
+    let index = 0;
+
+    while (index < messages.length) {
+      const message = messages[index];
+
+      if (message.type === "session_divider") {
+        items.push({ key: message.id, kind: "session", message });
+        index += 1;
+        continue;
+      }
+
+      if (message.type === "user") {
+        items.push({ key: message.id, kind: "message", message });
+        index += 1;
+        continue;
+      }
+
+      const groupedMessages: AIImageStudioMessage[] = [];
+
+      while (index < messages.length) {
+        const candidate = messages[index];
+
+        if (candidate.type === "session_divider" || candidate.type === "user") {
+          break;
+        }
+
+        groupedMessages.push(candidate);
+        index += 1;
+      }
+
+      if (groupedMessages.length > 0) {
+        items.push({
+          key: groupedMessages.map((entry) => entry.id).join(":"),
+          kind: "ai-group",
+          messages: groupedMessages,
+        });
+      }
+    }
+
+    return items;
+  }, [messages]);
 
   return (
     <Box
       component="section"
+      data-ai-image-studio-scroll-container="true"
       onScroll={handleScroll}
       ref={conversationRef}
       sx={{
         flex: 1,
         minHeight: 0,
         overflowY: "auto",
-        scrollBehavior: "smooth",
+        overscrollBehaviorY: "contain",
+        scrollBehavior: "auto",
         position: "relative",
+        bgcolor: "background.body",
         px: paddingX,
         py: 2.5,
+        WebkitOverflowScrolling: "touch",
         "@keyframes aiImageStudioConversationFade": {
           from: {
             opacity: 0,
@@ -391,21 +562,8 @@ export function AIImageStudioConversation({
       }}
     >
       {isLoadingHistory ? (
-        <Stack alignItems="center" justifyContent="center" sx={{ py: 1.5 }}>
-          <CircularProgress size="sm" thickness={3} />
-        </Stack>
-      ) : null}
-
-      {!isInitialLoad && hasMoreMessages ? (
-        <Stack alignItems="center" sx={{ pb: 1.5 }}>
-          <Button
-            color="neutral"
-            onClick={onLoadMoreHistory}
-            size="sm"
-            variant="soft"
-          >
-            Load 25 more
-          </Button>
+        <Stack alignItems="center" justifyContent="center" sx={{ my: "12px" }}>
+          <CircularProgress color="neutral" size="sm" variant="soft" />
         </Stack>
       ) : null}
 
@@ -425,7 +583,7 @@ export function AIImageStudioConversation({
           level="body-xs"
           textAlign="center"
           textColor="text.tertiary"
-          sx={{ py: 1.5 }}
+          sx={{ my: "16px", opacity: 0.5 }}
         >
           Beginning of conversation
         </Typography>
@@ -461,7 +619,12 @@ export function AIImageStudioConversation({
       ) : null}
 
       {!isInitialLoad && messages.length === 0 && !historyLoadError ? (
-        <AIImageStudioWelcome onSuggestionSelect={onSuggestionSelect} />
+        <AIImageStudioWelcome
+          blockLabel={welcomeBlockLabel}
+          description={welcomeDescription}
+          onSuggestionSelect={onSuggestionSelect}
+          suggestions={welcomeSuggestions}
+        />
       ) : null}
 
       {!isInitialLoad && messages.length > 0 ? (
@@ -471,58 +634,66 @@ export function AIImageStudioConversation({
             animation: "aiImageStudioConversationFade 200ms ease-out both",
           }}
         >
-          {messages.map((message) => {
-            if (message.type === "session_divider" && message.sessionInfo) {
+          {renderItems.map((item, itemIndex) => {
+            if (item.kind === "session" && item.message.sessionInfo) {
               return (
                 <AISessionDivider
-                  key={message.id}
-                  channel={message.sessionInfo.channel}
-                  contextType={message.sessionInfo.contextType}
-                  createdAt={message.sessionInfo.createdAt}
-                  sessionTitle={message.sessionInfo.title}
+                  key={item.message.id}
+                  channel={item.message.sessionInfo.channel}
+                  contextType={item.message.sessionInfo.contextType}
+                  createdAt={item.message.sessionInfo.createdAt}
+                  sessionTitle={item.message.sessionInfo.title}
                 />
               );
             }
 
-            const previousMeaningfulMessage = [...messages]
-              .slice(0, messages.indexOf(message))
+            const firstMessage =
+              item.kind === "ai-group" ? item.messages[0] : item.message;
+            const lastMessage =
+              item.kind === "ai-group"
+                ? item.messages[item.messages.length - 1]
+                : item.message;
+
+            const previousRenderableItem = [...renderItems]
+              .slice(0, itemIndex)
               .reverse()
-              .find((entry) => entry.type !== "session_divider");
+              .find((entry) => entry.kind !== "session");
+
+            const previousMeaningfulMessage = previousRenderableItem
+              ? previousRenderableItem.kind === "ai-group"
+                ? previousRenderableItem.messages[
+                    previousRenderableItem.messages.length - 1
+                  ]
+                : previousRenderableItem.message
+              : null;
+
             const shouldShowDateHeader =
-              message.type !== "session_divider" &&
-              (!previousMeaningfulMessage ||
-                format(message.timestamp, "yyyy-MM-dd") !==
-                  format(previousMeaningfulMessage.timestamp, "yyyy-MM-dd"));
+              !previousMeaningfulMessage ||
+              format(firstMessage.timestamp, "yyyy-MM-dd") !==
+                format(previousMeaningfulMessage.timestamp, "yyyy-MM-dd");
             const isHistorical =
               !!currentSessionId &&
-              !!message.sessionId &&
-              message.sessionId !== currentSessionId;
-
-            const variationKey =
-              message.type === "images"
-                ? message.sessionId &&
-                  normalizePrompt(message.userPrompt || message.prompt)
-                  ? `${message.sessionId}:${normalizePrompt(message.userPrompt || message.prompt)}`
-                  : null
-                : null;
-            const variationGroup = variationKey
-              ? variationGroupsByKey.get(variationKey)
-              : undefined;
-            const showVariationStrip =
-              !!variationKey &&
-              latestVariationMessageIdByKey.get(variationKey) === message.id &&
-              (variationGroup?.length || 0) > 1;
+              (item.kind === "ai-group" ? item.messages : [item.message]).some(
+                (entry) =>
+                  !!entry.sessionId && entry.sessionId !== currentSessionId,
+              );
 
             return (
               <Box
-                key={message.id}
+                key={item.key}
                 ref={(node: HTMLDivElement | null) => {
-                  if (node) {
-                    messageRefs.current.set(message.id, node);
-                    return;
-                  }
+                  const messageIds =
+                    item.kind === "ai-group"
+                      ? item.messages.map((entry) => entry.id)
+                      : [item.message.id];
 
-                  messageRefs.current.delete(message.id);
+                  messageIds.forEach((messageId) => {
+                    if (node) {
+                      messageRefs.current.set(messageId, node);
+                    } else {
+                      messageRefs.current.delete(messageId);
+                    }
+                  });
                 }}
                 sx={
                   shouldUseContentVisibility
@@ -535,63 +706,135 @@ export function AIImageStudioConversation({
                 }
               >
                 {shouldShowDateHeader ? (
-                  <AIImageStudioDateHeader timestamp={message.timestamp} />
+                  <AIImageStudioDateHeader timestamp={firstMessage.timestamp} />
                 ) : null}
 
-                {message.type === "user" && previousMeaningfulMessage ? (
-                  <AIImageStudioTimestampSeparator
-                    timestamp={message.timestamp}
+                {item.kind === "message" ? (
+                  <AIImageStudioMessage
+                    isHighlighted={highlightedMessageId === item.message.id}
+                    isHistorical={isHistorical}
+                    message={item.message}
+                    onActionClick={onMessageAction}
+                    onPreviewImage={onPreviewImage}
+                    onRegenerate={onRegenerate}
+                    onRetry={onRetry}
+                    onUseImage={onUseImage}
+                    onVariationSelect={handleVariationSelect}
                   />
                 ) : null}
 
-                <AIImageStudioMessage
-                  isHighlighted={highlightedMessageId === message.id}
-                  isHistorical={isHistorical}
-                  message={message}
-                  onPreviewImage={onPreviewImage}
-                  onRegenerate={onRegenerate}
-                  onRetry={onRetry}
-                  onUseImage={onUseImage}
-                  onVariationSelect={handleVariationSelect}
-                  showVariationStrip={showVariationStrip}
-                  variationGroup={variationGroup}
-                />
+                {item.kind === "ai-group" ? (
+                  <Stack
+                    spacing={0.5}
+                    sx={{
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        maxWidth: "90%",
+                        px: "16px",
+                        py: "12px",
+                        borderRadius: "16px 16px 16px 4px",
+                        backgroundColor: "background.level1",
+                        border: "1px solid",
+                        borderColor: "var(--joy-palette-neutral-100, #F0F0F0)",
+                        boxShadow: isHistorical ? "none" : "sm",
+                        opacity: isHistorical ? 0.9 : 1,
+                      }}
+                    >
+                      <Stack spacing={1.25}>
+                        {item.messages.map((groupMessage) => {
+                          const variationKey =
+                            groupMessage.type === "images"
+                              ? groupMessage.sessionId &&
+                                normalizePrompt(
+                                  groupMessage.userPrompt ||
+                                    groupMessage.prompt,
+                                )
+                                ? `${groupMessage.sessionId}:${normalizePrompt(groupMessage.userPrompt || groupMessage.prompt)}`
+                                : null
+                              : null;
+                          const variationGroup = variationKey
+                            ? variationGroupsByKey.get(variationKey)
+                            : undefined;
+                          const showVariationStrip =
+                            !!variationKey &&
+                            latestVariationMessageIdByKey.get(variationKey) ===
+                              groupMessage.id &&
+                            (variationGroup?.length || 0) > 1;
+
+                          return (
+                            <AIImageStudioMessage
+                              key={groupMessage.id}
+                              hideTimestamp
+                              isHighlighted={
+                                highlightedMessageId === groupMessage.id
+                              }
+                              isHistorical={isHistorical}
+                              message={groupMessage}
+                              onActionClick={onMessageAction}
+                              onPreviewImage={onPreviewImage}
+                              onRegenerate={onRegenerate}
+                              onRetry={onRetry}
+                              onUseImage={onUseImage}
+                              onVariationSelect={handleVariationSelect}
+                              renderInline
+                              showVariationStrip={showVariationStrip}
+                              variationGroup={variationGroup}
+                            />
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+
+                    <Typography
+                      level="body-xs"
+                      textColor="text.tertiary"
+                      sx={{ px: 0.5, opacity: 0.6, textAlign: "left" }}
+                    >
+                      {formatDistanceToNow(lastMessage.timestamp, {
+                        addSuffix: true,
+                      }).replace(/^about\s+/, "")}
+                    </Typography>
+                  </Stack>
+                ) : null}
               </Box>
             );
           })}
         </Stack>
       ) : null}
 
-      {showNewImageReady ? (
+      {showNewMessageReady ? (
         <Box
           sx={{
             position: "sticky",
-            bottom: 12,
+            bottom: "8px",
             display: "flex",
             justifyContent: "center",
             pointerEvents: "none",
             mt: 1.5,
+            zIndex: 1,
             transition: prefersReducedMotion ? "none" : "opacity 180ms ease",
           }}
         >
-          <Button
+          <Chip
             color="primary"
+            endDecorator={<ArrowDown size={14} strokeWidth={2.2} />}
             onClick={scrollToLatest}
             size="sm"
-            startDecorator={<ArrowDown size={14} strokeWidth={2.2} />}
             sx={{
+              alignSelf: "center",
+              cursor: "pointer",
               pointerEvents: "auto",
-              borderRadius: "999px",
               boxShadow: "md",
             }}
-            variant="solid"
+            variant="soft"
           >
-            New image ready ↓
-          </Button>
+            New message
+          </Chip>
         </Box>
       ) : null}
-
-      <div ref={messagesEndRef} />
     </Box>
   );
 }

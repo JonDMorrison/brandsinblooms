@@ -142,10 +142,49 @@ export type StudioCampaignSnapshot = {
   blocks: StudioBlock[];
 };
 
+export type CampaignImageGallerySource = "upload" | "ai-generated" | "library";
+
+export type CampaignImageIndicatorSource =
+  | CampaignImageGallerySource
+  | "reused";
+
+export interface CampaignImageGalleryItem {
+  url: string;
+  source: CampaignImageGallerySource;
+  prompt?: string;
+  blockLabel?: string;
+  timestamp: number;
+}
+
+export interface CampaignImageFieldSourceRecord {
+  source: CampaignImageIndicatorSource;
+  timestamp: number;
+  url: string;
+}
+
 type UseStudioStateOptions = {
   initialCampaignName: string;
   designSystem: StudioDesignSystem;
 };
+
+function normalizeCampaignImageText(
+  value: string | undefined,
+  maxLength: number,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  return normalizedValue.length > maxLength
+    ? `${normalizedValue.slice(0, maxLength - 3).trimEnd()}...`
+    : normalizedValue;
+}
 
 export function useStudioState({
   initialCampaignName,
@@ -178,6 +217,11 @@ export function useStudioState({
     string | null
   >(null);
   const [removingBlockIds, setRemovingBlockIds] = React.useState<string[]>([]);
+  const [campaignImageGallery, setCampaignImageGallery] = React.useState<
+    CampaignImageGalleryItem[]
+  >([]);
+  const [campaignImageFieldSources, setCampaignImageFieldSources] =
+    React.useState<Record<string, CampaignImageFieldSourceRecord>>({});
 
   const addAnimationTimeoutRef = React.useRef<number | null>(null);
   const removalTimeoutsRef = React.useRef<Record<string, number>>({});
@@ -404,6 +448,95 @@ export function useStudioState({
     [],
   );
 
+  const registerCampaignImage = React.useCallback(
+    (entry: CampaignImageGalleryItem) => {
+      const normalizedUrl = entry.url.trim();
+
+      if (!normalizedUrl) {
+        return;
+      }
+
+      const normalizedEntry: CampaignImageGalleryItem = {
+        blockLabel: normalizeCampaignImageText(entry.blockLabel, 80),
+        prompt: normalizeCampaignImageText(entry.prompt, 200),
+        source: entry.source,
+        timestamp: entry.timestamp,
+        url: normalizedUrl,
+      };
+
+      setCampaignImageGallery((current) => {
+        const existingItem = current.find((item) => item.url === normalizedUrl);
+
+        if (!existingItem) {
+          return [normalizedEntry, ...current].sort(
+            (left, right) => right.timestamp - left.timestamp,
+          );
+        }
+
+        const nextItems = current.map((item) =>
+          item.url === normalizedUrl
+            ? {
+                ...item,
+                blockLabel: normalizedEntry.blockLabel ?? item.blockLabel,
+                prompt: normalizedEntry.prompt ?? item.prompt,
+                timestamp: normalizedEntry.timestamp,
+              }
+            : item,
+        );
+
+        return nextItems.sort(
+          (left, right) => right.timestamp - left.timestamp,
+        );
+      });
+    },
+    [],
+  );
+
+  const setCampaignImageFieldSource = React.useCallback(
+    (fieldKey: string, record: CampaignImageFieldSourceRecord | null) => {
+      setCampaignImageFieldSources((current) => {
+        if (!record) {
+          const nextSources = { ...current };
+          delete nextSources[fieldKey];
+          return nextSources;
+        }
+
+        return {
+          ...current,
+          [fieldKey]: record,
+        };
+      });
+    },
+    [],
+  );
+
+  const resolveCampaignImageFieldSource = React.useCallback(
+    (fieldKey: string, url?: string) => {
+      const fieldSource = campaignImageFieldSources[fieldKey];
+
+      if (fieldSource && (!url || fieldSource.url === url)) {
+        return fieldSource;
+      }
+
+      if (!url) {
+        return null;
+      }
+
+      const galleryItem = campaignImageGallery.find((item) => item.url === url);
+
+      if (!galleryItem) {
+        return null;
+      }
+
+      return {
+        source: galleryItem.source,
+        timestamp: galleryItem.timestamp,
+        url: galleryItem.url,
+      } satisfies CampaignImageFieldSourceRecord;
+    },
+    [campaignImageFieldSources, campaignImageGallery],
+  );
+
   const reorderBlock = React.useCallback(
     (blockId: string, direction: "up" | "down") => {
       setBlocks((current) => {
@@ -528,14 +661,19 @@ export function useStudioState({
     isDraggingOverCanvas,
     recentlyAddedBlockId,
     removingBlockIds,
+    campaignImageGallery,
+    campaignImageFieldSources,
     addBlock,
     removeBlock,
     duplicateBlock,
     updateBlockField,
+    registerCampaignImage,
     reorderBlock,
+    resolveCampaignImageFieldSource,
     moveBlock,
     selectBlock,
     selectAdjacentBlock,
+    setCampaignImageFieldSource,
     setDeviceMode,
     setCampaignName,
     setCampaignStatus,

@@ -1,11 +1,9 @@
-
 export interface ImageAttachment {
-  id: string;        // unsplash_id or generated uuid
-  url: string;       // full-size for upload
-  thumb: string;     // small for UI
+  id: string;
+  url: string; // full-size for upload
+  thumb: string; // small for UI
   alt: string;
   photographer: string;
-  // Additional properties for MediaSelectorSidebar compatibility
   thumb_url?: string;
   download_url?: string;
   photographer_url?: string;
@@ -45,13 +43,13 @@ export interface ContentTask {
   };
 }
 
-export type TaskStatus = 
-  | 'planned' 
-  | 'review' 
-  | 'approved' 
-  | 'scheduled'
-  | 'published'
-  | 'rejected'
-  | 'generated'
-  | 'pending'
-  | 'preview';
+export type TaskStatus =
+  | "planned"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "published"
+  | "rejected"
+  | "generated"
+  | "pending"
+  | "preview";

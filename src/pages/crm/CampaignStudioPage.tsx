@@ -22,11 +22,23 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Skeleton from "@mui/joy/Skeleton";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import type {
+  AIImageStudioAspectRatio,
+  AIImageStudioSelectionMetadata,
+} from "@/components/crm/ai-image-studio/types";
 import BlockDragOverlay from "@/components/crm/studio/BlockDragOverlay";
 import BlockLibrary from "@/components/crm/studio/BlockLibrary";
 import BlockPropertiesPanel from "@/components/crm/studio/BlockPropertiesPanel";
+import { buildStudioCampaignContext } from "@/components/crm/studio/studioAIContext";
+import type {
+  StudioImageApplyEvent,
+  StudioImageAIAspectRatioHint,
+  StudioImageAIRequest,
+} from "@/components/crm/studio/fields/StudioImageUpload";
+import { ensureCampaignStudioImageUrl } from "@/components/crm/studio/fields/StudioImageUpload";
 import StudioBottomBar from "@/components/crm/studio/StudioBottomBar";
 import StudioCanvas from "@/components/crm/studio/StudioCanvas";
 import StudioTopBar from "@/components/crm/studio/StudioTopBar";
@@ -35,9 +47,13 @@ import {
   DesignSystemProvider,
   useDesignSystem,
 } from "@/contexts/DesignSystemContext";
+import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { useGoogleFontsLoader } from "@/hooks/useGoogleFontsLoader";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
-import type { CampaignEditorRecord } from "@/lib/crm/campaignEditor";
+import type {
+  CampaignEditorRecord,
+  EditorCampaignType,
+} from "@/lib/crm/campaignEditor";
 import {
   fetchCampaignEditorRecord,
   persistCampaignDraft,
@@ -45,7 +61,11 @@ import {
 import { CampaignDraftConflictError } from "@/lib/crm/campaignDraftPersistence";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContentBlock } from "@/types/emailBuilder";
-import type { StudioBlock } from "@/types/studioBlocks";
+import type {
+  GalleryImage,
+  GalleryProduct,
+  StudioBlock,
+} from "@/types/studioBlocks";
 import {
   STUDIO_CANVAS_APPEND_DROP_ID,
   STUDIO_CANVAS_EMPTY_DROP_ID,
@@ -62,6 +82,8 @@ const AUTO_SAVE_DELAY_MS = 3000;
 const SAVE_FEEDBACK_RESET_MS = 2000;
 const STUDIO_CHANNEL_CONNECT_DELAY_MS = 2000;
 const STUDIO_CHANNEL_RETRY_INTERVAL_MS = 250;
+const STUDIO_AI_PANEL_COLLAPSE_MS = 250;
+const STUDIO_AI_SEQUENCE_CLEANUP_MS = 500;
 
 type StudioSaveStatus =
   | "idle"
@@ -326,6 +348,75 @@ function buildStudioFingerprint(snapshot: StudioCampaignSnapshot) {
   });
 }
 
+function resolveStudioAIAspectRatio(
+  hint?: StudioImageAIAspectRatioHint,
+): AIImageStudioAspectRatio | undefined {
+  switch (hint) {
+    case "landscape":
+      return "16:9";
+    case "portrait":
+      return "9:16";
+    case "square":
+      return "1:1";
+    default:
+      return undefined;
+  }
+}
+
+function getCampaignImageSourceFromMetadata(
+  metadata?: AIImageStudioSelectionMetadata,
+) {
+  switch (metadata?.source) {
+    case "ai-generated":
+      return "ai-generated" as const;
+    case "upload":
+      return "upload" as const;
+    case "content_asset":
+    case "global_image_gallery":
+    default:
+      return "library" as const;
+  }
+}
+
+function getImageGallerySlotCount(block: StudioBlock) {
+  switch (block.layout) {
+    case "grid-4":
+      return 4;
+    case "grid-6":
+      return 6;
+    case "feature-grid":
+      return 3;
+    default:
+      return 3;
+  }
+}
+
+function getImageGalleryFieldKey(blockId: string, slotIndex: number) {
+  return `${blockId}:galleryImages:${slotIndex}`;
+}
+
+function getProductGalleryFieldKey(blockId: string, productId: string) {
+  return `${blockId}:galleryProducts:${productId}:imageUrl`;
+}
+
+function buildStudioAIContextUpdate(request: StudioImageAIRequest) {
+  return {
+    assignmentLabel: request.assignmentLabel,
+    blockId: request.blockId,
+    campaignContext: request.campaignContext,
+    contentContext: request.blockContext,
+    contextLabel: request.blockContext,
+    contextType: request.contextType ?? "email_block",
+  };
+}
+
+function buildStudioAISelectHandler(request: StudioImageAIRequest) {
+  return (
+    imageUrl: string,
+    metadata?: Parameters<NonNullable<StudioImageAIRequest["onSelect"]>>[1],
+  ) => request.onSelect?.(imageUrl, metadata);
+}
+
 function StudioShellSkeleton() {
   return (
     <Sheet
@@ -534,6 +625,14 @@ function CampaignStudioPageContent() {
   const navigate = useNavigate();
   const campaignId = id ?? "";
   const { designSystem } = useDesignSystem();
+  const isMobileViewport = useMediaQuery("(max-width: 767.95px)");
+  const {
+    close: closeAIImageStudio,
+    isOpen: isAIImageStudioDrawerOpen,
+    open: openAIImageStudio,
+    updateContext: updateAIImageStudioContext,
+    updateOnSelect: updateAIImageStudioOnSelect,
+  } = useAIImageStudio();
 
   const initialCampaignName = React.useMemo(
     () =>
@@ -548,6 +647,8 @@ function CampaignStudioPageContent() {
     ? `/crm/campaigns/${campaignId}/edit`
     : "/crm/campaigns";
   const campaignRecordRef = React.useRef<CampaignEditorRecord | null>(null);
+  const activeCampaignType: EditorCampaignType =
+    campaignRecordRef.current?.campaignType ?? "email";
   const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(
     null,
   );
@@ -567,11 +668,30 @@ function CampaignStudioPageContent() {
   const [activeCanvasDragBlockId, setActiveCanvasDragBlockId] = React.useState<
     string | null
   >(null);
+  const [aiStudioOpen, setAIStudioOpen] = React.useState(false);
+  const [propertiesPanelSuppressed, setPropertiesPanelSuppressed] =
+    React.useState(false);
+  const [preservedBlockId, setPreservedBlockId] = React.useState<string | null>(
+    null,
+  );
+  const [preservedScrollPosition, setPreservedScrollPosition] = React.useState<
+    number | null
+  >(null);
   const [loadRevision, setLoadRevision] = React.useState(0);
   const loadStudioCampaignRef = React.useRef(studio.loadCampaign);
   const isLoadingRef = React.useRef(isLoading);
   const saveStatusRef = React.useRef(saveStatus);
   const savedFingerprintRef = React.useRef(savedFingerprint);
+  const propertiesPanelScrollPositionRef = React.useRef(0);
+  const preservedBlockIdRef = React.useRef<string | null>(null);
+  const aiStudioOpenTimerRef = React.useRef<ReturnType<
+    typeof window.setTimeout
+  > | null>(null);
+  const aiStudioCleanupTimerRef = React.useRef<ReturnType<
+    typeof window.setTimeout
+  > | null>(null);
+  const pendingExitAfterAICloseRef = React.useRef(false);
+  const isRestoringPropertiesPanelRef = React.useRef(false);
 
   React.useEffect(() => {
     loadStudioCampaignRef.current = studio.loadCampaign;
@@ -630,10 +750,36 @@ function CampaignStudioPageContent() {
         : null,
     [activeCanvasDragBlockId, studio.blocks],
   );
+  const effectivePropertiesPanelOpen =
+    studio.isPropertiesPanelOpen && !propertiesPanelSuppressed;
 
   const retryLoadCampaign = React.useCallback(() => {
     setLoadRevision((current) => current + 1);
   }, []);
+
+  const clearAIChoreographyTimers = React.useCallback(() => {
+    if (aiStudioOpenTimerRef.current !== null) {
+      window.clearTimeout(aiStudioOpenTimerRef.current);
+      aiStudioOpenTimerRef.current = null;
+    }
+
+    if (aiStudioCleanupTimerRef.current !== null) {
+      window.clearTimeout(aiStudioCleanupTimerRef.current);
+      aiStudioCleanupTimerRef.current = null;
+    }
+  }, []);
+
+  const restoreAIStudioInteractionState = React.useCallback(() => {
+    const nextSelectedBlockId =
+      preservedBlockIdRef.current ?? preservedBlockId ?? studio.selectedBlockId;
+
+    if (nextSelectedBlockId && studio.selectedBlockId !== nextSelectedBlockId) {
+      studio.selectBlock(nextSelectedBlockId);
+    }
+
+    setAIStudioOpen(false);
+    setPropertiesPanelSuppressed(false);
+  }, [preservedBlockId, studio]);
 
   const saveDraft = React.useCallback(
     async (options?: { silent?: boolean }) => {
@@ -754,7 +900,7 @@ function CampaignStudioPageContent() {
     void saveDraft({ silent: false });
   }, [saveDraft]);
 
-  const handleExit = React.useCallback(async () => {
+  const completeExit = React.useCallback(async () => {
     if (hasUnsavedChanges || saveStatus === "saving") {
       const savedId = await saveDraft({ silent: false });
 
@@ -765,6 +911,701 @@ function CampaignStudioPageContent() {
 
     navigate(editorPath);
   }, [editorPath, hasUnsavedChanges, navigate, saveDraft, saveStatus]);
+
+  const finalizeAIChoreography = React.useCallback(() => {
+    clearAIChoreographyTimers();
+    isRestoringPropertiesPanelRef.current = false;
+    setAIStudioOpen(false);
+    setPropertiesPanelSuppressed(false);
+    setPreservedScrollPosition(null);
+    setPreservedBlockId(null);
+    preservedBlockIdRef.current = null;
+
+    if (pendingExitAfterAICloseRef.current) {
+      pendingExitAfterAICloseRef.current = false;
+      void completeExit();
+    }
+  }, [clearAIChoreographyTimers, completeExit]);
+
+  const handleAIStudioClose = React.useCallback(() => {
+    clearAIChoreographyTimers();
+    isRestoringPropertiesPanelRef.current = true;
+    restoreAIStudioInteractionState();
+
+    aiStudioCleanupTimerRef.current = window.setTimeout(() => {
+      if (isRestoringPropertiesPanelRef.current) {
+        finalizeAIChoreography();
+      }
+    }, STUDIO_AI_SEQUENCE_CLEANUP_MS);
+  }, [
+    clearAIChoreographyTimers,
+    finalizeAIChoreography,
+    restoreAIStudioInteractionState,
+  ]);
+
+  const handleRequestAIImage = React.useCallback(
+    (request: StudioImageAIRequest) => {
+      const nextSelectedBlockId = request.blockId ?? studio.selectedBlockId;
+
+      if (!nextSelectedBlockId) {
+        return;
+      }
+
+      const normalizedRequest: StudioImageAIRequest = {
+        ...request,
+        blockId: nextSelectedBlockId,
+      };
+
+      if (aiStudioOpen || isAIImageStudioDrawerOpen) {
+        updateAIImageStudioContext(
+          buildStudioAIContextUpdate(normalizedRequest),
+        );
+        updateAIImageStudioOnSelect(
+          buildStudioAISelectHandler(normalizedRequest),
+        );
+        return;
+      }
+
+      clearAIChoreographyTimers();
+      pendingExitAfterAICloseRef.current = false;
+      isRestoringPropertiesPanelRef.current = false;
+      preservedBlockIdRef.current = nextSelectedBlockId;
+      setPreservedBlockId(nextSelectedBlockId);
+      setPreservedScrollPosition(propertiesPanelScrollPositionRef.current);
+      setPropertiesPanelSuppressed(true);
+      setAIStudioOpen(true);
+
+      aiStudioOpenTimerRef.current = window.setTimeout(
+        () => {
+          openAIImageStudio({
+            assignmentLabel: normalizedRequest.assignmentLabel,
+            aspectRatioHint: resolveStudioAIAspectRatio(
+              normalizedRequest.aiAspectRatioHint,
+            ),
+            blockId: nextSelectedBlockId,
+            campaignContext: normalizedRequest.campaignContext,
+            channel: "newsletter",
+            contentContext: normalizedRequest.blockContext,
+            contextLabel: normalizedRequest.blockContext,
+            contextType: normalizedRequest.contextType ?? "email_block",
+            defaultTab: "ai",
+            multiBlockFlow: normalizedRequest.multiBlockFlow
+              ? {
+                  advanceToNextTarget: () => {
+                    const nextTarget =
+                      normalizedRequest.multiBlockFlow?.advanceToNextTarget() ??
+                      null;
+
+                    if (!nextTarget) {
+                      return null;
+                    }
+
+                    updateAIImageStudioContext(
+                      buildStudioAIContextUpdate(nextTarget),
+                    );
+                    updateAIImageStudioOnSelect(
+                      buildStudioAISelectHandler(nextTarget),
+                    );
+
+                    return {
+                      assignmentLabel: nextTarget.assignmentLabel,
+                      blockId: nextTarget.blockId,
+                      campaignContext: nextTarget.campaignContext,
+                      contentContext: nextTarget.blockContext,
+                      contextLabel: nextTarget.blockContext,
+                      contextType: nextTarget.contextType ?? "email_block",
+                      onSelect: buildStudioAISelectHandler(nextTarget),
+                    };
+                  },
+                  hasNextTarget: () =>
+                    normalizedRequest.multiBlockFlow?.hasNextTarget() ?? false,
+                }
+              : undefined,
+            onClose: handleAIStudioClose,
+            onSelect: (imageUrl, metadata) => {
+              try {
+                const selectionResult = normalizedRequest.onSelect?.(
+                  imageUrl,
+                  metadata,
+                );
+
+                if (
+                  selectionResult &&
+                  typeof (selectionResult as Promise<void>).then === "function"
+                ) {
+                  void selectionResult
+                    .then(() => {
+                      restoreAIStudioInteractionState();
+                    })
+                    .catch((error) => {
+                      console.error(
+                        "Campaign Studio AI image selection failed",
+                        error,
+                      );
+                      restoreAIStudioInteractionState();
+                    });
+
+                  return;
+                }
+
+                restoreAIStudioInteractionState();
+              } catch (error) {
+                console.error(
+                  "Campaign Studio AI image selection failed",
+                  error,
+                );
+                restoreAIStudioInteractionState();
+              }
+            },
+          });
+        },
+        isMobileViewport ? 200 : STUDIO_AI_PANEL_COLLAPSE_MS,
+      );
+    },
+    [
+      aiStudioOpen,
+      clearAIChoreographyTimers,
+      handleAIStudioClose,
+      isAIImageStudioDrawerOpen,
+      isMobileViewport,
+      openAIImageStudio,
+      preservedBlockId,
+      restoreAIStudioInteractionState,
+      studio.selectedBlockId,
+      updateAIImageStudioContext,
+      updateAIImageStudioOnSelect,
+    ],
+  );
+
+  const handleTrackCampaignImageUsage = React.useCallback(
+    (fieldKey: string, event: StudioImageApplyEvent | null) => {
+      if (!event) {
+        studio.setCampaignImageFieldSource(fieldKey, null);
+        return;
+      }
+
+      studio.registerCampaignImage({
+        blockLabel: event.blockLabel,
+        prompt: event.prompt,
+        source: event.gallerySource,
+        timestamp: event.timestamp,
+        url: event.url,
+      });
+      studio.setCampaignImageFieldSource(fieldKey, {
+        source: event.source,
+        timestamp: event.timestamp,
+        url: event.url,
+      });
+    },
+    [studio],
+  );
+
+  const isEditableTarget = React.useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    if (target.isContentEditable) {
+      return true;
+    }
+
+    return Boolean(
+      target.closest(
+        "input, textarea, select, [contenteditable='true'], [role='textbox']",
+      ),
+    );
+  }, []);
+
+  const buildApplyEvent = React.useCallback(
+    (
+      url: string,
+      campaignContext: StudioImageAIRequest["campaignContext"],
+      metadata?: AIImageStudioSelectionMetadata,
+    ): StudioImageApplyEvent => ({
+      blockLabel: campaignContext?.blockLabel,
+      gallerySource: getCampaignImageSourceFromMetadata(metadata),
+      prompt: metadata?.altText || campaignContext?.contentSummary || undefined,
+      source: getCampaignImageSourceFromMetadata(metadata),
+      timestamp: Date.now(),
+      url,
+    }),
+    [],
+  );
+
+  const buildSingleFieldAIRequest = React.useCallback(
+    ({
+      aiAspectRatioHint,
+      applyResolvedUrl,
+      assignmentLabel,
+      block,
+      fieldKey,
+    }: {
+      aiAspectRatioHint: StudioImageAIAspectRatioHint;
+      applyResolvedUrl: (resolvedUrl: string) => void;
+      assignmentLabel: string;
+      block: StudioBlock;
+      fieldKey: string;
+    }): StudioImageAIRequest => {
+      const campaignContext = buildStudioCampaignContext({
+        aspectRatioHint: aiAspectRatioHint,
+        block,
+        campaignName: studio.campaignName,
+        campaignType: activeCampaignType,
+      });
+
+      return {
+        aiAspectRatioHint,
+        assignmentLabel,
+        blockContext: assignmentLabel,
+        blockId: block.id,
+        campaignContext,
+        onSelect: async (imageUrl, metadata) => {
+          const resolvedImageUrl = await ensureCampaignStudioImageUrl(imageUrl);
+          applyResolvedUrl(resolvedImageUrl);
+          handleTrackCampaignImageUsage(
+            fieldKey,
+            buildApplyEvent(resolvedImageUrl, campaignContext, metadata),
+          );
+        },
+      };
+    },
+    [
+      activeCampaignType,
+      buildApplyEvent,
+      handleTrackCampaignImageUsage,
+      studio.campaignName,
+    ],
+  );
+
+  const buildImageGalleryAIRequest = React.useCallback(
+    function buildImageGalleryAIRequest(
+      blockId: string,
+      slotIndex: number,
+      includeFlow = true,
+    ): StudioImageAIRequest | null {
+      const block = studio.blocks.find((item) => item.id === blockId);
+
+      if (!block || block.type !== "image-gallery") {
+        return null;
+      }
+
+      const slotCount = Math.max(
+        getImageGallerySlotCount(block),
+        block.galleryImages?.length ?? 0,
+      );
+      const assignmentLabel = `Image Gallery — Slot ${slotIndex + 1} of ${slotCount}`;
+      const campaignContext = buildStudioCampaignContext({
+        aspectRatioHint: "square",
+        block,
+        campaignName: studio.campaignName,
+        campaignType: activeCampaignType,
+      });
+
+      const onSelect: StudioImageAIRequest["onSelect"] = async (
+        imageUrl,
+        metadata,
+      ) => {
+        const resolvedImageUrl = await ensureCampaignStudioImageUrl(imageUrl);
+        const latestBlock = studio.blocks.find((item) => item.id === blockId);
+
+        if (!latestBlock || latestBlock.type !== "image-gallery") {
+          return;
+        }
+
+        const nextImages = [...(latestBlock.galleryImages ?? [])];
+        const currentImage = nextImages[slotIndex];
+        nextImages[slotIndex] = currentImage
+          ? { ...currentImage, url: resolvedImageUrl }
+          : ({
+              id: crypto.randomUUID(),
+              url: resolvedImageUrl,
+              alt: "",
+              linkUrl: "",
+            } satisfies GalleryImage);
+
+        studio.updateBlockField(
+          blockId,
+          "galleryImages",
+          nextImages.filter((image): image is GalleryImage => Boolean(image)),
+        );
+        handleTrackCampaignImageUsage(
+          getImageGalleryFieldKey(blockId, slotIndex),
+          buildApplyEvent(resolvedImageUrl, campaignContext, metadata),
+        );
+      };
+
+      const slotIndexes = Array.from(
+        { length: slotCount - slotIndex },
+        (_, offset) => slotIndex + offset,
+      );
+
+      return {
+        aiAspectRatioHint: "square",
+        assignmentLabel,
+        blockContext: assignmentLabel,
+        blockId,
+        campaignContext,
+        multiBlockFlow:
+          includeFlow && slotIndexes.length > 1
+            ? (() => {
+                let currentIndex = 0;
+
+                return {
+                  advanceToNextTarget: () => {
+                    const nextSlotIndex = slotIndexes[currentIndex + 1];
+
+                    if (nextSlotIndex === undefined) {
+                      return null;
+                    }
+
+                    currentIndex += 1;
+                    return buildImageGalleryAIRequest(
+                      blockId,
+                      nextSlotIndex,
+                      false,
+                    );
+                  },
+                  hasNextTarget: () => currentIndex + 1 < slotIndexes.length,
+                };
+              })()
+            : undefined,
+        onSelect,
+      };
+    },
+    [
+      activeCampaignType,
+      buildApplyEvent,
+      handleTrackCampaignImageUsage,
+      studio.blocks,
+      studio.campaignName,
+      studio.updateBlockField,
+    ],
+  );
+
+  const buildProductGalleryAIRequest = React.useCallback(
+    function buildProductGalleryAIRequest(
+      blockId: string,
+      productIndex: number,
+      includeFlow = true,
+    ): StudioImageAIRequest | null {
+      const block = studio.blocks.find((item) => item.id === blockId);
+
+      if (!block || block.type !== "product-gallery") {
+        return null;
+      }
+
+      const products = block.galleryProducts ?? [];
+      const product = products[productIndex];
+
+      if (!product) {
+        return null;
+      }
+
+      const assignmentLabel = `Product Gallery — Cell ${productIndex + 1} of ${products.length}`;
+      const campaignContext = buildStudioCampaignContext({
+        aspectRatioHint: "portrait",
+        block,
+        campaignName: studio.campaignName,
+        campaignType: activeCampaignType,
+      });
+
+      const onSelect: StudioImageAIRequest["onSelect"] = async (
+        imageUrl,
+        metadata,
+      ) => {
+        const resolvedImageUrl = await ensureCampaignStudioImageUrl(imageUrl);
+        const latestBlock = studio.blocks.find((item) => item.id === blockId);
+
+        if (!latestBlock || latestBlock.type !== "product-gallery") {
+          return;
+        }
+
+        const nextProducts = (latestBlock.galleryProducts ?? []).map(
+          (entry, index) =>
+            index === productIndex
+              ? { ...entry, imageUrl: resolvedImageUrl }
+              : entry,
+        );
+
+        studio.updateBlockField(
+          blockId,
+          "galleryProducts",
+          nextProducts as GalleryProduct[],
+        );
+        handleTrackCampaignImageUsage(
+          getProductGalleryFieldKey(blockId, product.id),
+          buildApplyEvent(resolvedImageUrl, campaignContext, metadata),
+        );
+      };
+
+      const remainingIndexes = Array.from(
+        { length: products.length - productIndex },
+        (_, offset) => productIndex + offset,
+      );
+
+      return {
+        aiAspectRatioHint: "portrait",
+        assignmentLabel,
+        blockContext: assignmentLabel,
+        blockId,
+        campaignContext,
+        multiBlockFlow:
+          includeFlow && remainingIndexes.length > 1
+            ? (() => {
+                let currentIndex = 0;
+
+                return {
+                  advanceToNextTarget: () => {
+                    const nextProductIndex = remainingIndexes[currentIndex + 1];
+
+                    if (nextProductIndex === undefined) {
+                      return null;
+                    }
+
+                    currentIndex += 1;
+                    return buildProductGalleryAIRequest(
+                      blockId,
+                      nextProductIndex,
+                      false,
+                    );
+                  },
+                  hasNextTarget: () =>
+                    currentIndex + 1 < remainingIndexes.length,
+                };
+              })()
+            : undefined,
+        onSelect,
+      };
+    },
+    [
+      activeCampaignType,
+      buildApplyEvent,
+      handleTrackCampaignImageUsage,
+      studio.blocks,
+      studio.campaignName,
+      studio.updateBlockField,
+    ],
+  );
+
+  const buildDefaultAIRequestForSelectedBlock = React.useCallback(() => {
+    const selectedBlock = studio.blocks.find(
+      (block) => block.id === studio.selectedBlockId,
+    );
+
+    if (!selectedBlock) {
+      return null;
+    }
+
+    switch (selectedBlock.type) {
+      case "email-safe-hero":
+        if (
+          selectedBlock.heroStyle !== "image-overlay" &&
+          selectedBlock.heroStyle !== "image-bottom"
+        ) {
+          return null;
+        }
+
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "landscape",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "imageUrl", resolvedUrl),
+          assignmentLabel:
+            selectedBlock.heroStyle === "image-overlay"
+              ? "Email Safe Hero background image"
+              : "Email Safe Hero hero image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:imageUrl`,
+        });
+      case "image-text":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "square",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "imageUrl", resolvedUrl),
+          assignmentLabel: "Image + Text image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:imageUrl`,
+        });
+      case "graphic-hero":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "landscape",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "imageUrl", resolvedUrl),
+          assignmentLabel: "Graphic Hero image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:imageUrl`,
+        });
+      case "full-width-image":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "landscape",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "imageUrl", resolvedUrl),
+          assignmentLabel: "Full-Width Image block image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:imageUrl`,
+        });
+      case "newsletter-header":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "landscape",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "logoUrl", resolvedUrl),
+          assignmentLabel: "Newsletter Header logo",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:logoUrl`,
+        });
+      case "footer":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "landscape",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "logoUrl", resolvedUrl),
+          assignmentLabel: "Footer logo",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:logoUrl`,
+        });
+      case "quote":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "square",
+          applyResolvedUrl: (resolvedUrl) => {
+            studio.updateBlockField(
+              selectedBlock.id,
+              "authorImageUrl",
+              resolvedUrl,
+            );
+            studio.updateBlockField(
+              selectedBlock.id,
+              "authorAvatarUrl",
+              resolvedUrl,
+            );
+          },
+          assignmentLabel: "Quote author image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:authorImageUrl`,
+        });
+      case "product-card":
+        return buildSingleFieldAIRequest({
+          aiAspectRatioHint: "portrait",
+          applyResolvedUrl: (resolvedUrl) =>
+            studio.updateBlockField(selectedBlock.id, "imageUrl", resolvedUrl),
+          assignmentLabel: "Product Card image",
+          block: selectedBlock,
+          fieldKey: `${selectedBlock.id}:imageUrl`,
+        });
+      case "image-gallery": {
+        const slotCount = Math.max(
+          getImageGallerySlotCount(selectedBlock),
+          selectedBlock.galleryImages?.length ?? 0,
+        );
+        const firstEmptySlotIndex =
+          (selectedBlock.galleryImages?.length ?? 0) < slotCount
+            ? (selectedBlock.galleryImages?.length ?? 0)
+            : 0;
+
+        return buildImageGalleryAIRequest(
+          selectedBlock.id,
+          firstEmptySlotIndex,
+        );
+      }
+      case "product-gallery": {
+        const products = selectedBlock.galleryProducts ?? [];
+
+        if (products.length === 0) {
+          return null;
+        }
+
+        const firstEmptyProductIndex = products.findIndex(
+          (product) => !product.imageUrl?.trim(),
+        );
+
+        return buildProductGalleryAIRequest(
+          selectedBlock.id,
+          firstEmptyProductIndex >= 0 ? firstEmptyProductIndex : 0,
+        );
+      }
+      default:
+        return null;
+    }
+  }, [
+    buildImageGalleryAIRequest,
+    buildProductGalleryAIRequest,
+    buildSingleFieldAIRequest,
+    studio.blocks,
+    studio.selectedBlockId,
+    studio.updateBlockField,
+  ]);
+
+  const handleStudioTreeKeyDown = React.useCallback<
+    React.KeyboardEventHandler<HTMLElement>
+  >(
+    (event) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const modifier = event.metaKey || event.ctrlKey;
+
+      if (!modifier || !event.shiftKey || key !== "g") {
+        return;
+      }
+
+      const request = buildDefaultAIRequestForSelectedBlock();
+
+      if (!request) {
+        return;
+      }
+
+      event.preventDefault();
+      handleRequestAIImage(request);
+    },
+    [
+      buildDefaultAIRequestForSelectedBlock,
+      handleRequestAIImage,
+      isEditableTarget,
+    ],
+  );
+
+  const handlePropertiesPanelRestoreComplete = React.useCallback(() => {
+    if (!isRestoringPropertiesPanelRef.current) {
+      return;
+    }
+
+    finalizeAIChoreography();
+  }, [finalizeAIChoreography]);
+
+  const handleExit = React.useCallback(async () => {
+    if (aiStudioOpen) {
+      pendingExitAfterAICloseRef.current = true;
+
+      if (isAIImageStudioDrawerOpen) {
+        closeAIImageStudio();
+      } else {
+        finalizeAIChoreography();
+      }
+
+      return;
+    }
+
+    await completeExit();
+  }, [
+    aiStudioOpen,
+    closeAIImageStudio,
+    completeExit,
+    finalizeAIChoreography,
+    isAIImageStudioDrawerOpen,
+  ]);
+
+  React.useEffect(() => {
+    return () => {
+      clearAIChoreographyTimers();
+
+      if (isAIImageStudioDrawerOpen) {
+        closeAIImageStudio();
+      }
+    };
+  }, [
+    clearAIChoreographyTimers,
+    closeAIImageStudio,
+    isAIImageStudioDrawerOpen,
+  ]);
 
   useBeforeUnload({
     when: hasUnsavedChanges || saveStatus === "saving",
@@ -1136,22 +1977,6 @@ function CampaignStudioPageContent() {
   );
 
   React.useEffect(() => {
-    const isEditableTarget = (target: EventTarget | null) => {
-      if (!(target instanceof HTMLElement)) {
-        return false;
-      }
-
-      if (target.isContentEditable) {
-        return true;
-      }
-
-      return Boolean(
-        target.closest(
-          "input, textarea, select, [contenteditable='true'], [role='textbox']",
-        ),
-      );
-    };
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isEditableTarget(event.target)) {
         return;
@@ -1163,6 +1988,10 @@ function CampaignStudioPageContent() {
       if (modifier && key === "s") {
         event.preventDefault();
         void saveDraft({ silent: false });
+        return;
+      }
+
+      if (aiStudioOpen) {
         return;
       }
 
@@ -1200,7 +2029,7 @@ function CampaignStudioPageContent() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [studio]);
+  }, [aiStudioOpen, isEditableTarget, saveDraft, studio]);
 
   if (!campaignId) {
     return (
@@ -1289,6 +2118,7 @@ function CampaignStudioPageContent() {
   return (
     <Sheet
       component="main"
+      onKeyDownCapture={handleStudioTreeKeyDown}
       sx={{
         width: "100vw",
         height: "100vh",
@@ -1315,34 +2145,44 @@ function CampaignStudioPageContent() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <StudioTopBar
-          campaignId={campaignId}
-          campaignName={studio.campaignName}
-          onCampaignNameChange={studio.setCampaignName}
-          campaignStatus={studio.campaignStatus}
-          blockCount={studio.blocks.length}
-          blocks={studio.blocks}
-          deviceMode={studio.deviceMode}
-          onDeviceModeChange={studio.setDeviceMode}
-          subjectLine={studio.subjectLine}
-          onSubjectLineChange={studio.setSubjectLine}
-          previewText={studio.previewText}
-          onPreviewTextChange={studio.setPreviewText}
-          senderName={studio.senderName}
-          onSenderNameChange={studio.setSenderName}
-          senderEmail={studio.senderEmail}
-          onSenderEmailChange={studio.setSenderEmail}
-          saveStatus={saveStatus}
-          saveMessage={saveMessage}
-          hasUnsavedChanges={hasUnsavedChanges}
-          externalUpdateMessage={externalUpdateMessage}
-          onDismissExternalUpdate={() => setExternalUpdateMessage(null)}
-          onSave={handleSave}
-          onExit={() => {
-            void handleExit();
+        <Box
+          sx={{
+            position: "relative",
+            zIndex:
+              aiStudioOpen && !isMobileViewport
+                ? (theme) => (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 2
+                : 1,
           }}
-          lastSavedAt={lastSavedAt}
-        />
+        >
+          <StudioTopBar
+            campaignId={campaignId}
+            campaignName={studio.campaignName}
+            onCampaignNameChange={studio.setCampaignName}
+            campaignStatus={studio.campaignStatus}
+            blockCount={studio.blocks.length}
+            blocks={studio.blocks}
+            deviceMode={studio.deviceMode}
+            onDeviceModeChange={studio.setDeviceMode}
+            subjectLine={studio.subjectLine}
+            onSubjectLineChange={studio.setSubjectLine}
+            previewText={studio.previewText}
+            onPreviewTextChange={studio.setPreviewText}
+            senderName={studio.senderName}
+            onSenderNameChange={studio.setSenderName}
+            senderEmail={studio.senderEmail}
+            onSenderEmailChange={studio.setSenderEmail}
+            saveStatus={saveStatus}
+            saveMessage={saveMessage}
+            hasUnsavedChanges={hasUnsavedChanges}
+            externalUpdateMessage={externalUpdateMessage}
+            onDismissExternalUpdate={() => setExternalUpdateMessage(null)}
+            onSave={handleSave}
+            onExit={() => {
+              void handleExit();
+            }}
+            lastSavedAt={lastSavedAt}
+          />
+        </Box>
 
         <SortableContext
           items={studio.blocks.map((block) => block.id)}
@@ -1356,7 +2196,7 @@ function CampaignStudioPageContent() {
                 "grid-template-columns 200ms cubic-bezier(0.4, 0, 0.2, 1)",
               gridTemplateColumns: {
                 xs: "minmax(0, 1fr)",
-                md: `264px minmax(0, 1fr) ${studio.isPropertiesPanelOpen ? 340 : 0}px`,
+                md: `264px minmax(0, 1fr) ${effectivePropertiesPanelOpen ? 340 : 0}px`,
               },
             }}
           >
@@ -1374,7 +2214,13 @@ function CampaignStudioPageContent() {
               />
             </Sheet>
 
-            <Box sx={{ minWidth: 0, minHeight: 0 }}>
+            <Box
+              sx={{
+                minWidth: 0,
+                minHeight: 0,
+                pointerEvents: aiStudioOpen ? "none" : "auto",
+              }}
+            >
               <StudioCanvas
                 blocks={studio.blocks}
                 selectedBlockId={studio.selectedBlockId}
@@ -1401,11 +2247,25 @@ function CampaignStudioPageContent() {
             </Box>
 
             <BlockPropertiesPanel
+              campaignImageGallery={studio.campaignImageGallery}
+              campaignName={studio.campaignName}
+              campaignType={activeCampaignType}
               selectedBlockId={studio.selectedBlockId}
               blocks={studio.blocks}
               open={studio.isPropertiesPanelOpen}
               onClose={() => studio.selectBlock(null)}
+              onRequestAIImage={handleRequestAIImage}
+              onTrackCampaignImageUsage={handleTrackCampaignImageUsage}
+              onRestoreComplete={handlePropertiesPanelRestoreComplete}
+              onScrollPositionChange={(scrollTop) => {
+                propertiesPanelScrollPositionRef.current = scrollTop;
+              }}
               onUpdateBlockField={studio.updateBlockField}
+              resolveCampaignImageFieldSource={
+                studio.resolveCampaignImageFieldSource
+              }
+              restoreScrollPosition={preservedScrollPosition}
+              suppressed={propertiesPanelSuppressed}
             />
           </Box>
         </SortableContext>

@@ -1,5 +1,8 @@
-import { useAIImageStudioContext } from "@/providers/AIImageStudioProvider";
+import {
+  useAIImageStudioContext,
+  type AIImageStudioContextValue,
+} from "@/providers/AIImageStudioProvider";
 
-export function useAIImageStudio() {
+export function useAIImageStudio(): AIImageStudioContextValue {
   return useAIImageStudioContext();
 }

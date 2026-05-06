@@ -2,12 +2,22 @@ import React from "react";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Typography from "@mui/joy/Typography";
-import type { AIImageStudioOpenOptions } from "@/components/crm/ai-image-studio/types";
+import type {
+  AIImageStudioContextUpdate,
+  AIImageStudioOpenOptions,
+  AIImageStudioSelectHandler,
+} from "@/components/crm/ai-image-studio/types";
 
-interface AIImageStudioContextValue {
+export interface AIImageStudioContextValue {
   close: () => void;
+  getCurrentOptions: () => AIImageStudioOpenOptions | null;
   isOpen: boolean;
   open: (options: AIImageStudioOpenOptions) => void;
+  subscribeToOptions: (
+    listener: (options: AIImageStudioOpenOptions) => void,
+  ) => () => void;
+  updateContext: (nextContext: AIImageStudioContextUpdate | string) => void;
+  updateOnSelect: (nextOnSelect: AIImageStudioSelectHandler) => void;
 }
 
 const AIImageStudioContext = React.createContext<
@@ -64,6 +74,23 @@ export function AIImageStudioProvider({
     null,
   );
   const closeCallbackRef = React.useRef<(() => void) | null>(null);
+  const optionsRef = React.useRef<AIImageStudioOpenOptions | null>(null);
+  const optionListenersRef = React.useRef(
+    new Set<(options: AIImageStudioOpenOptions) => void>(),
+  );
+
+  const notifyOptionListeners = React.useCallback(
+    (nextOptions: AIImageStudioOpenOptions | null) => {
+      if (!nextOptions) {
+        return;
+      }
+
+      optionListenersRef.current.forEach((listener) => {
+        listener(nextOptions);
+      });
+    },
+    [],
+  );
 
   const close = React.useCallback(() => {
     setIsOpen(false);
@@ -74,13 +101,84 @@ export function AIImageStudioProvider({
 
   const open = React.useCallback((nextOptions: AIImageStudioOpenOptions) => {
     closeCallbackRef.current = nextOptions.onClose ?? null;
+    optionsRef.current = nextOptions;
     setOptions(nextOptions);
     setIsOpen(true);
   }, []);
 
+  const updateOnSelect = React.useCallback(
+    (nextOnSelect: AIImageStudioSelectHandler) => {
+      if (!optionsRef.current) {
+        return;
+      }
+
+      optionsRef.current = {
+        ...optionsRef.current,
+        onSelect: nextOnSelect,
+      };
+    },
+    [],
+  );
+
+  const updateContext = React.useCallback(
+    (nextContext: AIImageStudioContextUpdate | string) => {
+      if (!optionsRef.current) {
+        return;
+      }
+
+      const contextPatch =
+        typeof nextContext === "string"
+          ? {
+              contentContext: nextContext,
+              contextLabel: nextContext,
+            }
+          : nextContext;
+
+      optionsRef.current = {
+        ...optionsRef.current,
+        ...contextPatch,
+      };
+      notifyOptionListeners(optionsRef.current);
+    },
+    [notifyOptionListeners],
+  );
+
+  const getCurrentOptions = React.useCallback(() => optionsRef.current, []);
+
+  const subscribeToOptions = React.useCallback(
+    (listener: (options: AIImageStudioOpenOptions) => void) => {
+      optionListenersRef.current.add(listener);
+
+      if (optionsRef.current) {
+        listener(optionsRef.current);
+      }
+
+      return () => {
+        optionListenersRef.current.delete(listener);
+      };
+    },
+    [],
+  );
+
   const value = React.useMemo<AIImageStudioContextValue>(
-    () => ({ close, isOpen, open }),
-    [close, isOpen, open],
+    () => ({
+      close,
+      getCurrentOptions,
+      isOpen,
+      open,
+      subscribeToOptions,
+      updateContext,
+      updateOnSelect,
+    }),
+    [
+      close,
+      getCurrentOptions,
+      isOpen,
+      open,
+      subscribeToOptions,
+      updateContext,
+      updateOnSelect,
+    ],
   );
 
   return (
@@ -90,9 +188,11 @@ export function AIImageStudioProvider({
       <React.Suspense fallback={isOpen ? <AIImageStudioFallback /> : null}>
         {options ? (
           <LazyAIImageStudioHost
+            getCurrentOptions={getCurrentOptions}
             open={isOpen}
             onClose={close}
             options={options}
+            subscribeToOptions={subscribeToOptions}
           />
         ) : null}
       </React.Suspense>

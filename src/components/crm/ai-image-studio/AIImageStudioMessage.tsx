@@ -14,9 +14,15 @@ import {
 import type { AIImageStudioMessage as AIImageStudioMessageModel } from "./types";
 
 interface AIImageStudioMessageProps {
+  hideTimestamp?: boolean;
   message: AIImageStudioMessageModel;
+  renderInline?: boolean;
   isHighlighted?: boolean;
   isHistorical?: boolean;
+  onActionClick?: (
+    actionId: "done" | "next-target",
+    message: AIImageStudioMessageModel,
+  ) => void;
   onPreviewImage?: (
     image: NonNullable<AIImageStudioMessageModel["images"]>[number],
     message: AIImageStudioMessageModel,
@@ -111,9 +117,12 @@ function AIImageStudioPulseDots() {
 }
 
 export function AIImageStudioMessage({
+  hideTimestamp = false,
   message,
+  renderInline = false,
   isHighlighted = false,
   isHistorical = false,
+  onActionClick,
   onPreviewImage,
   onRegenerate,
   onRetry,
@@ -158,25 +167,204 @@ export function AIImageStudioMessage({
   }, [message.id, message.loadingPhase, message.type, statusMessages]);
 
   const alignment = message.type === "user" ? "flex-end" : "flex-start";
-  const maxWidth = message.type === "user" ? "85%" : "90%";
+  const maxWidth = message.type === "user" ? "82%" : "90%";
   const timestampText = formatMessageTimestamp(message.timestamp);
   const imageResults = message.images || [];
+  const isAssistantBubble =
+    message.type === "assistant" ||
+    message.type === "thinking" ||
+    message.type === "loading" ||
+    message.type === "images";
 
   const bubbleSx = {
     maxWidth,
-    px: 1.75,
-    py: message.type === "user" ? 1.25 : 1.5,
+    px: message.type === "user" ? "16px" : "16px",
+    py: message.type === "user" ? "10px" : "12px",
     borderRadius:
-      message.type === "user" ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+      message.type === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
     backgroundColor:
       message.type === "user"
-        ? "background.level2"
+        ? "var(--joy-palette-brandNavy-solidBg)"
         : message.type === "error"
           ? "danger.softBg"
           : "background.level1",
+    border: isAssistantBubble ? "1px solid" : "none",
+    borderColor: isAssistantBubble
+      ? "var(--joy-palette-neutral-100, #F0F0F0)"
+      : undefined,
     boxShadow: isHistorical ? "none" : "sm",
     opacity: isHistorical ? 0.9 : 1,
   } as const;
+
+  const content = (
+    <>
+      {message.type === "user" ? (
+        <Typography
+          level="body-sm"
+          sx={{
+            whiteSpace: "pre-wrap",
+            color: "common.white",
+            fontWeight: 400,
+          }}
+        >
+          {message.content}
+        </Typography>
+      ) : null}
+
+      {message.type === "assistant" ? (
+        <Stack spacing={1}>
+          <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap" }}>
+            {message.content}
+          </Typography>
+          {message.actions && message.actions.length > 0 ? (
+            <Stack direction="row" spacing={0.75} flexWrap="wrap">
+              {message.actions.map((action) => (
+                <Button
+                  key={`${message.id}-${action.id}`}
+                  color={action.id === "next-target" ? "primary" : "neutral"}
+                  onClick={() => onActionClick?.(action.id, message)}
+                  size="sm"
+                  variant={action.id === "next-target" ? "solid" : "soft"}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </Stack>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {message.type === "thinking" ? (
+        <Typography
+          level="body-sm"
+          sx={{
+            color: "text.secondary",
+            fontStyle: "italic",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {message.content}
+        </Typography>
+      ) : null}
+
+      {message.type === "loading" ? (
+        <Box aria-live="polite">
+          {message.loadingPhase === "acknowledged" ? (
+            <AIImageStudioPulseDots />
+          ) : (
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <CircularProgress color="primary" size="sm" variant="soft" />
+              <Typography
+                key={`${message.id}-${statusIndex}`}
+                level="body-sm"
+                sx={{
+                  color: "text.secondary",
+                  fontStyle: "italic",
+                  ...statusFadeSx,
+                }}
+              >
+                {statusMessages[statusIndex]}
+              </Typography>
+            </Stack>
+          )}
+        </Box>
+      ) : null}
+
+      {message.type === "images" ? (
+        <Stack spacing={1.25}>
+          {message.content ? (
+            <Typography level="body-sm" textColor="text.secondary">
+              {message.content}
+            </Typography>
+          ) : null}
+
+          <Stack spacing={1.25}>
+            {imageResults.map((image, index) => {
+              const promptForAlt =
+                message.userPrompt ||
+                image.userPrompt ||
+                message.prompt ||
+                "AI generated image.";
+              const promptForDetails =
+                image.enhancedPrompt ||
+                message.enhancedPrompt ||
+                message.userPrompt ||
+                image.userPrompt ||
+                message.prompt ||
+                "";
+              const regeneratePrompt =
+                message.userPrompt || image.userPrompt || message.prompt || "";
+
+              return (
+                <AIImageStudioImageResultCard
+                  key={`${message.id}-${image.id}`}
+                  activeVariationMessageId={message.id}
+                  aspectRatio={message.aspectRatio}
+                  generatedAt={message.timestamp}
+                  image={image}
+                  isHighlighted={isHighlighted}
+                  isHistorical={isHistorical}
+                  onPreview={() => onPreviewImage?.(image, message)}
+                  onRegenerate={
+                    regeneratePrompt
+                      ? () => onRegenerate?.(regeneratePrompt)
+                      : undefined
+                  }
+                  onUseImage={
+                    onUseImage ? () => onUseImage(image, message) : undefined
+                  }
+                  onVariationSelect={onVariationSelect}
+                  promptForAlt={promptForAlt}
+                  promptForDetails={promptForDetails}
+                  showVariationStrip={
+                    showVariationStrip && index === imageResults.length - 1
+                  }
+                  stylePreset={message.generationConfig?.stylePreset}
+                  variationGroup={
+                    showVariationStrip && index === imageResults.length - 1
+                      ? variationGroup
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </Stack>
+        </Stack>
+      ) : null}
+
+      {message.type === "error" ? (
+        <Stack spacing={1.25}>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Box
+              aria-hidden="true"
+              sx={{ color: "danger.500", display: "inline-flex", mt: 0.125 }}
+            >
+              <AlertTriangle size={16} strokeWidth={2} />
+            </Box>
+            <Typography level="body-sm" sx={{ color: "danger.700" }}>
+              {message.content}
+            </Typography>
+          </Stack>
+
+          {message.retryPrompt ? (
+            <Button
+              color="primary"
+              onClick={() => onRetry?.(message.retryPrompt ?? "")}
+              size="sm"
+              sx={{ alignSelf: "flex-start" }}
+              variant="outlined"
+            >
+              Try Again
+            </Button>
+          ) : null}
+        </Stack>
+      ) : null}
+    </>
+  );
+
+  if (renderInline) {
+    return content;
+  }
 
   return (
     <Stack
@@ -186,153 +374,18 @@ export function AIImageStudioMessage({
         ...(prefersReducedMotion ? {} : bubbleEnterSx),
       }}
     >
-      <Box sx={bubbleSx}>
-        {message.type === "user" ? (
-          <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
-            {message.content}
-          </Typography>
-        ) : null}
+      <Box sx={bubbleSx}>{content}</Box>
 
-        {message.type === "assistant" ? (
-          <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
-            {message.content}
-          </Typography>
-        ) : null}
-
-        {message.type === "thinking" ? (
-          <Typography
-            level="body-sm"
-            sx={{
-              color: "text.secondary",
-              fontStyle: "italic",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {message.content}
-          </Typography>
-        ) : null}
-
-        {message.type === "loading" ? (
-          <Box aria-live="polite">
-            {message.loadingPhase === "acknowledged" ? (
-              <AIImageStudioPulseDots />
-            ) : (
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <CircularProgress color="primary" size="sm" variant="soft" />
-                <Typography
-                  key={`${message.id}-${statusIndex}`}
-                  level="body-sm"
-                  sx={{
-                    color: "text.secondary",
-                    fontStyle: "italic",
-                    ...statusFadeSx,
-                  }}
-                >
-                  {statusMessages[statusIndex]}
-                </Typography>
-              </Stack>
-            )}
-          </Box>
-        ) : null}
-
-        {message.type === "images" ? (
-          <Stack spacing={1.25}>
-            {message.content ? (
-              <Typography level="body-sm" textColor="text.secondary">
-                {message.content}
-              </Typography>
-            ) : null}
-
-            <Stack spacing={1.25}>
-              {imageResults.map((image, index) => {
-                const promptForAlt =
-                  message.userPrompt ||
-                  image.userPrompt ||
-                  message.prompt ||
-                  "AI generated image.";
-                const promptForDetails =
-                  image.enhancedPrompt ||
-                  message.enhancedPrompt ||
-                  message.userPrompt ||
-                  image.userPrompt ||
-                  message.prompt ||
-                  "";
-                const regeneratePrompt =
-                  message.userPrompt ||
-                  image.userPrompt ||
-                  message.prompt ||
-                  "";
-
-                return (
-                  <AIImageStudioImageResultCard
-                    key={`${message.id}-${image.id}`}
-                    activeVariationMessageId={message.id}
-                    generatedAt={message.timestamp}
-                    image={image}
-                    isHighlighted={isHighlighted}
-                    isHistorical={isHistorical}
-                    onPreview={() => onPreviewImage?.(image, message)}
-                    onRegenerate={
-                      regeneratePrompt
-                        ? () => onRegenerate?.(regeneratePrompt)
-                        : undefined
-                    }
-                    onUseImage={
-                      onUseImage ? () => onUseImage(image, message) : undefined
-                    }
-                    onVariationSelect={onVariationSelect}
-                    promptForAlt={promptForAlt}
-                    promptForDetails={promptForDetails}
-                    showVariationStrip={
-                      showVariationStrip && index === imageResults.length - 1
-                    }
-                    stylePreset={message.generationConfig?.stylePreset}
-                    variationGroup={
-                      showVariationStrip && index === imageResults.length - 1
-                        ? variationGroup
-                        : undefined
-                    }
-                  />
-                );
-              })}
-            </Stack>
-          </Stack>
-        ) : null}
-
-        {message.type === "error" ? (
-          <Stack spacing={1.25}>
-            <Stack direction="row" spacing={1} alignItems="flex-start">
-              <Box
-                aria-hidden="true"
-                sx={{ color: "danger.500", display: "inline-flex", mt: 0.125 }}
-              >
-                <AlertTriangle size={16} strokeWidth={2} />
-              </Box>
-              <Typography level="body-sm" sx={{ color: "danger.700" }}>
-                {message.content}
-              </Typography>
-            </Stack>
-
-            {message.retryPrompt ? (
-              <Button
-                color="primary"
-                onClick={() => onRetry?.(message.retryPrompt ?? "")}
-                size="sm"
-                sx={{ alignSelf: "flex-start" }}
-                variant="outlined"
-              >
-                Try Again
-              </Button>
-            ) : null}
-          </Stack>
-        ) : null}
-      </Box>
-
-      {message.type !== "session_divider" ? (
+      {message.type !== "session_divider" && !hideTimestamp ? (
         <Typography
           level="body-xs"
           textColor="text.tertiary"
-          sx={{ px: 0.5, opacity: isHistorical ? 0.72 : 1 }}
+          sx={{
+            px: 0.5,
+            opacity: 0.6,
+            alignSelf: message.type === "user" ? "flex-end" : "flex-start",
+            textAlign: message.type === "user" ? "right" : "left",
+          }}
         >
           {timestampText}
         </Typography>

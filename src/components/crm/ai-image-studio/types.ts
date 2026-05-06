@@ -13,9 +13,11 @@ export interface AIPersonalizationDialogProps {
   defaultTab?: AIImageStudioTab;
   blockId?: string;
   contextType?: string;
+  campaignContext?: AIImageStudioCampaignContext;
 }
 
 export interface AIImageStudioDrawerProps {
+  assignmentLabel?: string;
   open: boolean;
   onClose: () => void;
   onImageSelect: (
@@ -30,9 +32,30 @@ export interface AIImageStudioDrawerProps {
   defaultTab?: AIImageStudioTab;
   blockId?: string;
   contextType?: string;
+  campaignContext?: AIImageStudioCampaignContext;
+  getCurrentOptions?: () => AIImageStudioOpenOptions | null;
+  multiBlockFlow?: AIImageStudioMultiBlockFlow;
+  subscribeToOptions?: (
+    listener: (options: AIImageStudioOpenOptions) => void,
+  ) => () => void;
 }
 
-export type AIImageStudioTab = "ai" | "my-images" | "unsplash" | "upload";
+export type AIImageStudioCampaignContextAspectRatio =
+  | "landscape"
+  | "portrait"
+  | "square";
+
+export interface AIImageStudioCampaignContext {
+  campaignName: string;
+  campaignType: string;
+  blockType: string;
+  blockLabel: string;
+  blockContent: Record<string, string>;
+  aspectRatioHint: AIImageStudioCampaignContextAspectRatio;
+  contentSummary?: string;
+}
+
+export type AIImageStudioTab = "ai" | "my-images" | "upload";
 
 export interface AIImageStudioSelectionMetadata {
   altText?: string;
@@ -41,30 +64,47 @@ export interface AIImageStudioSelectionMetadata {
   mimeType?: string | null;
   photographer?: string;
   photographerUrl?: string;
-  source:
-    | "ai-generated"
-    | "global_image_gallery"
-    | "content_asset"
-    | "unsplash"
-    | "upload";
+  source: "ai-generated" | "global_image_gallery" | "content_asset" | "upload";
   tags?: AIImageStudioImageTag[];
-  unsplashId?: string;
+}
+
+export type AIImageStudioSelectHandler = (
+  imageUrl: string,
+  metadata?: AIImageStudioSelectionMetadata,
+) => void | Promise<void>;
+
+export interface AIImageStudioContextUpdate {
+  assignmentLabel?: string;
+  blockId?: string;
+  campaignContext?: AIImageStudioCampaignContext;
+  contentContext?: string;
+  contextLabel?: string;
+  contextType?: string;
+}
+
+export interface AIImageStudioMutableTarget extends AIImageStudioContextUpdate {
+  onSelect: AIImageStudioSelectHandler;
+}
+
+export interface AIImageStudioMultiBlockFlow {
+  advanceToNextTarget: () => AIImageStudioMutableTarget | null;
+  hasNextTarget: () => boolean;
 }
 
 export interface AIImageStudioOpenOptions {
+  assignmentLabel?: string;
   aspectRatioHint?: AIImageStudioAspectRatio;
   blockId?: string;
   browseOnly?: boolean;
+  campaignContext?: AIImageStudioCampaignContext;
   channel?: string;
   contentContext?: string;
   contextLabel?: string;
   contextType?: string;
   defaultTab?: AIImageStudioTab;
+  multiBlockFlow?: AIImageStudioMultiBlockFlow;
   onClose?: () => void;
-  onSelect: (
-    imageUrl: string,
-    metadata?: AIImageStudioSelectionMetadata,
-  ) => void;
+  onSelect: AIImageStudioSelectHandler;
 }
 
 export interface AIImageStudioSessionInfo {
@@ -86,10 +126,27 @@ export type AIImageStudioStylePreset =
 
 export type AIImageStudioQuality = "standard" | "hd";
 
+export type AIImageStudioMood =
+  | "natural"
+  | "warm"
+  | "cool"
+  | "dramatic"
+  | "soft"
+  | "vibrant";
+
+export type AIImageStudioColorPalette =
+  | "auto"
+  | "earth-tones"
+  | "fresh-greens"
+  | "soft-pastels"
+  | "monochrome";
+
 export interface AIImageStudioGenerationConfig {
   aspectRatio: AIImageStudioAspectRatio;
   stylePreset: AIImageStudioStylePreset;
   quality: AIImageStudioQuality;
+  mood: AIImageStudioMood;
+  colorPalette: AIImageStudioColorPalette;
 }
 
 export type AIImageStudioLoadingPhase = "acknowledged" | "thinking";
@@ -145,6 +202,10 @@ export interface AIImageStudioMessage {
   retryPrompt?: string;
   aspectRatio?: AIImageStudioAspectRatio;
   generationConfig?: AIImageStudioGenerationConfig;
+  actions?: Array<{
+    id: "done" | "next-target";
+    label: string;
+  }>;
   sessionInfo?: AIImageStudioSessionInfo;
   userPrompt?: string;
 }

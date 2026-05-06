@@ -4,18 +4,24 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { Sparkles } from "lucide-react";
 
-const suggestions = [
-  "A lush garden at golden hour",
-  "Modern floral arrangement on marble",
-  "Watercolor botanical illustration",
+const DEFAULT_SUGGESTIONS = [
+  "Seasonal floral campaign scene with soft morning light",
+  "Premium product arrangement with lush botanical texture",
+  "Editorial garden lifestyle image with clean negative space",
 ];
 
 interface AIImageStudioWelcomeProps {
+  blockLabel?: string;
+  description?: string;
   onSuggestionSelect: (suggestion: string) => void;
+  suggestions?: string[];
 }
 
 export function AIImageStudioWelcome({
+  blockLabel,
+  description,
   onSuggestionSelect,
+  suggestions = DEFAULT_SUGGESTIONS,
 }: AIImageStudioWelcomeProps) {
   return (
     <Box
@@ -45,11 +51,23 @@ export function AIImageStudioWelcome({
 
         <Stack spacing={0.75}>
           <Typography level="title-sm" textColor="text.secondary">
-            What would you like to create?
+            {blockLabel ? (
+              <>
+                Create an image for{" "}
+                <Box
+                  component="span"
+                  sx={{ color: "text.primary", fontWeight: 600 }}
+                >
+                  {blockLabel}
+                </Box>
+              </>
+            ) : (
+              "What would you like to create?"
+            )}
           </Typography>
           <Typography level="body-sm" textColor="text.tertiary">
-            Start with a BloomSuite-ready direction for florals, botanicals, or
-            in-store display imagery.
+            {description ||
+              "Start with a BloomSuite-ready direction for florals, botanicals, or in-store display imagery."}
           </Typography>
         </Stack>
 
@@ -70,6 +88,8 @@ export function AIImageStudioWelcome({
               sx={{
                 borderRadius: "999px",
                 cursor: "pointer",
+                maxWidth: "100%",
+                whiteSpace: "nowrap",
                 "&:hover": {
                   borderColor:
                     "rgba(var(--joy-palette-primary-mainChannel) / 0.24)",
