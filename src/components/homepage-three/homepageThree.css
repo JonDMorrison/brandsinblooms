@@ -18,6 +18,46 @@
     transition: color 500ms var(--hp-ease-entry), background-color 500ms var(--hp-ease-entry);
 }
 
+/* Scroll-mode override (homepage rebuild). Restores normal document flow,
+   browser-controlled scroll, and natural touch handling so the page can
+   be scrolled vertically. The scroll-locked variant is preserved above
+   for any legacy preview surfaces that still use it. */
+.homepage-three.homepage-three--scrolling {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    overscroll-behavior: auto;
+    touch-action: auto;
+    padding-top: 80px; /* clear the fixed nav so the hero sits below it */
+}
+
+.hp-scroll-section {
+    position: relative;
+    width: 100%;
+    /* Anchor jumps tuck under the fixed nav rather than under the page edge. */
+    scroll-margin-top: 80px;
+}
+
+/* Section internals were sized for full-viewport scroll-lock rendering
+   (min-height: 100dvh + overflow-y: auto). In scroll mode we want
+   natural-height blocks that flow into one another, so neutralize those
+   constraints inside the new scrolling shell. The nested overflow rules
+   would otherwise create double-scrolling. */
+.homepage-three--scrolling .hp-pricing-cta,
+.homepage-three--scrolling .hp-impact-section,
+.homepage-three--scrolling .hp-crm-showcase,
+.homepage-three--scrolling .hp-hero,
+.homepage-three--scrolling .hp-features,
+.homepage-three--scrolling .hp-ai-showcase,
+.homepage-three--scrolling .hp-integrations {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    touch-action: auto;
+}
+
 @supports not (height: 100dvh) {
     .homepage-three {
         height: 100vh;

@@ -115,14 +115,25 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   },
 ];
 
+// Small line below the three pricing cards pointing users at the
+// pricing page when they want the website-less "Seed" tier ($199/month
+// CRM-only) — it doesn't appear on the homepage cards.
+export const SEED_FOOTNOTE = {
+  text: "Have a website already? Start with Seed at $199/month for CRM, messaging, automations, and insights without a new site.",
+  linkLabel: "See all plans",
+  linkHref: "/pricing",
+};
+
 export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
-  headline: "Ready to run customer marketing your way?",
+  headline: "Ready to grow your garden centre?",
+  subhead:
+    "Start your trial today. No credit card. Ready to use in under an hour.",
   primaryCta: "Start free trial",
   // /auth matches the trial sign-up handler used by the top-nav
   // "Start Free Trial" button (NavigationShell.navigateToAuth).
   primaryHref: "/auth",
-  secondaryCta: "Book a demo",
+  secondaryCta: "Talk to our team",
   // /contact matches the top-nav "Book a Demo" handler
   // (NavigationShell.navigateToDemo).
   secondaryHref: "/contact",
