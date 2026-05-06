@@ -34,7 +34,13 @@
     --hp-hover-duration: 200ms;
     --hp-focus-duration: 300ms;
     --hp-entry-duration: 400ms;
-    --hp-font-display: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    /* Quicksand on display text matches the other marketing pages
+       (Pricing/FAQ/About/Features). Body and caption stay on Inter for
+       readability. Quicksand tops out at weight 700, so any homepage
+       headline styled with font-weight 800 renders at 700 via fallback
+       — intentional and harmless. Both faces are preloaded by the
+       Google Fonts link in index.html, so no asset changes needed. */
+    --hp-font-display: Quicksand, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --hp-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --hp-font-caption: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --hp-tracking-display: 0;
