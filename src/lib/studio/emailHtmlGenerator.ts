@@ -306,6 +306,63 @@ function colorWithOpacity(color: string, opacity: number) {
   return `rgba(${red},${green},${blue},${opacity})`;
 }
 
+function parseRgbChannels(
+  color: string,
+): { r: number; g: number; b: number } | null {
+  if (!color) return null;
+  const trimmed = color.trim();
+
+  // #RGB / #RRGGBB / #RRGGBBAA
+  const hexMatch = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+  if (hexMatch) {
+    const raw = hexMatch[1];
+    const expanded =
+      raw.length === 3
+        ? raw
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : raw;
+    return {
+      r: parseInt(expanded.slice(0, 2), 16),
+      g: parseInt(expanded.slice(2, 4), 16),
+      b: parseInt(expanded.slice(4, 6), 16),
+    };
+  }
+
+  const rgbMatch = trimmed.match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i,
+  );
+  if (rgbMatch) {
+    return {
+      r: Math.max(0, Math.min(255, parseInt(rgbMatch[1], 10))),
+      g: Math.max(0, Math.min(255, parseInt(rgbMatch[2], 10))),
+      b: Math.max(0, Math.min(255, parseInt(rgbMatch[3], 10))),
+    };
+  }
+
+  return null;
+}
+
+// Returns true if the resolved background color is dark enough that
+// white-with-alpha text would be readable against it. Mirrors the
+// luminance threshold used by getContrastingTextColor in designSystem.
+function isDarkBackgroundColor(color: string): boolean {
+  const channels = parseRgbChannels(color);
+  if (!channels) return false;
+  const linearize = (c: number) => {
+    const normalized = c / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  const r = linearize(channels.r);
+  const g = linearize(channels.g);
+  const b = linearize(channels.b);
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance < 0.42;
+}
+
 function safeUrl(value: unknown, options: { image?: boolean } = {}) {
   const url = stringValue(value);
   if (!url) return "";
@@ -1591,14 +1648,27 @@ export function renderFooterBlockToEmailHtml(
   designSystem?: StudioDesignSystem | null,
 ) {
   const layout = resolveFooterLayout(block);
-  const dark = layout === "standard-dark";
+  const layoutIsDark = layout === "standard-dark";
   const centered = layout === "centered-branded";
   const backgroundColor = safeColor(
     block.backgroundColor,
-    dark ? "#1e293b" : "#ffffff",
+    layoutIsDark ? "#1e293b" : "#ffffff",
   );
+  // Derive dark/light mode from the actual resolved background, not the
+  // layout name. The Flowerhouse hit a white-on-white footer because the
+  // block's layout was "standard-dark" but the operator overrode
+  // backgroundColor to #FFFFFF — the muted text color stayed
+  // rgba(255,255,255,0.68) and went invisible. Use the resolved
+  // backgroundColor's luminance as the source of truth so muted text
+  // always contrasts the surface it actually paints onto.
+  const dark = isDarkBackgroundColor(backgroundColor);
   const textColor = safeColor(block.textColor, dark ? "#ffffff" : "#111827");
-  const mutedColor = dark ? "rgba(255,255,255,0.68)" : "#64748b";
+  const resolvedTextChannels = parseRgbChannels(textColor);
+  const mutedColor = dark
+    ? "rgba(255,255,255,0.68)"
+    : resolvedTextChannels
+      ? `rgba(${resolvedTextChannels.r},${resolvedTextChannels.g},${resolvedTextChannels.b},0.7)`
+      : "#64748b";
   const dividerColor = safeColor(
     block.dividerBelowColor,
     dark ? "rgba(255,255,255,0.16)" : "#e2e8f0",
@@ -1646,14 +1716,14 @@ export function renderFooterBlockToEmailHtml(
   const contactStack = renderFooterContactContent(block, designSystem);
 
   if (layout === "light-minimal") {
-    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-bottom:10px;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, false)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactInline}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin-bottom:10px;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, dark)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.5;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactInline}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
   }
 
   if (centered) {
-    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:center;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto 12px;"><tr><td align="center">${renderFooterLogo(block, designSystem, false)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.35;font-weight:800;color:${textColor};margin-bottom:4px;">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactStack}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="height:1px;background-color:${dividerColor};margin:0 auto 12px;max-width:520px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:12px;">${complianceHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+    return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};text-align:center;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;margin:0 auto 12px;"><tr><td align="center">${renderFooterLogo(block, designSystem, dark)}</td></tr></table><div style="font-family:${getFontStack(designSystem, "headline")};font-size:16px;line-height:1.35;font-weight:800;color:${textColor};margin-bottom:4px;">${escapeHtml(businessName)}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 10}px;">${contactStack}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="height:1px;background-color:${dividerColor};margin:0 auto 12px;max-width:520px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:12px;">${complianceHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
   }
 
-  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, true)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table></td><td class="responsive-column" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
+  return `<!-- BLOOMSUITE_FOOTER_START -->${renderSection(backgroundColor, `<div class="mobile-padding" style="padding:${paddingY}px 24px;background-color:${backgroundColor};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td class="responsive-column" width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:16px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr><td style="padding-right:12px;">${renderFooterLogo(block, designSystem, dark)}</td><td valign="middle" style="vertical-align:middle;font-family:${getFontStack(designSystem, "headline")};font-size:15px;line-height:1.35;font-weight:800;color:${textColor};">${escapeHtml(businessName)}</td></tr></table></td><td class="responsive-column" width="50%" valign="top" align="right" style="width:50%;vertical-align:top;text-align:right;font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.55;color:${mutedColor};">${contactStack}</td></tr></table><div style="height:1px;background-color:${dividerColor};margin:16px 0 12px;"></div><div style="font-family:${getFontStack(designSystem, "body")};font-size:12px;line-height:1.6;color:${mutedColor};margin-bottom:${socialIconsHtml ? 12 : 12}px;">${complianceHtml}</div>${socialIconsHtml ? `<div style="margin-bottom:12px;">${socialIconsHtml}</div>` : ""}<div style="margin-bottom:12px;">${linksHtml}</div><div style="font-family:${getFontStack(designSystem, "body")};font-size:11px;line-height:1.5;color:${mutedColor};">${escapeHtml(copyrightText)}</div></div>`)}<!-- BLOOMSUITE_FOOTER_END -->`;
 }
 
 export function createFooterBlockFromDesignSystem(
