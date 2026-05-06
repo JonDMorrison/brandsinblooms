@@ -14,9 +14,12 @@ function asUuidOrNull(value?: string): string | null {
 
 interface TrackImageUsageParams {
   globalImageId: string;
-  context: "email_block" | "header_block" | "social_post";
+  context: "email_block" | "header_block" | "social_post" | "social_post_reuse";
   campaignId?: string;
   blockId?: string;
+  contentId?: string;
+  tenantId?: string;
+  userId?: string;
 }
 
 /**
@@ -31,30 +34,42 @@ export async function trackImageUsage(
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return;
+    let resolvedUserId = params.userId;
+    let resolvedTenantId = params.tenantId;
+
+    if (!resolvedUserId || !resolvedTenantId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return;
+      }
+
+      resolvedUserId = resolvedUserId || user.id;
+
+      if (!resolvedTenantId) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("tenant_id")
+          .eq("id", user.id)
+          .single();
+
+        resolvedTenantId = userData?.tenant_id || undefined;
+      }
     }
 
-    // Get user's tenant
-    const { data: userData } = await supabase
-      .from("users")
-      .select("tenant_id")
-      .eq("id", user.id)
-      .single();
-
-    if (!userData?.tenant_id) {
+    if (!resolvedUserId || !resolvedTenantId) {
       return;
     }
 
     // Track usage
     const { error } = await supabase.rpc("track_global_image_usage", {
+      p_content_id: asUuidOrNull(params.contentId),
       p_image_id: globalImageId,
-      p_tenant_id: userData.tenant_id,
-      p_user_id: user.id,
-      p_context: params.context,
+      p_tenant_id: resolvedTenantId,
+      p_usage_context: params.context,
+      p_user_id: resolvedUserId,
       p_campaign_id: asUuidOrNull(params.campaignId),
       p_block_id: asUuidOrNull(params.blockId),
     });

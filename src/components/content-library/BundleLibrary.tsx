@@ -1,48 +1,113 @@
-import { useEffect, useMemo, useState } from "react";
-import { Input } from "@/components/ui-legacy/input";
-import { Button } from "@/components/ui-legacy/button";
-import { Badge } from "@/components/ui-legacy/badge";
-import { Card } from "@/components/ui-legacy/card";
+import { useEffect, useMemo, useRef, useState } from "react";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import DialogActions from "@mui/joy/DialogActions";
+import DialogContent from "@mui/joy/DialogContent";
+import DialogTitle from "@mui/joy/DialogTitle";
+import Input from "@mui/joy/Input";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Option from "@mui/joy/Option";
+import Select from "@mui/joy/Select";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import Tabs from "@mui/joy/Tabs";
+import Typography from "@mui/joy/Typography";
+import { formatDistanceToNow } from "date-fns";
 import {
-  Trash2,
+  BookText,
+  CalendarDays,
+  Clapperboard,
+  ExternalLink,
+  Facebook,
+  FileStack,
+  Instagram,
+  MoreHorizontal,
+  Newspaper,
+  PanelsTopLeft,
   Search,
-  Filter,
-  Clock,
-  CheckCircle2,
-  ChevronRight,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui-legacy/loading-spinner";
-import { useContentLibrary, useDeleteBundle } from "@/hooks/useContentLibrary";
-import type { Channel } from "@/lib/content/libraryTypes";
-import { useDebounce } from "@/hooks/useDebounce";
-import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui-legacy/toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import { GeneratedContentModal } from "@/components/create-flow/GeneratedContentModal";
 import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
-import { useCreateFlow } from "@/state/useCreateFlow";
-import { useBundlePreviewTitle } from "@/hooks/useBundlePreviewTitle";
-import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
-import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
-import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
-import { useQueryClient } from "@tanstack/react-query";
+import type { CreateFlowRetryDraft } from "@/components/create-flow/createFlowTypes";
+import { ContentLibraryGenerationStatusCard } from "@/components/content-library/ContentLibraryGenerationStatusCard";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui-legacy/alert-dialog";
+  JoyDropdownMenu,
+  JoyDropdownMenuContent,
+  JoyDropdownMenuItem,
+  JoyDropdownMenuTrigger,
+} from "@/components/joy/JoyDropdownMenu";
+import {
+  useContentLibrary,
+  useContentLibraryCount,
+  useDeleteBundle,
+} from "@/hooks/useContentLibrary";
+import type {
+  Channel,
+  ContentSummary,
+  LibraryChannelFilter,
+  LibraryMode,
+  LibrarySort,
+} from "@/lib/content/libraryTypes";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useToast } from "@/hooks/use-toast";
+import { useCreateFlow } from "@/state/useCreateFlow";
 
-const channelLabels: Record<Channel, string> = {
-  instagram: "IG",
-  facebook: "FB",
-  newsletter: "Newsletter",
-  video: "Video",
-  blog: "Blog",
+const PAGE_SIZE = 24;
+
+type ModeTabValue = Exclude<LibraryMode, "event"> | "all";
+type ChannelSelectValue = LibraryChannelFilter | "all";
+
+const MODE_OPTIONS: Array<{ value: ModeTabValue; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "seasonal", label: "Seasonal" },
+  { value: "holiday", label: "Holiday" },
+  { value: "custom", label: "Custom" },
+];
+
+const CHANNEL_OPTIONS: Array<{ value: ChannelSelectValue; label: string }> = [
+  { value: "all", label: "All Channels" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "blog", label: "Blog" },
+  { value: "newsletter", label: "Newsletter" },
+  { value: "carousel", label: "Carousel" },
+];
+
+const SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+];
+
+const CHANNEL_META: Record<
+  Channel | "carousel",
+  { label: string; icon: typeof Instagram }
+> = {
+  instagram: { label: "Instagram", icon: Instagram },
+  facebook: { label: "Facebook", icon: Facebook },
+  newsletter: { label: "Newsletter", icon: Newspaper },
+  blog: { label: "Blog", icon: BookText },
+  video: { label: "Video", icon: Clapperboard },
+  carousel: { label: "Carousel", icon: PanelsTopLeft },
+};
+
+const MODE_META: Record<
+  LibraryMode,
+  { label: string; color: "neutral" | "success" | "warning" | "primary" }
+> = {
+  event: { label: "Event", color: "neutral" },
+  seasonal: { label: "Seasonal", color: "success" },
+  holiday: { label: "Holiday", color: "warning" },
+  custom: { label: "Custom", color: "primary" },
 };
 
 function useQueryParams() {
@@ -50,551 +115,1090 @@ function useQueryParams() {
   return useMemo(() => new URLSearchParams(location.search), [location.search]);
 }
 
-function getBundleDisplayName(it: {
+function getInitialMode(value: string | null): ModeTabValue {
+  if (value === "seasonal" || value === "holiday" || value === "custom") {
+    return value;
+  }
+
+  return "all";
+}
+
+function getInitialChannel(value: string | null): ChannelSelectValue {
+  if (
+    value === "facebook" ||
+    value === "instagram" ||
+    value === "blog" ||
+    value === "newsletter" ||
+    value === "carousel"
+  ) {
+    return value;
+  }
+
+  return "all";
+}
+
+function getInitialSort(value: string | null): LibrarySort {
+  return value === "oldest" ? "oldest" : "newest";
+}
+
+function getBundleDisplayName(bundle: {
+  title?: string;
   sourceLabel?: string;
-  mode: "event" | "seasonal" | "custom";
+  mode: LibraryMode;
   channels?: Channel[];
   updatedAt: string;
 }): string {
-  const raw = (it.sourceLabel || "").trim();
-  const isUUID =
+  const previewTitle = (bundle.title || bundle.sourceLabel || "").trim();
+  const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      raw,
+      previewTitle,
     );
-  const isNonTitle = !raw || isUUID || /^untitled$/i.test(raw);
-  if (!isNonTitle) return raw;
-  const modeLabel =
-    it.mode === "event"
-      ? "Event"
-      : it.mode === "seasonal"
-        ? "Seasonal"
-        : "Custom";
-  let channelPart = "General";
-  if (it.channels && it.channels.length > 0) {
-    channelPart =
-      it.channels.length === 1
-        ? channelLabels[it.channels[0]]
-        : "Multi-channel";
+
+  if (previewTitle && !isUuid && !/^untitled$/i.test(previewTitle)) {
+    return previewTitle;
   }
-  const datePart = new Date(it.updatedAt).toLocaleDateString();
-  return `${modeLabel} • ${channelPart} • Updated ${datePart}`;
+
+  const modeLabel = MODE_META[bundle.mode].label;
+  const primaryChannel = bundle.channels?.[0];
+  const channelLabel = primaryChannel
+    ? CHANNEL_META[primaryChannel].label
+    : "Multi-channel";
+
+  return `${modeLabel} • ${channelLabel} • ${new Date(bundle.updatedAt).toLocaleDateString()}`;
+}
+
+function getRelativeDate(date: string) {
+  return formatDistanceToNow(new Date(date), { addSuffix: true });
+}
+
+function getApprovalLabel(bundle: ContentSummary) {
+  if (bundle.totalItems > 0 && bundle.approvedCount === bundle.totalItems) {
+    return { text: "All approved", color: "success.600" };
+  }
+
+  return {
+    text: `${bundle.approvedCount} of ${bundle.totalItems} approved`,
+    color: "neutral.500",
+  };
+}
+
+function getBundleChannels(bundle: ContentSummary) {
+  const channels = [...bundle.channels];
+
+  if (bundle.hasMixedCarousel) {
+    channels.push("carousel" as Channel);
+  }
+
+  return Array.from(new Set(channels));
+}
+
+function getPrimaryPlaceholderChannel(bundle: ContentSummary) {
+  const channels = getBundleChannels(bundle);
+  return (channels[0] as Channel | "carousel" | undefined) || "carousel";
+}
+
+function getPublishChannel(
+  bundle: ContentSummary,
+): "instagram" | "facebook" | null {
+  if (bundle.approvedCount === 0) {
+    return null;
+  }
+
+  if (bundle.channels.includes("instagram")) {
+    return "instagram";
+  }
+
+  if (bundle.channels.includes("facebook")) {
+    return "facebook";
+  }
+
+  return null;
+}
+
+function replaceQueryParams(mutator: (params: URLSearchParams) => void) {
+  const url = new URL(window.location.href);
+  mutator(url.searchParams);
+  const nextSearch = url.searchParams.toString();
+  const nextUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ""}${url.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
 }
 
 function BundleCard({
-  it,
-  openBundle,
-  handleDelete,
+  bundle,
   isHighlighted,
+  onOpen,
+  onPublish,
+  onDelete,
 }: {
-  it: any;
-  openBundle: (bundleId: string, snapshotId?: string) => void;
-  handleDelete: (bundleId: string) => Promise<any> | void;
-  isHighlighted?: boolean;
+  bundle: ContentSummary;
+  isHighlighted: boolean;
+  onOpen: (bundle: ContentSummary) => void;
+  onPublish: (bundle: ContentSummary) => void;
+  onDelete: (bundle: ContentSummary) => void;
 }) {
-  const { title } = useBundlePreviewTitle(it.bundleId, {
-    includeChannelTag: false,
-  });
+  const bundleTitle = getBundleDisplayName(bundle);
+  const approval = getApprovalLabel(bundle);
+  const bundleChannels = getBundleChannels(bundle);
+  const publishChannel = getPublishChannel(bundle);
+  const PlaceholderIcon =
+    CHANNEL_META[getPrimaryPlaceholderChannel(bundle)].icon;
+
   return (
     <Card
-      key={it.bundleId}
-      data-bundle-id={it.bundleId}
-      className={`relative p-3 hover:shadow-md transition cursor-pointer group ${
-        isHighlighted
-          ? "ring-2 ring-primary shadow-lg animate-pulse-subtle bg-primary/5"
-          : ""
-      }`}
-      onClick={(e) => {
-        const target = e.target as HTMLElement;
-        if (target.closest("[data-trash]")) return;
-        openBundle(it.bundleId, it.snapshotId);
+      variant="outlined"
+      role="button"
+      aria-label={`Open ${bundleTitle}`}
+      tabIndex={0}
+      onClick={() => onOpen(bundle)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen(bundle);
+          return;
+        }
+
+        if (event.key === "Delete") {
+          event.preventDefault();
+          onDelete(bundle);
+        }
+      }}
+      sx={{
+        height: "100%",
+        p: 0,
+        overflow: "hidden",
+        borderColor: isHighlighted ? "primary.300" : "neutral.200",
+        boxShadow: isHighlighted ? "md" : "sm",
+        cursor: "pointer",
+        transition:
+          "border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease",
+        animation: isHighlighted
+          ? "content-library-card-highlight 2s ease-out 1"
+          : undefined,
+        "&:hover": {
+          borderColor: "primary.300",
+          boxShadow: "md",
+          transform: "translateY(-2px)",
+        },
+        "&:focus-visible": {
+          outline: "2px solid",
+          outlineColor: "primary.400",
+          outlineOffset: 2,
+        },
+        "@keyframes content-library-card-highlight": {
+          "0%": {
+            borderColor: "var(--joy-palette-primary-300)",
+            boxShadow:
+              "0 0 0 0 rgba(var(--joy-palette-primary-mainChannel) / 0.26)",
+          },
+          "45%": {
+            borderColor: "var(--joy-palette-primary-300)",
+            boxShadow:
+              "0 0 0 8px rgba(var(--joy-palette-primary-mainChannel) / 0.08)",
+          },
+          "100%": {
+            borderColor: "var(--joy-palette-neutral-200)",
+            boxShadow: "var(--joy-shadow-sm)",
+          },
+        },
       }}
     >
-      {it.thumbnail ? (
-        <img
-          src={it.thumbnail}
-          alt={`${displayTitle} featured image`}
-          className="w-full aspect-video object-cover rounded-lg mb-3"
-          loading="lazy"
-          onLoad={() =>
-            {}
-          }
-          onError={(e) => {
-            console.error("❌ Thumbnail failed to load:", it.thumbnail, e);
-          }}
-        />
-      ) : (
-        <div className="w-full aspect-video rounded-lg mb-3 bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center border border-border/50">
-          <div className="text-center p-4">
-            <div className="text-2xl mb-2">📄</div>
-            <div className="text-xs text-muted-foreground font-medium">
-              {it.mode === "seasonal"
-                ? "Seasonal Content"
-                : it.mode === "holiday"
-                  ? "Holiday Content"
-                  : it.mode === "custom"
-                    ? "Custom Content"
-                    : "Content Bundle"}
-            </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {it.totalItems} item{it.totalItems !== 1 ? "s" : ""}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <button
-        data-trash
-        aria-label="Delete"
-        className="absolute right-3 top-3 p-2 rounded-full bg-red-500/90 border hover:bg-red-600 z-10"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleDelete(it.bundleId);
-        }}
-        title="Delete"
-      >
-        <Trash2 className="h-5 w-5 text-white" />
-      </button>
-
-      <div className="text-sm font-semibold truncate" title={displayTitle}>
-        {displayTitle}
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-1">
-        <Badge variant="secondary" className="text-xs capitalize">
-          {it.mode}
-        </Badge>
-        {it.channels?.map((ch: Channel) => (
-          <Badge key={ch} variant="outline" className="text-xs">
-            {channelLabels[ch]}
-          </Badge>
-        ))}
-      </div>
-
-      <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
-        <span className="flex items-center gap-1">
-          <CheckCircle2 className="h-3 w-3" /> {it.approvedCount}/
-          {it.totalItems} approved
-        </span>
-        <span className="flex items-center gap-1">
-          <Clock className="h-3 w-3" /> Updated{" "}
-          {new Date(it.updatedAt).toLocaleDateString()}
-        </span>
-      </div>
-
-      <div className="mt-2 text-xs text-primary inline-flex items-center group-hover:translate-x-1 transition-transform">
-        {isHighlighted ? (
-          <>
-            ✨ Just Generated! Click to review{" "}
-            <ChevronRight className="h-3 w-3 ml-1" />
-          </>
+      <AspectRatio ratio="16 / 9" sx={{ borderRadius: 0 }}>
+        {bundle.thumbnail ? (
+          <Box
+            component="img"
+            src={bundle.thumbnail}
+            alt={`${bundleTitle} featured image`}
+            loading="lazy"
+            sx={{ objectFit: "cover" }}
+          />
         ) : (
-          <>
-            Open <ChevronRight className="h-3 w-3 ml-1" />
-          </>
+          <Sheet
+            variant="soft"
+            color="neutral"
+            sx={{
+              height: "100%",
+              display: "grid",
+              placeItems: "center",
+              background:
+                "linear-gradient(135deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.06), rgba(var(--joy-palette-primary-mainChannel) / 0.08))",
+            }}
+          >
+            <Stack spacing={1} alignItems="center">
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "999px",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "neutral.500",
+                  backgroundColor:
+                    "rgba(var(--joy-palette-common-whiteChannel) / 0.72)",
+                  boxShadow: "sm",
+                  "& .lucide": {
+                    width: 24,
+                    height: 24,
+                  },
+                }}
+              >
+                <PlaceholderIcon />
+              </Box>
+              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                {bundle.totalItems} item{bundle.totalItems === 1 ? "" : "s"}
+              </Typography>
+            </Stack>
+          </Sheet>
         )}
-      </div>
+      </AspectRatio>
 
-      {isHighlighted && (
-        <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">
-          New!
-        </div>
-      )}
+      <Stack spacing={1.5} sx={{ p: 2 }}>
+        <Stack direction="row" spacing={1.5} justifyContent="space-between">
+          <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+            <Typography
+              level="title-md"
+              sx={{
+                color: "neutral.900",
+                lineHeight: 1.35,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+              }}
+            >
+              {bundleTitle}
+            </Typography>
+            {bundle.sourceLabel && bundle.sourceLabel !== bundleTitle ? (
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: "neutral.500",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {bundle.sourceLabel}
+              </Typography>
+            ) : null}
+          </Stack>
+
+          <Box onClick={(event) => event.stopPropagation()}>
+            <JoyDropdownMenu>
+              <JoyDropdownMenuTrigger
+                variant="plain"
+                color="neutral"
+                size="sm"
+                aria-label={`Actions for ${bundleTitle}`}
+              >
+                <MoreHorizontal size={16} />
+              </JoyDropdownMenuTrigger>
+              <JoyDropdownMenuContent>
+                <JoyDropdownMenuItem
+                  startDecorator={<ExternalLink size={16} />}
+                  onClick={() => onOpen(bundle)}
+                >
+                  Open
+                </JoyDropdownMenuItem>
+                {publishChannel ? (
+                  <JoyDropdownMenuItem
+                    startDecorator={<Sparkles size={16} />}
+                    onClick={() => onPublish(bundle)}
+                  >
+                    Publish
+                  </JoyDropdownMenuItem>
+                ) : null}
+                <JoyDropdownMenuItem
+                  destructive
+                  startDecorator={<Trash2 size={16} />}
+                  onClick={() => onDelete(bundle)}
+                >
+                  Delete
+                </JoyDropdownMenuItem>
+              </JoyDropdownMenuContent>
+            </JoyDropdownMenu>
+          </Box>
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          alignItems="center"
+          flexWrap="wrap"
+        >
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <CalendarDays size={14} />
+            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+              {getRelativeDate(bundle.createdAt)}
+            </Typography>
+          </Stack>
+
+          <Chip
+            size="sm"
+            variant="soft"
+            color={MODE_META[bundle.mode].color}
+            sx={{ borderRadius: "999px" }}
+          >
+            {MODE_META[bundle.mode].label}
+          </Chip>
+
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {bundleChannels.map((channelKey) => {
+              const meta = CHANNEL_META[channelKey as Channel | "carousel"];
+              const ChannelIcon = meta.icon;
+
+              return (
+                <Box
+                  key={channelKey}
+                  title={meta.label}
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "999px",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "neutral.500",
+                    backgroundColor: "background.level1",
+                    border: "1px solid",
+                    borderColor: "neutral.200",
+                    "& .lucide": {
+                      width: 14,
+                      height: 14,
+                    },
+                  }}
+                >
+                  <ChannelIcon />
+                </Box>
+              );
+            })}
+          </Stack>
+        </Stack>
+
+        <Typography level="body-xs" sx={{ color: approval.color }}>
+          {approval.text}
+        </Typography>
+      </Stack>
+    </Card>
+  );
+}
+
+function BundleCardSkeleton() {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: "100%",
+        p: 0,
+        overflow: "hidden",
+        borderColor: "neutral.200",
+        boxShadow: "sm",
+      }}
+    >
+      <AspectRatio ratio="16 / 9" sx={{ borderRadius: 0 }}>
+        <Skeleton
+          variant="rectangular"
+          sx={{ width: "100%", height: "100%" }}
+        />
+      </AspectRatio>
+
+      <Stack spacing={1.5} sx={{ p: 2 }}>
+        <Stack direction="row" spacing={1.5} justifyContent="space-between">
+          <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+            <Skeleton variant="text" sx={{ width: "72%", height: 24 }} />
+            <Skeleton variant="text" sx={{ width: "48%", height: 16 }} />
+          </Stack>
+          <Skeleton variant="circular" sx={{ width: 28, height: 28 }} />
+        </Stack>
+
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 92, height: 24, borderRadius: "999px" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 76, height: 24, borderRadius: "999px" }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 88, height: 24, borderRadius: "999px" }}
+          />
+        </Stack>
+
+        <Skeleton variant="text" sx={{ width: "36%", height: 18 }} />
+        <Skeleton variant="text" sx={{ width: "94%", height: 18 }} />
+      </Stack>
     </Card>
   );
 }
 
 export const BundleLibrary = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useQueryParams();
-  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { getJobsByType, getActiveJobs, getJobById, jobs } =
-    useGenerationJobTracker();
+  const { setBundleIds } = useCreateFlow();
 
-  // Handle new content highlighting from generation
+  const queryBundleId = params.get("doc_id") || params.get("bundleId");
+  const [trackedBundleId, setTrackedBundleId] = useState<string | null>(
+    queryBundleId,
+  );
   const [highlightedBundles, setHighlightedBundles] = useState<Set<string>>(
     new Set(),
   );
-  const [shouldAutoSort, setShouldAutoSort] = useState(false);
-  const fromGeneration = params.get("from") === "generation";
-  const trackingJobId = params.get("jobId");
-
+  const [activeGenerationBundleId, setActiveGenerationBundleId] = useState<
+    string | null
+  >(queryBundleId);
+  const [generationSurfaceDismissed, setGenerationSurfaceDismissed] =
+    useState(false);
+  const [retryDraft, setRetryDraft] = useState<CreateFlowRetryDraft | null>(
+    null,
+  );
   const [search, setSearch] = useState(params.get("q") || "");
-  const [mode, setMode] = useState<"event" | "seasonal" | "custom" | "all">(
-    (params.get("mode") as any) || "all",
+  const [mode, setMode] = useState<ModeTabValue>(
+    getInitialMode(params.get("mode")),
   );
-  const [channel, setChannel] = useState<Channel | "all">(
-    (params.get("channel") as any) || "all",
+  const [channel, setChannel] = useState<ChannelSelectValue>(
+    getInitialChannel(params.get("channel")),
   );
-  const [sort, setSort] = useState<"newest" | "updated">(
-    shouldAutoSort || fromGeneration
-      ? "newest"
-      : (params.get("sort") as any) || "updated",
+  const [sort, setSort] = useState<LibrarySort>(
+    getInitialSort(params.get("sort")),
   );
   const [page, setPage] = useState<number>(
-    parseInt(params.get("page") || "1", 10),
+    Math.max(1, parseInt(params.get("page") || "1", 10) || 1),
   );
+  const [modalOpen, setModalOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [bundleToDelete, setBundleToDelete] = useState<ContentSummary | null>(
+    null,
+  );
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
-  const debouncedSearch = useDebounce(search, 300);
+  const processedTrackedBundleIdRef = useRef<string | null>(null);
+  const debouncedSearch = useDebounce(search, 200);
 
-  // Handle new content highlighting when arriving from generation
   useEffect(() => {
-    if (fromGeneration) {
-      setShouldAutoSort(true);
-      // Clear URL params after handling
-      const newParams = new URLSearchParams(params);
-      newParams.delete("from");
-      newParams.delete("jobId");
-      navigate(
-        { pathname: "/content/library", search: newParams.toString() },
-        { replace: true },
-      );
-    }
-  }, [fromGeneration, params, navigate]);
+    setTrackedBundleId(queryBundleId);
+    setActiveGenerationBundleId(queryBundleId);
+    setGenerationSurfaceDismissed(false);
+  }, [queryBundleId]);
 
-  // Track completed jobs and highlight new bundles
   useEffect(() => {
-    if (trackingJobId) {
-      const job = getJobById(trackingJobId);
-      if (job?.status === "completed" && job.bundleId) {
-        setHighlightedBundles((prev) => new Set([...prev, job.bundleId!]));
-        // Auto-remove highlight after 5 seconds
-        setTimeout(() => {
-          setHighlightedBundles((prev) => {
-            const next = new Set(prev);
-            next.delete(job.bundleId!);
-            return next;
-          });
-        }, 5000);
-      }
+    const state = location.state as {
+      carouselPublishSuccess?: boolean;
+      carouselTopicTitle?: string | null;
+    } | null;
+
+    if (!state?.carouselPublishSuccess) {
+      return;
     }
-  }, [trackingJobId, getJobById]);
+
+    toast({
+      title: "Carousel published",
+      description: state.carouselTopicTitle
+        ? `Published ${state.carouselTopicTitle}.`
+        : "Your carousel was published successfully.",
+    });
+
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
+    });
+  }, [location.pathname, location.search, location.state, navigate, toast]);
 
   const { data, isLoading } = useContentLibrary({
     search: debouncedSearch,
     mode,
     channel,
     page,
-    pageSize: 24,
+    pageSize: PAGE_SIZE,
     sort,
   });
-  const total = data?.total || 0;
-  const items = data?.items || [];
 
-  // Track if initial load has completed
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const countQuery = useContentLibraryCount({
+    search: debouncedSearch,
+    mode,
+    channel,
+  });
+
+  const del = useDeleteBundle();
+  const items = data?.items || [];
+  const filteredCount = countQuery.data ?? data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
+  const hasActiveFilters =
+    Boolean(search.trim()) || mode !== "all" || channel !== "all";
+
   useEffect(() => {
     if (!isLoading) {
       setHasLoadedOnce(true);
     }
   }, [isLoading]);
 
-  // Track completed jobs to trigger refresh
-  const [lastCompletedJobs, setLastCompletedJobs] = useState<Set<string>>(
-    new Set(),
-  );
-
-  // Watch for job completions and refresh content library
   useEffect(() => {
-    const completedJobs = Object.values(jobs).filter(
-      (job) => job.status === "completed" && !lastCompletedJobs.has(job.id),
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!trackedBundleId || items.length === 0) {
+      if (!trackedBundleId) {
+        processedTrackedBundleIdRef.current = null;
+      }
+      return;
+    }
+
+    if (processedTrackedBundleIdRef.current === trackedBundleId) {
+      return;
+    }
+
+    const matchingBundle = items.find(
+      (item) => item.bundleId === trackedBundleId,
     );
+    if (!matchingBundle) {
+      return;
+    }
 
-    if (completedJobs.length > 0) {
-      // Invalidate queries to fetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["content-library"] });
-      queryClient.invalidateQueries({ queryKey: ["content-library-count"] });
+    processedTrackedBundleIdRef.current = trackedBundleId;
+    setActiveGenerationBundleId(null);
+    setGenerationSurfaceDismissed(false);
+    setHighlightedBundles((previous) => new Set(previous).add(trackedBundleId));
 
-      // Update tracking to avoid duplicate refreshes
-      setLastCompletedJobs((prev) => {
-        const next = new Set(prev);
-        completedJobs.forEach((job) => next.add(job.id));
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedBundles((previous) => {
+        const next = new Set(previous);
+        next.delete(trackedBundleId);
         return next;
       });
 
-      // Auto-highlight newly completed bundles
-      const newBundleIds = completedJobs
-        .filter((job) => job.bundleId)
-        .map((job) => job.bundleId!);
+      replaceQueryParams((queryParams) => {
+        queryParams.delete("from");
+        queryParams.delete("doc_id");
+        queryParams.delete("bundleId");
+      });
+      setTrackedBundleId(null);
+    }, 2000);
 
-      if (newBundleIds.length > 0) {
-        setHighlightedBundles((prev) => {
-          const next = new Set([...prev, ...newBundleIds]);
-          return next;
-        });
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [items, trackedBundleId]);
 
-        // Show success feedback
-        toast({
-          title: "Content Generated!",
-          description: `${completedJobs.length} new bundle${completedJobs.length > 1 ? "s" : ""} added to your library.`,
-          duration: 5000,
-        });
+  const clearGenerationQueryParams = () => {
+    replaceQueryParams((queryParams) => {
+      queryParams.delete("from");
+      queryParams.delete("doc_id");
+      queryParams.delete("bundleId");
+    });
+    setTrackedBundleId(null);
+  };
 
-        // Auto-remove highlight after 8 seconds
-        setTimeout(() => {
-          setHighlightedBundles((prev) => {
-            const next = new Set(prev);
-            newBundleIds.forEach((id) => next.delete(id));
-            return next;
-          });
-        }, 8000);
+  const queueHighlight = (bundleId: string, clearQueryParam = false) => {
+    setHighlightedBundles((previous) => new Set(previous).add(bundleId));
+
+    window.setTimeout(() => {
+      setHighlightedBundles((previous) => {
+        const next = new Set(previous);
+        next.delete(bundleId);
+        return next;
+      });
+
+      if (clearQueryParam) {
+        clearGenerationQueryParams();
       }
-    }
-  }, [jobs, lastCompletedJobs, queryClient, toast]);
+    }, 2000);
+  };
 
-  // Check for active generation jobs
-  const activeJobs = getActiveJobs();
-  const bundleJobs = getJobsByType("bundle").concat(getJobsByType("custom"));
-
-  // Auto-scroll to highlighted content when it appears
-  useEffect(() => {
-    if (highlightedBundles.size > 0 && items.length > 0) {
-      const firstHighlighted = items.find((item) =>
-        highlightedBundles.has(item.bundleId),
-      );
-      if (firstHighlighted) {
-        setTimeout(() => {
-          const element = document.querySelector(
-            `[data-bundle-id="${firstHighlighted.bundleId}"]`,
-          );
-          if (element) {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 100);
-      }
-    }
-  }, [highlightedBundles, items]);
-
-  const del = useDeleteBundle();
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [bundleToDelete, setBundleToDelete] = useState<string | null>(null);
-  const { setBundleIds } = useCreateFlow();
-
-  const openBundle = (bundleId: string, snapshotId?: string) => {
-    // hydrate create flow and open modal
-    setBundleIds(bundleId, snapshotId || null);
+  const openBundle = (bundle: ContentSummary, snapshotId?: string) => {
+    setBundleIds(bundle.bundleId, snapshotId || bundle.snapshotId || null);
     setModalOpen(true);
     window.dispatchEvent(
-      new CustomEvent("library_card_open", { detail: { bundleId } }),
+      new CustomEvent("library_card_open", {
+        detail: { bundleId: bundle.bundleId },
+      }),
     );
   };
 
-  const confirmDelete = (bundleId: string) => {
-    setBundleToDelete(bundleId);
-    setDeleteDialogOpen(true);
+  const openPublishPortal = (bundle: ContentSummary) => {
+    const publishChannel = getPublishChannel(bundle);
+    if (!publishChannel) {
+      return;
+    }
+
+    navigate(`/publish?bundleId=${bundle.bundleId}`);
+  };
+
+  const handleGenerationDismiss = () => {
+    setGenerationSurfaceDismissed(true);
+    setActiveGenerationBundleId(null);
+    clearGenerationQueryParams();
+  };
+
+  const handleGenerationReady = (
+    generatedBundleId: string,
+    _generatedSnapshotId?: string,
+  ) => {
+    queueHighlight(generatedBundleId, true);
+    setActiveGenerationBundleId(null);
+    setGenerationSurfaceDismissed(false);
+  };
+
+  const handleGenerationFailed = () => {
+    if (generationSurfaceDismissed) {
+      setActiveGenerationBundleId(null);
+      clearGenerationQueryParams();
+    }
+  };
+
+  const handleGenerationReview = (
+    generatedBundleId: string,
+    generatedSnapshotId?: string,
+  ) => {
+    openBundle(
+      {
+        bundleId: generatedBundleId,
+        snapshotId: generatedSnapshotId,
+        mode: "custom",
+        channels: [],
+        approvedCount: 0,
+        totalItems: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      generatedSnapshotId,
+    );
+    setActiveGenerationBundleId(null);
+    setGenerationSurfaceDismissed(false);
+    clearGenerationQueryParams();
+  };
+
+  const handleGenerationRetry = (draft: CreateFlowRetryDraft | null) => {
+    setRetryDraft(draft);
+    setCreateDialogOpen(true);
+    setActiveGenerationBundleId(null);
+    setGenerationSurfaceDismissed(false);
+    clearGenerationQueryParams();
+  };
+
+  const handleCreateDialogOpenChange = (nextOpen: boolean) => {
+    setCreateDialogOpen(nextOpen);
+    if (!nextOpen) {
+      setRetryDraft(null);
+    }
   };
 
   const handleDelete = async () => {
-    if (!bundleToDelete) return;
+    if (!bundleToDelete) {
+      return;
+    }
 
-    window.dispatchEvent(
-      new CustomEvent("library_delete_confirm", {
-        detail: { bundleId: bundleToDelete },
-      }),
-    );
-    await del.mutateAsync({
-      bundleId: bundleToDelete,
-      deletedAt: new Date().toISOString(),
-    });
+    try {
+      window.dispatchEvent(
+        new CustomEvent("library_delete_confirm", {
+          detail: { bundleId: bundleToDelete.bundleId },
+        }),
+      );
 
-    toast({
-      title: "Deleted",
-      description: "Bundle moved to trash",
-      action: (
-        <ToastAction
-          altText="Undo"
-          onClick={async () => {
-            await del.mutateAsync({
-              bundleId: bundleToDelete,
-              deletedAt: null,
-            });
-            toast({ title: "Restored", description: "Bundle restored" });
-          }}
-        >
-          Undo
-        </ToastAction>
-      ),
-    });
+      await del.mutateAsync({
+        bundleId: bundleToDelete.bundleId,
+        deletedAt: new Date().toISOString(),
+      });
 
-    setDeleteDialogOpen(false);
-    setBundleToDelete(null);
+      toast({
+        title: "Content bundle deleted",
+        description: "The bundle was removed from your content library.",
+      });
+      setBundleToDelete(null);
+    } catch (error) {
+      toast({
+        title: "Delete failed",
+        description:
+          error instanceof Error
+            ? error.message
+            : "We couldn't delete this content bundle.",
+        variant: "destructive",
+      });
+    }
   };
 
+  const handleResetFilters = () => {
+    setSearch("");
+    setMode("all");
+    setChannel("all");
+    setSort("newest");
+    setPage(1);
+  };
+
+  const countLabel =
+    filteredCount === 0
+      ? "No results"
+      : `${filteredCount} bundle${filteredCount === 1 ? "" : "s"}`;
+
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">My Content</h1>
-        <p className="text-sm text-muted-foreground">
-          Previously generated posts, newsletters, and more.
-        </p>
-      </header>
+    <Stack
+      spacing={3}
+      sx={{ minHeight: "calc(100vh - 8.5rem)", color: "neutral.900" }}
+    >
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={2}
+        justifyContent="space-between"
+        alignItems={{ xs: "stretch", md: "center" }}
+      >
+        <Stack spacing={0.5}>
+          <Typography level="h3" sx={{ fontWeight: "lg" }}>
+            My Content
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+            Previously generated posts, newsletters, and more.
+          </Typography>
+        </Stack>
 
-      <section className="flex flex-col md:flex-row gap-3 md:items-center">
-        <div className="relative md:flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              window.dispatchEvent(new CustomEvent("library_filter_change"));
-            }}
-            placeholder="Search by title"
-            className="pl-9"
-          />
-        </div>
-        <div className="flex gap-2 items-center">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <select
-            className="border rounded-md px-2 py-1 text-sm"
-            value={mode}
-            onChange={(e) => {
-              setMode(e.target.value as any);
-              setPage(1);
-            }}
-          >
-            <option value="all">All Modes</option>
-            <option value="event">Event</option>
-            <option value="seasonal">Seasonal</option>
-            <option value="custom">Custom</option>
-          </select>
-          <select
-            className="border rounded-md px-2 py-1 text-sm"
-            value={channel}
-            onChange={(e) => {
-              setChannel(e.target.value as any);
-              setPage(1);
-            }}
-          >
-            <option value="all">All Channels</option>
-            <option value="instagram">Instagram</option>
-            <option value="facebook">Facebook</option>
-            <option value="newsletter">Newsletter</option>
-            <option value="video">Video</option>
-            <option value="blog">Blog</option>
-          </select>
-          <select
-            className="border rounded-md px-2 py-1 text-sm"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as any)}
-          >
-            <option value="newest">Newest</option>
-            <option value="updated">Last Updated</option>
-          </select>
-        </div>
-      </section>
+        <Button
+          color="primary"
+          startDecorator={<Sparkles size={16} />}
+          onClick={() => {
+            setRetryDraft(null);
+            setCreateDialogOpen(true);
+          }}
+        >
+          Create Content
+        </Button>
+      </Stack>
 
-      {/* Generation Progress Banner */}
-      <GenerationProgressBanner />
+      {activeGenerationBundleId ? (
+        <ContentLibraryGenerationStatusCard
+          bundleId={activeGenerationBundleId}
+          hidden={generationSurfaceDismissed}
+          onDismiss={handleGenerationDismiss}
+          onReview={handleGenerationReview}
+          onRetry={handleGenerationRetry}
+          onReady={handleGenerationReady}
+          onFailed={handleGenerationFailed}
+        />
+      ) : null}
 
-      <main>
-        {isLoading || !hasLoadedOnce ? (
-          <div className="flex items-center justify-center py-24">
-            <LoadingSpinner
-              size="lg"
-              color="primary"
-              text="Loading your content..."
-            />
-          </div>
-        ) : items.length === 0 && bundleJobs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-2xl">
-            <p className="text-sm text-muted-foreground mb-3">No content yet</p>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              Create Content
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Show generation skeletons for active jobs */}
-            {bundleJobs.filter((job) => job.status === "generating").length >
-              0 && (
-              <ContentGenerationSkeleton
-                type="bundle"
-                count={
-                  bundleJobs.filter((job) => job.status === "generating").length
+      <Sheet
+        variant="plain"
+        sx={{
+          p: { xs: 2, md: 2.5 },
+          borderRadius: "xl",
+          backgroundColor: "background.surface",
+          border: "1px solid",
+          borderColor: "neutral.200",
+          boxShadow: "sm",
+        }}
+      >
+        <Stack spacing={2}>
+          <Stack
+            direction={{ xs: "column", xl: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", xl: "center" }}
+          >
+            <Tabs
+              value={mode}
+              onChange={(_event, value) => {
+                if (typeof value === "string") {
+                  setMode(value as ModeTabValue);
+                  setPage(1);
                 }
-                className="mb-6"
-              />
-            )}
-
-            {/* Show actual content */}
-            {items.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {items.map((it: any) => (
-                  <BundleCard
-                    key={it.bundleId}
-                    it={it}
-                    openBundle={openBundle}
-                    handleDelete={confirmDelete}
-                    isHighlighted={highlightedBundles.has(it.bundleId)}
-                  />
+              }}
+              sx={{ minWidth: 0 }}
+            >
+              <TabList
+                disableUnderline
+                disableIndicator
+                sx={{
+                  gap: 0.5,
+                  p: 0.5,
+                  borderRadius: "xl",
+                  bgcolor: "background.level1",
+                  alignSelf: "flex-start",
+                  flexWrap: "wrap",
+                }}
+              >
+                {MODE_OPTIONS.map((option) => (
+                  <Tab
+                    key={option.value}
+                    value={option.value}
+                    sx={{
+                      minHeight: 34,
+                      px: 1.75,
+                      borderRadius: "lg",
+                      fontWeight: 600,
+                      color: "neutral.500",
+                      transition:
+                        "background-color 160ms ease, box-shadow 160ms ease, color 160ms ease",
+                      '&[aria-selected="true"]': {
+                        color: "neutral.900",
+                        bgcolor: "background.surface",
+                        boxShadow: "sm",
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </Tab>
                 ))}
-              </div>
-            )}
-          </div>
+              </TabList>
+            </Tabs>
+
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1}
+              useFlexGap
+              alignItems={{ xs: "stretch", md: "center" }}
+              sx={{ width: { xs: "100%", xl: "auto" } }}
+            >
+              <Select<ChannelSelectValue>
+                value={channel}
+                size="sm"
+                variant="outlined"
+                onChange={(_event, value) => {
+                  if (value) {
+                    setChannel(value);
+                    setPage(1);
+                  }
+                }}
+                sx={{ minWidth: { xs: "100%", md: 160 } }}
+              >
+                {CHANNEL_OPTIONS.map((option) => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+
+              <Select<LibrarySort>
+                value={sort}
+                size="sm"
+                variant="outlined"
+                onChange={(_event, value) => {
+                  if (value) {
+                    setSort(value);
+                    setPage(1);
+                  }
+                }}
+                sx={{ minWidth: { xs: "100%", md: 160 } }}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+
+              <Input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                startDecorator={<Search size={16} />}
+                placeholder="Search by title or topic"
+                variant="outlined"
+                size="sm"
+                sx={{ width: { xs: "100%", md: 260 } }}
+              />
+            </Stack>
+          </Stack>
+
+          <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+            {countLabel}
+          </Typography>
+        </Stack>
+      </Sheet>
+
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {isLoading || !hasLoadedOnce ? (
+          <Box
+            role="status"
+            aria-live="polite"
+            sx={{
+              display: "grid",
+              gap: 2,
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(min(100%, 300px), 1fr))",
+              alignItems: "stretch",
+            }}
+          >
+            {Array.from({ length: 6 }).map((_, index) => (
+              <BundleCardSkeleton key={`bundle-skeleton-${index}`} />
+            ))}
+          </Box>
+        ) : items.length === 0 && !activeGenerationBundleId ? (
+          <Box
+            sx={{
+              minHeight: "calc(100vh - 21rem)",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <Stack
+              spacing={3}
+              alignItems="center"
+              sx={{ maxWidth: 520, textAlign: "center" }}
+            >
+              <Box
+                sx={{
+                  width: 84,
+                  height: 84,
+                  borderRadius: "24px",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "neutral.400",
+                  background:
+                    "linear-gradient(135deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.06), rgba(var(--joy-palette-primary-mainChannel) / 0.09))",
+                  border: "1px solid",
+                  borderColor: "neutral.200",
+                  boxShadow: "sm",
+                  "& .lucide": {
+                    width: 48,
+                    height: 48,
+                  },
+                }}
+              >
+                {hasActiveFilters ? <Search /> : <FileStack />}
+              </Box>
+
+              <Stack spacing={1.25}>
+                <Typography level="title-lg">
+                  {hasActiveFilters
+                    ? "No bundles match these filters"
+                    : "Your content library is empty"}
+                </Typography>
+                <Typography level="body-md" sx={{ color: "neutral.500" }}>
+                  {hasActiveFilters
+                    ? "Try adjusting your search or filter selections to find a content bundle."
+                    : "Create your first AI-generated content — posts, newsletters, and more — in seconds."}
+                </Typography>
+              </Stack>
+
+              <Button
+                color="primary"
+                size="lg"
+                startDecorator={
+                  hasActiveFilters ? undefined : <Sparkles size={18} />
+                }
+                onClick={() => {
+                  if (hasActiveFilters) {
+                    handleResetFilters();
+                    return;
+                  }
+
+                  setRetryDraft(null);
+                  setCreateDialogOpen(true);
+                }}
+              >
+                {hasActiveFilters
+                  ? "Reset filters"
+                  : "Create your first content"}
+              </Button>
+            </Stack>
+          </Box>
+        ) : (
+          <Stack spacing={2.5} sx={{ flex: 1 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateColumns:
+                  "repeat(auto-fill, minmax(min(100%, 300px), 1fr))",
+                alignItems: "stretch",
+              }}
+            >
+              {items.map((bundle) => (
+                <BundleCard
+                  key={bundle.bundleId}
+                  bundle={bundle}
+                  isHighlighted={highlightedBundles.has(bundle.bundleId)}
+                  onOpen={(selectedBundle) => openBundle(selectedBundle)}
+                  onPublish={openPublishPortal}
+                  onDelete={setBundleToDelete}
+                />
+              ))}
+            </Box>
+
+            {filteredCount > PAGE_SIZE ? (
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                justifyContent="space-between"
+                alignItems={{ xs: "stretch", sm: "center" }}
+              >
+                <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                  Page {page} of {totalPages}
+                </Typography>
+
+                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    disabled={page === 1}
+                    onClick={() =>
+                      setPage((currentPage) => Math.max(1, currentPage - 1))
+                    }
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((currentPage) => currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : null}
+          </Stack>
         )}
-      </main>
+      </Box>
 
       <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />
       <CreateFlowDialog
         open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+        onOpenChange={handleCreateDialogOpenChange}
+        initialDraft={retryDraft}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Content Bundle?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will move the content bundle to trash. You can undo this
-              action immediately after deletion.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setBundleToDelete(null);
-              }}
+      <Modal
+        open={Boolean(bundleToDelete)}
+        onClose={() => setBundleToDelete(null)}
+      >
+        <ModalDialog
+          aria-modal="true"
+          variant="outlined"
+          color="danger"
+          sx={{ maxWidth: 480 }}
+        >
+          <DialogTitle>Delete this content bundle?</DialogTitle>
+          <DialogContent>
+            This will permanently remove all generated posts, newsletters, and
+            images in this bundle. This action cannot be undone.
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="plain"
+              color="neutral"
+              onClick={() => setBundleToDelete(null)}
             >
               Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-500 hover:bg-red-600"
+            </Button>
+            <Button
+              color="danger"
+              loading={del.isPending}
+              onClick={() => {
+                void handleDelete();
+              }}
             >
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Simple pagination */}
-      {total > 24 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </Button>
-          <div className="text-xs text-muted-foreground">Page {page}</div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={items.length < 24}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
-    </div>
+            </Button>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
+    </Stack>
   );
 };

@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { PlanWizardState } from "@/components/plan/constants";
+import { trackImageUsage } from "@/lib/imageUsageTracking";
 
 export interface PlanPersistResult {
   success: boolean;
@@ -26,11 +28,29 @@ export const persistPlan = async (
   }
 
   const enabledItems = planState.items.filter((item) => item.enabled);
+  const imageRequiredTypes = ["email", "blog", "facebook", "instagram"];
+  const missingImageItems = enabledItems.filter(
+    (item) => imageRequiredTypes.includes(item.type) && !item.imageUrl,
+  );
+
+  if (missingImageItems.length > 0) {
+    return {
+      success: false,
+      created: 0,
+      skipped: 0,
+      error: `${missingImageItems.length} scheduled items are still missing images`,
+      details: missingImageItems.map(
+        (item) => `${item.type} "${item.title}" needs an image before launch`,
+      ),
+    };
+  }
+
   const results = {
     created: 0,
     skipped: 0,
     details: [] as string[],
   };
+  const imageUsageTrackingPromises: Promise<void>[] = [];
   // Get current user once at the beginning
   const {
     data: { user },
@@ -58,6 +78,7 @@ export const persistPlan = async (
     "default",
     { month: "long", year: "numeric" },
   );
+  const planThemes = planState.themes as unknown as Json;
 
   // Create plan record
   const { data: plan, error: planError } = await supabase
@@ -68,7 +89,7 @@ export const persistPlan = async (
         tenant_id: tenantId,
         name: `${monthName} - ${planState.themes.map((t) => t.label).join(" + ")}`,
         month: planState.month,
-        themes: planState.themes as any,
+        themes: planThemes,
         status: "active",
       },
     ])
@@ -105,6 +126,11 @@ export const persistPlan = async (
         continue;
       }
 
+      const globalImageId =
+        typeof item.imageMetadata?.globalImageId === "string"
+          ? item.imageMetadata.globalImageId
+          : undefined;
+
       // Create content_tasks entry - preserve AI-generated images
       const { data: contentTask, error: taskError } = await supabase
         .from("content_tasks")
@@ -115,7 +141,9 @@ export const persistPlan = async (
           scheduled_date: item.date.toISOString().split("T")[0], // YYYY-MM-DD format
           image_url: item.imageUrl || null, // Preserve AI-generated images
           image_idea: item.imageQuery || `${item.themeName} ${item.type}`, // Preserve original query
-          image_generation_status: item.imageUrl ? "completed" : "pending", // Track generation status
+          image_generation_status:
+            item.imageGenerationStatus ||
+            (item.imageUrl ? "completed" : "pending"), // Track generation status
           image_metadata: item.imageMetadata || null, // Preserve image metadata
           plan_id: plan.id,
           plan_theme: item.themeName || planState.themes[0].label,
@@ -145,6 +173,21 @@ export const persistPlan = async (
         continue;
       }
 
+      if (globalImageId) {
+        imageUsageTrackingPromises.push(
+          trackImageUsage({
+            contentId: contentTask.id,
+            context:
+              item.imageMetadata?.source === "gallery-reuse"
+                ? "social_post_reuse"
+                : "social_post",
+            globalImageId,
+            tenantId,
+            userId: user.id,
+          }),
+        );
+      }
+
       // For social media items, also create scheduled_posts entry
       if (item.type === "facebook" || item.type === "instagram") {
         // Map platform types to expected enum values
@@ -152,18 +195,21 @@ export const persistPlan = async (
           facebook: "FB",
           instagram: "IG_FEED",
         } as const;
-
-        const { error: scheduleError } = await supabase
-          .from("scheduled_posts")
-          .insert({
-            task_id: contentTask.id, // New schema: references content_tasks
+        const scheduledPostInsert: Database["public"]["Tables"]["scheduled_posts"]["Insert"] =
+          {
+            global_image_id: globalImageId || null,
+            task_id: contentTask.id,
             tenant_id: tenantId,
             platform: platformMap[item.type as keyof typeof platformMap],
             publish_at: item.date.toISOString(),
             status: "QUEUED",
             mode: "MANUAL",
             user_id: user.id,
-          } as any);
+          };
+
+        const { error: scheduleError } = await supabase
+          .from("scheduled_posts")
+          .insert(scheduledPostInsert);
 
         if (scheduleError) {
           console.error("[PlanPersist] Failed to create scheduled_posts:", {
@@ -179,7 +225,6 @@ export const persistPlan = async (
             userId: user.id,
           });
           // Continue anyway - at least content_task was created
-        } else {
         }
       }
 
@@ -190,6 +235,9 @@ export const persistPlan = async (
       results.details.push(`${item.type} "${item.title}": Unexpected error`);
     }
   }
+
+  await Promise.allSettled(imageUsageTrackingPromises);
+
   // If no items were created, provide a helpful error message
   if (results.created === 0) {
     const errorMsg =

@@ -1,33 +1,52 @@
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Divider from "@mui/joy/Divider";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { Button } from "@/components/ui-legacy/button";
-import { Textarea } from "@/components/ui-legacy/textarea";
-import { Label } from "@/components/ui-legacy/label";
-import { Badge } from "@/components/ui-legacy/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
+import { PageContainer } from "@/components/joy/PageContainer";
 import { CarouselImageSelector } from "@/components/social/CarouselImageSelector";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
 import { AIPersonalizationDialog } from "@/components/crm/AIPersonalizationDialog";
 import {
+  AlertCircle,
   ArrowLeft,
   Eye,
+  ImagePlus,
   Send,
-  AlertCircle,
   Sparkles,
   Wand2,
-  ImagePlus,
 } from "lucide-react";
 import { validateCarouselPost } from "@/utils/validateCarouselPost";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useImageGeneration } from "@/hooks/useImageGeneration";
+import { resolveTenantMutationContext } from "@/utils/resolveTenantMutationContext";
+
+const PLATFORM_LIMITS = {
+  instagram: { caption: 2200, name: "Instagram" },
+  facebook: { caption: 63206, name: "Facebook" },
+} as const;
+
+const PLATFORM_TIPS = {
+  instagram: [
+    "All images should share the same aspect ratio.",
+    "Lead with the strongest image because it becomes the feed thumbnail.",
+    "Use the caption to connect the slides into one clear story.",
+  ],
+  facebook: [
+    "Mixed aspect ratios are allowed, but a consistent crop still reads better.",
+    "The first image still carries most of the click-through weight.",
+    "Treat the carousel like a mini-sequence instead of separate posts.",
+  ],
+} as const;
 
 const CarouselComposerPage = () => {
   const navigate = useNavigate();
@@ -35,6 +54,8 @@ const CarouselComposerPage = () => {
   const platform = (searchParams.get("platform") || "instagram") as
     | "instagram"
     | "facebook";
+  const topicTitle = searchParams.get("topicTitle")?.trim() || "";
+  const topicDescription = searchParams.get("topicDescription")?.trim() || "";
 
   const [caption, setCaption] = useState("");
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
@@ -50,25 +71,32 @@ const CarouselComposerPage = () => {
   const { generateImageForChannel, isGenerating: isSingleImageGenerating } =
     useImageGeneration();
 
-  const validation = validateCarouselPost(platform, {
-    platform,
-    accountId: "preview",
-    caption,
-    mediaUrls: carouselImages,
-    isCarousel: true,
-  });
-
-  const platformLimits = {
-    instagram: { caption: 2200, name: "Instagram" },
-    facebook: { caption: 63206, name: "Facebook" },
-  };
-
-  const limits = platformLimits[platform];
+  const limits = PLATFORM_LIMITS[platform];
   const captionLength = caption.length;
+  const generationContext =
+    caption.trim() ||
+    [topicTitle, topicDescription].filter(Boolean).join(". ") ||
+    "Beautiful garden and nature scenes";
+
+  const validation = useMemo(
+    () =>
+      validateCarouselPost(platform, {
+        platform,
+        accountId: "preview",
+        caption,
+        mediaUrls: carouselImages,
+        isCarousel: true,
+      }),
+    [caption, carouselImages, platform],
+  );
 
   const handleGenerateCaption = async () => {
-    if (!caption.trim()) {
-      toast.error("Please add some initial text to enhance");
+    const promptSeed =
+      caption.trim() ||
+      [topicTitle, topicDescription].filter(Boolean).join(". ");
+
+    if (!promptSeed) {
+      toast.error("Add a topic or a draft caption first.");
       return;
     }
 
@@ -78,20 +106,22 @@ const CarouselComposerPage = () => {
         "generate-thinking-text",
         {
           body: {
-            prompt: `Create an engaging ${platform} carousel caption based on this text: ${caption}. Make it concise, compelling, and optimized for ${platform} engagement. Include relevant emojis and hashtags if appropriate.`,
+            prompt: `Create an engaging ${platform} carousel caption based on this brief: ${promptSeed}. Make it concise, compelling, and optimized for ${platform} engagement. Include relevant emojis and hashtags when they help.`,
           },
         },
       );
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (data?.thinking_text) {
         setCaption(data.thinking_text);
-        toast.success("Caption enhanced with AI!");
+        toast.success("Caption enhanced with AI.");
       }
     } catch (error) {
       console.error("Failed to generate caption:", error);
-      toast.error("Failed to generate caption");
+      toast.error("Failed to generate caption.");
     } finally {
       setIsGeneratingCaption(false);
     }
@@ -103,13 +133,12 @@ const CarouselComposerPage = () => {
 
     try {
       const generatedUrls: string[] = [];
-      const contextText = caption || "Beautiful garden and nature scenes";
 
-      for (let i = 0; i < imagesToGenerate; i++) {
+      for (let index = 0; index < imagesToGenerate; index += 1) {
         const result = await generateImageForChannel(
           platform,
-          `${contextText} (Image ${i + 1} of ${imagesToGenerate})`,
-          `Carousel image ${i + 1}`,
+          `${generationContext} (Image ${index + 1} of ${imagesToGenerate})`,
+          `Carousel image ${index + 1}`,
         );
 
         if (result?.imageUrl) {
@@ -118,9 +147,10 @@ const CarouselComposerPage = () => {
       }
 
       setCarouselImages(generatedUrls);
+      toast.success("Carousel images generated.");
     } catch (error) {
       console.error("Bulk generation failed:", error);
-      toast.error("Failed to generate all images");
+      toast.error("Failed to generate all images.");
     } finally {
       setIsBulkGenerating(false);
     }
@@ -133,36 +163,116 @@ const CarouselComposerPage = () => {
 
   const handleAIImageSelect = (imageUrl: string) => {
     if (editingImageIndex !== null) {
-      const newImages = [...carouselImages];
-      newImages[editingImageIndex] = imageUrl;
-      setCarouselImages(newImages);
-    } else {
-      // Add new image
-      if (carouselImages.length < 10) {
-        setCarouselImages([...carouselImages, imageUrl]);
-      }
+      const nextImages = [...carouselImages];
+      nextImages[editingImageIndex] = imageUrl;
+      setCarouselImages(nextImages);
+    } else if (carouselImages.length < 10) {
+      setCarouselImages([...carouselImages, imageUrl]);
     }
+
     setShowAIDialog(false);
     setEditingImageIndex(null);
   };
 
   const handlePublish = async () => {
     if (!validation.ok) {
+      toast.error("Fix the validation errors before publishing.");
       return;
     }
 
     setIsPublishing(true);
-    try {
-      // TODO: Implement actual publishing logic
-      // This would call the publish-task edge function with carousel data
-      // Simulate publishing
-      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      toast.success(`Carousel published to ${limits.name}!`);
-      navigate(-1);
+    try {
+      const { userId, tenantId } = await resolveTenantMutationContext({});
+      const primaryImage = carouselImages[0];
+      const attachments = {
+        image: {
+          url: primaryImage,
+          alt: topicTitle || `${limits.name} carousel cover image`,
+          thumb: primaryImage,
+        },
+        carousel: {
+          isCarousel: true,
+          mediaUrls: carouselImages,
+          imageCount: carouselImages.length,
+        },
+      };
+
+      const { data: createdTask, error: taskError } = await supabase
+        .from("content_tasks")
+        .insert({
+          user_id: userId,
+          tenant_id: tenantId,
+          post_type: platform,
+          ai_output: caption.trim(),
+          image_url: primaryImage,
+          attachments,
+          image_metadata: {
+            sourceCarouselComposer: {
+              platform,
+              topicTitle: topicTitle || null,
+              topicDescription: topicDescription || null,
+            },
+          },
+          status: "approved",
+        })
+        .select("id")
+        .single();
+
+      if (taskError) {
+        throw taskError;
+      }
+
+      const { data: generatedContent, error: contentError } = await supabase
+        .from("generated_content")
+        .insert({
+          user_id: userId,
+          caption: caption.trim(),
+          media_url: primaryImage,
+          status: "DRAFT",
+        })
+        .select("id")
+        .single();
+
+      if (contentError) {
+        throw contentError;
+      }
+
+      const { data, error } = await supabase.functions.invoke("publish-task", {
+        body: {
+          taskId: createdTask.id,
+          contentId: generatedContent.id,
+          platforms: [platform],
+          caption: caption.trim(),
+          imageUrl: primaryImage,
+          mediaUrls: carouselImages,
+          isCarousel: true,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Unknown publish error");
+      }
+
+      toast.success(`Carousel published to ${limits.name}.`);
+      navigate("/content/library", {
+        replace: true,
+        state: {
+          carouselPublishSuccess: true,
+          carouselTopicTitle: topicTitle || null,
+        },
+      });
     } catch (error) {
       console.error("Failed to publish carousel:", error);
-      toast.error("Failed to publish carousel. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to publish carousel. Please try again.",
+      );
     } finally {
       setIsPublishing(false);
     }
@@ -170,261 +280,335 @@ const CarouselComposerPage = () => {
 
   return (
     <ProtectedPageWrapper>
-      <div className="container max-w-5xl mx-auto py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">
-                Create {limits.name} Carousel
-              </h1>
-              <p className="text-muted-foreground">
-                Create a multi-image carousel post with 2-10 images
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowPreview(true)}
-              disabled={carouselImages.length < 2}
-              className="gap-2"
-            >
-              <Eye className="w-4 h-4" />
-              Preview
-            </Button>
-            <Button
-              onClick={handlePublish}
-              disabled={!validation.ok || isPublishing}
-              className="gap-2"
-            >
-              <Send className="w-4 h-4" />
-              {isPublishing ? "Publishing..." : "Publish"}
-            </Button>
-          </div>
-        </div>
+      <PageContainer
+        sx={{
+          px: { xs: 2, md: 3 },
+          py: { xs: 3, md: 4 },
+          display: "flex",
+          flexDirection: "column",
+          gap: 3,
+        }}
+      >
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: "28px",
+            overflow: "hidden",
+            borderColor: "neutral.200",
+            background:
+              "linear-gradient(135deg, rgba(var(--joy-palette-background-bodyChannel) / 0.98), rgba(var(--joy-palette-primary-mainChannel) / 0.08))",
+          }}
+        >
+          {isPublishing || isBulkGenerating ? (
+            <LinearProgress thickness={3} />
+          ) : null}
+          <Stack
+            direction={{ xs: "column", lg: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            sx={{ p: { xs: 2.5, md: 3 } }}
+          >
+            <Stack spacing={1.25} sx={{ maxWidth: 760 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                useFlexGap
+                flexWrap="wrap"
+                alignItems="center"
+              >
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  startDecorator={<ArrowLeft size={16} />}
+                  onClick={() => navigate("/content/library")}
+                  sx={{ alignSelf: "flex-start", px: 0 }}
+                >
+                  Back to library
+                </Button>
+                <Chip size="sm" variant="soft" color="primary">
+                  {limits.name} carousel
+                </Chip>
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color={carouselImages.length >= 2 ? "success" : "neutral"}
+                >
+                  {`${carouselImages.length} images`}
+                </Chip>
+              </Stack>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Images */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Carousel Images</CardTitle>
-                    <CardDescription>
-                      Add 2-10 images. Drag to reorder.
-                      {platform === "instagram" &&
-                        " All images must have the same aspect ratio."}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingImageIndex(null);
-                        setShowAIDialog(true);
-                      }}
-                      disabled={carouselImages.length >= 10}
-                      className="gap-2"
-                    >
-                      <ImagePlus className="w-4 h-4" />
-                      Add Image
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleBulkGenerateImages}
-                      disabled={isBulkGenerating || isSingleImageGenerating}
-                      className="gap-2"
-                    >
-                      {isBulkGenerating ? (
-                        <>
-                          <Wand2 className="w-4 h-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-4 h-4" />
-                          Generate All
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CarouselImageSelector
-                  images={carouselImages}
-                  onChange={setCarouselImages}
-                  platform={platform}
-                  onImageClick={handleImageSelect}
-                />
-              </CardContent>
+              <Stack spacing={0.75}>
+                <Typography level="h2">
+                  Create {limits.name} carousel
+                </Typography>
+                <Typography
+                  level="body-md"
+                  sx={{ color: "neutral.600", maxWidth: 720 }}
+                >
+                  Build a multi-image carousel, refine the caption, and publish
+                  it directly without leaving the composer.
+                </Typography>
+              </Stack>
+
+              {topicTitle || topicDescription ? (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ borderRadius: "20px", p: 2, maxWidth: 720 }}
+                >
+                  <Stack spacing={0.75}>
+                    <Typography level="title-sm">
+                      {topicTitle || "Campaign topic"}
+                    </Typography>
+                    {topicDescription ? (
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        {topicDescription}
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </Sheet>
+              ) : null}
+            </Stack>
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              useFlexGap
+              alignSelf={{ lg: "flex-start" }}
+            >
+              <Button
+                variant="soft"
+                color="neutral"
+                startDecorator={<Eye size={16} />}
+                onClick={() => setShowPreview(true)}
+                disabled={carouselImages.length < 2}
+              >
+                Preview
+              </Button>
+              <Button
+                color="success"
+                startDecorator={<Send size={16} />}
+                loading={isPublishing}
+                onClick={() => void handlePublish()}
+                disabled={!validation.ok || isPublishing}
+              >
+                Publish carousel
+              </Button>
+            </Stack>
+          </Stack>
+        </Card>
+
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            gridTemplateColumns: {
+              xs: "1fr",
+              xl: "minmax(0, 1.5fr) minmax(340px, 0.9fr)",
+            },
+            alignItems: "start",
+          }}
+        >
+          <Card
+            variant="outlined"
+            sx={{ borderRadius: "24px", p: { xs: 2, md: 2.5 }, gap: 2.5 }}
+          >
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems={{ xs: "stretch", md: "center" }}
+            >
+              <Stack spacing={0.5}>
+                <Typography level="title-lg">Carousel images</Typography>
+                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                  Add 2 to 10 images and reorder them into a single story arc.
+                </Typography>
+              </Stack>
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1}
+                useFlexGap
+              >
+                <Button
+                  variant="soft"
+                  color="neutral"
+                  startDecorator={<ImagePlus size={16} />}
+                  onClick={() => {
+                    setEditingImageIndex(null);
+                    setShowAIDialog(true);
+                  }}
+                  disabled={carouselImages.length >= 10}
+                >
+                  Add image
+                </Button>
+                <Button
+                  variant="soft"
+                  color="primary"
+                  startDecorator={<Wand2 size={16} />}
+                  loading={isBulkGenerating || isSingleImageGenerating}
+                  onClick={() => void handleBulkGenerateImages()}
+                  disabled={isBulkGenerating || isSingleImageGenerating}
+                >
+                  Generate all
+                </Button>
+              </Stack>
+            </Stack>
+
+            <CarouselImageSelector
+              images={carouselImages}
+              onChange={setCarouselImages}
+              platform={platform}
+              onImageClick={handleImageSelect}
+            />
+          </Card>
+
+          <Stack spacing={2.5}>
+            <Card
+              variant="outlined"
+              sx={{ borderRadius: "24px", p: { xs: 2, md: 2.5 }, gap: 2 }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                justifyContent="space-between"
+                alignItems={{ xs: "stretch", sm: "center" }}
+              >
+                <Stack spacing={0.5}>
+                  <Typography level="title-lg">Caption</Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    Use the topic brief or your own draft, then let AI tighten
+                    it up.
+                  </Typography>
+                </Stack>
+
+                <Button
+                  variant="soft"
+                  color="primary"
+                  startDecorator={<Sparkles size={16} />}
+                  loading={isGeneratingCaption}
+                  onClick={() => void handleGenerateCaption()}
+                >
+                  Enhance caption
+                </Button>
+              </Stack>
+
+              <Textarea
+                minRows={9}
+                maxRows={16}
+                value={caption}
+                onChange={(event) => setCaption(event.target.value)}
+                placeholder={`Write your ${limits.name} carousel caption...`}
+                maxLength={limits.caption}
+              />
+
+              <Stack
+                direction="row"
+                spacing={1}
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  {captionLength.toLocaleString()}/
+                  {limits.caption.toLocaleString()} characters
+                </Typography>
+                {captionLength > limits.caption * 0.9 ? (
+                  <Chip size="sm" variant="soft" color="warning">
+                    Approaching limit
+                  </Chip>
+                ) : null}
+              </Stack>
             </Card>
-          </div>
 
-          {/* Right Column - Caption & Validation */}
-          <div className="space-y-4">
-            {/* Caption */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Caption</CardTitle>
-                    <CardDescription>Write your post caption</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateCaption}
-                    disabled={isGeneratingCaption || !caption.trim()}
-                    className="gap-2"
-                  >
-                    {isGeneratingCaption ? (
-                      <>
-                        <Sparkles className="w-4 h-4 animate-spin" />
-                        Enhancing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        Enhance
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <Textarea
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder={`Write your ${limits.name} carousel caption...`}
-                    className="min-h-32"
-                    maxLength={limits.caption}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>
-                      {captionLength.toLocaleString()}/
-                      {limits.caption.toLocaleString()} characters
-                    </span>
-                    {captionLength > limits.caption * 0.9 && (
-                      <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-200"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Approaching limit
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Validation Feedback */}
-            {(validation.errors.length > 0 ||
-              validation.warnings.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Validation</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {validation.errors.map((error, idx) => (
-                    <div
-                      key={`error-${idx}`}
-                      className="flex items-start gap-2 text-sm text-destructive"
+            {validation.errors.length > 0 || validation.warnings.length > 0 ? (
+              <Card
+                variant="outlined"
+                sx={{ borderRadius: "24px", p: { xs: 2, md: 2.5 }, gap: 1.5 }}
+              >
+                <Typography level="title-md">Validation</Typography>
+                <Stack spacing={1.25}>
+                  {validation.errors.map((error, index) => (
+                    <Stack
+                      key={`error-${index}`}
+                      direction="row"
+                      spacing={1}
+                      alignItems="flex-start"
                     >
-                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <span>{error}</span>
-                    </div>
+                      <AlertCircle size={16} />
+                      <Typography level="body-sm" sx={{ color: "danger.700" }}>
+                        {error}
+                      </Typography>
+                    </Stack>
                   ))}
-                  {validation.warnings.map((warning, idx) => (
-                    <div
-                      key={`warning-${idx}`}
-                      className="flex items-start gap-2 text-sm text-amber-600"
+                  {validation.warnings.map((warning, index) => (
+                    <Stack
+                      key={`warning-${index}`}
+                      direction="row"
+                      spacing={1}
+                      alignItems="flex-start"
                     >
-                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <span>{warning}</span>
-                    </div>
+                      <AlertCircle size={16} />
+                      <Typography level="body-sm" sx={{ color: "warning.700" }}>
+                        {warning}
+                      </Typography>
+                    </Stack>
                   ))}
-                </CardContent>
+                </Stack>
               </Card>
-            )}
+            ) : null}
 
-            {/* Platform Tips */}
-            <Card className="bg-primary/5 border-primary/20">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <span className="text-lg">💡</span>
-                  {limits.name} Carousel Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                {platform === "instagram" ? (
-                  <>
-                    <p>
-                      • All images must have the same aspect ratio (e.g., all
-                      1:1 or all 4:5)
-                    </p>
-                    <p>• Maximum 10 images per carousel</p>
-                    <p>• Each image can be up to 8MB</p>
-                    <p>
-                      • Tell a story across your images for better engagement
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p>• Mixed aspect ratios are allowed</p>
-                    <p>• Maximum 10 images per carousel</p>
-                    <p>• Each image can be up to 4MB</p>
-                    <p>• First image appears as thumbnail in feed</p>
-                  </>
-                )}
-              </CardContent>
+            <Card
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "24px", p: { xs: 2, md: 2.5 }, gap: 1.75 }}
+            >
+              <Stack spacing={0.75}>
+                <Typography level="title-md">
+                  {limits.name} carousel tips
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                  Keep the sequence coherent from slide one through the CTA on
+                  the last frame.
+                </Typography>
+              </Stack>
+              <Divider />
+              <Stack spacing={1.25}>
+                {PLATFORM_TIPS[platform].map((tip) => (
+                  <Typography
+                    key={tip}
+                    level="body-sm"
+                    sx={{ color: "neutral.700" }}
+                  >
+                    {tip}
+                  </Typography>
+                ))}
+              </Stack>
             </Card>
-          </div>
-        </div>
-      </div>
+          </Stack>
+        </Box>
+      </PageContainer>
 
-      {/* Preview Modal */}
-      {showPreview && carouselImages.length >= 2 && (
+      {showPreview && carouselImages.length >= 2 ? (
         <SocialPostPreviewModal
           open={showPreview}
           onClose={() => setShowPreview(false)}
           platform={platform}
-          onPlatformChange={(newPlatform) => {
-            // Platform change not supported in carousel mode
-          }}
+          onPlatformChange={() => undefined}
           accountName="Your Account"
           caption={caption}
           mediaUrl={carouselImages[0]}
           mediaUrls={carouselImages}
-          isCarousel={true}
+          isCarousel
         />
-      )}
+      ) : null}
 
-      {/* AI Personalization Dialog */}
       <AIPersonalizationDialog
         open={showAIDialog}
         onOpenChange={setShowAIDialog}
         onImageSelect={handleAIImageSelect}
         channel={platform}
-        contentContext={
-          caption || "Create beautiful carousel images for social media"
-        }
+        contentContext={generationContext}
         contextType="carousel_builder"
       />
     </ProtectedPageWrapper>

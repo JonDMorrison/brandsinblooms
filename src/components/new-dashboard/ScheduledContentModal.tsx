@@ -121,7 +121,9 @@ export const ScheduledContentModal = ({
                 onImageSelect={async (imageUrl, metadata) => {
                   // The component handles database updates internally for tasks
                 }}
-                contentContext={scheduledTask?.ai_output}
+                contentContext={
+                  scheduledTask?.image_idea || scheduledTask?.ai_output
+                }
               />
             </div>
 

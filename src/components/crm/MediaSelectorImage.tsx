@@ -1,7 +1,7 @@
 import React, { useState, useImperativeHandle, forwardRef } from "react";
 import { MediaSelectorSidebar } from "./MediaSelectorSidebar";
 import { AIPersonalizationDialog } from "./AIPersonalizationDialog";
-import { Camera, Upload, Sparkles, Wand2 } from "lucide-react";
+import { AlertTriangle, Camera, Upload, Sparkles, Wand2 } from "lucide-react";
 import { AIImageLoadingOverlay } from "@/components/ui-legacy/AIImageLoadingOverlay";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +10,7 @@ import { getCurrentSeason } from "@/utils/seasonalUtils";
 
 interface MediaSelectorImageProps {
   src?: string;
-  onChange?: (src: string, metadata?: any) => void;
+  onChange?: (src: string, metadata?: Record<string, unknown>) => void;
   contentContext?: string;
   className?: string;
   month?: string;
@@ -95,6 +95,7 @@ export const MediaSelectorImage = forwardRef<
     const [isAutoPickGenerating, setIsAutoPickGenerating] = useState(false);
     const { toast } = useToast();
     const { generateSingleImage } = useAIImageGeneration();
+    const hasImageFailure = imageGenerationStatus === "failed";
 
     // Expose openDialog method to parent components
     useImperativeHandle(ref, () => ({
@@ -103,7 +104,10 @@ export const MediaSelectorImage = forwardRef<
       },
     }));
 
-    const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    const handleImageSelect = (
+      imageUrl: string,
+      metadata?: Record<string, unknown>,
+    ) => {
       if (onChange) {
         onChange(imageUrl, metadata);
       } else {
@@ -165,7 +169,7 @@ export const MediaSelectorImage = forwardRef<
         } else {
           throw new Error("Failed to generate image");
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("[MediaSelectorImage] Auto Pick failed:", error);
         toast({
           title: "Generation failed",
@@ -181,7 +185,7 @@ export const MediaSelectorImage = forwardRef<
     return (
       <>
         <div
-          className={`relative group w-full h-48 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${className}`}
+          className={`relative group w-full h-48 rounded-lg overflow-hidden flex items-center justify-center border-2 border-dashed transition-colors ${hasImageFailure ? "border-red-300 bg-red-50 hover:border-red-400" : "border-gray-300 bg-gray-100 hover:border-gray-400"} ${className}`}
         >
           {isGenerating && (
             <AIImageLoadingOverlay message="AI is creating your garden image..." />
@@ -196,14 +200,26 @@ export const MediaSelectorImage = forwardRef<
               onError={(e) => console.error("🖼️ Image failed to load:", src, e)}
             />
           ) : (
-            <div className="text-center text-gray-400">
-              <Camera className="w-12 h-12 mx-auto mb-2" />
-              <span className="text-sm">No image selected</span>
+            <div
+              className={`text-center ${hasImageFailure ? "text-red-500" : "text-gray-400"}`}
+            >
+              {hasImageFailure ? (
+                <AlertTriangle className="w-12 h-12 mx-auto mb-2" />
+              ) : (
+                <Camera className="w-12 h-12 mx-auto mb-2" />
+              )}
+              <span className="text-sm">
+                {hasImageFailure
+                  ? "Image generation failed"
+                  : "No image selected"}
+              </span>
             </div>
           )}
 
           {!isGenerating && (
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2 items-center justify-center z-50 pointer-events-none">
+            <div
+              className={`absolute inset-0 transition-opacity flex flex-col gap-2 items-center justify-center z-50 pointer-events-none ${hasImageFailure ? "opacity-100 bg-red-950/5" : "opacity-0 group-hover:opacity-100"}`}
+            >
               <button
                 onClick={handleSelectClick}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 transition-colors pointer-events-auto"
@@ -233,6 +249,13 @@ export const MediaSelectorImage = forwardRef<
             </div>
           )}
         </div>
+
+        {hasImageFailure && !src && (
+          <p className="mt-2 text-sm text-red-600">
+            Auto Pick uses your saved image prompt. You can retry now or choose
+            an image manually.
+          </p>
+        )}
 
         {/* Sidebar */}
         <MediaSelectorSidebar

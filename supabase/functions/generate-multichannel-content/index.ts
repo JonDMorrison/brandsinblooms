@@ -1,76 +1,88 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { validateLocationForGeneration, locationBlockedResponse } from '../_shared/locationGuard.ts';
-import { buildClimateConstraints, extractClimateProfile, type ClimateProfile } from '../_shared/climateConstraints.ts';
+import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  validateLocationForGeneration,
+  locationBlockedResponse,
+} from "../_shared/locationGuard.ts";
+import {
+  buildClimateConstraints,
+  extractClimateProfile,
+  type ClimateProfile,
+} from "../_shared/climateConstraints.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
 
 // Strip HTML tags to plain text for social media
 function stripHtmlToPlainText(text: string): string {
   if (!text) return text;
-  
-  return text
-    // Convert headers to plain text with line breaks
-    .replace(/<h[1-6]>(.+?)<\/h[1-6]>/gi, '\n$1\n')
-    // Convert list items to bullets before stripping tags
-    .replace(/<li>(.+?)<\/li>/gi, '• $1\n')
-    // Convert paragraph breaks
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<p>/gi, '')
-    // Convert line breaks
-    .replace(/<br\s*\/?>/gi, '\n')
-    // Strip <strong>, <em>, <b>, <i> but keep text
-    .replace(/<\/?strong>/gi, '')
-    .replace(/<\/?em>/gi, '')
-    .replace(/<\/?b>/gi, '')
-    .replace(/<\/?i>/gi, '')
-    // Remove remaining HTML tags
-    .replace(/<[^>]+>/g, '')
-    // Decode HTML entities
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    // Clean up excessive whitespace
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/  +/g, ' ')
-    .trim();
+
+  return (
+    text
+      // Convert headers to plain text with line breaks
+      .replace(/<h[1-6]>(.+?)<\/h[1-6]>/gi, "\n$1\n")
+      // Convert list items to bullets before stripping tags
+      .replace(/<li>(.+?)<\/li>/gi, "• $1\n")
+      // Convert paragraph breaks
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<p>/gi, "")
+      // Convert line breaks
+      .replace(/<br\s*\/?>/gi, "\n")
+      // Strip <strong>, <em>, <b>, <i> but keep text
+      .replace(/<\/?strong>/gi, "")
+      .replace(/<\/?em>/gi, "")
+      .replace(/<\/?b>/gi, "")
+      .replace(/<\/?i>/gi, "")
+      // Remove remaining HTML tags
+      .replace(/<[^>]+>/g, "")
+      // Decode HTML entities
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      // Clean up excessive whitespace
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/  +/g, " ")
+      .trim()
+  );
 }
 
 // Strip markdown formatting for social media
 function stripMarkdownForSocial(text: string): string {
   if (!text) return text;
-  
-  return text
-    // Bold-italic: ***text*** -> text (must come first)
-    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
-    // Bold: **text** or __text__ -> text
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/__([^_]+)__/g, '$1')
-    // Italic: *text* or _text_ -> text
-    .replace(/\*([^*\n]+)\*/g, '$1')
-    .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, '$1')
-    // Strikethrough: ~~text~~ -> text
-    .replace(/~~([^~]+)~~/g, '$1')
-    // Code: `text` -> text
-    .replace(/`([^`]+)`/g, '$1')
-    // Links: [text](url) -> text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Headers: ## text -> text
-    .replace(/^#{1,6}\s+/gm, '')
-    // Convert bullet * to bullet point
-    .replace(/^(\s*)\*\s+/gm, '$1• ')
-    // Clean up multiple spaces and trim
-    .replace(/\s+/g, ' ')
-    .trim();
+
+  return (
+    text
+      // Bold-italic: ***text*** -> text (must come first)
+      .replace(/\*\*\*([^*]+)\*\*\*/g, "$1")
+      // Bold: **text** or __text__ -> text
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      // Italic: *text* or _text_ -> text
+      .replace(/\*([^*\n]+)\*/g, "$1")
+      .replace(/(?<!https?:\/\/[^\s]*)_([^_]+)_/g, "$1")
+      // Strikethrough: ~~text~~ -> text
+      .replace(/~~([^~]+)~~/g, "$1")
+      // Code: `text` -> text
+      .replace(/`([^`]+)`/g, "$1")
+      // Links: [text](url) -> text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Headers: ## text -> text
+      .replace(/^#{1,6}\s+/gm, "")
+      // Convert bullet * to bullet point
+      .replace(/^(\s*)\*\s+/gm, "$1• ")
+      // Clean up multiple spaces and trim
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 async function generateChannelContent(
@@ -78,7 +90,7 @@ async function generateChannelContent(
   topicTitle: string,
   topicDescription: string,
   companyContext: string,
-  climateConstraints: string = ''
+  climateConstraints: string = "",
 ): Promise<any> {
   const systemPrompt = `You are an expert horticulturist and garden center RETAIL educator creating ${channel} content for a GARDEN CENTER BUSINESS.
 
@@ -97,7 +109,9 @@ ALL content must reflect this RETAIL ENVIRONMENT and show:
 - Tools and supplies sold in-store
 - Staff helping customers or demonstrating products
 
-${channel === 'facebook' || channel === 'instagram' ? `
+${
+  channel === "facebook" || channel === "instagram"
+    ? `
 ⚠️⚠️⚠️ CRITICAL FOR SOCIAL MEDIA - PLAIN TEXT ONLY ⚠️⚠️⚠️
 
 ABSOLUTELY FORBIDDEN:
@@ -122,16 +136,20 @@ Example CORRECT social media format:
 Come visit us for fresh supplies! 🌱"
 
 If you use ANY HTML tags or markdown, you have FAILED this task.
-` : ''}
+`
+    : ""
+}
 
-${channel === 'blog' ? `
+${
+  channel === "blog"
+    ? `
 ⚠️⚠️⚠️ CRITICAL FOR BLOG CONTENT - MANDATORY HTML FORMAT ⚠️⚠️⚠️
 
 YOU MUST FORMAT ALL BLOG CONTENT AS HTML. THIS IS NON-NEGOTIABLE.
 
 REQUIRED HTML TAGS (use these and ONLY these):
 - <h2>Heading Text</h2> for ALL section headings
-- <p>Paragraph text here.</p> for ALL paragraphs  
+- <p>Paragraph text here.</p> for ALL paragraphs
 - <ul><li>Item one</li><li>Item two</li></ul> for ALL lists
 - <strong>emphasized text</strong> for emphasis
 
@@ -152,7 +170,9 @@ EXAMPLE CORRECT BLOG FORMAT:
 <p>Following these steps will give your tomatoes the best start possible.</p>
 
 YOUR BLOG CONTENT MUST LOOK EXACTLY LIKE THIS EXAMPLE - ALL HTML TAGS, ZERO MARKDOWN.
-` : ''}
+`
+    : ""
+}
 
 🌱 EDUCATIONAL FOCUS - CRITICAL:
 Every piece of content MUST include specific, actionable plant care guidance:
@@ -202,7 +222,9 @@ YOUR imageQuery MUST SHOW A GARDEN CENTER RETAIL ENVIRONMENT.
 
 CHANNEL-SPECIFIC REQUIREMENTS:
 
-${channel === 'facebook' ? `
+${
+  channel === "facebook"
+    ? `
 FACEBOOK imageQuery MUST include:
 1. CUSTOMERS or PEOPLE browsing/shopping (REQUIRED)
 2. GARDEN CENTER setting (greenhouse, nursery, retail display)
@@ -216,9 +238,13 @@ Examples:
 ✅ "customer choosing houseplants indoor garden shop"
 ❌ "hydrangea flowers" (too generic, no retail context)
 ❌ "garden center" (no specific plant or people)
-` : ''}
+`
+    : ""
+}
 
-${channel === 'instagram' ? `
+${
+  channel === "instagram"
+    ? `
 INSTAGRAM imageQuery MUST include:
 1. CLOSE-UP of SPECIFIC PLANT (REQUIRED - use exact variety/color)
 2. PRODUCT DISPLAY or retail presentation
@@ -232,9 +258,13 @@ Examples:
 ✅ "vibrant orange marigolds garden shop containers"
 ❌ "flowers" (too generic, no specific plant)
 ❌ "echinacea plant" (no retail context or color)
-` : ''}
+`
+    : ""
+}
 
-${channel === 'blog' ? `
+${
+  channel === "blog"
+    ? `
 BLOG imageQuery MUST include:
 1. SPECIFIC GARDENING TECHNIQUE or plant care activity
 2. HANDS or TOOLS performing the action (REQUIRED)
@@ -248,9 +278,13 @@ Examples:
 ✅ "mulching garden bed hands spreading wood chips"
 ❌ "rose garden" (no action or technique shown)
 ❌ "gardening tools" (no specific plant or activity)
-` : ''}
+`
+    : ""
+}
 
-${channel === 'newsletter' ? `
+${
+  channel === "newsletter"
+    ? `
 NEWSLETTER imageQuery MUST include:
 1. SEASONAL CONTEXT (spring, summer, fall, winter keywords)
 2. Garden center INVENTORY or featured products
@@ -264,7 +298,9 @@ Examples:
 ✅ "summer vegetables tomato pepper garden center abundance"
 ❌ "seasonal plants" (not specific to season or retail)
 ❌ "plant variety" (too generic, no season or context)
-` : ''}
+`
+    : ""
+}
 
 UNIVERSAL imageQuery RULES (ALL CHANNELS):
 - MUST be 5-7 words (shorter queries are too generic)
@@ -294,7 +330,7 @@ CONTENT QUALITY STANDARDS:
 - Provide immediately actionable next steps
 
 ${climateConstraints}`;
-  
+
   const userPrompt = `Create ${channel} content for: "${topicTitle}"
 Description: ${topicDescription}
 Company Context: ${companyContext}
@@ -307,49 +343,51 @@ Make it so valuable that customers will reference it repeatedly.
 Generate educational content that empowers garden center customers to succeed.`;
 
   console.log(`🤖 Generating ${channel} content for: ${topicTitle}`);
-  
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
     headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
+      Authorization: `Bearer ${openAIApiKey}`,
+      "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: "gpt-4o-mini",
       temperature: 0.7,
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
-      tools: [{
-        type: "function",
-        function: {
-          name: "generate_marketing_content",
-          description: `Generate ${channel} content with image query`,
-          parameters: {
-            type: "object",
-            properties: {
-              title: {
-                type: "string",
-                description: "Engaging title for the content"
-              },
-              content: {
-                type: "string",
-                description: "Main content (500-800 chars for social, 1500-2000 for blog/newsletter)"
-              },
-              caption: {
-                type: "string",
-                description: "Short compelling hook (100-150 chars)"
-              },
-              hashtags: {
-                type: "array",
-                items: { type: "string" },
-                description: "Array of relevant hashtags"
-              },
-              imageQuery: {
-                type: "string",
-                description: `MANDATORY GARDEN IMAGE QUERY - 5-7 words ONLY:
-                
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "generate_marketing_content",
+            description: `Generate ${channel} content with image query`,
+            parameters: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Engaging title for the content",
+                },
+                content: {
+                  type: "string",
+                  description:
+                    "Main content (500-800 chars for social, 1500-2000 for blog/newsletter)",
+                },
+                caption: {
+                  type: "string",
+                  description: "Short compelling hook (100-150 chars)",
+                },
+                hashtags: {
+                  type: "array",
+                  items: { type: "string" },
+                  description: "Array of relevant hashtags",
+                },
+                imageQuery: {
+                  type: "string",
+                  description: `MANDATORY GARDEN IMAGE QUERY - 5-7 words ONLY:
+
 REQUIREMENTS FOR ALL CHANNELS:
 1. MUST include SPECIFIC plant name (e.g., "pink petunia", "red tomato seedlings", "purple hydrangea") - NO generic "flowers" or "plants"
 2. MUST include COLOR descriptor for the plant
@@ -357,441 +395,529 @@ REQUIREMENTS FOR ALL CHANNELS:
 4. Extract plant names directly from the content you're writing
 
 CHANNEL-SPECIFIC:
-${channel === 'facebook' ? 
-  '- MUST show "customers" or "shoppers" or "people" interacting with plants\n- Example: "customers browsing pink hydrangea greenhouse display"' :
-  channel === 'instagram' ? 
-  '- MUST be close-up showing plant details with vibrant colors\n- Example: "purple echinacea flowers potted garden center display"' :
-  channel === 'blog' ? 
-  '- MUST show "hands" performing gardening technique\n- Example: "hands deadheading pink roses garden pruning shears"' :
-  '- MUST show seasonal inventory display\n- Example: "spring vegetable seedlings greenhouse nursery trays"'
+${
+  channel === "facebook"
+    ? '- MUST show "customers" or "shoppers" or "people" interacting with plants\n- Example: "customers browsing pink hydrangea greenhouse display"'
+    : channel === "instagram"
+      ? '- MUST be close-up showing plant details with vibrant colors\n- Example: "purple echinacea flowers potted garden center display"'
+      : channel === "blog"
+        ? '- MUST show "hands" performing gardening technique\n- Example: "hands deadheading pink roses garden pruning shears"'
+        : '- MUST show seasonal inventory display\n- Example: "spring vegetable seedlings greenhouse nursery trays"'
 }
 
 FORBIDDEN: Generic terms like "beautiful flowers", "garden plants", abstract concepts, or any query without specific plant names and colors.
 
-EXTRACT the actual plant/topic from this content: "${topicTitle}" - Use those specific plant names in your query.`
+EXTRACT the actual plant/topic from this content: "${topicTitle}" - Use those specific plant names in your query.`,
+                },
+                cta: {
+                  type: "string",
+                  description: "Call to action",
+                },
               },
-              cta: {
-                type: "string",
-                description: "Call to action"
-              }
+              required: [
+                "title",
+                "content",
+                "caption",
+                "hashtags",
+                "imageQuery",
+                "cta",
+              ],
+              additionalProperties: false,
             },
-            required: ["title", "content", "caption", "hashtags", "imageQuery", "cta"],
-            additionalProperties: false
-          }
-        }
-      }],
-      tool_choice: { 
-        type: "function", 
-        function: { name: "generate_marketing_content" } 
-      }
+          },
+        },
+      ],
+      tool_choice: {
+        type: "function",
+        function: { name: "generate_marketing_content" },
+      },
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`❌ AI API error for ${channel}:`, response.status, errorText);
+    console.error(
+      `❌ AI API error for ${channel}:`,
+      response.status,
+      errorText,
+    );
     throw new Error(`AI API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  
+
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-  
+
   if (!toolCall?.function?.arguments) {
-    console.error('❌ No structured output from AI:', JSON.stringify(data, null, 2));
-    throw new Error('AI did not return structured output');
+    console.error(
+      "❌ No structured output from AI:",
+      JSON.stringify(data, null, 2),
+    );
+    throw new Error("AI did not return structured output");
   }
 
   const result = JSON.parse(toolCall.function.arguments);
-  
+
   // Use OpenAI's image query directly
-  let imageQuery = result.imageQuery || 'garden center seasonal plants';
-  
+  let imageQuery = result.imageQuery || "garden center seasonal plants";
+
   // ========== ENHANCED IMAGE QUERY VALIDATION ==========
-  const { validateImageQuery } = await import('../_shared/enhanced-keyword-validator.ts');
-  
+  const { validateImageQuery } =
+    await import("../_shared/enhanced-keyword-validator.ts");
+
   const validation = validateImageQuery(imageQuery, channel);
-  
+
   console.log(`🔍 [${channel.toUpperCase()}] Image Query Validation:`, {
     query: imageQuery,
     score: validation.score,
     isValid: validation.isValid,
-    issues: validation.issues
+    issues: validation.issues,
   });
-  
+
   // Log warnings for low-quality queries but still use them
   if (validation.score < 70) {
-    console.warn(`⚠️ [${channel.toUpperCase()}] Low quality imageQuery (score: ${validation.score})`);
-    console.warn(`Issues: ${validation.issues.join(', ')}`);
-    console.warn(`Suggestions: ${validation.suggestions.join(', ')}`);
+    console.warn(
+      `⚠️ [${channel.toUpperCase()}] Low quality imageQuery (score: ${validation.score})`,
+    );
+    console.warn(`Issues: ${validation.issues.join(", ")}`);
+    console.warn(`Suggestions: ${validation.suggestions.join(", ")}`);
   } else {
-    console.log(`✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}" (score: ${validation.score})`);
+    console.log(
+      `✅ [${channel.toUpperCase()}] High-quality image query: "${imageQuery}" (score: ${validation.score})`,
+    );
   }
-  
+
   return {
     title: result.title,
     content: result.content,
     caption: result.caption,
     hashtags: result.hashtags || [],
     imageQuery: imageQuery,
-    cta: result.cta
+    cta: result.cta,
   };
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // SECURITY: [E21] - Add JWT authentication
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Authorization required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  // Force redeployment - v2.0.1 with getChannelFallback removal
-  const FUNCTION_VERSION = '2.0.1';
+  const FUNCTION_VERSION = "3.0.0";
   console.log(`🚀 Edge function started - v${FUNCTION_VERSION}`);
-  console.log(`📋 Configuration check:`, {
-    hasOpenAIApiKey: !!Deno.env.get('OPENAI_API_KEY'),
-    hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
-    timestamp: new Date().toISOString()
-  });
 
-  // ✅ Phase 1: Declare variables at function scope with default values
-  let mode: string = 'unknown';
-  let sourceId: string = 'unknown';
-  let topicTitle: string = 'Unknown Topic';
-  let topicDescription: string = '';
+  let mode = "unknown";
+  let sourceId = "";
+  let topicTitle = "";
+  let topicDescription = "";
   let channels: string[] = [];
-  let workspaceId: string = '';
-  let userId: string = '';
+  let userId = "";
+  let bundleId = "";
 
   try {
-    const body = await req.json();
-    console.log('📨 Request body:', JSON.stringify(body, null, 2));
-
-    // ✅ Assign the actual values from request body
-    ({ mode, sourceId, workspaceId, channels, topicTitle, topicDescription, userId } = body);
-
-    // ✅ Phase 2: Validate required fields
-    if (!userId) {
-      throw new Error('userId is required in request body');
-    }
-    if (!workspaceId) {
-      throw new Error('workspaceId is required in request body');
-    }
-
     if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+      throw new Error("OPENAI_API_KEY not configured");
     }
 
-    // Location validation guard - block legacy profiles without confirmed location
-    const locationResult = await validateLocationForGeneration(userId);
-    if (!locationResult.isValid) {
-      console.warn(`🚫 Multichannel generation blocked for user ${userId}: ${locationResult.error}`);
-      return locationBlockedResponse();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const body = await req.json();
+    console.log("📨 Request body:", JSON.stringify(body, null, 2));
+
+    mode = body.mode || "unknown";
+    sourceId = body.sourceId || "";
+    channels = Array.isArray(body.channels) ? body.channels : [];
+    topicTitle = body.topicTitle || body.userIdea?.title || "";
+    topicDescription =
+      body.topicDescription ||
+      body.userIdea?.notes ||
+      body.userIdea?.tone ||
+      "";
+    bundleId = body.bundleId || crypto.randomUUID();
+
+    if (channels.length === 0) {
+      throw new Error("At least one channel is required");
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get company context from workspace with extended details including climate data
-    const { data: companyProfile } = await supabase
-      .from('company_profiles')
-      .select(`
-        company_name, company_overview, about_business, brand_voice, specializations, 
-        location_info, seasonal_focus, postal_code, city, state_province, country,
-        climate_archetype, climate_label, usda_zone, first_frost_date, last_frost_date
-      `)
-      .eq('user_id', workspaceId)
-      .single();
-
-    // Extract climate profile and build constraints
-    const climateProfile = companyProfile ? extractClimateProfile(companyProfile) : null;
-    const climateConstraints = climateProfile ? buildClimateConstraints(climateProfile) : '';
-    
-    if (climateProfile?.archetype) {
-      console.log(`🌡️ Climate profile found: ${climateProfile.archetype} (${climateProfile.label || 'No label'})`);
-    } else {
-      console.log('⚠️ No climate profile - using general guidance');
-    }
-
-    const companyContext = companyProfile 
-      ? `${companyProfile.company_name || 'Garden Center'} - ${companyProfile.company_overview || companyProfile.about_business || 'Retail garden center'}. Specializations: ${companyProfile.specializations || 'General gardening'}. Location: ${companyProfile.location_info || 'Local area'}. Seasonal Focus: ${companyProfile.seasonal_focus || 'Year-round gardening'}.`
-      : 'Retail garden center specializing in plants, gardening supplies, and horticultural education';
-
-    console.log(`🎯 Generating content for ${channels.length} channels`);
-
-    // Generate content for each channel in parallel
-    const contentPromises = channels.map(async (channel: string) => {
-      try {
-        const generatedContent = await generateChannelContent(
-          channel,
-          topicTitle,
-          topicDescription,
-          companyContext,
-          climateConstraints
-        );
-
-        return {
-          type: channel,
-          items: [{
-            week: 1,
-            title: generatedContent.title,
-            content: generatedContent.content,
-            caption: generatedContent.caption,
-            hashtags: generatedContent.hashtags || [],
-            imageQuery: generatedContent.imageQuery,
-            cta: generatedContent.cta,
-            themeId: sourceId,
-            themeName: topicTitle,
-            dayOfWeek: 1
-          }]
-        };
-      } catch (error) {
-        console.error(`❌ Failed to generate ${channel} content:`, error);
-        throw error;
-      }
-    });
-
-    const content = await Promise.all(contentPromises);
-    
-    console.log(`✅ Generated ${content.length} pieces of content`);
-
-    // Generate bundle ID and save to database
-    const bundleId = crypto.randomUUID();
-    
-    // ========== IMAGE GENERATION: AI-ONLY (Frontend Handles) ==========
-    // ✅ Images are now generated by the frontend using AI (not Unsplash)
-    // The GeneratedContentModal will automatically trigger AI image generation
-    // for all items without media.url, storing them in global_image_gallery
-    console.log('🤖 Images will be generated by frontend AI system (Lovable AI)');
-    console.log('✅ No Unsplash fetching - all images AI-generated with centralized storage');
-    
-    // Empty array - no pre-fetched images
-    const formattedImages: any[] = [];
-    
-    // Helper function to convert markdown to HTML for blog content
-    const markdownToHtml = (text: string): string => {
-      if (!text) return text;
-      
-      // Convert headers (## to <h2>, ### to <h3>)
-      let html = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-      html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-      html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-      
-      // Convert bold (**text** or __text__ to <strong>)
-      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-      
-      // Convert italic (*text* or _text_ to <em>)
-      html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-      
-      // Convert unordered lists (- or * to <ul><li>)
-      html = html.replace(/^[*-]\s+(.+)$/gm, '<li>$1</li>');
-      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => `<ul>\n${match}</ul>\n`);
-      
-      // Convert numbered lists (1. to <ol><li>)
-      html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
-        // Check if this is part of unordered list
-        if (match.includes('<ul>')) return match;
-        return `<ol>\n${match}</ol>\n`;
-      });
-      
-      // Convert paragraphs (text not already in tags)
-      const lines = html.split('\n');
-      const processed = lines.map(line => {
-        const trimmed = line.trim();
-        // Skip if empty or already has HTML tags
-        if (!trimmed || trimmed.startsWith('<') || trimmed.endsWith('>')) {
-          return line;
-        }
-        return `<p>${trimmed}</p>`;
-      });
-      
-      return processed.join('\n');
-    };
-    
-    // ✅ No image assignment - frontend will generate AI images
-    console.log('✅ Skipping image assignment - frontend will generate AI images');
-    console.log(`📊 Channels: ${content.length}, Images will be AI-generated per item`);
-    
-    // Transform content into GeneratedBundle format
-    const bundleContent = {
-      id: bundleId,
-      mode: mode || 'event',                    // ✅ Root level for view compatibility
-      sourceId: sourceId || '',
-      sourceLabel: topicTitle || 'Untitled Content',  // ✅ Root level for view
-      channels: channels || [],                 // ✅ Root level for view
-      items: content.flatMap((channelContent: any) => 
-        channelContent.items.map((item: any, itemIndex: number) => {
-          // CRITICAL: Different formatting rules per channel
-          let bodyContent = item.content;
-          const originalContent = bodyContent;
-          
-          if (channelContent.type === 'blog') {
-            // ✅ BLOG: Ensure HTML format
-            const hasMarkdown = /^#+\s|^\s*[-*+]\s|\*\*|\*[^*]|__/m.test(bodyContent);
-            if (hasMarkdown) {
-              console.log('🔄 Converting markdown to HTML for blog content');
-              bodyContent = markdownToHtml(bodyContent);
-            }
-            // Ensure content has basic HTML structure if missing
-            if (!bodyContent.includes('<h2>') && !bodyContent.includes('<p>')) {
-              console.warn('⚠️ Blog content missing HTML tags, converting...');
-              bodyContent = markdownToHtml(bodyContent);
-            }
-          } else if (channelContent.type === 'facebook' || channelContent.type === 'instagram') {
-            // ✅ SOCIAL MEDIA: Strip ALL HTML and markdown to plain text
-            console.log(`🧹 Stripping HTML/markdown for ${channelContent.type} content`);
-            const htmlStripped = stripHtmlToPlainText(bodyContent);
-            bodyContent = stripMarkdownForSocial(htmlStripped);
-            
-            // Log if formatting was detected and stripped
-            const hasHtml = originalContent.match(/<[^>]+>/);
-            const hasMarkdown = originalContent.includes('**') || originalContent.includes('__');
-            
-            if (hasHtml || hasMarkdown) {
-              console.log(`[${channelContent.type.toUpperCase()} FORMATTING FIXED]`);
-              if (hasHtml) console.log('  - Removed HTML tags');
-              if (hasMarkdown) console.log('  - Removed markdown syntax');
-              console.log('  - Original:', originalContent.substring(0, 150));
-              console.log('  - Cleaned:', bodyContent.substring(0, 150));
-            }
-          }
-          
-          // ✅ No image assignment - leave media undefined so frontend generates AI images
-          // Frontend will auto-generate images for items without media.url
-          
-          return {
-            channel: channelContent.type,
-            title: item.title,
-            body: bodyContent,
-            caption: item.caption,
-            summary: item.caption,
-            hashtags: item.hashtags || [],
-            ctaSuggestions: [item.cta],
-            media: undefined,  // ✅ No pre-assigned images - AI will generate
-            _approved: false
-          };
-        })
-      ),
-      recommendedImages: [],  // ✅ No pre-fetched images - AI will generate
-      thumbnail: null,  // ✅ No thumbnail - will be set after AI generation
-      _imageTrackingSummary: {
-        totalImagesAvailable: 0,
-        imagesAssigned: 0,
-        uniquenessRate: 'AI-generated (frontend)'
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
-      meta: {
-        mode: mode as 'event' | 'seasonal' | 'custom',
-        sourceId: sourceId,
-        sourceLabel: topicTitle,
-        topicDescription: topicDescription
-      }
-    };
-
-    // ✅ Phase 3: Validate bundle structure before saving
-    console.log('🔍 Validating bundle structure:', {
-      hasId: !!bundleContent.id,
-      hasMode: !!bundleContent.mode,
-      hasSourceLabel: !!bundleContent.sourceLabel,
-      hasChannels: Array.isArray(bundleContent.channels) && bundleContent.channels.length > 0,
-      hasItems: Array.isArray(bundleContent.items) && bundleContent.items.length > 0,
-      hasThumbnail: !!bundleContent.thumbnail,
-      recommendedImagesCount: bundleContent.recommendedImages?.length || 0
     });
 
-    if (!bundleContent.mode || !bundleContent.sourceLabel || !Array.isArray(bundleContent.channels)) {
-      console.error('❌ Invalid bundle structure:', bundleContent);
-      throw new Error('Bundle missing required metadata fields');
-    }
-    
-    // Warn if images are missing but don't block save
-    if (!bundleContent.thumbnail) {
-      console.warn('⚠️ Bundle has no thumbnail - images may not have been fetched successfully');
-    }
-    if (!bundleContent.recommendedImages || bundleContent.recommendedImages.length === 0) {
-      console.warn('⚠️ Bundle has no recommendedImages - check image fetch logic');
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabaseAuth.auth.getUser();
+
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log(`📦 Saving bundle to database: ${bundleId}`);
+    userId = authUser.id;
 
-    // ✅ Phase 2: Use the provided userId directly (no auth.getUser() needed)
-    console.log(`🔐 Using provided user ID: ${userId}`);
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const { data: userTenant, error: tenantError } = await supabase
-      .from('users')
-      .select('tenant_id')
-      .eq('id', userId)
+      .from("users")
+      .select("tenant_id")
+      .eq("id", userId)
       .single();
 
     if (tenantError || !userTenant?.tenant_id) {
-      console.error('❌ Tenant lookup error:', tenantError);
-      throw new Error(`User tenant not found for user ${userId}: ${tenantError?.message || 'Unknown'}`);
+      throw new Error(
+        `User tenant not found for user ${userId}: ${tenantError?.message || "Unknown"}`,
+      );
     }
 
     const tenantId = userTenant.tenant_id;
-    console.log(`✅ User authenticated: ${userId}, Tenant: ${tenantId}`);
+    const workspaceId = tenantId || userId;
 
-    // Insert directly into draft_snapshots
+    const locationResult = await validateLocationForGeneration(userId);
+    if (!locationResult.isValid) {
+      console.warn(
+        `🚫 Multichannel generation blocked for user ${userId}: ${locationResult.error}`,
+      );
+      return locationBlockedResponse();
+    }
+
+    const selectedChannels = Array.isArray(
+      body.generationContext?.selectedChannels,
+    )
+      ? body.generationContext.selectedChannels
+      : channels;
+    const channelSelections = [
+      "newsletter",
+      "instagram",
+      "facebook",
+      "video",
+      "blog",
+      "instagram_carousel",
+      "facebook_carousel",
+    ].reduce<Record<string, boolean>>((acc, channel) => {
+      acc[channel] = selectedChannels.includes(channel);
+      return acc;
+    }, {});
+
+    const pendingBundleContent = {
+      id: bundleId,
+      mode: mode || "event",
+      sourceId: sourceId || "",
+      sourceLabel: topicTitle || "Untitled Content",
+      channels,
+      items: [],
+      recommendedImages: [],
+      thumbnail: null,
+      generationStatus: "pending",
+      generationError: null,
+      generationContext: {
+        selectedChannels,
+        hasMixedCarousel: Boolean(body.generationContext?.hasMixedCarousel),
+        carouselPlatform: body.generationContext?.carouselPlatform || null,
+        startedAt: new Date().toISOString(),
+      },
+      retryDraft: {
+        path: mode,
+        sourceId: sourceId || null,
+        title: body.userIdea?.title || topicTitle || "",
+        goal: body.userIdea?.goal || "none",
+        tone: body.userIdea?.tone || "",
+        notes: body.userIdea?.notes || topicDescription || "",
+        channels: channelSelections,
+      },
+      _imageTrackingSummary: {
+        totalImagesAvailable: 0,
+        imagesAssigned: 0,
+        uniquenessRate: "AI-generated (frontend)",
+      },
+      meta: {
+        mode,
+        sourceId,
+        sourceLabel: topicTitle || "Untitled Content",
+        topicDescription,
+        generationStatus: "pending",
+      },
+    };
+
     const { data: newSnapshot, error: insertError } = await supabase
-      .from('draft_snapshots')
+      .from("draft_snapshots")
       .insert({
-        user_id: userId,  // ✅ Use the provided userId
+        user_id: userId,
         tenant_id: tenantId,
-        doc_type: 'content_bundle',
+        doc_type: "content_bundle",
         doc_id: bundleId,
         version: 1,
-        content: bundleContent
+        content: pendingBundleContent,
       })
-      .select('id')
+      .select("id")
       .single();
 
     if (insertError || !newSnapshot) {
-      console.error('❌ Failed to save bundle to database:', insertError);
-      throw new Error(`Database save failed: ${insertError?.message || 'Unknown error'}`);
+      throw new Error(
+        `Database save failed: ${insertError?.message || "Unknown error"}`,
+      );
     }
 
     const snapshotId = newSnapshot.id;
-    console.log(`✅ Bundle saved successfully: ${bundleId}, snapshot: ${snapshotId}`);
 
-    // Return proper response with id, snapshotId, and content
-    return new Response(
-      JSON.stringify({ 
-        id: bundleId,
-        snapshotId: snapshotId,
-        content: bundleContent
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    const markdownToHtml = (text: string): string => {
+      if (!text) return text;
+
+      let html = text.replace(/^### (.+)$/gm, "<h3>$1</h3>");
+      html = html.replace(/^## (.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/^# (.+)$/gm, "<h2>$1</h2>");
+      html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/__(.+?)__/g, "<strong>$1</strong>");
+      html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+      html = html.replace(/^[*-]\s+(.+)$/gm, "<li>$1</li>");
+      html = html.replace(
+        /(<li>.*<\/li>\n?)+/g,
+        (match) => `<ul>\n${match}</ul>\n`,
+      );
+      html = html.replace(/^\d+\.\s+(.+)$/gm, "<li>$1</li>");
+      html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
+        if (match.includes("<ul>")) return match;
+        return `<ol>\n${match}</ol>\n`;
+      });
+
+      return html
+        .split("\n")
+        .map((line) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("<") || trimmed.endsWith(">")) {
+            return line;
+          }
+          return `<p>${trimmed}</p>`;
+        })
+        .join("\n");
+    };
+
+    EdgeRuntime.waitUntil(
+      (async () => {
+        try {
+          const { data: companyProfile } = await supabase
+            .from("company_profiles")
+            .select(
+              `
+              company_name, company_overview, about_business, brand_voice, specializations,
+              location_info, seasonal_focus, postal_code, city, state_province, country,
+              climate_archetype, climate_label, usda_zone, first_frost_date, last_frost_date
+            `,
+            )
+            .eq("user_id", workspaceId)
+            .single();
+
+          const climateProfile = companyProfile
+            ? extractClimateProfile(companyProfile)
+            : null;
+          const climateConstraints = climateProfile
+            ? buildClimateConstraints(climateProfile)
+            : "";
+
+          const companyContext = companyProfile
+            ? `${companyProfile.company_name || "Garden Center"} - ${companyProfile.company_overview || companyProfile.about_business || "Retail garden center"}. Specializations: ${companyProfile.specializations || "General gardening"}. Location: ${companyProfile.location_info || "Local area"}. Seasonal Focus: ${companyProfile.seasonal_focus || "Year-round gardening"}.`
+            : "Retail garden center specializing in plants, gardening supplies, and horticultural education";
+
+          const content = await Promise.all(
+            channels.map(async (channel: string) => {
+              const generatedContent = await generateChannelContent(
+                channel,
+                topicTitle,
+                topicDescription,
+                companyContext,
+                climateConstraints,
+              );
+
+              return {
+                type: channel,
+                items: [
+                  {
+                    week: 1,
+                    title: generatedContent.title,
+                    content: generatedContent.content,
+                    caption: generatedContent.caption,
+                    hashtags: generatedContent.hashtags || [],
+                    imageQuery: generatedContent.imageQuery,
+                    cta: generatedContent.cta,
+                    themeId: sourceId,
+                    themeName: topicTitle,
+                    dayOfWeek: 1,
+                  },
+                ],
+              };
+            }),
+          );
+
+          const finalBundleContent = {
+            ...pendingBundleContent,
+            sourceLabel: topicTitle || pendingBundleContent.sourceLabel,
+            generationStatus: "ready",
+            generationError: null,
+            items: content.flatMap(
+              (channelContent: {
+                type: string;
+                items: Array<Record<string, unknown>>;
+              }) =>
+                channelContent.items.map((item) => {
+                  let bodyContent = String(item.content || "");
+                  const originalContent = bodyContent;
+
+                  if (channelContent.type === "blog") {
+                    const hasMarkdown =
+                      /^#+\s|^\s*[-*+]\s|\*\*|\*[^*]|__/m.test(bodyContent);
+                    if (hasMarkdown) {
+                      bodyContent = markdownToHtml(bodyContent);
+                    }
+                    if (
+                      !bodyContent.includes("<h2>") &&
+                      !bodyContent.includes("<p>")
+                    ) {
+                      bodyContent = markdownToHtml(bodyContent);
+                    }
+                  } else if (
+                    channelContent.type === "facebook" ||
+                    channelContent.type === "instagram"
+                  ) {
+                    const htmlStripped = stripHtmlToPlainText(bodyContent);
+                    bodyContent = stripMarkdownForSocial(htmlStripped);
+
+                    const hasHtml = originalContent.match(/<[^>]+>/);
+                    const hasMarkdown =
+                      originalContent.includes("**") ||
+                      originalContent.includes("__");
+
+                    if (hasHtml || hasMarkdown) {
+                      console.log(
+                        `[${channelContent.type.toUpperCase()} FORMATTING FIXED]`,
+                      );
+                    }
+                  }
+
+                  return {
+                    channel: channelContent.type,
+                    title: item.title,
+                    body: bodyContent,
+                    caption: item.caption,
+                    summary: item.caption,
+                    hashtags: item.hashtags || [],
+                    imageQuery: item.imageQuery,
+                    ctaSuggestions: [item.cta],
+                    media: undefined,
+                    _approved: false,
+                  };
+                }),
+            ),
+            recommendedImages: [],
+            thumbnail: null,
+            meta: {
+              ...pendingBundleContent.meta,
+              generationStatus: "ready",
+              topicDescription,
+            },
+          };
+
+          const { error: updateError } = await supabase
+            .from("draft_snapshots")
+            .update({
+              content: finalBundleContent,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", snapshotId);
+
+          if (updateError) {
+            throw updateError;
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to generate content";
+
+          console.error("❌ Background generation failed:", message);
+
+          const failedBundleContent = {
+            ...pendingBundleContent,
+            generationStatus: "failed",
+            generationError: message,
+            meta: {
+              ...pendingBundleContent.meta,
+              generationStatus: "failed",
+              generationError: message,
+            },
+          };
+
+          const { error: failedUpdateError } = await supabase
+            .from("draft_snapshots")
+            .update({
+              content: failedBundleContent,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", snapshotId);
+
+          if (failedUpdateError) {
+            console.error(
+              "❌ Failed to persist generation failure state:",
+              failedUpdateError,
+            );
+          }
+        }
+      })(),
     );
-  } catch (error: any) {
-    console.error('❌ Generation error:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
+
+    return new Response(
+      JSON.stringify({
+        accepted: true,
+        id: bundleId,
+        snapshotId,
+        content: pendingBundleContent,
+      }),
+      {
+        status: 202,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to generate content";
+
+    console.error("❌ Generation error:", {
+      message,
       mode,
       sourceId,
       topicTitle,
-      channels
+      channels,
+      userId,
+      bundleId,
     });
-    
-    // Return detailed error for debugging
+
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Failed to generate content',
+      JSON.stringify({
+        error: message,
         details: {
-          step: error.step || 'unknown',
           mode,
-          topicTitle
-        }
+          topicTitle,
+          bundleId,
+        },
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

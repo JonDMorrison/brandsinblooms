@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
 import { ImageEditOverlay } from "@/components/image";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";
@@ -299,7 +304,9 @@ export const DraftTray = ({
                                         );
                                       }
                                     }}
-                                    contentContext={draft.ai_output}
+                                    contentContext={
+                                      draft.image_idea || draft.ai_output
+                                    }
                                     className="w-8 h-8 rounded object-cover flex-shrink-0"
                                   />
                                 ) : imageThumb ? (

@@ -1,310 +1,805 @@
-import { useEffect, useMemo, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui-legacy/dialog";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import { Checkbox } from "@/components/ui-legacy/checkbox";
-import { NativeSelect } from "@/components/ui-legacy/native-select";
-import { supabase } from "@/integrations/supabase/client";
-import { useCreateFlow } from "@/state/useCreateFlow";
-import { useToast } from "@/hooks/use-toast";
-import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
-import { Loader2, AlertCircle } from "lucide-react";
-import { GeneratedContentModal } from "./GeneratedContentModal";
-import { useGenerationJobTracker } from "@/state/useGenerationJobTracker";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ElementType,
+  type KeyboardEvent,
+} from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Checkbox from "@mui/joy/Checkbox";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import Input from "@mui/joy/Input";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Option from "@mui/joy/Option";
+import Select from "@mui/joy/Select";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
+import { differenceInDays } from "date-fns";
+import {
+  AlertCircle,
+  ArrowRight,
+  CalendarDays,
+  ChevronLeft,
+  Clapperboard,
+  Facebook,
+  FileText,
+  Images,
+  Instagram,
+  Leaf,
+  Loader2,
+  Mail,
+  Pencil,
+  RotateCcw,
+  Search,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { useDebounce } from "@/hooks/useDebounce";
+import { supabase } from "@/integrations/supabase/client";
+import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
+import { useCreateFlow } from "@/state/useCreateFlow";
 import {
+  getCurrentSeasonalTemplate,
   getSeasonalTemplates,
   type SeasonalTemplate,
 } from "@/utils/seasonalTemplateService";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
-import { differenceInDays } from "date-fns";
+import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
+import type { CreateFlowRetryDraft } from "./createFlowTypes";
 
-// Local helper: format a YYYY-MM-DD string to a readable date
-const fmtLocalDate = (d?: string) => {
-  if (!d) return "";
+const PAGE_SIZE = 12;
+const GENERATION_REQUEST_TIMEOUT_MS = 120000;
+
+type Mode = "seasonal" | "holiday" | "custom";
+type Goal = "traffic" | "sales" | "awareness" | "none";
+type WizardStep = "category" | "topic" | "channels";
+type WizardAction = "back" | "continue" | "cancel" | "escape";
+type TransitionOutcome = WizardStep | "close" | "submit";
+type ChannelKey =
+  | "newsletter"
+  | "instagram"
+  | "facebook"
+  | "video"
+  | "blog"
+  | "instagram_carousel"
+  | "facebook_carousel";
+
+interface CreateFlowDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialDraft?: CreateFlowRetryDraft | null;
+}
+
+interface CategoryOption {
+  key: Mode;
+  title: string;
+  description: string;
+  icon: ElementType;
+}
+
+interface StepCopy {
+  position: 1 | 2 | 3;
+  label: string;
+  heading: string;
+  description: string;
+}
+
+interface ChannelOption {
+  key: ChannelKey;
+  title: string;
+  description: string;
+  icon: ElementType;
+  platform?: "instagram" | "facebook";
+}
+
+const CATEGORY_OPTIONS: CategoryOption[] = [
+  {
+    key: "seasonal",
+    title: "Seasonal Themes & Care Tips",
+    description: "Choose from weekly themes and practical care-focused ideas.",
+    icon: Leaf,
+  },
+  {
+    key: "holiday",
+    title: "Holidays",
+    description: "Build timely content around upcoming seasonal moments.",
+    icon: CalendarDays,
+  },
+  {
+    key: "custom",
+    title: "Custom Idea",
+    description: "Start from your own brief and shape the campaign yourself.",
+    icon: Pencil,
+  },
+];
+
+const CUSTOM_IDEA_SUGGESTIONS = [
+  "Spring planting guide",
+  "Pest control tips",
+  "Container gardening basics",
+  "Indoor herb garden guide",
+  "Pollinator-friendly planting ideas",
+];
+
+const CHANNEL_OPTIONS: ChannelOption[] = [
+  {
+    key: "instagram",
+    title: "Instagram",
+    description: "Generates an image-forward caption and post-ready draft.",
+    icon: Instagram,
+    platform: "instagram",
+  },
+  {
+    key: "facebook",
+    title: "Facebook",
+    description: "Creates a social post tailored for longer-form engagement.",
+    icon: Facebook,
+    platform: "facebook",
+  },
+  {
+    key: "blog",
+    title: "Blog",
+    description: "Builds an educational article draft with structured copy.",
+    icon: FileText,
+  },
+  {
+    key: "newsletter",
+    title: "Newsletter",
+    description: "Prepares a newsletter section ready for review and edits.",
+    icon: Mail,
+  },
+  {
+    key: "instagram_carousel",
+    title: "Instagram Carousel",
+    description:
+      "Opens the carousel composer with a multi-image Instagram draft.",
+    icon: Images,
+    platform: "instagram",
+  },
+  {
+    key: "facebook_carousel",
+    title: "Facebook Carousel",
+    description:
+      "Opens the carousel composer with a multi-image Facebook draft.",
+    icon: Images,
+    platform: "facebook",
+  },
+  {
+    key: "video",
+    title: "Video",
+    description:
+      "Creates a short-form video script with a clear creative hook.",
+    icon: Clapperboard,
+  },
+];
+
+const STEP_TRANSITIONS: Record<
+  WizardStep,
+  Record<WizardAction, TransitionOutcome>
+> = {
+  category: {
+    back: "close",
+    continue: "topic",
+    cancel: "close",
+    escape: "close",
+  },
+  topic: {
+    back: "category",
+    continue: "channels",
+    cancel: "close",
+    escape: "close",
+  },
+  channels: {
+    back: "topic",
+    continue: "submit",
+    cancel: "close",
+    escape: "close",
+  },
+};
+
+const SELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
+  newsletter: true,
+  instagram: true,
+  facebook: true,
+  video: true,
+  blog: true,
+  instagram_carousel: true,
+  facebook_carousel: true,
+};
+
+const DESELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
+  newsletter: false,
+  instagram: false,
+  facebook: false,
+  video: false,
+  blog: false,
+  instagram_carousel: false,
+  facebook_carousel: false,
+};
+
+const fmtLocalDate = (dateValue?: string) => {
+  if (!dateValue) return "";
   try {
-    return new Date(d).toLocaleDateString(undefined, {
+    return new Date(dateValue).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
   } catch {
-    return String(d);
+    return String(dateValue);
   }
 };
 
-interface CreateFlowDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
+const getThemeSubtitle = (theme: SeasonalTemplate) =>
+  theme.seasonal_focus || theme.theme || "Seasonal theme";
 
-type Mode = "seasonal" | "holiday" | "custom";
+const getThemeDescription = (theme: SeasonalTemplate) =>
+  theme.content_ideas || theme.theme || "No description available.";
+
+const formatHolidayProximity = (holidayDate: string) => {
+  const daysUntil = differenceInDays(new Date(holidayDate), new Date());
+  if (daysUntil <= 0) return "Today";
+  if (daysUntil === 1) return "Tomorrow";
+  if (daysUntil >= 7 && daysUntil <= 13) return "Next week";
+  return `In ${daysUntil} days`;
+};
+
+const getSelectedChannels = (channelState: Record<ChannelKey, boolean>) =>
+  Object.entries(channelState)
+    .filter(([, isSelected]) => isSelected)
+    .map(([channel]) => channel as ChannelKey);
+
+const getStepCopy = (step: WizardStep, selectedPath: Mode | null): StepCopy => {
+  if (step === "category") {
+    return {
+      position: 1,
+      label: "Choose a category",
+      heading: "Start with the right kind of brief",
+      description:
+        "Pick the kind of content request you want to shape, then refine the topic in the next step.",
+    };
+  }
+
+  if (step === "topic" && selectedPath === "seasonal") {
+    return {
+      position: 2,
+      label: "Choose a weekly theme",
+      heading: "Select the seasonal direction",
+      description:
+        "Choose one of the current weekly themes and care ideas to anchor the campaign.",
+    };
+  }
+
+  if (step === "topic" && selectedPath === "holiday") {
+    return {
+      position: 2,
+      label: "Choose a holiday",
+      heading: "Pick the upcoming moment",
+      description:
+        "Choose a holiday the content should revolve around. The generator will adapt the campaign framing from there.",
+    };
+  }
+
+  if (step === "topic") {
+    return {
+      position: 2,
+      label: "Describe your idea",
+      heading: "Give the campaign its brief",
+      description:
+        "Set the title, goal, and tone so the next step starts with a clear creative direction.",
+    };
+  }
+
+  return {
+    position: 3,
+    label: "Choose your channels",
+    heading: "Select the deliverables",
+    description:
+      "Choose which formats to generate. Every selected channel becomes part of the content bundle.",
+  };
+};
 
 export function CreateFlowDialog({
   open,
   onOpenChange,
+  initialDraft = null,
 }: CreateFlowDialogProps) {
-  const { toast } = useToast();
   const navigate = useNavigate();
-  const { startGeneration, completeJob, failJob } = useGenerationJobTracker();
+  const { data: dashboardData, isLoading: socialConnectionsLoading } =
+    useDashboardData();
   const {
     selectedPath,
     setSelectedPath,
     selectedSourceId,
     setSelectedSourceId,
-    bundleId,
-    snapshotId,
     setBundleIds,
     channels,
     setChannels,
+    reset,
   } = useCreateFlow();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [loading, setLoading] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
-
-  // Custom idea form state
-  const [title, setTitle] = useState("");
-  const [goal, setGoal] = useState<"traffic" | "sales" | "awareness" | "none">(
-    "traffic",
+  const [step, setStep] = useState<WizardStep>("category");
+  const [activeTransition, setActiveTransition] = useState<WizardAction | null>(
+    null,
   );
-  const [tone, setTone] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
-
-  // Seasonal and Holiday data
+  const [contentVisible, setContentVisible] = useState(false);
+  const [title, setTitle] = useState("");
+  const [goal, setGoal] = useState<Goal>("traffic");
+  const [tone, setTone] = useState("");
+  const [notes, setNotes] = useState("");
   const [weeklyThemes, setWeeklyThemes] = useState<SeasonalTemplate[]>([]);
+  const [seasonalLoading, setSeasonalLoading] = useState(false);
+  const [seasonalError, setSeasonalError] = useState<string | null>(null);
+  const [currentSeasonalWeek, setCurrentSeasonalWeek] = useState<number | null>(
+    null,
+  );
   const [search, setSearch] = useState("");
-
-  // Holiday data hook
-  const { allHolidays } = useSeasonalHolidays();
-
-  // Pagination (UI-only)
-  const PAGE_SIZE = 12;
   const [visibleWeeklyThemes, setVisibleWeeklyThemes] = useState(PAGE_SIZE);
   const [visibleHolidays, setVisibleHolidays] = useState(PAGE_SIZE);
+  const [generationErrorMessage, setGenerationErrorMessage] = useState<
+    string | null
+  >(null);
+
+  const debouncedSearch = useDebounce(search, 200);
+  const {
+    allHolidays,
+    loading: holidaysLoading,
+    error: holidaysError,
+    refetch: refetchHolidays,
+  } = useSeasonalHolidays();
+  const mountedRef = useRef(true);
+  const transitionLockRef = useRef(false);
+  const categoryCardRefs = useRef<Array<HTMLElement | null>>([]);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) {
-      setStep(1);
-      setSelectedPath(null);
-      setSelectedSourceId(null);
-      setTitle("");
-      setNotes("");
-      setTone("");
-      setGoal("traffic");
-      setChannels({
-        newsletter: true,
-        instagram: true,
-        facebook: true,
-        video: true,
-        blog: true,
-        instagram_carousel: false,
-        facebook_carousel: false,
-      });
+      setContentVisible(false);
       return;
     }
-  }, [open, setSelectedPath, setSelectedSourceId]);
 
-  // Reset pagination when context changes
+    setContentVisible(false);
+    const frameId = window.requestAnimationFrame(() => {
+      if (mountedRef.current) {
+        setContentVisible(true);
+      }
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !initialDraft) {
+      return;
+    }
+
+    setSelectedPath(initialDraft.path);
+    setSelectedSourceId(initialDraft.sourceId);
+    setChannels(() => initialDraft.channels);
+    setTitle(initialDraft.title);
+    setGoal(initialDraft.goal ?? "traffic");
+    setTone(initialDraft.tone ?? "");
+    setNotes(initialDraft.notes ?? "");
+    setSearch("");
+    setGenerationErrorMessage(null);
+    setStep("channels");
+  }, [initialDraft, open, setChannels, setSelectedPath, setSelectedSourceId]);
+
+  useEffect(() => {
+    if (!open || step !== "topic" || selectedPath !== "seasonal") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadWeeklyThemes = async () => {
+      setSeasonalLoading(true);
+      setSeasonalError(null);
+
+      try {
+        const [themes, currentTemplate] = await Promise.all([
+          getSeasonalTemplates(),
+          getCurrentSeasonalTemplate().catch(() => null),
+        ]);
+        if (cancelled) return;
+
+        const uniqueThemes = new Map<string, SeasonalTemplate>();
+        themes.forEach((theme) => {
+          const uniqueKey = theme.title.trim().toLowerCase();
+          if (!uniqueThemes.has(uniqueKey)) {
+            uniqueThemes.set(uniqueKey, theme);
+          }
+        });
+
+        const sortedThemes = Array.from(uniqueThemes.values()).sort(
+          (left, right) => left.week_number - right.week_number,
+        );
+
+        setWeeklyThemes(sortedThemes);
+        setCurrentSeasonalWeek(
+          currentTemplate?.week_number ?? getCurrentWeekNumber(),
+        );
+      } catch (error) {
+        console.error("[CreateFlowDialog] Failed to load weekly themes", error);
+        if (!cancelled) {
+          setSeasonalError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load weekly themes right now.",
+          );
+          setWeeklyThemes([]);
+          setCurrentSeasonalWeek(getCurrentWeekNumber());
+        }
+      } finally {
+        if (!cancelled) {
+          setSeasonalLoading(false);
+        }
+      }
+    };
+
+    void loadWeeklyThemes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, selectedPath, step]);
+
   useEffect(() => {
     setVisibleWeeklyThemes(PAGE_SIZE);
     setVisibleHolidays(PAGE_SIZE);
-  }, [search, step, selectedPath]);
+  }, [search, selectedPath, step]);
 
-  // Fetch data for Seasonal
-  useEffect(() => {
-    if (step === 2 && selectedPath === "seasonal") {
-      (async () => {
-        try {
-          const themes = await getSeasonalTemplates();
-
-          const uniqueThemesMap = new Map();
-          themes.forEach((theme) => {
-            const key = theme.title.trim().toLowerCase();
-            if (!uniqueThemesMap.has(key)) {
-              uniqueThemesMap.set(key, theme);
-            } else {
-            }
-          });
-
-          const uniqueThemes = Array.from(uniqueThemesMap.values());
-
-          const currentWeek = getCurrentWeekNumber();
-          const sortedThemes = uniqueThemes.sort((a, b) => {
-            const aDistance = Math.min(
-              Math.abs(a.week_number - currentWeek),
-              Math.abs(a.week_number + 52 - currentWeek),
-              Math.abs(a.week_number - (currentWeek + 52)),
-            );
-            const bDistance = Math.min(
-              Math.abs(b.week_number - currentWeek),
-              Math.abs(b.week_number + 52 - currentWeek),
-              Math.abs(b.week_number - (currentWeek + 52)),
-            );
-            return aDistance - bDistance;
-          });
-
-          setWeeklyThemes(sortedThemes);
-        } catch (error) {
-          console.error(
-            "[CreateFlowDialog] Failed to load weekly themes",
-            error,
-          );
-          setWeeklyThemes([]);
-        }
-      })();
-    }
-  }, [step, selectedPath]);
-
-  // Derived filtered lists
   const filteredWeeklyThemes = useMemo(() => {
-    const term = search.toLowerCase();
-    return weeklyThemes.filter(
-      (theme) =>
-        !term ||
-        theme.title.toLowerCase().includes(term) ||
-        (theme.theme || "").toLowerCase().includes(term) ||
-        (theme.content_ideas || "").toLowerCase().includes(term),
+    const searchTerm = debouncedSearch.toLowerCase();
+    return weeklyThemes.filter((theme) => {
+      if (!searchTerm) return true;
+
+      const subtitle = getThemeSubtitle(theme).toLowerCase();
+      const description = getThemeDescription(theme).toLowerCase();
+
+      return (
+        theme.title.toLowerCase().includes(searchTerm) ||
+        subtitle.includes(searchTerm) ||
+        description.includes(searchTerm)
+      );
+    });
+  }, [debouncedSearch, weeklyThemes]);
+
+  const orderedWeeklyThemes = useMemo(() => {
+    if (!currentSeasonalWeek) {
+      return filteredWeeklyThemes;
+    }
+
+    const thisWeekThemes = filteredWeeklyThemes.filter(
+      (theme) => theme.week_number === currentSeasonalWeek,
     );
-  }, [weeklyThemes, search]);
+    const remainingThemes = filteredWeeklyThemes.filter(
+      (theme) => theme.week_number !== currentSeasonalWeek,
+    );
+
+    return [...thisWeekThemes, ...remainingThemes];
+  }, [currentSeasonalWeek, filteredWeeklyThemes]);
 
   const filteredHolidays = useMemo(() => {
-    const term = search.toLowerCase();
+    const searchTerm = debouncedSearch.toLowerCase();
     const now = new Date();
-    const oneYearFromNow = new Date(
-      now.getFullYear() + 1,
-      now.getMonth(),
-      now.getDate(),
-    );
+    const thirtyDaysFromNow = new Date(now);
+    thirtyDaysFromNow.setDate(now.getDate() + 30);
 
     return allHolidays
       .filter((holiday) => {
         const holidayDate = new Date(holiday.holiday_date);
-        return holidayDate >= now && holidayDate <= oneYearFromNow;
+        return holidayDate >= now && holidayDate <= thirtyDaysFromNow;
       })
-      .filter(
-        (holiday) =>
-          !term ||
-          holiday.holiday_name.toLowerCase().includes(term) ||
-          (holiday.description || "").toLowerCase().includes(term) ||
-          (holiday.garden_relevance || "").toLowerCase().includes(term),
-      )
+      .filter((holiday) => {
+        if (!searchTerm) return true;
+        return (
+          holiday.holiday_name.toLowerCase().includes(searchTerm) ||
+          (holiday.description || "").toLowerCase().includes(searchTerm) ||
+          (holiday.garden_relevance || "").toLowerCase().includes(searchTerm)
+        );
+      })
       .sort(
-        (a, b) =>
-          new Date(a.holiday_date).getTime() -
-          new Date(b.holiday_date).getTime(),
+        (left, right) =>
+          new Date(left.holiday_date).getTime() -
+          new Date(right.holiday_date).getTime(),
       );
-  }, [allHolidays, search]);
+  }, [allHolidays, debouncedSearch]);
 
-  const canContinueFromStep1 = useMemo(
-    () => selectedPath !== null,
-    [selectedPath],
+  const selectedChannelNames = useMemo(
+    () => getSelectedChannels(channels as Record<ChannelKey, boolean>),
+    [channels],
   );
-  const canContinueFromStep2 = useMemo(() => {
-    if (selectedPath === "custom") return title.trim().length > 2;
-    return !!selectedSourceId;
-  }, [selectedPath, title, selectedSourceId]);
-  const canGenerate = useMemo(() => {
-    const hasChannels = Object.values(channels).some(Boolean);
-    return canContinueFromStep2 && hasChannels;
-  }, [canContinueFromStep2, channels]);
 
-  const startGenerate = async () => {
-    if (!selectedPath) return;
+  const canContinueFromTopic = useMemo(() => {
+    if (selectedPath === "custom") {
+      return title.trim().length >= 10;
+    }
 
-    // Check if ONLY carousel channels are selected
-    const selectedChannels = Object.keys(channels).filter(
-      (k) => (channels as any)[k],
-    );
-    const hasOnlyCarousel = selectedChannels.every(
-      (ch) => ch === "instagram_carousel" || ch === "facebook_carousel",
-    );
-    const hasCarousel = selectedChannels.some(
-      (ch) => ch === "instagram_carousel" || ch === "facebook_carousel",
-    );
+    return Boolean(selectedSourceId);
+  }, [selectedPath, selectedSourceId, title]);
 
-    // If only carousel channels are selected, navigate directly to carousel composer
-    if (hasOnlyCarousel && hasCarousel) {
-      const platform = channels.instagram_carousel ? "instagram" : "facebook";
-      onOpenChange(false);
-      navigate(`/carousel/composer?platform=${platform}`);
-      toast({
-        title: "Opening Carousel Composer",
-        description: `Create your ${platform === "instagram" ? "Instagram" : "Facebook"} carousel with 2-10 images.`,
-      });
+  const canContinue = useMemo(() => {
+    switch (step) {
+      case "category":
+        return selectedPath !== null;
+      case "topic":
+        return canContinueFromTopic;
+      case "channels":
+        return canContinueFromTopic && selectedChannelNames.length > 0;
+      default:
+        return false;
+    }
+  }, [canContinueFromTopic, selectedChannelNames.length, selectedPath, step]);
+
+  const stepCopy = useMemo(
+    () => getStepCopy(step, selectedPath),
+    [selectedPath, step],
+  );
+  const hasCarousel = selectedChannelNames.some(
+    (channel) =>
+      channel === "instagram_carousel" || channel === "facebook_carousel",
+  );
+  const hasOnlyCarousel =
+    selectedChannelNames.length > 0 &&
+    selectedChannelNames.every(
+      (channel) =>
+        channel === "instagram_carousel" || channel === "facebook_carousel",
+    );
+  const continueLabel =
+    step !== "channels"
+      ? "Continue"
+      : hasOnlyCarousel
+        ? "Open Carousel Builder"
+        : hasCarousel
+          ? "Generate & Open Carousel"
+          : "Generate Content";
+
+  const resetLocalState = useCallback(() => {
+    setStep("category");
+    setTitle("");
+    setGoal("traffic");
+    setTone("");
+    setNotes("");
+    setWeeklyThemes([]);
+    setSeasonalLoading(false);
+    setSeasonalError(null);
+    setCurrentSeasonalWeek(null);
+    setSearch("");
+    setVisibleWeeklyThemes(PAGE_SIZE);
+    setVisibleHolidays(PAGE_SIZE);
+    setGenerationErrorMessage(null);
+    setContentVisible(false);
+    transitionLockRef.current = false;
+    if (mountedRef.current) {
+      setActiveTransition(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      reset();
+      resetLocalState();
+    }
+  }, [open, reset, resetLocalState]);
+
+  const dismissWizard = () => {
+    reset();
+    resetLocalState();
+    onOpenChange(false);
+  };
+
+  const beginTransition = (action: WizardAction) => {
+    if (transitionLockRef.current) {
+      return false;
+    }
+
+    transitionLockRef.current = true;
+    if (mountedRef.current) {
+      setActiveTransition(action);
+    }
+    return true;
+  };
+
+  const finishTransition = () => {
+    transitionLockRef.current = false;
+    if (mountedRef.current) {
+      setActiveTransition(null);
+    }
+  };
+
+  const handleCategorySelect = (path: Mode) => {
+    setSelectedPath(path);
+    setSelectedSourceId(null);
+    setSearch("");
+    setGenerationErrorMessage(null);
+  };
+
+  const socialPlatforms = useMemo(
+    () =>
+      new Set(
+        (dashboardData?.socialConnections || [])
+          .filter((connection) => connection.is_active)
+          .map((connection) => connection.platform as "instagram" | "facebook"),
+      ),
+    [dashboardData?.socialConnections],
+  );
+
+  const handleCategoryKeyDown = (
+    event: KeyboardEvent<HTMLElement>,
+    index: number,
+    path: Mode,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleCategorySelect(path);
       return;
     }
 
-    // If carousel + other channels, warn user (for now)
-    if (hasCarousel) {
-      toast({
-        title: "Mixed Content Generation",
-        description:
-          "Carousel posts will be available in the carousel composer. Other content will be generated.",
-        variant: "default",
-      });
-      // Remove carousel channels from generation
-      const nonCarouselChannels = selectedChannels.filter(
-        (ch) => ch !== "instagram_carousel" && ch !== "facebook_carousel",
+    const forwardKeys = ["ArrowRight", "ArrowDown"];
+    const backwardKeys = ["ArrowLeft", "ArrowUp"];
+
+    if (!forwardKeys.includes(event.key) && !backwardKeys.includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    const direction = forwardKeys.includes(event.key) ? 1 : -1;
+    const nextIndex =
+      (index + direction + CATEGORY_OPTIONS.length) % CATEGORY_OPTIONS.length;
+    categoryCardRefs.current[nextIndex]?.focus();
+  };
+
+  const classifyGenerationError = (error: unknown) => {
+    const message =
+      error instanceof Error ? error.message : "Generation failed to start.";
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? Number((error as { status?: number }).status)
+        : undefined;
+
+    if (
+      (error instanceof Error && error.name === "FunctionsFetchError") ||
+      message.includes("Failed to fetch")
+    ) {
+      return "We couldn't reach the generator. Check your connection and try again.";
+    }
+
+    if (
+      message.toLowerCase().includes("timed out") ||
+      (error instanceof Error && error.name === "AbortError")
+    ) {
+      return "Generation is taking longer than expected. Try again or check your Content Library later.";
+    }
+
+    if (status === 401 || status === 403) {
+      return "Authorization required. Please sign in again and retry.";
+    }
+
+    if (status === 404) {
+      return "The content generator is unavailable right now. Please contact support if this continues.";
+    }
+
+    return message || "Generation failed to start. Please try again.";
+  };
+
+  const startGenerate = async () => {
+    if (!selectedPath) {
+      return;
+    }
+
+    setGenerationErrorMessage(null);
+
+    const currentPath = selectedPath;
+    const currentSourceId = selectedSourceId;
+    const currentChannels = { ...(channels as Record<ChannelKey, boolean>) };
+    const selectedChannels = getSelectedChannels(currentChannels);
+    const currentTitle = title.trim();
+    const currentTone = tone.trim();
+    const currentNotes = notes.trim();
+    const currentGoal = goal;
+    const currentWeeklyThemes = [...weeklyThemes];
+    const currentHolidays = [...allHolidays];
+    const includesCarousel = selectedChannels.some(
+      (channel) =>
+        channel === "instagram_carousel" || channel === "facebook_carousel",
+    );
+    const onlyCarouselChannels =
+      selectedChannels.length > 0 &&
+      selectedChannels.every(
+        (channel) =>
+          channel === "instagram_carousel" || channel === "facebook_carousel",
       );
-      if (nonCarouselChannels.length === 0) {
-        return; // Only carousel was selected
+
+    let topicTitle: string | undefined;
+    let topicDescription: string | undefined;
+
+    if (currentPath === "custom") {
+      topicTitle = currentTitle || undefined;
+      topicDescription = currentNotes || currentTone || undefined;
+    }
+
+    if (currentPath === "seasonal" && currentSourceId) {
+      const pickedTheme = currentWeeklyThemes.find(
+        (theme) => theme.id === currentSourceId,
+      );
+      if (pickedTheme) {
+        topicTitle = `Week ${pickedTheme.week_number}: ${pickedTheme.title}`;
+        topicDescription = pickedTheme.theme || pickedTheme.content_ideas || "";
       }
     }
 
-    // Prepare job data - ALL content now redirects to /content/library
-    let jobTitle = "Untitled Content";
-    let jobType: "campaign" | "bundle" | "holiday" | "seasonal" | "custom" =
-      "bundle";
-    const redirectPath = "/content/library"; // Unified redirect path
-
-    if (selectedPath === "custom") {
-      jobTitle = title || "Custom Content";
-      jobType = "custom";
-    } else if (selectedPath === "seasonal" && selectedSourceId) {
-      const picked = weeklyThemes.find(
-        (theme) => theme.id === selectedSourceId,
+    if (currentPath === "holiday" && currentSourceId) {
+      const pickedHoliday = currentHolidays.find(
+        (holiday) => holiday.id === currentSourceId,
       );
-      if (picked) {
-        jobTitle = `Week ${picked.week_number}: ${picked.title}`;
-        jobType = "seasonal";
-      }
-    } else if (selectedPath === "holiday" && selectedSourceId) {
-      const picked = allHolidays.find(
-        (holiday) => holiday.id === selectedSourceId,
-      );
-      if (picked) {
-        jobTitle = picked.holiday_name;
-        jobType = "holiday";
+      if (pickedHoliday) {
+        topicTitle = pickedHoliday.holiday_name;
+        topicDescription =
+          pickedHoliday.garden_relevance || pickedHoliday.description || "";
       }
     }
 
-    // Start job tracking and close modal immediately
-    const jobId = startGeneration({
-      type: jobType,
-      title: jobTitle,
-      redirectPath,
-      sourceId: selectedSourceId || undefined,
-    });
+    if (onlyCarouselChannels && includesCarousel) {
+      const platform = currentChannels.instagram_carousel
+        ? "instagram"
+        : "facebook";
+      const queryParams = new URLSearchParams({ platform });
+      if (topicTitle) {
+        queryParams.set("topicTitle", topicTitle);
+      }
+      if (topicDescription) {
+        queryParams.set("topicDescription", topicDescription);
+      }
+      dismissWizard();
+      navigate(`/carousel/composer?${queryParams.toString()}`);
+      return;
+    }
 
-    // Close modal and navigate to content library with bundle tracking
-    onOpenChange(false);
-    navigate(`${redirectPath}?from=generation&jobId=${jobId}`);
+    let generationChannels = selectedChannels;
+    if (includesCarousel) {
+      generationChannels = selectedChannels.filter(
+        (channel) =>
+          channel !== "instagram_carousel" && channel !== "facebook_carousel",
+      );
+      if (generationChannels.length === 0) {
+        return;
+      }
+    }
 
-    setLoading(true);
-    setNetworkError(false);
+    if (currentPath === "custom") {
+    } else if (currentPath === "seasonal" && currentSourceId) {
+      const pickedTheme = currentWeeklyThemes.find(
+        (theme) => theme.id === currentSourceId,
+      );
+      if (pickedTheme) {
+      }
+    } else if (currentPath === "holiday" && currentSourceId) {
+      const pickedHoliday = currentHolidays.find(
+        (holiday) => holiday.id === currentSourceId,
+      );
+      if (pickedHoliday) {
+      }
+    }
 
     try {
-      // Get current user's tenant info - handle both single-user and multi-tenant modes
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
@@ -312,8 +807,7 @@ export function CreateFlowDialog({
         throw new Error("User not authenticated");
       }
 
-      // Get workspace id for current user - tenant_id can be null for single-user mode
-      const { data: me, error: userError } = await supabase
+      const { data: currentUserRow, error: userError } = await supabase
         .from("users")
         .select("tenant_id")
         .eq("id", currentUser.id)
@@ -324,56 +818,68 @@ export function CreateFlowDialog({
         throw new Error("Failed to get user workspace information");
       }
 
-      const workspaceId = me?.tenant_id || currentUser.id; // Fallback to user ID for single-user mode
-
-      const payload: any = {
-        mode: selectedPath as Mode,
-        sourceId: selectedSourceId || undefined,
-        workspaceId,
-        userId: currentUser.id, // ✅ Phase 2: Pass user ID to edge function
-        channels: Object.keys(channels).filter(
-          (k) => (channels as any)[k],
-        ) as any[],
-      };
-      if (selectedPath === "custom") {
-        payload.userIdea = {
-          title,
-          goal: goal === "none" ? undefined : goal,
-          tone: tone || undefined,
-          notes: notes || undefined,
+      const workspaceId = currentUserRow?.tenant_id || currentUser.id;
+      const payload: {
+        mode: Mode;
+        sourceId?: string;
+        workspaceId: string;
+        userId: string;
+        channels: ChannelKey[];
+        userIdea?: {
+          title: string;
+          goal?: Exclude<Goal, "none">;
+          tone?: string;
+          notes?: string;
         };
-      }
-      // Pass explicit topic details for seasonal and holiday paths
-      if (selectedPath === "seasonal" && selectedSourceId) {
-        const picked = weeklyThemes.find(
-          (theme) => theme.id === selectedSourceId,
-        );
-        if (picked) {
-          payload.topicTitle = `Week ${picked.week_number}: ${picked.title}`;
-          payload.topicDescription = picked.theme || picked.content_ideas || "";
-        }
-      }
-      if (selectedPath === "holiday" && selectedSourceId) {
-        const picked = allHolidays.find(
-          (holiday) => holiday.id === selectedSourceId,
-        );
-        if (picked) {
-          payload.topicTitle = picked.holiday_name;
-          payload.topicDescription =
-            picked.garden_relevance || picked.description || "";
-        }
+        topicTitle?: string;
+        topicDescription?: string;
+        generationContext?: {
+          selectedChannels: ChannelKey[];
+          hasMixedCarousel: boolean;
+          carouselPlatform: "instagram" | "facebook" | null;
+        };
+      } = {
+        mode: currentPath,
+        sourceId: currentSourceId || undefined,
+        workspaceId,
+        userId: currentUser.id,
+        channels: generationChannels,
+        generationContext: {
+          selectedChannels,
+          hasMixedCarousel: includesCarousel,
+          carouselPlatform: includesCarousel
+            ? currentChannels.instagram_carousel
+              ? "instagram"
+              : "facebook"
+            : null,
+        },
+      };
+
+      if (currentPath === "custom") {
+        payload.userIdea = {
+          title: currentTitle,
+          goal: currentGoal === "none" ? undefined : currentGoal,
+          tone: currentTone || undefined,
+          notes: currentNotes || undefined,
+        };
+        payload.topicTitle = topicTitle;
+        payload.topicDescription = topicDescription;
       }
 
-      toast({
-        title: "Generating content…",
-        description: "This will only take a moment.",
-      });
+      if (currentPath === "seasonal" && currentSourceId) {
+        payload.topicTitle = topicTitle;
+        payload.topicDescription = topicDescription;
+      }
 
-      // Add timeout with graceful handling
-      const timeout = new Promise((_, reject) => {
-        setTimeout(
+      if (currentPath === "holiday" && currentSourceId) {
+        payload.topicTitle = topicTitle;
+        payload.topicDescription = topicDescription;
+      }
+
+      const timeout = new Promise<never>((_, reject) => {
+        window.setTimeout(
           () => reject(new Error("Generation timed out after 120 seconds")),
-          120000,
+          GENERATION_REQUEST_TIMEOUT_MS,
         );
       });
 
@@ -382,530 +888,881 @@ export function CreateFlowDialog({
         { body: payload },
       );
 
-      let result;
-      try {
-        result = (await Promise.race([generation, timeout])) as any;
+      const result = (await Promise.race([generation, timeout])) as Awaited<
+        typeof generation
+      >;
 
-        if (result.error) {
-          console.error("❌ Edge function returned error:", result.error);
-          throw new Error(
-            `Generation failed: ${result.error.message || JSON.stringify(result.error)}`,
-          );
-        }
-
-        // Validate response contains required fields
-        if (!result.data?.id || !result.data?.snapshotId) {
-          console.error("❌ Invalid response from edge function:", {
-            received: result.data,
-            expectedFields: ["id", "snapshotId", "content"],
-          });
-          throw new Error(
-            `Edge function did not return valid bundle IDs. Received: ${JSON.stringify(result.data)}`,
-          );
-        }
-
-        setBundleIds(result.data.id, result.data.snapshotId);
-        completeJob(jobId, {
-          bundleId: result.data.id,
-          snapshotId: result.data.snapshotId,
-        });
-        toast({
-          title: "Content generated successfully!",
-          description: "Your content is ready for review.",
-        });
-      } catch (timeoutError: any) {
-        if (timeoutError.message?.includes("timed out")) {
-          // Start graceful polling instead of failing immediately
-          toast({
-            title: "Still generating...",
-            description:
-              "This is taking longer than usual. We'll keep checking for you.",
-          });
-
-          const startTime = Date.now();
-          const pollForBundle = async (): Promise<void> => {
-            const maxPollTime = 90000; // 90 seconds of polling
-
-            while (Date.now() - startTime < maxPollTime) {
-              await new Promise((resolve) => setTimeout(resolve, 5000)); // Check every 5 seconds
-
-              try {
-                // Check for new bundles in the last few minutes
-                const { data: bundles, error: bundlesError } = await supabase
-                  .from("draft_snapshots")
-                  .select("id, version, content, doc_id, doc_type, created_at")
-                  .eq("doc_type", "content_bundle")
-                  .gte(
-                    "created_at",
-                    new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-                  ) // Last 5 minutes
-                  .order("created_at", { ascending: false })
-                  .limit(5);
-
-                if (!bundlesError && bundles && bundles.length > 0) {
-                  // Check if any bundle matches our workspace and has content
-                  for (const bundle of bundles) {
-                    const content = bundle.content as any;
-                    if (
-                      content?.meta?.sourceId === selectedSourceId ||
-                      content?.items?.length > 0
-                    ) {
-                      // Found our bundle!
-                      setBundleIds(bundle.doc_id, bundle.id);
-                      completeJob(jobId, {
-                        bundleId: bundle.doc_id,
-                        snapshotId: bundle.id,
-                      });
-                      toast({
-                        title: "Content generated successfully!",
-                        description: "Your content is ready for review.",
-                      });
-                      return;
-                    }
-                  }
-                }
-              } catch (pollError) {}
-            }
-
-            // If we get here, polling timed out
-            failJob(
-              jobId,
-              "Generation is taking longer than expected. Please try again.",
-            );
-          };
-
-          // Start polling in background
-          pollForBundle().catch((error) => {
-            console.error("Polling failed:", error);
-            failJob(jobId, "Generation failed. Please try again.");
-          });
-
-          return; // Don't continue with error handling
-        } else {
-          throw timeoutError;
-        }
+      if (result.error) {
+        console.error("Edge function returned error:", result.error);
+        throw result.error;
       }
-    } catch (e: any) {
-      console.error("Content generation error:", e);
-      const msg = String(e?.message || "");
-      const statusMatch = msg.match(/\b(4\d{2}|5\d{2})\b/);
-      const status = (e?.status ||
-        e?.context?.status ||
-        (statusMatch ? Number(statusMatch[1]) : undefined)) as
-        | number
-        | undefined;
 
-      // Mark job as failed for actual errors
-      if (
-        e?.name === "FunctionsFetchError" ||
-        msg.includes("Failed to fetch")
-      ) {
-        failJob(
-          jobId,
-          "AI temporarily unavailable. Please check your connection and try again.",
+      if (!result.data?.id || !result.data?.snapshotId) {
+        console.error("Invalid response from edge function:", {
+          received: result.data,
+          expectedFields: ["id", "snapshotId", "content"],
+        });
+        throw new Error(
+          `Edge function did not return valid bundle IDs. Received: ${JSON.stringify(result.data)}`,
         );
-      } else if (status === 404) {
-        failJob(jobId, "AI generator not found. Please contact support.");
-      } else if (status === 401 || status === 403) {
-        failJob(jobId, "Authorization required. Please sign in again.");
-      } else {
-        failJob(jobId, msg || "Generation failed. Please try again.");
       }
-    } finally {
-      setLoading(false);
+
+      reset();
+      resetLocalState();
+      onOpenChange(false);
+      setBundleIds(result.data.id, result.data.snapshotId);
+      navigate(`/content/library?from=generation&doc_id=${result.data.id}`);
+    } catch (error: unknown) {
+      console.error("Content generation error:", error);
+      setGenerationErrorMessage(classifyGenerationError(error));
     }
   };
 
-  // UI helpers
-  const ChannelCheckbox = ({
-    name,
-    label,
-  }: {
-    name: keyof typeof channels;
-    label: string;
-  }) => (
-    <label className="flex items-center gap-2">
-      <Checkbox
-        checked={channels[name]}
-        onCheckedChange={(v) => setChannels((c) => ({ ...c, [name]: !!v }))}
-      />
-      <span className="text-gray-900">{label}</span>
-    </label>
-  );
+  const performTransition = async (action: WizardAction) => {
+    if (!beginTransition(action)) {
+      return;
+    }
+
+    const outcome = STEP_TRANSITIONS[step][action];
+
+    if (action === "continue" && !canContinue) {
+      finishTransition();
+      return;
+    }
+
+    if (outcome === "close") {
+      setGenerationErrorMessage(null);
+      finishTransition();
+      dismissWizard();
+      return;
+    }
+
+    if (outcome === "submit") {
+      try {
+        await startGenerate();
+      } finally {
+        finishTransition();
+      }
+      return;
+    }
+
+    setGenerationErrorMessage(null);
+    setStep(outcome);
+    finishTransition();
+  };
+
+  const handleModalClose = (_event: unknown, reason: string) => {
+    if (reason === "escapeKeyDown") {
+      void performTransition("escape");
+      return;
+    }
+
+    void performTransition("cancel");
+  };
+
+  const renderTopicSelection = () => {
+    if (selectedPath === "custom") {
+      return (
+        <Stack spacing={2.5}>
+          <FormControl>
+            <FormLabel>Describe your idea</FormLabel>
+            <Textarea
+              minRows={3}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Describe what you'd like to create — e.g., 'A guide to indoor herb gardens for beginners'"
+            />
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mt: 1,
+              }}
+            >
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                Minimum 10 characters
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                {title.trim().length} characters
+              </Typography>
+            </Box>
+          </FormControl>
+
+          <Box>
+            <Typography
+              level="body-sm"
+              sx={{ color: "text.secondary", mb: 1.25 }}
+            >
+              Try one of these starting points
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {CUSTOM_IDEA_SUGGESTIONS.map((suggestion) => (
+                <Chip
+                  key={suggestion}
+                  variant="outlined"
+                  size="sm"
+                  onClick={() => setTitle(suggestion)}
+                  sx={{ cursor: "pointer" }}
+                >
+                  {suggestion}
+                </Chip>
+              ))}
+            </Box>
+          </Box>
+        </Stack>
+      );
+    }
+
+    const isHolidayStep = selectedPath === "holiday";
+    const options = isHolidayStep
+      ? filteredHolidays.slice(0, visibleHolidays)
+      : orderedWeeklyThemes.slice(0, visibleWeeklyThemes);
+
+    if (!isHolidayStep && seasonalLoading) {
+      return (
+        <Stack spacing={1.5}>
+          <FormControl>
+            <FormLabel>Search weekly themes</FormLabel>
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search weekly themes"
+              startDecorator={<Search size={16} />}
+            />
+          </FormControl>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            52 weekly themes available
+          </Typography>
+          {[0, 1, 2, 3].map((index) => (
+            <Card key={index} variant="outlined" sx={{ p: 2.5, gap: 1.25 }}>
+              <Skeleton variant="text" width="45%" height={24} />
+              <Skeleton variant="text" width="60%" height={18} />
+              <Skeleton variant="text" width="90%" height={18} />
+              <Skeleton variant="text" width="72%" height={18} />
+            </Card>
+          ))}
+        </Stack>
+      );
+    }
+
+    if (!isHolidayStep && seasonalError) {
+      return (
+        <Card variant="outlined" sx={{ p: 3, gap: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              color: "danger.700",
+            }}
+          >
+            <AlertCircle size={18} />
+            <Typography level="title-sm">
+              Unable to load seasonal themes
+            </Typography>
+          </Box>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            {seasonalError}
+          </Typography>
+          <Box>
+            <Button
+              variant="outlined"
+              color="neutral"
+              startDecorator={<RotateCcw size={16} />}
+              onClick={() => {
+                setSeasonalError(null);
+                setWeeklyThemes([]);
+                setCurrentSeasonalWeek(null);
+                setStep("category");
+                window.setTimeout(() => setStep("topic"), 0);
+              }}
+            >
+              Retry
+            </Button>
+          </Box>
+        </Card>
+      );
+    }
+
+    return (
+      <Stack spacing={2.5} sx={{ minHeight: 0 }}>
+        <FormControl>
+          <FormLabel>
+            {isHolidayStep ? "Search holidays" : "Search weekly themes"}
+          </FormLabel>
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={
+              isHolidayStep ? "Search holidays" : "Search weekly themes"
+            }
+            startDecorator={<Search size={16} />}
+          />
+        </FormControl>
+
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          {isHolidayStep
+            ? `Upcoming holidays in the next 30 days (${filteredHolidays.length} shown)`
+            : `52 weekly themes available (${orderedWeeklyThemes.length} shown)`}
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.5,
+            maxHeight: 380,
+            overflowY: "auto",
+            pr: 0.5,
+          }}
+        >
+          {options.map((option) => {
+            const isSelected = selectedSourceId === option.id;
+
+            if (isHolidayStep) {
+              const holiday = option;
+              const daysUntil = differenceInDays(
+                new Date(holiday.holiday_date),
+                new Date(),
+              );
+
+              return (
+                <Card
+                  key={holiday.id}
+                  component="button"
+                  variant="outlined"
+                  onClick={() => setSelectedSourceId(holiday.id)}
+                  sx={{
+                    p: 2.25,
+                    alignItems: "stretch",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    borderColor: isSelected ? "primary.500" : undefined,
+                    boxShadow: isSelected ? "sm" : "none",
+                    transition:
+                      "border-color 160ms ease, box-shadow 160ms ease",
+                    "&:hover": {
+                      borderColor: isSelected ? "primary.500" : "neutral.300",
+                    },
+                    "&:focus-visible": {
+                      outline: "2px solid",
+                      outlineColor: "var(--joy-palette-primary-500)",
+                      outlineOffset: "3px",
+                    },
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography level="title-sm">
+                        {holiday.holiday_name}
+                      </Typography>
+                      {holiday.garden_relevance ? (
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "text.secondary", mt: 0.75 }}
+                        >
+                          {holiday.garden_relevance}
+                        </Typography>
+                      ) : null}
+                    </Box>
+                    <Box
+                      sx={{
+                        textAlign: { xs: "left", sm: "right" },
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {fmtLocalDate(holiday.holiday_date)}
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "primary.600", mt: 0.5 }}
+                      >
+                        {formatHolidayProximity(holiday.holiday_date)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Card>
+              );
+            }
+
+            const theme = option;
+            return (
+              <Card
+                key={theme.id}
+                component="button"
+                variant="outlined"
+                onClick={() => setSelectedSourceId(theme.id)}
+                sx={{
+                  p: 2.25,
+                  alignItems: "stretch",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  borderColor: isSelected ? "primary.500" : undefined,
+                  boxShadow: isSelected ? "sm" : "none",
+                  transition: "border-color 160ms ease, box-shadow 160ms ease",
+                  "&:hover": {
+                    borderColor: isSelected ? "primary.500" : "neutral.300",
+                  },
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "var(--joy-palette-primary-500)",
+                    outlineOffset: "3px",
+                  },
+                }}
+              >
+                <Stack spacing={1.25}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 1.5,
+                    }}
+                  >
+                    <Typography level="title-md">
+                      {sanitizeCampaignTitle(theme.title)}
+                    </Typography>
+                    {theme.week_number === currentSeasonalWeek ? (
+                      <Chip color="primary" variant="soft" size="sm">
+                        This week
+                      </Chip>
+                    ) : null}
+                  </Box>
+                  <Typography level="body-sm" sx={{ color: "neutral.500" }}>
+                    {getThemeSubtitle(theme)}
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                    {getThemeDescription(theme)}
+                  </Typography>
+                </Stack>
+              </Card>
+            );
+          })}
+
+          {isHolidayStep && holidaysError ? (
+            <Card variant="outlined" sx={{ p: 3, gap: 1.25 }}>
+              <Typography level="title-sm">Unable to load holidays</Typography>
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                {holidaysError}
+              </Typography>
+              <Box>
+                <Button
+                  variant="outlined"
+                  color="neutral"
+                  startDecorator={<RotateCcw size={16} />}
+                  onClick={() => {
+                    void refetchHolidays();
+                  }}
+                >
+                  Retry
+                </Button>
+              </Box>
+            </Card>
+          ) : null}
+
+          {isHolidayStep &&
+          !holidaysLoading &&
+          !holidaysError &&
+          !search &&
+          filteredHolidays.length === 0 ? (
+            <Card
+              variant="outlined"
+              sx={{
+                p: 3.5,
+                alignItems: "center",
+                textAlign: "center",
+                gap: 1.5,
+                borderStyle: "dashed",
+              }}
+            >
+              <CalendarDays size={30} strokeWidth={1.8} />
+              <Typography level="title-md">
+                No holidays coming up in the next 30 days
+              </Typography>
+              <Typography
+                level="body-sm"
+                sx={{ color: "text.secondary", maxWidth: 420 }}
+              >
+                Keep momentum going by switching to a seasonal theme or starting
+                a custom content brief instead.
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  color="neutral"
+                  onClick={() => handleCategorySelect("seasonal")}
+                >
+                  Try a seasonal theme
+                </Button>
+                <Button onClick={() => handleCategorySelect("custom")}>
+                  Write a custom idea
+                </Button>
+              </Box>
+            </Card>
+          ) : null}
+
+          {isHolidayStep && search && filteredHolidays.length === 0 ? (
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              No holidays match your search.
+            </Typography>
+          ) : null}
+
+          {!isHolidayStep && filteredWeeklyThemes.length === 0 ? (
+            <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+              {search
+                ? "No results for your search."
+                : "No weekly themes available. Try Custom Idea instead."}
+            </Typography>
+          ) : null}
+        </Box>
+
+        {isHolidayStep && filteredHolidays.length > visibleHolidays ? (
+          <Box>
+            <Button
+              variant="outlined"
+              color="neutral"
+              onClick={() =>
+                setVisibleHolidays((currentCount) => currentCount + PAGE_SIZE)
+              }
+            >
+              Load more
+            </Button>
+          </Box>
+        ) : null}
+
+        {!isHolidayStep && filteredWeeklyThemes.length > visibleWeeklyThemes ? (
+          <Box>
+            <Button
+              variant="outlined"
+              color="neutral"
+              onClick={() =>
+                setVisibleWeeklyThemes(
+                  (currentCount) => currentCount + PAGE_SIZE,
+                )
+              }
+            >
+              Load more
+            </Button>
+          </Box>
+        ) : null}
+      </Stack>
+    );
+  };
+
+  const renderChannelSelection = () => {
+    const toggleChannel = (channelKey: ChannelKey, disabled: boolean) => {
+      if (disabled) {
+        return;
+      }
+
+      setChannels((currentChannels) => ({
+        ...currentChannels,
+        [channelKey]: !currentChannels[channelKey],
+      }));
+    };
+
+    return (
+      <Stack spacing={2.5}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", sm: "center" },
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 1.5,
+          }}
+        >
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Select the formats you want the generator to prepare.
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              onClick={() => setChannels({ ...SELECT_ALL_CHANNELS })}
+            >
+              Select all
+            </Button>
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              onClick={() => setChannels({ ...DESELECT_ALL_CHANNELS })}
+            >
+              Clear all
+            </Button>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 2,
+          }}
+        >
+          {CHANNEL_OPTIONS.map((channel) => {
+            const Icon = channel.icon;
+            const isSelected = channels[channel.key];
+            const isSocialChannel = Boolean(channel.platform);
+            const isDisabled =
+              isSocialChannel &&
+              (socialConnectionsLoading ||
+                !socialPlatforms.has(channel.platform!));
+
+            return (
+              <Card
+                key={channel.key}
+                component="button"
+                variant="outlined"
+                disabled={isDisabled}
+                onClick={() => toggleChannel(channel.key, isDisabled)}
+                sx={{
+                  p: 2.5,
+                  textAlign: "left",
+                  alignItems: "stretch",
+                  gap: 1.5,
+                  position: "relative",
+                  cursor: isDisabled ? "not-allowed" : "pointer",
+                  borderColor: isSelected ? "primary.500" : undefined,
+                  boxShadow: isSelected ? "sm" : "none",
+                  opacity: isDisabled ? 0.6 : 1,
+                  transition:
+                    "border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
+                  "&:hover": {
+                    borderColor: isSelected ? "primary.500" : "neutral.300",
+                  },
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "var(--joy-palette-primary-500)",
+                    outlineOffset: "3px",
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 1.5,
+                  }}
+                >
+                  <Icon size={22} strokeWidth={1.8} />
+                  <Checkbox
+                    checked={isSelected}
+                    readOnly
+                    disabled={isDisabled}
+                    sx={{ pointerEvents: "none" }}
+                  />
+                </Box>
+                <Box>
+                  <Typography level="title-sm">{channel.title}</Typography>
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: "text.secondary", mt: 0.75 }}
+                  >
+                    {channel.description}
+                  </Typography>
+                </Box>
+                {isDisabled ? (
+                  <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+                    {socialConnectionsLoading
+                      ? "Checking account connection"
+                      : "Connect account first"}
+                  </Typography>
+                ) : null}
+              </Card>
+            );
+          })}
+        </Box>
+
+        {selectedChannelNames.length === 0 ? (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              color: "warning.700",
+            }}
+          >
+            <AlertCircle size={16} />
+            <Typography level="body-sm">
+              Select at least one channel to continue.
+            </Typography>
+          </Box>
+        ) : null}
+      </Stack>
+    );
+  };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-y-auto bg-white">
-          <DialogHeader>
-            <DialogTitle>
-              {step === 1 && "What do you want to post about?"}
-              {step === 2 && "Choose your topic"}
-              {step === 3 && "Select your channels"}
-            </DialogTitle>
-            <DialogDescription>
-              {step === 1 &&
-                "Events, holidays, or your own idea—AI will draft everything."}
-              {step === 2 &&
-                "Pick a specific theme, holiday, or describe your custom idea."}
-              {step === 3 &&
-                "Choose which types of content to create for your campaign."}
-            </DialogDescription>
-          </DialogHeader>
+      <Modal open={open} onClose={handleModalClose}>
+        <ModalDialog
+          layout="center"
+          aria-modal="true"
+          sx={{
+            width: { xs: "calc(100vw - 24px)", sm: "min(100vw - 48px, 920px)" },
+            maxWidth: 920,
+            maxHeight: { xs: "calc(100dvh - 24px)", md: "min(88dvh, 860px)" },
+            borderRadius: { xs: "lg", md: "xl" },
+            borderColor: "neutral.200",
+            bgcolor: "background.surface",
+            backgroundImage: "none",
+            boxShadow: "lg",
+            p: { xs: 3, md: 4 },
+            overflow: "hidden",
+          }}
+        >
+          <ModalClose
+            aria-label="Close create content dialog"
+            sx={{ m: 1.5 }}
+          />
 
-          {step === 1 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                {
-                  key: "seasonal",
-                  title: "Seasonal Themes & Care Tips",
-                  desc: "Choose from 52 weekly themes and seasonal care tips.",
-                },
-                {
-                  key: "holiday",
-                  title: "Holidays",
-                  desc: "Pick from upcoming annual holidays—AI drafts your posts.",
-                },
-                {
-                  key: "custom",
-                  title: "Custom Idea",
-                  desc: "Bring your idea—AI drafts content in your voice.",
-                },
-              ].map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() => setSelectedPath(opt.key as Mode)}
-                  className={`rounded-2xl border p-4 text-left transition ${selectedPath === opt.key ? "ring-2 ring-offset-2" : ""}`}
-                >
-                  <div className="font-medium text-gray-900">{opt.title}</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {opt.desc}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {step === 2 && selectedPath === "holiday" && (
-            <div className="space-y-3">
-              <Input
-                placeholder="Search holidays"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <div className="text-xs text-muted-foreground">
-                Upcoming holidays ({filteredHolidays.length} shown)
-              </div>
-              <div className="max-h-80 overflow-y-auto space-y-2">
-                {filteredHolidays.slice(0, visibleHolidays).map((holiday) => {
-                  const daysUntil = differenceInDays(
-                    new Date(holiday.holiday_date),
-                    new Date(),
-                  );
-                  return (
-                    <button
-                      key={holiday.id}
-                      onClick={() => setSelectedSourceId(holiday.id)}
-                      className={`w-full rounded-xl border p-3 text-left ${selectedSourceId === holiday.id ? "ring-1" : ""}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium">
-                          {holiday.holiday_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {fmtLocalDate(holiday.holiday_date)}
-                          {daysUntil < 14 && daysUntil > 0 && (
-                            <span className="ml-2 inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
-                              Urgent
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {holiday.garden_relevance && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {holiday.garden_relevance}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-                {filteredHolidays.length === 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {search
-                      ? "No holidays match your search."
-                      : "No upcoming holidays found. Try Custom Content instead."}
-                  </div>
-                )}
-                {filteredHolidays.length > visibleHolidays && (
-                  <div className="pt-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => setVisibleHolidays((v) => v + PAGE_SIZE)}
-                    >
-                      Load more
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && selectedPath === "seasonal" && (
-            <div className="space-y-3">
-              <Input
-                placeholder="Search weekly themes"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="!border-gray-300 focus-visible:!border-gray-500 focus:!border-gray-500 caret-black text-gray-900"
-              />
-              <div className="text-xs text-muted-foreground">
-                52 weekly themes available ({filteredWeeklyThemes.length} shown)
-              </div>
-              <div className="max-h-80 overflow-y-auto space-y-2">
-                {filteredWeeklyThemes
-                  .slice(0, visibleWeeklyThemes)
-                  .map((theme) => (
-                    <button
-                      key={theme.id}
-                      onClick={() => setSelectedSourceId(theme.id)}
-                      className={`w-full rounded-xl border p-3 text-left ${selectedSourceId === theme.id ? "ring-1" : ""}`}
-                    >
-                      <div className="font-medium text-gray-900 !text-gray-900">
-                        {sanitizeCampaignTitle(theme.title)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {theme.theme || "Weekly theme"}
-                      </div>
-                      {theme.content_ideas && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {theme.content_ideas}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                {filteredWeeklyThemes.length === 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {search
-                      ? "No results for your search."
-                      : "No weekly themes available. Try Custom Content instead."}
-                  </div>
-                )}
-                {filteredWeeklyThemes.length > visibleWeeklyThemes && (
-                  <div className="pt-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() =>
-                        setVisibleWeeklyThemes((v) => v + PAGE_SIZE)
-                      }
-                    >
-                      Load more
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && selectedPath === "custom" && (
-            <div className="space-y-3">
-              <Label>Theme / Title</Label>
-              <Input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Fall Planting Weekend"
-              />
-              <Label>Goal</Label>
-              <NativeSelect
-                value={goal}
-                onChange={(e) => setGoal(e.target.value as any)}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 0,
+              height: "100%",
+              opacity: contentVisible ? 1 : 0,
+              transform: contentVisible ? "translateY(0)" : "translateY(12px)",
+              transition: "opacity 220ms ease, transform 220ms ease",
+            }}
+          >
+            <Stack spacing={1.5} sx={{ pr: 5 }}>
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: "text.secondary",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
               >
-                <option value="traffic">Traffic</option>
-                <option value="sales">Sales</option>
-                <option value="awareness">Awareness</option>
-                <option value="none">No specific goal</option>
-              </NativeSelect>
-              <Label>Tone</Label>
-              <Input
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                placeholder="e.g., Friendly, Expert, Playful"
-              />
-              <Label className="mt-2">Notes (optional)</Label>
-              <Input
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Context, promos, links…"
-              />
-            </div>
-          )}
+                Create Any Content
+              </Typography>
+              <Typography level="title-lg">
+                Step {stepCopy.position} of 3 · {stepCopy.label}
+              </Typography>
+              <Typography level="h2">{stepCopy.heading}</Typography>
+              <Typography
+                level="body-md"
+                sx={{ color: "text.secondary", maxWidth: 620 }}
+              >
+                {stepCopy.description}
+              </Typography>
+            </Stack>
 
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label>Select the types of content to create:</Label>
-                <div className="flex gap-2">
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                mt: 4,
+                pr: { xs: 0, sm: 0.5 },
+              }}
+            >
+              {step === "category" ? (
+                <Box
+                  role="radiogroup"
+                  aria-label="Choose a content category"
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(3, minmax(0, 1fr))",
+                    },
+                    gap: 2,
+                  }}
+                >
+                  {CATEGORY_OPTIONS.map((option, index) => {
+                    const Icon = option.icon;
+                    const isSelected = selectedPath === option.key;
+
+                    return (
+                      <Card
+                        key={option.key}
+                        component="button"
+                        variant="outlined"
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        onClick={() => handleCategorySelect(option.key)}
+                        onKeyDown={(event) =>
+                          handleCategoryKeyDown(event, index, option.key)
+                        }
+                        ref={(element) => {
+                          categoryCardRefs.current[index] = element;
+                        }}
+                        sx={{
+                          p: 3,
+                          minHeight: 220,
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          borderColor: isSelected ? "primary.500" : undefined,
+                          boxShadow: isSelected ? "sm" : "none",
+                          transition:
+                            "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+                          "&:hover": {
+                            borderColor: isSelected
+                              ? "primary.500"
+                              : "neutral.300",
+                            boxShadow: isSelected ? "sm" : "xs",
+                          },
+                          "&:focus-visible": {
+                            outline: "2px solid",
+                            outlineColor: "var(--joy-palette-primary-500)",
+                            outlineOffset: "3px",
+                          },
+                        }}
+                      >
+                        <Stack
+                          spacing={2.5}
+                          sx={{
+                            height: "100%",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <Icon size={28} strokeWidth={1.8} />
+                          <Box>
+                            <Typography level="title-md">
+                              {option.title}
+                            </Typography>
+                            <Typography
+                              level="body-sm"
+                              sx={{
+                                color: "text.secondary",
+                                mt: 1.25,
+                                lineHeight: 1.6,
+                              }}
+                            >
+                              {option.description}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              ) : null}
+
+              {step === "topic" ? renderTopicSelection() : null}
+              {step === "channels" ? renderChannelSelection() : null}
+
+              {generationErrorMessage ? (
+                <Card
+                  variant="soft"
+                  color="danger"
+                  sx={{ mt: 3, p: 2.5, gap: 1.5 }}
+                >
+                  <Typography level="title-sm">
+                    Generation couldn't start
+                  </Typography>
+                  <Typography level="body-sm">
+                    {generationErrorMessage}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button
+                      color="danger"
+                      disabled={activeTransition !== null}
+                      onClick={() => {
+                        setGenerationErrorMessage(null);
+                        void performTransition("continue");
+                      }}
+                    >
+                      Try again
+                    </Button>
+                    <Button
+                      variant="plain"
+                      color="neutral"
+                      disabled={activeTransition !== null}
+                      onClick={() => setGenerationErrorMessage(null)}
+                    >
+                      Dismiss
+                    </Button>
+                  </Box>
+                </Card>
+              ) : null}
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: { xs: "stretch", sm: "center" },
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 1.5,
+                pt: 3,
+                mt: 3,
+                borderTop: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                {step !== "category" ? (
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setChannels({
-                        newsletter: true,
-                        instagram: true,
-                        facebook: true,
-                        video: true,
-                        blog: true,
-                        instagram_carousel: true,
-                        facebook_carousel: true,
-                      })
-                    }
+                    variant="plain"
+                    color="neutral"
+                    startDecorator={<ChevronLeft size={16} />}
+                    disabled={activeTransition !== null}
+                    onClick={() => {
+                      void performTransition("back");
+                    }}
                   >
-                    Select All
+                    Back
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setChannels({
-                        newsletter: false,
-                        instagram: false,
-                        facebook: false,
-                        video: false,
-                        blog: false,
-                        instagram_carousel: false,
-                        facebook_carousel: false,
-                      })
-                    }
-                  >
-                    Deselect All
-                  </Button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    Social Media Posts
-                  </div>
-                  <ChannelCheckbox name="instagram" label="Instagram Post" />
-                  <ChannelCheckbox name="facebook" label="Facebook Post" />
-
-                  <div className="mt-4 pt-3 border-t border-border">
-                    <div className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2 flex items-center gap-1">
-                      <span>📸</span> Carousel Posts (Multi-Image)
-                    </div>
-                    <ChannelCheckbox
-                      name="instagram_carousel"
-                      label="Instagram Carousel (2-10 photos)"
-                    />
-                    <ChannelCheckbox
-                      name="facebook_carousel"
-                      label="Facebook Carousel (2-10 photos)"
-                    />
-                    <p className="text-xs text-muted-foreground mt-2 italic">
-                      Opens dedicated carousel builder
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    Other Channels
-                  </div>
-                  <ChannelCheckbox
-                    name="newsletter"
-                    label="Newsletter Section"
-                  />
-                  <ChannelCheckbox name="video" label="Short Video Script" />
-                  <ChannelCheckbox name="blog" label="Blog Article" />
-                </div>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                AI will create content tailored for each selected platform. You
-                can review and edit everything before publishing.
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="mt-4">
-            {step === 1 && (
-              <>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                ) : null}
+                <Button
+                  variant="plain"
+                  color="neutral"
+                  disabled={activeTransition !== null}
+                  onClick={() => {
+                    void performTransition("cancel");
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button
-                  disabled={!canContinueFromStep1}
-                  onClick={() => setStep(2)}
-                >
-                  Continue
-                </Button>
-              </>
-            )}
-            {step === 2 && (
-              <>
-                <Button variant="outline" onClick={() => setStep(1)}>
-                  Back
-                </Button>
-                <Button
-                  disabled={!canContinueFromStep2}
-                  onClick={() => setStep(3)}
-                >
-                  Continue
-                </Button>
-              </>
-            )}
-            {step === 3 && (
-              <>
-                <Button variant="outline" onClick={() => setStep(2)}>
-                  Back
-                </Button>
-                <div className="flex items-center gap-2">
-                  {networkError && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <AlertCircle className="w-3 h-3" />
-                      AI unavailable
-                    </div>
-                  )}
-                  <Button
-                    disabled={!canGenerate || loading}
-                    onClick={startGenerate}
-                  >
-                    {loading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {(() => {
-                      const selectedChannels = Object.keys(channels).filter(
-                        (k) => (channels as any)[k],
-                      );
-                      const hasOnlyCarousel = selectedChannels.every(
-                        (ch) =>
-                          ch === "instagram_carousel" ||
-                          ch === "facebook_carousel",
-                      );
-                      const hasCarousel = selectedChannels.some(
-                        (ch) =>
-                          ch === "instagram_carousel" ||
-                          ch === "facebook_carousel",
-                      );
+              </Box>
 
-                      if (hasOnlyCarousel) return "Open Carousel Builder";
-                      if (hasCarousel) return "Generate & Open Carousel";
-                      return "Generate Content";
-                    })()}
-                  </Button>
-                </div>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Review modal opens when bundle is ready */}
-      {bundleId && (
-        <GeneratedContentModal
-          open={!!bundleId}
-          onOpenChange={() => {
-            /* closing handled inside */
-          }}
-        />
-      )}
+              <Button
+                size="lg"
+                endDecorator={
+                  activeTransition === "continue" && step === "channels" ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : step === "channels" ? null : (
+                    <ArrowRight size={16} />
+                  )
+                }
+                disabled={!canContinue || activeTransition !== null}
+                onClick={() => {
+                  void performTransition("continue");
+                }}
+              >
+                {continueLabel}
+              </Button>
+            </Box>
+          </Box>
+        </ModalDialog>
+      </Modal>
     </>
   );
 }

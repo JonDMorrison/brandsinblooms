@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { Textarea } from "@/components/ui-legacy/textarea";
@@ -25,14 +30,14 @@ import {
   Facebook,
   Instagram,
   Edit,
-  Image as ImageIcon,
   Sparkles,
   Replace,
-  Plus,
   Clock,
   Tag,
   FileText,
   Check,
+  AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { parseMonthParam } from "@/utils/dateUtils";
@@ -44,11 +49,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useLoading } from "@/contexts/LoadingContext";
 import { ProgressiveLoadingCard } from "@/components/dashboard/ProgressiveLoadingCard";
-import { Skeleton } from "@/components/ui-legacy/skeleton";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
-import { Eye } from "lucide-react";
 import { MergeTagsPreviewDialog } from "@/components/crm/MergeTagsPreviewDialog";
-import { useAuth } from "@/contexts/AuthContext";
+import { searchGalleryForPost } from "@/services/imageGallerySearch";
+import { resolveImage } from "@/services/imageResolutionService";
+import { resolveTenantMutationContext } from "@/utils/resolveTenantMutationContext";
 
 interface PlanStepCalendarProps {
   onNext: () => void;
@@ -95,6 +100,134 @@ const getWeekLabel = (weekNum: number, month: string) => {
   }
 };
 
+const IMAGE_GENERATION_BATCH_SIZE = 6;
+
+const IMAGE_CHANNEL_MAP: Record<
+  Extract<PlanItem["type"], "email" | "blog" | "facebook" | "instagram">,
+  "newsletter" | "blog" | "facebook" | "instagram"
+> = {
+  email: "newsletter",
+  blog: "blog",
+  facebook: "facebook",
+  instagram: "instagram",
+};
+
+const isImageEligiblePlanItem = (item: Pick<PlanItem, "type">) =>
+  item.type === "facebook" ||
+  item.type === "instagram" ||
+  item.type === "blog" ||
+  item.type === "email";
+
+const getPlanItemImagePrompt = (
+  item: Pick<PlanItem, "imageQuery" | "imageIdea" | "caption" | "title">,
+) => {
+  const candidates = [
+    item.imageQuery,
+    item.imageIdea,
+    item.caption,
+    item.title,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "seasonal garden content";
+};
+
+const preparePlanItemForImageGeneration = (item: PlanItem): PlanItem => {
+  if (!isImageEligiblePlanItem(item)) {
+    return item;
+  }
+
+  if (item.imageUrl) {
+    return {
+      ...item,
+      imageGenerationStatus: "completed",
+      imageError: null,
+    };
+  }
+
+  return {
+    ...item,
+    imageGenerationStatus:
+      item.imageGenerationStatus === "failed" ? "failed" : "pending",
+    imageError: item.imageError ?? null,
+  };
+};
+
+const getImageGenerationErrorMessage = (error: unknown) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "Image generation failed";
+};
+
+interface GeneratedPlanItemImage {
+  itemId: string;
+  imageUrl: string;
+  imageMetadata: NonNullable<PlanItem["imageMetadata"]>;
+}
+
+type ImageResolutionPhase = "searching" | "generating";
+
+interface MultichannelResponseItem {
+  channel?: "newsletter" | "instagram" | "facebook" | "blog" | "video";
+  title?: string;
+  body?: string;
+  content?: string;
+  caption?: string;
+  blocks?: unknown[];
+  markdown?: string;
+  summary?: string;
+}
+
+const buildGeneratedPlanItemImage = (
+  item: PlanItem,
+  result: Awaited<ReturnType<typeof resolveImage>>,
+): GeneratedPlanItemImage => {
+  const contentTitle = item.title?.trim() || getPlanItemImagePrompt(item);
+
+  return {
+    itemId: item.id,
+    imageUrl: result.imageUrl,
+    imageMetadata: {
+      alt: contentTitle,
+      source: result.source,
+      globalImageId: result.globalImageId,
+      generationTime: result.generationTime,
+      tags: result.tags ?? result.matchedTags ?? [],
+      storagePath: result.storagePath,
+      matchedTags: result.matchedTags,
+      matchScore: result.matchScore,
+    },
+  };
+};
+
+const generatePlanItemImage = async (
+  item: PlanItem,
+  context: { tenantId: string; userId: string },
+  options?: { forceGenerate?: boolean },
+): Promise<GeneratedPlanItemImage> => {
+  if (!isImageEligiblePlanItem(item)) {
+    throw new Error(`Unsupported image generation type: ${item.type}`);
+  }
+
+  const result = await resolveImage({
+    channel: IMAGE_CHANNEL_MAP[item.type],
+    contentTitle: item.title?.trim() || "",
+    forceGenerate: options?.forceGenerate,
+    imageQuery: getPlanItemImagePrompt(item),
+    tenantId: context.tenantId,
+    userId: context.userId,
+  });
+
+  return buildGeneratedPlanItemImage(item, result);
+};
+
 export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
   onNext,
   onBack,
@@ -117,15 +250,18 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
   const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
   const [featuredImage, setFeaturedImage] = useState<{
     url: string;
-    metadata: any;
+    metadata: NonNullable<PlanItem["imageMetadata"]>;
   } | null>(null);
   const [generatingImages, setGeneratingImages] = useState(false);
   const [imageGenerationProgress, setImageGenerationProgress] = useState({
+    phase: "searching" as ImageResolutionPhase,
     completed: 0,
     total: 0,
   });
   const { setLoading, clearLoading } = useLoading();
-  const { user } = useAuth();
+  const [retryingImageItemIds, setRetryingImageItemIds] = useState<string[]>(
+    [],
+  );
 
   // Helper functions for blog expansion
   const toggleBlogExpansion = (itemId: string) => {
@@ -142,6 +278,286 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
   };
+
+  const hydrateGeneratedItems = useCallback(
+    async (generatedItems: PlanItem[]) => {
+      const preparedItems = generatedItems.map(
+        preparePlanItemForImageGeneration,
+      );
+      setItems(preparedItems);
+
+      const itemsNeedingImages = preparedItems.filter(
+        (item) => isImageEligiblePlanItem(item) && !item.imageUrl,
+      );
+
+      if (itemsNeedingImages.length === 0) {
+        return;
+      }
+
+      const resolutionContext = await resolveTenantMutationContext({});
+
+      const runGenerationPass = async (itemsForPass: PlanItem[]) => {
+        let completedCount = 0;
+        const failedItems: PlanItem[] = [];
+
+        for (
+          let index = 0;
+          index < itemsForPass.length;
+          index += IMAGE_GENERATION_BATCH_SIZE
+        ) {
+          const batch = itemsForPass.slice(
+            index,
+            index + IMAGE_GENERATION_BATCH_SIZE,
+          );
+
+          batch.forEach((item) => {
+            updateItem(item.id, {
+              imageGenerationStatus: "generating",
+              imageError: null,
+            });
+          });
+
+          const batchResults = await Promise.allSettled(
+            batch.map((item) =>
+              generatePlanItemImage(item, resolutionContext, {
+                forceGenerate: true,
+              }),
+            ),
+          );
+
+          batchResults.forEach((result, resultIndex) => {
+            const batchItem = batch[resultIndex];
+            completedCount += 1;
+            setImageGenerationProgress({
+              completed: completedCount,
+              total: itemsForPass.length,
+            });
+
+            if (result.status === "fulfilled") {
+              updateItem(batchItem.id, {
+                imageUrl: result.value.imageUrl,
+                imageMetadata: result.value.imageMetadata,
+                imageGenerationStatus: "completed",
+                imageError: null,
+              });
+              return;
+            }
+
+            failedItems.push(batchItem);
+            updateItem(batchItem.id, {
+              imageGenerationStatus: "failed",
+              imageError: getImageGenerationErrorMessage(result.reason),
+            });
+          });
+        }
+
+        return failedItems;
+      };
+
+      const runGallerySearchPass = async (itemsForPass: PlanItem[]) => {
+        let completedCount = 0;
+        const itemsToGenerate: PlanItem[] = [];
+
+        for (
+          let index = 0;
+          index < itemsForPass.length;
+          index += IMAGE_GENERATION_BATCH_SIZE
+        ) {
+          const batch = itemsForPass.slice(
+            index,
+            index + IMAGE_GENERATION_BATCH_SIZE,
+          );
+
+          batch.forEach((item) => {
+            updateItem(item.id, {
+              imageGenerationStatus: "generating",
+              imageError: null,
+            });
+          });
+
+          const batchResults = await Promise.allSettled(
+            batch.map(async (item) => {
+              const match = await searchGalleryForPost({
+                channel:
+                  IMAGE_CHANNEL_MAP[
+                    item.type as keyof typeof IMAGE_CHANNEL_MAP
+                  ],
+                contentTitle: item.title?.trim() || "",
+                imageQuery: getPlanItemImagePrompt(item),
+                tenantId: resolutionContext.tenantId,
+              });
+
+              return { item, match };
+            }),
+          );
+
+          batchResults.forEach((result, resultIndex) => {
+            const batchItem = batch[resultIndex];
+            completedCount += 1;
+            setImageGenerationProgress({
+              phase: "searching",
+              completed: completedCount,
+              total: itemsForPass.length,
+            });
+
+            if (result.status === "fulfilled" && result.value.match) {
+              const galleryMatch = result.value.match;
+              updateItem(batchItem.id, {
+                imageUrl: galleryMatch.publicUrl,
+                imageMetadata: {
+                  alt:
+                    batchItem.title?.trim() ||
+                    getPlanItemImagePrompt(batchItem),
+                  source: "gallery-reuse",
+                  globalImageId: galleryMatch.imageId,
+                  matchedTags: galleryMatch.matchedTags,
+                  matchScore: galleryMatch.matchScore,
+                  storagePath: galleryMatch.storagePath,
+                  tags: galleryMatch.matchedTags,
+                },
+                imageGenerationStatus: "completed",
+                imageError: null,
+              });
+              return;
+            }
+
+            itemsToGenerate.push(batchItem);
+            updateItem(batchItem.id, {
+              imageGenerationStatus: "pending",
+              imageError: null,
+            });
+          });
+        }
+
+        return itemsToGenerate;
+      };
+
+      setGeneratingImages(true);
+      setImageGenerationProgress({
+        phase: "searching",
+        completed: 0,
+        total: itemsNeedingImages.length,
+      });
+
+      const toastId = toast.loading(
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+            <span className="font-medium">Searching Image Library</span>
+          </div>
+          <span className="text-xs text-muted-foreground">
+            Reusing tagged gallery images before generating anything new
+          </span>
+        </div>,
+      );
+
+      try {
+        const itemsToGenerate = await runGallerySearchPass(itemsNeedingImages);
+
+        let failedItems: PlanItem[] = [];
+
+        if (itemsToGenerate.length > 0) {
+          toast.loading(`Generating ${itemsToGenerate.length} new images...`, {
+            id: toastId,
+          });
+          setImageGenerationProgress({
+            phase: "generating",
+            completed: 0,
+            total: itemsToGenerate.length,
+          });
+          failedItems = await runGenerationPass(itemsToGenerate);
+        } else {
+          toast.loading("All images were resolved from the library.", {
+            id: toastId,
+          });
+        }
+
+        if (failedItems.length > 0) {
+          toast.loading(`Retrying ${failedItems.length} failed images...`, {
+            id: toastId,
+          });
+          setImageGenerationProgress({
+            phase: "generating",
+            completed: 0,
+            total: failedItems.length,
+          });
+          failedItems = await runGenerationPass(failedItems);
+        }
+
+        if (failedItems.length > 0) {
+          toast.error(
+            `${failedItems.length} posts couldn't generate images. You can retry individually or launch without images.`,
+            { id: toastId },
+          );
+        } else {
+          const reusedCount =
+            itemsNeedingImages.length - itemsToGenerate.length;
+          toast.success(
+            reusedCount > 0
+              ? `Resolved ${reusedCount} from the library and generated ${itemsToGenerate.length} new images.`
+              : `Generated images for ${itemsNeedingImages.length} posts.`,
+            { id: toastId },
+          );
+        }
+      } catch (error) {
+        console.error("[PlanStepCalendar] Error generating AI images:", error);
+        toast.error(
+          "Image generation failed. You can retry individually or launch without images.",
+          { id: toastId },
+        );
+      } finally {
+        setGeneratingImages(false);
+        setImageGenerationProgress({
+          phase: "searching",
+          completed: 0,
+          total: 0,
+        });
+      }
+    },
+    [setItems, updateItem],
+  );
+
+  const handleRetrySingleImage = useCallback(
+    async (item: PlanItem) => {
+      if (retryingImageItemIds.includes(item.id)) {
+        return;
+      }
+
+      setRetryingImageItemIds((current) => [...current, item.id]);
+      updateItem(item.id, {
+        imageGenerationStatus: "generating",
+        imageError: null,
+      });
+
+      try {
+        const resolutionContext = await resolveTenantMutationContext({});
+        const result = await generatePlanItemImage(item, resolutionContext);
+        updateItem(item.id, {
+          imageUrl: result.imageUrl,
+          imageMetadata: result.imageMetadata,
+          imageGenerationStatus: "completed",
+          imageError: null,
+        });
+        toast.success(
+          result.imageMetadata.source === "gallery-reuse"
+            ? `Reused a library image for ${item.title}`
+            : `Image generated for ${item.title}`,
+        );
+      } catch (error) {
+        const imageError = getImageGenerationErrorMessage(error);
+        updateItem(item.id, {
+          imageGenerationStatus: "failed",
+          imageError,
+        });
+        toast.error(imageError);
+      } finally {
+        setRetryingImageItemIds((current) =>
+          current.filter((itemId) => itemId !== item.id),
+        );
+      }
+    },
+    [retryingImageItemIds, updateItem],
+  );
 
   // Generate initial seasonal content when component mounts
   useEffect(() => {
@@ -182,133 +598,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
 
       generateMultiThemeSeasonalPlanContent(state.themes, state.month)
         .then(async (generatedItems) => {
-          setItems(generatedItems);
-          // Auto-generate AI images for Facebook, Instagram, Blog, and Email posts
-          const itemsNeedingImages = generatedItems.filter((item) =>
-            ["facebook", "instagram", "blog", "email"].includes(item.type),
-          );
-
-          if (itemsNeedingImages.length > 0) {
-            setGeneratingImages(true);
-            setImageGenerationProgress({
-              completed: 0,
-              total: itemsNeedingImages.length,
-            });
-
-            const toastId = toast.loading(
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
-                  <span className="font-medium">Generating Images</span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  This may take 8-12 seconds per image
-                </span>
-              </div>,
-            );
-
-            try {
-              // Generate images in parallel batches (6 at a time to avoid overwhelming the system)
-              const BATCH_SIZE = 6;
-              const batches: PlanItem[][] = [];
-
-              for (let i = 0; i < itemsNeedingImages.length; i += BATCH_SIZE) {
-                batches.push(itemsNeedingImages.slice(i, i + BATCH_SIZE));
-              }
-
-              let completedCount = 0;
-
-              for (const batch of batches) {
-                const batchPromises = batch.map(async (item) => {
-                  try {
-                    const contentContext =
-                      item.caption || item.title || "seasonal garden content";
-                    const contentTitle = item.title || "";
-
-                    // Map content type to channel
-                    const channelMap: Record<string, string> = {
-                      facebook: "facebook",
-                      instagram: "instagram",
-                      blog: "blog",
-                      email: "newsletter",
-                    };
-                    const channel = channelMap[item.type] || "instagram";
-                    const { data, error } = await supabase.functions.invoke(
-                      "generate-ai-image",
-                      {
-                        body: {
-                          contentContext,
-                          contentTitle,
-                          channel,
-                          uploadToStorage: true,
-                          storageBucket: "global-ai-images",
-                        },
-                      },
-                    );
-
-                    if (error || !data?.imageUrl) {
-                      console.error(`[AI-Image] Failed for ${item.id}:`, error);
-                      return { success: false, itemId: item.id };
-                    }
-
-                    return {
-                      success: true,
-                      itemId: item.id,
-                      imageUrl: data.imageUrl,
-                      imageMetadata: {
-                        alt: contentTitle,
-                        source: "ai_generated",
-                        globalImageId: data.globalImageId,
-                        generationTime: data.metadata?.generationTime,
-                        tags: data.metadata?.tags || [],
-                        storagePath: data.metadata?.storagePath,
-                      },
-                    };
-                  } catch (err) {
-                    console.error(`[AI-Image] Exception for ${item.id}:`, err);
-                    return { success: false, itemId: item.id };
-                  }
-                });
-
-                const batchResults = await Promise.all(batchPromises);
-
-                // Update items with generated images
-                batchResults.forEach((result) => {
-                  if (result.success) {
-                    updateItem(result.itemId, {
-                      imageUrl: result.imageUrl,
-                      imageMetadata: result.imageMetadata,
-                    });
-                    completedCount++;
-                    setImageGenerationProgress({
-                      completed: completedCount,
-                      total: itemsNeedingImages.length,
-                    });
-                  }
-                });
-              }
-
-              if (completedCount > 0) {
-                toast.dismiss(toastId);
-              } else {
-                toast.error("Failed to generate images. Please try again.", {
-                  id: toastId,
-                });
-              }
-            } catch (error) {
-              console.error(
-                "[PlanStepCalendar] Error generating AI images:",
-                error,
-              );
-              toast.error(
-                "Image generation failed. You can add them manually.",
-                { id: toastId },
-              );
-            } finally {
-              setGeneratingImages(false);
-              setImageGenerationProgress({ completed: 0, total: 0 });
-            }
-          }
+          await hydrateGeneratedItems(generatedItems);
         })
         .catch((error) => {
           console.error("Error generating multi-theme content:", error);
@@ -328,30 +618,37 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
     setItems,
     setLoading,
     clearLoading,
-    user,
-    updateItem,
+    hydrateGeneratedItems,
   ]);
 
-  const handleItemUpdate = (id: string, field: keyof PlanItem, value: any) => {
-    updateItem(id, { [field]: value });
+  const handleItemUpdate = <K extends keyof PlanItem>(
+    id: string,
+    field: K,
+    value: PlanItem[K],
+  ) => {
+    updateItem(id, { [field]: value } as Pick<PlanItem, K>);
   };
 
   const handleImageSelect = (
     itemId: string,
     imageUrl: string,
-    metadata?: any,
+    metadata?: PlanItem["imageMetadata"],
   ) => {
     updateItem(itemId, {
       imageUrl,
       imageMetadata: metadata,
+      imageGenerationStatus: "completed",
+      imageError: null,
     });
   };
 
-  const useFeaturedImage = (itemId: string) => {
+  const applyFeaturedImage = (itemId: string) => {
     if (featuredImage) {
       updateItem(itemId, {
         imageUrl: featuredImage.url,
         imageMetadata: featuredImage.metadata,
+        imageGenerationStatus: "completed",
+        imageError: null,
       });
     }
   };
@@ -410,32 +707,34 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
         );
 
         // Enhance with AI-generated content from proper templates
-        response.data.items.forEach((aiItem: any, index: number) => {
-          const matchingItem = enhancedItems[index % enhancedItems.length];
-          if (matchingItem) {
-            if (aiItem.channel === "newsletter") {
-              matchingItem.caption = aiItem.body || aiItem.content || "";
-              matchingItem.enhancedContent = {
-                title: aiItem.title || matchingItem.title,
-                fullContent: aiItem.body || "",
-                blocks: aiItem.blocks || [],
-              };
-            } else if (
-              aiItem.channel === "instagram" ||
-              aiItem.channel === "facebook"
-            ) {
-              matchingItem.caption = aiItem.caption || aiItem.body || "";
-            } else if (aiItem.channel === "blog") {
-              matchingItem.enhancedContent = {
-                title: aiItem.title || matchingItem.title,
-                fullContent: aiItem.markdown || aiItem.body || "",
-                summary: aiItem.summary || "",
-              };
+        response.data.items.forEach(
+          (aiItem: MultichannelResponseItem, index: number) => {
+            const matchingItem = enhancedItems[index % enhancedItems.length];
+            if (matchingItem) {
+              if (aiItem.channel === "newsletter") {
+                matchingItem.caption = aiItem.body || aiItem.content || "";
+                matchingItem.enhancedContent = {
+                  title: aiItem.title || matchingItem.title,
+                  fullContent: aiItem.body || "",
+                  blocks: aiItem.blocks || [],
+                };
+              } else if (
+                aiItem.channel === "instagram" ||
+                aiItem.channel === "facebook"
+              ) {
+                matchingItem.caption = aiItem.caption || aiItem.body || "";
+              } else if (aiItem.channel === "blog") {
+                matchingItem.enhancedContent = {
+                  title: aiItem.title || matchingItem.title,
+                  fullContent: aiItem.markdown || aiItem.body || "",
+                  summary: aiItem.summary || "",
+                };
+              }
             }
-          }
-        });
+          },
+        );
 
-        setItems(enhancedItems);
+        await hydrateGeneratedItems(enhancedItems);
       }
 
       toast.success(
@@ -450,7 +749,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
           state.themes,
           state.month,
         );
-        setItems(fallbackItems);
+        await hydrateGeneratedItems(fallbackItems);
       } catch (fallbackError) {
         toast.error("Unable to regenerate content");
       }
@@ -473,6 +772,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
   const monthName = state.month
     ? format(parseMonthParam(state.month), "MMMM yyyy")
     : "";
+  const itemsMissingImages = state.items.filter(
+    (item) => isImageEligiblePlanItem(item) && !item.imageUrl,
+  );
 
   // Get theme breakdown for display
   const themeBreakdown = state.themes.map((theme) => {
@@ -524,12 +826,20 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                 </div>
 
                 <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">Generating Images</h3>
+                  <h3 className="text-lg font-semibold">
+                    {imageGenerationProgress.phase === "searching"
+                      ? "Searching Image Library"
+                      : "Generating New Images"}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Creating AI-generated images for your content
+                    {imageGenerationProgress.phase === "searching"
+                      ? "Checking your tagged gallery before generating anything new"
+                      : "Creating new AI-generated images for the remaining posts"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    This may take 8-12 seconds per image
+                    {imageGenerationProgress.phase === "searching"
+                      ? "Gallery matches resolve immediately when tags line up"
+                      : "This may take 8-12 seconds per image"}
                   </p>
                 </div>
 
@@ -579,6 +889,24 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
 
       {/* Content Calendar */}
       <div className="space-y-6">
+        {!generatingImages && itemsMissingImages.length > 0 && (
+          <Card className="border-amber-300 bg-amber-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-medium text-amber-900">
+                    {itemsMissingImages.length} posts still have no image
+                  </p>
+                  <p className="text-sm text-amber-800">
+                    You can retry failed items individually or continue to
+                    review and launch with a warning.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {Object.keys(itemsByWeek)
           .sort((a, b) => Number(a) - Number(b))
           .map((weekNum) => {
@@ -606,12 +934,23 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                     {weekItems.map((item, index) => {
                       const TypeIcon = typeConfig[item.type].icon;
                       const isEditing = editingItem === item.id;
+                      const isImageMissing =
+                        isImageEligiblePlanItem(item) && !item.imageUrl;
+                      const showImageFailureState =
+                        isImageMissing && !generatingImages;
+                      const isRetryingImage = retryingImageItemIds.includes(
+                        item.id,
+                      );
 
                       return (
                         <Card
                           key={item.id}
                           className={`m-4 shadow-lg hover:shadow-xl transition-shadow duration-300 ${
                             !item.enabled ? "opacity-50" : ""
+                          } ${
+                            showImageFailureState
+                              ? "border-red-300 ring-1 ring-red-200"
+                              : ""
                           }`}
                         >
                           <CardContent className="p-6">
@@ -634,7 +973,9 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => useFeaturedImage(item.id)}
+                                      onClick={() =>
+                                        applyFeaturedImage(item.id)
+                                      }
                                       className="w-10 h-10 p-0"
                                       title="Use featured image"
                                     >
@@ -1221,7 +1562,7 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                                               variant="outline"
                                               size="sm"
                                               onClick={() =>
-                                                useFeaturedImage(item.id)
+                                                applyFeaturedImage(item.id)
                                               }
                                               className="gap-2"
                                             >
@@ -1271,7 +1612,12 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                                                 metadata,
                                               )
                                             }
-                                            contentContext={`${item.type} ${item.type === "email" ? "newsletter" : item.type === "blog" ? "article" : "post"}: ${item.title}`}
+                                            contentContext={getPlanItemImagePrompt(
+                                              item,
+                                            )}
+                                            imageGenerationStatus={
+                                              item.imageGenerationStatus
+                                            }
                                             className="max-w-md"
                                           />
                                         </div>
@@ -1430,9 +1776,48 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
                                       </p>
                                     )}
                                     {item.imageUrl && (
-                                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500 bg-opacity-20 text-sm text-green-600 font-medium">
-                                        <Check className="h-3.5 w-3.5" />
-                                        <span>Image selected</span>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500 bg-opacity-20 text-sm text-green-600 font-medium">
+                                          <Check className="h-3.5 w-3.5" />
+                                          <span>Image selected</span>
+                                        </div>
+                                        {item.imageMetadata?.source ===
+                                          "gallery-reuse" && (
+                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500 bg-opacity-15 text-sm text-blue-700 font-medium">
+                                            <Sparkles className="h-3.5 w-3.5" />
+                                            <span>From library</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    {showImageFailureState && (
+                                      <div className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                                        <div className="flex items-start gap-2 text-red-700">
+                                          <AlertTriangle className="h-4 w-4 mt-0.5" />
+                                          <div>
+                                            <p className="text-sm font-medium">
+                                              Image generation failed
+                                            </p>
+                                            <p className="text-xs text-red-600">
+                                              {item.imageError ||
+                                                "This post still needs an image before launch."}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="border-red-200 bg-white text-red-700 hover:bg-red-100"
+                                          disabled={isRetryingImage}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            void handleRetrySingleImage(item);
+                                          }}
+                                        >
+                                          {isRetryingImage
+                                            ? "Generating..."
+                                            : "Auto Pick"}
+                                        </Button>
                                       </div>
                                     )}
                                   </div>

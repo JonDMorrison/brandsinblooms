@@ -8592,6 +8592,7 @@ export type Database = {
           content_context: string | null;
           content_title: string | null;
           created_at: string;
+          created_by: string;
           dimensions: Json | null;
           file_size_bytes: number | null;
           first_used_at: string | null;
@@ -8604,15 +8605,18 @@ export type Database = {
           public_url: string;
           storage_bucket: string;
           storage_path: string;
+          tenant_id: string;
           total_usage_count: number | null;
           unique_tenant_count: number | null;
           updated_at: string;
+          usage_count: number;
         };
         Insert: {
           channel?: string | null;
           content_context?: string | null;
           content_title?: string | null;
           created_at?: string;
+          created_by: string;
           dimensions?: Json | null;
           file_size_bytes?: number | null;
           first_used_at?: string | null;
@@ -8625,15 +8629,18 @@ export type Database = {
           public_url: string;
           storage_bucket?: string;
           storage_path: string;
+          tenant_id: string;
           total_usage_count?: number | null;
           unique_tenant_count?: number | null;
           updated_at?: string;
+          usage_count?: number;
         };
         Update: {
           channel?: string | null;
           content_context?: string | null;
           content_title?: string | null;
           created_at?: string;
+          created_by?: string;
           dimensions?: Json | null;
           file_size_bytes?: number | null;
           first_used_at?: string | null;
@@ -8646,11 +8653,35 @@ export type Database = {
           public_url?: string;
           storage_bucket?: string;
           storage_path?: string;
+          tenant_id?: string;
           total_usage_count?: number | null;
           unique_tenant_count?: number | null;
           updated_at?: string;
+          usage_count?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "global_image_gallery_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "global_image_gallery_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "global_image_gallery_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       global_image_tags: {
         Row: {
@@ -9128,6 +9159,7 @@ export type Database = {
         Row: {
           block_id: string | null;
           campaign_id: string | null;
+          content_id: string | null;
           created_at: string;
           first_used_at: string | null;
           id: string;
@@ -9136,12 +9168,13 @@ export type Database = {
           tenant_id: string;
           updated_at: string;
           usage_count: number | null;
-          used_in_context: string | null;
+          usage_context: string | null;
           user_id: string;
         };
         Insert: {
           block_id?: string | null;
           campaign_id?: string | null;
+          content_id?: string | null;
           created_at?: string;
           first_used_at?: string | null;
           id?: string;
@@ -9150,12 +9183,13 @@ export type Database = {
           tenant_id: string;
           updated_at?: string;
           usage_count?: number | null;
-          used_in_context?: string | null;
+          usage_context?: string | null;
           user_id: string;
         };
         Update: {
           block_id?: string | null;
           campaign_id?: string | null;
+          content_id?: string | null;
           created_at?: string;
           first_used_at?: string | null;
           id?: string;
@@ -9164,7 +9198,7 @@ export type Database = {
           tenant_id?: string;
           updated_at?: string;
           usage_count?: number | null;
-          used_in_context?: string | null;
+          usage_context?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -9180,6 +9214,13 @@ export type Database = {
             columns: ["campaign_id"];
             isOneToOne: false;
             referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "image_tenant_usage_content_id_fkey";
+            columns: ["content_id"];
+            isOneToOne: false;
+            referencedRelation: "content_tasks";
             referencedColumns: ["id"];
           },
           {
@@ -11853,6 +11894,7 @@ export type Database = {
           content_id: string | null;
           created_at: string | null;
           error_message: string | null;
+          global_image_id: string | null;
           id: string;
           insights_fetched: boolean | null;
           mode: Database["public"]["Enums"]["post_mode"];
@@ -11870,6 +11912,7 @@ export type Database = {
           content_id?: string | null;
           created_at?: string | null;
           error_message?: string | null;
+          global_image_id?: string | null;
           id?: string;
           insights_fetched?: boolean | null;
           mode?: Database["public"]["Enums"]["post_mode"];
@@ -11887,6 +11930,7 @@ export type Database = {
           content_id?: string | null;
           created_at?: string | null;
           error_message?: string | null;
+          global_image_id?: string | null;
           id?: string;
           insights_fetched?: boolean | null;
           mode?: Database["public"]["Enums"]["post_mode"];
@@ -11906,6 +11950,13 @@ export type Database = {
             columns: ["content_id"];
             isOneToOne: false;
             referencedRelation: "generated_content";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "scheduled_posts_global_image_id_fkey";
+            columns: ["global_image_id"];
+            isOneToOne: false;
+            referencedRelation: "global_image_gallery";
             referencedColumns: ["id"];
           },
           {
@@ -14533,7 +14584,11 @@ export type Database = {
           channels: Json | null;
           created_at: string | null;
           deleted_at: string | null;
+          generation_error: string | null;
+          generation_status: string | null;
+          has_mixed_carousel: boolean | null;
           mode: string | null;
+          preview_title: string | null;
           recommended_images: Json | null;
           snapshot_id: string | null;
           source_label: string | null;
@@ -14550,7 +14605,11 @@ export type Database = {
           channels?: never;
           created_at?: string | null;
           deleted_at?: string | null;
+          generation_error?: never;
+          generation_status?: never;
+          has_mixed_carousel?: never;
           mode?: never;
+          preview_title?: never;
           recommended_images?: never;
           snapshot_id?: string | null;
           source_label?: never;
@@ -14567,7 +14626,11 @@ export type Database = {
           channels?: never;
           created_at?: string | null;
           deleted_at?: string | null;
+          generation_error?: never;
+          generation_status?: never;
+          has_mixed_carousel?: never;
           mode?: never;
+          preview_title?: never;
           recommended_images?: never;
           snapshot_id?: string | null;
           source_label?: never;
@@ -15558,10 +15621,12 @@ export type Database = {
           p_limit?: number;
           p_min_confidence?: number;
           p_tags: string[];
+          p_tenant_id?: string;
         };
         Returns: {
           image_id: string;
           match_count: number;
+          matched_confidence_total: number;
           matched_tags: string[];
           public_url: string;
           storage_path: string;
@@ -16353,9 +16418,10 @@ export type Database = {
         Args: {
           p_block_id?: string;
           p_campaign_id?: string;
-          p_context: string;
+          p_content_id?: string;
           p_image_id: string;
           p_tenant_id: string;
+          p_usage_context: string;
           p_user_id: string;
         };
         Returns: undefined;

@@ -43,7 +43,9 @@ export const getSeasonalTemplates = async (
     return deduplicated;
   } catch (error) {
     console.error("Error fetching seasonal templates:", error);
-    return [];
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to fetch seasonal templates");
   }
 };
 

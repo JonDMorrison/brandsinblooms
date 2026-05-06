@@ -5,7 +5,13 @@
 // - Maps useDashboardData tasks to PublishItem format
 // - Functional "Publish Now" and "Schedule" buttons via drawer
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Card,
   CardContent,
@@ -14,7 +20,12 @@ import {
 } from "@/components/ui-legacy/card";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui-legacy/tabs";
 import { Search, Send, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
@@ -28,49 +39,223 @@ import PostCard from "@/components/publish/PostCard";
 import ComposerDrawer, {
   ComposerMode,
 } from "@/components/publish/ComposerDrawer";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import type {
+  Platform,
   PublishItem,
   PublishNowInput,
   ScheduleInput,
+  PublishSourceBundle,
 } from "@/types/publish";
 
-interface GeneratedContent {
+type BundleFilterState = {
+  bundleId: string;
+  approvedChannels: Platform[];
+  previewTitle?: string | null;
+};
+
+type BundleSnapshotRow = {
   id: string;
-  status:
-    | "DRAFT"
-    | "SCHEDULED"
-    | "PUBLISHED"
-    | "ARCHIVED"
-    | "APPROVED"
-    | "REVIEW";
+  version: number;
+  content: {
+    sourceLabel?: string;
+    previewTitle?: string;
+    recommendedImages?: Array<{ url?: string; alt?: string }>;
+    items?: Array<Record<string, any>>;
+  } | null;
+};
+
+type BundlePublishDraft = {
+  channel: Platform;
   caption: string;
-  mediaUrl?: string;
-  platform?: string;
-  campaignId?: string;
-  createdAt: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  attachments: Record<string, any> | null;
+  hashtags: string | null;
+};
+
+const FINALIZED_TASK_STATUSES = new Set(["scheduled", "published"]);
+
+function normalizePlatform(value: string | null | undefined): Platform | null {
+  if (value === "facebook" || value === "instagram") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseApprovedChannelsParam(value: string | null): Platform[] {
+  if (!value) {
+    return [];
+  }
+
+  const platforms = value
+    .split(",")
+    .map((entry) => normalizePlatform(entry.trim()))
+    .filter((entry): entry is Platform => entry !== null);
+
+  return Array.from(new Set(platforms));
+}
+
+function extractBundleContent(item: Record<string, any>) {
+  const candidates = [
+    item.body,
+    item.markdown,
+    item.script,
+    item.caption,
+    item.text,
+    item.content,
+  ].filter(Boolean);
+
+  return (
+    candidates.sort(
+      (left, right) => (right?.length || 0) - (left?.length || 0),
+    )[0] || ""
+  );
+}
+
+function parseSourceBundle(value: unknown): PublishSourceBundle | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const sourceBundle = (value as Record<string, any>).sourceBundle;
+  if (!sourceBundle || typeof sourceBundle !== "object") {
+    return null;
+  }
+
+  const bundleId =
+    typeof sourceBundle.bundleId === "string" ? sourceBundle.bundleId : null;
+  const channel = normalizePlatform(sourceBundle.channel);
+
+  if (!bundleId || !channel) {
+    return null;
+  }
+
+  return {
+    bundleId,
+    channel,
+    snapshotId:
+      typeof sourceBundle.snapshotId === "string"
+        ? sourceBundle.snapshotId
+        : null,
+    snapshotVersion:
+      typeof sourceBundle.snapshotVersion === "number"
+        ? sourceBundle.snapshotVersion
+        : null,
+    previewTitle:
+      typeof sourceBundle.previewTitle === "string"
+        ? sourceBundle.previewTitle
+        : null,
+  };
+}
+
+function buildBundleImageMetadata(
+  existingMetadata: unknown,
+  sourceBundle: PublishSourceBundle,
+) {
+  const baseMetadata =
+    existingMetadata &&
+    typeof existingMetadata === "object" &&
+    !Array.isArray(existingMetadata)
+      ? (existingMetadata as Record<string, unknown>)
+      : {};
+
+  return {
+    ...baseMetadata,
+    sourceBundle,
+  };
+}
+
+function extractApprovedBundleDrafts(
+  snapshot: BundleSnapshotRow["content"],
+  requestedApprovedChannels: Platform[],
+  requestedChannel: Platform | null,
+) {
+  const allowedChannels = new Set<Platform>(
+    requestedApprovedChannels.length > 0
+      ? requestedApprovedChannels
+      : requestedChannel
+        ? [requestedChannel]
+        : ["facebook", "instagram"],
+  );
+
+  const draftsByChannel = new Map<Platform, BundlePublishDraft>();
+
+  for (const item of snapshot?.items || []) {
+    const channel = normalizePlatform(item.channel);
+    if (!channel || !item._approved || !allowedChannels.has(channel)) {
+      continue;
+    }
+
+    const fallbackImageUrl = snapshot?.recommendedImages?.[0]?.url || null;
+    const imageUrl = item.media?.url || fallbackImageUrl;
+    const imageAlt = item.media?.alt || item.alt || item.title || null;
+
+    draftsByChannel.set(channel, {
+      channel,
+      caption:
+        extractBundleContent(item).trim() || "Content generated from campaign",
+      imageUrl,
+      imageAlt,
+      attachments: imageUrl
+        ? {
+            image: {
+              url: imageUrl,
+              alt: imageAlt || "Campaign image",
+              thumb: imageUrl,
+            },
+          }
+        : null,
+      hashtags:
+        Array.isArray(item.hashtags) && item.hashtags.length > 0
+          ? item.hashtags.join(" ")
+          : null,
+    });
+  }
+
+  return Array.from(draftsByChannel.values());
 }
 
 const PublishPage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { publishNow, schedule } = usePublishActions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const requestedBundleId = searchParams.get("bundleId");
+  const requestedChannel = normalizePlatform(searchParams.get("channel"));
+  const requestedApprovedChannels = useMemo(
+    () => parseApprovedChannelsParam(searchParams.get("approved")),
+    [searchParams],
+  );
   const highlightedTaskId = searchParams.get("highlight");
-  const highlightedTab = searchParams.get("tab") === "published" ? "published" : "ready";
+  const highlightedTab =
+    searchParams.get("tab") === "published" ? "published" : "ready";
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // State for content and prefill logic
-  const [content, setContent] = useState<GeneratedContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [prefillDone, setPrefillDone] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"ready" | "published">(highlightedTab);
-  const [activeHighlightTaskId, setActiveHighlightTaskId] = useState<string | null>(highlightedTaskId);
+  const [activeTab, setActiveTab] = useState<"ready" | "published">(
+    highlightedTab,
+  );
+  const [activeHighlightTaskId, setActiveHighlightTaskId] = useState<
+    string | null
+  >(highlightedTaskId);
+  const [bundleFilter, setBundleFilter] = useState<BundleFilterState | null>(
+    requestedBundleId
+      ? {
+          bundleId: requestedBundleId,
+          approvedChannels: requestedApprovedChannels,
+          previewTitle: null,
+        }
+      : null,
+  );
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -112,6 +297,7 @@ const PublishPage = () => {
           scheduledFor: scheduledPost?.publish_at || null,
           status: task.status.toLowerCase() as PublishItem["status"],
           attachments: task.attachments,
+          sourceBundle: parseSourceBundle((task as any).image_metadata),
         };
       });
   }, [dashboardData]);
@@ -150,6 +336,7 @@ const PublishPage = () => {
             status: "published" as const,
             attachments: task.attachments,
             publishedAt: scheduledPost?.publish_at || task.created_at,
+            sourceBundle: parseSourceBundle((task as any).image_metadata),
           };
         })
         .sort(
@@ -158,6 +345,42 @@ const PublishPage = () => {
             new Date(a.publishedAt).getTime(),
         );
     }, [dashboardData]);
+
+  const bundleScopedReadyItems = useMemo(() => {
+    if (!bundleFilter) {
+      return publishItems;
+    }
+
+    return publishItems.filter((item) => {
+      if (item.sourceBundle?.bundleId !== bundleFilter.bundleId) {
+        return false;
+      }
+
+      if (bundleFilter.approvedChannels.length === 0) {
+        return true;
+      }
+
+      return bundleFilter.approvedChannels.includes(item.sourceBundle.channel);
+    });
+  }, [bundleFilter, publishItems]);
+
+  const bundleScopedPublishedItems = useMemo(() => {
+    if (!bundleFilter) {
+      return publishedItems;
+    }
+
+    return publishedItems.filter((item) => {
+      if (item.sourceBundle?.bundleId !== bundleFilter.bundleId) {
+        return false;
+      }
+
+      if (bundleFilter.approvedChannels.length === 0) {
+        return true;
+      }
+
+      return bundleFilter.approvedChannels.includes(item.sourceBundle.channel);
+    });
+  }, [bundleFilter, publishedItems]);
 
   // Available accounts for ComposerDrawer
   const availableAccounts = useMemo(() => {
@@ -176,27 +399,42 @@ const PublishPage = () => {
 
   // Filter ready items by search term
   const filteredReadyItems = useMemo(() => {
-    if (!searchTerm) return publishItems;
+    if (!searchTerm) return bundleScopedReadyItems;
     const term = searchTerm.toLowerCase();
-    return publishItems.filter(
+    return bundleScopedReadyItems.filter(
       (item) =>
         item.caption?.toLowerCase().includes(term) ||
         item.platform.toLowerCase().includes(term) ||
         item.accountName?.toLowerCase().includes(term),
     );
-  }, [publishItems, searchTerm]);
+  }, [bundleScopedReadyItems, searchTerm]);
 
   // Filter published items by search term
   const filteredPublishedItems = useMemo(() => {
-    if (!searchTerm) return publishedItems;
+    if (!searchTerm) return bundleScopedPublishedItems;
     const term = searchTerm.toLowerCase();
-    return publishedItems.filter(
+    return bundleScopedPublishedItems.filter(
       (item) =>
         item.caption?.toLowerCase().includes(term) ||
         item.platform.toLowerCase().includes(term) ||
         item.accountName?.toLowerCase().includes(term),
     );
-  }, [publishedItems, searchTerm]);
+  }, [bundleScopedPublishedItems, searchTerm]);
+
+  useEffect(() => {
+    setPrefillDone(false);
+
+    if (!requestedBundleId) {
+      return;
+    }
+
+    setBundleFilter({
+      bundleId: requestedBundleId,
+      approvedChannels: requestedApprovedChannels,
+      previewTitle: null,
+    });
+    setActiveTab("ready");
+  }, [requestedApprovedChannels, requestedBundleId]);
 
   useEffect(() => {
     setActiveTab(highlightedTab);
@@ -235,125 +473,251 @@ const PublishPage = () => {
     return () => {
       window.cancelAnimationFrame(animationFrame);
     };
-  }, [activeTab, filteredPublishedItems, filteredReadyItems, highlightedTaskId]);
+  }, [
+    activeTab,
+    filteredPublishedItems,
+    filteredReadyItems,
+    highlightedTaskId,
+  ]);
 
-  // Prefill logic (unchanged from original)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const bundleId = params.get("bundleId");
-    const channel = params.get("channel");
-    if (!bundleId || prefillDone || !user || !tenant || tenantLoading) return;
+    if (
+      !requestedBundleId ||
+      prefillDone ||
+      !user ||
+      !tenant ||
+      tenantLoading
+    ) {
+      return;
+    }
 
-    const prefillKey = `publish-prefill:${bundleId}:${channel || "any"}`;
+    let cancelled = false;
+
     const cleanUrl = () => {
       const url = new URL(window.location.href);
       url.searchParams.delete("bundleId");
       url.searchParams.delete("channel");
+      url.searchParams.delete("approved");
       const qs = url.searchParams.toString();
       window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
     };
-
-    if (localStorage.getItem(prefillKey) === "done") {
-      cleanUrl();
-      setPrefillDone(true);
-      return;
-    }
 
     (async () => {
       try {
         const { data, error } = await supabase
           .from("draft_snapshots" as any)
-          .select("content")
+          .select("id, version, content")
           .eq("doc_type", "content_bundle")
-          .eq("doc_id", bundleId)
+          .eq("doc_id", requestedBundleId)
           .order("version", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        const bundleData: any = data as any;
-
-        if (error || !bundleData?.content) {
+        if (cancelled) {
           return;
         }
 
-        const items = (bundleData.content.items || []) as any[];
-        const preferred =
-          channel && items.find((it: any) => it.channel === channel);
-        const fallback = items.find(
-          (it: any) => it.channel === "instagram" || it.channel === "facebook",
+        const bundleData = data as BundleSnapshotRow | null;
+
+        if (error || !bundleData?.content) {
+          cleanUrl();
+          setPrefillDone(true);
+          return;
+        }
+
+        const approvedDrafts = extractApprovedBundleDrafts(
+          bundleData.content,
+          requestedApprovedChannels,
+          requestedChannel,
         );
-        const item = (preferred as any) || (fallback as any) || items[0];
 
-        if (!item) return;
-
-        const extractContent = (item: any): string => {
-          const candidates = [
-            item.body,
-            item.markdown,
-            item.script,
-            item.caption,
-            item.text,
-            item.content,
-          ].filter(Boolean);
-
-          return (
-            candidates.sort((a, b) => (b?.length || 0) - (a?.length || 0))[0] ||
-            ""
-          );
-        };
-
-        const content = extractContent(item);
-        const imageUrl =
-          item.media?.url ||
-          bundleData.content.recommendedImages?.[0]?.url ||
+        const previewTitle =
+          bundleData.content.sourceLabel ||
+          bundleData.content.previewTitle ||
+          approvedDrafts[0]?.caption ||
           null;
 
-        const insertPayload: any = {
-          user_id: user.id,
-          tenant_id: tenant.id,
-          post_type:
-            item.channel === "instagram"
-              ? "instagram"
-              : item.channel === "facebook"
-                ? "facebook"
-                : "instagram",
-          ai_output: content.trim() || "Content generated from campaign",
-          image_url: imageUrl,
-          attachments: imageUrl
-            ? {
-                image: {
-                  url: imageUrl,
-                  alt: item.alt || "Campaign image",
-                  thumb: imageUrl,
-                },
-              }
-            : null,
-          status: "review",
-        };
+        const approvedChannels = approvedDrafts.map((draft) => draft.channel);
+        setBundleFilter({
+          bundleId: requestedBundleId,
+          approvedChannels,
+          previewTitle,
+        });
 
-        const { data: inserted, error: insertError } = await supabase
-          .from("content_tasks" as any)
-          .insert(insertPayload)
-          .select("*")
-          .single();
-
-        if (insertError) {
-          console.error(
-            "Failed inserting content task from bundle",
-            insertError,
-          );
+        if (approvedDrafts.length === 0) {
+          cleanUrl();
+          setPrefillDone(true);
+          toast({
+            title: "No approved social content",
+            description:
+              "Approve at least one Facebook or Instagram item before publishing.",
+            variant: "destructive",
+          });
+          navigate(`/content/library?doc_id=${requestedBundleId}`, {
+            replace: true,
+          });
           return;
+        }
+
+        const { data: existingTasks, error: existingTasksError } =
+          await supabase
+            .from("content_tasks")
+            .select("id, post_type, status, image_metadata")
+            .eq("tenant_id", tenant.id)
+            .is("deleted_at", null)
+            .contains("image_metadata", {
+              sourceBundle: { bundleId: requestedBundleId },
+            });
+
+        if (existingTasksError) {
+          throw existingTasksError;
+        }
+
+        const existingOpenTasksByChannel = new Map<Platform, any>();
+        for (const task of existingTasks || []) {
+          const sourceBundle = parseSourceBundle((task as any).image_metadata);
+          const platform = normalizePlatform((task as any).post_type);
+          const status = String((task as any).status || "").toLowerCase();
+
+          if (
+            !sourceBundle ||
+            sourceBundle.bundleId !== requestedBundleId ||
+            !platform ||
+            FINALIZED_TASK_STATUSES.has(status)
+          ) {
+            continue;
+          }
+
+          existingOpenTasksByChannel.set(
+            sourceBundle.channel || platform,
+            task,
+          );
+        }
+
+        const touchedTaskIds: string[] = [];
+        for (const draft of approvedDrafts) {
+          const sourceBundle: PublishSourceBundle = {
+            bundleId: requestedBundleId,
+            channel: draft.channel,
+            snapshotId: bundleData.id,
+            snapshotVersion: bundleData.version,
+            previewTitle,
+          };
+          const taskPayload: Record<string, any> = {
+            user_id: user.id,
+            tenant_id: tenant.id,
+            post_type: draft.channel,
+            ai_output: draft.caption,
+            image_url: draft.imageUrl,
+            attachments: draft.attachments,
+            hashtags: draft.hashtags,
+            status: "review",
+          };
+
+          const existingTask = existingOpenTasksByChannel.get(draft.channel);
+          const payloadWithMetadata = {
+            ...taskPayload,
+            image_metadata: buildBundleImageMetadata(
+              existingTask?.image_metadata,
+              sourceBundle,
+            ),
+          };
+
+          if (existingTask) {
+            const { data: updatedTask, error: updateError } = await supabase
+              .from("content_tasks")
+              .update(payloadWithMetadata)
+              .eq("id", existingTask.id)
+              .select("id")
+              .single();
+
+            if (updateError) {
+              throw updateError;
+            }
+
+            touchedTaskIds.push(updatedTask.id);
+          } else {
+            const { data: insertedTask, error: insertError } = await supabase
+              .from("content_tasks")
+              .insert(payloadWithMetadata)
+              .select("id")
+              .single();
+
+            if (insertError) {
+              throw insertError;
+            }
+
+            touchedTaskIds.push(insertedTask.id);
+          }
+        }
+
+        const staleTaskIds = (existingTasks || [])
+          .filter((task) => {
+            const sourceBundle = parseSourceBundle(
+              (task as any).image_metadata,
+            );
+            const channel =
+              sourceBundle?.channel ||
+              normalizePlatform((task as any).post_type);
+            const status = String((task as any).status || "").toLowerCase();
+
+            return (
+              sourceBundle?.bundleId === requestedBundleId &&
+              !!channel &&
+              !approvedChannels.includes(channel) &&
+              !FINALIZED_TASK_STATUSES.has(status)
+            );
+          })
+          .map((task) => task.id);
+
+        if (staleTaskIds.length > 0) {
+          const { error: deleteError } = await supabase
+            .from("content_tasks")
+            .delete()
+            .in("id", staleTaskIds);
+
+          if (deleteError) {
+            throw deleteError;
+          }
         }
 
         // Invalidate dashboard data to refresh UI immediately
-        queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await refetch?.();
 
-        localStorage.setItem(prefillKey, "done");
+        setActiveTab("ready");
+        setActiveHighlightTaskId(touchedTaskIds[0] || null);
         cleanUrl();
         setPrefillDone(true);
-      } catch (e) {}
+      } catch (error) {
+        console.error("Failed prefilling publish content from bundle", error);
+        cleanUrl();
+        setPrefillDone(true);
+        toast({
+          title: "Publish handoff failed",
+          description:
+            "We couldn't prepare the approved bundle items for publishing.",
+          variant: "destructive",
+        });
+      }
     })();
-  }, [prefillDone, user, tenant, tenantLoading, queryClient]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    navigate,
+    prefillDone,
+    queryClient,
+    refetch,
+    requestedApprovedChannels,
+    requestedBundleId,
+    requestedChannel,
+    tenant,
+    tenantLoading,
+    toast,
+    user,
+  ]);
 
   // Set loading state
   useEffect(() => {
@@ -535,14 +899,40 @@ const PublishPage = () => {
               className="pl-10"
             />
           </div>
-          <Button variant="outline" size="icon">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Filter publish items"
+          >
             <Filter className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
+      {bundleFilter ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 py-5 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-1">
+              <CardTitle>Approved bundle handoff</CardTitle>
+              <CardDescription>
+                {bundleFilter.previewTitle
+                  ? `Showing the approved social items from ${bundleFilter.previewTitle}.`
+                  : "Showing only the approved social items from this content bundle."}
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={() => setBundleFilter(null)}>
+              View all publish content
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "ready" | "published")} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "ready" | "published")}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 p-1 rounded-lg">
           <TabsTrigger
             value="ready"

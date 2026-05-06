@@ -1,12 +1,32 @@
-
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Calendar, Clock, Eye, Trash2 } from "lucide-react";
-import { ImageEditOverlay } from '@/components/image';
+import {
+  ChevronDown,
+  ChevronRight,
+  Calendar,
+  Clock,
+  Eye,
+  Trash2,
+} from "lucide-react";
+import { ImageEditOverlay } from "@/components/image";
 import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui-legacy/collapsible";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui-legacy/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui-legacy/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui-legacy/alert-dialog";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { getStatusColor } from "../homepageUtils";
 import { formatDistanceToNow } from "date-fns";
@@ -32,16 +52,24 @@ interface AccordionReadyToPostItemProps {
 
 const getPostTypeLabel = (postType: string) => {
   switch (postType) {
-    case 'instagram': return 'Instagram Post';
-    case 'facebook': return 'Facebook Post';
-    case 'email': return 'Email';
-    case 'newsletter': return 'Newsletter';
-    case 'video': return 'Video';
-    default: return 'Content';
+    case "instagram":
+      return "Instagram Post";
+    case "facebook":
+      return "Facebook Post";
+    case "email":
+      return "Email";
+    case "newsletter":
+      return "Newsletter";
+    case "video":
+      return "Video";
+    default:
+      return "Content";
   }
 };
 
-export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> = ({
+export const AccordionReadyToPostItem: React.FC<
+  AccordionReadyToPostItemProps
+> = ({
   task,
   onViewFull,
   onTaskUpdate,
@@ -49,7 +77,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   socialConnections = [],
   batchMode = false,
   isSelected = false,
-  onSelect
+  onSelect,
 }) => {
   const [isOpen, setIsOpen] = useState(isFirst);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -64,46 +92,54 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   const colorClass = getPostTypeColor(task.post_type);
 
   // Clean content properly based on post type
-  const cleanContent = task.ai_output ? 
-    cleanContentForDisplay(task.ai_output, task.post_type) : '';
+  const cleanContent = task.ai_output
+    ? cleanContentForDisplay(task.ai_output, task.post_type)
+    : "";
 
-  const preview = cleanContent.length > 120 ? 
-    cleanContent.substring(0, 120) + '...' : cleanContent;
+  const preview =
+    cleanContent.length > 120
+      ? cleanContent.substring(0, 120) + "..."
+      : cleanContent;
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return '';
+    if (!dateString) return "";
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (error) {
-      return '';
+      return "";
     }
   };
 
-  const campaignTitle = task.campaigns?.title || task.holidays?.holiday_name || 'Content';
+  const campaignTitle =
+    task.campaigns?.title || task.holidays?.holiday_name || "Content";
   const formattedDate = formatDate(task.created_at);
 
-  const facebookConnection = socialConnections.find(conn => conn.platform === 'facebook');
-  const instagramConnection = socialConnections.find(conn => conn.platform === 'instagram');
+  const facebookConnection = socialConnections.find(
+    (conn) => conn.platform === "facebook",
+  );
+  const instagramConnection = socialConnections.find(
+    (conn) => conn.platform === "instagram",
+  );
 
   const handleDelete = async () => {
     setIsDeleting(true);
-    
+
     try {
       const { error } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .delete()
-        .eq('id', task.id);
+        .eq("id", task.id);
 
       if (error) {
-        console.error('Error deleting task:', error);
-        toast.error('Failed to delete content');
+        console.error("Error deleting task:", error);
+        toast.error("Failed to delete content");
       } else {
-        toast.success('Content deleted successfully');
+        toast.success("Content deleted successfully");
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error('Failed to delete content');
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete content");
     } finally {
       setIsDeleting(false);
     }
@@ -111,49 +147,65 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className={`
+      <div
+        className={`
         border rounded-xl transition-all duration-150 mb-3 card-interactive bg-white
-        ${isOpen ? 'border-brand-teal shadow-md' : 'border-gray-200 hover:border-brand-teal/50 hover:shadow-sm'}
-        ${batchMode && isSelected ? 'ring-2 ring-brand-blue/20 bg-brand-blue/5' : ''}
-      `}>
+        ${isOpen ? "border-brand-teal shadow-md" : "border-gray-200 hover:border-brand-teal/50 hover:shadow-sm"}
+        ${batchMode && isSelected ? "ring-2 ring-brand-blue/20 bg-brand-blue/5" : ""}
+      `}
+      >
         <CollapsibleTrigger asChild>
-          <div className={`
+          <div
+            className={`
             p-4 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2
-            ${isMobile ? 'p-3' : 'p-4'}
-          `}>
+            ${isMobile ? "p-3" : "p-4"}
+          `}
+          >
             <div className="flex items-center gap-3">
               {batchMode && (
-                <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={(checked) => onSelect?.(checked as boolean)}
-                      className="data-[state=checked]:bg-brand-blue data-[state=checked]:border-brand-blue focus-visible:ring-brand-teal"
-                    />
+                <div
+                  className="flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={(checked) =>
+                      onSelect?.(checked as boolean)
+                    }
+                    className="data-[state=checked]:bg-brand-blue data-[state=checked]:border-brand-blue focus-visible:ring-brand-teal"
+                  />
                 </div>
               )}
-              
-              <div className={`
+
+              <div
+                className={`
                 flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
                 ${colorClass}
-              `}>
+              `}
+              >
                 <PostIcon className="w-5 h-5" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className={`font-semibold text-brand-navy tracking-tight truncate ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  <h3
+                    className={`font-semibold text-brand-navy tracking-tight truncate ${isMobile ? "text-sm" : "text-base"}`}
+                  >
                     {postLabel}
                   </h3>
                   <Badge className={getStatusColor(task.status)}>
                     {task.status}
                   </Badge>
                   {task.platform_post_url && (
-                    <Badge variant="outline" className="text-green-600 border-green-200">
+                    <Badge
+                      variant="outline"
+                      className="text-green-600 border-green-200"
+                    >
                       Published
                     </Badge>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <span className="truncate max-w-32">{campaignTitle}</span>
                   {formattedDate && (
@@ -170,11 +222,13 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
               <div className="flex items-center gap-2">
                 {!isOpen && preview && (
-                  <div className={`text-gray-600 truncate max-w-24 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                  <div
+                    className={`text-gray-600 truncate max-w-24 ${isMobile ? "text-xs" : "text-sm"}`}
+                  >
                     {preview.substring(0, 30)}...
                   </div>
                 )}
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
@@ -188,7 +242,8 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Content</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to delete this {task.post_type} content? This action cannot be undone.
+                        Are you sure you want to delete this {task.post_type}{" "}
+                        content? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -198,12 +253,12 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                         disabled={isDeleting}
                         className="bg-red-600 hover:bg-red-700"
                       >
-                        {isDeleting ? 'Deleting...' : 'Delete'}
+                        {isDeleting ? "Deleting..." : "Delete"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                
+
                 {isOpen ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 ) : (
@@ -224,8 +279,12 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                   {/* Content Preview */}
                   {cleanContent && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <div className={`text-gray-700 line-clamp-3 ${isMobile ? 'text-sm' : 'text-sm'} leading-relaxed whitespace-pre-wrap`}>
-                        {cleanContent.length > 300 ? cleanContent.substring(0, 300) + '...' : cleanContent}
+                      <div
+                        className={`text-gray-700 line-clamp-3 ${isMobile ? "text-sm" : "text-sm"} leading-relaxed whitespace-pre-wrap`}
+                      >
+                        {cleanContent.length > 300
+                          ? cleanContent.substring(0, 300) + "..."
+                          : cleanContent}
                       </div>
                     </div>
                   )}
@@ -233,10 +292,13 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                   {/* Error Message */}
                   {task.last_posting_error && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-sm text-red-600">{task.last_posting_error}</p>
+                      <p className="text-sm text-red-600">
+                        {task.last_posting_error}
+                      </p>
                       {task.posting_attempts > 0 && (
                         <p className="text-xs text-red-500 mt-1">
-                          Failed {task.posting_attempts} time{task.posting_attempts !== 1 ? 's' : ''}
+                          Failed {task.posting_attempts} time
+                          {task.posting_attempts !== 1 ? "s" : ""}
                         </p>
                       )}
                     </div>
@@ -253,7 +315,6 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                       <Eye className="w-4 h-4 mr-2" />
                       View Full Content
                     </Button>
-
                   </div>
                 </div>
 
@@ -264,65 +325,69 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                       imageUrl={getTaskImageUrl(task)}
                       onImageSelect={async (imageUrl, metadata) => {
                         // Update image and set status to review if approved
-                        const shouldRequireReApproval = task.status === 'approved';
-                        
+                        const shouldRequireReApproval =
+                          task.status === "approved";
+
                         const updateData: any = {
                           attachments: [
                             {
-                              type: 'image',
+                              type: "image",
                               url: imageUrl,
-                              alt: metadata?.alt || 'Selected image',
+                              alt: metadata?.alt || "Selected image",
                               photographer: metadata?.photographer,
-                              source: metadata?.source || 'unknown',
-                              unsplash_id: metadata?.unsplash_id
-                            }
+                              source: metadata?.source || "unknown",
+                              unsplash_id: metadata?.unsplash_id,
+                            },
                           ],
-                          image_url: imageUrl // Also update legacy field for backwards compatibility
+                          image_url: imageUrl, // Also update legacy field for backwards compatibility
                         };
 
                         if (shouldRequireReApproval) {
-                          updateData.status = 'review';
+                          updateData.status = "review";
                         }
 
                         try {
                           const { error } = await supabase
-                            .from('content_tasks')
+                            .from("content_tasks")
                             .update(updateData)
-                            .eq('id', task.id);
+                            .eq("id", task.id);
 
                           if (error) throw error;
-                          
+
                           if (onTaskUpdate) onTaskUpdate();
                         } catch (error) {
-                          console.error('Error updating image:', error);
-                          toast.error('Failed to update image');
+                          console.error("Error updating image:", error);
+                          toast.error("Failed to update image");
                         }
                       }}
-                      contentContext={task.ai_output}
+                      contentContext={task.image_idea || task.ai_output}
                       className="h-40 w-full rounded-lg overflow-hidden aspect-[4/3] object-cover"
                     />
                   )}
-                  
-                   {/* Post to Social Button */}
-                   {!batchMode && (
-                     <>
-                       {(facebookConnection || instagramConnection) ? (
-                         <PostToSocialButton
-                           task={task}
-                           onSuccess={onTaskUpdate}
-                           size="sm"
-                           className="w-full"
-                         />
-                       ) : (task.post_type === 'facebook' || task.post_type === 'instagram') && (
-                         <ConnectSocialCTA
-                           variant="button"
-                           size="sm"
-                           className="w-full"
-                           redirectTo={window.location.pathname}
-                         />
-                       )}
-                     </>
-                   )}
+
+                  {/* Post to Social Button */}
+                  {!batchMode && (
+                    <>
+                      {facebookConnection || instagramConnection ? (
+                        <PostToSocialButton
+                          task={task}
+                          onSuccess={onTaskUpdate}
+                          size="sm"
+                          className="w-full"
+                        />
+                      ) : (
+                        (task.post_type === "facebook" ||
+                          task.post_type === "instagram") && (
+                          <ConnectSocialCTA
+                            variant="button"
+                            size="sm"
+                            className="w-full"
+                            redirectTo={window.location.pathname}
+                          />
+                        )
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

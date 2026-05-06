@@ -11,8 +11,6 @@ import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { batchGenerateEmails } from "./emailContentService";
 import { batchGenerateSocialPosts } from "./socialContentService";
 import { generateEnhancedBlogContent } from "./blogContentGenerator";
-import { mediaSelector } from "@/utils/mediaSelector";
-import { buildSeasonalImageQuery } from "@/utils/seasonalImageQueryBuilder";
 
 // Simple title sanitizer to remove week references
 const sanitizeTitle = (title: string): string => {
@@ -467,85 +465,7 @@ export const generateSeasonalPlanContent = async (
     },
   ];
 
-  // Auto-generate unique images for each content type based on week position
-  await autoAssignImages(items, monthName);
-
   return items;
-};
-
-/**
- * Auto-assign AI-generated images to plan items during calendar generation
- * Stores all images in global_image_gallery with proper tagging
- */
-const autoAssignImages = async (items: PlanItem[], month: string) => {
-  // Filter items that need images (facebook, instagram, blog, email)
-  const itemsNeedingImages = items.filter((item) =>
-    ["facebook", "instagram", "blog", "email"].includes(item.type),
-  );
-
-  if (itemsNeedingImages.length === 0) {
-    return;
-  }
-  // Generate images in parallel using generate-ai-image edge function
-  const imageGenerationPromises = itemsNeedingImages.map(async (item) => {
-    try {
-      const contentContext =
-        item.caption || item.title || "seasonal garden content";
-      const contentTitle = item.title || "";
-
-      // Determine channel mapping
-      const channelMap: Record<string, string> = {
-        facebook: "facebook",
-        instagram: "instagram",
-        blog: "blog",
-        email: "newsletter",
-      };
-      const channel = channelMap[item.type] || "instagram";
-      const { data, error } = await supabase.functions.invoke(
-        "generate-ai-image",
-        {
-          body: {
-            contentContext,
-            contentTitle,
-            channel,
-            uploadToStorage: true,
-            storageBucket: "global-ai-images",
-          },
-        },
-      );
-
-      if (error || !data?.imageUrl) {
-        console.error(`[AI-Image] Failed for ${item.id}:`, error);
-        return { success: false, itemId: item.id };
-      }
-
-      // Update item with generated image
-      item.imageUrl = data.imageUrl;
-      item.imageMetadata = {
-        alt: contentTitle,
-        source: "ai_generated",
-        globalImageId: data.globalImageId,
-        generationTime: data.metadata?.generationTime,
-        tags: data.metadata?.tags || [],
-        storagePath: data.metadata?.storagePath,
-      };
-
-      return {
-        success: true,
-        itemId: item.id,
-        globalImageId: data.globalImageId,
-      };
-    } catch (err) {
-      console.error(`[AI-Image] Exception for ${item.id}:`, err);
-      return { success: false, itemId: item.id };
-    }
-  });
-
-  // Wait for all images to complete
-  const results = await Promise.all(imageGenerationPromises);
-
-  const successCount = results.filter((r) => r.success).length;
-  return results;
 };
 
 // Get holidays for a specific month
