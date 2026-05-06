@@ -7,6 +7,7 @@ import {
   PRICING_MOBILE_INITIAL_PLAN_ID,
   PRICING_PLANS,
   PRICING_SECTION_HEADER,
+  SEED_FOOTNOTE,
   type FooterLinkConfig,
   type PricingPlanConfig,
 } from "./content/pricingCtaFooterContent";
@@ -204,6 +205,16 @@ export const HomepagePricingCtaFooterSection = ({
               ))}
             </div>
           </div>
+
+          <p className="hp-pricing-cta__seed-footnote">
+            {SEED_FOOTNOTE.text}{" "}
+            <a
+              className="hp-pricing-cta__seed-footnote-link"
+              href={SEED_FOOTNOTE.linkHref}
+            >
+              {SEED_FOOTNOTE.linkLabel}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -215,6 +226,11 @@ export const HomepagePricingCtaFooterSection = ({
           <h3 className="hp-pricing-cta__final-headline">
             {FINAL_CTA_CONTENT.headline}
           </h3>
+          {FINAL_CTA_CONTENT.subhead ? (
+            <p className="hp-pricing-cta__final-subhead">
+              {FINAL_CTA_CONTENT.subhead}
+            </p>
+          ) : null}
           <div className="hp-pricing-cta__final-actions">
             <FinalCtaButton
               href={FINAL_CTA_CONTENT.primaryHref}

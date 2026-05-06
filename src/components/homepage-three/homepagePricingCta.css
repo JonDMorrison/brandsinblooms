@@ -356,7 +356,7 @@
 
 .hp-pricing-cta__final-headline {
     max-width: 600px;
-    margin: 0 0 24px;
+    margin: 0 0 16px;
     color: #0F172A;
     font-family: var(--hp-font-display);
     font-size: clamp(28px, 3.5vw, 40px);
@@ -366,12 +366,42 @@
     opacity: 0;
 }
 
+.hp-pricing-cta__final-subhead {
+    max-width: 560px;
+    margin: 0 0 24px;
+    color: #64748B;
+    font-size: 1rem;
+    line-height: 1.55;
+}
+
 .hp-pricing-cta__final-actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 12px;
     opacity: 0;
+}
+
+.hp-pricing-cta__seed-footnote {
+    max-width: 720px;
+    margin: 24px auto 0;
+    padding: 0 16px;
+    color: #64748B;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    text-align: center;
+}
+
+.hp-pricing-cta__seed-footnote-link {
+    color: var(--hp-green-600);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.hp-pricing-cta__seed-footnote-link:hover,
+.hp-pricing-cta__seed-footnote-link:focus-visible {
+    color: var(--hp-green-700);
 }
 
 .hp-pricing-cta__button {

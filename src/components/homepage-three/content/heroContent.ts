@@ -14,14 +14,14 @@ export interface HeroRoleBadgeConfig {
 }
 
 export const HERO_CONTENT = {
-  eyebrow: "For garden centres and florists",
-  headlineLineOne: "The customer platform",
-  headlineLineTwo: "built for garden retail.",
+  eyebrow: "For independent garden centres",
+  headlineLineOne: "The most powerful marketing",
+  headlineLineTwo: "tool built for garden centres.",
   subtext:
-    "BloomSuite gives independent garden centres and florists one place to manage customers, run email and SMS campaigns, and connect to Lightspeed, Stripe, Shopify, and Mailchimp.",
+    "BloomSuite gives garden centres and florists one place to manage customers, run email and SMS campaigns, build a storefront, and connect to Lightspeed, Stripe, Shopify, and Mailchimp.",
   primaryCta: "Start free trial",
   secondaryCta: "Book a demo",
-  primaryHref: "#start",
+  primaryHref: "/auth",
   secondaryHref: "#demo",
 };
 
