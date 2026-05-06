@@ -2,8 +2,6 @@ import type { CSSProperties } from "react";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
-  TRUST_LOGOS,
-  TRUST_STRIP_CAPTION,
   type FeatureHighlightConfig,
   type FeatureHighlightId,
 } from "./content/featureHighlightsContent";
@@ -28,38 +26,6 @@ interface FeaturePreviewCardProps {
   index: number;
   src?: string;
 }
-
-const TrustLogoList = () => (
-  <ul className="hp-feature-trust__logos">
-    {TRUST_LOGOS.map((logo) => {
-      const Icon = logo.icon;
-
-      return (
-        <li
-          key={logo.label}
-          className="hp-feature-trust__logo-item"
-          aria-label={logo.label}
-        >
-          {logo.src ? (
-            <img
-              className="hp-feature-trust__logo-mark"
-              src={logo.src}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              aria-hidden="true"
-            />
-          ) : Icon ? (
-            <span className="hp-feature-trust__icon-mark" aria-hidden="true">
-              <Icon />
-            </span>
-          ) : null}
-          <span className="hp-feature-trust__logo-name">{logo.label}</span>
-        </li>
-      );
-    })}
-  </ul>
-);
 
 const FeatureSkeleton = ({ id }: { id: FeatureHighlightId }) => {
   if (id === "smart-crm") {
@@ -222,15 +188,6 @@ export const HomepageFeatureHighlightsSection = ({
       data-homepage-gesture-lock="true"
       data-testid="homepage-feature-highlights"
     >
-      <div
-        className="hp-feature-trust"
-        data-active={isActive}
-        aria-label={TRUST_STRIP_CAPTION}
-      >
-        <p className="hp-feature-trust__caption">{TRUST_STRIP_CAPTION}</p>
-        <TrustLogoList />
-      </div>
-
       <div className="hp-features__main">
         <header className="hp-features__header" data-active={isActive}>
           <p className="hp-features__eyebrow">
