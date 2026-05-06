@@ -29,10 +29,9 @@ const getProviderLogo = (integrationId: string) => {
 };
 
 export const INTEGRATIONS_SECTION_HEADER = {
-  eyebrow: "INTEGRATIONS",
-  headline: "Works With Your Favorite Tools",
-  subtext:
-    "Connect BloomSuite with the platforms you already rely on, set up in minutes, not days.",
+  eyebrow: "Integrations",
+  headline: "Connects to what you already use.",
+  subtext: "Two-way sync with the tools your store already runs on.",
 };
 
 export const INTEGRATION_COUNT_COPY = {
@@ -51,7 +50,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "PAYMENTS",
     description:
-      "Accept payments, manage subscriptions, and handle invoicing, all synced with your CRM in real-time.",
+      "Subscriptions, invoicing, and one-time payments, synced to customer profiles.",
     size: "wide",
     delayMs: 0,
   },
@@ -63,8 +62,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
       alt: "Shopify logo",
     },
     category: "E-COMMERCE",
-    description:
-      "Sync products, orders, and customers between your Shopify store and BloomSuite.",
+    description: "Two-way sync of products, orders, and customers.",
     size: "standard",
     delayMs: 80,
   },
@@ -76,8 +74,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
       alt: "Lightspeed logo",
     },
     category: "POS",
-    description:
-      "Connect your Lightspeed POS for real-time inventory and sales sync.",
+    description: "Live inventory and sales sync, location by location.",
     size: "standard",
     delayMs: 160,
   },
@@ -90,7 +87,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "POS",
     description:
-      "Process payments and sync Square transactions directly into your dashboard.",
+      "Transactions and customer data flow into BloomSuite automatically.",
     size: "standard",
     delayMs: 240,
   },
@@ -103,7 +100,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "EMAIL",
     description:
-      "Import audiences, sync segments, and trigger campaigns across both platforms.",
+      "Audiences and segments stay in lockstep across both platforms.",
     size: "standard",
     delayMs: 320,
   },
@@ -116,9 +113,22 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "EMAIL",
     description:
-      "Advanced email automation with deep customer data sync, lifecycle flows, predictive analytics, and segmentation.",
+      "Lifecycle flows, predictive analytics, and shared customer data.",
     size: "wide",
     delayMs: 400,
+  },
+  {
+    id: "constant-contact",
+    name: "Constant Contact",
+    logo: {
+      src: getProviderLogo("constant-contact"),
+      alt: "Constant Contact logo",
+    },
+    category: "EMAIL",
+    description:
+      "Sync lists, automate campaigns, and keep contact preferences in one place.",
+    size: "standard",
+    delayMs: 460,
   },
   {
     id: "meta",
@@ -129,22 +139,9 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "SOCIAL",
     description:
-      "Connect Facebook and Instagram for social publishing and analytics.",
+      "Publish to Facebook and Instagram from your campaign builder.",
     size: "standard",
-    delayMs: 480,
-  },
-  {
-    id: "cloudflare",
-    name: "Cloudflare",
-    logo: {
-      src: getProviderLogo("cloudflare"),
-      alt: "Cloudflare logo",
-    },
-    category: "INFRASTRUCTURE",
-    description:
-      "CDN, security, and performance optimization for your storefront.",
-    size: "standard",
-    delayMs: 560,
+    delayMs: 520,
   },
   {
     id: "clover",
@@ -154,9 +151,22 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
       alt: "Clover logo",
     },
     category: "POS",
-    description: "Sync Clover POS transactions, inventory, and customer data.",
+    description:
+      "Transactions, inventory, and customer data, synced to your dashboard.",
     size: "standard",
-    delayMs: 640,
+    delayMs: 600,
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare",
+    logo: {
+      src: getProviderLogo("cloudflare"),
+      alt: "Cloudflare logo",
+    },
+    category: "INFRASTRUCTURE",
+    description: "CDN, security, and DNS for your storefront, included.",
+    size: "standard",
+    delayMs: 680,
   },
   {
     id: "google-analytics",
@@ -167,8 +177,8 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "ANALYTICS",
     description:
-      "Track storefront traffic, conversions, and customer journeys.",
+      "Storefront traffic, conversions, and customer journeys mapped to your CRM.",
     size: "standard",
-    delayMs: 720,
+    delayMs: 760,
   },
 ];

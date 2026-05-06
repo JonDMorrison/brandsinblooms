@@ -21,13 +21,12 @@ export interface FeatureHighlightConfig {
 }
 
 export const FEATURE_SECTION_HEADER = {
-  eyebrow: "PLATFORM FEATURES",
-  headline: "Everything You Need to Grow",
-  subtext:
-    "Advanced tools designed for garden centres, florists, and eco-conscious retailers.",
+  eyebrow: "Platform",
+  headline: "What you get with BloomSuite",
+  subtext: "Six tools in one workspace. No spreadsheets, no patchwork systems.",
 };
 
-export const TRUST_STRIP_CAPTION = "Trusted by leading green businesses";
+export const TRUST_STRIP_CAPTION = "Connects to the tools you already use";
 
 export const TRUST_LOGOS: TrustLogoConfig[] = [
   { label: "Lightspeed", src: providerLogoAssets.lightspeed },
@@ -41,44 +40,44 @@ export const TRUST_LOGOS: TrustLogoConfig[] = [
 export const FEATURE_HIGHLIGHTS: FeatureHighlightConfig[] = [
   {
     id: "smart-crm",
-    placeholderLabel: "Customer Dashboard",
-    title: "Smart Customer CRM",
+    placeholderLabel: "Customer CRM",
+    title: "Customer CRM",
     description:
-      "360° profiles, purchase history, lifecycle stages, and AI-powered insights.",
+      "Every customer in one record. Purchase history, contact preferences, and lifecycle stage update from your POS automatically.",
   },
   {
     id: "campaign-builder",
-    placeholderLabel: "Campaign Editor",
-    title: "AI Campaign Builder",
+    placeholderLabel: "Campaigns",
+    title: "Campaigns",
     description:
-      "Email and SMS campaigns generated, audience-matched, and timed by AI.",
+      "Email and SMS drafted by AI, segmented by customer behaviour, scheduled to send when your customers actually open.",
   },
   {
     id: "inventory-orders",
-    placeholderLabel: "Inventory View",
-    title: "Inventory & Orders",
+    placeholderLabel: "Inventory and Orders",
+    title: "Inventory and Orders",
     description:
-      "Real-time tracking, predictive restocking, and multi-channel order management.",
+      "Live POS sync from Lightspeed and Square. See what sold, what's left, and what to reorder, without an export.",
   },
   {
     id: "page-editor",
-    placeholderLabel: "Page Builder",
-    title: "Visual Page Editor",
+    placeholderLabel: "Storefront",
+    title: "Storefront",
     description:
-      "Drag-and-drop storefront builder with themes, blocks, and brand customization.",
+      "Drag-and-drop pages with your branding, products, and pickup or delivery options. Publish in minutes.",
   },
   {
     id: "analytics-dashboard",
-    placeholderLabel: "Analytics View",
-    title: "Growth Analytics",
+    placeholderLabel: "Analytics",
+    title: "Analytics",
     description:
-      "AI-explained metrics — what happened, why, and what to do next.",
+      "Plain-language reports on what worked, what didn't, and what to do next. Numbers without dashboard fatigue.",
   },
   {
     id: "multi-store",
-    placeholderLabel: "Multi-Store View",
-    title: "Multi-Store Control",
+    placeholderLabel: "Multi-Location",
+    title: "Multi-Location",
     description:
-      "One platform for every location. Shared AI intelligence across stores.",
+      "Run two stores or twenty from one workspace. Customer data and campaigns share across locations automatically.",
   },
 ];

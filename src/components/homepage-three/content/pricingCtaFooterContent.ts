@@ -1,6 +1,10 @@
 import type { ComponentType, SVGProps } from "react";
 import { Instagram, Linkedin, Twitter } from "lucide-react";
 
+// Plan IDs are kept as starter/growth/enterprise to avoid breaking the
+// PRICING_MOBILE_INITIAL_PLAN_ID reference and any consumer that branches
+// on id. The user-facing names are Sprout / Bloom / Thrive per the
+// product subscription enum.
 export type PricingPlanId = "starter" | "growth" | "enterprise";
 export type PricingPlanCtaVariant = "primary" | "secondary";
 export type PricingPlanEntryDirection = "left" | "center" | "right";
@@ -36,9 +40,9 @@ export interface FooterSocialLinkConfig extends FooterLinkConfig {
 }
 
 export const PRICING_SECTION_HEADER = {
-  eyebrow: "SIMPLE PRICING",
-  headline: "Plans That Grow With You",
-  subtext: "Start free. Upgrade when you're ready. No surprises.",
+  eyebrow: "Pricing",
+  headline: "Plans that match your store.",
+  subtext: "Free 14-day trial. No credit card. Cancel anytime.",
 };
 
 export const PRICING_CARDS_LABEL = "Pricing plan cards";
@@ -47,12 +51,18 @@ export const PRICING_MOBILE_INITIAL_PLAN_ID: PricingPlanId = "growth";
 export const PRICING_PLANS: PricingPlanConfig[] = [
   {
     id: "starter",
-    name: "Starter",
+    name: "Sprout",
     price: "Free",
-    priceDetail: "Forever",
-    featureListLabel: "Starter plan features",
-    features: ["Up to 100 customers", "Basic CRM", "1 store", "Email support"],
-    ctaLabel: "Get Started",
+    priceDetail: "14-day trial",
+    featureListLabel: "Sprout plan features",
+    features: [
+      "14-day trial",
+      "Up to 100 customers",
+      "Customer CRM",
+      "One location",
+      "Email support",
+    ],
+    ctaLabel: "Start free trial",
     ctaHref: "#start",
     ctaVariant: "secondary",
     delayMs: 150,
@@ -60,19 +70,19 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   },
   {
     id: "growth",
-    name: "Growth",
+    name: "Bloom",
     price: "$49",
     priceDetail: "/month",
-    featureListLabel: "Growth plan features",
+    featureListLabel: "Bloom plan features",
     features: [
       "Unlimited customers",
-      "AI Assistant",
-      "Campaign Builder",
-      "Visual Editor",
-      "Up to 3 stores",
+      "AI assistant",
+      "Campaign builder",
+      "Storefront editor",
+      "Up to 3 locations",
       "Priority support",
     ],
-    ctaLabel: "Start Free Trial",
+    ctaLabel: "Start free trial",
     ctaHref: "#start",
     ctaVariant: "primary",
     featured: true,
@@ -82,18 +92,18 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   },
   {
     id: "enterprise",
-    name: "Enterprise",
+    name: "Thrive",
     price: "Custom",
     priceDetail: "Tailored to you",
-    featureListLabel: "Enterprise plan features",
+    featureListLabel: "Thrive plan features",
     features: [
-      "Everything in Growth",
-      "Unlimited stores",
+      "Everything in Bloom",
+      "Unlimited locations",
       "Dedicated success manager",
       "Custom integrations",
       "SLA guarantee",
     ],
-    ctaLabel: "Contact Sales",
+    ctaLabel: "Contact sales",
     ctaHref: "#contact-sales",
     ctaVariant: "secondary",
     delayMs: 150,
@@ -103,10 +113,10 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
 
 export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
-  headline: "Ready to Grow Your Green Business?",
-  primaryCta: "Start Free Trial",
+  headline: "Ready to run customer marketing your way?",
+  primaryCta: "Start free trial",
   primaryHref: "#start",
-  secondaryCta: "Book a Demo",
+  secondaryCta: "Book a demo",
   secondaryHref: "#demo",
   caption: "No credit card required · 14-day free trial · Cancel anytime",
 };
@@ -153,19 +163,7 @@ export const FOOTER_CONTENT = {
       title: "COMPANY",
       links: [
         { label: "About", href: "/about" },
-        { label: "Blog", href: "/blog" },
-        { label: "Careers", href: "/careers" },
         { label: "Contact", href: "/contact" },
-        { label: "Press Kit", href: "/press-kit" },
-      ],
-    },
-    {
-      title: "RESOURCES",
-      links: [
-        { label: "Documentation", href: "/docs" },
-        { label: "API Reference", href: "/api" },
-        { label: "Status Page", href: "/status" },
-        { label: "Changelog", href: "/changelog" },
       ],
     },
     {

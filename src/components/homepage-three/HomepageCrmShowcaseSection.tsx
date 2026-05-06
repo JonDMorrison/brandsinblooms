@@ -128,25 +128,27 @@ export const HomepageCrmShowcaseSection = ({
         <CrmScreenshotShowcase src={screenshotSrc} />
       </div>
 
-      <dl className="hp-crm-metrics" aria-label="CRM trust metrics">
-        {CRM_TRUST_METRICS.map((metric) => (
-          <div key={metric.label} className="hp-crm-metric">
-            <dt className="hp-crm-metric__value">
-              <span>{metric.value}</span>
-              {metric.showStars ? (
-                <span className="hp-crm-metric__stars" aria-hidden="true">
-                  <Star />
-                  <Star />
-                  <Star />
-                  <Star />
-                  <Star />
-                </span>
-              ) : null}
-            </dt>
-            <dd className="hp-crm-metric__label">{metric.label}</dd>
-          </div>
-        ))}
-      </dl>
+      {CRM_TRUST_METRICS.length > 0 ? (
+        <dl className="hp-crm-metrics" aria-label="CRM trust metrics">
+          {CRM_TRUST_METRICS.map((metric) => (
+            <div key={metric.label} className="hp-crm-metric">
+              <dt className="hp-crm-metric__value">
+                <span>{metric.value}</span>
+                {metric.showStars ? (
+                  <span className="hp-crm-metric__stars" aria-hidden="true">
+                    <Star />
+                    <Star />
+                    <Star />
+                    <Star />
+                    <Star />
+                  </span>
+                ) : null}
+              </dt>
+              <dd className="hp-crm-metric__label">{metric.label}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
   </div>
 );
