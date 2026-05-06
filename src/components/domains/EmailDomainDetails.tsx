@@ -21,7 +21,6 @@ import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import { Check, Copy, Edit2, RefreshCw, Trash2, X } from "lucide-react";
 import {
   useEmailDomains,
@@ -29,6 +28,7 @@ import {
   EmailDnsRecord,
   EmailDnsCheck,
 } from "@/hooks/useEmailDomains";
+import useMediaQuery from "@/hooks/use-media-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 

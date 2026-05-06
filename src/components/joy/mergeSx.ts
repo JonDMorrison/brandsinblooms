@@ -1,6 +1,34 @@
 import type { Theme } from "@mui/joy/styles";
 import type { SxProps } from "@mui/joy/styles/types";
-import { deepmerge } from "@mui/utils";
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return Object.prototype.toString.call(value) === "[object Object]";
+};
+
+const mergeRecords = (
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> => {
+  const merged = { ...target };
+
+  for (const [key, value] of Object.entries(source)) {
+    const currentValue = merged[key];
+
+    if (Array.isArray(currentValue) && Array.isArray(value)) {
+      merged[key] = [...currentValue, ...value];
+      continue;
+    }
+
+    if (isPlainObject(currentValue) && isPlainObject(value)) {
+      merged[key] = mergeRecords(currentValue, value);
+      continue;
+    }
+
+    merged[key] = value;
+  }
+
+  return merged;
+};
 
 const flattenSx = (value: SxProps | undefined): SxProps[] => {
   if (!value) {
@@ -46,7 +74,7 @@ export const mergeSx = (...values: Array<SxProps | undefined>): SxProps => {
       const resolvedEntries = resolveSxEntries(value, theme);
 
       return resolvedEntries.reduce<Record<string, unknown>>(
-        (merged, entry) => deepmerge(merged, entry),
+        (merged, entry) => mergeRecords(merged, entry),
         accumulator,
       );
     }, {});

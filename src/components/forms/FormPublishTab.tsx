@@ -1,40 +1,40 @@
 import * as React from "react";
 import QRCode from "qrcode";
-import Avatar from "@mui/joy/Avatar";
+import Link from "@mui/joy/Link";
+import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
-import FormControl from "@mui/joy/FormControl";
-import FormHelperText from "@mui/joy/FormHelperText";
-import FormLabel from "@mui/joy/FormLabel";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  Braces,
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  Check,
   Code2,
   Copy,
+  Download,
   ExternalLink,
   Globe,
   Link2,
+  Mail,
   QrCode,
+  Server,
+  Terminal,
 } from "lucide-react";
+import { Link as RouterLink } from "react-router-dom";
 import { toast } from "sonner";
-import { JoyButton } from "@/components/joy/JoyButton";
-import {
-  JoyCard,
-  JoyCardContent,
-  JoyCardHeader,
-} from "@/components/joy/JoyCard";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
+import { trackFormBuilderAnalyticsEvent } from "@/lib/forms/analytics";
+import type { PublishValidationIssue } from "@/lib/forms/publish";
 import {
-  JoyTabs,
-  JoyTabsContent,
-  JoyTabsList,
-  JoyTabsTrigger,
-} from "@/components/joy/JoyTabs";
-import {
+  STATIC_EMBED_RUNTIME_VERSION,
   buildCurlSubmissionSnippet,
   buildIframeEmbedCode,
   buildJavaScriptEmbedCode,
@@ -46,161 +46,319 @@ import {
 } from "@/lib/forms/share";
 import type { Form } from "@/types/formBuilder";
 
-type ShareMethod = "share-link" | "embed-code" | "developer";
-type DeveloperSnippetKey = "curl" | "react" | "nextjs";
 type LegacyInitialTab =
-  | ShareMethod
+  | "share-link"
+  | "embed-code"
+  | "developer"
   | "direct-link"
   | "iframe"
   | "javascript"
   | "react";
 
 type PublishTabAnalyticsSurface = "share-dialog" | "publish-success";
+type ShareMethodKey =
+  | "direct_link"
+  | "qr_code"
+  | "javascript_embed"
+  | "iframe_embed"
+  | "api_endpoint"
+  | "curl"
+  | "react_component"
+  | "nextjs_server_action";
 
 interface FormPublishTabProps {
   analyticsSurface?: PublishTabAnalyticsSurface;
   form: Pick<Form, "id" | "name" | "status" | "embed_key" | "fields_json">;
   initialTab?: LegacyInitialTab;
+  isActive?: boolean;
+  publishValidationIssues?: PublishValidationIssue[];
+  onPublish?: () => void | Promise<void>;
+  onUnpublish?: () => void | Promise<void>;
+  isStatusUpdating?: boolean;
 }
-
-const SHARE_TABS: Array<{
-  value: ShareMethod;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-}> = [
-  {
-    value: "share-link",
-    label: "Direct link",
-    description: "Copy or open the hosted form URL.",
-    icon: <Link2 size={16} />,
-  },
-  {
-    value: "embed-code",
-    label: "Embed code",
-    description: "Inline, modal, or slide-in installs for websites.",
-    icon: <Code2 size={16} />,
-  },
-  {
-    value: "developer",
-    label: "Developer",
-    description: "Submit endpoints and implementation snippets.",
-    icon: <Braces size={16} />,
-  },
-];
 
 const DISPLAY_MODE_OPTIONS: Array<{
   value: FormEmbedDisplayMode;
   label: string;
-  description: string;
 }> = [
-  {
-    value: "inline",
-    label: "Inline",
-    description: "Render inside the page flow.",
-  },
-  {
-    value: "modal",
-    label: "Modal",
-    description: "Open the form in a centered overlay.",
-  },
-  {
-    value: "slide-in",
-    label: "Slide-in",
-    description: "Reveal from the side without taking over the page.",
-  },
+  { value: "inline", label: "Inline" },
+  { value: "modal", label: "Modal" },
+  { value: "slide-in", label: "Slide-in" },
 ];
 
-const DEVELOPER_SNIPPETS: Array<{
-  key: DeveloperSnippetKey;
-  label: string;
-}> = [
-  { key: "curl", label: "cURL" },
-  { key: "react", label: "React" },
-  { key: "nextjs", label: "Next.js" },
-];
+const codeFontFamily =
+  'var(--joy-fontFamily-code, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace)';
 
-function normalizeInitialTab(initialTab: LegacyInitialTab): ShareMethod {
-  if (initialTab === "iframe" || initialTab === "javascript") {
-    return "embed-code";
-  }
-
-  if (initialTab === "react") {
-    return "developer";
-  }
-
-  if (initialTab === "direct-link") {
-    return "share-link";
-  }
-
-  return initialTab;
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }
 
-function CodePanel({
+function PublishLoadingState() {
+  return (
+    <Stack spacing={3}>
+      <Skeleton
+        variant="rectangular"
+        animation="wave"
+        height={92}
+        sx={{ borderRadius: "var(--joy-radius-lg)" }}
+      />
+
+      <Stack spacing={1}>
+        <Skeleton variant="text" width={180} height={24} animation="wave" />
+        <Skeleton variant="text" width={280} height={18} animation="wave" />
+      </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+          gap: 2,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <SkeletonCard key={`share-${index}`} />
+        ))}
+      </Box>
+
+      <Divider />
+
+      <Stack spacing={1}>
+        <Skeleton variant="text" width={200} height={24} animation="wave" />
+        <Skeleton variant="text" width={340} height={18} animation="wave" />
+      </Stack>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+          gap: 2,
+        }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <SkeletonCard key={`developer-${index}`} />
+        ))}
+      </Box>
+    </Stack>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        borderRadius: "var(--joy-radius-lg)",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        p: 2.5,
+      }}
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={1.5}>
+          <Skeleton
+            variant="circular"
+            width={40}
+            height={40}
+            animation="wave"
+          />
+          <Stack spacing={0.4} sx={{ flex: 1 }}>
+            <Skeleton variant="text" width={120} height={20} animation="wave" />
+            <Skeleton variant="text" width="80%" height={18} animation="wave" />
+          </Stack>
+        </Stack>
+        <Skeleton
+          variant="rectangular"
+          height={42}
+          animation="wave"
+          sx={{ borderRadius: "16px" }}
+        />
+        <Skeleton
+          variant="rectangular"
+          height={156}
+          animation="wave"
+          sx={{ borderRadius: "18px" }}
+        />
+      </Stack>
+    </Sheet>
+  );
+}
+
+function SectionHeading({
   title,
   description,
-  code,
-  onCopy,
 }: {
   title: string;
+  description?: string;
+}) {
+  return (
+    <Stack spacing={0.35}>
+      <Typography level="title-md">{title}</Typography>
+      {description ? (
+        <Typography level="body-sm" color="neutral">
+          {description}
+        </Typography>
+      ) : null}
+    </Stack>
+  );
+}
+
+function ChannelCard({
+  icon,
+  title,
+  description,
+  children,
+  headerActions,
+}: {
+  icon: React.ReactNode;
+  title: string;
   description: string;
+  children: React.ReactNode;
+  headerActions?: React.ReactNode;
+}) {
+  return (
+    <Sheet
+      variant="outlined"
+      sx={{
+        borderRadius: "var(--joy-radius-lg)",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        p: 2.5,
+      }}
+    >
+      <Stack spacing={2.25}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", sm: "flex-start" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1.25}
+            alignItems="flex-start"
+            sx={{ minWidth: 0 }}
+          >
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "neutral.100",
+                color: "neutral.600",
+                flexShrink: 0,
+              }}
+            >
+              {icon}
+            </Box>
+            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+              <Typography level="title-sm">{title}</Typography>
+              <Typography level="body-sm" color="neutral">
+                {description}
+              </Typography>
+            </Stack>
+          </Stack>
+          {headerActions}
+        </Stack>
+        {children}
+      </Stack>
+    </Sheet>
+  );
+}
+
+function CodeSnippetBlock({
+  code,
+  copyLabel,
+  copied,
+  onCopy,
+}: {
   code: string;
+  copyLabel: string;
+  copied: boolean;
   onCopy: () => void;
 }) {
   return (
-    <JoyCard>
-      <JoyCardHeader
-        title={title}
-        description={description}
-        actions={
-          <JoyButton
-            bloomVariant="ghost"
-            color="neutral"
-            startDecorator={<Copy size={16} />}
-            onClick={onCopy}
-          >
-            Copy
-          </JoyButton>
-        }
-      />
-      <JoyCardContent sx={{ pt: 2 }}>
-        <Sheet
-          component="pre"
-          variant="soft"
-          sx={{
-            m: 0,
-            p: 2,
-            borderRadius: "lg",
-            overflowX: "auto",
-            fontFamily: "var(--joy-fontFamily-code)",
-            fontSize: "0.8125rem",
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {code}
-        </Sheet>
-      </JoyCardContent>
-    </JoyCard>
+    <Sheet
+      variant="soft"
+      sx={{
+        position: "relative",
+        bgcolor: "background.level1",
+        borderRadius: "sm",
+        p: 2,
+        pt: 6,
+        fontFamily: codeFontFamily,
+        fontSize: "sm",
+        overflow: "auto",
+        maxHeight: 200,
+      }}
+    >
+      <Button
+        size="sm"
+        variant={copied ? "soft" : "outlined"}
+        color={copied ? "success" : "neutral"}
+        startDecorator={copied ? <Check size={14} /> : <Copy size={14} />}
+        onClick={onCopy}
+        sx={{ position: "absolute", top: 12, right: 12 }}
+      >
+        {copied ? "Copied ✓" : copyLabel}
+      </Button>
+      <Box
+        component="pre"
+        sx={{
+          m: 0,
+          whiteSpace: "pre",
+          color: "neutral.800",
+          fontFamily: codeFontFamily,
+        }}
+      >
+        {code}
+      </Box>
+    </Sheet>
+  );
+}
+
+function ReadOnlyCodeInput({ value }: { value: string }) {
+  return (
+    <JoyInput
+      readOnly
+      value={value}
+      variant="outlined"
+      sx={{
+        "& .MuiInput-input": {
+          fontFamily: codeFontFamily,
+          fontSize: "0.8125rem",
+        },
+      }}
+    />
   );
 }
 
 export function FormPublishTab({
-  analyticsSurface: _analyticsSurface = "share-dialog",
+  analyticsSurface = "share-dialog",
   form,
-  initialTab = "share-link",
+  initialTab: _initialTab = "share-link",
+  isActive = true,
+  publishValidationIssues = [],
+  onPublish,
+  onUnpublish,
+  isStatusUpdating = false,
 }: FormPublishTabProps) {
-  const [activeTab, setActiveTab] = React.useState<ShareMethod>(
-    normalizeInitialTab(initialTab),
-  );
   const [displayMode, setDisplayMode] =
     React.useState<FormEmbedDisplayMode>("inline");
   const [buttonText, setButtonText] = React.useState("Open Form");
   const [iframeHeight, setIframeHeight] = React.useState("600");
-  const [developerSnippet, setDeveloperSnippet] =
-    React.useState<DeveloperSnippetKey>("curl");
   const [qrCodeSvg, setQrCodeSvg] = React.useState("");
-  const [showQr, setShowQr] = React.useState(false);
+  const [qrCodePngUrl, setQrCodePngUrl] = React.useState("");
+  const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
+  const [isBootstrapping, setIsBootstrapping] = React.useState(true);
+  const copyTimerRef = React.useRef<number | null>(null);
+  const wasActiveRef = React.useRef(false);
 
   const isPublished = form.status === "published";
   const publicUrl = React.useMemo(
@@ -211,6 +369,10 @@ export function FormPublishTab({
     () => getPublicFormSubmissionEndpoint(form.id),
     [form.id],
   );
+  const documentationPath = React.useMemo(
+    () => `/crm/forms/${form.id}/docs`,
+    [form.id],
+  );
   const iframeCode = React.useMemo(
     () =>
       buildIframeEmbedCode({
@@ -219,7 +381,7 @@ export function FormPublishTab({
       }),
     [form.embed_key, iframeHeight],
   );
-  const embedCode = React.useMemo(
+  const javascriptEmbedCode = React.useMemo(
     () =>
       buildJavaScriptEmbedCode({
         embedKey: form.embed_key,
@@ -229,400 +391,722 @@ export function FormPublishTab({
       }),
     [buttonText, displayMode, form.embed_key, form.name],
   );
-  const developerCodes = React.useMemo(
+  const developerSnippets = React.useMemo(
     () => ({
       curl: buildCurlSubmissionSnippet({
         embedKey: form.embed_key,
         endpoint: submitEndpoint,
         formId: form.id,
         formName: form.name,
+        fields: form.fields_json,
       }),
       react: buildReactSubmissionSnippet({
         embedKey: form.embed_key,
         endpoint: submitEndpoint,
         formId: form.id,
         formName: form.name,
+        fields: form.fields_json,
       }),
       nextjs: buildNextJsSubmissionSnippet({
         embedKey: form.embed_key,
         endpoint: submitEndpoint,
         formId: form.id,
         formName: form.name,
+        fields: form.fields_json,
       }),
     }),
-    [form.embed_key, form.id, form.name, submitEndpoint],
+    [form.embed_key, form.fields_json, form.id, form.name, submitEndpoint],
+  );
+
+  const markCopied = React.useCallback((key: string) => {
+    if (copyTimerRef.current) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+
+    setCopiedKey(key);
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopiedKey((current) => (current === key ? null : current));
+      copyTimerRef.current = null;
+    }, 2000);
+  }, []);
+
+  const trackMethodSelected = React.useCallback(
+    (method: ShareMethodKey, action: string) => {
+      trackFormBuilderAnalyticsEvent("form_share_method_selected", {
+        action,
+        form_id: form.id,
+        form_status: form.status,
+        method,
+        surface: analyticsSurface,
+      });
+    },
+    [analyticsSurface, form.id, form.status],
+  );
+
+  const trackCopySuccess = React.useCallback(
+    (method: ShareMethodKey, target: string) => {
+      trackFormBuilderAnalyticsEvent("form_share_copy", {
+        form_id: form.id,
+        form_status: form.status,
+        method,
+        surface: analyticsSurface,
+        target,
+      });
+    },
+    [analyticsSurface, form.id, form.status],
   );
 
   React.useEffect(() => {
-    if (!showQr) {
-      return;
+    const frameId = window.requestAnimationFrame(() => {
+      setIsBootstrapping(false);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
+  React.useEffect(() => {
+    if (isActive && !wasActiveRef.current) {
+      trackFormBuilderAnalyticsEvent("form_share_opened", {
+        form_id: form.id,
+        form_status: form.status,
+        surface: analyticsSurface,
+      });
     }
 
+    wasActiveRef.current = isActive;
+  }, [analyticsSurface, form.id, form.status, isActive]);
+
+  React.useEffect(() => {
     let cancelled = false;
 
-    void QRCode.toString(publicUrl, {
-      type: "svg",
-      width: 180,
-      margin: 1,
-      color: {
-        dark: "#0f172a",
-        light: "#ffffff",
-      },
-    })
-      .then((svgMarkup) => {
+    void Promise.all([
+      QRCode.toString(publicUrl, {
+        type: "svg",
+        width: 160,
+        margin: 1,
+        color: {
+          dark: "#0f172a",
+          light: "#ffffff",
+        },
+      }),
+      QRCode.toDataURL(publicUrl, {
+        width: 160,
+        margin: 1,
+        color: {
+          dark: "#0f172a",
+          light: "#ffffff",
+        },
+      }),
+    ])
+      .then(([svgMarkup, pngDataUrl]) => {
         if (!cancelled) {
           setQrCodeSvg(svgMarkup);
+          setQrCodePngUrl(pngDataUrl);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setQrCodeSvg("");
+          setQrCodePngUrl("");
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [publicUrl, showQr]);
+  }, [publicUrl]);
 
-  const copyValue = React.useCallback(async (label: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
-    } catch {
-      toast.error(`Unable to copy ${label.toLowerCase()}`);
-    }
+  React.useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
   }, []);
+
+  const copyTextValue = React.useCallback(
+    async ({
+      key,
+      label,
+      method,
+      target,
+      value,
+    }: {
+      key: string;
+      label: string;
+      method: ShareMethodKey;
+      target: string;
+      value: string;
+    }) => {
+      trackMethodSelected(method, target);
+
+      try {
+        await navigator.clipboard.writeText(value);
+        markCopied(key);
+        toast.success(`${label} copied`);
+        trackCopySuccess(method, target);
+      } catch {
+        toast.error(`Unable to copy ${label.toLowerCase()}`);
+      }
+    },
+    [markCopied, trackCopySuccess, trackMethodSelected],
+  );
+
+  const handleDownloadQr = React.useCallback(() => {
+    trackMethodSelected("qr_code", "download");
+
+    if (!qrCodePngUrl) {
+      toast.error("QR code is not ready yet.");
+      return;
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = qrCodePngUrl;
+    anchor.download = `${slugify(form.name) || "bloomsuite-form"}-qr.png`;
+    anchor.click();
+  }, [form.name, qrCodePngUrl, trackMethodSelected]);
+
+  const handleCopyQr = React.useCallback(async () => {
+    trackMethodSelected("qr_code", "copy");
+
+    if (!qrCodePngUrl) {
+      toast.error("QR code is not ready yet.");
+      return;
+    }
+
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      toast.error("QR image copy is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const response = await fetch(qrCodePngUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob,
+        }),
+      ]);
+      markCopied("copy-qr");
+      toast.success("QR code copied");
+      trackCopySuccess("qr_code", "qr_image");
+    } catch {
+      toast.error("Unable to copy the QR code");
+    }
+  }, [markCopied, qrCodePngUrl, trackCopySuccess, trackMethodSelected]);
+
+  const handleOpenPublicUrl = React.useCallback(() => {
+    trackMethodSelected("direct_link", "open");
+  }, [trackMethodSelected]);
+
+  const handleOpenDocs = React.useCallback(() => {
+    trackMethodSelected("api_endpoint", "open_docs");
+  }, [trackMethodSelected]);
+
+  const shareGrid = (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+        gap: 2,
+      }}
+    >
+      <ChannelCard
+        icon={<Link2 size={20} />}
+        title="Direct link"
+        description="Share the hosted BloomSuite form URL with visitors."
+      >
+        <Stack spacing={1.25}>
+          <ReadOnlyCodeInput value={publicUrl} />
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button
+              size="sm"
+              variant={copiedKey === "direct-link" ? "soft" : "outlined"}
+              color={copiedKey === "direct-link" ? "success" : "neutral"}
+              startDecorator={
+                copiedKey === "direct-link" ? (
+                  <Check size={14} />
+                ) : (
+                  <Copy size={14} />
+                )
+              }
+              onClick={() =>
+                void copyTextValue({
+                  key: "direct-link",
+                  label: "Link",
+                  method: "direct_link",
+                  target: "public_url",
+                  value: publicUrl,
+                })
+              }
+            >
+              {copiedKey === "direct-link" ? "Copied ✓" : "Copy link"}
+            </Button>
+            <IconButton
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              component="a"
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={handleOpenPublicUrl}
+            >
+              <ExternalLink size={16} />
+            </IconButton>
+          </Stack>
+        </Stack>
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<QrCode size={20} />}
+        title="QR code"
+        description="Hand off a scannable share option for print, packaging, and in-store signage."
+      >
+        <Stack spacing={1.25} alignItems="flex-start">
+          <Sheet
+            variant="soft"
+            sx={{
+              width: 176,
+              height: 176,
+              borderRadius: "var(--joy-radius-lg)",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: "background.level1",
+            }}
+          >
+            {qrCodeSvg ? (
+              <Box
+                sx={{
+                  width: 160,
+                  height: 160,
+                  display: "grid",
+                  placeItems: "center",
+                  "& svg": { width: "100%", height: "100%" },
+                }}
+                dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
+              />
+            ) : (
+              <Typography level="body-sm" color="neutral">
+                Generating QR…
+              </Typography>
+            )}
+          </Sheet>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              startDecorator={<Download size={14} />}
+              onClick={handleDownloadQr}
+            >
+              Download QR
+            </Button>
+            <Button
+              size="sm"
+              variant={copiedKey === "copy-qr" ? "soft" : "outlined"}
+              color={copiedKey === "copy-qr" ? "success" : "neutral"}
+              startDecorator={
+                copiedKey === "copy-qr" ? (
+                  <Check size={14} />
+                ) : (
+                  <Copy size={14} />
+                )
+              }
+              onClick={() => {
+                void handleCopyQr();
+              }}
+            >
+              {copiedKey === "copy-qr" ? "Copied ✓" : "Copy QR"}
+            </Button>
+          </Stack>
+        </Stack>
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<Code2 size={20} />}
+        title="JavaScript embed"
+        description="Install the shared runtime and mount the form inside your site."
+        headerActions={
+          <JoyChip size="sm" variant="soft" color="neutral">
+            Runtime v{STATIC_EMBED_RUNTIME_VERSION}
+          </JoyChip>
+        }
+      >
+        <Stack spacing={1.25}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "flex-start" }}
+          >
+            <JoySelect
+              size="sm"
+              label="Display mode"
+              value={displayMode}
+              options={DISPLAY_MODE_OPTIONS}
+              onValueChange={(value) => {
+                if (value) {
+                  setDisplayMode(value as FormEmbedDisplayMode);
+                }
+              }}
+              sx={{ minWidth: { sm: 180 } }}
+            />
+            {displayMode !== "inline" ? (
+              <JoyInput
+                size="sm"
+                label="Button label"
+                value={buttonText}
+                onValueChange={setButtonText}
+                sx={{ flex: 1 }}
+              />
+            ) : null}
+          </Stack>
+          <CodeSnippetBlock
+            code={javascriptEmbedCode}
+            copyLabel="Copy snippet"
+            copied={copiedKey === "javascript-embed"}
+            onCopy={() => {
+              void copyTextValue({
+                key: "javascript-embed",
+                label: "JavaScript snippet",
+                method: "javascript_embed",
+                target: "embed_snippet",
+                value: javascriptEmbedCode,
+              });
+            }}
+          />
+        </Stack>
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<Globe size={20} />}
+        title="iFrame embed"
+        description="Drop the hosted form into a simple iframe when you need isolation and quick setup."
+      >
+        <Stack spacing={1.25}>
+          <JoyInput
+            size="sm"
+            label="iFrame height"
+            value={iframeHeight}
+            onValueChange={setIframeHeight}
+            helperText="Responsive width is handled automatically. Increase the height for longer forms."
+          />
+          <CodeSnippetBlock
+            code={iframeCode}
+            copyLabel="Copy snippet"
+            copied={copiedKey === "iframe-embed"}
+            onCopy={() => {
+              void copyTextValue({
+                key: "iframe-embed",
+                label: "iFrame snippet",
+                method: "iframe_embed",
+                target: "iframe_snippet",
+                value: iframeCode,
+              });
+            }}
+          />
+          <Typography level="body-xs" color="neutral">
+            The iframe stays width-responsive, but height must be managed on the
+            host page to avoid internal scrolling.
+          </Typography>
+        </Stack>
+      </ChannelCard>
+    </Box>
+  );
+
+  const developerGrid = (
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+        gap: 2,
+      }}
+    >
+      <ChannelCard
+        icon={<Server size={20} />}
+        title="API endpoint"
+        description="Post headless submissions to the published proxy route used by BloomSuite forms."
+        headerActions={
+          <JoyChip size="sm" variant="soft" color="primary">
+            POST
+          </JoyChip>
+        }
+      >
+        <Stack spacing={1.25}>
+          <ReadOnlyCodeInput value={submitEndpoint} />
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
+            alignItems="center"
+          >
+            <Button
+              size="sm"
+              variant={copiedKey === "api-endpoint" ? "soft" : "outlined"}
+              color={copiedKey === "api-endpoint" ? "success" : "neutral"}
+              startDecorator={
+                copiedKey === "api-endpoint" ? (
+                  <Check size={14} />
+                ) : (
+                  <Copy size={14} />
+                )
+              }
+              onClick={() => {
+                void copyTextValue({
+                  key: "api-endpoint",
+                  label: "Endpoint",
+                  method: "api_endpoint",
+                  target: "endpoint_url",
+                  value: submitEndpoint,
+                });
+              }}
+            >
+              {copiedKey === "api-endpoint" ? "Copied ✓" : "Copy endpoint"}
+            </Button>
+            <Link
+              component={RouterLink}
+              to={documentationPath}
+              level="body-sm"
+              underline="hover"
+              onClick={handleOpenDocs}
+            >
+              View full API docs{" "}
+              <ArrowRight size={14} style={{ marginLeft: 4 }} />
+            </Link>
+          </Stack>
+        </Stack>
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<Terminal size={20} />}
+        title="cURL"
+        description="Test the submit pipeline from a shell or wire it into backend automation jobs."
+      >
+        <CodeSnippetBlock
+          code={developerSnippets.curl}
+          copyLabel="Copy cURL"
+          copied={copiedKey === "curl"}
+          onCopy={() => {
+            void copyTextValue({
+              key: "curl",
+              label: "cURL snippet",
+              method: "curl",
+              target: "curl_snippet",
+              value: developerSnippets.curl,
+            });
+          }}
+        />
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<Code2 size={20} />}
+        title="React component"
+        description="Drop a client component into your app and post directly to the BloomSuite endpoint."
+      >
+        <Stack spacing={1.25}>
+          <CodeSnippetBlock
+            code={developerSnippets.react}
+            copyLabel="Copy component"
+            copied={copiedKey === "react-component"}
+            onCopy={() => {
+              void copyTextValue({
+                key: "react-component",
+                label: "React snippet",
+                method: "react_component",
+                target: "react_snippet",
+                value: developerSnippets.react,
+              });
+            }}
+          />
+          <Typography level="body-xs" color="neutral">
+            Uses the direct submission endpoint and does not require the shared
+            runtime script.
+          </Typography>
+        </Stack>
+      </ChannelCard>
+
+      <ChannelCard
+        icon={<BookOpen size={20} />}
+        title="Next.js server action"
+        description="Send submissions from a trusted server-side boundary when you want full control over the request lifecycle."
+      >
+        <Stack spacing={1.25}>
+          <CodeSnippetBlock
+            code={developerSnippets.nextjs}
+            copyLabel="Copy snippet"
+            copied={copiedKey === "nextjs"}
+            onCopy={() => {
+              void copyTextValue({
+                key: "nextjs",
+                label: "Next.js snippet",
+                method: "nextjs_server_action",
+                target: "nextjs_snippet",
+                value: developerSnippets.nextjs,
+              });
+            }}
+          />
+          <Typography level="body-xs" color="neutral">
+            Server-side submission bypasses browser CORS constraints and works
+            well for server components and API routes.
+          </Typography>
+        </Stack>
+      </ChannelCard>
+    </Box>
+  );
+
+  if (isBootstrapping) {
+    return <PublishLoadingState />;
+  }
 
   return (
     <Stack spacing={3}>
-      {!isPublished ? (
-        <Sheet variant="soft" color="warning" sx={{ borderRadius: "lg", p: 2 }}>
-          <Stack spacing={0.75}>
-            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-              Publish the form before sharing it externally.
-            </Typography>
-            <Typography level="body-sm">
-              The hosted URL and embed snippets are ready, but the public
-              runtime only resolves while the form is published.
-            </Typography>
-          </Stack>
-        </Sheet>
-      ) : null}
-
-      <JoyTabs
-        value={activeTab}
-        onValueChange={(value) => value && setActiveTab(value as ShareMethod)}
-      >
-        <JoyTabsList
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
-          }}
+      {isPublished ? (
+        <Sheet
+          variant="soft"
+          color="success"
+          sx={{ borderRadius: "var(--joy-radius-lg)", p: 2.25 }}
         >
-          {SHARE_TABS.map((tab) => (
-            <JoyTabsTrigger
-              key={tab.value}
-              value={tab.value}
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                justifyContent: "flex-start",
-                minWidth: 0,
-                gap: 0.5,
-                textAlign: "left",
-                py: 1.5,
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", md: "center" }}
+          >
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Typography level="title-sm">
+                Your form is live and accepting submissions
+              </Typography>
+              <Link
+                href={publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={handleOpenPublicUrl}
+              >
+                {publicUrl}
+              </Link>
+            </Stack>
+            <Button
+              size="sm"
+              variant="plain"
+              color="success"
+              loading={isStatusUpdating}
+              onClick={() => {
+                void onUnpublish?.();
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
-                {tab.icon}
-                <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                  {tab.label}
+              Unpublish
+            </Button>
+          </Stack>
+        </Sheet>
+      ) : publishValidationIssues.length > 0 ? (
+        <Sheet
+          variant="soft"
+          color="warning"
+          sx={{ borderRadius: "var(--joy-radius-lg)", p: 2.25 }}
+        >
+          <Stack spacing={1.25}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.5}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", md: "center" }}
+            >
+              <Stack spacing={0.4}>
+                <Typography level="title-sm">
+                  This form is in draft mode and is not accepting public
+                  submissions
+                </Typography>
+                <Typography level="body-sm">
+                  Resolve the publish blockers below before taking the form
+                  live.
                 </Typography>
               </Stack>
-              <Typography level="body-xs" color="neutral">
-                {tab.description}
-              </Typography>
-            </JoyTabsTrigger>
-          ))}
-        </JoyTabsList>
-
-        <JoyTabsContent value="share-link">
-          <Stack spacing={2}>
-            <JoyCard>
-              <JoyCardHeader
-                startDecorator={
-                  <Avatar size="sm" variant="soft" color="primary">
-                    <Globe size={18} />
-                  </Avatar>
-                }
-                title="Hosted form URL"
-                description="Use the direct link when you want the form to live on its own page."
-                actions={
-                  <JoyChip
-                    size="sm"
-                    variant="soft"
-                    color={isPublished ? "success" : "warning"}
-                  >
-                    {isPublished ? "Live" : "Draft"}
-                  </JoyChip>
-                }
-              />
-              <JoyCardContent sx={{ pt: 3, gap: 2 }}>
-                <JoyInput label="Public URL" value={publicUrl} readOnly />
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <JoyButton
-                    startDecorator={<Copy size={16} />}
-                    onClick={() => void copyValue("Public URL", publicUrl)}
-                  >
-                    Copy URL
-                  </JoyButton>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<ExternalLink size={16} />}
-                    component="a"
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open hosted form
-                  </JoyButton>
-                  <JoyButton
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<QrCode size={16} />}
-                    onClick={() => setShowQr((value) => !value)}
-                  >
-                    {showQr ? "Hide QR" : "Show QR"}
-                  </JoyButton>
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
-
-            {showQr ? (
-              <JoyCard>
-                <JoyCardHeader
-                  title="QR code"
-                  description="Useful for in-store signage, event booths, and print collateral."
-                />
-                <JoyCardContent sx={{ pt: 2, alignItems: "center" }}>
-                  <Sheet
-                    variant="soft"
-                    sx={{
-                      p: 2,
-                      borderRadius: "lg",
-                      minHeight: 220,
-                      display: "grid",
-                      placeItems: "center",
-                    }}
-                  >
-                    {qrCodeSvg ? (
-                      <Box
-                        sx={{
-                          width: 180,
-                          height: 180,
-                          display: "grid",
-                          placeItems: "center",
-                          "& svg": { width: "100%", height: "100%" },
-                        }}
-                        dangerouslySetInnerHTML={{ __html: qrCodeSvg }}
-                      />
-                    ) : (
-                      <Typography level="body-sm" color="neutral">
-                        Generating QR code...
-                      </Typography>
-                    )}
-                  </Sheet>
-                </JoyCardContent>
-              </JoyCard>
-            ) : null}
-          </Stack>
-        </JoyTabsContent>
-
-        <JoyTabsContent value="embed-code">
-          <Stack spacing={2}>
-            <JoyCard>
-              <JoyCardHeader
-                startDecorator={
-                  <Avatar size="sm" variant="soft" color="primary">
-                    <Code2 size={18} />
-                  </Avatar>
-                }
-                title="JavaScript embed"
-                description="Install the shared runtime and choose how the form should appear on your site."
-              />
-              <JoyCardContent sx={{ pt: 3, gap: 2.5 }}>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: "repeat(3, minmax(0, 1fr))",
-                    },
-                    gap: 1,
-                  }}
-                >
-                  {DISPLAY_MODE_OPTIONS.map((option) => {
-                    const selected = displayMode === option.value;
-                    return (
-                      <Sheet
-                        key={option.value}
-                        variant={selected ? "soft" : "plain"}
-                        color={selected ? "primary" : "neutral"}
-                        onClick={() => setDisplayMode(option.value)}
-                        sx={{
-                          borderRadius: "lg",
-                          border: "1px solid",
-                          borderColor: selected ? "primary.300" : "neutral.200",
-                          px: 2,
-                          py: 1.5,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <Stack spacing={0.5}>
-                          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                            {option.label}
-                          </Typography>
-                          <Typography level="body-xs" color="neutral">
-                            {option.description}
-                          </Typography>
-                        </Stack>
-                      </Sheet>
-                    );
-                  })}
-                </Box>
-
-                {displayMode !== "inline" ? (
-                  <JoyInput
-                    label="Trigger button label"
-                    value={buttonText}
-                    onValueChange={setButtonText}
-                  />
-                ) : null}
-
-                <CodePanel
-                  title="Embed snippet"
-                  description="Paste this into the page where the form should appear."
-                  code={embedCode}
-                  onCopy={() => void copyValue("Embed code", embedCode)}
-                />
-              </JoyCardContent>
-            </JoyCard>
-
-            <JoyCard>
-              <JoyCardHeader
-                title="Iframe fallback"
-                description="Useful when you need a fast, isolated embed without the runtime script."
-              />
-              <JoyCardContent sx={{ pt: 3, gap: 2 }}>
-                <FormControl>
-                  <FormLabel>Iframe height</FormLabel>
-                  <JoyInput
-                    value={iframeHeight}
-                    onValueChange={setIframeHeight}
-                  />
-                  <FormHelperText>
-                    Minimum 320px. Increase this for longer forms.
-                  </FormHelperText>
-                </FormControl>
-                <CodePanel
-                  title="Iframe snippet"
-                  description="A simple hosted iframe pointing at the public form route."
-                  code={iframeCode}
-                  onCopy={() => void copyValue("Iframe code", iframeCode)}
-                />
-              </JoyCardContent>
-            </JoyCard>
-          </Stack>
-        </JoyTabsContent>
-
-        <JoyTabsContent value="developer">
-          <Stack spacing={2}>
-            <JoyCard>
-              <JoyCardHeader
-                startDecorator={
-                  <Avatar size="sm" variant="soft" color="neutral">
-                    <Braces size={18} />
-                  </Avatar>
-                }
-                title="Submission endpoint"
-                description="Use the public submit route when you want to post data from a custom UI."
-              />
-              <JoyCardContent sx={{ pt: 3, gap: 2 }}>
-                <JoyInput
-                  label="POST endpoint"
-                  value={submitEndpoint}
-                  readOnly
-                />
-                <Stack direction="row" spacing={1}>
-                  <JoyButton
-                    startDecorator={<Copy size={16} />}
-                    onClick={() => void copyValue("Endpoint", submitEndpoint)}
-                  >
-                    Copy endpoint
-                  </JoyButton>
-                </Stack>
-              </JoyCardContent>
-            </JoyCard>
-
-            <JoyTabs
-              value={developerSnippet}
-              onValueChange={(value) =>
-                value && setDeveloperSnippet(value as DeveloperSnippetKey)
-              }
-            >
-              <JoyTabsList
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: { xs: "repeat(3, minmax(0, 1fr))" },
+              <Button
+                size="sm"
+                variant="solid"
+                color="warning"
+                loading={isStatusUpdating}
+                onClick={() => {
+                  void onPublish?.();
                 }}
               >
-                {DEVELOPER_SNIPPETS.map((snippet) => (
-                  <JoyTabsTrigger
-                    key={snippet.key}
-                    value={snippet.key}
-                    sx={{ justifyContent: "center" }}
-                  >
-                    {snippet.label}
-                  </JoyTabsTrigger>
-                ))}
-              </JoyTabsList>
-              <JoyTabsContent value="curl">
-                <CodePanel
-                  title="cURL request"
-                  description="Quickly test the submit pipeline from a terminal or backend job."
-                  code={developerCodes.curl}
-                  onCopy={() =>
-                    void copyValue("cURL snippet", developerCodes.curl)
-                  }
-                />
-              </JoyTabsContent>
-              <JoyTabsContent value="react">
-                <CodePanel
-                  title="React example"
-                  description="A minimal client-side form wired to the submission endpoint."
-                  code={developerCodes.react}
-                  onCopy={() =>
-                    void copyValue("React snippet", developerCodes.react)
-                  }
-                />
-              </JoyTabsContent>
-              <JoyTabsContent value="nextjs">
-                <CodePanel
-                  title="Next.js example"
-                  description="Use a small API route as a proxy between the browser and the form submission endpoint."
-                  code={developerCodes.nextjs}
-                  onCopy={() =>
-                    void copyValue("Next.js snippet", developerCodes.nextjs)
-                  }
-                />
-              </JoyTabsContent>
-            </JoyTabs>
+                Publish
+              </Button>
+            </Stack>
+
+            <Stack spacing={0.75}>
+              {publishValidationIssues.map((issue) => (
+                <Alert
+                  key={issue.id}
+                  size="sm"
+                  color="warning"
+                  variant="soft"
+                  startDecorator={<AlertTriangle size={16} />}
+                >
+                  <Stack spacing={0.2}>
+                    <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                      {issue.description}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      {issue.fixHint}
+                    </Typography>
+                  </Stack>
+                </Alert>
+              ))}
+            </Stack>
           </Stack>
-        </JoyTabsContent>
-      </JoyTabs>
+        </Sheet>
+      ) : (
+        <Sheet
+          variant="soft"
+          color="warning"
+          sx={{ borderRadius: "var(--joy-radius-lg)", p: 2.25 }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", md: "center" }}
+          >
+            <Stack spacing={0.4}>
+              <Typography level="title-sm">
+                This form is in draft mode and not accepting public submissions
+              </Typography>
+              <Typography level="body-sm">
+                Your share links and snippets are ready. Publish the form when
+                you are ready to accept traffic.
+              </Typography>
+            </Stack>
+            <Button
+              size="sm"
+              variant="solid"
+              color="warning"
+              loading={isStatusUpdating}
+              onClick={() => {
+                void onPublish?.();
+              }}
+            >
+              Publish
+            </Button>
+          </Stack>
+        </Sheet>
+      )}
+
+      <Stack spacing={1.25}>
+        <SectionHeading title="Share your form" />
+        {shareGrid}
+      </Stack>
+
+      <Divider />
+
+      <Stack spacing={1.25}>
+        <SectionHeading
+          title="Developer integration"
+          description="For custom integrations and headless form submissions"
+        />
+        {developerGrid}
+      </Stack>
     </Stack>
   );
 }

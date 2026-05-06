@@ -8,6 +8,7 @@ import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
 import Input from "@mui/joy/Input";
+import LinearProgress from "@mui/joy/LinearProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -223,7 +224,8 @@ export function IntegrationsHubIndex({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const { items, canUseActions, isLoading } = useIntegrationsHubData();
+  const { items, canUseActions, isLoading, isRefreshing, statusUnavailable } =
+    useIntegrationsHubData();
 
   const queryCategory = forcedCategory
     ? null
@@ -288,6 +290,18 @@ export function IntegrationsHubIndex({
     }
 
     setSearchParams(nextParams, { replace: true });
+  };
+
+  const cardStatusProps = (item: IntegrationDefinition) => {
+    if (!statusUnavailable || item.status === "coming-soon") {
+      return {};
+    }
+
+    return {
+      statusTone: "error" as const,
+      statusLabel: "Status unavailable",
+      activityLabel: "Connection data unavailable",
+    };
   };
 
   if (isLoading) {
@@ -385,6 +399,10 @@ export function IntegrationsHubIndex({
             </Stack>
           </Stack>
         </Sheet>
+
+        {isRefreshing ? (
+          <LinearProgress color="neutral" size="sm" variant="soft" />
+        ) : null}
 
         <Stack spacing={1.5}>
           <Stack
@@ -516,12 +534,14 @@ export function IntegrationsHubIndex({
                         key={item.slug}
                         item={item}
                         onActivate={handleCardActivate}
+                        {...cardStatusProps(item)}
                       />
                     ) : (
                       <IntegrationCard
                         key={item.slug}
                         item={item}
                         onActivate={handleCardActivate}
+                        {...cardStatusProps(item)}
                       />
                     ),
                   )}
@@ -548,12 +568,14 @@ export function IntegrationsHubIndex({
                   key={item.slug}
                   item={item}
                   onActivate={handleCardActivate}
+                  {...cardStatusProps(item)}
                 />
               ) : (
                 <IntegrationCard
                   key={item.slug}
                   item={item}
                   onActivate={handleCardActivate}
+                  {...cardStatusProps(item)}
                 />
               ),
             )}

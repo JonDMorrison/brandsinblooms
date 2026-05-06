@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   Alert,
   Box,
@@ -117,6 +123,7 @@ import { ActionDropdown } from "@/components/ui-legacy/action-dropdown";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";
 import { TooltipProvider } from "@/components/ui-legacy/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 import {
   type CloverCustomerTableRow,
   type LightspeedCustomerSortField,
@@ -1101,6 +1108,32 @@ export default function IntegrationDetailPage() {
             : undefined,
   );
 
+  const selectedLightspeedCustomerDetailQuery = useQuery({
+    queryKey: [
+      "integration-detail-lightspeed-customer-detail",
+      slug,
+      selectedCustomer?.id ?? null,
+    ],
+    enabled: slug === "lightspeed" && Boolean(selectedCustomer?.id),
+    queryFn: async () => {
+      if (!selectedCustomer?.id) {
+        return null;
+      }
+
+      const { data, error } = await supabase
+        .from("lightspeed_customers")
+        .select("*")
+        .eq("id", selectedCustomer.id)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data as LightspeedCustomerTableRow;
+    },
+  });
+
   const seed = useMemo(() => (slug ? getIntegrationSeed(slug) : null), [slug]);
   const isMailchimpPage = slug === "mailchimp";
   const marketingImportDetail = detail.marketingImportDetail;
@@ -1935,6 +1968,18 @@ export default function IntegrationDetailPage() {
                 disabled: detail.isFetching,
                 onSelect: () => {
                   void detail.refetch();
+                },
+              },
+              {
+                label: detail.isVerifyingLightspeedWebhooks
+                  ? "Verifying webhooks…"
+                  : "Verify webhooks",
+                icon: Webhook,
+                disabled:
+                  item.status !== "connected" ||
+                  detail.isVerifyingLightspeedWebhooks,
+                onSelect: () => {
+                  void detail.verifyLightspeedWebhooks();
                 },
               },
               ...(detail.canAccessLightspeedAdminFeatures
@@ -8368,6 +8413,20 @@ export default function IntegrationDetailPage() {
                             setCustomerPage(1);
                           }}
                           selectedCustomer={selectedCustomer}
+                          selectedCustomerDetail={
+                            selectedLightspeedCustomerDetailQuery.data ?? null
+                          }
+                          isSelectedCustomerDetailLoading={
+                            selectedLightspeedCustomerDetailQuery.isPending
+                          }
+                          selectedCustomerDetailError={
+                            selectedLightspeedCustomerDetailQuery.error
+                              ? "Failed to load customer details"
+                              : null
+                          }
+                          onRetrySelectedCustomerDetail={() => {
+                            void selectedLightspeedCustomerDetailQuery.refetch();
+                          }}
                           onSelectedCustomerChange={setSelectedCustomer}
                           onPageChange={setCustomerPage}
                           onTriggerSync={() => {

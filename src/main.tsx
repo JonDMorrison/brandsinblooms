@@ -10,6 +10,7 @@ import { GlobalLoadingOverlay } from "@/components/loading/GlobalLoadingOverlay"
 import { StartupLoadingManager } from "@/components/loading/StartupLoadingManager";
 import { GlobalVisibilityManager } from "@/components/GlobalVisibilityManager";
 import { TooltipProvider } from "@/components/ui-legacy/tooltip";
+import { AIImageStudioProvider } from "@/providers/AIImageStudioProvider";
 import { JoyThemeProvider } from "@/providers/JoyThemeProvider";
 // Analytics completely disabled to prevent Firebase/RudderStack errors
 import App from "./App.tsx";
@@ -86,17 +87,21 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <JoyThemeProvider>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <TooltipProvider delayDuration={300} skipDelayDuration={100}>
           <LoadingProvider>
             <AuthProvider>
               <AdminProvider>
                 <SubscriptionProvider>
                   <OnboardingStatusProvider>
-                    <App />
-                    <GlobalLoadingOverlay />
-                    <StartupLoadingManager />
-                    <GlobalVisibilityManager />
+                    <AIImageStudioProvider>
+                      <App />
+                      <GlobalLoadingOverlay />
+                      <StartupLoadingManager />
+                      <GlobalVisibilityManager />
+                    </AIImageStudioProvider>
                   </OnboardingStatusProvider>
                 </SubscriptionProvider>
               </AdminProvider>

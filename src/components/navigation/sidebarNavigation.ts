@@ -594,6 +594,10 @@ export const getDashboardSidebarGroups = (options: {
     return adminSidebarGroups;
   }
 
+  if (options.isSuperAdmin) {
+    return [...tenantSidebarGroups, ...adminSidebarGroups];
+  }
+
   return tenantSidebarGroups;
 };
 

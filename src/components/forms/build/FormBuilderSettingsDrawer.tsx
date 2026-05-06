@@ -1,23 +1,20 @@
 import * as React from "react";
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
 import Box from "@mui/joy/Box";
-import Divider from "@mui/joy/Divider";
+import Button from "@mui/joy/Button";
+import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Switch from "@mui/joy/Switch";
 import Textarea from "@mui/joy/Textarea";
+import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
 import Typography from "@mui/joy/Typography";
-import { Plus, Settings2, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Settings2, Trash2 } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyDrawer } from "@/components/joy/JoyDrawer";
 import { JoyInput } from "@/components/joy/JoyInput";
 import { JoySelect } from "@/components/joy/JoySelect";
-import {
-  JoyTabs,
-  JoyTabsContent,
-  JoyTabsList,
-  JoyTabsTrigger,
-} from "@/components/joy/JoyTabs";
 import {
   FORM_BORDER_RADIUS_OPTIONS,
   FORM_FONT_FAMILY_OPTIONS,
@@ -31,15 +28,180 @@ interface FormBuilderSettingsDrawerProps {
   onClose: () => void;
   settings: FormSettings;
   steps: FormStep[];
+  fieldCountsByStep: Record<number, number>;
   multiStepEnabled: boolean;
   currentStepIndex: number;
   onFocusStep: (stepIndex: number) => void;
   onToggleMultiStep: (enabled: boolean) => void;
   onAddStep: () => void;
   onRemoveStep: (stepIndex: number) => void;
+  onReorderSteps: (sourceIndex: number, destinationIndex: number) => void;
   onUpdateStep: (stepIndex: number, updates: Partial<FormStep>) => void;
   onSettingsPatch: (patch: Partial<FormSettings>) => void;
   onThemePatch: (patch: Partial<FormSettings["theme"]>) => void;
+}
+
+function DrawerSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Sheet
+      variant="plain"
+      sx={{
+        borderRadius: "xl",
+        border: "1px solid",
+        borderColor: "neutral.200",
+        backgroundColor: "background.surface",
+        p: 1.5,
+      }}
+    >
+      <Stack spacing={1.5}>
+        <Box>
+          <Typography level="title-sm" sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+          <Typography level="body-xs" color="neutral">
+            {description}
+          </Typography>
+        </Box>
+        {children}
+      </Stack>
+    </Sheet>
+  );
+}
+
+function StepCard({
+  step,
+  index,
+  fieldCount,
+  isActive,
+  canDelete,
+  onFocusStep,
+  onRemoveStep,
+  onUpdateStep,
+  dragHandleProps,
+  draggableProps,
+  innerRef,
+  isDragging,
+}: {
+  step: FormStep;
+  index: number;
+  fieldCount: number;
+  isActive: boolean;
+  canDelete: boolean;
+  onFocusStep: (stepIndex: number) => void;
+  onRemoveStep: (stepIndex: number) => void;
+  onUpdateStep: (stepIndex: number, updates: Partial<FormStep>) => void;
+  dragHandleProps?: Record<string, unknown>;
+  draggableProps?: Record<string, unknown>;
+  innerRef?: (element: HTMLElement | null) => void;
+  isDragging: boolean;
+}) {
+  return (
+    <Sheet
+      ref={innerRef}
+      variant="plain"
+      {...draggableProps}
+      sx={{
+        borderRadius: "lg",
+        border: "1px solid",
+        borderColor: isActive ? "primary.300" : "neutral.200",
+        backgroundColor: isActive ? "primary.softBg" : "background.surface",
+        boxShadow: isDragging ? "var(--joy-shadow-md)" : "var(--joy-shadow-xs)",
+        p: 1.25,
+      }}
+    >
+      <Stack spacing={1.25}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box
+            {...dragHandleProps}
+            sx={{
+              width: 28,
+              height: 28,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "md",
+              color: "neutral.500",
+              cursor: "grab",
+              flexShrink: 0,
+            }}
+          >
+            <GripVertical size={16} />
+          </Box>
+
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+            <JoyChip
+              size="sm"
+              variant={isActive ? "solid" : "soft"}
+              color={isActive ? "primary" : "neutral"}
+            >
+              Step {index + 1}
+            </JoyChip>
+            <JoyChip size="sm" variant="soft" color="neutral">
+              {fieldCount} fields
+            </JoyChip>
+          </Stack>
+
+          <JoyButton
+            size="sm"
+            bloomVariant="ghost"
+            color="neutral"
+            onClick={() => onFocusStep(step.index)}
+          >
+            Open
+          </JoyButton>
+
+          <IconButton
+            size="sm"
+            variant="plain"
+            color="danger"
+            disabled={!canDelete}
+            onClick={() => onRemoveStep(step.index)}
+            aria-label={`Delete step ${index + 1}`}
+          >
+            <Trash2 size={16} />
+          </IconButton>
+        </Stack>
+
+        <JoyInput
+          label="Step title"
+          value={step.title}
+          onValueChange={(title) => onUpdateStep(step.index, { title })}
+          placeholder={`Step ${index + 1}`}
+        />
+
+        <Box>
+          <Typography level="body-xs" sx={{ fontWeight: 600, color: "neutral.600", mb: 0.5 }}>
+            Step description
+          </Typography>
+          <Textarea
+            minRows={2}
+            value={step.description}
+            onChange={(event) =>
+              onUpdateStep(step.index, { description: event.target.value })
+            }
+            placeholder="Optional context for this step"
+            sx={{ borderRadius: "lg", backgroundColor: "#FFFFFF" }}
+          />
+        </Box>
+      </Stack>
+    </Sheet>
+  );
+}
+
+function isValidRedirectUrl(value: string) {
+  try {
+    const parsedUrl = new URL(value);
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export function FormBuilderSettingsDrawer({
@@ -47,16 +209,39 @@ export function FormBuilderSettingsDrawer({
   onClose,
   settings,
   steps,
+  fieldCountsByStep,
   multiStepEnabled,
   currentStepIndex,
   onFocusStep,
   onToggleMultiStep,
   onAddStep,
   onRemoveStep,
+  onReorderSteps,
   onUpdateStep,
   onSettingsPatch,
   onThemePatch,
 }: FormBuilderSettingsDrawerProps) {
+  const redirectUrl = settings.success_redirect_url ?? "";
+  const redirectUrlError =
+    redirectUrl.trim().length > 0 && !isValidRedirectUrl(redirectUrl)
+      ? "Enter a full http:// or https:// URL, or leave this blank."
+      : undefined;
+
+  const handleStepDragEnd = React.useCallback(
+    (result: DropResult) => {
+      if (!result.destination) {
+        return;
+      }
+
+      if (result.destination.index === result.source.index) {
+        return;
+      }
+
+      onReorderSteps(result.source.index, result.destination.index);
+    },
+    [onReorderSteps],
+  );
+
   return (
     <JoyDrawer
       open={open}
@@ -64,325 +249,293 @@ export function FormBuilderSettingsDrawer({
       anchor="right"
       size="lg"
       title="Form settings"
-      description="Manage structure, visual styling, and submit behavior for the whole form."
+      description="Adjust structure, layout, and submission behavior without leaving the builder."
       startDecorator={<Settings2 size={18} />}
+      contentSx={{ display: "grid", gap: 1.5, alignContent: "start" }}
     >
-      <JoyTabs defaultValue="structure">
-        <JoyTabsList
+      <DrawerSection
+        title="Structure"
+        description="Manage step flow, order, and visitor guidance for the full form."
+      >
+        <Sheet
+          variant="soft"
+          color={multiStepEnabled ? "primary" : "neutral"}
           sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            borderRadius: "lg",
+            px: 1.25,
+            py: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
           }}
         >
-          <JoyTabsTrigger value="structure">Structure</JoyTabsTrigger>
-          <JoyTabsTrigger value="design">Design</JoyTabsTrigger>
-          <JoyTabsTrigger value="submit">Submit</JoyTabsTrigger>
-        </JoyTabsList>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Multi-step form
+            </Typography>
+            <Typography level="body-xs" color="neutral">
+              Break longer forms into guided steps while keeping the build tab and preview in sync.
+            </Typography>
+          </Box>
+          <Switch
+            checked={multiStepEnabled}
+            onChange={(event) => onToggleMultiStep(event.target.checked)}
+            size="sm"
+          />
+        </Sheet>
 
-        <JoyTabsContent value="structure">
-          <Stack spacing={2}>
-            <Sheet
-              variant="plain"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 2,
-                border: "1px solid",
-                borderColor: "neutral.200",
-                borderRadius: "lg",
-                px: 1.5,
-                py: 1.25,
-              }}
-            >
-              <Stack spacing={0.25}>
+        {multiStepEnabled ? (
+          <Stack spacing={1.25}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Box>
                 <Typography level="body-sm" sx={{ fontWeight: 600 }}>
-                  Multi-step form
+                  Step list
                 </Typography>
                 <Typography level="body-xs" color="neutral">
-                  Break the experience into guided steps with focused sections.
+                  Drag to reorder. Step tabs and field assignments update automatically.
                 </Typography>
-              </Stack>
-              <Switch
-                checked={multiStepEnabled}
-                onChange={(event) => onToggleMultiStep(event.target.checked)}
+              </Box>
+              <JoyButton
                 size="sm"
-              />
-            </Sheet>
-
-            {multiStepEnabled ? (
-              <>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Typography level="title-sm">Steps</Typography>
-                  <JoyButton
-                    size="sm"
-                    bloomVariant="ghost"
-                    color="neutral"
-                    startDecorator={<Plus size={16} />}
-                    onClick={onAddStep}
-                  >
-                    Add step
-                  </JoyButton>
-                </Stack>
-
-                <Stack spacing={1.25}>
-                  {steps.map((step) => (
-                    <Sheet
-                      key={`drawer-step-${step.index}`}
-                      variant="plain"
-                      sx={{
-                        border: "1px solid",
-                        borderColor:
-                          currentStepIndex === step.index
-                            ? "primary.300"
-                            : "neutral.200",
-                        borderRadius: "lg",
-                        p: 1.5,
-                      }}
-                    >
-                      <Stack spacing={1.25}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          justifyContent="space-between"
-                        >
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            alignItems="center"
-                          >
-                            <JoyChip
-                              size="sm"
-                              variant={
-                                currentStepIndex === step.index
-                                  ? "solid"
-                                  : "soft"
-                              }
-                              color={
-                                currentStepIndex === step.index
-                                  ? "primary"
-                                  : "neutral"
-                              }
-                            >
-                              Step {step.index + 1}
-                            </JoyChip>
-                            <JoyButton
-                              size="sm"
-                              bloomVariant="ghost"
-                              color="neutral"
-                              onClick={() => onFocusStep(step.index)}
-                            >
-                              Open
-                            </JoyButton>
-                          </Stack>
-
-                          {steps.length > 1 ? (
-                            <JoyButton
-                              size="sm"
-                              bloomVariant="ghost"
-                              color="danger"
-                              startDecorator={<Trash2 size={14} />}
-                              onClick={() => onRemoveStep(step.index)}
-                            >
-                              Delete
-                            </JoyButton>
-                          ) : null}
-                        </Stack>
-
-                        <JoyInput
-                          label="Step label"
-                          value={step.title}
-                          onValueChange={(title) =>
-                            onUpdateStep(step.index, { title })
-                          }
-                        />
-
-                        <Stack spacing={0.5}>
-                          <Typography
-                            level="body-xs"
-                            sx={{ fontWeight: 600, color: "neutral.600" }}
-                          >
-                            Step description
-                          </Typography>
-                          <Textarea
-                            minRows={2}
-                            value={step.description}
-                            onChange={(event) =>
-                              onUpdateStep(step.index, {
-                                description: event.target.value,
-                              })
-                            }
-                            placeholder="Optional step description"
-                          />
-                        </Stack>
-                      </Stack>
-                    </Sheet>
-                  ))}
-                </Stack>
-              </>
-            ) : (
-              <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
-                <Typography level="body-sm" color="neutral">
-                  Single-step mode keeps the form on one continuous canvas.
-                </Typography>
-              </Sheet>
-            )}
-          </Stack>
-        </JoyTabsContent>
-
-        <JoyTabsContent value="design">
-          <Stack spacing={2}>
-            <JoyInput
-              label="Form title"
-              value={settings.form_title ?? ""}
-              onValueChange={(form_title) => onSettingsPatch({ form_title })}
-            />
-
-            <Stack spacing={0.5}>
-              <Typography
-                level="body-xs"
-                sx={{ fontWeight: 600, color: "neutral.600" }}
+                variant="outlined"
+                color="neutral"
+                startDecorator={<Plus size={16} />}
+                onClick={onAddStep}
               >
-                Form description
-              </Typography>
-              <Textarea
-                minRows={3}
-                value={settings.form_description ?? ""}
-                onChange={(event) =>
-                  onSettingsPatch({ form_description: event.target.value })
-                }
-                placeholder="Give visitors context before they start"
-              />
+                Add step
+              </JoyButton>
             </Stack>
 
-            <Box
+            <DragDropContext onDragEnd={handleStepDragEnd}>
+              <Droppable droppableId="form-builder-settings-steps">
+                {(provided) => (
+                  <Stack
+                    spacing={1}
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                  >
+                    {steps.map((step, index) => (
+                      <Draggable
+                        key={`drawer-step-${step.index}`}
+                        draggableId={`drawer-step-${step.index}`}
+                        index={index}
+                      >
+                        {(draggableProvided, snapshot) => (
+                          <StepCard
+                            step={step}
+                            index={index}
+                            fieldCount={fieldCountsByStep[step.index] ?? 0}
+                            isActive={currentStepIndex === step.index}
+                            canDelete={steps.length > 1}
+                            onFocusStep={onFocusStep}
+                            onRemoveStep={onRemoveStep}
+                            onUpdateStep={onUpdateStep}
+                            dragHandleProps={draggableProvided.dragHandleProps}
+                            draggableProps={draggableProvided.draggableProps}
+                            innerRef={draggableProvided.innerRef}
+                            isDragging={snapshot.isDragging}
+                          />
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </Stack>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </Stack>
+        ) : (
+          <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", px: 1.25, py: 1 }}>
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Single-step mode is active
+            </Typography>
+            <Typography level="body-xs" color="neutral">
+              Visitors see one continuous canvas. Turn multi-step back on whenever the form needs guided flow.
+            </Typography>
+          </Sheet>
+        )}
+      </DrawerSection>
+
+      <DrawerSection
+        title="Layout"
+        description="Set the overall container, spacing, and styling applied across the form."
+      >
+        <Stack spacing={1.5}>
+          <JoySelect
+            label="Form width"
+            value={settings.form_width ?? "medium"}
+            options={FORM_WIDTH_OPTIONS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+            onValueChange={(form_width) =>
+              onSettingsPatch({
+                form_width: form_width as FormSettings["form_width"],
+              })
+            }
+          />
+
+          <Box>
+            <Typography level="body-xs" sx={{ fontWeight: 600, color: "neutral.600", mb: 0.75 }}>
+              Columns
+            </Typography>
+            <ToggleButtonGroup
+              size="sm"
+              value={String(settings.columns ?? 1)}
+              onChange={(_event, value) => {
+                if (!value || value === "3") {
+                  return;
+                }
+
+                onSettingsPatch({ columns: value === "2" ? 2 : 1 });
+              }}
               sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  md: "repeat(2, minmax(0, 1fr))",
-                },
-                gap: 1.5,
+                borderRadius: "lg",
+                border: "1px solid",
+                borderColor: "neutral.200",
+                backgroundColor: "background.surface",
               }}
             >
-              <JoySelect
-                label="Form width"
-                value={settings.form_width ?? "medium"}
-                options={FORM_WIDTH_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
-                onValueChange={(form_width) =>
-                  onSettingsPatch({
-                    form_width: form_width as FormSettings["form_width"],
-                  })
-                }
-              />
-              <JoySelect
-                label="Columns"
-                value={String(settings.columns ?? 1)}
-                options={[
-                  { value: "1", label: "Single column" },
-                  { value: "2", label: "Two columns" },
-                ]}
-                onValueChange={(columns) =>
-                  onSettingsPatch({ columns: columns === "2" ? 2 : 1 })
-                }
-              />
-              <JoySelect
-                label="Font family"
-                value={settings.theme.font_family ?? "inter"}
-                options={FORM_FONT_FAMILY_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
-                onValueChange={(font_family) => onThemePatch({ font_family })}
-              />
-              <JoySelect
-                label="Border radius"
-                value={settings.theme.border_radius ?? "8px"}
-                options={FORM_BORDER_RADIUS_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
-                onValueChange={(border_radius) =>
-                  onThemePatch({ border_radius })
-                }
-              />
-              <JoySelect
-                label="Spacing"
-                value={settings.theme.spacing ?? "normal"}
-                options={FORM_SPACING_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: option.label,
-                }))}
-                onValueChange={(spacing) => onThemePatch({ spacing })}
-              />
-              <JoyInput
-                label="Primary color"
-                value={settings.theme.primary_color ?? ""}
-                onValueChange={(primary_color) =>
-                  onThemePatch({ primary_color })
-                }
-              />
-            </Box>
-          </Stack>
-        </JoyTabsContent>
-
-        <JoyTabsContent value="submit">
-          <Stack spacing={2}>
-            <JoyInput
-              label="Submit button text"
-              value={settings.submit_button_text}
-              onValueChange={(submit_button_text) =>
-                onSettingsPatch({ submit_button_text })
-              }
-            />
-
-            <Stack spacing={0.5}>
-              <Typography
-                level="body-xs"
-                sx={{ fontWeight: 600, color: "neutral.600" }}
+              <Button
+                value="1"
+                variant={(settings.columns ?? 1) === 1 ? "solid" : "plain"}
+                color={(settings.columns ?? 1) === 1 ? "primary" : "neutral"}
               >
-                Success message
-              </Typography>
-              <Textarea
-                minRows={3}
-                value={settings.success_message}
-                onChange={(event) =>
-                  onSettingsPatch({ success_message: event.target.value })
-                }
-                placeholder="What visitors see after submitting"
-              />
-            </Stack>
+                1 column
+              </Button>
+              <Button
+                value="2"
+                variant={settings.columns === 2 ? "solid" : "plain"}
+                color={settings.columns === 2 ? "primary" : "neutral"}
+              >
+                2 columns
+              </Button>
+              <Button value="3" disabled variant="plain" color="neutral">
+                3 columns
+              </Button>
+            </ToggleButtonGroup>
+            <Typography level="body-xs" color="neutral" sx={{ mt: 0.75 }}>
+              The current preview renderer supports one or two columns.
+            </Typography>
+          </Box>
 
-            <JoyInput
-              label="Redirect URL"
-              value={settings.success_redirect_url ?? ""}
-              onValueChange={(success_redirect_url) =>
-                onSettingsPatch({
-                  success_redirect_url: success_redirect_url || null,
-                })
-              }
-              helperText="Leave blank to show the in-form success state instead."
+          <Box>
+            <Typography level="body-xs" sx={{ fontWeight: 600, color: "neutral.600", mb: 0.75 }}>
+              Label position
+            </Typography>
+            <ToggleButtonGroup
+              size="sm"
+              value="top"
+              sx={{
+                borderRadius: "lg",
+                border: "1px solid",
+                borderColor: "neutral.200",
+                backgroundColor: "background.surface",
+              }}
+            >
+              <Button value="top" variant="solid" color="primary">
+                Top
+              </Button>
+              <Button value="left" disabled variant="plain" color="neutral">
+                Left
+              </Button>
+              <Button value="inline" disabled variant="plain" color="neutral">
+                Inline
+              </Button>
+            </ToggleButtonGroup>
+            <Typography level="body-xs" color="neutral" sx={{ mt: 0.75 }}>
+              The live renderer still treats labels as top-aligned, so left and inline layouts remain unavailable here.
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+              gap: 1.5,
+            }}
+          >
+            <JoySelect
+              label="Font family"
+              value={settings.theme.font_family ?? "inter"}
+              options={FORM_FONT_FAMILY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onValueChange={(font_family) => onThemePatch({ font_family })}
             />
+            <JoySelect
+              label="Border radius"
+              value={settings.theme.border_radius ?? "8px"}
+              options={FORM_BORDER_RADIUS_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onValueChange={(border_radius) => onThemePatch({ border_radius })}
+            />
+            <JoySelect
+              label="Spacing"
+              value={settings.theme.spacing ?? "normal"}
+              options={FORM_SPACING_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onValueChange={(spacing) => onThemePatch({ spacing })}
+            />
+            <JoyInput
+              label="Primary color"
+              value={settings.theme.primary_color ?? ""}
+              onValueChange={(primary_color) => onThemePatch({ primary_color })}
+              placeholder="#16A34A"
+            />
+          </Box>
+        </Stack>
+      </DrawerSection>
 
-            <Divider />
+      <DrawerSection
+        title="Submission"
+        description="Control what visitors see and where they land after they complete the form."
+      >
+        <Stack spacing={1.5}>
+          <JoyInput
+            label="Submit button text"
+            value={settings.submit_button_text}
+            onValueChange={(submit_button_text) =>
+              onSettingsPatch({ submit_button_text })
+            }
+            placeholder="Submit"
+          />
 
-            <Sheet variant="soft" sx={{ borderRadius: "lg", p: 2 }}>
-              <Typography level="body-sm" color="neutral">
-                Field-level editing stays inline on the canvas. This drawer only
-                controls settings that apply to the whole form.
-              </Typography>
-            </Sheet>
-          </Stack>
-        </JoyTabsContent>
-      </JoyTabs>
+          <Box>
+            <Typography level="body-xs" sx={{ fontWeight: 600, color: "neutral.600", mb: 0.5 }}>
+              Success message
+            </Typography>
+            <Textarea
+              minRows={3}
+              value={settings.success_message}
+              onChange={(event) =>
+                onSettingsPatch({ success_message: event.target.value })
+              }
+              placeholder="Thanks for reaching out. We’ll be in touch shortly."
+              sx={{ borderRadius: "lg", backgroundColor: "#FFFFFF" }}
+            />
+          </Box>
+
+          <JoyInput
+            label="Redirect URL"
+            value={redirectUrl}
+            onValueChange={(success_redirect_url) =>
+              onSettingsPatch({
+                success_redirect_url: success_redirect_url.trim() || null,
+              })
+            }
+            placeholder="https://yourdomain.com/thanks"
+            errorMessage={redirectUrlError}
+            helperText="Leave blank to keep visitors on the in-form success state."
+          />
+        </Stack>
+      </DrawerSection>
     </JoyDrawer>
   );
 }

@@ -9,7 +9,12 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui-legacy/button";
 import { Input } from "@/components/ui-legacy/input";
 import { Badge } from "@/components/ui-legacy/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui-legacy/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui-legacy/tabs";
 import {
   X,
   Search,
@@ -493,10 +498,21 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                       key={`${image.source}-${image.id}`}
                       className="relative group cursor-pointer"
                     >
-                      <button
+                      <div
+                        role="button"
+                        tabIndex={0}
                         className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square w-full border-2 border-gray-200 hover:border-primary transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                         onClick={() => handleImageClick(image)}
-                        type="button"
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" ||
+                            event.key === " " ||
+                            event.key === "Spacebar"
+                          ) {
+                            event.preventDefault();
+                            handleImageClick(image);
+                          }
+                        }}
                       >
                         <img
                           src={image.thumb_url || image.thumb}
@@ -548,7 +564,7 @@ export const MediaSelectorSidebar: React.FC<MediaSelectorSidebarProps> = ({
                             </Button>
                           </div>
                         </div>
-                      </button>
+                      </div>
                       <div className="mt-1 text-xs text-gray-500 truncate">
                         {image.photographer && (
                           <span>by {image.photographer}</span>

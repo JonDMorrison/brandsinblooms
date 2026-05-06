@@ -60,6 +60,11 @@ export const useDashboardData = () => {
           )
         `)
         .in('status', ['draft', 'generated', 'approved', 'review', 'scheduled', 'published'])
+        // Soft-deleted (archived) tasks must not appear in any UI surface that
+        // reads from this hook. The Archive action on /publish sets
+        // deleted_at = now(); without this filter archived items would still
+        // render until the next page refresh + cache flush.
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       // Always filter by user ownership - never show other users' content

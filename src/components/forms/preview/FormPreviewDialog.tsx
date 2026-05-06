@@ -1,26 +1,24 @@
 import * as React from "react";
-import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import IconButton from "@mui/joy/IconButton";
+import Modal from "@mui/joy/Modal";
+import ModalDialog from "@mui/joy/ModalDialog";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
-import ToggleButtonGroup from "@mui/joy/ToggleButtonGroup";
+import Switch from "@mui/joy/Switch";
 import Typography from "@mui/joy/Typography";
 import {
   AlertTriangle,
+  ExternalLink,
   Monitor,
-  RefreshCw,
   Smartphone,
   Tablet,
+  X,
 } from "lucide-react";
-import { JoyButton } from "@/components/joy/JoyButton";
+import { toast } from "sonner";
 import { JoyChip } from "@/components/joy/JoyChip";
-import {
-  JoyDialog,
-  JoyDialogActions,
-  JoyDialogContent,
-} from "@/components/joy/JoyDialog";
+import { SUPABASE_URL } from "@/integrations/supabase/config";
 import { normalizeFormSettings } from "@/lib/forms/designSettings";
 import {
   DEFAULT_FORM_COMPLIANCE,
@@ -31,8 +29,6 @@ import {
 import { FormPreviewRenderer } from "./FormPreviewRenderer";
 
 type PreviewDevice = "desktop" | "tablet" | "phone";
-type PreviewBackground = "canvas" | "paper" | "ink";
-
 interface FormPreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -41,6 +37,8 @@ interface FormPreviewDialogProps {
   compliance: FormCompliance | null;
   formName: string;
   uploadEmbedKey?: string;
+  isPublished?: boolean;
+  publicUrl?: string;
 }
 
 const DEVICE_WIDTHS: Record<PreviewDevice, number> = {
@@ -59,37 +57,102 @@ const DEVICE_OPTIONS: Array<{
   { value: "phone", label: "Phone", icon: <Smartphone size={16} /> },
 ];
 
-const BACKGROUND_OPTIONS: Array<{
-  value: PreviewBackground;
-  label: string;
-}> = [
-  { value: "canvas", label: "Canvas" },
-  { value: "paper", label: "Paper" },
-  { value: "ink", label: "Ink" },
-];
+function buildPreviewSubmissionData(
+  fields: FormField[],
+  formData: Record<string, unknown>,
+) {
+  const fieldIds = new Set(fields.map((field) => field.id));
+  const nextData: Record<string, unknown> = {};
 
-function getBackgroundSx(background: PreviewBackground) {
-  switch (background) {
-    case "paper":
-      return {
-        backgroundColor: "#fffaf1",
-        backgroundImage:
-          "radial-gradient(circle at top, rgba(214, 197, 167, 0.16), transparent 54%)",
-      };
-    case "ink":
-      return {
-        backgroundColor: "#0f172a",
-        backgroundImage:
-          "radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 42%)",
-      };
-    case "canvas":
-    default:
-      return {
-        backgroundColor: "#f6f3ee",
-        backgroundImage:
-          "linear-gradient(135deg, rgba(15, 23, 42, 0.03), transparent 40%), radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 36%)",
-      };
+  fields.forEach((field) => {
+    const submissionKey = field.mapping_key || field.id;
+
+    if (
+      field.type === "hidden" &&
+      field.default_value !== undefined &&
+      field.default_value !== null &&
+      field.default_value !== ""
+    ) {
+      nextData[submissionKey] = field.default_value;
+      return;
+    }
+
+    if (formData[field.id] !== undefined) {
+      nextData[submissionKey] = formData[field.id];
+    }
+  });
+
+  Object.entries(formData).forEach(([key, value]) => {
+    if (fieldIds.has(key)) {
+      return;
+    }
+
+    nextData[key] = value;
+  });
+
+  return nextData;
+}
+
+function getPreviewSubmissionErrorMessage({
+  status,
+  payload,
+  retryAfter,
+}: {
+  status: number;
+  payload: unknown;
+  retryAfter: string | null;
+}) {
+  const errorPayload =
+    payload && typeof payload === "object"
+      ? (payload as { error?: string; details?: string[] })
+      : {};
+
+  if (status === 429) {
+    const seconds = Number.parseInt(retryAfter ?? "", 10);
+    const waitMessage =
+      Number.isFinite(seconds) && seconds > 0
+        ? ` Please wait about ${seconds} seconds and try again.`
+        : " Please wait a moment and try again.";
+
+    return `${errorPayload.error || "Too many attempts."}${waitMessage}`;
   }
+
+  if (
+    status === 400 &&
+    Array.isArray(errorPayload.details) &&
+    errorPayload.details.length > 0
+  ) {
+    return errorPayload.details[0];
+  }
+
+  if (status === 404) {
+    return "Publish the form before sending a test submission.";
+  }
+
+  if (status >= 500) {
+    return "Something went wrong. Please try again.";
+  }
+
+  return errorPayload.error || "Unable to send the test submission.";
+}
+
+function getPreviewFrameSx(device: PreviewDevice) {
+  if (device === "desktop") {
+    return {
+      width: "100%",
+    } as const;
+  }
+
+  return {
+    width: "100%",
+    maxWidth: DEVICE_WIDTHS[device],
+    marginInline: "auto",
+    borderRadius: device === "phone" ? "36px" : "28px",
+    padding: device === "phone" ? 1.25 : 1.5,
+    backgroundColor: "#0f172a",
+    border: "1px solid rgba(15, 23, 42, 0.14)",
+    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.16)",
+  } as const;
 }
 
 export function FormPreviewDialog({
@@ -100,10 +163,13 @@ export function FormPreviewDialog({
   compliance,
   formName,
   uploadEmbedKey,
+  isPublished = false,
+  publicUrl,
 }: FormPreviewDialogProps) {
   const [device, setDevice] = React.useState<PreviewDevice>("desktop");
-  const [background, setBackground] =
-    React.useState<PreviewBackground>("canvas");
+  const [isPreviewLoading, setIsPreviewLoading] = React.useState(false);
+  const [isTestSubmissionsEnabled, setIsTestSubmissionsEnabled] =
+    React.useState(false);
   const [resetSignal, setResetSignal] = React.useState(0);
 
   const resolvedSettings = React.useMemo(
@@ -133,98 +199,162 @@ export function FormPreviewDialog({
     return nextWarnings;
   }, [fields]);
 
-  return (
-    <JoyDialog
-      open={open}
-      onClose={() => onOpenChange(false)}
-      size="xl"
-      title={formName || "Form preview"}
-      description="Review the live form runtime across device sizes before publishing."
-      startDecorator={
-        <Avatar size="sm" variant="soft" color="primary">
-          <Monitor size={18} />
-        </Avatar>
+  React.useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    setIsTestSubmissionsEnabled(false);
+
+    const timeoutId = window.setTimeout(() => {
+      setIsPreviewLoading(false);
+    }, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [open, fields, settings, compliance]);
+
+  const handlePreviewSubmit = React.useCallback(
+    async (formData: Record<string, unknown>) => {
+      if (!isTestSubmissionsEnabled) {
+        toast.info("Preview mode — submission not sent");
+        return { preventSuccess: true };
       }
-      dialogSx={{ maxWidth: 1200, width: "calc(100vw - 1.5rem)" }}
-    >
-      <JoyDialogContent
-        sx={{ pt: 0, display: "flex", flexDirection: "column", gap: 2 }}
+
+      if (!isPublished || !uploadEmbedKey) {
+        toast.warning("Publish the form before sending a test submission.");
+        return { preventSuccess: true };
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/submit-form`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embed_key: uploadEmbedKey,
+          data: buildPreviewSubmissionData(fields, formData),
+          meta: {
+            is_test: true,
+            preview_mode: true,
+            page_url: window.location.href,
+            referrer: document.referrer || null,
+            user_agent: navigator.userAgent,
+          },
+        }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          getPreviewSubmissionErrorMessage({
+            status: response.status,
+            payload: result,
+            retryAfter: response.headers.get("Retry-After"),
+          }),
+        );
+      }
+
+      toast.success("Test submission sent");
+      return undefined;
+    },
+    [fields, isPublished, isTestSubmissionsEnabled, uploadEmbedKey],
+  );
+
+  return (
+    <Modal open={open} onClose={() => onOpenChange(false)}>
+      <ModalDialog
+        sx={{
+          width: "min(calc(100vw - 1.5rem), 1280px)",
+          maxWidth: device === "desktop" ? 1240 : 1040,
+          borderRadius: "var(--joy-radius-lg)",
+          p: 0,
+          overflow: "hidden",
+          bgcolor: "background.surface",
+        }}
       >
         <Stack
           direction={{ xs: "column", lg: "row" }}
-          spacing={1}
+          spacing={1.5}
           justifyContent="space-between"
           alignItems={{ xs: "stretch", lg: "center" }}
+          sx={{
+            px: 2.25,
+            py: 1.75,
+            borderBottom: "1px solid",
+            borderColor: "neutral.200",
+          }}
         >
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1} useFlexGap>
-            <ToggleButtonGroup
-              size="sm"
-              value={device}
-              onChange={(_event, value) => {
-                if (value) {
-                  setDevice(value);
-                }
-              }}
-              sx={{
-                borderRadius: "lg",
-                border: "1px solid",
-                borderColor: "neutral.200",
-                backgroundColor: "background.surface",
-              }}
-            >
-              {DEVICE_OPTIONS.map((option) => (
-                <Button
-                  key={option.value}
-                  value={option.value}
-                  variant={device === option.value ? "solid" : "plain"}
-                  color={device === option.value ? "primary" : "neutral"}
-                  startDecorator={option.icon}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </ToggleButtonGroup>
-
-            <ToggleButtonGroup
-              size="sm"
-              value={background}
-              onChange={(_event, value) => {
-                if (value) {
-                  setBackground(value);
-                }
-              }}
-              sx={{
-                borderRadius: "lg",
-                border: "1px solid",
-                borderColor: "neutral.200",
-                backgroundColor: "background.surface",
-              }}
-            >
-              {BACKGROUND_OPTIONS.map((option) => (
-                <Button
-                  key={option.value}
-                  value={option.value}
-                  variant={background === option.value ? "solid" : "plain"}
-                  color={background === option.value ? "primary" : "neutral"}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </ToggleButtonGroup>
+          <Stack spacing={0.35}>
+            <Typography level="title-md">
+              {formName || "Form preview"}
+            </Typography>
+            <Typography level="body-sm" color="neutral">
+              Review the hosted runtime across desktop, tablet, and mobile
+              widths before publishing.
+            </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+          >
             <JoyChip size="sm" variant="soft" color="neutral">
               {fields.length} fields
             </JoyChip>
-            <JoyButton
-              bloomVariant="ghost"
-              color="neutral"
-              startDecorator={<RefreshCw size={16} />}
-              onClick={() => setResetSignal((value) => value + 1)}
+
+            <Sheet
+              variant="outlined"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                p: 0.375,
+                borderRadius: 999,
+                bgcolor: "background.level1",
+                borderColor: "neutral.200",
+              }}
             >
-              Reset preview
-            </JoyButton>
+              {DEVICE_OPTIONS.map((option) => (
+                <IconButton
+                  key={option.value}
+                  size="sm"
+                  variant={device === option.value ? "soft" : "plain"}
+                  color={device === option.value ? "primary" : "neutral"}
+                  aria-label={option.label}
+                  onClick={() => setDevice(option.value)}
+                >
+                  {option.icon}
+                </IconButton>
+              ))}
+            </Sheet>
+
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              startDecorator={<ExternalLink size={15} />}
+              disabled={!isPublished || !publicUrl}
+              onClick={() => {
+                if (publicUrl) {
+                  window.open(publicUrl, "_blank", "noopener,noreferrer");
+                }
+              }}
+            >
+              Open public URL
+            </Button>
+
+            <IconButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              aria-label="Close preview"
+              onClick={() => onOpenChange(false)}
+            >
+              <X size={16} />
+            </IconButton>
           </Stack>
         </Stack>
 
@@ -232,7 +362,7 @@ export function FormPreviewDialog({
           <Sheet
             variant="soft"
             color="warning"
-            sx={{ borderRadius: "lg", p: 2 }}
+            sx={{ borderRadius: 0, px: 2.25, py: 1.5 }}
           >
             <Stack spacing={1}>
               {warnings.map((warning) => (
@@ -250,45 +380,82 @@ export function FormPreviewDialog({
           </Sheet>
         ) : null}
 
-        <Sheet
-          variant="plain"
-          sx={{
-            ...getBackgroundSx(background),
-            borderRadius: "xl",
-            minHeight: 560,
-            px: { xs: 1.5, md: 3 },
-            py: { xs: 2, md: 3 },
-            overflow: "auto",
-          }}
-        >
-          <Box
+        <Box sx={{ px: { xs: 1.5, md: 2.5 }, py: { xs: 2, md: 2.5 } }}>
+          <Sheet
+            variant="plain"
             sx={{
-              width: "100%",
-              minWidth: previewWidth,
-              maxWidth: previewWidth,
-              marginInline: "auto",
-              transition: "max-width 180ms ease, min-width 180ms ease",
+              minHeight: 560,
+              px: { xs: 1.25, md: 2.5 },
+              py: { xs: 2, md: 3 },
+              overflow: "auto",
+              borderRadius: "28px",
+              border: "1px solid",
+              borderColor: "neutral.200",
+              bgcolor: "background.level1",
+              backgroundImage:
+                "radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.06) 1px, transparent 0), linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.01))",
+              backgroundSize: "18px 18px, 100% 100%",
             }}
           >
-            <FormPreviewRenderer
-              key={resetSignal}
-              fields={fields}
-              settings={resolvedSettings}
-              compliance={resolvedCompliance}
-              uploadEmbedKey={uploadEmbedKey}
-            />
-          </Box>
-        </Sheet>
-      </JoyDialogContent>
-      <JoyDialogActions>
-        <JoyButton
-          bloomVariant="ghost"
-          color="neutral"
-          onClick={() => onOpenChange(false)}
+            <Box
+              sx={{
+                width: "100%",
+                maxWidth: DEVICE_WIDTHS[device],
+                marginInline: "auto",
+                transition: "max-width 180ms ease",
+              }}
+            >
+              <Box sx={getPreviewFrameSx(device)}>
+                <FormPreviewRenderer
+                  key={resetSignal}
+                  fields={fields}
+                  settings={resolvedSettings}
+                  compliance={resolvedCompliance}
+                  uploadEmbedKey={uploadEmbedKey}
+                  isLoading={isPreviewLoading}
+                  onSubmit={handlePreviewSubmit}
+                  resetSignal={resetSignal}
+                />
+              </Box>
+            </Box>
+          </Sheet>
+        </Box>
+
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+          sx={{
+            px: 2.25,
+            py: 1.75,
+            borderTop: "1px solid",
+            borderColor: "neutral.200",
+          }}
         >
-          Close
-        </JoyButton>
-      </JoyDialogActions>
-    </JoyDialog>
+          <Stack spacing={0.35}>
+            <Typography level="body-xs" color="neutral">
+              This is a preview — submissions are not saved.
+            </Typography>
+            {!isPublished ? (
+              <Typography level="body-xs" color="neutral">
+                Publish the form to route test submissions through the hosted
+                endpoint.
+              </Typography>
+            ) : null}
+          </Stack>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography level="body-sm">Enable test submissions</Typography>
+            <Switch
+              checked={isTestSubmissionsEnabled}
+              onChange={(event) =>
+                setIsTestSubmissionsEnabled(event.target.checked)
+              }
+            />
+          </Stack>
+        </Stack>
+      </ModalDialog>
+    </Modal>
   );
 }

@@ -11,6 +11,7 @@ export interface CRMTag {
 
 export const useCRMTags = () => {
   const [tags, setTags] = useState<CRMTag[]>([]);
+  const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -18,10 +19,12 @@ export const useCRMTags = () => {
   const fetchTags = useCallback(async () => {
     if (!user || !tenant) {
       setTags([]);
+      setError(null);
       return;
     }
 
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from("crm_tags")
@@ -38,7 +41,11 @@ export const useCRMTags = () => {
         })),
       );
     } catch (error) {
-      console.error("Error fetching tags:", error);
+      const resolvedError =
+        error instanceof Error ? error : new Error("Failed to load tags");
+
+      console.error("Error fetching tags:", resolvedError);
+      setError(resolvedError);
       toast.error("Failed to load tags");
     } finally {
       setLoading(false);
@@ -52,6 +59,7 @@ export const useCRMTags = () => {
   return {
     tags,
     loading,
+    error,
     fetchTags,
   };
 };

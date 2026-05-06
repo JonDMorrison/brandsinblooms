@@ -1,7 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { extractLinks, getUniqueUrls, hasPII } from "../_shared/linkRewriter.ts";
-import { type CompanyProfileData } from "../_shared/footerGenerator.ts";
+import {
+  extractLinks,
+  getUniqueUrls,
+  hasPII,
+} from "../_shared/linkRewriter.ts";
 import {
   serializeSupabaseError,
   isUuidLike,
@@ -12,18 +15,26 @@ import {
   persistCampaignHygieneReport,
 } from "../_shared/listHygieneAnalyzer.ts";
 import { getEmailGovernanceRuntimeConfig } from "../_shared/emailGovernanceConfig.ts";
+import {
+  renderEmailForRecipient,
+  type CompanyProfileShape,
+  type CustomerShape,
+} from "../_shared/emailRenderer.ts";
+import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, traceparent, tracestate',
-}
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, traceparent, tracestate",
+};
 
 const DEFAULT_BATCH_SIZE_PER_JOB = 50;
 
 type CampaignReputationPolicy = {
   score: number;
-  tier: 'normal' | 'throttled' | 'restricted' | 'critical';
-  action: 'allow' | 'throttle' | 'restrict' | 'pause';
+  tier: "normal" | "throttled" | "restricted" | "critical";
+  action: "allow" | "throttle" | "restrict" | "pause";
   recipient_cap: number | null;
   job_batch_size: number | null;
   send_pacing_multiplier: number | null;
@@ -31,14 +42,16 @@ type CampaignReputationPolicy = {
 
 type TenantSuppressionBypassState = {
   suppression_bypass_active: boolean;
-  suppression_bypass_automation_mode: 'campaign_only' | 'campaign_and_automation';
+  suppression_bypass_automation_mode:
+    | "campaign_only"
+    | "campaign_and_automation";
 };
 
 type CampaignInterventionState = {
   admin_paused: boolean;
   force_stopped: boolean;
   autopause_override_enabled: boolean;
-  autopause_override_precedence: 'final_override' | 'automation_allowed';
+  autopause_override_precedence: "final_override" | "automation_allowed";
   autopause_override_final: boolean;
 };
 
@@ -46,23 +59,31 @@ async function getTenantSuppressionBypassState(
   supabase: any,
   tenantId: string,
 ): Promise<TenantSuppressionBypassState> {
-  const { data, error } = await supabase.rpc('get_tenant_suppression_bypass_state', {
-    p_tenant_id: tenantId,
-  });
+  const { data, error } = await supabase.rpc(
+    "get_tenant_suppression_bypass_state",
+    {
+      p_tenant_id: tenantId,
+    },
+  );
 
   if (error) {
-    console.warn('⚠️ Failed to fetch tenant suppression bypass state, defaulting to disabled:', error.message);
+    console.warn(
+      "⚠️ Failed to fetch tenant suppression bypass state, defaulting to disabled:",
+      error.message,
+    );
     return {
       suppression_bypass_active: false,
-      suppression_bypass_automation_mode: 'campaign_only',
+      suppression_bypass_automation_mode: "campaign_only",
     };
   }
 
   const row = Array.isArray(data) ? data[0] : data;
-  const mode = String(row?.suppression_bypass_automation_mode || 'campaign_only')
-    .toLowerCase() === 'campaign_and_automation'
-    ? 'campaign_and_automation'
-    : 'campaign_only';
+  const mode =
+    String(
+      row?.suppression_bypass_automation_mode || "campaign_only",
+    ).toLowerCase() === "campaign_and_automation"
+      ? "campaign_and_automation"
+      : "campaign_only";
 
   return {
     suppression_bypass_active: Boolean(row?.suppression_bypass_active),
@@ -74,25 +95,34 @@ async function getCampaignInterventionState(
   supabase: any,
   campaignId: string,
 ): Promise<CampaignInterventionState> {
-  const { data, error } = await supabase.rpc('get_campaign_intervention_state', {
-    p_campaign_id: campaignId,
-  });
+  const { data, error } = await supabase.rpc(
+    "get_campaign_intervention_state",
+    {
+      p_campaign_id: campaignId,
+    },
+  );
 
   if (error) {
-    console.warn('⚠️ Failed to fetch campaign intervention state, defaulting to no override:', error.message);
+    console.warn(
+      "⚠️ Failed to fetch campaign intervention state, defaulting to no override:",
+      error.message,
+    );
     return {
       admin_paused: false,
       force_stopped: false,
       autopause_override_enabled: false,
-      autopause_override_precedence: 'automation_allowed',
+      autopause_override_precedence: "automation_allowed",
       autopause_override_final: false,
     };
   }
 
   const row = Array.isArray(data) ? data[0] : data;
-  const precedence = String(row?.autopause_override_precedence || 'automation_allowed').toLowerCase() === 'final_override'
-    ? 'final_override'
-    : 'automation_allowed';
+  const precedence =
+    String(
+      row?.autopause_override_precedence || "automation_allowed",
+    ).toLowerCase() === "final_override"
+      ? "final_override"
+      : "automation_allowed";
 
   return {
     admin_paused: Boolean(row?.admin_paused),
@@ -103,29 +133,39 @@ async function getCampaignInterventionState(
   };
 }
 
-async function getCampaignReputationPolicy(supabase: any, campaignId: string): Promise<CampaignReputationPolicy> {
-  const { data, error } = await supabase.rpc('get_campaign_reputation_policy', {
+async function getCampaignReputationPolicy(
+  supabase: any,
+  campaignId: string,
+): Promise<CampaignReputationPolicy> {
+  const { data, error } = await supabase.rpc("get_campaign_reputation_policy", {
     p_campaign_id: campaignId,
   });
 
   if (error) {
     // FIX: [GH1] - Fail closed: reputation policy RPC failure must stop the campaign, not allow it
     // Security decision: a DB error during governance checks should halt sending, not bypass governance
-    throw new Error(`Reputation policy check failed: ${error.message}. Campaign halted for safety.`);
+    throw new Error(
+      `Reputation policy check failed: ${error.message}. Campaign halted for safety.`,
+    );
   }
 
   const row = Array.isArray(data) ? data[0] : data;
   const rawRecipientCap = Number(row?.recipient_cap);
-  const normalizedRecipientCap = Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
-    ? rawRecipientCap
-    : null;
+  const normalizedRecipientCap =
+    Number.isFinite(rawRecipientCap) && rawRecipientCap > 0
+      ? rawRecipientCap
+      : null;
   return {
     score: Number(row?.score ?? 100),
-    tier: (row?.tier || 'normal') as CampaignReputationPolicy['tier'],
-    action: (row?.action || 'allow') as CampaignReputationPolicy['action'],
+    tier: (row?.tier || "normal") as CampaignReputationPolicy["tier"],
+    action: (row?.action || "allow") as CampaignReputationPolicy["action"],
     recipient_cap: normalizedRecipientCap,
-    job_batch_size: Number.isFinite(Number(row?.job_batch_size)) ? Number(row.job_batch_size) : DEFAULT_BATCH_SIZE_PER_JOB,
-    send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier)) ? Number(row.send_pacing_multiplier) : 1,
+    job_batch_size: Number.isFinite(Number(row?.job_batch_size))
+      ? Number(row.job_batch_size)
+      : DEFAULT_BATCH_SIZE_PER_JOB,
+    send_pacing_multiplier: Number.isFinite(Number(row?.send_pacing_multiplier))
+      ? Number(row.send_pacing_multiplier)
+      : 1,
   };
 }
 
@@ -144,7 +184,10 @@ function getAdaptiveBatchSizePerJob(
     adaptiveBatchSize = 100;
   }
 
-  return Math.max(1, Math.min(adaptiveBatchSize, policyBatchSize, maxBatchSizePerJob));
+  return Math.max(
+    1,
+    Math.min(adaptiveBatchSize, policyBatchSize, maxBatchSizePerJob),
+  );
 }
 
 function getInitialMessageInsertChunkSize(totalRecipients: number): number {
@@ -171,13 +214,21 @@ function getQueueAvailabilityPlan(params: {
     1,
     Math.round((params.batchDelayMinSeconds + params.batchDelayMaxSeconds) / 2),
   );
-  const configuredEmailsPerMinute = Math.floor((60 / configuredDelaySeconds) * params.batchSizePerJob);
+  const configuredEmailsPerMinute = Math.floor(
+    (60 / configuredDelaySeconds) * params.batchSizePerJob,
+  );
   const scaledHeadroomPerMinute = Math.max(
     params.batchSizePerJob * 2,
     Math.floor(1500 / Math.max(1, params.sendPacingMultiplier)),
   );
-  const estimatedEmailsPerMinute = Math.max(configuredEmailsPerMinute, scaledHeadroomPerMinute);
-  const jobsPerMinute = Math.max(2, Math.floor(estimatedEmailsPerMinute / Math.max(1, params.batchSizePerJob)));
+  const estimatedEmailsPerMinute = Math.max(
+    configuredEmailsPerMinute,
+    scaledHeadroomPerMinute,
+  );
+  const jobsPerMinute = Math.max(
+    2,
+    Math.floor(estimatedEmailsPerMinute / Math.max(1, params.batchSizePerJob)),
+  );
   const immediateJobCount = Math.min(6, params.totalBatches, jobsPerMinute);
 
   return {
@@ -188,51 +239,67 @@ function getQueueAvailabilityPlan(params: {
 }
 
 function stripHtml(input: string): string {
-  return String(input || '')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
+  return String(input || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-function computeHeuristicSpamScore(subject: string, htmlContent: string): { score: number; issues: string[] } {
+function computeHeuristicSpamScore(
+  subject: string,
+  htmlContent: string,
+): { score: number; issues: string[] } {
   const issues: string[] = [];
   const text = stripHtml(htmlContent);
-  const normalizedSubject = String(subject || '').trim();
+  const normalizedSubject = String(subject || "").trim();
 
   let score = 0;
 
   if (!normalizedSubject) {
     score += 3;
-    issues.push('Missing subject line');
+    issues.push("Missing subject line");
   }
 
   if (!text) {
     score += 3;
-    issues.push('Missing email body content');
+    issues.push("Missing email body content");
   }
 
-  const spamWords = ['FREE', 'URGENT', 'ACT NOW', 'LIMITED TIME', 'CLICK HERE', 'BUY NOW'];
+  const spamWords = [
+    "FREE",
+    "URGENT",
+    "ACT NOW",
+    "LIMITED TIME",
+    "CLICK HERE",
+    "BUY NOW",
+  ];
   const subjectUpper = normalizedSubject.toUpperCase();
-  const foundSpamWords = spamWords.filter((word) => subjectUpper.includes(word));
+  const foundSpamWords = spamWords.filter((word) =>
+    subjectUpper.includes(word),
+  );
   if (foundSpamWords.length > 0) {
     score += Math.min(4, foundSpamWords.length * 1.2);
-    issues.push(`Spam-trigger words in subject: ${foundSpamWords.join(', ')}`);
+    issues.push(`Spam-trigger words in subject: ${foundSpamWords.join(", ")}`);
   }
 
   if ((normalizedSubject.match(/[!?]{2,}/g) || []).length > 0) {
     score += 1.5;
-    issues.push('Excessive punctuation in subject');
+    issues.push("Excessive punctuation in subject");
   }
 
-  if (normalizedSubject.length > 10 && normalizedSubject === normalizedSubject.toUpperCase()) {
+  if (
+    normalizedSubject.length > 10 &&
+    normalizedSubject === normalizedSubject.toUpperCase()
+  ) {
     score += 2;
-    issues.push('Subject appears to be ALL CAPS');
+    issues.push("Subject appears to be ALL CAPS");
   }
 
-  const imageCount = (String(htmlContent || '').match(/<img\b/gi) || []).length;
-  const linkCount = (String(htmlContent || '').match(/<a\s+href/gi) || []).length;
+  const imageCount = (String(htmlContent || "").match(/<img\b/gi) || []).length;
+  const linkCount = (String(htmlContent || "").match(/<a\s+href/gi) || [])
+    .length;
   if (linkCount > 10) {
     score += linkCount > 20 ? 2 : 1;
     issues.push(`High link density (${linkCount} links)`);
@@ -242,7 +309,7 @@ function computeHeuristicSpamScore(subject: string, htmlContent: string): { scor
     const textToImageRatio = text.length / imageCount;
     if (textToImageRatio < 100) {
       score += 1.5;
-      issues.push('Low text-to-image ratio');
+      issues.push("Low text-to-image ratio");
     }
   }
 
@@ -253,18 +320,22 @@ function computeHeuristicSpamScore(subject: string, htmlContent: string): { scor
 }
 
 function hasPhysicalAddress(companyProfile: any): boolean {
-  const hasStreetLike = Boolean(String(companyProfile?.street_address || companyProfile?.location_info || '').trim());
+  const hasStreetLike = Boolean(
+    String(
+      companyProfile?.street_address || companyProfile?.location_info || "",
+    ).trim(),
+  );
   const hasLocality = Boolean(
-    String(companyProfile?.city || '').trim() ||
-    String(companyProfile?.state_province || '').trim() ||
-    String(companyProfile?.postal_code || '').trim() ||
-    String(companyProfile?.country || '').trim()
+    String(companyProfile?.city || "").trim() ||
+    String(companyProfile?.state_province || "").trim() ||
+    String(companyProfile?.postal_code || "").trim() ||
+    String(companyProfile?.country || "").trim(),
   );
   return hasStreetLike && hasLocality;
 }
 
 function isFromNameValid(fromName: string): boolean {
-  const normalized = String(fromName || '').trim();
+  const normalized = String(fromName || "").trim();
   if (normalized.length < 2) return false;
   if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) return false;
   if (/^(no\s?-?reply|noreply|test|admin)$/i.test(normalized)) return false;
@@ -272,7 +343,7 @@ function isFromNameValid(fromName: string): boolean {
 }
 
 serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -281,22 +352,28 @@ serve(async (req: Request) => {
 
     if (!campaignId) {
       return new Response(
-        JSON.stringify({ error: 'Campaign ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Campaign ID is required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log(`📧 Send campaign request: campaignId=${campaignId}, includeSuppressed=${includeSuppressed}`);
+    console.log(
+      `📧 Send campaign request: campaignId=${campaignId}, includeSuppressed=${includeSuppressed}`,
+    );
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const requesterJwt = (() => {
-      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+      const authHeader =
+        req.headers.get("authorization") || req.headers.get("Authorization");
       if (!authHeader) return null;
       const trimmed = authHeader.trim();
-      if (!trimmed.toLowerCase().startsWith('bearer ')) return null;
+      if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
       return trimmed.slice(7).trim() || null;
     })();
 
@@ -318,24 +395,30 @@ serve(async (req: Request) => {
     }) => {
       const { campaignId, blockReason, errorMessage } = params;
 
-      const { error: pauseError } = await supabase.rpc('system_pause_email_campaign_sending', {
-        p_campaign_id: campaignId,
-        p_block_reason: blockReason,
-        p_error_message: errorMessage,
-      });
+      const { error: pauseError } = await supabase.rpc(
+        "system_pause_email_campaign_sending",
+        {
+          p_campaign_id: campaignId,
+          p_block_reason: blockReason,
+          p_error_message: errorMessage,
+        },
+      );
 
       if (!pauseError) return;
 
-      console.error('❌ Failed to pause campaign via RPC; falling back to direct update:', {
-        campaignId,
-        blockReason,
-        err: serializeSupabaseError(pauseError),
-      });
+      console.error(
+        "❌ Failed to pause campaign via RPC; falling back to direct update:",
+        {
+          campaignId,
+          blockReason,
+          err: serializeSupabaseError(pauseError),
+        },
+      );
 
       const { error: directUpdateError } = await supabase
-        .from('crm_campaigns')
+        .from("crm_campaigns")
         .update({
-          status: 'paused',
+          status: "paused",
           send_blocked_reason: blockReason,
           send_error: errorMessage,
           sending_started_at: null,
@@ -343,10 +426,10 @@ serve(async (req: Request) => {
           claim_token: null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', campaignId);
+        .eq("id", campaignId);
 
       if (directUpdateError) {
-        console.error('❌ Failed to pause campaign via direct update:', {
+        console.error("❌ Failed to pause campaign via direct update:", {
           campaignId,
           err: serializeSupabaseError(directUpdateError),
         });
@@ -357,98 +440,112 @@ serve(async (req: Request) => {
       const nowIso = new Date().toISOString();
 
       const { error: jobsPauseError } = await supabase
-        .from('email_send_jobs')
+        .from("email_send_jobs")
         .update({
-          status: 'paused',
+          status: "paused",
           error_message: null,
           claim_token: null,
           claimed_at: null,
           claimed_by: null,
           updated_at: nowIso,
         })
-        .eq('campaign_id', campaignId)
-        .in('status', ['pending', 'in_progress']);
+        .eq("campaign_id", campaignId)
+        .in("status", ["pending", "in_progress"]);
 
       if (jobsPauseError) {
-        console.error('❌ Failed to pause send jobs via direct update:', {
+        console.error("❌ Failed to pause send jobs via direct update:", {
           campaignId,
           err: serializeSupabaseError(jobsPauseError),
         });
       }
 
       const { error: messagesPauseError } = await supabase
-        .from('email_messages')
+        .from("email_messages")
         .update({
-          status: 'paused',
+          status: "paused",
           error_message: null,
           claim_token: null,
           claimed_at: null,
           claimed_by: null,
           updated_at: nowIso,
         })
-        .eq('campaign_id', campaignId)
-        .is('resend_id', null)
-        .in('status', ['queued', 'sending']);
+        .eq("campaign_id", campaignId)
+        .is("resend_id", null)
+        .in("status", ["queued", "sending"]);
 
       if (messagesPauseError) {
-        console.error('❌ Failed to pause messages via direct update:', {
+        console.error("❌ Failed to pause messages via direct update:", {
           campaignId,
           err: serializeSupabaseError(messagesPauseError),
         });
       }
     };
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
-      console.error('Missing Resend API key');
+      console.error("Missing Resend API key");
       return new Response(
-        JSON.stringify({ error: 'Email service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Email service not configured" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     console.log(`📧 Starting email campaign send for campaign: ${campaignId}`);
 
     // Idempotent gate
-    const { data: gate, error: gateError } = await supabase.rpc('ensure_campaign_sending', {
-      p_campaign_id: campaignId,
-    });
+    const { data: gate, error: gateError } = await supabase.rpc(
+      "ensure_campaign_sending",
+      {
+        p_campaign_id: campaignId,
+      },
+    );
 
     if (gateError) {
-      console.error('❌ Failed to gate campaign send:', gateError);
+      console.error("❌ Failed to gate campaign send:", gateError);
       return new Response(
-        JSON.stringify({ error: 'Failed to start campaign send' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to start campaign send" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const gateRow = Array.isArray(gate) ? gate[0] : gate;
     if (!gateRow?.success) {
       return new Response(
-        JSON.stringify({ error: gateRow?.error_message || 'Campaign cannot be sent' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: gateRow?.error_message || "Campaign cannot be sent",
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabase
-      .from('crm_campaigns')
+      .from("crm_campaigns")
       .select(`*, crm_segments (id, name)`)
-      .eq('id', campaignId)
+      .eq("id", campaignId)
       .single();
 
     if (campaignError || !campaign) {
-      console.error('Campaign not found:', campaignError);
-      return new Response(
-        JSON.stringify({ error: 'Campaign not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("Campaign not found:", campaignError);
+      return new Response(JSON.stringify({ error: "Campaign not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const requesterUserId = await getRequesterUserId();
 
     const logCampaignGovernanceDecision = async (params: {
-      decision: 'allow' | 'block' | 'warn' | 'log';
+      decision: "allow" | "block" | "warn" | "log";
       actionType: string;
       reason?: string;
       policyName?: string;
@@ -457,93 +554,118 @@ serve(async (req: Request) => {
       metadata?: Record<string, unknown>;
     }) => {
       try {
-        await supabase
-          .from('email_governance_audit_logs')
-          .insert({
-            tenant_id: campaign.tenant_id,
-            actor_type: requesterUserId ? 'user' : 'system',
-            actor_id: requesterUserId,
-            action_type: params.actionType,
-            decision: params.decision,
-            reason: params.reason || null,
-            policy_name: params.policyName || null,
-            policy_version: params.policyVersion || null,
-            campaign_id: campaignId,
-            domain_id: typeof params.domainId === 'string' ? params.domainId : (campaign.from_email_domain_id || null),
-            metadata: params.metadata || {},
-            occurred_at: new Date().toISOString(),
-          });
+        await supabase.from("email_governance_audit_logs").insert({
+          tenant_id: campaign.tenant_id,
+          actor_type: requesterUserId ? "user" : "system",
+          actor_id: requesterUserId,
+          action_type: params.actionType,
+          decision: params.decision,
+          reason: params.reason || null,
+          policy_name: params.policyName || null,
+          policy_version: params.policyVersion || null,
+          campaign_id: campaignId,
+          domain_id:
+            typeof params.domainId === "string"
+              ? params.domainId
+              : campaign.from_email_domain_id || null,
+          metadata: params.metadata || {},
+          occurred_at: new Date().toISOString(),
+        });
       } catch (error) {
-        console.warn('⚠️ Failed to write governance audit log (non-fatal):', error);
+        console.warn(
+          "⚠️ Failed to write governance audit log (non-fatal):",
+          error,
+        );
       }
     };
 
-    const governanceConfig = await getEmailGovernanceRuntimeConfig(supabase, campaign.tenant_id);
-    const campaignIntervention = await getCampaignInterventionState(supabase, campaignId);
+    const governanceConfig = await getEmailGovernanceRuntimeConfig(
+      supabase,
+      campaign.tenant_id,
+    );
+    const campaignIntervention = await getCampaignInterventionState(
+      supabase,
+      campaignId,
+    );
 
-    if (campaignIntervention.force_stopped || campaignIntervention.admin_paused) {
+    if (
+      campaignIntervention.force_stopped ||
+      campaignIntervention.admin_paused
+    ) {
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: campaignIntervention.force_stopped ? 'force_stopped' : 'admin_paused',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: campaignIntervention.force_stopped
+          ? "force_stopped"
+          : "admin_paused",
         metadata: {
           force_stopped: campaignIntervention.force_stopped,
           admin_paused: campaignIntervention.admin_paused,
         },
       });
-      return new Response(
-        JSON.stringify({ error: 'Campaign is paused.' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: "Campaign is paused." }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const reputationPolicy = await getCampaignReputationPolicy(supabase, campaignId);
-    if (reputationPolicy.action === 'pause' && !campaignIntervention.autopause_override_final) {
+    const reputationPolicy = await getCampaignReputationPolicy(
+      supabase,
+      campaignId,
+    );
+    if (
+      reputationPolicy.action === "pause" &&
+      !campaignIntervention.autopause_override_final
+    ) {
       const pauseMessage = `Campaign auto-paused: tenant reputation score ${reputationPolicy.score} is below 60.`;
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'reputation_critical_autopause',
+        blockReason: "reputation_critical_autopause",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'reputation_critical_autopause',
-        policyName: 'campaign_reputation_policy',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "reputation_critical_autopause",
+        policyName: "campaign_reputation_policy",
         metadata: {
           message: pauseMessage,
           reputation: reputationPolicy,
-          autopause_override_final: campaignIntervention.autopause_override_final,
+          autopause_override_final:
+            campaignIntervention.autopause_override_final,
         },
       });
 
       return new Response(
         JSON.stringify({
           error: pauseMessage,
-          reason: 'reputation_critical_autopause',
+          reason: "reputation_critical_autopause",
           reputation: reputationPolicy,
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    if (reputationPolicy.action === 'restrict') {
+    if (reputationPolicy.action === "restrict") {
       const blockMessage = `Campaign blocked: tenant reputation score ${reputationPolicy.score} is in restricted tier (60-74).`;
       await supabase
-        .from('crm_campaigns')
+        .from("crm_campaigns")
         .update({
-          send_blocked_reason: 'reputation_restricted',
+          send_blocked_reason: "reputation_restricted",
           send_error: blockMessage,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', campaignId);
+        .eq("id", campaignId);
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'reputation_restricted',
-        policyName: 'campaign_reputation_policy',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "reputation_restricted",
+        policyName: "campaign_reputation_policy",
         metadata: {
           message: blockMessage,
           reputation: reputationPolicy,
@@ -555,27 +677,25 @@ serve(async (req: Request) => {
           error: blockMessage,
           reputation: reputationPolicy,
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const maxBatchSizePerJob = governanceConfig.batch.max_batch_size;
     const batchDelayMinSeconds = governanceConfig.batch.delay_min_seconds;
     const batchDelayMaxSeconds = governanceConfig.batch.delay_max_seconds;
-    const highVolumeThreshold = governanceConfig.compliance.high_volume_threshold;
+    const highVolumeThreshold =
+      governanceConfig.compliance.high_volume_threshold;
     const spamScoreThreshold = governanceConfig.compliance.spam_score_threshold;
 
     // Get company profile
     const { data: companyProfile } = await supabase
-      .from('company_profiles')
-      .select(`
-        email_auth_status, custom_sender_email, company_name, location_info,
-        street_address, city, state_province, postal_code, country,
-        website_url, company_email, company_phone,
-        facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
-        footer_legal_text, brand_primary_color, brand_text_color, feature_flags
-      `)
-      .eq('user_id', campaign.user_id)
+      .from("company_profiles")
+      .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
+      .eq("user_id", campaign.user_id)
       .single();
 
     // Get customers based on targeting (segments + personas)
@@ -586,16 +706,23 @@ serve(async (req: Request) => {
     if (campaign.segment_id) segmentIds.push(campaign.segment_id);
 
     if (segmentIds.length === 0) {
-      const { data: campaignSegments, error: campaignSegmentsError } = await supabase
-        .from('campaign_segments')
-        .select('segment_id')
-        .eq('campaign_id', campaignId);
+      const { data: campaignSegments, error: campaignSegmentsError } =
+        await supabase
+          .from("campaign_segments")
+          .select("segment_id")
+          .eq("campaign_id", campaignId);
 
       if (campaignSegmentsError) {
-        console.error('Error fetching campaign_segments:', campaignSegmentsError);
+        console.error(
+          "Error fetching campaign_segments:",
+          campaignSegmentsError,
+        );
         return new Response(
-          JSON.stringify({ error: 'Failed to fetch campaign segments' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: "Failed to fetch campaign segments" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       }
 
@@ -608,20 +735,24 @@ serve(async (req: Request) => {
     const personaIds = new Set<string>();
     if (Array.isArray(campaign.persona_ids)) {
       for (const pid of campaign.persona_ids) {
-        if (typeof pid === 'string' && pid.trim()) personaIds.add(pid.trim());
+        if (typeof pid === "string" && pid.trim()) personaIds.add(pid.trim());
       }
     }
 
-    const { data: campaignPersonas, error: campaignPersonasError } = await supabase
-      .from('campaign_personas')
-      .select('persona_id')
-      .eq('campaign_id', campaignId);
+    const { data: campaignPersonas, error: campaignPersonasError } =
+      await supabase
+        .from("campaign_personas")
+        .select("persona_id")
+        .eq("campaign_id", campaignId);
 
     if (campaignPersonasError) {
-      console.error('Error fetching campaign_personas:', campaignPersonasError);
+      console.error("Error fetching campaign_personas:", campaignPersonasError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch campaign personas' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to fetch campaign personas" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -633,7 +764,9 @@ serve(async (req: Request) => {
     const personaUuidIds = personaIdList.filter(isUuidLike);
     const personaPredefinedIds = personaIdList.filter((x) => !isUuidLike(x));
 
-    console.log(`📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}`);
+    console.log(
+      `📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}`,
+    );
 
     // 3) Resolve customer IDs
     let allowedCustomerIds: string[] | null = null;
@@ -644,21 +777,24 @@ serve(async (req: Request) => {
       for (let from = 0; ; from += PAGE_SIZE) {
         const to = from + PAGE_SIZE - 1;
         const { data: segmentCustomers, error: segErr } = await supabase
-          .from('customer_segments')
-          .select('customer_id')
-          .in('segment_id', segmentIds)
+          .from("customer_segments")
+          .select("customer_id")
+          .in("segment_id", segmentIds)
           .range(from, to);
 
         if (segErr) {
-          console.error('Error fetching customer_segments:', segErr);
+          console.error("Error fetching customer_segments:", segErr);
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch segment audience' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: "Failed to fetch segment audience" }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
           );
         }
 
         (segmentCustomers || []).forEach((r: any) => {
-          if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+          if (typeof r?.customer_id === "string" && isUuidLike(r.customer_id)) {
             segmentCustomerIds.add(r.customer_id);
           }
         });
@@ -680,21 +816,30 @@ serve(async (req: Request) => {
         for (let from = 0; ; from += PAGE_SIZE) {
           const to = from + PAGE_SIZE - 1;
           const { data: cpRows, error: cpErr } = await supabase
-            .from('customer_personas')
-            .select('customer_id')
-            .in('persona_id', personaUuidIds)
+            .from("customer_personas")
+            .select("customer_id")
+            .in("persona_id", personaUuidIds)
             .range(from, to);
 
           if (cpErr) {
-            console.error('Error fetching customer_personas by persona_id:', cpErr);
+            console.error(
+              "Error fetching customer_personas by persona_id:",
+              cpErr,
+            );
             return new Response(
-              JSON.stringify({ error: 'Failed to fetch persona audience' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ error: "Failed to fetch persona audience" }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
             );
           }
 
           (cpRows || []).forEach((r: any) => {
-            if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+            if (
+              typeof r?.customer_id === "string" &&
+              isUuidLike(r.customer_id)
+            ) {
               personaCustomerIds.add(r.customer_id);
             }
           });
@@ -704,26 +849,38 @@ serve(async (req: Request) => {
 
         for (let from = 0; ; from += PAGE_SIZE) {
           const to = from + PAGE_SIZE - 1;
-          const { data: directPersonaCustomers, error: directErr } = await supabase
-            .from('crm_customers')
-            .select('id')
-            .eq('tenant_id', campaign.tenant_id)
-            .in('persona_id', personaUuidIds)
-            .range(from, to);
+          const { data: directPersonaCustomers, error: directErr } =
+            await supabase
+              .from("crm_customers")
+              .select("id")
+              .eq("tenant_id", campaign.tenant_id)
+              .in("persona_id", personaUuidIds)
+              .range(from, to);
 
           if (directErr) {
-            console.error('Error fetching crm_customers by persona_id:', directErr);
+            console.error(
+              "Error fetching crm_customers by persona_id:",
+              directErr,
+            );
             return new Response(
-              JSON.stringify({ error: 'Failed to fetch persona audience' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ error: "Failed to fetch persona audience" }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
             );
           }
 
           (directPersonaCustomers || []).forEach((r: any) => {
-            if (typeof r?.id === 'string' && isUuidLike(r.id)) personaCustomerIds.add(r.id);
+            if (typeof r?.id === "string" && isUuidLike(r.id))
+              personaCustomerIds.add(r.id);
           });
 
-          if (!directPersonaCustomers || directPersonaCustomers.length < PAGE_SIZE) break;
+          if (
+            !directPersonaCustomers ||
+            directPersonaCustomers.length < PAGE_SIZE
+          )
+            break;
         }
       }
 
@@ -732,21 +889,30 @@ serve(async (req: Request) => {
         for (let from = 0; ; from += PAGE_SIZE) {
           const to = from + PAGE_SIZE - 1;
           const { data: cpRows, error: cpErr } = await supabase
-            .from('customer_personas')
-            .select('customer_id')
-            .in('predefined_persona_id', personaPredefinedIds)
+            .from("customer_personas")
+            .select("customer_id")
+            .in("predefined_persona_id", personaPredefinedIds)
             .range(from, to);
 
           if (cpErr) {
-            console.error('Error fetching customer_personas by predefined_persona_id:', cpErr);
+            console.error(
+              "Error fetching customer_personas by predefined_persona_id:",
+              cpErr,
+            );
             return new Response(
-              JSON.stringify({ error: 'Failed to fetch persona audience' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ error: "Failed to fetch persona audience" }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
             );
           }
 
           (cpRows || []).forEach((r: any) => {
-            if (typeof r?.customer_id === 'string' && isUuidLike(r.customer_id)) {
+            if (
+              typeof r?.customer_id === "string" &&
+              isUuidLike(r.customer_id)
+            ) {
               personaCustomerIds.add(r.customer_id);
             }
           });
@@ -769,28 +935,37 @@ serve(async (req: Request) => {
     // FIX: [issue #6] - Filter out customers who have not opted in to email (CAN-SPAM/CASL compliance)
     const buildCustomersQuery = () =>
       supabase
-        .from('crm_customers')
-        .select('id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at')
-        .eq('tenant_id', campaign.tenant_id)
-        .not('email', 'is', null)
-        .not('email_opt_in', 'is', false);
+        .from("crm_customers")
+        .select(
+          "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at",
+        )
+        .eq("tenant_id", campaign.tenant_id)
+        .not("email", "is", null)
+        .not("email_opt_in", "is", false);
 
     if (allowedCustomerIds) {
-      console.log(`📧 Final audience after targeting: ${allowedCustomerIds.length} customers`);
+      console.log(
+        `📧 Final audience after targeting: ${allowedCustomerIds.length} customers`,
+      );
       if (allowedCustomerIds.length === 0) {
         customers = [];
       } else {
         const IN_CHUNK = 100;
-        const filteredIds = allowedCustomerIds.filter((id) => typeof id === 'string' && isUuidLike(id));
+        const filteredIds = allowedCustomerIds.filter(
+          (id) => typeof id === "string" && isUuidLike(id),
+        );
         const fetched: any[] = [];
         for (let i = 0; i < filteredIds.length; i += IN_CHUNK) {
           const chunk = filteredIds.slice(i, i + IN_CHUNK);
-          const { data, error } = await buildCustomersQuery().in('id', chunk);
+          const { data, error } = await buildCustomersQuery().in("id", chunk);
           if (error) {
-            console.error('Error fetching targeted crm_customers:', error);
+            console.error("Error fetching targeted crm_customers:", error);
             return new Response(
-              JSON.stringify({ error: 'Failed to fetch customers' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              JSON.stringify({ error: "Failed to fetch customers" }),
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
             );
           }
           fetched.push(...(data || []));
@@ -804,10 +979,13 @@ serve(async (req: Request) => {
         const to = from + PAGE_SIZE - 1;
         const { data, error } = await buildCustomersQuery().range(from, to);
         if (error) {
-          console.error('Error fetching all crm_customers:', error);
+          console.error("Error fetching all crm_customers:", error);
           return new Response(
-            JSON.stringify({ error: 'Failed to fetch customers' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: "Failed to fetch customers" }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
           );
         }
         fetched.push(...(data || []));
@@ -838,15 +1016,16 @@ serve(async (req: Request) => {
       const pauseMessage = `Campaign blocked: invalid email ratio ${hygieneAnalysis.invalidEmailsPct.toFixed(2)}% exceeds 5%.`;
       await pauseCampaignSafely({
         campaignId,
-        blockReason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
+        blockReason:
+          hygieneAnalysis.blockReason || "list_hygiene_invalid_ratio",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: hygieneAnalysis.blockReason || 'list_hygiene_invalid_ratio',
-        policyName: 'list_hygiene',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: hygieneAnalysis.blockReason || "list_hygiene_invalid_ratio",
+        policyName: "list_hygiene",
         metadata: {
           message: pauseMessage,
           invalid_emails_pct: hygieneAnalysis.invalidEmailsPct,
@@ -868,12 +1047,15 @@ serve(async (req: Request) => {
             warnings: hygieneAnalysis.warnings,
           },
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (hygieneAnalysis.warnings.length > 0) {
-      console.warn('⚠️ List hygiene warnings detected:', {
+      console.warn("⚠️ List hygiene warnings detected:", {
         campaignId,
         warnings: hygieneAnalysis.warnings,
       });
@@ -885,30 +1067,40 @@ serve(async (req: Request) => {
     let skipVolumeSpikeCheck = false;
     {
       const { data: sendCountData, error: sendCountErr } = await supabase
-        .from('email_governance_email_events')
-        .select('id', { count: 'exact', head: true })
-        .eq('tenant_id', campaign.tenant_id)
-        .eq('event_type', 'sent');
-      if (!sendCountErr && typeof sendCountData === 'number' ? sendCountData < 500 : (sendCountData as any)?.length < 500) {
+        .from("email_governance_email_events")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", campaign.tenant_id)
+        .eq("event_type", "sent");
+      if (
+        !sendCountErr && typeof sendCountData === "number"
+          ? sendCountData < 500
+          : (sendCountData as any)?.length < 500
+      ) {
         skipVolumeSpikeCheck = true;
-        console.log(`ℹ️ New tenant grace period: skipping volume spike check (< 500 historical sends)`);
+        console.log(
+          `ℹ️ New tenant grace period: skipping volume spike check (< 500 historical sends)`,
+        );
       }
     }
 
-    const { data: abuseEnforcementResult, error: abuseEnforcementError } = await supabase.rpc(
-      'maybe_enforce_tenant_abuse_under_review',
-      {
+    const { data: abuseEnforcementResult, error: abuseEnforcementError } =
+      await supabase.rpc("maybe_enforce_tenant_abuse_under_review", {
         p_campaign_id: campaignId,
-        p_source: 'send_email_campaign',
+        p_source: "send_email_campaign",
         ...(skipVolumeSpikeCheck ? { p_skip_volume_spike: true } : {}),
-      }
-    );
+      });
 
     if (abuseEnforcementError) {
-      console.error('❌ Failed to evaluate abuse risk before send:', abuseEnforcementError);
+      console.error(
+        "❌ Failed to evaluate abuse risk before send:",
+        abuseEnforcementError,
+      );
       return new Response(
-        JSON.stringify({ error: 'Failed to evaluate abuse risk before send' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to evaluate abuse risk before send" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -919,24 +1111,24 @@ serve(async (req: Request) => {
     if (abuseRow?.was_blocked) {
       const abusePauseMessage =
         abuseRow?.message ||
-        'Campaign blocked pending manual review due to abuse detection signals.';
+        "Campaign blocked pending manual review due to abuse detection signals.";
 
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'abuse_detection_under_review',
+        blockReason: "abuse_detection_under_review",
         errorMessage: abusePauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'abuse_detection_under_review',
-        policyName: 'abuse_detection',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "abuse_detection_under_review",
+        policyName: "abuse_detection",
         metadata: {
           message: abusePauseMessage,
-          risk_level: abuseRow?.risk_level || 'high',
+          risk_level: abuseRow?.risk_level || "high",
           reasons: abuseRow?.reasons || [],
-          monitoring_severity: abuseRow?.monitoring_severity || 'critical',
+          monitoring_severity: abuseRow?.monitoring_severity || "critical",
           manual_review_required: true,
         },
       });
@@ -945,21 +1137,24 @@ serve(async (req: Request) => {
         JSON.stringify({
           error: abusePauseMessage,
           abuse_risk: {
-            risk_level: abuseRow?.risk_level || 'high',
+            risk_level: abuseRow?.risk_level || "high",
             reasons: abuseRow?.reasons || [],
-            monitoring_severity: abuseRow?.monitoring_severity || 'critical',
+            monitoring_severity: abuseRow?.monitoring_severity || "critical",
             details: abuseRow?.details || {},
             manual_review_required: true,
           },
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     customers = (customers || []).filter((c: any) => {
       const email = c?.email?.trim();
       if (!email) return false;
-      if (email.toLowerCase().endsWith('@noemail.local')) return false;
+      if (email.toLowerCase().endsWith("@noemail.local")) return false;
       return true;
     });
 
@@ -974,18 +1169,23 @@ serve(async (req: Request) => {
         campaign.tenant_id,
       );
 
-      const bypassSuppressionTypes = suppressionBypassState.suppression_bypass_active
-        ? ['bounced', 'hard_bounce', 'complaint', 'complained']
-        : [];
+      const bypassSuppressionTypes =
+        suppressionBypassState.suppression_bypass_active
+          ? ["bounced", "hard_bounce", "complaint", "complained"]
+          : [];
 
-      const eligibility = await canSendEmailBatch(supabase, {
-        tenantId: campaign.tenant_id,
-        recipients: customers
-          .filter((c: any) => typeof c?.email === 'string' && c.email.trim())
-          .map((c: any) => ({ customerId: c.id, email: c.email })),
-      }, {
-        bypassSuppressionTypes,
-      });
+      const eligibility = await canSendEmailBatch(
+        supabase,
+        {
+          tenantId: campaign.tenant_id,
+          recipients: customers
+            .filter((c: any) => typeof c?.email === "string" && c.email.trim())
+            .map((c: any) => ({ customerId: c.id, email: c.email })),
+        },
+        {
+          bypassSuppressionTypes,
+        },
+      );
 
       const skips: Array<{
         tenantId: string;
@@ -996,7 +1196,9 @@ serve(async (req: Request) => {
       }> = [];
 
       customers = customers.filter((c: any) => {
-        const email = String(c?.email || '').toLowerCase().trim();
+        const email = String(c?.email || "")
+          .toLowerCase()
+          .trim();
         const result = eligibility.get(email);
         if (!result || result.allowed) return true;
         suppressedCount++;
@@ -1005,33 +1207,46 @@ serve(async (req: Request) => {
           campaignId,
           customerId: c?.id,
           email: String(c.email),
-          reason: result.reason || 'unsubscribed',
+          reason: result.reason || "unsubscribed",
         });
         return false;
       });
 
       if (suppressedCount > 0) {
-        console.log(`📧 Excluded ${suppressedCount} suppressed contacts (${totalBeforeSuppression} → ${customers.length} active)`);
+        console.log(
+          `📧 Excluded ${suppressedCount} suppressed contacts (${totalBeforeSuppression} → ${customers.length} active)`,
+        );
         await logSkippedSends(supabase, skips as any);
       }
     }
 
     let recipientCount = customers.length;
     const recipientCap = reputationPolicy.recipient_cap ?? null;
-    if (recipientCap !== null && recipientCap >= 0 && recipientCount > recipientCap) {
+    if (
+      recipientCap !== null &&
+      recipientCap >= 0 &&
+      recipientCount > recipientCap
+    ) {
       customers = customers.slice(0, recipientCap);
       recipientCount = customers.length;
-      console.log(`📧 Reputation tier cap applied (${reputationPolicy.tier}): limited recipients to ${recipientCap}`);
+      console.log(
+        `📧 Reputation tier cap applied (${reputationPolicy.tier}): limited recipients to ${recipientCap}`,
+      );
     }
 
-    const policyBatchSize = Math.max(1, Number(reputationPolicy.job_batch_size || DEFAULT_BATCH_SIZE_PER_JOB));
+    const policyBatchSize = Math.max(
+      1,
+      Number(reputationPolicy.job_batch_size || DEFAULT_BATCH_SIZE_PER_JOB),
+    );
     const batchSizePerJob = getAdaptiveBatchSizePerJob(
       recipientCount,
       policyBatchSize,
       maxBatchSizePerJob,
     );
     // Warmup/throttling removed: no partial-send truncation.
-    console.log(`📧 Found ${recipientCount} customers (job batch size: ${batchSizePerJob})`);
+    console.log(
+      `📧 Found ${recipientCount} customers (job batch size: ${batchSizePerJob})`,
+    );
 
     // Milestone 7: Campaigns must declare an explicit sending domain.
     // If missing, attempt to auto-select the tenant's most recent operational domain.
@@ -1039,157 +1254,204 @@ serve(async (req: Request) => {
     if (!domainIdToUse) {
       // Prefer tenant-level default sending domain when configured.
       const { data: tenantRow, error: tenantRowError } = await supabase
-        .from('tenants')
-        .select('default_from_email_domain_id')
-        .eq('id', campaign.tenant_id)
+        .from("tenants")
+        .select("default_from_email_domain_id")
+        .eq("id", campaign.tenant_id)
         .maybeSingle();
 
       if (tenantRowError) {
-        console.warn('⚠️ Failed to fetch tenant default sending domain:', serializeSupabaseError(tenantRowError));
+        console.warn(
+          "⚠️ Failed to fetch tenant default sending domain:",
+          serializeSupabaseError(tenantRowError),
+        );
       }
 
-      const tenantDefaultDomainId = (tenantRow as any)?.default_from_email_domain_id as string | null | undefined;
+      const tenantDefaultDomainId = (tenantRow as any)
+        ?.default_from_email_domain_id as string | null | undefined;
       if (tenantDefaultDomainId) {
-        const { data: defaultDomain, error: defaultDomainError } = await supabase
-          .from('email_domains')
-          .select('id, domain, status')
-          .eq('id', tenantDefaultDomainId)
-          .eq('tenant_id', campaign.tenant_id)
-          .in('status', ['active', 'warming_up'])
-          .maybeSingle();
+        const { data: defaultDomain, error: defaultDomainError } =
+          await supabase
+            .from("email_domains")
+            .select("id, domain, status")
+            .eq("id", tenantDefaultDomainId)
+            .eq("tenant_id", campaign.tenant_id)
+            .in("status", ["active", "warming_up"])
+            .maybeSingle();
 
         if (defaultDomainError) {
-          console.warn('⚠️ Failed to validate tenant default sending domain:', serializeSupabaseError(defaultDomainError));
+          console.warn(
+            "⚠️ Failed to validate tenant default sending domain:",
+            serializeSupabaseError(defaultDomainError),
+          );
         }
 
         if (defaultDomain?.id) {
           domainIdToUse = defaultDomain.id;
-          console.log(`📧 Using tenant default sending domain: ${defaultDomain.domain} (${domainIdToUse})`);
+          console.log(
+            `📧 Using tenant default sending domain: ${defaultDomain.domain} (${domainIdToUse})`,
+          );
 
           const { error: persistDomainError } = await supabase
-            .from('crm_campaigns')
+            .from("crm_campaigns")
             .update({
               from_email_domain_id: domainIdToUse,
               updated_at: new Date().toISOString(),
             })
-            .eq('id', campaignId);
+            .eq("id", campaignId);
 
           if (persistDomainError) {
-            console.warn('⚠️ Failed to persist tenant default domain on campaign; continuing anyway:', {
-              campaignId,
-              domainIdToUse,
-              err: serializeSupabaseError(persistDomainError),
-            });
+            console.warn(
+              "⚠️ Failed to persist tenant default domain on campaign; continuing anyway:",
+              {
+                campaignId,
+                domainIdToUse,
+                err: serializeSupabaseError(persistDomainError),
+              },
+            );
           }
         }
       }
 
       if (!domainIdToUse) {
-        const { data: operationalDomains, error: operationalDomainsError } = await supabase
-          .from('email_domains')
-          .select('id, domain, status')
-          .eq('tenant_id', campaign.tenant_id)
-          .in('status', ['active', 'warming_up'])
-          .order('created_at', { ascending: false })
-          .limit(2);
+        const { data: operationalDomains, error: operationalDomainsError } =
+          await supabase
+            .from("email_domains")
+            .select("id, domain, status")
+            .eq("tenant_id", campaign.tenant_id)
+            .in("status", ["active", "warming_up"])
+            .order("created_at", { ascending: false })
+            .limit(2);
 
         if (operationalDomainsError) {
-          console.error('❌ Failed to look up operational sending domains:', serializeSupabaseError(operationalDomainsError));
+          console.error(
+            "❌ Failed to look up operational sending domains:",
+            serializeSupabaseError(operationalDomainsError),
+          );
         }
 
-        if (Array.isArray(operationalDomains) && operationalDomains.length === 1) {
+        if (
+          Array.isArray(operationalDomains) &&
+          operationalDomains.length === 1
+        ) {
           domainIdToUse = operationalDomains[0].id;
-          console.log(`📧 Auto-selected sending domain: ${operationalDomains[0].domain} (${domainIdToUse})`);
+          console.log(
+            `📧 Auto-selected sending domain: ${operationalDomains[0].domain} (${domainIdToUse})`,
+          );
 
           const { error: persistDomainError } = await supabase
-            .from('crm_campaigns')
+            .from("crm_campaigns")
             .update({
               from_email_domain_id: domainIdToUse,
               updated_at: new Date().toISOString(),
             })
-            .eq('id', campaignId);
+            .eq("id", campaignId);
 
           if (persistDomainError) {
-            console.warn('⚠️ Failed to persist auto-selected domain on campaign; continuing anyway:', {
-              campaignId,
-              domainIdToUse,
-              err: serializeSupabaseError(persistDomainError),
-            });
+            console.warn(
+              "⚠️ Failed to persist auto-selected domain on campaign; continuing anyway:",
+              {
+                campaignId,
+                domainIdToUse,
+                err: serializeSupabaseError(persistDomainError),
+              },
+            );
           }
         } else {
-          const pauseMessage = Array.isArray(operationalDomains) && operationalDomains.length > 1
-            ? 'Multiple sending domains are configured. Please select a sending domain for this campaign.'
-            : 'Campaign sending requires a configured custom domain sender.';
+          const pauseMessage =
+            Array.isArray(operationalDomains) && operationalDomains.length > 1
+              ? "Multiple sending domains are configured. Please select a sending domain for this campaign."
+              : "Campaign sending requires a configured custom domain sender.";
 
           await pauseCampaignSafely({
             campaignId,
-            blockReason: 'sender_domain_required',
+            blockReason: "sender_domain_required",
             errorMessage: pauseMessage,
           });
 
           return new Response(
-            JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
-            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({
+              error: pauseMessage,
+              reason: "sender_domain_required",
+            }),
+            {
+              status: 409,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
           );
         }
       }
     }
 
     if (!domainIdToUse) {
-      const pauseMessage = 'Campaign sending requires a configured custom domain sender.';
+      const pauseMessage =
+        "Campaign sending requires a configured custom domain sender.";
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'sender_domain_required',
+        blockReason: "sender_domain_required",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'sender_domain_required',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "sender_domain_required",
         metadata: {
           message: pauseMessage,
           recipient_count: recipientCount,
         },
       });
       return new Response(
-        JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: pauseMessage,
+          reason: "sender_domain_required",
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Quota check
-    const { data: quotaCheck, error: quotaError } = await supabase.rpc('check_send_quota', {
-      p_tenant_id: campaign.tenant_id,
-      p_domain_id: domainIdToUse,
-      p_recipient_count: recipientCount
-    });
+    const { data: quotaCheck, error: quotaError } = await supabase.rpc(
+      "check_send_quota",
+      {
+        p_tenant_id: campaign.tenant_id,
+        p_domain_id: domainIdToUse,
+        p_recipient_count: recipientCount,
+      },
+    );
 
     if (quotaError) {
-      console.error('Error checking quota:', quotaError);
+      console.error("Error checking quota:", quotaError);
       return new Response(
-        JSON.stringify({ error: 'Failed to check sending quota' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to check sending quota" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Warmup/limits removed: quota RPC no longer returns limits.
 
     if (!quotaCheck?.allowed) {
-      const pauseMessage = quotaCheck?.message || 'Email sending requires an operational sending domain.';
+      const pauseMessage =
+        quotaCheck?.message ||
+        "Email sending requires an operational sending domain.";
       console.warn(`📧 Cannot send campaign; pausing instead: ${pauseMessage}`);
 
       await pauseCampaignSafely({
         campaignId,
-        blockReason: quotaCheck?.reason || 'sender_domain_required',
+        blockReason: quotaCheck?.reason || "sender_domain_required",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: quotaCheck?.reason || 'sender_domain_required',
-        policyName: 'send_quota',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: quotaCheck?.reason || "sender_domain_required",
+        policyName: "send_quota",
         domainId: domainIdToUse,
         metadata: {
           message: pauseMessage,
@@ -1202,103 +1464,159 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: pauseMessage,
-          reason: quotaCheck?.reason || 'sender_domain_required',
+          reason: quotaCheck?.reason || "sender_domain_required",
           compliance: quotaCheck?.compliance || null,
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const complianceWarnings: string[] = [];
     if (Array.isArray(quotaCheck?.warnings)) {
-      complianceWarnings.push(...quotaCheck.warnings.filter((warning: unknown) => typeof warning === 'string'));
+      complianceWarnings.push(
+        ...quotaCheck.warnings.filter(
+          (warning: unknown) => typeof warning === "string",
+        ),
+      );
     }
 
     // Determine sender
-    const companyName = companyProfile?.company_name || 'Your Garden Center';
-    let senderEmail: string;
-    let senderDisplayName: string;
-    let deliveryMethod: string;
-    let usesVerifiedDomain: boolean;
+    const companyName = companyProfile?.company_name || "Your Garden Center";
     let activeDomainId: string | null = null;
 
     const domainName = quotaCheck.domain?.domain;
     const configuredEmail = quotaCheck.sender?.from_email;
 
     if (!domainName) {
-      const pauseMessage = 'No operational sending domain configured.';
+      const pauseMessage = "No operational sending domain configured.";
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'sender_domain_required',
+        blockReason: "sender_domain_required",
         errorMessage: pauseMessage,
       });
       return new Response(
-        JSON.stringify({ error: pauseMessage, reason: 'sender_domain_required' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: pauseMessage,
+          reason: "sender_domain_required",
+        }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    senderEmail = configuredEmail || `mail@${domainName}`;
-    if (senderEmail === 'noreply@bloomsuite.app') {
-      const pauseMessage = 'Campaign sending requires a verified custom domain. Shared sender is disabled.';
+    const senderEmail = configuredEmail || `mail@${domainName}`;
+    if (senderEmail === "noreply@bloomsuite.app") {
+      const pauseMessage =
+        "Campaign sending requires a verified custom domain. Shared sender is disabled.";
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'shared_sender_disabled',
+        blockReason: "shared_sender_disabled",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'shared_sender_disabled',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "shared_sender_disabled",
         metadata: {
           message: pauseMessage,
           recipient_count: recipientCount,
         },
       });
-      return new Response(
-        JSON.stringify({ error: pauseMessage }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: pauseMessage }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-    senderDisplayName = quotaCheck.sender?.from_name || companyName;
-    deliveryMethod = 'custom_domain';
-    usesVerifiedDomain = true;
+    const senderDisplayName = quotaCheck.sender?.from_name || companyName;
+    const deliveryMethod = "custom_domain";
+    const usesVerifiedDomain = true;
     activeDomainId = quotaCheck.domain?.id || null;
 
     const isHighVolume = recipientCount > highVolumeThreshold;
-    const spamAssessment = computeHeuristicSpamScore(campaign.subject || '', campaign.content || '');
+    const campaignEmailSource = await resolveCampaignEmailSource(
+      supabase,
+      campaign,
+    );
+    if (campaignEmailSource.warning) {
+      console.warn(`⚠️ ${campaignEmailSource.warning}`, {
+        campaignId,
+        source: campaignEmailSource.source,
+      });
+    }
+
+    const representativeCustomer =
+      (customers || []).find((customer: any) => {
+        return (
+          typeof customer?.email === "string" &&
+          customer.email.trim().length > 0
+        );
+      }) || null;
+
+    const preflightRender = renderEmailForRecipient({
+      tenantId: campaign.tenant_id,
+      campaignId,
+      subject: campaign.subject_line || campaign.subject || "",
+      previewText: campaign.preheader_text || campaign.preheader || "",
+      html: campaignEmailSource.html,
+      contentBlocks: campaignEmailSource.contentBlocks,
+      customer: representativeCustomer
+        ? ({
+            id: representativeCustomer.id,
+            email: representativeCustomer.email,
+            first_name: representativeCustomer.first_name ?? null,
+            last_name: representativeCustomer.last_name ?? null,
+          } satisfies CustomerShape)
+        : null,
+      companyProfile: companyProfile as CompanyProfileShape,
+      mode: "send",
+      includeFooter: true,
+      enableLinkTracking: false,
+    });
+
+    const spamAssessment = computeHeuristicSpamScore(
+      campaign.subject_line || campaign.subject || "",
+      preflightRender.renderedHtml,
+    );
     const unsubscribePresent = true; // Send pipeline always injects footer with unsubscribe links in send mode.
     const physicalAddressPresent = hasPhysicalAddress(companyProfile);
     const fromNameValid = isFromNameValid(senderDisplayName);
 
     const complianceFailures: string[] = [];
     if (!unsubscribePresent) {
-      complianceFailures.push('Unsubscribe link is missing');
+      complianceFailures.push("Unsubscribe link is missing");
     }
     if (!physicalAddressPresent) {
-      complianceFailures.push('Physical business address is missing');
+      complianceFailures.push("Physical business address is missing");
     }
     if (!fromNameValid) {
-      complianceFailures.push('From-name is invalid');
+      complianceFailures.push("From-name is invalid");
     }
     if (spamAssessment.score >= spamScoreThreshold) {
-      complianceFailures.push(`AI spam score threshold exceeded (${spamAssessment.score}/10)`);
+      complianceFailures.push(
+        `AI spam score threshold exceeded (${spamAssessment.score}/10)`,
+      );
     }
 
     if (isHighVolume && complianceFailures.length > 0) {
-      const pauseMessage = 'High-volume sending blocked: campaign compliance requirements are not met.';
+      const pauseMessage =
+        "High-volume sending blocked: campaign compliance requirements are not met.";
       await pauseCampaignSafely({
         campaignId,
-        blockReason: 'compliance_not_met_for_scale',
+        blockReason: "compliance_not_met_for_scale",
         errorMessage: pauseMessage,
       });
 
       await logCampaignGovernanceDecision({
-        decision: 'block',
-        actionType: 'campaign_send_preflight',
-        reason: 'compliance_not_met_for_scale',
-        policyName: 'high_volume_compliance',
+        decision: "block",
+        actionType: "campaign_send_preflight",
+        reason: "compliance_not_met_for_scale",
+        policyName: "high_volume_compliance",
         domainId: activeDomainId,
         metadata: {
           message: pauseMessage,
@@ -1314,7 +1632,7 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           error: pauseMessage,
-          reason: 'compliance_not_met_for_scale',
+          reason: "compliance_not_met_for_scale",
           compliance: {
             high_volume: true,
             high_volume_threshold: highVolumeThreshold,
@@ -1330,61 +1648,26 @@ serve(async (req: Request) => {
             warnings: complianceWarnings,
           },
         }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (!isHighVolume && complianceFailures.length > 0) {
       complianceWarnings.push(
-        ...complianceFailures.map((failure) => `Low-volume only warning: ${failure}`)
+        ...complianceFailures.map(
+          (failure) => `Low-volume only warning: ${failure}`,
+        ),
       );
     }
-
-    // Fetch reply-to email
-    let replyToEmail: string | undefined;
-    if (activeDomainId) {
-      const { data: domainData } = await supabase
-        .from('email_domains')
-        .select('default_reply_to')
-        .eq('id', activeDomainId)
-        .single();
-
-      if (domainData?.default_reply_to) {
-        replyToEmail = domainData.default_reply_to;
-        console.log(`📧 Using custom reply-to: ${replyToEmail}`);
-      }
-    }
-
-    const fromAddress = `${senderDisplayName} <${senderEmail}>`;
-
-    // Build profile data for footer
-    const profileData: CompanyProfileData = {
-      company_name: companyProfile?.company_name,
-      company_email: companyProfile?.company_email,
-      company_phone: companyProfile?.company_phone,
-      website_url: companyProfile?.website_url,
-      street_address: companyProfile?.street_address,
-      city: companyProfile?.city,
-      state_province: companyProfile?.state_province,
-      postal_code: companyProfile?.postal_code,
-      country: companyProfile?.country,
-      facebook_url: companyProfile?.facebook_url,
-      instagram_url: companyProfile?.instagram_url,
-      tiktok_url: companyProfile?.tiktok_url,
-      pinterest_url: companyProfile?.pinterest_url,
-      youtube_url: companyProfile?.youtube_url,
-      linkedin_url: companyProfile?.linkedin_url,
-      footer_legal_text: companyProfile?.footer_legal_text,
-      brand_primary_color: companyProfile?.brand_primary_color,
-      brand_text_color: companyProfile?.brand_text_color,
-      feature_flags: companyProfile?.feature_flags,
-    };
 
     // Queue recipients
     const piiWarningSet = new Set<string>();
 
     // Link tracking setup
-    const campaignContent = campaign.content || '';
+    const campaignContent = preflightRender.renderedHtml;
     const extractedLinks = extractLinks(campaignContent);
     const uniqueUrls = getUniqueUrls(extractedLinks);
 
@@ -1392,36 +1675,49 @@ serve(async (req: Request) => {
     for (const url of uniqueUrls) {
       if (hasPII(url)) {
         piiWarningSet.add(url);
-        console.warn(`⚠️ PII detected in URL, will skip tracking: ${url.substring(0, 80)}...`);
+        console.warn(
+          `⚠️ PII detected in URL, will skip tracking: ${url.substring(0, 80)}...`,
+        );
       }
     }
 
-    const urlsToTrack = uniqueUrls.filter(url => !hasPII(url));
+    const urlsToTrack = uniqueUrls.filter((url) => !hasPII(url));
     if (urlsToTrack.length > 0) {
-      const trackedLinkInserts = urlsToTrack.map(url => ({
+      const trackedLinkInserts = urlsToTrack.map((url) => ({
         tenant_id: campaign.tenant_id,
         campaign_id: campaignId,
         url,
       }));
 
       const { data: insertedLinks, error: linksError } = await supabase
-        .from('tracked_links')
-        .upsert(trackedLinkInserts, { onConflict: 'tenant_id,campaign_id,url', ignoreDuplicates: false })
-        .select('id');
+        .from("tracked_links")
+        .upsert(trackedLinkInserts, {
+          onConflict: "tenant_id,campaign_id,url",
+          ignoreDuplicates: false,
+        })
+        .select("id");
 
       if (linksError) {
-        console.warn('⚠️ Error creating tracked links (non-fatal):', linksError);
+        console.warn(
+          "⚠️ Error creating tracked links (non-fatal):",
+          linksError,
+        );
       } else {
-        console.log(`🔗 Created/updated ${insertedLinks?.length || 0} tracked links`);
+        console.log(
+          `🔗 Created/updated ${insertedLinks?.length || 0} tracked links`,
+        );
       }
     }
 
-    const sendPacingMultiplier = Math.max(1, Number(reputationPolicy.send_pacing_multiplier || 1));
+    const sendPacingMultiplier = Math.max(
+      1,
+      Number(reputationPolicy.send_pacing_multiplier || 1),
+    );
     const totalBatches = Math.ceil(recipientCount / batchSizePerJob);
     const skippedRecipientCount =
-      suppressedCount
-      + hygieneAnalysis.invalidEmailsCount
-      + hygieneAnalysis.duplicateEmailsCount;
+      suppressedCount +
+      hygieneAnalysis.invalidEmailsCount +
+      hygieneAnalysis.duplicateEmailsCount;
     const queueAvailabilityPlan = getQueueAvailabilityPlan({
       totalRecipients: recipientCount,
       totalBatches,
@@ -1431,42 +1727,50 @@ serve(async (req: Request) => {
       batchDelayMaxSeconds,
     });
 
-    const { count: existingMessageCount, error: existingMessagesError } = await supabase
-      .from('email_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId);
+    const { count: existingMessageCount, error: existingMessagesError } =
+      await supabase
+        .from("email_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId);
 
     if (existingMessagesError) {
-      console.error('❌ Failed to inspect existing campaign queue state:', {
+      console.error("❌ Failed to inspect existing campaign queue state:", {
         campaignId,
         err: serializeSupabaseError(existingMessagesError),
       });
       return new Response(
-        JSON.stringify({ error: 'Failed to inspect campaign queue state' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to inspect campaign queue state" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const isResumeRun = Number(existingMessageCount || 0) > 0;
     const queueInitializedAt = new Date().toISOString();
-    const queueStartedAt = typeof campaign.queue_started_at === 'string' && campaign.queue_started_at
-      ? campaign.queue_started_at
-      : queueInitializedAt;
-    const queuedAt = typeof campaign.queued_at === 'string' && campaign.queued_at
-      ? campaign.queued_at
-      : queueInitializedAt;
+    const queueStartedAt =
+      typeof campaign.queue_started_at === "string" && campaign.queue_started_at
+        ? campaign.queue_started_at
+        : queueInitializedAt;
+    const queuedAt =
+      typeof campaign.queued_at === "string" && campaign.queued_at
+        ? campaign.queued_at
+        : queueInitializedAt;
     const queueProgressMetrics = {
       ...(campaign.metrics || {}),
       queued: 0,
       skipped_suppressed: suppressedCount,
       links_tracked: urlsToTrack.length,
       pii_warnings: piiWarningSet.size,
+      render_source: campaignEmailSource.source,
       queue: {
         resumed: isResumeRun,
         existing_message_count: Number(existingMessageCount || 0),
         jobs_per_minute_target: queueAvailabilityPlan.jobsPerMinute,
         immediate_job_count: queueAvailabilityPlan.immediateJobCount,
-        estimated_emails_per_minute: queueAvailabilityPlan.estimatedEmailsPerMinute,
+        estimated_emails_per_minute:
+          queueAvailabilityPlan.estimatedEmailsPerMinute,
       },
       compliance: {
         high_volume: isHighVolume,
@@ -1504,13 +1808,13 @@ serve(async (req: Request) => {
     };
 
     const { error: queueInitError } = await supabase
-      .from('crm_campaigns')
+      .from("crm_campaigns")
       .update({
         delivery_method: deliveryMethod,
         sender_display_name: senderDisplayName,
         actual_sender_email: senderEmail,
         from_email_domain_id: activeDomainId,
-        status: 'partially_queued',
+        status: "partially_queued",
         queued_at: queuedAt,
         queue_started_at: queueStartedAt,
         queue_completed_at: null,
@@ -1528,29 +1832,39 @@ serve(async (req: Request) => {
         send_error: null,
         metrics: queueProgressMetrics,
       })
-      .eq('id', campaignId);
+      .eq("id", campaignId);
 
     if (queueInitError) {
-      console.error('❌ Failed to mark campaign partially queued:', {
+      console.error("❌ Failed to mark campaign partially queued:", {
         campaignId,
         error: serializeSupabaseError(queueInitError),
       });
       return new Response(
-        JSON.stringify({ error: 'Failed to initialize campaign queue' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to initialize campaign queue" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     console.log(
-      `📧 Queuing ${recipientCount} recipients in batches of ${batchSizePerJob} `
-      + `(resume: ${isResumeRun}, jobs/min target: ${queueAvailabilityPlan.jobsPerMinute})...`
+      `📧 Queuing ${recipientCount} recipients in batches of ${batchSizePerJob} ` +
+        `(resume: ${isResumeRun}, jobs/min target: ${queueAvailabilityPlan.jobsPerMinute})...`,
     );
 
     let queuedRecipientCount = 0;
     let dbChunkSize = getInitialMessageInsertChunkSize(recipientCount);
-    for (let batchStart = 0; batchStart < customers.length; batchStart += batchSizePerJob) {
+    for (
+      let batchStart = 0;
+      batchStart < customers.length;
+      batchStart += batchSizePerJob
+    ) {
       const batchIndex = Math.floor(batchStart / batchSizePerJob);
-      const batchCustomers = customers.slice(batchStart, batchStart + batchSizePerJob);
+      const batchCustomers = customers.slice(
+        batchStart,
+        batchStart + batchSizePerJob,
+      );
       const batchMessageUpserts: any[] = [];
 
       for (const customer of batchCustomers) {
@@ -1563,7 +1877,7 @@ serve(async (req: Request) => {
           domain_id: activeDomainId,
           email: customer.email,
           payload: {},
-          status: 'queued',
+          status: "queued",
           resend_id: null,
           claimed_at: null,
           claimed_by: null,
@@ -1578,20 +1892,27 @@ serve(async (req: Request) => {
       for (let offset = 0; offset < batchMessageUpserts.length; ) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
-          const resp = await supabase
-            .from('email_messages')
-            .upsert(chunk, { onConflict: 'campaign_id,customer_id,retry_sequence', ignoreDuplicates: true });
+          const resp = await supabase.from("email_messages").upsert(chunk, {
+            onConflict: "campaign_id,customer_id,retry_sequence",
+            ignoreDuplicates: true,
+          });
 
           if (resp.error) {
             const code = (resp.error as any)?.code;
             const msg = (resp.error as any)?.message;
-            if ((code === '57014' || String(msg || '').includes('statement timeout')) && dbChunkSize > 50) {
+            if (
+              (code === "57014" ||
+                String(msg || "").includes("statement timeout")) &&
+              dbChunkSize > 50
+            ) {
               dbChunkSize = Math.max(50, Math.floor(dbChunkSize / 2));
-              console.warn(`⚠️ email_messages write timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
+              console.warn(
+                `⚠️ email_messages write timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`,
+              );
               continue;
             }
 
-            console.error('❌ Failed to persist email_messages batch chunk:', {
+            console.error("❌ Failed to persist email_messages batch chunk:", {
               status: resp.status,
               statusText: resp.statusText,
               err: serializeSupabaseError(resp.error),
@@ -1600,104 +1921,148 @@ serve(async (req: Request) => {
             });
             return new Response(
               JSON.stringify({
-                error: 'Failed to persist recipients',
+                error: "Failed to persist recipients",
                 status: resp.status,
                 statusText: resp.statusText,
                 details: serializeSupabaseError(resp.error),
               }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              {
+                status: 500,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              },
             );
           }
 
           offset += chunk.length;
         } catch (e: any) {
           const msg = String(e?.message || e);
-          if ((msg.includes('statement timeout') || msg.includes('57014')) && dbChunkSize > 50) {
+          if (
+            (msg.includes("statement timeout") || msg.includes("57014")) &&
+            dbChunkSize > 50
+          ) {
             dbChunkSize = Math.max(50, Math.floor(dbChunkSize / 2));
-            console.warn(`⚠️ email_messages write exception timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`);
+            console.warn(
+              `⚠️ email_messages write exception timed out; reducing chunk size to ${dbChunkSize} and retrying (batch ${batchIndex})`,
+            );
             continue;
           }
-          console.error('❌ Exception while persisting email_messages chunk:', {
+          console.error("❌ Exception while persisting email_messages chunk:", {
             err: serializeSupabaseError(e),
             batchIndex,
             chunkSize: chunk.length,
           });
           return new Response(
-            JSON.stringify({ error: 'Failed to persist recipients (exception)', details: serializeSupabaseError(e) }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({
+              error: "Failed to persist recipients (exception)",
+              details: serializeSupabaseError(e),
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
           );
         }
       }
 
       queuedRecipientCount += batchMessageUpserts.length;
       if ((batchIndex + 1) % 10 === 0 || batchIndex + 1 === totalBatches) {
-        console.log(`📧 Queued batch ${batchIndex + 1}/${totalBatches} (queued so far: ${queuedRecipientCount})`);
+        console.log(
+          `📧 Queued batch ${batchIndex + 1}/${totalBatches} (queued so far: ${queuedRecipientCount})`,
+        );
       }
     }
 
     if (!campaign?.tenant_id) {
-      console.error('❌ Campaign tenant_id missing, cannot queue recipients', { campaignId });
+      console.error("❌ Campaign tenant_id missing, cannot queue recipients", {
+        campaignId,
+      });
       return new Response(
-        JSON.stringify({ error: 'Campaign missing tenant_id' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Campaign missing tenant_id" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const { data: ensureJobsData, error: ensureJobsError } = await supabase.rpc('ensure_jobs_for_queued_email_messages', {
-      p_campaign_id: campaignId,
-      p_batch_size: batchSizePerJob,
-      p_jobs_per_minute: queueAvailabilityPlan.jobsPerMinute,
-      p_immediate_job_count: queueAvailabilityPlan.immediateJobCount,
-      p_activate_sending: false,
-    });
+    const { data: ensureJobsData, error: ensureJobsError } = await supabase.rpc(
+      "ensure_jobs_for_queued_email_messages",
+      {
+        p_campaign_id: campaignId,
+        p_batch_size: batchSizePerJob,
+        p_jobs_per_minute: queueAvailabilityPlan.jobsPerMinute,
+        p_immediate_job_count: queueAvailabilityPlan.immediateJobCount,
+        p_activate_sending: false,
+      },
+    );
 
     if (ensureJobsError) {
-      console.error('❌ Failed to create send jobs for queued messages:', {
+      console.error("❌ Failed to create send jobs for queued messages:", {
         campaignId,
         err: serializeSupabaseError(ensureJobsError),
       });
       return new Response(
-        JSON.stringify({ error: 'Failed to build send jobs for campaign queue' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Failed to build send jobs for campaign queue",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const ensureJobsRow = Array.isArray(ensureJobsData) ? ensureJobsData[0] : ensureJobsData;
+    const ensureJobsRow = Array.isArray(ensureJobsData)
+      ? ensureJobsData[0]
+      : ensureJobsData;
     const { count: totalJobCount, error: totalJobCountError } = await supabase
-      .from('email_send_jobs')
-      .select('id', { count: 'exact', head: true })
-      .eq('campaign_id', campaignId);
+      .from("email_send_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId);
 
     if (totalJobCountError) {
-      console.error('❌ Failed to count queued send jobs:', {
+      console.error("❌ Failed to count queued send jobs:", {
         campaignId,
         err: serializeSupabaseError(totalJobCountError),
       });
       return new Response(
-        JSON.stringify({ error: 'Failed to inspect queued send jobs' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Failed to inspect queued send jobs" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    const finalSkippedRecipientCount = skippedRecipientCount + Math.max(recipientCount - queuedRecipientCount, 0);
+    const finalSkippedRecipientCount =
+      skippedRecipientCount +
+      Math.max(recipientCount - queuedRecipientCount, 0);
     const actualTotalBatches = Math.max(Number(totalJobCount || 0), 0);
 
     if (queuedRecipientCount > 0 && actualTotalBatches === 0) {
-      console.error('❌ Queue build created no send jobs for a non-empty campaign queue', {
-        campaignId,
-        queuedRecipientCount,
-      });
+      console.error(
+        "❌ Queue build created no send jobs for a non-empty campaign queue",
+        {
+          campaignId,
+          queuedRecipientCount,
+        },
+      );
       return new Response(
-        JSON.stringify({ error: 'Failed to schedule queued recipients for sending' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: "Failed to schedule queued recipients for sending",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Queue acceptance is distinct from final delivery completion.
-    const campaignStatus = 'queued';
+    const campaignStatus = "queued";
     const queueCompletedAt = new Date().toISOString();
     const { error: queueCampaignError } = await supabase
-      .from('crm_campaigns')
+      .from("crm_campaigns")
       .update({
         status: campaignStatus,
         queued_at: queuedAt,
@@ -1726,7 +2091,8 @@ serve(async (req: Request) => {
             jobs_total: actualTotalBatches,
             jobs_per_minute_target: queueAvailabilityPlan.jobsPerMinute,
             immediate_job_count: queueAvailabilityPlan.immediateJobCount,
-            estimated_emails_per_minute: queueAvailabilityPlan.estimatedEmailsPerMinute,
+            estimated_emails_per_minute:
+              queueAvailabilityPlan.estimatedEmailsPerMinute,
             final_db_chunk_size: dbChunkSize,
           },
           compliance: {
@@ -1764,23 +2130,31 @@ serve(async (req: Request) => {
           },
         },
       })
-      .eq('id', campaignId);
+      .eq("id", campaignId);
 
     if (queueCampaignError) {
-      console.error('❌ Failed to mark campaign queued', {
+      console.error("❌ Failed to mark campaign queued", {
         campaignId,
         error: queueCampaignError,
       });
       throw queueCampaignError;
     }
 
-    console.log(`📧 Campaign ${campaignId} queued with ${actualTotalBatches} batch jobs`);
+    console.log(
+      `📧 Campaign ${campaignId} queued with ${actualTotalBatches} batch jobs`,
+    );
 
     await logCampaignGovernanceDecision({
-      decision: complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0 ? 'warn' : 'allow',
-      actionType: 'campaign_send_queued',
-      reason: complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0 ? 'preflight_warnings' : 'preflight_ok',
-      policyName: 'send_pipeline',
+      decision:
+        complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0
+          ? "warn"
+          : "allow",
+      actionType: "campaign_send_queued",
+      reason:
+        complianceWarnings.length > 0 || hygieneAnalysis.warnings.length > 0
+          ? "preflight_warnings"
+          : "preflight_ok",
+      policyName: "send_pipeline",
       domainId: activeDomainId,
       metadata: {
         recipient_count: recipientCount,
@@ -1803,7 +2177,7 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        mode: 'queued',
+        mode: "queued",
         campaign_id: campaignId,
         queued_at: queuedAt,
         queue_completed_at: queueCompletedAt,
@@ -1847,29 +2221,37 @@ serve(async (req: Request) => {
           domain: quotaCheck?.compliance || null,
         },
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
-
   } catch (error: any) {
-    console.error('❌ CRITICAL ERROR:', error);
+    console.error("❌ CRITICAL ERROR:", error);
 
-    let userMessage = 'Internal server error';
+    let userMessage = "Internal server error";
     let statusCode = 500;
 
-    if (error.message?.includes('JWT')) {
-      userMessage = 'Authentication error';
+    if (error.message?.includes("JWT")) {
+      userMessage = "Authentication error";
       statusCode = 401;
-    } else if (error.message?.includes('permission') || error.message?.includes('RLS')) {
-      userMessage = 'Permission denied';
+    } else if (
+      error.message?.includes("permission") ||
+      error.message?.includes("RLS")
+    ) {
+      userMessage = "Permission denied";
       statusCode = 403;
-    } else if (error.message?.includes('timeout')) {
-      userMessage = 'Request timed out';
+    } else if (error.message?.includes("timeout")) {
+      userMessage = "Request timed out";
       statusCode = 504;
     }
 
     return new Response(
       JSON.stringify({ error: userMessage, details: error.message }),
-      { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      {
+        status: statusCode,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

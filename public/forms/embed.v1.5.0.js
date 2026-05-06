@@ -1020,28 +1020,30 @@
     honeypot.innerHTML = '<input type="text" name="_hp_website" tabindex="-1" autocomplete="off">';
     formEl.appendChild(honeypot);
 
-    // Headline and subheadline
-    if (settings.form_headline || settings.form_subheadline) {
+    // Headline and subheadline (fall back to form_title/form_description)
+    var _headlineText = settings.form_headline || settings.form_title || '';
+    var _subheadlineText = settings.form_subheadline || settings.form_description || '';
+    if (_headlineText || _subheadlineText) {
       var headerBlock = createElement('div', 'header');
       headerBlock.style.textAlign = 'center';
       headerBlock.style.marginBottom = '16px';
 
-      if (settings.form_headline) {
+      if (_headlineText) {
         var headlineEl = document.createElement('h2');
         headlineEl.className = CSS_PREFIX + 'headline';
-        headlineEl.textContent = settings.form_headline;
-        headlineEl.style.cssText = 'font-size:clamp(1.75rem,2vw,2.15rem);font-weight:700;line-height:1.15;margin:0 0 4px;color:' + (theme.text_color || '#1f2937');
+        headlineEl.textContent = _headlineText;
+        headlineEl.style.cssText = 'font-size:1.5rem;font-weight:600;line-height:1.3;margin:0 0 4px;color:' + (theme.text_color || '#1f2937');
         if (theme.font_family && theme.font_family !== 'inherit') {
           headlineEl.style.fontFamily = theme.font_family;
         }
         headerBlock.appendChild(headlineEl);
       }
 
-      if (settings.form_subheadline) {
+      if (_subheadlineText) {
         var subheadlineEl = document.createElement('p');
         subheadlineEl.className = CSS_PREFIX + 'subheadline';
-        subheadlineEl.textContent = settings.form_subheadline;
-        subheadlineEl.style.cssText = 'font-size:1rem;line-height:1.6;margin:0;color:#6b7280';
+        subheadlineEl.textContent = _subheadlineText;
+        subheadlineEl.style.cssText = 'font-size:1.125rem;line-height:1.75;margin:0;color:#6b7280';
         if (theme.font_family && theme.font_family !== 'inherit') {
           subheadlineEl.style.fontFamily = theme.font_family;
         }

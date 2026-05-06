@@ -1,4 +1,15 @@
-import { Receipt } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, Receipt, X } from "lucide-react";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Drawer from "@mui/joy/Drawer";
+import IconButton from "@mui/joy/IconButton";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
 
 import type {
   LightspeedPagination,
@@ -14,9 +25,8 @@ import {
   DataTabEmptyState,
   DataTabPagination,
   EmptyValue,
-  RawDataPre,
   SaleStatusBadge,
-  SlideOverField,
+  SegmentedFilterGroup,
   StatusFilterPills,
   TableSearchInput,
   TableSkeleton,
@@ -26,11 +36,6 @@ import {
   formatDateValue,
   parseSaleLineItems,
   JoyDataTable,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
 } from "@/components/integrations/shared/dataTabPrimitives";
 
 type SalesSortValue = "sale_date:desc" | "total_amount:desc" | "status:asc";
@@ -94,6 +99,173 @@ function getActivePreset(startDate: string, endDate: string) {
   return null;
 }
 
+function formatSaleId(value?: string | null) {
+  if (!value) {
+    return "\u2014";
+  }
+
+  const normalized = value.replace(/[^a-zA-Z0-9]/g, "");
+  if (normalized.length <= 12) {
+    return `LS-${normalized}`;
+  }
+
+  return `LS-${normalized.slice(0, 6)}\u2026${normalized.slice(-4)}`;
+}
+
+function getDisplayValue(value?: string | null) {
+  return value && value.trim().length > 0 ? value : "\u2014";
+}
+
+function truncateProductId(value: string) {
+  const normalized = value.replace(/[^a-zA-Z0-9]/g, "");
+  if (normalized.length <= 12) {
+    return `Product-${normalized}`;
+  }
+
+  return `Product-${normalized.slice(0, 6)}\u2026${normalized.slice(-4)}`;
+}
+
+function extractPaymentFromRawData(rawData: unknown): string | null {
+  if (!rawData || typeof rawData !== "object") {
+    return null;
+  }
+
+  const data = rawData as Record<string, unknown>;
+
+  if (Array.isArray(data.payments) && data.payments.length > 0) {
+    const p = data.payments[0] as Record<string, unknown>;
+    const name =
+      (typeof p.payment_type_name === "string" ? p.payment_type_name : null) ??
+      (typeof p.name === "string" ? p.name : null);
+    if (name && name.trim().length > 0) {
+      return name.trim();
+    }
+  }
+
+  const sp = (data.SalePayments as Record<string, unknown> | undefined)
+    ?.SalePayment;
+  const salePayment = Array.isArray(sp) ? sp[0] : sp;
+  if (salePayment && typeof salePayment === "object") {
+    const pt = (salePayment as Record<string, unknown>).PaymentType as
+      | Record<string, unknown>
+      | undefined;
+    const name = typeof pt?.name === "string" ? pt.name : null;
+    if (name && name.trim().length > 0) {
+      return name.trim();
+    }
+  }
+
+  return null;
+}
+
+function formatLineItemQuantity(value?: number | null) {
+  return typeof value === "number" ? value.toLocaleString() : "0";
+}
+
+function getLineItemTotal(unitPrice?: number | null, quantity?: number | null) {
+  if (typeof unitPrice !== "number" || !Number.isFinite(unitPrice)) {
+    return null;
+  }
+
+  const normalizedQuantity = typeof quantity === "number" ? quantity : 0;
+  return unitPrice * normalizedQuantity;
+}
+
+function escapeHtmlEntities(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+function sanitizeJsonValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return escapeHtmlEntities(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeJsonValue(entry));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+        key,
+        sanitizeJsonValue(entry),
+      ]),
+    );
+  }
+
+  return value;
+}
+
+function formatRawJson(value: unknown) {
+  try {
+    return JSON.stringify(sanitizeJsonValue(value), null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <Typography
+      level="body-xs"
+      sx={{
+        fontWeight: "lg",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        color: "text.tertiary",
+        mb: 1.5,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  valueNode,
+}: {
+  label: string;
+  value: string;
+  valueNode?: React.ReactNode;
+}) {
+  const isEmpty = value === "\u2014";
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 2,
+      }}
+    >
+      <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+        {label}
+      </Typography>
+      {valueNode ?? (
+        <Typography
+          level="body-sm"
+          sx={{
+            fontWeight: "md",
+            color: isEmpty ? "text.tertiary" : "text.primary",
+            opacity: isEmpty ? 0.7 : 1,
+            textAlign: "right",
+          }}
+        >
+          {value}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 export function SalesTabView({
   connectionId: _connectionId,
   rows,
@@ -142,6 +314,41 @@ export function SalesTabView({
   const activePreset = getActivePreset(startDate, endDate);
   const lineItems = parseSaleLineItems(selectedSale?.line_items);
   const showLoadingState = isLoading || (isFetching && rows.length === 0);
+  const [isRawDataOpen, setIsRawDataOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const lineItemCount = lineItems.length;
+  const lineItemQuantity = lineItems.reduce(
+    (total, item) =>
+      total + (typeof item.quantity === "number" ? item.quantity : 0),
+    0,
+  );
+  const rawJson = useMemo(
+    () => formatRawJson(selectedSale?.raw_data ?? {}),
+    [selectedSale?.raw_data],
+  );
+
+  useEffect(() => {
+    if (!selectedSale) {
+      setIsRawDataOpen(false);
+    }
+  }, [selectedSale]);
+
+  useEffect(() => {
+    if (!copiedKey) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setCopiedKey(null);
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [copiedKey]);
+
+  const copyToClipboard = async (value: string, key: string) => {
+    await navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+  };
 
   if (showLoadingState) {
     return <TableSkeleton columns={6} rows={8} />;
@@ -181,29 +388,17 @@ export function SalesTabView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3">
-          {SALES_DATE_PRESETS.map((preset) => {
-            const isActive = activePreset === preset.value;
-            return (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => {
-                  const nextRange = getPresetRange(preset.value);
-                  onDateRangeChange(
-                    nextRange.startDate ?? "",
-                    nextRange.endDate ?? "",
-                  );
-                }}
-                className={
-                  isActive
-                    ? "rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white"
-                    : "rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
-                }
-              >
-                {preset.label}
-              </button>
-            );
-          })}
+          <SegmentedFilterGroup
+            options={SALES_DATE_PRESETS}
+            value={activePreset}
+            onChange={(preset) => {
+              const nextRange = getPresetRange(preset);
+              onDateRangeChange(
+                nextRange.startDate ?? "",
+                nextRange.endDate ?? "",
+              );
+            }}
+          />
         </div>
 
         <div className="flex items-center gap-6 border-b border-gray-100 bg-gray-50 px-5 py-3">
@@ -345,98 +540,273 @@ export function SalesTabView({
         ) : null}
       </DataTabCard>
 
-      <Sheet
+      <Drawer
         open={Boolean(selectedSale)}
-        onOpenChange={() => onSelectedSaleChange(null)}
+        onClose={() => onSelectedSaleChange(null)}
+        anchor="right"
+        size="md"
+        slotProps={{
+          content: {
+            sx: {
+              width: { xs: "100vw", sm: 420 },
+              maxWidth: "100vw",
+              bgcolor: "background.surface",
+              boxShadow: "lg",
+              borderLeft: "none",
+              transition: "transform 300ms ease-in-out",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            },
+          },
+        }}
       >
-        <SheetContent className="w-[420px] overflow-y-auto sm:w-[480px]">
-          {selectedSale ? (
-            <div className="space-y-4">
-              <SheetHeader className="border-b border-gray-100 pb-4 text-left">
-                <SheetTitle>Sale {selectedSale.lightspeed_sale_id}</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Sale details, line items, and raw Lightspeed payload for{" "}
-                  {selectedSale.lightspeed_sale_id}.
-                </SheetDescription>
-                <div className="mt-1 flex items-center gap-2">
-                  <SaleStatusBadge status={selectedSale.status} />
-                  <span className="text-xs text-muted-foreground">
-                    {formatDateTimeValue(selectedSale.sale_date)}
-                  </span>
-                </div>
-              </SheetHeader>
-
-              <div className="space-y-2.5 border-b border-gray-100 py-4">
-                <SlideOverField
-                  label="Total"
-                  value={formatCurrency(selectedSale.total_amount)}
-                />
-                <SlideOverField
-                  label="Payment"
-                  value={selectedSale.payment_method}
-                />
-                <SlideOverField
-                  label="Customer ID"
-                  value={selectedSale.lightspeed_customer_id}
-                />
-                <SlideOverField
-                  label="Synced"
-                  value={
-                    selectedSale.synced_at
-                      ? formatDateTimeValue(selectedSale.synced_at)
-                      : null
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Line items
-                </p>
-                {lineItems.length > 0 ? (
-                  <div className="overflow-hidden rounded-lg border border-gray-100">
-                    {lineItems.map((item, index) => (
-                      <div
-                        key={`${item.productId ?? item.name ?? "item"}-${index}`}
-                        className="flex items-center justify-between border-b border-gray-50 px-3 py-2 last:border-0"
+        {selectedSale ? (
+          <Stack sx={{ height: "100%", minHeight: 0 }}>
+            <Box
+              sx={{
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+                px: 3,
+                py: 2.5,
+                bgcolor: "background.surface",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                flexShrink: 0,
+              }}
+            >
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Avatar size="lg" variant="soft" color="neutral">
+                  <Receipt size={20} />
+                </Avatar>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    level="title-lg"
+                    sx={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    Sale
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    alignItems="center"
+                    sx={{ minWidth: 0, mt: 0.5 }}
+                  >
+                    <Typography
+                      level="body-xs"
+                      sx={{
+                        color: "text.tertiary",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {formatSaleId(selectedSale.lightspeed_sale_id)}
+                    </Typography>
+                    <Tooltip
+                      title={
+                        copiedKey === "sale-id" ? "Copied" : "Copy sale ID"
+                      }
+                    >
+                      <IconButton
+                        variant="plain"
+                        color="neutral"
+                        size="sm"
+                        onClick={() =>
+                          void copyToClipboard(
+                            selectedSale.lightspeed_sale_id,
+                            "sale-id",
+                          )
+                        }
                       >
-                        <span className="text-sm text-foreground">
-                          {item.name ?? item.productId ?? "Unnamed item"}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            ×{item.quantity ?? 0}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(item.unitPrice)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        <Copy size={14} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </Box>
+                <IconButton
+                  variant="plain"
+                  color="neutral"
+                  size="sm"
+                  onClick={() => onSelectedSaleChange(null)}
+                >
+                  <X size={16} />
+                </IconButton>
+              </Stack>
+            </Box>
+
+            <Stack spacing={2.5} sx={{ p: 3, overflowY: "auto", minHeight: 0 }}>
+              <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2 }}>
+                <SectionLabel>Summary</SectionLabel>
+                <Stack spacing={1.5}>
+                  <Typography level="h3" sx={{ fontWeight: "lg" }}>
+                    {formatCurrency(selectedSale.total_amount)}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    flexWrap="wrap"
+                    useFlexGap
+                  >
+                    <SaleStatusBadge status={selectedSale.status} />
+                    <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+                      {formatDateTimeValue(selectedSale.sale_date)}
+                    </Typography>
+                  </Stack>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                      gap: 1.5,
+                    }}
+                  >
+                    <DetailRow
+                      label="Payment"
+                      value={getDisplayValue(
+                        selectedSale.payment_method ??
+                          extractPaymentFromRawData(selectedSale.raw_data),
+                      )}
+                    />
+                    <DetailRow
+                      label="Items"
+                      value={lineItemCount.toLocaleString()}
+                    />
+                    <DetailRow
+                      label="Quantity"
+                      value={lineItemQuantity.toLocaleString()}
+                    />
+                    <DetailRow
+                      label="Synced"
+                      value={
+                        selectedSale.synced_at
+                          ? formatDateTimeValue(selectedSale.synced_at)
+                          : "\u2014"
+                      }
+                    />
+                  </Box>
+                </Stack>
+              </Sheet>
+
+              <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2 }}>
+                <SectionLabel>Customer</SectionLabel>
+                <Stack spacing={1}>
+                  <DetailRow
+                    label="Customer"
+                    value={getDisplayValue(selectedSale.customerDisplayName)}
+                  />
+                </Stack>
+              </Sheet>
+
+              <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2 }}>
+                <SectionLabel>Line Items</SectionLabel>
+                {lineItems.length > 0 ? (
+                  <Stack spacing={1}>
+                    {lineItems.map((item, index) => {
+                      const lineTotal = getLineItemTotal(
+                        item.unitPrice,
+                        item.quantity,
+                      );
+
+                      return (
+                        <Sheet
+                          key={`${item.productId ?? item.name ?? "item"}-${index}`}
+                          variant="soft"
+                          color="neutral"
+                          sx={{ borderRadius: "sm", p: 1.5 }}
+                        >
+                          <Stack spacing={1}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                justifyContent: "space-between",
+                                gap: 2,
+                              }}
+                            >
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography
+                                  level="body-md"
+                                  sx={{ fontWeight: "lg" }}
+                                >
+                                  {item.name ??
+                                    (item.productId
+                                      ? truncateProductId(item.productId)
+                                      : "Unnamed item")}
+                                </Typography>
+                                {item.sku ? (
+                                  <Typography
+                                    level="body-xs"
+                                    sx={{ color: "text.tertiary", mt: 0.25 }}
+                                  >
+                                    {item.sku}
+                                  </Typography>
+                                ) : null}
+                              </Box>
+                              {lineTotal !== null ? (
+                                <Typography
+                                  level="body-md"
+                                  sx={{
+                                    fontWeight: "lg",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {formatCurrency(lineTotal)}
+                                </Typography>
+                              ) : null}
+                            </Box>
+                            <Stack
+                              direction="row"
+                              spacing={0.75}
+                              flexWrap="wrap"
+                              useFlexGap
+                            >
+                              <Chip variant="soft" color="neutral" size="sm">
+                                Qty {formatLineItemQuantity(item.quantity)}
+                              </Chip>
+                              <Chip
+                                variant="outlined"
+                                color="neutral"
+                                size="sm"
+                              >
+                                Unit {formatCurrency(item.unitPrice)}
+                              </Chip>
+                            </Stack>
+                          </Stack>
+                        </Sheet>
+                      );
+                    })}
+                  </Stack>
                 ) : (
-                  <p className="text-sm italic text-muted-foreground">
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: "text.tertiary", textAlign: "center", py: 1 }}
+                  >
                     No line items available
-                  </p>
+                  </Typography>
                 )}
-              </div>
+              </Sheet>
 
               {selectedSale.note ? (
-                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm text-gray-700">
-                  {selectedSale.note}
-                </div>
+                <Sheet variant="outlined" sx={{ borderRadius: "md", p: 2 }}>
+                  <SectionLabel>Notes</SectionLabel>
+                  <Typography
+                    level="body-sm"
+                    sx={{ color: "text.secondary", whiteSpace: "pre-wrap" }}
+                  >
+                    {selectedSale.note}
+                  </Typography>
+                </Sheet>
               ) : null}
-
-              <details className="py-2">
-                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                  Raw Lightspeed data
-                </summary>
-                <RawDataPre value={selectedSale.raw_data} />
-              </details>
-            </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+            </Stack>
+          </Stack>
+        ) : null}
+      </Drawer>
     </>
   );
 }

@@ -59,11 +59,18 @@ interface FormPreviewRendererProps {
   settings: FormSettings;
   compliance: FormCompliance;
   mode?: "preview" | "embed";
-  onSubmit?: (data: Record<string, unknown>) => Promise<void> | void;
+  onSubmit?: (
+    data: Record<string, unknown>,
+  ) => Promise<void | FormPreviewSubmitResult> | void | FormPreviewSubmitResult;
   isSubmitting?: boolean;
   uploadEmbedKey?: string;
   changedIds?: Set<string>;
   resetSignal?: number;
+  isLoading?: boolean;
+}
+
+export interface FormPreviewSubmitResult {
+  preventSuccess?: boolean;
 }
 
 interface FileUploadItem {
@@ -131,6 +138,18 @@ function getVisuallyHiddenStyle(): React.CSSProperties {
   };
 }
 
+function getHoneypotStyle(): React.CSSProperties {
+  return {
+    position: "absolute",
+    left: -9999,
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: "hidden",
+    pointerEvents: "none",
+  };
+}
+
 export function FormPreviewRenderer({
   fields,
   settings,
@@ -141,6 +160,7 @@ export function FormPreviewRenderer({
   uploadEmbedKey,
   changedIds = new Set(),
   resetSignal = 0,
+  isLoading = false,
 }: FormPreviewRendererProps) {
   const normalizedSettings = useMemo(
     () => normalizeFormSettings(settings),
@@ -689,6 +709,10 @@ export function FormPreviewRenderer({
       );
     });
 
+    if (typeof formData._honeypot === "string") {
+      nextData._honeypot = formData._honeypot;
+    }
+
     return nextData;
   };
 
@@ -795,8 +819,13 @@ export function FormPreviewRenderer({
       }
 
       try {
-        if (mode === "embed" && onSubmit) {
-          await onSubmit(getSubmissionData());
+        const submitResult = onSubmit
+          ? await onSubmit(getSubmissionData())
+          : undefined;
+
+        if (submitResult?.preventSuccess) {
+          setIsTransitioningToSuccess(false);
+          return;
         }
 
         clearRedirectTimer(successTransitionTimerRef);
@@ -817,18 +846,33 @@ export function FormPreviewRenderer({
 
   const containerStyle: React.CSSProperties = {
     width: "100%",
-    maxWidth: `min(${tokens.formMaxWidth}, 42rem)`,
+    maxWidth: tokens.formMaxWidth,
     margin: "0 auto",
     backgroundColor: tokens.background,
     color: tokens.text,
     fontFamily: tokens.fontFamily,
     border: `1px solid ${tokens.subtleBorder}`,
-    borderRadius: `${CARD_RADIUS}px`,
+    borderRadius: tokens.radius,
   };
   const containerPadding =
     containerWidth !== null && containerWidth >= RESPONSIVE_TWO_COLUMN_MIN_WIDTH
       ? 32
       : 20;
+
+  if (isLoading) {
+    return (
+      <div
+        ref={containerRef}
+        style={{
+          ...containerStyle,
+          padding: containerPadding,
+          boxShadow: tokens.shadow,
+        }}
+      >
+        <FormPreviewSkeleton fields={fields} tokens={tokens} />
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
@@ -940,7 +984,7 @@ export function FormPreviewRenderer({
                 style={{
                   color: tokens.text,
                   fontFamily: tokens.fontFamily,
-                  fontSize: "1.25rem",
+                  fontSize: "1.5rem",
                   fontWeight: 600,
                   lineHeight: 1.3,
                   margin: 0,
@@ -954,8 +998,8 @@ export function FormPreviewRenderer({
               <p
                 style={{
                   color: tokens.mutedText,
-                  fontSize: "0.875rem",
-                  lineHeight: 1.6,
+                  fontSize: "1.125rem",
+                  lineHeight: 1.75,
                   margin: 0,
                 }}
               >
@@ -978,8 +1022,72 @@ export function FormPreviewRenderer({
           </p>
         )}
 
+        {submitError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            style={{
+              borderRadius: CARD_RADIUS,
+              padding: "14px 16px",
+              backgroundColor: tokens.errorSurface,
+              border: `1px solid ${toRgba(tokens.error, 0.18)}`,
+              color: tokens.error,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "0.75rem",
+              }}
+            >
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ margin: 0, fontSize: "0.875rem", fontWeight: 500 }}>
+                {submitError}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div aria-hidden="true" style={getHoneypotStyle()}>
+          <label
+            htmlFor={`${sessionIdRef.current}-honeypot`}
+            style={getVisuallyHiddenStyle()}
+          >
+            Do not fill this field
+          </label>
+          <input
+            id={`${sessionIdRef.current}-honeypot`}
+            name="_hp_website"
+            type="text"
+            tabIndex={-1}
+            autoComplete="off"
+            value={typeof formData._honeypot === "string" ? formData._honeypot : ""}
+            onChange={(event) => {
+              setFormData((current) => ({
+                ...current,
+                _honeypot: event.target.value,
+              }));
+            }}
+          />
+        </div>
+
         {multiStepEnabled && activeStepGroup && (
           <div style={{ display: "grid", gap: "1.25rem" }}>
+            <LinearProgress
+              determinate
+              value={((activeStepPosition + 1) / Math.max(stepGroups.length, 1)) * 100}
+              sx={{
+                height: 4,
+                borderRadius: 999,
+                backgroundColor: mixHex(tokens.background, tokens.text, 0.08),
+                "& .MuiLinearProgress-bar": {
+                  borderRadius: 999,
+                  backgroundColor: tokens.primary,
+                },
+              }}
+            />
+
             <StepProgress
               steps={stepGroups.map((group) => group.step)}
               activeIndex={activeStepPosition}
@@ -1001,10 +1109,10 @@ export function FormPreviewRenderer({
             <div
               style={{
                 display: "grid",
-                gap: "0.5rem",
+                gap: "0.625rem",
                 borderRadius: CONTROL_RADIUS,
-                padding: "16px 24px",
-                backgroundColor: mixHex(tokens.background, tokens.text, 0.05),
+                padding: "18px 24px",
+                backgroundColor: mixHex(tokens.background, tokens.text, 0.045),
                 border: `1px solid ${tokens.subtleBorder}`,
               }}
             >
@@ -1154,24 +1262,6 @@ export function FormPreviewRenderer({
           </div>
         )}
 
-        {submitError && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            style={{
-              borderRadius: CARD_RADIUS,
-              padding: "12px 16px",
-              backgroundColor: tokens.errorSurface,
-              border: `1px solid ${toRgba(tokens.error, 0.18)}`,
-              color: tokens.error,
-            }}
-          >
-            <p style={{ margin: 0, fontSize: "0.875rem", fontWeight: 500 }}>
-              {submitError}
-            </p>
-          </div>
-        )}
-
         {multiStepEnabled ? (
           <div
             style={{
@@ -1200,23 +1290,23 @@ export function FormPreviewRenderer({
                   justifyContent: "center",
                   gap: "0.5rem",
                   minHeight: 48,
-                  padding: "12px 24px",
+                  padding: "12px 32px",
                   borderRadius: CONTROL_RADIUS,
                   fontSize: "0.875rem",
                   fontWeight: 500,
                   transition:
                     "background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease",
-                  borderColor: tokens.strongBorder,
+                  borderColor: toRgba(tokens.primary, 0.48),
                   borderStyle: "solid",
                   borderWidth: 1,
-                  color: tokens.quietText,
-                  backgroundColor: "transparent",
+                  color: tokens.primary,
+                  backgroundColor: toRgba(tokens.primary, 0.08),
                   cursor: isSubmitting ? "not-allowed" : "pointer",
                   opacity: isSubmitting ? 0.5 : 1,
                 }}
               >
                 <ArrowLeft size={16} />
-                Back
+                Previous Step
               </button>
             ) : null}
 
@@ -1230,10 +1320,10 @@ export function FormPreviewRenderer({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "0.5rem",
-                width: "100%",
-                flex: "1 1 180px",
                 fontSize: "0.875rem",
                 fontWeight: 500,
+                borderStyle: "solid",
+                borderWidth: 1,
                 transition:
                   "background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, opacity 150ms ease",
                 cursor:
@@ -1266,17 +1356,18 @@ export function FormPreviewRenderer({
             </button>
           </div>
         ) : (
+          <div style={{ marginTop: 32, textAlign: "center" }}>
           <button
             type="submit"
             disabled={isSubmitting || hasActiveUploads}
             style={{
               ...getSubmitButtonStyle(tokens, theme.button_style ?? "filled"),
-              marginTop: 32,
               display: "inline-flex",
-              width: "100%",
               alignItems: "center",
               justifyContent: "center",
               gap: "0.5rem",
+              borderStyle: "solid",
+              borderWidth: 1,
               fontSize: "0.875rem",
               fontWeight: 500,
               transition:
@@ -1301,6 +1392,7 @@ export function FormPreviewRenderer({
               <ArrowRight size={16} />
             ) : null}
           </button>
+          </div>
         )}
 
         {hasActiveUploads && (
@@ -1391,7 +1483,6 @@ function StepProgress({
     <div
       style={{
         display: "flex",
-        flexWrap: "wrap",
         alignItems: "center",
         gap: "0.75rem",
       }}
@@ -1399,97 +1490,55 @@ function StepProgress({
       {steps.map((step, index) => {
         const isActive = index === activeIndex;
         const isComplete = index < activeIndex;
-        const stepNode = isComplete ? (
-          <button
-            type="button"
-            onClick={() => onStepSelect(step.index)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              borderRadius: 999,
-              padding: "8px 16px",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              transition:
-                "background-color 150ms ease, border-color 150ms ease, color 150ms ease",
-              backgroundColor: toRgba(tokens.primary, 0.25),
-              color: tokens.primary,
-              border: `2px solid ${tokens.primary}`,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-flex",
-                width: 24,
-                height: 24,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 999,
-                fontSize: "11px",
-                fontWeight: 600,
-                backgroundColor: toRgba(tokens.primary, 0.25),
-                color: tokens.primary,
-              }}
-            >
-              <Check size={14} />
-            </span>
-            <span>{step.title || `Step ${index + 1}`}</span>
-          </button>
-        ) : (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              borderRadius: 999,
-              padding: "8px 16px",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              backgroundColor: isActive
-                ? toRgba(tokens.primary, 0.25)
-                : toRgba(tokens.text, 0.08),
-              color: isActive ? tokens.primary : tokens.quietText,
-              border: isActive
-                ? `2px solid ${tokens.primary}`
-                : `2px solid ${toRgba(tokens.text, 0.16)}`,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-flex",
-                width: 24,
-                height: 24,
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 999,
-                fontSize: "11px",
-                fontWeight: 600,
-                backgroundColor: isActive
-                  ? toRgba(tokens.primary, 0.25)
-                  : toRgba(tokens.text, 0.12),
-                color: isActive ? tokens.primary : tokens.quietText,
-              }}
-            >
-              {index + 1}
-            </span>
-            <span>{step.title || `Step ${index + 1}`}</span>
-          </div>
-        );
 
         return (
           <React.Fragment key={`step-progress-${step.index}`}>
-            {index > 0 ? (
+            <button
+              type="button"
+              onClick={() => onStepSelect(step.index)}
+              aria-current={isActive ? "step" : undefined}
+              aria-label={step.title || `Step ${index + 1}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 32,
+                height: 32,
+                borderRadius: 999,
+                borderStyle: "solid",
+                borderWidth: 2,
+                borderColor: isComplete || isActive
+                  ? tokens.primary
+                  : toRgba(tokens.text, 0.18),
+                backgroundColor: isComplete || isActive
+                  ? tokens.primary
+                  : "transparent",
+                color: isComplete || isActive
+                  ? tokens.buttonTextOnPrimary
+                  : tokens.quietText,
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                transition:
+                  "background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease",
+                transform: isActive ? "scale(1.04)" : "scale(1)",
+              }}
+            >
+              {isComplete ? <Check size={16} /> : index + 1}
+            </button>
+
+            {index < steps.length - 1 ? (
               <div
                 style={{
-                  width: 32,
-                  height: 1,
+                  flex: 1,
+                  minWidth: 24,
+                  height: 2,
+                  borderRadius: 999,
                   backgroundColor:
-                    index <= activeIndex ? tokens.primary : tokens.subtleBorder,
+                    index < activeIndex ? tokens.primary : tokens.subtleBorder,
                 }}
               />
             ) : null}
-            {stepNode}
           </React.Fragment>
         );
       })}
@@ -1773,6 +1822,7 @@ function FieldRenderer({
       {error && (
         <div
           id={errorId}
+          role="alert"
           style={{
             marginTop: 6,
             display: "flex",
@@ -1819,6 +1869,7 @@ function FileFieldRenderer({
   registerFieldRef,
 }: FileFieldRendererProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const allowedMimeTypes = getFileFieldAllowedMimeTypes(field);
   const maxFiles = getFileFieldMaxFiles(field);
   const maxFileSizeMb = getFileFieldMaxFileSizeMb(field);
@@ -1832,6 +1883,45 @@ function FileFieldRenderer({
   ).length;
   const remainingSlots = Math.max(0, maxFiles - activeItemCount);
   const helpText = field.help_text?.trim();
+  const canSelectFiles = !isDisabled && remainingSlots > 0;
+
+  const handleDropZoneClick = () => {
+    if (canSelectFiles) {
+      inputRef.current?.click();
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    if (!canSelectFiles) {
+      return;
+    }
+
+    event.dataTransfer.dropEffect = "copy";
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+
+    if (nextTarget && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    setIsDragActive(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragActive(false);
+
+    if (!canSelectFiles) {
+      return;
+    }
+
+    onFilesSelected(event.dataTransfer.files);
+  };
 
   return (
     <div
@@ -1861,32 +1951,76 @@ function FileFieldRenderer({
         style={{
           display: "grid",
           gap: "1rem",
-          borderRadius: CONTROL_RADIUS,
-          border: `1px dashed ${error ? tokens.error : tokens.strongBorder}`,
-          padding: 16,
-          backgroundColor: tokens.fieldSurface,
           opacity: isDisabled ? 0.76 : 1,
         }}
       >
         <div
+          role="button"
+          tabIndex={canSelectFiles ? 0 : -1}
+          onClick={handleDropZoneClick}
+          onKeyDown={(event) => {
+            if (!canSelectFiles) {
+              return;
+            }
+
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
+            display: "grid",
             gap: "0.75rem",
+            borderRadius: CONTROL_RADIUS,
+            border: `1px dashed ${
+              error
+                ? tokens.error
+                : isDragActive
+                  ? tokens.primary
+                  : tokens.strongBorder
+            }`,
+            padding: "22px 18px",
+            backgroundColor: isDragActive
+              ? toRgba(tokens.primary, 0.08)
+              : tokens.fieldSurface,
+            textAlign: "center",
+            cursor: canSelectFiles ? "pointer" : "not-allowed",
+            transition:
+              "background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+            boxShadow: isDragActive
+              ? `0 0 0 4px ${toRgba(tokens.primary, 0.12)}`
+              : undefined,
           }}
         >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              margin: "0 auto",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 999,
+              backgroundColor: mixHex(tokens.background, tokens.text, 0.04),
+              color: isDragActive ? tokens.primary : tokens.text,
+            }}
+          >
+            <Upload size={20} />
+          </div>
+
           <div style={{ display: "grid", gap: "0.25rem" }}>
             <p
               style={{
                 color: tokens.text,
-                fontSize: "0.92rem",
+                fontSize: "0.95rem",
                 fontWeight: 600,
                 margin: 0,
               }}
             >
-              Upload up to {maxFiles} file{maxFiles === 1 ? "" : "s"}
+              Drag files here or click to browse
             </p>
             <p
               style={{
@@ -1896,42 +2030,46 @@ function FileFieldRenderer({
                 margin: 0,
               }}
             >
-              Max {maxFileSizeMb} MB each
+              Upload up to {maxFiles} file{maxFiles === 1 ? "" : "s"} • Max {maxFileSizeMb} MB each
               {allowedMimeTypes.length > 0
                 ? ` • ${allowedMimeTypes.join(", ")}`
                 : " • Any file type"}
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={isDisabled || remainingSlots === 0}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.5rem",
-              minHeight: 40,
-              padding: "8px 12px",
-              borderRadius: CARD_RADIUS,
-              borderWidth: 1,
-              borderStyle: "solid",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              transition:
-                "background-color 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
-              borderColor: tokens.strongBorder,
-              backgroundColor: tokens.background,
-              color: tokens.text,
-              cursor:
-                isDisabled || remainingSlots === 0 ? "not-allowed" : "pointer",
-              opacity: isDisabled || remainingSlots === 0 ? 0.6 : 1,
-            }}
-          >
-            <Upload size={16} />
-            {activeItemCount === 0 ? "Choose files" : "Add files"}
-          </button>
+          <div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                inputRef.current?.click();
+              }}
+              disabled={!canSelectFiles}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.5rem",
+                minHeight: 40,
+                padding: "8px 14px",
+                borderRadius: 999,
+                borderWidth: 1,
+                borderStyle: "solid",
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                transition:
+                  "background-color 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
+                borderColor: tokens.strongBorder,
+                backgroundColor: tokens.background,
+                color: tokens.text,
+                cursor: canSelectFiles ? "pointer" : "not-allowed",
+                opacity: canSelectFiles ? 1 : 0.6,
+              }}
+            >
+              <Upload size={16} />
+              {activeItemCount === 0 ? "Choose files" : "Add files"}
+            </button>
+          </div>
         </div>
 
         <input
@@ -1963,82 +2101,68 @@ function FileFieldRenderer({
                 <div
                   key={item.uploadId}
                   style={{
-                    borderRadius: CARD_RADIUS,
-                    borderWidth: 1,
-                    borderStyle: "solid",
-                    padding: "12px",
-                    borderColor: isErrored ? tokens.error : tokens.subtleBorder,
-                    backgroundColor: isErrored
-                      ? tokens.errorSurface
-                      : tokens.background,
+                    display: "grid",
+                    gap: "0.5rem",
                   }}
                 >
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: "0.75rem",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: "0.625rem",
+                      padding: "10px 12px",
+                      borderRadius: 999,
+                      border: `1px solid ${
+                        isErrored ? tokens.error : tokens.subtleBorder
+                      }`,
+                      backgroundColor: isErrored
+                        ? tokens.errorSurface
+                        : tokens.background,
                     }}
                   >
                     <div
                       style={{
                         minWidth: 0,
                         flex: 1,
-                        display: "grid",
-                        gap: "0.25rem",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: "0.5rem",
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                        }}
-                      >
-                        {isUploading ? (
-                          <Loader2
-                            size={16}
-                            style={{ color: tokens.quietText }}
-                          />
-                        ) : isErrored ? (
-                          <AlertCircle
-                            size={16}
-                            style={{ color: tokens.error }}
-                          />
-                        ) : (
-                          <CheckCircle2
-                            size={16}
-                            style={{ color: tokens.primary }}
-                          />
-                        )}
-                        <p
-                          style={{
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            color: tokens.text,
-                            fontSize: "0.9rem",
-                            fontWeight: 500,
-                            margin: 0,
-                          }}
-                        >
-                          {item.fileName}
-                        </p>
-                      </div>
+                      {isUploading ? (
+                        <Loader2 size={16} style={{ color: tokens.quietText }} />
+                      ) : isErrored ? (
+                        <AlertCircle size={16} style={{ color: tokens.error }} />
+                      ) : (
+                        <CheckCircle2 size={16} style={{ color: tokens.primary }} />
+                      )}
                       <p
                         style={{
-                          color: tokens.quietText,
-                          fontSize: "0.78rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: tokens.text,
+                          fontSize: "0.82rem",
+                          fontWeight: 500,
                           margin: 0,
                         }}
                       >
-                        {formatFileSize(item.fileSize)}
-                        {item.status === "uploaded" ? " • Uploaded" : null}
-                        {item.status === "error" && item.error
-                          ? ` • ${item.error}`
-                          : null}
+                        {item.fileName}
                       </p>
+                      <span
+                        style={{ color: tokens.quietText, fontSize: "0.76rem" }}
+                      >
+                        {formatFileSize(item.fileSize)}
+                      </span>
+                      {!isUploading && !isErrored ? (
+                        <span
+                          style={{ color: tokens.quietText, fontSize: "0.76rem" }}
+                        >
+                          Uploaded
+                        </span>
+                      ) : null}
                     </div>
 
                     <button
@@ -2069,18 +2193,6 @@ function FileFieldRenderer({
                       }
                     >
                       <X size={16} />
-
-                      {!error && helpText ? (
-                        <div
-                          style={{
-                            color: tokens.quietText,
-                            fontSize: "0.75rem",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {helpText}
-                        </div>
-                      ) : null}
                     </button>
                   </div>
 
@@ -2116,6 +2228,25 @@ function FileFieldRenderer({
                       </p>
                     </div>
                   )}
+
+                  {isErrored && item.error ? (
+                    <div
+                      role="alert"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "0.375rem",
+                        color: tokens.error,
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      <AlertCircle
+                        size={14}
+                        style={{ marginTop: 2, flexShrink: 0 }}
+                      />
+                      <span>{item.error}</span>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -2145,11 +2276,23 @@ function FileFieldRenderer({
           </div>
         )}
 
+        {!error && helpText ? (
+          <div
+            style={{
+              color: tokens.quietText,
+              fontSize: "0.75rem",
+              lineHeight: 1.5,
+            }}
+          >
+            {helpText}
+          </div>
+        ) : null}
+
         {value.length > 0 && (
           <p
             style={{ color: tokens.quietText, margin: 0, fontSize: "0.75rem" }}
           >
-            {value.length} of {maxFiles} file{maxFiles === 1 ? "" : "s"} ready
+            {uploadedCount} of {maxFiles} file{maxFiles === 1 ? "" : "s"} ready
           </p>
         )}
       </div>
@@ -2157,6 +2300,7 @@ function FileFieldRenderer({
       {error && (
         <div
           id={errorId}
+          role="alert"
           style={{
             marginTop: 6,
             display: "flex",
@@ -2295,6 +2439,7 @@ function ConsentFieldRenderer({
       {error && (
         <div
           id={errorId}
+          role="alert"
           style={{
             marginTop: 6,
             display: "flex",
@@ -2360,9 +2505,22 @@ function SuccessState({ mode, settings, tokens, onReset }: SuccessStateProps) {
             borderRadius: 999,
             backgroundColor: toRgba(tokens.primary, 0.1),
             color: tokens.primary,
+            transform: isVisible ? "scale(1)" : "scale(0.76)",
+            boxShadow: isVisible
+              ? `0 0 0 14px ${toRgba(tokens.primary, 0.06)}`
+              : `0 0 0 0 ${toRgba(tokens.primary, 0)}`,
+            transition:
+              "transform 240ms ease, box-shadow 320ms ease, opacity 240ms ease",
           }}
         >
-          <Check size={32} />
+          <Check
+            size={32}
+            style={{
+              transform: isVisible ? "scale(1)" : "scale(0.4)",
+              transition:
+                "transform 280ms cubic-bezier(0.2, 0.9, 0.2, 1.1) 90ms",
+            }}
+          />
         </div>
 
         <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -2429,6 +2587,72 @@ function SuccessState({ mode, settings, tokens, onReset }: SuccessStateProps) {
   );
 }
 
+function FormPreviewSkeleton({
+  fields,
+  tokens,
+}: {
+  fields: FormField[];
+  tokens: ThemeTokens;
+}) {
+  const visibleFields = fields.filter((field) => field.type !== "hidden");
+  const skeletonFields =
+    visibleFields.length > 0
+      ? visibleFields.slice(0, 5)
+      : (Array.from({ length: 3 }, (_, index) => ({
+          id: `skeleton-${index}`,
+          type: "text",
+          label: "",
+          required: false,
+        })) as FormField[]);
+
+  const getSkeletonStyle = (
+    width: string,
+    height: number,
+    radius = CONTROL_RADIUS,
+  ): React.CSSProperties => ({
+    width,
+    height,
+    borderRadius: radius,
+    background: `linear-gradient(90deg, ${mixHex(
+      tokens.background,
+      tokens.text,
+      0.05,
+    )} 0%, ${mixHex(tokens.background, tokens.text, 0.1)} 50%, ${mixHex(
+      tokens.background,
+      tokens.text,
+      0.05,
+    )} 100%)`,
+  });
+
+  return (
+    <div style={{ display: "grid", gap: "1.25rem" }}>
+      <div style={{ display: "grid", gap: "0.75rem" }}>
+        <div style={getSkeletonStyle("32%", 14, 999)} />
+        <div style={getSkeletonStyle("58%", 18, 999)} />
+      </div>
+
+      {skeletonFields.map((field, index) => (
+        <div key={`${field.id}-${index}`} style={{ display: "grid", gap: "0.5rem" }}>
+          <div style={getSkeletonStyle(index % 2 === 0 ? "28%" : "22%", 12, 999)} />
+          {field.type === "file" ? (
+            <div style={getSkeletonStyle("100%", 104, CARD_RADIUS)} />
+          ) : field.type === "checkbox" ||
+            field.type === "email_consent" ||
+            field.type === "sms_consent" ? (
+            <div style={getSkeletonStyle("100%", 56, CARD_RADIUS)} />
+          ) : (
+            <div style={getSkeletonStyle("100%", 48)} />
+          )}
+        </div>
+      ))}
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={getSkeletonStyle("144px", 46, 999)} />
+      </div>
+    </div>
+  );
+}
+
 function getDefaultFieldPlaceholder(field: FormField): string {
   if (field.placeholder?.trim()) {
     return field.placeholder;
@@ -2453,7 +2677,7 @@ function getDefaultFieldPlaceholder(field: FormField): string {
   }
 
   if (normalizedLabel.includes("website")) {
-    return "e.g., https://example.com";
+    return "e.g., https://yourdomain.com";
   }
 
   return "Enter your answer";
@@ -2515,7 +2739,7 @@ function getSubmitButtonStyle(
   if (buttonStyle === "outlined") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: CONTROL_RADIUS,
       backgroundColor: "transparent",
       borderColor: tokens.primary,
@@ -2527,7 +2751,7 @@ function getSubmitButtonStyle(
   if (buttonStyle === "ghost") {
     return {
       minHeight: 48,
-      padding: "12px 24px",
+      padding: "12px 32px",
       borderRadius: CONTROL_RADIUS,
       backgroundColor: toRgba(tokens.primary, 0.08),
       borderColor: "transparent",

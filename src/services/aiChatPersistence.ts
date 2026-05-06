@@ -26,15 +26,25 @@ export interface MessageData {
 }
 
 export interface GeneratedImageData {
+  dimensions?: {
+    height: number;
+    width: number;
+  } | null;
+  enhancedPrompt: string | null;
   id: string;
+  imageUrl: string;
+  isSelected: boolean;
   sessionId: string;
   messageId: string;
   globalImageId: string;
-  imageUrl: string;
-  userPrompt: string;
-  enhancedPrompt: string | null;
   generationOrder: number;
-  isSelected: boolean;
+  mimeType?: string | null;
+  tags?: Array<{
+    category: string;
+    confidence?: number | null;
+    name: string;
+  }>;
+  userPrompt: string;
 }
 
 export interface MessageWithSession extends MessageData {
@@ -49,6 +59,26 @@ export interface MessageWithSession extends MessageData {
 
 // Type-safe wrappers for new tables
 type AnyTable = any;
+
+function normalizeImageDimensions(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const rawWidth = (value as { width?: unknown }).width;
+  const rawHeight = (value as { height?: unknown }).height;
+  const width = typeof rawWidth === "number" ? rawWidth : Number(rawWidth);
+  const height = typeof rawHeight === "number" ? rawHeight : Number(rawHeight);
+
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+
+  return {
+    width,
+    height,
+  };
+}
 
 export class AIChatPersistenceService {
   /**
@@ -210,7 +240,7 @@ export class AIChatPersistenceService {
       .select(
         `
         *,
-        global_image_gallery!inner(public_url)
+        global_image_gallery!inner(public_url, dimensions, mime_type)
       `,
       )
       .eq("message_id", messageId)
@@ -221,16 +251,68 @@ export class AIChatPersistenceService {
       throw error;
     }
 
+    const globalImageIds = (data || [])
+      .map((img: any) => img.global_image_id)
+      .filter(Boolean);
+
+    let tagsByImageId = new Map<
+      string,
+      Array<{ category: string; confidence?: number | null; name: string }>
+    >();
+
+    if (globalImageIds.length > 0) {
+      const { data: tagsData, error: tagsError } = await supabase
+        .from("global_image_tags" as AnyTable)
+        .select("image_id, tag_name, tag_category, confidence_score")
+        .in("image_id", globalImageIds);
+
+      if (tagsError) {
+        console.error("⚠️ Error loading image tags:", tagsError);
+      } else {
+        tagsByImageId = (tagsData || []).reduce(
+          (
+            map: Map<
+              string,
+              Array<{
+                category: string;
+                confidence?: number | null;
+                name: string;
+              }>
+            >,
+            tag: any,
+          ) => {
+            const imageId = tag.image_id as string;
+            const nextTags = map.get(imageId) || [];
+
+            nextTags.push({
+              name: tag.tag_name,
+              category: tag.tag_category,
+              confidence: tag.confidence_score,
+            });
+
+            map.set(imageId, nextTags);
+            return map;
+          },
+          new Map(),
+        );
+      }
+    }
+
     return (data || []).map((img: any) => ({
+      dimensions: normalizeImageDimensions(
+        (img.global_image_gallery as any)?.dimensions,
+      ),
       id: img.id,
+      imageUrl: (img.global_image_gallery as any).public_url,
+      isSelected: img.is_selected,
       sessionId: img.session_id,
       messageId: img.message_id,
       globalImageId: img.global_image_id,
-      imageUrl: (img.global_image_gallery as any).public_url,
-      userPrompt: img.user_prompt,
       enhancedPrompt: img.enhanced_prompt,
       generationOrder: img.generation_order,
-      isSelected: img.is_selected,
+      mimeType: (img.global_image_gallery as any)?.mime_type,
+      tags: tagsByImageId.get(img.global_image_id) || [],
+      userPrompt: img.user_prompt,
     }));
   }
 

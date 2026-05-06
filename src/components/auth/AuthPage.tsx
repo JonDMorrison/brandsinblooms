@@ -81,6 +81,11 @@ export const AuthPage = () => {
       return;
     }
 
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -272,12 +277,12 @@ export const AuthPage = () => {
                         <Input
                           id="signup-password"
                           type="password"
-                          placeholder="Create a password (min 6 characters)"
+                          placeholder="Create a password (min 8 characters)"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className="pl-10"
                           disabled={loading}
-                          minLength={6}
+                          minLength={8}
                           required
                         />
                       </div>

@@ -246,6 +246,26 @@ export const TenantTable = ({
                     >
                       {tenant.company_name || "Unnamed Company"}
                     </Link>
+                    {!tenant.onboarding_completed_at &&
+                      new Date(tenant.tenant_created_at).getTime() <
+                        Date.now() - 7 * 24 * 60 * 60 * 1000 && (
+                        <Typography
+                          level="body-xs"
+                          sx={{
+                            px: 0.75,
+                            py: 0.25,
+                            borderRadius: "4px",
+                            backgroundColor: "warning.100",
+                            color: "warning.700",
+                            fontWeight: 600,
+                            fontSize: "10px",
+                            display: "inline-block",
+                            width: "fit-content",
+                          }}
+                        >
+                          Onboarding stalled
+                        </Typography>
+                      )}
                     <Typography level="body-sm" color="neutral">
                       {tenant.primary_contact_email || "No contact email"}
                     </Typography>

@@ -1,18 +1,28 @@
-import React from "react";
-import AspectRatio from "@mui/joy/AspectRatio";
+import React, { type KeyboardEvent } from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
 import Divider from "@mui/joy/Divider";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { ArrowLeft } from "lucide-react";
-import { NewsletterTemplate } from "@/types/newsletter";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { NewsletterIdea, NewsletterTemplate } from "@/types/newsletter";
 
 type LayoutKey = NewsletterTemplate["layout"];
+type NewsletterIdeaSummary = Pick<
+  NewsletterIdea,
+  "title" | "description" | "category" | "badge" | "weekNumber"
+>;
 
-const surfaceTransition =
-  "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease";
+const categoryLabelByCategory: Record<NewsletterIdea["category"], string> = {
+  holiday: "Holiday",
+  seasonal: "Seasonal",
+  product: "Product",
+  "ai-generated": "AI Idea",
+  general: "General",
+  weekly: "Weekly",
+};
 
 const defaultTemplates: NewsletterTemplate[] = [
   {
@@ -20,7 +30,8 @@ const defaultTemplates: NewsletterTemplate[] = [
     name: "Block Builder",
     layout: "block-builder",
     thumbnail: "",
-    description: "Multiple customizable blocks for rich content",
+    description:
+      "Drag-and-drop content blocks to create a fully custom newsletter layout.",
     isDefault: true,
   },
   {
@@ -28,318 +39,472 @@ const defaultTemplates: NewsletterTemplate[] = [
     name: "Simple Email",
     layout: "simple-email",
     thumbnail: "",
-    description: "Clean, straightforward single-column format",
+    description:
+      "A clean, single-column format focused on text content and announcements.",
   },
 ];
 
-function LayoutPreview({ layout }: { layout: LayoutKey }) {
-  if (layout === "block-builder") {
-    return (
-      <Stack spacing={1} sx={{ height: "100%", p: 1.5, bgcolor: "neutral.50" }}>
-        <Box
-          sx={{
-            borderRadius: "md",
-            border: "1px solid",
-            borderColor: "neutral.200",
-            bgcolor: "background.surface",
-            p: 1,
-          }}
-        >
-          <Box
-            sx={{
-              height: 12,
-              width: "58%",
-              borderRadius: "sm",
-              bgcolor: "neutral.300",
-              mb: 0.75,
-            }}
-          />
-          <Box
-            sx={{
-              height: 8,
-              width: "84%",
-              borderRadius: "sm",
-              bgcolor: "neutral.200",
-            }}
-          />
-        </Box>
+function getIdeaMetaLabel(idea: NewsletterIdeaSummary) {
+  const categoryLabel = categoryLabelByCategory[idea.category].toUpperCase();
+  const secondaryLabel =
+    idea.badge ??
+    (typeof idea.weekNumber === "number" ? `Week ${idea.weekNumber}` : null);
 
-        {Array.from({ length: 2 }).map((_, index) => (
-          <Box
-            key={index}
-            sx={{
-              borderRadius: "md",
-              border: "1px solid",
-              borderColor: "neutral.200",
-              bgcolor: "background.surface",
-              p: 0.85,
-            }}
-          >
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "1.1fr 1fr",
-                gap: 0.75,
-                minHeight: 52,
-              }}
-            >
-              <Box sx={{ borderRadius: "sm", bgcolor: "neutral.100" }} />
-              <Stack spacing={0.5} justifyContent="center">
-                <Box
-                  sx={{
-                    height: 8,
-                    width: "88%",
-                    borderRadius: "sm",
-                    bgcolor: "neutral.300",
-                  }}
-                />
-                <Box
-                  sx={{
-                    height: 8,
-                    width: "72%",
-                    borderRadius: "sm",
-                    bgcolor: "neutral.200",
-                  }}
-                />
-                <Box
-                  sx={{
-                    height: 8,
-                    width: "80%",
-                    borderRadius: "sm",
-                    bgcolor: "neutral.200",
-                  }}
-                />
-              </Stack>
-            </Box>
-          </Box>
-        ))}
+  return secondaryLabel
+    ? `${categoryLabel} · ${secondaryLabel}`
+    : categoryLabel;
+}
 
-        <Box
-          sx={{
-            mt: "auto",
-            borderRadius: "md",
-            border: "1px solid",
-            borderColor: "neutral.200",
-            bgcolor: "background.surface",
-            p: 0.75,
-          }}
-        >
-          <Box
-            sx={{
-              height: 8,
-              width: "54%",
-              borderRadius: "sm",
-              bgcolor: "neutral.300",
-            }}
+function BlockBuilderPreview() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 320 200"
+      width="100%"
+      height="100%"
+      style={{ display: "block" }}
+    >
+      <rect
+        x="24"
+        y="18"
+        width="272"
+        height="26"
+        rx="6"
+        fill="var(--joy-palette-neutral-200)"
+        stroke="var(--joy-palette-neutral-300)"
+        strokeWidth="1.5"
+      />
+
+      {[
+        { x: 24, y: 60 },
+        { x: 164, y: 60 },
+        { x: 24, y: 114 },
+        { x: 164, y: 114 },
+      ].map((block) => (
+        <g key={`${block.x}-${block.y}`}>
+          <rect
+            x={block.x}
+            y={block.y}
+            width="132"
+            height="40"
+            rx="6"
+            fill="var(--joy-palette-background-surface)"
+            stroke="var(--joy-palette-neutral-300)"
+            strokeWidth="1.5"
           />
-        </Box>
-      </Stack>
-    );
+          <rect
+            x={block.x + 12}
+            y={block.y + 10}
+            width="54"
+            height="6"
+            rx="3"
+            fill="var(--joy-palette-neutral-200)"
+          />
+          <rect
+            x={block.x + 12}
+            y={block.y + 20}
+            width="92"
+            height="4"
+            rx="2"
+            fill="var(--joy-palette-neutral-200)"
+          />
+          <rect
+            x={block.x + 12}
+            y={block.y + 28}
+            width="74"
+            height="4"
+            rx="2"
+            fill="var(--joy-palette-neutral-200)"
+          />
+        </g>
+      ))}
+
+      <rect
+        x="24"
+        y="168"
+        width="272"
+        height="18"
+        rx="6"
+        fill="var(--joy-palette-primary-200)"
+        stroke="var(--joy-palette-neutral-300)"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="40"
+        y="174"
+        width="96"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-background-surface)"
+      />
+    </svg>
+  );
+}
+
+function SimpleEmailPreview() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 320 200"
+      width="100%"
+      height="100%"
+      style={{ display: "block" }}
+    >
+      <rect
+        x="88"
+        y="14"
+        width="144"
+        height="172"
+        rx="12"
+        fill="var(--joy-palette-background-surface)"
+        stroke="var(--joy-palette-neutral-300)"
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="160"
+        cy="36"
+        r="10"
+        fill="var(--joy-palette-neutral-200)"
+        stroke="var(--joy-palette-neutral-300)"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="108"
+        y="58"
+        width="104"
+        height="10"
+        rx="5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="108"
+        y="80"
+        width="108"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="108"
+        y="91"
+        width="102"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="108"
+        y="102"
+        width="114"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="108"
+        y="113"
+        width="86"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="128"
+        y="132"
+        width="64"
+        height="18"
+        rx="8"
+        fill="var(--joy-palette-primary-200)"
+        stroke="var(--joy-palette-neutral-300)"
+        strokeWidth="1.5"
+      />
+      <rect
+        x="116"
+        y="162"
+        width="88"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+      <rect
+        x="126"
+        y="173"
+        width="68"
+        height="5"
+        rx="2.5"
+        fill="var(--joy-palette-neutral-200)"
+      />
+    </svg>
+  );
+}
+
+const layoutContentByLayout: Record<
+  LayoutKey,
+  {
+    description: string;
+    featureHints: string[];
+    preview: React.ReactNode;
   }
+> = {
+  "block-builder": {
+    description:
+      "Drag-and-drop content blocks to create a fully custom newsletter layout. Best for rich, visual newsletters with multiple sections.",
+    featureHints: ["Multi-section", "Images & CTAs", "Full control"],
+    preview: <BlockBuilderPreview />,
+  },
+  "simple-email": {
+    description:
+      "A clean, single-column format focused on text content. Ideal for announcements, updates, and personal newsletters.",
+    featureHints: ["Text-focused", "Clean layout", "Quick to write"],
+    preview: <SimpleEmailPreview />,
+  },
+};
+
+function LayoutOptionCard({
+  selected,
+  template,
+  onSelect,
+}: {
+  selected: boolean;
+  template: NewsletterTemplate;
+  onSelect: () => void;
+}) {
+  const layoutContent = layoutContentByLayout[template.layout];
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect();
+    }
+  };
 
   return (
-    <Stack spacing={1} sx={{ height: "100%", p: 1.5, bgcolor: "neutral.50" }}>
-      <Box
-        sx={{
-          flex: 1,
-          borderRadius: "md",
-          border: "1px solid",
-          borderColor: "neutral.200",
-          bgcolor: "background.surface",
-          p: 1.15,
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.9,
-        }}
-      >
+    <Card
+      role="button"
+      tabIndex={0}
+      variant="outlined"
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      sx={{
+        p: 0,
+        position: "relative",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        borderRadius: "lg",
+        borderWidth: selected ? 2 : 1,
+        borderColor: selected ? "primary.500" : "neutral.200",
+        bgcolor: "background.surface",
+        boxShadow: "none",
+        cursor: "pointer",
+        transition: "border-color 150ms ease, box-shadow 150ms ease",
+        outline: "none",
+        "&:hover": {
+          borderColor: selected ? "primary.500" : "primary.300",
+        },
+        "&:focus-visible": {
+          borderColor: selected ? "primary.500" : "primary.400",
+        },
+      }}
+    >
+      {selected ? (
+        <Chip
+          size="sm"
+          variant="solid"
+          color="primary"
+          sx={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            zIndex: 1,
+            minHeight: 24,
+            minWidth: 24,
+            px: 0.75,
+            borderRadius: "999px",
+          }}
+        >
+          <Check size={14} />
+        </Chip>
+      ) : null}
+
+      <Box sx={{ p: 2.5, pb: 0 }}>
         <Box
           sx={{
-            height: 14,
-            width: "54%",
+            bgcolor: "background.level1",
             borderRadius: "sm",
-            bgcolor: "neutral.300",
+            p: 2,
+            height: 200,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-        />
-        <Box
-          sx={{
-            height: 8,
-            width: "88%",
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
-        <Box
-          sx={{
-            height: 8,
-            width: "96%",
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
-        <Box
-          sx={{
-            height: 8,
-            width: "80%",
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
-        <Box sx={{ height: 72, borderRadius: "md", bgcolor: "neutral.100" }} />
-        <Box
-          sx={{
-            height: 8,
-            width: "94%",
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
-        <Box
-          sx={{
-            height: 8,
-            width: "76%",
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
-        <Box
-          sx={{
-            mt: "auto",
-            height: 24,
-            borderRadius: "sm",
-            bgcolor: "neutral.200",
-          }}
-        />
+        >
+          {layoutContent.preview}
+        </Box>
       </Box>
-    </Stack>
+
+      <Stack
+        spacing={1.5}
+        sx={{ p: 2.5, flex: 1, justifyContent: "space-between" }}
+      >
+        <Stack spacing={0.75}>
+          <Typography level="title-md" sx={{ fontWeight: 600 }}>
+            {template.name}
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>
+            {layoutContent.description}
+          </Typography>
+        </Stack>
+
+        <Stack direction="row" gap={1} useFlexGap flexWrap="wrap">
+          {layoutContent.featureHints.map((feature) => (
+            <Chip
+              key={feature}
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              sx={{ borderRadius: "sm" }}
+            >
+              {feature}
+            </Chip>
+          ))}
+        </Stack>
+      </Stack>
+    </Card>
   );
 }
 
 export function NewsletterLayoutPicker({
-  ideaTitle,
+  idea,
   onBack,
   onChange,
   onContinue,
   templates,
   value,
 }: {
-  ideaTitle: string;
+  idea: NewsletterIdeaSummary;
   onBack: () => void;
   onChange: (v: LayoutKey) => void;
   onContinue: () => void;
   templates: NewsletterTemplate[];
   value: LayoutKey | null;
 }) {
-  const resolvedTemplates = templates.length > 0 ? templates : defaultTemplates;
+  const sourceTemplates = templates.length > 0 ? templates : defaultTemplates;
+  const templateByLayout = new Map(
+    sourceTemplates.map((template) => [template.layout, template]),
+  );
+  const resolvedTemplates = (["block-builder", "simple-email"] as const)
+    .map((layout) => templateByLayout.get(layout))
+    .filter((template): template is NewsletterTemplate => Boolean(template));
 
   return (
     <Stack sx={{ flex: 1, minHeight: 0 }}>
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        useFlexGap
-        flexWrap="wrap"
-        sx={{ px: 3, pt: 2.5, pb: 2 }}
+      <Box
+        sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 3, pt: 2.5, pb: 3 }}
       >
-        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-          Selected:{" "}
-          <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>
-            {ideaTitle}
-          </Box>
-        </Typography>
-
-        <Typography
-          level="body-sm"
-          onClick={onBack}
-          sx={{
-            color: "primary.plainColor",
-            fontWeight: 500,
-            cursor: "pointer",
-            "&:hover": {
-              textDecoration: "underline",
-            },
-          }}
-        >
-          ← Change idea
-        </Typography>
-      </Stack>
-
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 3, pb: 2 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "repeat(2, minmax(0, 1fr))",
-              md: "repeat(3, minmax(0, 1fr))",
-            },
-            gap: 2,
-          }}
-        >
-          {resolvedTemplates.map((template) => {
-            const selected = value === template.layout;
-
-            return (
-              <Card
-                key={template.id}
-                variant="outlined"
-                onClick={() => onChange(template.layout)}
-                sx={{
-                  p: 0,
-                  borderRadius: "lg",
-                  borderWidth: selected ? 2 : 1,
-                  borderColor: selected ? "primary.400" : "neutral.200",
-                  backgroundColor: "background.surface",
-                  boxShadow: selected
-                    ? "0 4px 12px rgba(0, 0, 0, 0.06)"
-                    : "0 1px 2px rgba(0, 0, 0, 0.03)",
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  transition: surfaceTransition,
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.06)",
-                    borderColor: selected ? "primary.400" : "neutral.300",
-                  },
-                }}
-              >
-                <AspectRatio ratio="4 / 5">
-                  <Box sx={{ height: "100%", bgcolor: "background.surface" }}>
-                    <LayoutPreview layout={template.layout} />
-                  </Box>
-                </AspectRatio>
-
-                <Box
+        <Stack spacing={3}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              borderRadius: "lg",
+              borderColor: "neutral.200",
+              bgcolor: "background.surface",
+              boxShadow: "none",
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  level="body-xs"
                   sx={{
-                    px: 2,
-                    py: 1.5,
-                    borderTop: "1px solid",
-                    borderColor: "neutral.100",
-                    textAlign: "center",
+                    color: "text.tertiary",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    letterSpacing: "0.05em",
                   }}
                 >
-                  <Typography
-                    level="body-sm"
-                    sx={{
-                      fontWeight: 500,
-                      color: selected ? "primary.plainColor" : "text.primary",
-                    }}
-                  >
-                    {template.name}
-                  </Typography>
-                </Box>
-              </Card>
-            );
-          })}
-        </Box>
+                  {getIdeaMetaLabel(idea)}
+                </Typography>
+                <Typography level="title-md" sx={{ fontWeight: 700 }}>
+                  {idea.title}
+                </Typography>
+                <Typography
+                  level="body-sm"
+                  sx={{
+                    color: "text.secondary",
+                    display: "-webkit-box",
+                    WebkitBoxOrient: "vertical",
+                    WebkitLineClamp: 2,
+                    overflow: "hidden",
+                  }}
+                >
+                  {idea.description}
+                </Typography>
+              </Stack>
+
+              <Button
+                variant="plain"
+                color="primary"
+                size="sm"
+                startDecorator={<ArrowLeft size={14} />}
+                onClick={onBack}
+                sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+              >
+                Change idea
+              </Button>
+            </Stack>
+          </Card>
+
+          <Stack spacing={0.75}>
+            <Typography level="title-lg" sx={{ fontWeight: 600 }}>
+              Choose a Layout
+            </Typography>
+            <Typography
+              level="body-sm"
+              sx={{ color: "text.secondary", mb: 2.5 }}
+            >
+              Select how your newsletter will be structured.
+            </Typography>
+          </Stack>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2.5,
+              alignItems: "stretch",
+            }}
+          >
+            {resolvedTemplates.map((template) => (
+              <LayoutOptionCard
+                key={template.id}
+                selected={value === template.layout}
+                template={template}
+                onSelect={() => onChange(template.layout)}
+              />
+            ))}
+          </Box>
+        </Stack>
       </Box>
 
       <Divider sx={{ borderColor: "neutral.100" }} />
 
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ px: 3, py: 2 }}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: { xs: "wrap", sm: "nowrap" },
+          gap: 1.5,
+          justifyContent: "space-between",
+          alignItems: "center",
+          px: 3,
+          py: 2,
+        }}
       >
         <Button
           size="sm"
@@ -347,26 +512,22 @@ export function NewsletterLayoutPicker({
           color="neutral"
           startDecorator={<ArrowLeft size={14} />}
           onClick={onBack}
-          sx={{
-            "&:hover": {
-              backgroundColor: "neutral.100",
-            },
-          }}
         >
           Back to ideas
         </Button>
 
         <Button
-          size="lg"
+          size="md"
           variant="solid"
           color="primary"
           disabled={!value}
+          endDecorator={<ArrowRight size={16} />}
           onClick={onContinue}
-          sx={{ minWidth: { xs: 180, sm: 220 } }}
+          sx={{ ml: { sm: "auto" } }}
         >
           Continue to Editor
         </Button>
-      </Stack>
+      </Box>
     </Stack>
   );
 }

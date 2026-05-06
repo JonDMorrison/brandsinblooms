@@ -18,6 +18,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+const FIRST_PARTY_LIGHTSPEED_CALLBACK_ORIGINS = new Set([
+  "https://bloomsuite.app",
+  "https://www.bloomsuite.app",
+]);
+
 export default function LightspeedConnectPage() {
   const [domainPrefix, setDomainPrefix] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,17 +42,26 @@ export default function LightspeedConnectPage() {
         localStorage.removeItem("lightspeed_oauth_result");
 
         if (data.status === "success") {
-          void queryClient.invalidateQueries({ queryKey: ["lightspeed-connection"] });
-          void queryClient.invalidateQueries({ queryKey: ["lightspeed-connection-status"] });
+          void queryClient.invalidateQueries({
+            queryKey: ["lightspeed-connection"],
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["lightspeed-connection-status"],
+          });
           toast({
             title: "✓ Lightspeed connected successfully",
-            description: data.retailerName ? `Connected to ${data.retailerName}` : undefined,
+            description: data.retailerName
+              ? `Connected to ${data.retailerName}`
+              : undefined,
           });
           void navigate("/integrations/lightspeed", { replace: true });
         } else if (data.status === "error") {
           toast({
             title: "Connection failed",
-            description: getUserFacingIntegrationError(data.message, "The connection could not be completed. Please try again."),
+            description: getUserFacingIntegrationError(
+              data.message,
+              "The connection could not be completed. Please try again.",
+            ),
             variant: "destructive",
           });
         }
@@ -57,7 +71,11 @@ export default function LightspeedConnectPage() {
     const checkLocalStorage = () => {
       const result = localStorage.getItem("lightspeed_oauth_result");
       if (result) {
-        try { handleOAuthResult(JSON.parse(result)); } catch { /* ignore */ }
+        try {
+          handleOAuthResult(JSON.parse(result));
+        } catch {
+          /* ignore */
+        }
       }
     };
 
@@ -65,10 +83,20 @@ export default function LightspeedConnectPage() {
     try {
       channel = new BroadcastChannel("lightspeed_oauth");
       channel.onmessage = (event) => handleOAuthResult(event.data);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin === window.location.origin && event.data?.type === "lightspeed_oauth_result") {
+      const allowedOrigins = new Set([
+        window.location.origin,
+        ...FIRST_PARTY_LIGHTSPEED_CALLBACK_ORIGINS,
+      ]);
+
+      if (
+        allowedOrigins.has(event.origin) &&
+        event.data?.type === "lightspeed_oauth_result"
+      ) {
         handleOAuthResult(event.data.data);
       }
     };
@@ -106,9 +134,15 @@ export default function LightspeedConnectPage() {
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("lightspeed-oauth-start", {
-        body: { domainPrefix: prefix, redirectOrigin: window.location.origin },
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "lightspeed-oauth-start",
+        {
+          body: {
+            domainPrefix: prefix,
+            redirectOrigin: window.location.origin,
+          },
+        },
+      );
 
       if (error || !data?.authUrl) {
         throw new Error(error?.message || "No authorization URL received");
@@ -129,7 +163,10 @@ export default function LightspeedConnectPage() {
     } catch (error: unknown) {
       toast({
         title: "Connection failed",
-        description: getUserFacingIntegrationError(error, "Failed to start the connection. Please try again."),
+        description: getUserFacingIntegrationError(
+          error,
+          "Failed to start the connection. Please try again.",
+        ),
         variant: "destructive",
       });
       setLoading(false);
@@ -139,60 +176,97 @@ export default function LightspeedConnectPage() {
   const handleConnect = () => {
     const prefix = domainPrefix.trim();
     setDomainError(null);
-    if (!prefix) { setDomainError("Please enter a domain prefix."); return; }
-    if (!/^[a-z0-9-]+$/i.test(prefix)) { setDomainError("Use only letters, numbers, and dashes."); return; }
-    if (prefix.length < 3 || prefix.length > 50) { setDomainError("Domain prefix must be 3–50 characters."); return; }
+    if (!prefix) {
+      setDomainError("Please enter a domain prefix.");
+      return;
+    }
+    if (!/^[a-z0-9-]+$/i.test(prefix)) {
+      setDomainError("Use only letters, numbers, and dashes.");
+      return;
+    }
+    if (prefix.length < 3 || prefix.length > 50) {
+      setDomainError("Domain prefix must be 3–50 characters.");
+      return;
+    }
     void initiateOAuthFlow(prefix);
   };
 
   return (
     <>
-      <LightspeedOAuthOverlay isVisible={loading} step={loadingStep} onCancel={() => setLoading(false)} />
+      <LightspeedOAuthOverlay
+        isVisible={loading}
+        step={loadingStep}
+        onCancel={() => setLoading(false)}
+      />
 
       <Box sx={{ p: 3, maxWidth: 480, mx: "auto" }}>
         <Link to="/integrations/pos" style={{ textDecoration: "none" }}>
           <Stack direction="row" spacing={0.75} alignItems="center" mb={2.5}>
             <ArrowLeft style={{ width: 14, height: 14 }} />
-            <Typography level="body-sm" textColor="text.tertiary">Back to POS Integrations</Typography>
+            <Typography level="body-sm" textColor="text.tertiary">
+              Back to POS Integrations
+            </Typography>
           </Stack>
         </Link>
 
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 3, bgcolor: "background.surface" }}>
+        <Sheet
+          variant="outlined"
+          sx={{ borderRadius: "lg", p: 3, bgcolor: "background.surface" }}
+        >
           <Stack direction="row" spacing={2} alignItems="flex-start" mb={3}>
             <Box
               sx={{
                 flexShrink: 0,
-                width: 48, height: 48, borderRadius: "xl",
+                width: 48,
+                height: 48,
+                borderRadius: "xl",
                 bgcolor: "neutral.softBg",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               <Plug style={{ width: 22, height: 22 }} />
             </Box>
             <Box>
-              <Typography level="title-md" fontWeight="xl">Connect Lightspeed X-Series</Typography>
-              <Typography level="body-sm" textColor="text.tertiary">Enter your store domain to get started</Typography>
+              <Typography level="title-md" fontWeight="xl">
+                Connect Lightspeed X-Series
+              </Typography>
+              <Typography level="body-sm" textColor="text.tertiary">
+                Enter your store domain to get started
+              </Typography>
             </Box>
           </Stack>
 
           <Stack spacing={2}>
             <Box>
-              <Typography level="body-sm" fontWeight="md" mb={0.75}>Domain Prefix</Typography>
+              <Typography level="body-sm" fontWeight="md" mb={0.75}>
+                Domain Prefix
+              </Typography>
               <Input
                 id="domain"
                 placeholder="yourstore"
                 value={domainPrefix}
                 disabled={loading}
                 endDecorator={
-                  <Typography level="body-xs" textColor="text.tertiary">.retail.lightspeed.app</Typography>
+                  <Typography level="body-xs" textColor="text.tertiary">
+                    .retail.lightspeed.app
+                  </Typography>
                 }
-                onChange={(e) => { setDomainPrefix(e.target.value); setDomainError(null); }}
+                onChange={(e) => {
+                  setDomainPrefix(e.target.value);
+                  setDomainError(null);
+                }}
                 onKeyDown={(e) => e.key === "Enter" && handleConnect()}
               />
               {domainError ? (
-                <FormHelperText sx={{ color: "danger.500", mt: 0.5 }}>{domainError}</FormHelperText>
+                <FormHelperText sx={{ color: "danger.500", mt: 0.5 }}>
+                  {domainError}
+                </FormHelperText>
               ) : (
-                <FormHelperText sx={{ mt: 0.5 }}>Find this in your Lightspeed back-office URL</FormHelperText>
+                <FormHelperText sx={{ mt: 0.5 }}>
+                  Find this in your Lightspeed back-office URL
+                </FormHelperText>
               )}
             </Box>
 

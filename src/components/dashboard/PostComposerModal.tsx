@@ -13,48 +13,24 @@ import { Badge } from "@/components/ui-legacy/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
 import { Switch } from "@/components/ui-legacy/switch";
 import { Label } from "@/components/ui-legacy/label";
-import { 
-  Share2, 
-  Calendar, 
-  Image, 
+import {
+  Share2,
+  Calendar,
+  Image,
   Sparkles,
   Facebook,
   Instagram,
-  Twitter
+  Twitter,
 } from "lucide-react";
+import { postTemplates } from "@/lib/social/postTemplates";
 
 interface PostComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const postTemplates = [
-  {
-    id: 'seasonal-tips',
-    title: 'Seasonal Garden Tips',
-    description: 'Share helpful gardening advice for the current season',
-    category: 'Educational',
-    content: 'Spring is here! 🌸 Time to prepare your garden for the growing season...'
-  },
-  {
-    id: 'product-showcase',
-    title: 'Product Showcase',
-    description: 'Highlight featured plants or garden supplies',
-    category: 'Product',
-    content: 'Check out these beautiful succulents! Perfect for beginners...'
-  },
-  {
-    id: 'behind-scenes',
-    title: 'Behind the Scenes',
-    description: 'Show your team or garden center in action',
-    category: 'Personal',
-    content: 'Our team is hard at work preparing for spring arrivals...'
-  }
-];
-
 export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) => {
   const navigate = useNavigate();
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [platforms, setPlatforms] = useState({
     facebook: true,
     instagram: true,
@@ -62,14 +38,20 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
   });
   const [schedulePost, setSchedulePost] = useState(false);
 
-  const handleCreatePost = () => {
-    // Navigate to the full composer
-    navigate('/publish');
+  // Tertiary action: blank composer (no template prefill). PublishPage reads
+  // ?compose=blank and opens the composer drawer with an empty caption so the
+  // user lands directly in the editor instead of on the list view.
+  const handleStartBlank = () => {
+    navigate("/publish?compose=blank");
     onClose();
   };
 
-  const handleTemplateSelect = (templateId: string) => {
-    setSelectedTemplate(templateId);
+  // Primary action: a template card click navigates straight to the composer
+  // with the template content prefilled (PublishPage reads ?template= and
+  // creates a new content_tasks row from the matching template).
+  const handleTemplateClick = (templateId: string) => {
+    navigate(`/publish?template=${encodeURIComponent(templateId)}`);
+    onClose();
   };
 
   const togglePlatform = (platform: keyof typeof platforms) => {
@@ -107,12 +89,18 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
             
             <div className="grid gap-3">
               {postTemplates.map((template) => (
-                <Card 
+                <Card
                   key={template.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    selectedTemplate === template.id ? 'ring-2 ring-primary' : ''
-                  }`}
-                  onClick={() => handleTemplateSelect(template.id)}
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer transition-all hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  onClick={() => handleTemplateClick(template.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleTemplateClick(template.id);
+                    }
+                  }}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
@@ -222,8 +210,8 @@ export const PostComposerModal = ({ isOpen, onClose }: PostComposerModalProps) =
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleCreatePost}>
-            Open Full Composer
+          <Button variant="ghost" onClick={handleStartBlank}>
+            Start blank
           </Button>
         </div>
       </DialogContent>

@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 // FIX: [P5] - Decrypt access token before using as Bearer token
 import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
+import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
 
 console.log("[LS-SYNC-SALES] Edge function starting");
@@ -90,6 +91,10 @@ function extractCustomerId(sale: LightspeedXSeriesSale) {
 }
 
 function extractLineItems(sale: LightspeedXSeriesSale) {
+  if (Array.isArray((sale as any).register_sale_products)) {
+    return (sale as any).register_sale_products;
+  }
+
   if (Array.isArray(sale.line_items)) {
     return sale.line_items;
   }
@@ -110,6 +115,10 @@ function extractLineItems(sale: LightspeedXSeriesSale) {
 }
 
 function extractPayments(sale: LightspeedXSeriesSale) {
+  if (Array.isArray((sale as any).register_sale_payments)) {
+    return (sale as any).register_sale_payments;
+  }
+
   if (Array.isArray(sale.payments)) {
     return sale.payments;
   }
@@ -131,6 +140,7 @@ function extractPaymentMethod(sale: LightspeedXSeriesSale) {
     payment?.payment_type_name ??
     payment?.paymentType?.name ??
     payment?.PaymentType?.name ??
+    payment?.payment_type_id ??
     null
   );
 }
@@ -160,12 +170,27 @@ function isCompletedSale(status: string) {
 
 function extractSaleDate(sale: LightspeedXSeriesSale) {
   return (
+    (sale as any).sale_date ??
     sale.completed_at ??
     sale.created_at ??
     sale.updated_at ??
     (sale as any).completeTime ??
     (sale as any).createTime ??
     new Date().toISOString()
+  );
+}
+
+function extractSaleTotalAmount(sale: LightspeedXSeriesSale) {
+  const totals = (sale as any).totals as Record<string, unknown> | undefined;
+
+  return (
+    toNullableNumber(
+      sale.total_price ??
+        totals?.total_price ??
+        totals?.total_payment ??
+        sale.total ??
+        (sale as any).calcTotal,
+    ) ?? 0
   );
 }
 
@@ -308,39 +333,57 @@ Deno.serve(async (req: Request) => {
 
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingSalesLockJob } = await supabaseClient
-      .from('pos_sync_jobs')
-      .select('id, status')
-      .eq('connection_id', connection.id)
-      .eq('sync_type', 'sales')
-      .in('status', ['pending', 'in_progress'])
+      .from("pos_sync_jobs")
+      .select("id, status")
+      .eq("connection_id", connection.id)
+      .eq("sync_type", "sales")
+      .in("status", ["pending", "in_progress"])
       .maybeSingle();
 
     if (existingSalesLockJob) {
-      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      console.log(
+        "[LS-SYNC-SALES] Sync already in progress, returning existing job",
+      );
       return new Response(
-        JSON.stringify({ success: true, jobId: existingSalesLockJob.id, message: 'Sync already in progress' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          jobId: existingSalesLockJob.id,
+          message: "Sync already in progress",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // FIX: [P24] - Add sync lock to prevent concurrent syncs
     const { data: existingJob } = await supabaseClient
-      .from('pos_sync_jobs')
-      .select('id, status')
-      .eq('connection_id', connection.id)
-      .eq('sync_type', 'sales')
-      .in('status', ['pending', 'in_progress'])
+      .from("pos_sync_jobs")
+      .select("id, status")
+      .eq("connection_id", connection.id)
+      .eq("sync_type", "sales")
+      .in("status", ["pending", "in_progress"])
       .single();
 
     if (existingJob) {
-      console.log('[LS-SYNC-SALES] Sync already in progress, returning existing job');
+      console.log(
+        "[LS-SYNC-SALES] Sync already in progress, returning existing job",
+      );
       return new Response(
-        JSON.stringify({ success: true, jobId: existingJob.id, message: 'Sync already in progress' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: true,
+          jobId: existingJob.id,
+          message: "Sync already in progress",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log('[LS-SYNC-SALES] Fetching sales from Lightspeed...');
+    console.log("[LS-SYNC-SALES] Fetching sales from Lightspeed...");
     const { accessToken, needsReEncryption } =
       await getLightspeedAccessToken(connection);
     let reEncrypted = false;
@@ -450,6 +493,10 @@ Deno.serve(async (req: Request) => {
 
       totalFetched += sales.length;
 
+      console.log(
+        `[LS-SYNC-SALES] Sales count: ${sales.length}, sales with customer_id: ${sales.filter((sale) => Boolean(extractCustomerId(sale))).length}`,
+      );
+
       const pageCustomerIds = Array.from(
         new Set(
           sales
@@ -505,10 +552,7 @@ Deno.serve(async (req: Request) => {
               lightspeed_customer_id: customerId,
               contact_id: contactId,
               sale_date: extractSaleDate(sale),
-              total_amount:
-                toNullableNumber(
-                  sale.total_price ?? sale.total ?? (sale as any).calcTotal,
-                ) ?? 0,
+              total_amount: extractSaleTotalAmount(sale),
               status,
               line_items: extractLineItems(sale),
               payment_method: extractPaymentMethod(sale),
@@ -534,60 +578,25 @@ Deno.serve(async (req: Request) => {
         syncedCount += 1;
       }
 
-      for (const customerId of affectedCustomerIds) {
-        const { data: customerSales, error: customerSalesError } =
-          await supabaseClient
-            .from("lightspeed_sales")
-            .select("total_amount,sale_date,status")
-            .eq("tenant_id", tenantId)
-            .eq("lightspeed_customer_id", customerId)
-            .in("status", ["completed", "closed", "paid"])
-            .order("sale_date", { ascending: true });
-
-        if (customerSalesError) {
-          console.error(
-            "[LS-SYNC-SALES] Failed to load customer sales:",
-            customerSalesError.message,
-          );
-          continue;
-        }
-
-        if (!customerSales || customerSales.length === 0) {
-          continue;
-        }
-
-        const totalSpend = customerSales.reduce(
-          (sum: number, row: { total_amount: unknown }) =>
-            sum + (toNullableNumber(row.total_amount) ?? 0),
-          0,
+      if (affectedCustomerIds.size > 0) {
+        console.log(
+          `[LS-SYNC-SALES] Recalculating spend for ${affectedCustomerIds.size} affected customers`,
         );
-        const purchaseCount = customerSales.length;
-        const firstPurchaseDate = customerSales[0]?.sale_date ?? null;
-        const lastPurchaseDate =
-          customerSales[customerSales.length - 1]?.sale_date ?? null;
-
-        const { error: customerUpdateError } = await supabaseClient
-          .from("lightspeed_customers")
-          .update({
-            total_spend: totalSpend,
-            purchase_count: purchaseCount,
-            first_purchase_date: firstPurchaseDate,
-            last_purchase_date: lastPurchaseDate,
-          })
-          .eq("tenant_id", tenantId)
-          .eq("lightspeed_customer_id", customerId);
-
-        if (customerUpdateError) {
-          console.error(
-            "[LS-SYNC-SALES] Failed to update customer rollups:",
-            customerUpdateError.message,
-          );
-          continue;
-        }
-
-        if (purchaseCount === 1) {
-          firstPurchases += 1;
-        }
+        const spendResult = await recalculateLightspeedCustomerSpend(
+          supabaseAdmin,
+          {
+            tenantId,
+            connectionId: connection.id,
+            lightspeedCustomerIds: Array.from(affectedCustomerIds),
+          },
+        );
+        console.log(
+          `[LS-SYNC-SALES] Spend recalculation: ${spendResult.updated} updated, ${spendResult.skipped} unchanged, ${spendResult.errors} errors`,
+        );
+      } else {
+        console.log(
+          "[LS-SYNC-SALES] No customer-linked sales found — skipping spend recalculation",
+        );
       }
 
       const pageSkipped = Math.max(0, sales.length - syncedCount - pageFailed);
@@ -637,6 +646,25 @@ Deno.serve(async (req: Request) => {
         last_sales_version_cursor: String(finalVersionCursor),
       })
       .eq("tenant_id", tenantId);
+
+    console.log("[LS-SYNC-SALES] Running final spend recalculation...");
+    const finalSpendResult = await recalculateLightspeedCustomerSpend(
+      supabaseAdmin,
+      {
+        tenantId,
+        connectionId: connection.id,
+      },
+    );
+    console.log(
+      `[LS-SYNC-SALES] Final spend recalculation: ${finalSpendResult.updated} updated, ${finalSpendResult.skipped} unchanged, ${finalSpendResult.errors} errors`,
+    );
+
+    const firstPurchaseSummary = await supabaseAdmin
+      .from("lightspeed_customers")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("purchase_count", 1);
+    firstPurchases = firstPurchaseSummary.count ?? 0;
 
     console.log(
       `[LS-SYNC-SALES] Sync complete: ${totalInserted} sales, ${firstPurchases} first purchases`,

@@ -65,9 +65,9 @@ async function uploadFile(localPath: string, storagePath: string): Promise<boole
       .upload(fullStoragePath, fileContent, {
         contentType,
         upsert: true,
-        cacheControl: storagePath.match(/\.v\d+\.\d+\.\d+\./) 
-          ? '31536000' // 1 year for pinned versions
-          : '3600',    // 1 hour for aliases
+        cacheControl: storagePath.match(/\.v\d+\.\d+\.\d+\./)
+          ? '300' // 5 min — allows quick rollout of in-place fixes
+          : '300', // 5 min for aliases
       });
     
     if (error) {

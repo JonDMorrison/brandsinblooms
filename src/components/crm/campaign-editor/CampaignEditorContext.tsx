@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   LOCKED_STATUSES,
@@ -16,19 +16,41 @@ import {
   type CampaignStatus,
   type EditorCampaignType,
 } from "@/lib/crm/campaignEditor";
+import {
+  CampaignDraftConflictError,
+  writeCampaignDraftSnapshot,
+  type DraftSnapshotTrigger,
+} from "@/lib/crm/campaignDraftPersistence";
 import { SYSTEM_PERSONAS } from "@/config/systemPersonas";
+import {
+  AUTO_SAVE_MAX_RETRIES,
+  AUTO_SAVE_RETRY_DELAYS_MS,
+  decideAutoSaveFailure,
+} from "./autoSaveRetryPolicy";
 import {
   useCampaignSending,
   type CampaignSendResult,
 } from "@/hooks/useCampaignSending";
+import { useDesignSystem } from "@/contexts/DesignSystemContext";
 import { useTenant } from "@/hooks/useTenant";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveNewsletterIdeaDraftSeed } from "@/lib/studio/newsletterIdeaSeed";
+import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
+import type { StudioBlock } from "@/types/studioBlocks";
 import type { SendError } from "@/utils/campaignSendingErrors";
-import type { ContentBlock } from "@/types/emailBuilder";
 
 type Segment = CampaignSegmentSummary;
 type Persona = CampaignPersonaSummary;
+type AutoSaveStatus =
+  | "idle"
+  | "saving"
+  | "saved"
+  | "error"
+  | "conflict"
+  // The user-facing "we tried 3 times and gave up" terminal state. Distinct
+  // from "error" so the UI can render a different (clearer, scarier) message.
+  | "failed";
 
 export interface CampaignEditorState {
   campaignId: string | null;
@@ -45,13 +67,15 @@ export interface CampaignEditorState {
   selectedPersonas: Persona[];
   audienceCount: number | null;
   isAudienceLoading: boolean;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
   isDirty: boolean;
   isSaving: boolean;
   lastSavedAt: Date | null;
+  autoSaveStatus: AutoSaveStatus;
+  autoSaveMessage: string | null;
   isLocked: boolean;
   sourceContentTaskId: string | null;
   sourceSegmentId: string | null;
@@ -114,6 +138,8 @@ interface CampaignEditorContextValue extends CampaignEditorState {
     silent?: boolean;
     status?: CampaignStatus;
   }) => Promise<string | null>;
+  setAutoSavePaused: (paused: boolean) => void;
+  captureDraftSnapshot: (trigger: DraftSnapshotTrigger) => Promise<void>;
   activate: (
     options?: CampaignActivationOptions,
   ) => Promise<CampaignActivationResult>;
@@ -123,7 +149,12 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   reload: () => Promise<void>;
 }
 
-const AUTO_SAVE_MS = 1200;
+const AUTO_SAVE_MS = 3000;
+// Retry policy lives in autoSaveRetryPolicy.ts (extracted for unit testing).
+// New edits cancel pending retries via the keystroke debounce effect — when
+// the user edits, status flips off "error", which fires the retry effect's
+// cleanup and clearTimeout's the queued retry.
+const AUTO_SAVE_SUCCESS_VISIBILITY_MS = 2000;
 const AUDIENCE_RECALC_MS = 300;
 
 const CampaignEditorContext =
@@ -151,7 +182,7 @@ function areDatesEqual(left: Date | null, right: Date | null) {
   return left.getTime() === right.getTime();
 }
 
-function areContentBlocksEqual(left: ContentBlock[], right: ContentBlock[]) {
+function areContentBlocksEqual(left: StudioBlock[], right: StudioBlock[]) {
   if (left === right) return true;
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -167,7 +198,7 @@ function buildDraftFingerprint(input: {
   senderEmail: string;
   fromEmailDomainId: string | null;
   replyTo: string;
-  contentBlocks: ContentBlock[];
+  contentBlocks: StudioBlock[];
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
@@ -202,15 +233,25 @@ function buildDraftFingerprint(input: {
 
 function createInitialState(
   searchParams: URLSearchParams,
+  designSystem: ReturnType<typeof useDesignSystem>["designSystem"],
+  locationState: unknown,
 ): CampaignEditorState {
+  const newsletterSeed = resolveNewsletterIdeaDraftSeed({
+    searchParams,
+    designSystem,
+    locationState,
+  });
+  const hasSeededNewsletterDraft =
+    (newsletterSeed?.contentBlocks.length ?? 0) > 0;
+
   return {
     campaignId: null,
     campaignType: "email",
     status: "draft",
     sendBlockedReason: null,
-    name: "",
-    subjectLine: "",
-    preheaderText: "",
+    name: newsletterSeed?.name ?? "",
+    subjectLine: newsletterSeed?.subjectLine ?? "",
+    preheaderText: newsletterSeed?.preheaderText ?? "",
     senderName: "",
     senderEmail: "",
     replyTo: "",
@@ -218,13 +259,15 @@ function createInitialState(
     selectedPersonas: [],
     audienceCount: null,
     isAudienceLoading: false,
-    contentBlocks: [],
+    contentBlocks: newsletterSeed?.contentBlocks ?? [],
     smsMessage: "",
     sendAt: null,
     sendImmediately: true,
-    isDirty: false,
+    isDirty: hasSeededNewsletterDraft,
     isSaving: false,
     lastSavedAt: null,
+    autoSaveStatus: "idle",
+    autoSaveMessage: null,
     isLocked: false,
     sourceContentTaskId: searchParams.get("contentTaskId"),
     sourceSegmentId: searchParams.get("segment"),
@@ -245,19 +288,50 @@ export function CampaignEditorProvider({
   children: React.ReactNode;
   campaignId?: string | null;
 }) {
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { senderConfig } = useSenderConfiguration();
+  const { designSystem } = useDesignSystem();
   const [state, setState] = React.useState<CampaignEditorState>(() =>
-    createInitialState(searchParams),
+    createInitialState(searchParams, designSystem, location.state),
   );
   const [isLoading, setIsLoading] = React.useState(Boolean(campaignId));
+  const campaignIdRef = React.useRef<string | null>(state.campaignId);
+  const campaignStatusRef = React.useRef<CampaignStatus>(state.status);
   const autosaveTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const saveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const autoSaveRetryTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const autoSaveSuccessTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const hasHydratedRef = React.useRef(false);
   const lastSavedFingerprintRef = React.useRef<string | null>(null);
+  const lastUpdatedAtRef = React.useRef<string | null>(null);
+  // Number of consecutive failures for the current draft fingerprint.
+  // 0 = no failures (or last save succeeded). Bumped in the saveDraft catch
+  // and read by the retry effect to pick the next backoff delay. Reset when
+  // saveDraft fires for a different fingerprint (i.e., user edited) or when
+  // a save succeeds.
+  const autoSaveAttemptRef = React.useRef(0);
+  // The fingerprint of the draft that the current retry sequence is trying
+  // to save. When saveDraft is invoked with a different fingerprint, we
+  // treat it as a fresh attempt and reset autoSaveAttemptRef.
+  const autoSaveLastTriedFingerprintRef = React.useRef<string | null>(null);
+  const [autoSavePaused, setAutoSavePausedState] = React.useState(false);
+
+  React.useEffect(() => {
+    campaignIdRef.current = state.campaignId;
+  }, [state.campaignId]);
+
+  React.useEffect(() => {
+    campaignStatusRef.current = state.status;
+  }, [state.status]);
 
   const sending = useCampaignSending({
     navigateOnSuccess: false,
@@ -304,6 +378,7 @@ export function CampaignEditorProvider({
         ...nextState,
         fromEmailDomainId: senderConfig?.fromEmailDomainId ?? null,
       });
+      lastUpdatedAtRef.current = record.updatedAt;
 
       setState((current) => ({
         ...current,
@@ -326,6 +401,8 @@ export function CampaignEditorProvider({
         isDirty: false,
         isSaving: false,
         lastSavedAt: record.updatedAt ? new Date(record.updatedAt) : null,
+        autoSaveStatus: "idle",
+        autoSaveMessage: null,
         isLocked: LOCKED_STATUSES.includes(record.status),
         sourceContentTaskId:
           nextState.sourceContentTaskId ?? current.sourceContentTaskId,
@@ -424,8 +501,67 @@ export function CampaignEditorProvider({
             senderConfig.replyToEmail ||
             senderConfig.senderEmail ||
             "",
+          contentBlocks:
+            current.campaignType === "email"
+              ? ensureFooterBlockCompliance(current.contentBlocks, {
+                  designSystem,
+                })
+              : current.contentBlocks,
         };
 
+        if (!current.isDirty) {
+          lastSavedFingerprintRef.current = buildDraftFingerprint({
+            campaignId: nextState.campaignId,
+            campaignType: nextState.campaignType,
+            status: nextState.status,
+            name: nextState.name,
+            subjectLine: nextState.subjectLine,
+            preheaderText: nextState.preheaderText,
+            senderName: nextState.senderName,
+            senderEmail: nextState.senderEmail,
+            fromEmailDomainId: senderConfig.fromEmailDomainId ?? null,
+            replyTo: nextState.replyTo,
+            contentBlocks: nextState.contentBlocks,
+            smsMessage: nextState.smsMessage,
+            sendAt: nextState.sendAt,
+            sendImmediately: nextState.sendImmediately,
+            segments: nextState.selectedSegments,
+            personas: nextState.selectedPersonas,
+            sourceContentTaskId: nextState.sourceContentTaskId,
+            sourceSegmentId: nextState.sourceSegmentId,
+            sourcePersonaId: nextState.sourcePersonaId,
+          });
+        }
+
+        return nextState;
+      });
+      setIsLoading(false);
+    }
+  }, [campaignId, designSystem, senderConfig]);
+
+  React.useEffect(() => {
+    setState((current) => {
+      if (current.campaignType !== "email") {
+        return current;
+      }
+
+      const nextContentBlocks = ensureFooterBlockCompliance(
+        current.contentBlocks,
+        {
+          designSystem,
+        },
+      );
+
+      if (areContentBlocksEqual(current.contentBlocks, nextContentBlocks)) {
+        return current;
+      }
+
+      const nextState = {
+        ...current,
+        contentBlocks: nextContentBlocks,
+      };
+
+      if (!current.campaignId && !current.isDirty) {
         lastSavedFingerprintRef.current = buildDraftFingerprint({
           campaignId: nextState.campaignId,
           campaignType: nextState.campaignType,
@@ -435,7 +571,7 @@ export function CampaignEditorProvider({
           preheaderText: nextState.preheaderText,
           senderName: nextState.senderName,
           senderEmail: nextState.senderEmail,
-          fromEmailDomainId: senderConfig.fromEmailDomainId ?? null,
+          fromEmailDomainId: senderConfig?.fromEmailDomainId ?? null,
           replyTo: nextState.replyTo,
           contentBlocks: nextState.contentBlocks,
           smsMessage: nextState.smsMessage,
@@ -449,10 +585,39 @@ export function CampaignEditorProvider({
         });
 
         return nextState;
-      });
-      setIsLoading(false);
-    }
-  }, [campaignId, senderConfig]);
+      }
+
+      return {
+        ...nextState,
+        isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
+      };
+    });
+  }, [
+    designSystem,
+    senderConfig?.fromEmailDomainId,
+    state.campaignType,
+    state.contentBlocks,
+  ]);
+
+  React.useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+      }
+      if (autoSaveSuccessTimerRef.current) {
+        clearTimeout(autoSaveSuccessTimerRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -563,25 +728,29 @@ export function CampaignEditorProvider({
         return;
       }
 
-      if (
-        state.selectedSegments.length === 0 &&
-        state.selectedPersonas.length === 0
-      ) {
-        setState((current) => ({
-          ...current,
-          audienceCount: 0,
-          isAudienceLoading: false,
-        }));
-        return;
-      }
-
       setState((current) => ({ ...current, isAudienceLoading: true }));
       try {
-        const count = await computeAudienceRecipientCount({
-          tenantId: tenant.id,
-          segmentIds: state.selectedSegments.map((segment) => segment.id),
-          personaIds: state.selectedPersonas.map((persona) => persona.id),
-        });
+        let count: number;
+
+        if (
+          state.selectedSegments.length === 0 &&
+          state.selectedPersonas.length === 0
+        ) {
+          // "All Contacts" mode — count all emailable customers for this tenant
+          const { count: total } = await supabase
+            .from("crm_customers")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_id", tenant.id)
+            .not("email", "is", null)
+            .not("email_opt_in", "is", false);
+          count = total ?? 0;
+        } else {
+          count = await computeAudienceRecipientCount({
+            tenantId: tenant.id,
+            segmentIds: state.selectedSegments.map((segment) => segment.id),
+            personaIds: state.selectedPersonas.map((persona) => persona.id),
+          });
+        }
 
         if (!cancelled) {
           setState((current) => ({
@@ -667,6 +836,167 @@ export function CampaignEditorProvider({
     [draftPayload],
   );
 
+  const syncPersistedCampaignVersion = React.useCallback(
+    ({
+      campaignId: nextCampaignId,
+      status: nextStatus,
+      updatedAt,
+    }: {
+      campaignId?: string | null;
+      status?: CampaignStatus;
+      updatedAt?: string | null;
+    }) => {
+      if (typeof nextCampaignId === "string" || nextCampaignId === null) {
+        campaignIdRef.current = nextCampaignId;
+      }
+
+      if (nextStatus) {
+        campaignStatusRef.current = nextStatus;
+      }
+
+      if (updatedAt !== undefined) {
+        lastUpdatedAtRef.current = updatedAt;
+      }
+    },
+    [],
+  );
+
+  const runDraftSave = React.useCallback(
+    async ({
+      payload,
+      fingerprint,
+      requestedStatus,
+    }: {
+      payload: typeof draftPayload;
+      fingerprint: string;
+      requestedStatus: CampaignStatus;
+    }) => {
+      if (
+        campaignIdRef.current &&
+        fingerprint === lastSavedFingerprintRef.current &&
+        requestedStatus === campaignStatusRef.current
+      ) {
+        return campaignIdRef.current;
+      }
+
+      // Treat this as a fresh save attempt (counter reset) whenever the
+      // draft fingerprint differs from what the retry sequence was working
+      // on. Retries call saveDraft with the same fingerprint and preserve
+      // the counter. New edits (or unrelated user-initiated saves) restart
+      // the budget at zero.
+      if (autoSaveLastTriedFingerprintRef.current !== fingerprint) {
+        autoSaveAttemptRef.current = 0;
+        autoSaveLastTriedFingerprintRef.current = fingerprint;
+      }
+
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+
+      // Clear any pending retry timer — we're firing a save NOW. Without
+      // this, an in-flight save and a queued retry of the same content
+      // could double-fire. Idempotent upserts make that harmless but wasteful.
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+        autoSaveRetryTimerRef.current = null;
+      }
+
+      if (autoSaveSuccessTimerRef.current) {
+        clearTimeout(autoSaveSuccessTimerRef.current);
+        autoSaveSuccessTimerRef.current = null;
+      }
+
+      setState((current) => ({
+        ...current,
+        isSaving: true,
+        autoSaveStatus: "saving",
+        autoSaveMessage: null,
+      }));
+
+      try {
+        const saved = await persistCampaignDraft({
+          ...payload,
+          expectedUpdatedAt: lastUpdatedAtRef.current,
+          status: requestedStatus,
+        });
+
+        lastSavedFingerprintRef.current = fingerprint;
+        syncPersistedCampaignVersion({
+          campaignId: saved.id,
+          status: saved.status,
+          updatedAt: saved.updatedAt,
+        });
+        // Reset the retry budget on success so the next failure starts
+        // from a fresh attempt count.
+        autoSaveAttemptRef.current = 0;
+        autoSaveLastTriedFingerprintRef.current = null;
+
+        setState((current) => ({
+          ...current,
+          campaignId: saved.id,
+          status: saved.status,
+          isDirty: false,
+          isSaving: false,
+          lastSavedAt: saved.updatedAt ? new Date(saved.updatedAt) : new Date(),
+          autoSaveStatus: "saved",
+          autoSaveMessage: null,
+          isLocked: isLockedCampaignStatus(saved.status),
+        }));
+
+        autoSaveSuccessTimerRef.current = setTimeout(() => {
+          setState((current) =>
+            current.autoSaveStatus === "saved"
+              ? { ...current, autoSaveStatus: "idle" }
+              : current,
+          );
+        }, AUTO_SAVE_SUCCESS_VISIBILITY_MS);
+
+        return saved.id;
+      } catch (error) {
+        if (error instanceof CampaignDraftConflictError) {
+          setState((current) => ({
+            ...current,
+            isSaving: false,
+            autoSaveStatus: "conflict",
+            autoSaveMessage: error.message,
+          }));
+          return null;
+        }
+
+        autoSaveAttemptRef.current += 1;
+        const decision = decideAutoSaveFailure(autoSaveAttemptRef.current);
+
+        if (decision.kind === "failed") {
+          setState((current) => ({
+            ...current,
+            isSaving: false,
+            autoSaveStatus: "failed",
+            autoSaveMessage: decision.message,
+          }));
+          console.error(
+            `Failed to save campaign draft after ${AUTO_SAVE_MAX_RETRIES} retries`,
+            error,
+          );
+          return null;
+        }
+
+        setState((current) => ({
+          ...current,
+          isSaving: false,
+          autoSaveStatus: "error",
+          autoSaveMessage: decision.message,
+        }));
+        console.error(
+          `Failed to save campaign draft (attempt ${decision.attempt} of ${AUTO_SAVE_MAX_RETRIES})`,
+          error,
+        );
+        return null;
+      }
+    },
+    [syncPersistedCampaignVersion],
+  );
+
   const saveDraft = React.useCallback(
     async (options?: { silent?: boolean; status?: CampaignStatus }) => {
       const requestedStatus = options?.status ?? draftPayload.status;
@@ -675,39 +1005,65 @@ export function CampaignEditorProvider({
         status: requestedStatus,
       });
 
-      if (
-        nextFingerprint === lastSavedFingerprintRef.current &&
-        requestedStatus === state.status
-      ) {
-        return state.campaignId;
+      const queuedSave = saveQueueRef.current
+        .catch(() => undefined)
+        .then(() =>
+          runDraftSave({
+            payload: draftPayload,
+            fingerprint: nextFingerprint,
+            requestedStatus,
+          }),
+        );
+
+      saveQueueRef.current = queuedSave.then(
+        () => undefined,
+        () => undefined,
+      );
+
+      return queuedSave;
+    },
+    [draftPayload, runDraftSave],
+  );
+
+  const setAutoSavePaused = React.useCallback((paused: boolean) => {
+    setAutoSavePausedState((current) =>
+      current === paused ? current : paused,
+    );
+  }, []);
+
+  const captureDraftSnapshot = React.useCallback(
+    async (trigger: DraftSnapshotTrigger) => {
+      const savedCampaignId = await saveDraft({ silent: true });
+      if (!savedCampaignId) {
+        return;
       }
 
-      setState((current) => ({ ...current, isSaving: true }));
       try {
-        const saved = await persistCampaignDraft({
-          ...draftPayload,
-          status: requestedStatus,
+        await writeCampaignDraftSnapshot({
+          campaignId: savedCampaignId,
+          campaignType: state.campaignType,
+          trigger,
+          subjectLine: state.subjectLine,
+          preheaderText: state.preheaderText,
+          smsMessage: state.smsMessage,
+          contentBlocks: state.contentBlocks,
+          segmentIds: state.selectedSegments.map((segment) => segment.id),
+          personaIds: state.selectedPersonas.map((persona) => persona.id),
         });
-
-        lastSavedFingerprintRef.current = nextFingerprint;
-
-        setState((current) => ({
-          ...current,
-          campaignId: saved.id,
-          status: saved.status,
-          isDirty: false,
-          isSaving: false,
-          lastSavedAt: new Date(),
-          isLocked: isLockedCampaignStatus(saved.status),
-        }));
-        return saved.id;
       } catch (error) {
-        setState((current) => ({ ...current, isSaving: false }));
-        console.error("Failed to save campaign draft", error);
-        return null;
+        console.error("Failed to write draft snapshot", error);
       }
     },
-    [draftPayload, state.campaignId, state.status],
+    [
+      saveDraft,
+      state.campaignType,
+      state.contentBlocks,
+      state.preheaderText,
+      state.selectedPersonas,
+      state.selectedSegments,
+      state.smsMessage,
+      state.subjectLine,
+    ],
   );
 
   React.useEffect(() => {
@@ -715,7 +1071,9 @@ export function CampaignEditorProvider({
       !state.isDirty ||
       state.isLocked ||
       isLoading ||
-      draftFingerprint === lastSavedFingerprintRef.current
+      draftFingerprint === lastSavedFingerprintRef.current ||
+      autoSavePaused ||
+      state.autoSaveStatus === "conflict"
     ) {
       return;
     }
@@ -733,7 +1091,63 @@ export function CampaignEditorProvider({
         clearTimeout(autosaveTimerRef.current);
       }
     };
-  }, [draftFingerprint, isLoading, saveDraft, state.isDirty, state.isLocked]);
+  }, [
+    autoSavePaused,
+    draftFingerprint,
+    isLoading,
+    saveDraft,
+    state.autoSaveStatus,
+    state.isDirty,
+    state.isLocked,
+  ]);
+
+  // Schedule the next retry after a failed save. Uses the exponential-style
+  // backoff in AUTO_SAVE_RETRY_DELAYS_MS, indexed by the current attempt
+  // count. Once attempt > AUTO_SAVE_MAX_RETRIES the saveDraft catch sets
+  // status to "failed" instead of "error", so this effect's guard exits
+  // early and no further retries are scheduled. New edits flip status away
+  // from "error" via updateSetup/updateAudience/etc., which fires the
+  // cleanup below and clears the pending timer.
+  React.useEffect(() => {
+    if (
+      state.autoSaveStatus !== "error" ||
+      !state.isDirty ||
+      state.isLocked ||
+      isLoading ||
+      autoSavePaused
+    ) {
+      return;
+    }
+
+    if (autoSaveRetryTimerRef.current) {
+      clearTimeout(autoSaveRetryTimerRef.current);
+    }
+
+    const attempt = autoSaveAttemptRef.current;
+    if (attempt < 1 || attempt > AUTO_SAVE_MAX_RETRIES) {
+      return;
+    }
+    const delay = AUTO_SAVE_RETRY_DELAYS_MS[attempt - 1];
+
+    autoSaveRetryTimerRef.current = setTimeout(() => {
+      autoSaveRetryTimerRef.current = null;
+      void saveDraft({ silent: true });
+    }, delay);
+
+    return () => {
+      if (autoSaveRetryTimerRef.current) {
+        clearTimeout(autoSaveRetryTimerRef.current);
+        autoSaveRetryTimerRef.current = null;
+      }
+    };
+  }, [
+    autoSavePaused,
+    isLoading,
+    saveDraft,
+    state.autoSaveStatus,
+    state.isDirty,
+    state.isLocked,
+  ]);
 
   const updateSetup = React.useCallback<
     CampaignEditorContextValue["updateSetup"]
@@ -751,6 +1165,12 @@ export function CampaignEditorProvider({
         ...current,
         ...next,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -774,31 +1194,55 @@ export function CampaignEditorProvider({
         selectedSegments: nextSegments,
         selectedPersonas: nextPersonas,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
 
   const updateContent = React.useCallback<
     CampaignEditorContextValue["updateContent"]
-  >((next) => {
-    setState((current) => {
-      const nextBlocks = next.contentBlocks ?? current.contentBlocks;
-      const nextSmsMessage = next.smsMessage ?? current.smsMessage;
+  >(
+    (next) => {
+      setState((current) => {
+        const nextBlocks =
+          current.campaignType === "email"
+            ? ensureFooterBlockCompliance(
+                next.contentBlocks ?? current.contentBlocks,
+                {
+                  designSystem,
+                },
+              )
+            : (next.contentBlocks ?? current.contentBlocks);
+        const nextSmsMessage = next.smsMessage ?? current.smsMessage;
 
-      if (
-        areContentBlocksEqual(current.contentBlocks, nextBlocks) &&
-        current.smsMessage === nextSmsMessage
-      ) {
-        return current;
-      }
+        if (
+          areContentBlocksEqual(current.contentBlocks, nextBlocks) &&
+          current.smsMessage === nextSmsMessage
+        ) {
+          return current;
+        }
 
-      return {
-        ...current,
-        ...next,
-        isDirty: true,
-      };
-    });
-  }, []);
+        return {
+          ...current,
+          ...next,
+          contentBlocks: nextBlocks,
+          isDirty: true,
+          autoSaveStatus:
+            current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+          autoSaveMessage:
+            current.autoSaveStatus === "conflict"
+              ? current.autoSaveMessage
+              : null,
+        };
+      });
+    },
+    [designSystem],
+  );
 
   const updateSchedule = React.useCallback<
     CampaignEditorContextValue["updateSchedule"]
@@ -819,6 +1263,12 @@ export function CampaignEditorProvider({
         ...current,
         ...next,
         isDirty: true,
+        autoSaveStatus:
+          current.autoSaveStatus === "conflict" ? "conflict" : "idle",
+        autoSaveMessage:
+          current.autoSaveStatus === "conflict"
+            ? current.autoSaveMessage
+            : null,
       };
     });
   }, []);
@@ -854,6 +1304,8 @@ export function CampaignEditorProvider({
           };
         }
 
+        await captureDraftSnapshot("pre-send");
+
         if (!effectiveSendImmediately && effectiveSendAt) {
           const scheduled = await updateCampaignStatus(
             savedCampaignId,
@@ -862,12 +1314,20 @@ export function CampaignEditorProvider({
               scheduled_at: effectiveSendAt.toISOString(),
             },
           );
+          syncPersistedCampaignVersion({
+            campaignId: savedCampaignId,
+            status: scheduled.status,
+            updatedAt: scheduled.updatedAt,
+          });
           setState((current) => ({
             ...current,
             campaignId: savedCampaignId,
             status: scheduled.status,
             isDirty: false,
             isLocked: isLockedCampaignStatus(scheduled.status),
+            lastSavedAt: scheduled.updatedAt
+              ? new Date(scheduled.updatedAt)
+              : current.lastSavedAt,
           }));
           if (!options?.suppressToasts) {
             toast.success("Campaign scheduled");
@@ -886,12 +1346,20 @@ export function CampaignEditorProvider({
 
         if (state.campaignType === "sms") {
           const queued = await updateCampaignStatus(savedCampaignId, "queued");
+          syncPersistedCampaignVersion({
+            campaignId: savedCampaignId,
+            status: queued.status,
+            updatedAt: queued.updatedAt,
+          });
           setState((current) => ({
             ...current,
             campaignId: savedCampaignId,
             status: queued.status,
             isDirty: false,
             isLocked: true,
+            lastSavedAt: queued.updatedAt
+              ? new Date(queued.updatedAt)
+              : current.lastSavedAt,
           }));
           if (!options?.suppressToasts) {
             toast.success("SMS campaign queued");
@@ -934,7 +1402,15 @@ export function CampaignEditorProvider({
         };
       }
     },
-    [campaignId, navigate, saveDraft, sending, state],
+    [
+      campaignId,
+      captureDraftSnapshot,
+      navigate,
+      saveDraft,
+      sending,
+      state,
+      syncPersistedCampaignVersion,
+    ],
   );
 
   const pause = React.useCallback(async () => {
@@ -972,14 +1448,22 @@ export function CampaignEditorProvider({
     const cancelled = await updateCampaignStatus(state.campaignId, "failed", {
       send_blocked_reason: "cancelled_by_user",
     });
+    syncPersistedCampaignVersion({
+      campaignId: state.campaignId,
+      status: cancelled.status,
+      updatedAt: cancelled.updatedAt,
+    });
     setState((current) => ({
       ...current,
       status: cancelled.status,
       sendBlockedReason: cancelled.sendBlockedReason,
       isLocked: isLockedCampaignStatus(cancelled.status),
+      lastSavedAt: cancelled.updatedAt
+        ? new Date(cancelled.updatedAt)
+        : current.lastSavedAt,
     }));
     toast.success("Campaign cancelled");
-  }, [state.campaignId]);
+  }, [state.campaignId, syncPersistedCampaignVersion]);
 
   const value = React.useMemo<CampaignEditorContextValue>(
     () => ({
@@ -991,6 +1475,8 @@ export function CampaignEditorProvider({
       updateContent,
       updateSchedule,
       saveDraft,
+      setAutoSavePaused,
+      captureDraftSnapshot,
       activate,
       pause,
       resume,
@@ -1004,6 +1490,8 @@ export function CampaignEditorProvider({
       reload,
       resume,
       saveDraft,
+      setAutoSavePaused,
+      captureDraftSnapshot,
       syncLiveCampaign,
       state,
       updateAudience,

@@ -19,7 +19,6 @@ import {
 import {
   ChevronLeft,
   Copy,
-  ExternalLink,
   FileDown,
   Mail,
   MoreHorizontal,
@@ -64,6 +63,7 @@ import {
   fetchCampaignEditorRecord,
   mapCampaignCatalogItem,
   type CampaignCatalogItem,
+  type CampaignEditorRecord,
 } from "@/lib/crm/campaignEditor";
 
 type TrackingEventRow = {
@@ -84,7 +84,17 @@ type ReportSummary = {
   sentAt: string | null;
   subjectLine: string;
   preheaderText: string;
-  content: string;
+  rawContent: string;
+  contentBlocks: CampaignEditorRecord["contentBlocks"];
+  previewRecipient: {
+    customerId: string | null;
+    sampleCustomer: {
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+      phone?: string;
+    } | null;
+  };
   smsMessage: string;
   metrics: ReturnType<typeof normalizeDerivedMetrics>;
   timeline: ReportTimelinePoint[];
@@ -94,6 +104,17 @@ type ReportSummary = {
   totalClicks: number;
   complaints: number;
   unsubscribes: number;
+};
+
+type RenderedEmailPreview = {
+  renderedHtml: string;
+  renderedSubject: string;
+  diagnostics?: {
+    usedTags?: string[];
+    missingTags?: string[];
+    emptyResolvedTags?: string[];
+    legacyTagsConverted?: number;
+  };
 };
 
 function StatsStripSkeleton({ cells }: { cells: number }) {
@@ -139,7 +160,13 @@ function ReportHeaderTitleSkeleton() {
   return (
     <Stack spacing={0.75} sx={{ minWidth: 0, flex: 1 }}>
       <Skeleton width="min(420px, 72vw)" height={42} />
-      <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        useFlexGap
+        flexWrap="wrap"
+      >
         <Skeleton width={44} height={18} />
         <Skeleton variant="circular" width={4} height={4} />
         <Skeleton width={92} height={24} sx={{ borderRadius: 999 }} />
@@ -234,7 +261,11 @@ function PreviewSkeleton() {
           <Skeleton width="88%" height={18} />
           <Skeleton width="62%" height={18} />
           <Box sx={{ pt: 1 }}>
-            <Skeleton variant="rectangular" height={96} sx={{ borderRadius: "md" }} />
+            <Skeleton
+              variant="rectangular"
+              height={96}
+              sx={{ borderRadius: "md" }}
+            />
           </Box>
         </Stack>
       </Sheet>
@@ -446,53 +477,157 @@ function ChartCard({
   );
 }
 
-function renderPreviewContent(summary: ReportSummary) {
-  if (summary.campaign.channel === "sms") {
+function EmailPreviewFrame({
+  html,
+  title,
+  height,
+}: {
+  html: string;
+  title: string;
+  height: number;
+}) {
+  return (
+    <Box
+      sx={{
+        overflow: "hidden",
+        border: "1px solid",
+        borderColor: "neutral.200",
+        borderRadius: "md",
+        backgroundColor: "background.surface",
+      }}
+    >
+      <iframe
+        title={title}
+        srcDoc={html}
+        sandbox="allow-same-origin allow-scripts"
+        style={{
+          width: "100%",
+          height,
+          border: 0,
+          display: "block",
+          backgroundColor: "#ffffff",
+        }}
+      />
+    </Box>
+  );
+}
+
+function renderEmailPreviewContent({
+  rawHtml,
+  renderedHtml,
+  isLoading,
+  isError,
+  errorMessage,
+  onRetry,
+  allowLegacyFallback,
+  fullSize = false,
+}: {
+  rawHtml: string;
+  renderedHtml: string;
+  isLoading: boolean;
+  isError: boolean;
+  errorMessage: string | null;
+  onRetry: () => void;
+  allowLegacyFallback: boolean;
+  fullSize?: boolean;
+}) {
+  if (isLoading) {
+    return <PreviewSkeleton />;
+  }
+
+  if (renderedHtml) {
     return (
-      <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
-        <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
-          {summary.smsMessage || "No SMS preview available."}
-        </Typography>
+      <EmailPreviewFrame
+        html={renderedHtml}
+        title="Campaign email preview"
+        height={fullSize ? 720 : 480}
+      />
+    );
+  }
+
+  if (isError && allowLegacyFallback && rawHtml) {
+    return (
+      <Stack spacing={1.5}>
+        <Sheet variant="soft" color="warning" sx={{ borderRadius: "lg", p: 2 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+          >
+            <Typography level="body-sm">
+              Showing raw content because the rendered preview is unavailable
+              for this legacy campaign.
+            </Typography>
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="warning"
+              onClick={onRetry}
+            >
+              Retry rendered preview
+            </JoyButton>
+          </Stack>
+        </Sheet>
+        <EmailPreviewFrame
+          html={rawHtml}
+          title="Legacy campaign HTML preview"
+          height={fullSize ? 720 : 480}
+        />
+      </Stack>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Sheet variant="soft" color="danger" sx={{ borderRadius: "lg", p: 2.5 }}>
+        <Stack spacing={1.25}>
+          <Typography level="body-sm">
+            Rendered email preview is temporarily unavailable.
+          </Typography>
+          {errorMessage ? (
+            <Typography level="body-xs" sx={{ color: "danger.700" }}>
+              {errorMessage}
+            </Typography>
+          ) : null}
+          <Box>
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="danger"
+              onClick={onRetry}
+            >
+              Retry preview
+            </JoyButton>
+          </Box>
+        </Stack>
       </Sheet>
     );
   }
 
-  if (!summary.content) {
+  if (!rawHtml) {
     return (
       <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
         <Typography level="body-sm" color="neutral">
-          Rendered email preview is unavailable for this campaign. Open the
-          editor to inspect the current content blocks.
+          No email content is available for this campaign.
         </Typography>
       </Sheet>
     );
   }
 
   return (
-    <Box
-      sx={{
-        maxHeight: 480,
-        overflow: "auto",
-        border: "1px solid",
-        borderColor: "neutral.200",
-        borderRadius: "md",
-        backgroundColor: "background.surface",
-        "&::-webkit-scrollbar": { width: 6 },
-        "&::-webkit-scrollbar-thumb": {
-          backgroundColor: "neutral.300",
-          borderRadius: 3,
-        },
-      }}
-    >
-      <Box
-        sx={{
-          p: 2,
-          minHeight: 240,
-          "& img": { maxWidth: "100%", height: "auto" },
-        }}
-        dangerouslySetInnerHTML={{ __html: summary.content }}
-      />
-    </Box>
+    <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
+      <Stack spacing={1.25}>
+        <Typography level="body-sm" color="neutral">
+          Rendered email preview is unavailable for this campaign.
+        </Typography>
+        <Box>
+          <JoyButton size="sm" variant="soft" color="neutral" onClick={onRetry}>
+            Retry preview
+          </JoyButton>
+        </Box>
+      </Stack>
+    </Sheet>
   );
 }
 
@@ -500,10 +635,22 @@ function ReportFullPreviewDialog({
   open,
   onClose,
   report,
+  preview,
+  previewLoading,
+  previewError,
+  previewErrorMessage,
+  allowLegacyFallback,
+  onRetryPreview,
 }: {
   open: boolean;
   onClose: () => void;
   report: ReportSummary | null | undefined;
+  preview: RenderedEmailPreview | null | undefined;
+  previewLoading: boolean;
+  previewError: boolean;
+  previewErrorMessage: string | null;
+  allowLegacyFallback: boolean;
+  onRetryPreview: () => void;
 }) {
   return (
     <JoyDialog
@@ -539,40 +686,17 @@ function ReportFullPreviewDialog({
                   {report.smsMessage || "No SMS preview available."}
                 </Typography>
               </Sheet>
-            ) : report.content ? (
-              <Box
-                sx={{
-                  minHeight: 560,
-                  overflow: "auto",
-                  border: "1px solid",
-                  borderColor: "neutral.200",
-                  borderRadius: "md",
-                  backgroundColor: "background.surface",
-                  "&::-webkit-scrollbar": { width: 6 },
-                  "&::-webkit-scrollbar-thumb": {
-                    backgroundColor: "neutral.300",
-                    borderRadius: 3,
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    p: 2,
-                    "& img": { maxWidth: "100%", height: "auto" },
-                  }}
-                  dangerouslySetInnerHTML={{ __html: report.content }}
-                />
-              </Box>
             ) : (
-              <Sheet
-                variant="soft"
-                color="neutral"
-                sx={{ borderRadius: "lg", p: 2.5 }}
-              >
-                <Typography level="body-sm" color="neutral">
-                  Rendered email preview is unavailable for this campaign.
-                </Typography>
-              </Sheet>
+              renderEmailPreviewContent({
+                rawHtml: report.rawContent,
+                renderedHtml: preview?.renderedHtml || "",
+                isLoading: previewLoading,
+                isError: previewError,
+                errorMessage: previewErrorMessage,
+                onRetry: onRetryPreview,
+                allowLegacyFallback,
+                fullSize: true,
+              })
             )}
           </Stack>
         ) : null}
@@ -593,7 +717,6 @@ export default function CRMCampaignReport() {
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
   const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
-  const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
   const lastStatusRef = React.useRef<string | null>(null);
 
   const reportQuery = useQuery({
@@ -604,6 +727,7 @@ export default function CRMCampaignReport() {
         { data: campaignRow, error: campaignError },
         { data: trackingEvents, error: eventsError },
         editorRecord,
+        { data: firstSendRow, error: firstSendError },
       ] = await Promise.all([
         supabase
           .from("crm_campaigns")
@@ -625,16 +749,75 @@ export default function CRMCampaignReport() {
             "unsubscribe",
           ]),
         fetchCampaignEditorRecord(campaignId!),
+        supabase
+          .from("crm_email_sends")
+          .select("customer_id, email, sent_at")
+          .eq("campaign_id", campaignId)
+          .order("sent_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (campaignError) throw campaignError;
       if (eventsError) throw eventsError;
+      if (firstSendError) throw firstSendError;
 
       const campaign = mapCampaignCatalogItem(campaignRow);
       const timeline = buildTimeline(
         (trackingEvents ?? []) as TrackingEventRow[],
         campaignRow.sent_at,
       );
+      const rawContent = editorRecord.content || campaignRow.content || "";
+      let previewRecipient: ReportSummary["previewRecipient"] = {
+        customerId: null,
+        sampleCustomer: {
+          first_name: "Sample",
+          last_name: "Recipient",
+          email:
+            typeof firstSendRow?.email === "string" && firstSendRow.email.trim()
+              ? firstSendRow.email.trim()
+              : "customer@example.com",
+        },
+      };
+
+      if (
+        typeof firstSendRow?.customer_id === "string" &&
+        firstSendRow.customer_id
+      ) {
+        previewRecipient = {
+          customerId: firstSendRow.customer_id,
+          sampleCustomer: null,
+        };
+      } else if (
+        typeof firstSendRow?.email === "string" &&
+        firstSendRow.email.trim() &&
+        campaignRow.tenant_id
+      ) {
+        const { data: matchedCustomer } = await supabase
+          .from("crm_customers")
+          .select("id, first_name, last_name, email, phone")
+          .eq("tenant_id", campaignRow.tenant_id)
+          .eq("email", firstSendRow.email.trim())
+          .limit(1)
+          .maybeSingle();
+
+        if (matchedCustomer?.id) {
+          previewRecipient = {
+            customerId: matchedCustomer.id,
+            sampleCustomer: null,
+          };
+        } else {
+          previewRecipient = {
+            customerId: null,
+            sampleCustomer: {
+              first_name: undefined,
+              last_name: undefined,
+              email: firstSendRow.email.trim(),
+              phone: undefined,
+            },
+          };
+        }
+      }
 
       return {
         campaign,
@@ -642,7 +825,9 @@ export default function CRMCampaignReport() {
         sentAt: campaignRow.sent_at,
         subjectLine: campaign.subjectLine,
         preheaderText: campaign.preheaderText,
-        content: editorRecord.content || campaignRow.content || "",
+        rawContent,
+        contentBlocks: editorRecord.contentBlocks,
+        previewRecipient,
         smsMessage: editorRecord.smsMessage || campaignRow.content || "",
         metrics: normalizeDerivedMetrics(campaignRow.metrics),
         ...timeline,
@@ -652,6 +837,7 @@ export default function CRMCampaignReport() {
 
   const report = reportQuery.data;
   const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
+  const renderedSubjectLine = report?.subjectLine || "";
 
   React.useEffect(() => {
     lastStatusRef.current = report?.campaign.status ?? null;
@@ -875,7 +1061,10 @@ export default function CRMCampaignReport() {
                       <Typography level="body-sm" sx={{ color: "neutral.400" }}>
                         ·
                       </Typography>
-                      <JoyStatusChip status={report?.campaign.status ?? "draft"} size="sm" />
+                      <JoyStatusChip
+                        status={report?.campaign.status ?? "draft"}
+                        size="sm"
+                      />
                       <Typography level="body-sm" sx={{ color: "neutral.400" }}>
                         ·
                       </Typography>
@@ -917,8 +1106,12 @@ export default function CRMCampaignReport() {
                           <MoreHorizontal size={16} />
                         </JoyDropdownMenuTrigger>
                         <JoyDropdownMenuContent>
-                          <JoyDropdownMenuItem onClick={() => void handleDuplicate()}>
-                            {isCloning ? "Duplicating..." : "Duplicate Campaign"}
+                          <JoyDropdownMenuItem
+                            onClick={() => void handleDuplicate()}
+                          >
+                            {isCloning
+                              ? "Duplicating..."
+                              : "Duplicate Campaign"}
                           </JoyDropdownMenuItem>
                           <JoyDropdownMenuItem
                             startDecorator={<Copy size={16} />}
@@ -1009,18 +1202,6 @@ export default function CRMCampaignReport() {
               <Typography level="title-sm" fontWeight="lg">
                 What was sent
               </Typography>
-              {!reportQuery.isLoading ? (
-                <JoyButton
-                  variant="plain"
-                  color="neutral"
-                  size="sm"
-                  startDecorator={<ExternalLink size={14} />}
-                  sx={{ flexShrink: 0 }}
-                  onClick={() => setFullPreviewOpen(true)}
-                >
-                  View full size
-                </JoyButton>
-              ) : null}
             </Stack>
 
             {reportQuery.isLoading ? (
@@ -1029,21 +1210,51 @@ export default function CRMCampaignReport() {
               <Stack spacing={2}>
                 <Stack spacing={0.5}>
                   <Typography level="body-sm" fontWeight="md">
-                    Subject: {report?.subjectLine || "No subject line"}
+                    Subject: {renderedSubjectLine || "No subject line"}
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {report?.preheaderText || "No preheader text"}
                   </Typography>
                 </Stack>
-                {report ? renderPreviewContent(report) : null}
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.400", textAlign: "center" }}
-                >
-                  Scroll to see more · or click "View full size" for the
-                  complete{" "}
-                  {report?.campaign.channel === "sms" ? "message" : "email"}
-                </Typography>
+                {report?.campaign.channel === "sms" ? (
+                  <Sheet
+                    variant="soft"
+                    color="neutral"
+                    sx={{ borderRadius: "lg", p: 2.5 }}
+                  >
+                    <Typography level="body-md" sx={{ whiteSpace: "pre-wrap" }}>
+                      {report.smsMessage || "No SMS preview available."}
+                    </Typography>
+                  </Sheet>
+                ) : report ? (
+                  <Sheet
+                    variant="soft"
+                    color="warning"
+                    sx={{ borderRadius: "lg", p: 2.5 }}
+                  >
+                    <Stack spacing={1}>
+                      <Typography level="body-sm" fontWeight="lg">
+                        Email preview removed during rebuild
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "warning.700" }}>
+                        This report no longer renders live email previews or
+                        replays current block content.
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                        Subject and delivery analytics remain available while
+                        the campaign builder is rebuilt.
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                ) : null}
+                {report?.campaign.channel === "sms" ? (
+                  <Typography
+                    level="body-xs"
+                    sx={{ color: "neutral.400", textAlign: "center" }}
+                  >
+                    Scroll to see more of the SMS body.
+                  </Typography>
+                ) : null}
               </Stack>
             )}
           </JoyCardContent>
@@ -1089,12 +1300,6 @@ export default function CRMCampaignReport() {
             )}
           </JoyCardContent>
         </JoyCard>
-
-        <ReportFullPreviewDialog
-          open={fullPreviewOpen}
-          onClose={() => setFullPreviewOpen(false)}
-          report={report}
-        />
       </Stack>
     </PageContainer>
   );

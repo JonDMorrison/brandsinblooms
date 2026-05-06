@@ -8,6 +8,7 @@ import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { Calendar } from 'lucide-react';
 import { Slider } from '@/components/ui-legacy/slider';
 import { HeaderImageLoadingOverlay } from './HeaderImageLoadingOverlay';
+import { normalizeDateInputValue } from '@/utils/dateInputValue';
 
 interface NewsletterHeaderBlockEditorProps {
   block: ContentBlock;
@@ -30,7 +31,16 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
   // Map both 'title' and 'headline' for backwards compatibility
   const title = (block as any).title || (contentObj as any)?.title || (contentObj as any)?.headline || '';
   const subtitle = (block as any).subtitle || (contentObj as any)?.subtitle || '';
-  const publishDate = (block as any).publishDate || (contentObj as any)?.publishDate || '';
+  const publishDate = normalizeDateInputValue(
+    (block as any).publishDate || (contentObj as any)?.publishDate || ''
+  );
+  const publishDateLabel = publishDate
+    ? new Date(`${publishDate}T00:00:00`).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : '';
   const backgroundImageUrl = (block as any).backgroundImageUrl || (contentObj as any)?.backgroundImageUrl || '';
   const backgroundOpacity = (block as any).backgroundOpacity ?? (contentObj as any)?.backgroundOpacity ?? 0.25;
 
@@ -92,7 +102,7 @@ export const NewsletterHeaderBlockEditor: React.FC<NewsletterHeaderBlockEditorPr
             <div className="flex justify-center text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {publishDate}
+                {publishDateLabel}
               </div>
             </div>
           )}

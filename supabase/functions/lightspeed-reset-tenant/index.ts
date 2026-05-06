@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { logActivityEvent } from "../_shared/activityLogger.ts";
 
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -13,7 +14,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 async function resetLightspeedConnectionState(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: any,
   tenantId: string,
 ) {
   const basePayload = {
@@ -140,6 +141,14 @@ Deno.serve(async (req) => {
 
     const tenantId = userRecord.tenant_id;
 
+    const { data: connection } = await supabaseAdmin
+      .from("lightspeed_connections")
+      .select("id, domain_prefix, retailer_name")
+      .eq("tenant_id", tenantId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const { count: activeJobCount, error: activeJobsError } =
       await supabaseAdmin
         .from("pos_sync_jobs_v2")
@@ -264,6 +273,44 @@ Deno.serve(async (req) => {
       console.error(
         "[lightspeed-reset-tenant] Failed to write admin audit log:",
         auditError,
+      );
+    }
+
+    try {
+      await logActivityEvent(supabaseAdmin, {
+        tenant_id: tenantId,
+        actor_type: "user",
+        actor_id: user.id,
+        source: "ui",
+        integration_name: "lightspeed",
+        activity_type: "lightspeed.connection.reset",
+        status: "success",
+        title: "Lightspeed synced data reset",
+        description: {
+          parts: [
+            {
+              type: "text",
+              text: `Reset synced Lightspeed data for ${connection?.retailer_name || connection?.domain_prefix || "Lightspeed store"} while preserving the connection`,
+            },
+          ],
+        },
+        metadata: {
+          connection_id: connection?.id ?? null,
+          domain_prefix: connection?.domain_prefix ?? null,
+          retailer_name: connection?.retailer_name ?? null,
+          counts,
+        },
+        related_entities: {
+          connection_id: connection?.id ?? null,
+        },
+        links: [
+          { label: "View integration", href: "/integrations/lightspeed" },
+        ],
+      });
+    } catch (activityError: any) {
+      console.error(
+        "[lightspeed-reset-tenant] Failed to log activity event:",
+        activityError?.message ?? activityError,
       );
     }
 

@@ -9,12 +9,37 @@ import {
   getFooterStyleConfig,
   getCompanyInitials,
   FooterStyleConfig,
-} from "@/types/newsletterFooter";
-import {
-  ICON_BASE_URL,
-  socialIconUrls,
-  getAbsoluteSocialIconUrl,
-} from "@/utils/socialIcons";
+} from "../types/newsletterFooter.ts";
+import { socialIconUrls } from "./socialIcons.ts";
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value);
+}
+
+function deriveMutedTextColor(
+  primaryColor: string | undefined,
+  fallbackColor: string,
+): string {
+  if (!primaryColor) {
+    return fallbackColor;
+  }
+
+  const trimmed = primaryColor.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return `${trimmed}B3`;
+  }
+
+  return fallbackColor;
+}
 
 /**
  * Get social icon HTML with absolute URL for email client compatibility
@@ -24,7 +49,7 @@ function getSocialIconHtml(
   platform: keyof typeof socialIconUrls,
   baseUrl: string,
 ): string {
-  return `<img src="${baseUrl}${socialIconUrls[platform]}" alt="${platform}" width="24" height="24" style="display:block;border:0;outline:none;text-decoration:none;" />`;
+  return `<img src="${escapeAttribute(baseUrl + socialIconUrls[platform])}" alt="${escapeAttribute(platform)}" width="20" height="20" style="display:block;border:0;outline:none;text-decoration:none;" />`;
 }
 
 /**
@@ -50,8 +75,8 @@ function buildAddressHtml(
   if (lines.length === 0) return "";
 
   return `
-    <div style="margin-bottom: 8px; color: ${styles.textMuted}; font-size: 13px; line-height: 1.6;">
-      ${lines.join("<br />")}
+    <div style="margin-bottom:8px;color:${styles.textMuted};font-size:13px;line-height:1.625;">
+      ${lines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
     </div>
   `;
 }
@@ -67,20 +92,18 @@ function buildContactHtml(
 
   if (props.email) {
     items.push(
-      `<a href="mailto:${props.email}" style="color: ${styles.textMuted}; text-decoration: none;">${props.email}</a>`,
+      `<a href="mailto:${escapeAttribute(props.email)}" style="color:${styles.textMuted};text-decoration:none;">${escapeHtml(props.email)}</a>`,
     );
   }
   if (props.phone) {
-    items.push(
-      `<a href="tel:${props.phone}" style="color: ${styles.textMuted}; text-decoration: none;">${props.phone}</a>`,
-    );
+    items.push(`<span>${escapeHtml(props.phone)}</span>`);
   }
 
   if (items.length === 0) return "";
 
   return `
-    <div style="font-size: 12px; color: ${styles.textMuted}; margin-top: 4px;">
-      ${items.join(" &nbsp;|&nbsp; ")}
+    <div style="font-size:12px;color:${styles.textMuted};margin-top:4px;">
+      ${items.join(` <span style="color:${styles.textMuted};">|</span> `)}
     </div>
   `;
 }
@@ -116,7 +139,7 @@ function buildSocialIconsHtml(
   const iconsHtml = activeSocials
     .map(
       ({ url, key }) => `
-    <a href="${url}" target="_blank" style="display:inline-block;margin:0 6px;text-decoration:none;">
+    <a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;text-decoration:none;vertical-align:top;">
       ${getSocialIconHtml(key, baseUrl)}
     </a>
   `,
@@ -125,9 +148,9 @@ function buildSocialIconsHtml(
 
   // Email-safe table wrapper for robust rendering
   return `
-    <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="right">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" align="right" class="bloomsuite-footer__social-table">
       <tr>
-        <td align="right" style="padding:8px 0;">
+        <td align="right" style="padding:0;">
           ${iconsHtml}
         </td>
       </tr>
@@ -144,7 +167,7 @@ function buildLogoHtml(
 ): string {
   if (props.logoUrl) {
     return `
-      <img src="${props.logoUrl}" alt="${props.companyName || "Company"}" style="height: 40px; width: auto; object-fit: contain; margin-bottom: 12px;" />
+      <img src="${escapeAttribute(props.logoUrl)}" alt="${escapeAttribute(props.companyName || "Company")} logo" style="display:inline-block;height:40px;width:auto;object-fit:contain;margin-bottom:12px;vertical-align:top;" />
     `;
   }
 
@@ -154,8 +177,8 @@ function buildLogoHtml(
   const logoTextColor = props.footerLogoTextColor || styles.backgroundColor;
   const initials = getCompanyInitials(props.companyName);
   return `
-    <div style="width: 48px; height: 48px; background-color: ${logoBgColor}; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px;">
-      <span style="color: ${logoTextColor}; font-size: 18px; font-weight: bold; line-height: 48px;">${initials}</span>
+    <div style="width:48px;height:48px;background-color:${logoBgColor};border-radius:8px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;vertical-align:top;">
+      <span style="color:${logoTextColor};font-size:18px;font-weight:700;line-height:1;">${escapeHtml(initials)}</span>
     </div>
   `;
 }
@@ -172,16 +195,21 @@ export function generateNewsletterFooterHtml(
     props.brandPrimaryColor,
   );
 
-  // Get base URL for social icons - MUST use production URL for email clients
-  // Use provided appBaseUrl, or production URL for emails (NOT window.location.origin which is dev URL)
-  const baseUrl = appBaseUrl || "https://bloomsuite.app";
+  const baseUrl =
+    appBaseUrl ||
+    (typeof window !== "undefined"
+      ? window.location.origin
+      : "https://bloomsuite.app");
 
   // Apply custom style overrides from campaign metadata with complete fallback
   // All colors should already have fallbacks from emailFooterRenderer, but double-check here
   const styles: FooterStyleConfig = {
     backgroundColor: props.footerBackgroundColor || baseStyles.backgroundColor,
     textPrimary: props.footerTextColor || baseStyles.textPrimary,
-    textMuted: props.footerTextColor || baseStyles.textMuted,
+    textMuted: deriveMutedTextColor(
+      props.footerTextColor,
+      baseStyles.textMuted,
+    ),
     linkAccent: props.footerLinkColor || baseStyles.linkAccent,
     dividerColor: props.footerDividerColor || baseStyles.dividerColor,
   };
@@ -199,59 +227,73 @@ export function generateNewsletterFooterHtml(
     props.pinterestUrl ||
     props.youtubeUrl ||
     props.linkedinUrl;
+  const companyName = props.companyName || "Your Company";
+  const legalText = props.legalText
+    ? props.legalText.replace(
+        /\{\{company\.name\}\}/g,
+        companyName || "Our Company",
+      )
+    : "";
+  const desktopLeftCellWidth = hasSocial ? "33%" : "50%";
+  const desktopMiddleCellWidth = hasSocial ? "34%" : "50%";
+  const desktopRightCellWidth = hasSocial ? "33%" : "0%";
 
   return `
-    <div style="background-color: ${styles.backgroundColor}; width: 100%; margin-top: 40px;">
-      <div style="max-width: 640px; margin: 0 auto; padding: 32px 16px;">
-        <!--[if mso]>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-        <td width="33%" valign="top" style="padding: 0 8px;">
-        <![endif]-->
-
-        <!-- Three Column Layout for Desktop, stacks on mobile via footer-column class -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+    <!-- BLOOMSUITE_FOOTER_START -->
+    <style type="text/css">
+      @media only screen and (max-width: 600px) {
+        .bloomsuite-footer__column {
+          display:block !important;
+          width:100% !important;
+          text-align:center !important;
+          padding:12px 0 !important;
+        }
+        .bloomsuite-footer__social-cell {
+          text-align:center !important;
+        }
+        .bloomsuite-footer__social-table {
+          margin:0 auto !important;
+        }
+      }
+    </style>
+    <div data-bloomsuite-footer="true" style="background-color:${styles.backgroundColor};width:100%;margin-top:40px;">
+      <div style="max-width:640px;margin:0 auto;padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
           <tr>
             <!-- Left Column: Logo & Brand -->
-            <td width="33%" valign="top" class="footer-column" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: left; width: 33%;">
+            <td width="${desktopLeftCellWidth}" valign="top" class="bloomsuite-footer__column" style="padding:0 12px 0 0;text-align:left;width:${desktopLeftCellWidth};vertical-align:top;">
               ${buildLogoHtml(props, styles)}
-              ${props.companyName ? `<div style="font-size: 14px; font-weight: 500; color: ${styles.textPrimary}; margin-bottom: 4px;">${props.companyName}</div>` : ""}
-              ${props.websiteUrl ? `<a href="${props.websiteUrl}" style="font-size: 12px; color: ${styles.textMuted}; text-decoration: none;">${props.websiteUrl.replace(/^https?:\/\//, "")}</a>` : ""}
+              ${companyName ? `<div style="font-size:14px;font-weight:500;color:${styles.textPrimary};margin-bottom:4px;">${escapeHtml(companyName)}</div>` : ""}
+              ${props.websiteUrl ? `<a href="${escapeAttribute(props.websiteUrl)}" style="font-size:12px;color:${styles.textMuted};text-decoration:none;">${escapeHtml(props.websiteUrl.replace(/^https?:\/\//, ""))}</a>` : ""}
             </td>
 
             <!-- Middle Column: Address & Contact -->
-            <td width="34%" valign="top" class="footer-column" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: left; width: 34%;">
+            <td width="${desktopMiddleCellWidth}" valign="top" class="bloomsuite-footer__column" style="padding:0 ${hasSocial ? "12px" : "0 0 0 12px"};text-align:left;width:${desktopMiddleCellWidth};vertical-align:top;">
               ${hasAddress ? buildAddressHtml(props, styles) : ""}
               ${hasContact ? buildContactHtml(props, styles) : ""}
             </td>
 
             <!-- Right Column: Social Icons -->
-            <td width="33%" valign="top" class="footer-column footer-social" style="display: inline-block; vertical-align: top; padding: 0 8px; text-align: right; width: 33%;">
+            <td width="${desktopRightCellWidth}" valign="top" class="bloomsuite-footer__column bloomsuite-footer__social-cell" style="padding:0 0 0 12px;text-align:right;width:${desktopRightCellWidth};vertical-align:top;${hasSocial ? "" : "display:none;"}">
               ${hasSocial ? buildSocialIconsHtml(props, baseUrl) : ""}
             </td>
           </tr>
         </table>
 
-        <!--[if mso]>
-        </td>
-        </tr>
-        </table>
-        <![endif]-->
-
         <!-- Divider -->
-        <div style="height: 1px; background-color: ${styles.dividerColor}; margin: 24px 0;"></div>
+        <div style="height:1px;background-color:${styles.dividerColor};margin:24px 0;"></div>
 
         <!-- Compliance Strip -->
-        <div style="text-align: center;">
-          ${props.legalText ? `<p style="font-size: 11px; color: ${styles.textMuted}; max-width: 448px; margin: 0 auto 12px; line-height: 1.5;">${props.legalText}</p>` : ""}
+        <div style="text-align:center;">
+          ${legalText ? `<p style="font-size:12px;color:${styles.textMuted};max-width:448px;margin:0 auto 12px;line-height:1.625;">${escapeHtml(legalText)}</p>` : ""}
 
-          <div style="font-size: 12px;">
-            <a href="${props.unsubscribeUrl}" style="color: ${styles.linkAccent}; text-decoration: underline;">Unsubscribe</a>
+          <div style="font-size:12px;">
+            <a href="${escapeAttribute(props.unsubscribeUrl)}" style="color:${styles.linkAccent};text-decoration:underline;">Unsubscribe</a>
             ${
               props.managePreferencesUrl
                 ? `
-              <span style="color: ${styles.textMuted}; margin: 0 8px;">|</span>
-              <a href="${props.managePreferencesUrl}" style="color: ${styles.linkAccent}; text-decoration: underline;">Manage Preferences</a>
+              <span style="color:${styles.textMuted};margin:0 8px;">|</span>
+              <a href="${escapeAttribute(props.managePreferencesUrl)}" style="color:${styles.linkAccent};text-decoration:underline;">Manage Preferences</a>
             `
                 : ""
             }
@@ -259,6 +301,7 @@ export function generateNewsletterFooterHtml(
         </div>
       </div>
     </div>
+    <!-- BLOOMSUITE_FOOTER_END -->
   `;
 }
 
@@ -270,15 +313,17 @@ export function generateResponsiveFooterStyles(): string {
   return `
     <style type="text/css">
       @media only screen and (max-width: 600px) {
-        .footer-column {
+        .bloomsuite-footer__column {
           display: block !important;
           width: 100% !important;
           text-align: center !important;
-          padding: 12px 8px !important;
+          padding: 12px 0 !important;
         }
-        .footer-social {
+        .bloomsuite-footer__social-cell {
           text-align: center !important;
-          margin-top: 16px !important;
+        }
+        .bloomsuite-footer__social-table {
+          margin: 0 auto !important;
         }
       }
     </style>

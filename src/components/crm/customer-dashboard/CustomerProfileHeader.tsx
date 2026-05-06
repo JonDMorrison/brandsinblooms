@@ -5,7 +5,6 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   Activity,
   ArrowLeft,
@@ -35,6 +34,7 @@ import {
   JoyDialogContent,
 } from "@/components/joy/JoyDialog";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
+import useMediaQuery from "@/hooks/use-media-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   formatDateLabel,

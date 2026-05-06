@@ -33,7 +33,7 @@ interface SearchFilters {
   dateFrom?: string | null;
   dateTo?: string | null;
   hideTestSubmissions?: boolean;
-  resultFilter?: "all" | SubmissionResult | null;
+  resultFilter?: "all" | "rejected" | SubmissionResult | null;
   searchQuery?: string;
 }
 
@@ -518,7 +518,11 @@ export function submissionMatchesFilters(
   }
 
   if (filters.resultFilter && filters.resultFilter !== "all") {
-    if (submission.result !== filters.resultFilter) {
+    if (filters.resultFilter === "rejected") {
+      if (submission.result === "accepted") {
+        return false;
+      }
+    } else if (submission.result !== filters.resultFilter) {
       return false;
     }
   }

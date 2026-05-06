@@ -20,7 +20,8 @@ function mapSyncStatus(
   const active = row.is_active !== false;
   if (!active) return "paused";
   const s = (row.sync_status || row.status || "").toLowerCase();
-  if (s === "success" || s === "connected" || s === "active") return "connected";
+  if (s === "success" || s === "connected" || s === "active")
+    return "connected";
   if (s === "syncing" || s === "pending") return "syncing";
   if (s === "error") return "error";
   return "connected"; // default for any connected row
@@ -47,7 +48,7 @@ export function useUnifiedPOSConnections() {
       const [squareRes, lightspeedRes, cloverRes, vmxRes] = await Promise.all([
         supabase
           .from("square_connections")
-          .select("id, status, last_sync_at, sync_error")
+          .select("id, status, last_synced_at, sync_errors")
           .eq("tenant_id", tid)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -77,7 +78,13 @@ export function useUnifiedPOSConnections() {
           .maybeSingle(),
       ]);
 
-      return { square: squareRes.data, lightspeed: lightspeedRes.data, clover: cloverRes.data, vmx: vmxRes.data, tenantId: tid };
+      return {
+        square: squareRes.data,
+        lightspeed: lightspeedRes.data,
+        clover: cloverRes.data,
+        vmx: vmxRes.data,
+        tenantId: tid,
+      };
     },
     enabled: !!user,
     staleTime: 30_000,
@@ -108,12 +115,25 @@ export function useUnifiedPOSConnections() {
       syncStatusField = "status",
     ): POSConnectionStatus => {
       if (!row) return empty;
+
+      const syncError =
+        typeof row.sync_error === "string"
+          ? row.sync_error
+          : typeof row.sync_errors === "string"
+            ? row.sync_errors
+            : row.sync_errors
+              ? JSON.stringify(row.sync_errors)
+              : null;
+
       return {
-        status: mapSyncStatus({ sync_status: row[syncStatusField] || row.sync_status || row.status, is_active: row.is_active }),
-        lastSyncAt: row.last_sync_at || null,
+        status: mapSyncStatus({
+          sync_status: row[syncStatusField] || row.sync_status || row.status,
+          is_active: row.is_active,
+        }),
+        lastSyncAt: row.last_sync_at || row.last_synced_at || null,
         connectionId: row.id || null,
         connectionName: row.name || null,
-        errorMessage: row.sync_error || null,
+        errorMessage: syncError,
       };
     };
 
