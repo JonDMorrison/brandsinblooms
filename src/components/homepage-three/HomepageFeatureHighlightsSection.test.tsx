@@ -26,15 +26,10 @@ describe("HomepageFeatureHighlightsSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders accessible feature cards with available screenshots and fallback placeholders", () => {
+  it("renders accessible feature cards with bundled illustrations for every id", () => {
     render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
 
     const cards = screen.getAllByRole("article");
-    const defaultScreenshotSrcs = {
-      "smart-crm": "/homepage/smart-customer-crm.png",
-      "campaign-builder": "/homepage/ai-campaign-builder.png",
-      "analytics-dashboard": "/homepage/growth-and-analytics.png",
-    } as const;
 
     expect(cards).toHaveLength(FEATURE_HIGHLIGHTS.length);
     for (const [index, feature] of FEATURE_HIGHLIGHTS.entries()) {
@@ -43,22 +38,11 @@ describe("HomepageFeatureHighlightsSection", () => {
       ).toBeInTheDocument();
       expect(screen.getByText(feature.description)).toBeInTheDocument();
 
-      if (feature.id in defaultScreenshotSrcs) {
-        expect(
-          screen.getByAltText(`${feature.placeholderLabel} preview`),
-        ).toHaveAttribute(
-          "src",
-          defaultScreenshotSrcs[
-            feature.id as keyof typeof defaultScreenshotSrcs
-          ],
-        );
-      } else {
-        expect(
-          screen.getByRole("img", {
-            name: `${feature.placeholderLabel} screenshot placeholder`,
-          }),
-        ).toBeInTheDocument();
-      }
+      // Every card now ships with a bundled illustration; the old
+      // gray-skeleton fallback path has been removed.
+      expect(
+        screen.getByAltText(`${feature.placeholderLabel} illustration`),
+      ).toBeInTheDocument();
 
       expect(cards[index]).toHaveStyle(
         `--hp-feature-card-delay: ${index * 80}ms`,
@@ -66,7 +50,7 @@ describe("HomepageFeatureHighlightsSection", () => {
     }
   });
 
-  it("accepts real screenshot sources through a single screenshot map prop", () => {
+  it("accepts override screenshot sources through the screenshot map prop", () => {
     render(
       <HomepageFeatureHighlightsSection
         isActive
@@ -75,17 +59,9 @@ describe("HomepageFeatureHighlightsSection", () => {
       />,
     );
 
-    // Feature placeholderLabel for smart-crm is "Remember Every Customer"
-    // (outcome-led copy rewrite). Alt text + placeholder aria-label
-    // follow the same label.
     expect(
-      screen.getByAltText("Remember Every Customer preview"),
+      screen.getByAltText("Remember Every Customer illustration"),
     ).toHaveAttribute("src", "/customer-dashboard.png");
-    expect(
-      screen.queryByRole("img", {
-        name: "Remember Every Customer screenshot placeholder",
-      }),
-    ).toBeNull();
   });
 
   it("marks fallback mode for static card rendering", () => {
