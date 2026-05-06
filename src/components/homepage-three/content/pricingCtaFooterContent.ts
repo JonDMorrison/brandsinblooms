@@ -42,28 +42,33 @@ export interface FooterSocialLinkConfig extends FooterLinkConfig {
 export const PRICING_SECTION_HEADER = {
   eyebrow: "Pricing",
   headline: "Plans that match your store.",
-  subtext: "Free 14-day trial. No credit card. Cancel anytime.",
+  subtext:
+    "All plans include a 14-day free trial. Need CRM only without a website? See our Seed plan at $199/month on the pricing page.",
 };
 
 export const PRICING_CARDS_LABEL = "Pricing plan cards";
 export const PRICING_MOBILE_INITIAL_PLAN_ID: PricingPlanId = "growth";
 
+// Card prices and feature lists mirror the canonical intro pricing in
+// src/components/pricing/pricingConfig.ts (Sprout $349 / Bloom $699 /
+// Thrive $1,199). All three cards route to /pricing for the full plan
+// detail page rather than triggering an in-page section anchor.
 export const PRICING_PLANS: PricingPlanConfig[] = [
   {
     id: "starter",
     name: "Sprout",
-    price: "Free",
-    priceDetail: "14-day trial",
+    price: "$349",
+    priceDetail: "/month",
     featureListLabel: "Sprout plan features",
     features: [
-      "14-day trial",
-      "Up to 100 customers",
-      "Customer CRM",
-      "One location",
+      "Website + Ecommerce + BloomSuite",
+      "Up to 10,000 contacts",
+      "20,000 emails per month",
+      "2,000 SMS per month",
       "Email support",
     ],
-    ctaLabel: "Start free trial",
-    ctaHref: "#start",
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "secondary",
     delayMs: 150,
     entryDirection: "left",
@@ -71,19 +76,18 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   {
     id: "growth",
     name: "Bloom",
-    price: "$49",
+    price: "$699",
     priceDetail: "/month",
     featureListLabel: "Bloom plan features",
     features: [
-      "Unlimited customers",
-      "AI assistant",
-      "Campaign builder",
-      "Storefront editor",
-      "Up to 3 locations",
+      "Website + Ecommerce + BloomSuite",
+      "Up to 25,000 contacts",
+      "100,000 emails per month",
+      "5,000 SMS per month",
       "Priority support",
     ],
-    ctaLabel: "Start free trial",
-    ctaHref: "#start",
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "primary",
     featured: true,
     featuredChip: "Most Popular",
@@ -93,18 +97,18 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   {
     id: "enterprise",
     name: "Thrive",
-    price: "Custom",
-    priceDetail: "Tailored to you",
+    price: "$1,199",
+    priceDetail: "/month",
     featureListLabel: "Thrive plan features",
     features: [
-      "Everything in Bloom",
-      "Unlimited locations",
+      "Multi-location ready",
+      "Unlimited emails",
+      "50,000 SMS per month",
       "Dedicated success manager",
-      "Custom integrations",
       "SLA guarantee",
     ],
-    ctaLabel: "Contact sales",
-    ctaHref: "#contact-sales",
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "secondary",
     delayMs: 150,
     entryDirection: "right",
@@ -115,9 +119,13 @@ export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
   headline: "Ready to run customer marketing your way?",
   primaryCta: "Start free trial",
-  primaryHref: "#start",
+  // /auth matches the trial sign-up handler used by the top-nav
+  // "Start Free Trial" button (NavigationShell.navigateToAuth).
+  primaryHref: "/auth",
   secondaryCta: "Book a demo",
-  secondaryHref: "#demo",
+  // /contact matches the top-nav "Book a Demo" handler
+  // (NavigationShell.navigateToDemo).
+  secondaryHref: "/contact",
   caption: "No credit card required · 14-day free trial · Cancel anytime",
 };
 
@@ -151,12 +159,10 @@ export const FOOTER_CONTENT = {
     {
       title: "PRODUCT",
       links: [
-        { label: "CRM", href: "#customer-growth" },
-        { label: "AI Assistant", href: "#ai" },
-        { label: "Visual Editor", href: "#features" },
-        { label: "Campaign Builder", href: "#features" },
+        { label: "Features", href: "/features" },
+        { label: "Pricing", href: "/pricing" },
         { label: "Integrations", href: "#integrations" },
-        { label: "Pricing", href: "#start" },
+        { label: "FAQ", href: "/faq" },
       ],
     },
     {
@@ -171,7 +177,8 @@ export const FOOTER_CONTENT = {
       links: [
         { label: "Privacy Policy", href: "/privacy" },
         { label: "Terms of Service", href: "/terms" },
-        { label: "Cookie Policy", href: "/cookies" },
+        { label: "Platform Agreement", href: "/platform-agreement" },
+        { label: "SMS Program", href: "/sms-program" },
       ],
     },
   ] satisfies FooterColumnConfig[],

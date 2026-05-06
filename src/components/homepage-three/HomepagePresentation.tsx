@@ -332,10 +332,26 @@ const NavigationShell = ({
   };
 
   const handleNavItemClick = (
-    targetSlug: string,
+    item: { label: string; targetSlug: string; targetHref?: string },
     inputKind: SectionInputKind,
   ) => {
-    onNavigateToSection(getHomepageNavTargetIndex(targetSlug), inputKind);
+    // External-route nav items (e.g. Pricing → /pricing) leave the
+    // scroll-locked homepage entirely. In-page items keep the existing
+    // section-scroll behavior.
+    if (item.targetHref) {
+      trackHomepageEvent("cta_click", {
+        label: item.label,
+        href: item.targetHref,
+        source: "top_nav",
+      });
+      navigate(item.targetHref);
+      onMobileMenuClose();
+      return;
+    }
+    onNavigateToSection(
+      getHomepageNavTargetIndex(item.targetSlug),
+      inputKind,
+    );
     onMobileMenuClose();
   };
 
@@ -360,7 +376,7 @@ const NavigationShell = ({
                 type="button"
                 className="hp-nav__link"
                 data-active={activeCategory === item.category}
-                onClick={() => handleNavItemClick(item.targetSlug, "nav")}
+                onClick={() => handleNavItemClick(item, "nav")}
               >
                 <span>{item.label}</span>
               </button>
@@ -413,7 +429,7 @@ const NavigationShell = ({
                 type="button"
                 className="hp-mobile-overlay__link"
                 data-active={activeCategory === item.category}
-                onClick={() => handleNavItemClick(item.targetSlug, "nav")}
+                onClick={() => handleNavItemClick(item, "nav")}
                 tabIndex={mobileMenuOpen ? 0 : -1}
               >
                 {item.label}
