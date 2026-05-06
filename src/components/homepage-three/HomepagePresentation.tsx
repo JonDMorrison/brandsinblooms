@@ -230,7 +230,13 @@ export const HomepagePresentation = () => {
   }, []);
 
   return (
-    <>
+    // hp-token-scope brings the homepage CSS-variable ramp (--hp-green-*,
+    // --hp-hover-duration, --hp-ease-hover, etc., declared in
+    // homepageTokens.css) into scope for the fixed nav and skip-link too.
+    // Without it, the nav lives outside .homepage-three and the
+    // .hp-trial-button background var(--hp-green-500) resolves to nothing
+    // — the pill would render with no fill.
+    <div className="hp-token-scope">
       <HomepageHead />
       <a className="hp-skip-link" href="#homepage-main-content">
         Skip to content
@@ -324,7 +330,7 @@ export const HomepagePresentation = () => {
           />
         </section>
       </main>
-    </>
+    </div>
   );
 };
 
