@@ -37,7 +37,7 @@ export const TESTIMONIALS: TestimonialConfig[] = [
   {
     id: "sarah-mitchell",
     quote:
-      "BloomSuite transformed how we manage customer relationships. The AI assistant alone saves us 10 hours a week.",
+      "BloomSuite transformed how we manage customer relationships. The marketing assistant alone saves us 10 hours a week.",
     name: "Sarah Mitchell",
     title: "Owner, Evergreen Garden Centre",
     rating: 5,
