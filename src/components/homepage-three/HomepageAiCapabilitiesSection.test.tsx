@@ -100,7 +100,7 @@ describe("HomepageAiCapabilitiesSection", () => {
     }
   });
 
-  it("renders three dark glass capability cards with stagger metadata", () => {
+  it("renders four dark glass capability cards with stagger metadata", () => {
     render(<HomepageAiCapabilitiesSection isActive motionEnabled={false} />);
 
     const grid = screen.getByLabelText(AI_CAPABILITY_CARDS_LABEL);
