@@ -30,9 +30,9 @@ export const ProblemAgitationSection = () => {
       icon: AlertTriangle,
       title: "Generic Marketing That Doesn't Work",
       description: "Standard marketing tools don't understand plant seasons, garden center customers, or nursery-specific campaigns.",
-      accentColor: "#2c9da3",
-      glowColor: "rgba(44, 157, 163, 0.15)",
-      cardBg: "rgba(44, 157, 163, 0.08)"
+      accentColor: "#3E7C77",
+      glowColor: "rgba(62, 124, 119, 0.15)",
+      cardBg: "rgba(62, 124, 119, 0.08)"
     }
   ];
 
