@@ -1,0 +1,375 @@
+.hp-hero {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-rows: minmax(300px, 45dvh) minmax(280px, 1fr);
+    align-items: start;
+    justify-items: center;
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    padding: 96px clamp(20px, 4vw, 64px) 34px;
+}
+
+.hp-hero__copy {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 16px;
+    width: min(860px, 100%);
+    min-height: 100%;
+    text-align: center;
+}
+
+.hp-hero__eyebrow {
+    margin: 0;
+    color: #30506E;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.hp-hero__headline {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    font-family: var(--hp-font-display);
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: var(--hp-tracking-display);
+}
+
+.hp-hero__headline-line {
+    display: block;
+    overflow: hidden;
+}
+
+.hp-hero__headline-line--dark {
+    color: var(--hp-text);
+}
+
+.hp-hero__headline-line--green {
+    color: #30506E;
+}
+
+.hp-hero__subtext {
+    max-width: 560px;
+    margin: 0;
+    color: var(--hp-text-muted);
+    font-size: clamp(1rem, 1.4vw, 1.14rem);
+    line-height: 1.62;
+}
+
+.hp-hero__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.hp-hero__visual {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    align-self: start;
+    width: min(75vw, 1120px);
+}
+
+.hp-hero-dashboard {
+    align-self: start;
+    width: 100%;
+    max-height: min(40dvh, 380px);
+    transform-origin: center top;
+}
+
+.hp-hero-dashboard .hp-screenshot-frame__placeholder {
+    min-height: clamp(230px, 34dvh, 330px);
+}
+
+.hp-hero-badges {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    pointer-events: none;
+}
+
+.hp-hero-badge {
+    position: absolute;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.hp-hero-badge__chip {
+    gap: 7px;
+    min-height: 32px;
+    padding-inline: 14px;
+    color: var(--hp-text);
+    font-size: clamp(0.72rem, 1vw, 0.82rem);
+    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
+}
+
+.hp-hero-badge__dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 auto;
+    border-radius: var(--radius-full);
+    background: #68BEB9;
+    box-shadow: 0 0 0 4px rgba(104, 190, 185, 0.12);
+}
+
+.hp-hero-badge[data-position="top-left"] {
+    top: -46px;
+    left: 7%;
+}
+
+.hp-hero-badge[data-position="top-right"] {
+    top: -46px;
+    right: 7%;
+}
+
+.hp-hero-badge[data-position="bottom-left"] {
+    bottom: -34px;
+    left: 7%;
+}
+
+.hp-hero-badge[data-position="bottom-right"] {
+    right: 7%;
+    bottom: -34px;
+}
+
+.hp-hero-badge[data-position="mid-left"] {
+    top: 42%;
+    left: clamp(-160px, -11vw, -124px);
+}
+
+.hp-hero-badge[data-position="mid-right"] {
+    top: 45%;
+    right: clamp(-150px, -10vw, -118px);
+}
+
+.hp-hero[data-active="true"] .hp-hero__eyebrow {
+    animation: hp-hero-fade var(--hp-entry-duration) var(--hp-ease-entry) both;
+}
+
+.hp-hero[data-active="true"] .hp-hero__headline-line--dark {
+    animation: hp-hero-clip-up var(--hp-entry-duration) var(--hp-ease-entry) 100ms both;
+}
+
+.hp-hero[data-active="true"] .hp-hero__headline-line--green {
+    animation: hp-hero-clip-up var(--hp-entry-duration) var(--hp-ease-entry) 180ms both;
+}
+
+.hp-hero[data-active="true"] .hp-hero__subtext {
+    animation: hp-hero-fade var(--hp-entry-duration) var(--hp-ease-entry) 260ms both;
+}
+
+.hp-hero[data-active="true"] .hp-hero__ctas {
+    animation: hp-hero-slide-up var(--hp-entry-duration) var(--hp-ease-entry) 340ms both;
+}
+
+.hp-hero[data-active="true"] .hp-hero-dashboard {
+    animation: hp-hero-dashboard-enter var(--hp-entry-duration) var(--hp-ease-entry) 420ms both,
+        hp-hero-dashboard-drift 6s var(--hp-ease-drift) 820ms infinite alternate;
+}
+
+.hp-hero[data-active="true"] .hp-hero-badge {
+    animation: hp-hero-badge-enter 360ms var(--hp-ease-entry) var(--hp-badge-delay) both;
+}
+
+.hp-hero[data-active="true"] .hp-hero-badge__chip {
+    animation: hp-hero-badge-float var(--hp-badge-float-duration) var(--hp-ease-drift) var(--hp-badge-float-phase) infinite alternate;
+}
+
+.hp-hero[data-active="false"] .hp-hero__eyebrow,
+.hp-hero[data-active="false"] .hp-hero__headline-line,
+.hp-hero[data-active="false"] .hp-hero__subtext,
+.hp-hero[data-active="false"] .hp-hero__ctas,
+.hp-hero[data-active="false"] .hp-hero-dashboard,
+.hp-hero[data-active="false"] .hp-hero-badge {
+    opacity: 0;
+}
+
+.hp-hero[data-motion-enabled="false"] .hp-hero-dashboard {
+    animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
+}
+
+.hp-hero[data-motion-enabled="false"] .hp-hero-badge {
+    animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
+}
+
+.hp-hero[data-motion-enabled="false"] .hp-hero-badge__chip {
+    animation: none;
+}
+
+@keyframes hp-hero-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes hp-hero-clip-up {
+    from {
+        clip-path: inset(100% 0 0 0);
+        transform: translateY(18px);
+    }
+
+    to {
+        clip-path: inset(0 0 0 0);
+        transform: translateY(0);
+    }
+}
+
+@keyframes hp-hero-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hp-hero-dashboard-enter {
+    from {
+        opacity: 0;
+        transform: translateY(60px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hp-hero-dashboard-drift {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes hp-hero-badge-enter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hp-hero-badge-float {
+    from {
+        transform: translateY(-3px);
+    }
+
+    to {
+        transform: translateY(3px);
+    }
+}
+
+@media (max-width: 1100px) {
+    .hp-hero__visual {
+        width: min(85vw, 920px);
+    }
+
+    .hp-hero-badge[data-optional="true"] {
+        display: none;
+    }
+}
+
+@media (max-width: 767px) {
+    .hp-hero {
+        grid-template-rows: minmax(400px, 52.5dvh) minmax(220px, 1fr);
+        padding: 84px 16px 52px;
+    }
+
+    .hp-hero__copy {
+        gap: 14px;
+    }
+
+    .hp-hero__headline {
+        font-size: clamp(36px, 12vw, 48px);
+    }
+
+    .hp-hero__ctas {
+        width: 100%;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .hp-hero__ctas .hp-glass-button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding-inline: 12px;
+        font-size: 0.88rem;
+    }
+
+    .hp-hero__visual {
+        width: 95vw;
+    }
+
+    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
+        min-height: clamp(190px, 28dvh, 260px);
+    }
+
+    .hp-hero-badge[data-position="top-left"] {
+        top: -31px;
+        left: 3%;
+    }
+
+    .hp-hero-badge[data-position="top-right"] {
+        top: -31px;
+        right: 3%;
+    }
+
+    .hp-hero-badge[data-position="bottom-left"] {
+        bottom: -36px;
+        left: 2%;
+    }
+
+    .hp-hero-badge[data-position="bottom-right"] {
+        right: 2%;
+        bottom: -36px;
+    }
+}
+
+@media (max-height: 760px) and (min-width: 768px) {
+    .hp-hero {
+        grid-template-rows: minmax(270px, 43dvh) minmax(240px, 1fr);
+        padding-top: 82px;
+    }
+
+    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
+        min-height: clamp(210px, 30dvh, 300px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .hp-hero[data-active="true"] .hp-hero__eyebrow,
+    .hp-hero[data-active="true"] .hp-hero__headline-line,
+    .hp-hero[data-active="true"] .hp-hero__subtext,
+    .hp-hero[data-active="true"] .hp-hero__ctas,
+    .hp-hero[data-active="true"] .hp-hero-dashboard,
+    .hp-hero[data-active="true"] .hp-hero-badge {
+        animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
+    }
+}

@@ -1,29 +1,61 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft, KeyRound, Mail } from "lucide-react";
+import {
+  AuthAlert,
+  AuthButton,
+  AuthCard,
+  AuthInput,
+  AuthLayout,
+} from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Loader2, Mail, ArrowLeft } from "lucide-react";
-import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
-import { toast } from "sonner";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const validateEmail = (value: string, requireValue = false) => {
+  const email = value.trim();
+
+  if (!email) {
+    return requireValue ? "Please enter your email address" : "";
+  }
+
+  return emailPattern.test(email) ? "" : "Please enter a valid email address";
+};
 
 export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [emailValue, setEmailValue] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailBlur = () => {
+    setEmailError(validateEmail(emailValue));
+  };
+
+  const handleEmailChange = (nextEmail: string) => {
+    setEmailValue(nextEmail);
+    setSubmitError(null);
+
+    if (emailError) {
+      setEmailError(validateEmail(nextEmail, true));
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    const email = emailValue.trim();
+    const nextEmailError = validateEmail(email, true);
+
+    setEmailValue(email);
+    setEmailError(nextEmailError);
+    setSubmitError(null);
+
+    if (nextEmailError) {
+      return;
+    }
 
     setLoading(true);
     try {
@@ -37,7 +69,9 @@ export const ForgotPasswordPage = () => {
         console.error("Password reset error:", error);
 
         if (error.status === 429 || rawMessage.includes("rate")) {
-          toast.error("Too many requests. Please try again in a few minutes.");
+          setSubmitError(
+            "Too many requests. Please try again in a few minutes.",
+          );
           return;
         }
 
@@ -45,11 +79,10 @@ export const ForgotPasswordPage = () => {
           rawMessage.includes("redirect") ||
           rawMessage.includes("not allowed")
         ) {
-          toast.error("Something went wrong. Please try again later.");
+          setSubmitError("Something went wrong. Please try again later.");
           return;
         }
 
-        // Preserve anti-enumeration behavior for all other API-level errors.
         navigate("/forgot-password/sent", { state: { email } });
         return;
       }
@@ -57,82 +90,75 @@ export const ForgotPasswordPage = () => {
       navigate("/forgot-password/sent", { state: { email } });
     } catch (error) {
       console.error("Password reset error:", error);
-      toast.error("Network error. Please try again.");
+      setSubmitError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <LandingPageHeader onLogin={() => {}} showUserMenu={false} />
-      <div className="flex items-center justify-center pt-8 pb-16 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Reset Password
+    <AuthLayout>
+      <AuthCard>
+        <div className="auth-recovery-content auth-recovery-content--request">
+          <AuthButton
+            href="/auth#signin"
+            variant="ghost"
+            size="sm"
+            fullWidth={false}
+            className="auth-recovery-back-link auth-recovery-fade auth-recovery-delay-0"
+          >
+            <ArrowLeft aria-hidden="true" />
+            Back to Sign In
+          </AuthButton>
+
+          <div className="auth-recovery-header">
+            <div className="auth-recovery-icon auth-recovery-icon--request auth-recovery-scale auth-recovery-delay-100">
+              <KeyRound aria-hidden="true" />
+            </div>
+            <h1 className="auth-recovery-heading auth-recovery-fade auth-recovery-delay-200">
+              Forgot your password?
             </h1>
-            <p className="text-gray-600">
-              Enter your email to receive reset instructions
+            <p className="auth-recovery-subheading auth-recovery-fade auth-recovery-delay-300">
+              No worries. Enter your email and we'll send you a reset link.
             </p>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Forgot Your Password?</CardTitle>
-              <CardDescription>
-                No worries! Enter your email address and we'll send you
-                instructions to reset your password.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                    />
-                  </div>
-                </div>
+          {submitError ? (
+            <AuthAlert variant="error" onDismiss={() => setSubmitError(null)}>
+              {submitError}
+            </AuthAlert>
+          ) : null}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading || !email}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Reset Link"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <form
+            onSubmit={handleSubmit}
+            className="auth-recovery-form"
+            noValidate
+          >
+            <div className="auth-recovery-slide-up auth-recovery-delay-400">
+              <AuthInput
+                id="forgot-password-email"
+                label="Email Address"
+                type="email"
+                placeholder="you@company.com"
+                value={emailValue}
+                onBlur={handleEmailBlur}
+                onChange={(event) => handleEmailChange(event.target.value)}
+                icon={<Mail aria-hidden="true" />}
+                error={emailError}
+                disabled={loading}
+                autoComplete="email"
+                required
+              />
+            </div>
 
-          <div className="text-center mt-6">
-            <button
-              onClick={() => navigate("/auth")}
-              className="text-sm text-gray-600 hover:underline inline-flex items-center gap-1"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to login
-            </button>
-          </div>
+            <div className="auth-recovery-slide-up auth-recovery-delay-500">
+              <AuthButton type="submit" loading={loading} disabled={loading}>
+                Send Reset Link
+              </AuthButton>
+            </div>
+          </form>
         </div>
-      </div>
-    </div>
+      </AuthCard>
+    </AuthLayout>
   );
 };

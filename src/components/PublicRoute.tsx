@@ -12,7 +12,7 @@ interface PublicRouteProps {
 const AUTH_REHYDRATION_GRACE_MS = 5000;
 
 export const PublicRoute = ({ children }: PublicRouteProps) => {
-  const { user, loading, isRecoveryMode } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
   const [isAwaitingRehydration, setIsAwaitingRehydration] = useState(false);
   const hasPersistedSession = !user && hasPersistedAuthState();
@@ -43,10 +43,6 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
         </div>
       </div>
     );
-  }
-
-  if (user && location.pathname === "/reset-password" && isRecoveryMode) {
-    return <>{children}</>;
   }
 
   if (user) {

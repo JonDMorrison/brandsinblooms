@@ -1,7 +1,25 @@
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { captureException } from '@/utils/uptrace';
+const reportException = (error: Error, context: Record<string, unknown>) => {
+  const telemetryEnabled =
+    Boolean(import.meta.env.VITE_UPTRACE_DSN) &&
+    String(import.meta.env.VITE_DISABLE_TELEMETRY || "").toLowerCase() !==
+      "true";
+
+  if (!telemetryEnabled) {
+    return;
+  }
+
+  import("@/utils/uptrace")
+    .then(({ captureException }) => captureException(error, context))
+    .catch((reportingError) => {
+      console.error(
+        "[DashboardErrorBoundary] Failed to load telemetry:",
+        reportingError,
+      );
+    });
+};
 
 interface Props {
   children: ReactNode;
@@ -14,7 +32,7 @@ interface State {
 
 export class DashboardErrorBoundary extends Component<Props, State> {
   public state: State = {
-    hasError: false
+    hasError: false,
   };
 
   public static getDerivedStateFromError(error: Error): State {
@@ -22,10 +40,14 @@ export class DashboardErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Dashboard Error Boundary caught an error:', error, errorInfo);
-    captureException(error, { 
+    console.error(
+      "Dashboard Error Boundary caught an error:",
+      error,
+      errorInfo,
+    );
+    reportException(error, {
       componentStack: errorInfo.componentStack,
-      context: 'DashboardErrorBoundary' 
+      context: "DashboardErrorBoundary",
     });
   }
 
@@ -39,7 +61,8 @@ export class DashboardErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h2>
             <p className="text-gray-600 mb-6">
-              There was an error loading the dashboard. Please try refreshing the page.
+              There was an error loading the dashboard. Please try refreshing
+              the page.
             </p>
             <button
               onClick={() => window.location.reload()}

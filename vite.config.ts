@@ -2,6 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const getNodeModulePackageName = (id: string) => {
+  const match = id.match(/\/node_modules\/((?:@[^/]+\/)?[^/]+)/);
+
+  return match?.[1] ?? null;
+};
+
+const toVendorChunkName = (packageName: string) =>
+  `vendor-${packageName.replace(/^@/, "").replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   define: {
@@ -46,6 +55,8 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          const packageName = getNodeModulePackageName(id);
+
           if (
             id.includes("/node_modules/@mui/") ||
             id.includes("/node_modules/@emotion/")
@@ -58,7 +69,7 @@ export default defineConfig(({ mode }) => ({
           }
 
           if (id.includes("/node_modules/")) {
-            return "vendor";
+            return packageName ? toVendorChunkName(packageName) : "vendor-misc";
           }
 
           return undefined;
