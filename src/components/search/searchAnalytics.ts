@@ -1,5 +1,4 @@
 import { AnalyticsTracker } from "@/lib/analytics/AnalyticsTracker";
-import { isTelemetryDisabled } from "@/utils/uptrace";
 
 export type SearchOpenSource = "keyboard" | "click";
 
@@ -20,6 +19,21 @@ function sanitizeText(value: string | undefined) {
   return withoutPii ? withoutPii.slice(0, 50) : undefined;
 }
 
+function isSearchTelemetryDisabled() {
+  try {
+    const envDisabled =
+      String(import.meta.env.VITE_DISABLE_TELEMETRY || "").toLowerCase() ===
+      "true";
+    const urlDisabled =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("telemetry") === "off";
+
+    return envDisabled || urlDisabled;
+  } catch {
+    return false;
+  }
+}
+
 async function trackSearchEvent(
   eventType:
     | "search_opened"
@@ -31,7 +45,7 @@ async function trackSearchEvent(
     | "search_closed",
   payload: Record<string, unknown>,
 ) {
-  if (isTelemetryDisabled()) {
+  if (isSearchTelemetryDisabled()) {
     return false;
   }
 
@@ -48,7 +62,10 @@ export function sanitizeSearchAnalyticsQuery(query: string) {
   return sanitizeText(query) ?? "";
 }
 
-export function trackSearchOpened(source: SearchOpenSource, currentRoute: string) {
+export function trackSearchOpened(
+  source: SearchOpenSource,
+  currentRoute: string,
+) {
   return trackSearchEvent("search_opened", {
     current_route: currentRoute,
     source,

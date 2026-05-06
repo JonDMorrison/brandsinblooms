@@ -1,9 +1,28 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { captureException } from '@/utils/uptrace';
-import { logReactError } from '@/utils/devErrorLogger';
+import React from "react";
+import { Card, CardContent } from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { logReactError } from "@/utils/devErrorLogger";
+
+const reportException = (error: Error, context: Record<string, unknown>) => {
+  const telemetryEnabled =
+    Boolean(import.meta.env.VITE_UPTRACE_DSN) &&
+    String(import.meta.env.VITE_DISABLE_TELEMETRY || "").toLowerCase() !==
+      "true";
+
+  if (!telemetryEnabled) {
+    return;
+  }
+
+  import("@/utils/uptrace")
+    .then(({ captureException }) => captureException(error, context))
+    .catch((reportingError) => {
+      console.error(
+        "[ErrorBoundary] Failed to load telemetry:",
+        reportingError,
+      );
+    });
+};
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -13,10 +32,16 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
-  fallback?: React.ComponentType<{ error: Error | null; resetError: () => void }>;
+  fallback?: React.ComponentType<{
+    error: Error | null;
+    resetError: () => void;
+  }>;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
@@ -29,24 +54,39 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Store errorInfo for potential display
     this.setState({ errorInfo });
-    
+
     // Enhanced console logging for development
-    console.group('%c🔴 [REACT ERROR BOUNDARY]', 'color: #ff4444; font-weight: bold; font-size: 14px;');
-    console.error('%cError:', 'color: #ff6b6b; font-weight: bold;', error.message);
-    console.error('%cStack Trace:', 'color: #ffa94d; font-weight: bold;');
+    console.group(
+      "%c🔴 [REACT ERROR BOUNDARY]",
+      "color: #ff4444; font-weight: bold; font-size: 14px;",
+    );
+    console.error(
+      "%cError:",
+      "color: #ff6b6b; font-weight: bold;",
+      error.message,
+    );
+    console.error("%cStack Trace:", "color: #ffa94d; font-weight: bold;");
     console.error(error.stack);
-    console.error('%cComponent Stack:', 'color: #74c0fc; font-weight: bold;');
+    console.error("%cComponent Stack:", "color: #74c0fc; font-weight: bold;");
     console.error(errorInfo.componentStack);
-    console.error('%cTimestamp:', 'color: #69db7c; font-weight: bold;', new Date().toISOString());
+    console.error(
+      "%cTimestamp:",
+      "color: #69db7c; font-weight: bold;",
+      new Date().toISOString(),
+    );
     console.groupEnd();
-    
+
     // Log to dev error logger for Debug Panel
-    logReactError(error, errorInfo.componentStack || undefined, 'ErrorBoundary');
-    
+    logReactError(
+      error,
+      errorInfo.componentStack || undefined,
+      "ErrorBoundary",
+    );
+
     // Send to Uptrace for production monitoring
-    captureException(error, { 
+    reportException(error, {
       componentStack: errorInfo.componentStack,
-      context: 'ErrorBoundary' 
+      context: "ErrorBoundary",
     });
   }
 
@@ -58,27 +98,32 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (this.state.hasError) {
       if (this.props.fallback) {
         const Fallback = this.props.fallback;
-        return <Fallback error={this.state.error} resetError={this.resetError} />;
+        return (
+          <Fallback error={this.state.error} resetError={this.resetError} />
+        );
       }
 
       return (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6 text-center">
             <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
+            <h2 className="text-xl font-semibold text-red-700 mb-2">
+              Something went wrong
+            </h2>
             <p className="text-red-600 mb-6">
-              We encountered an unexpected error. Please try refreshing the page.
+              We encountered an unexpected error. Please try refreshing the
+              page.
             </p>
             <div className="space-y-3">
-              <Button 
+              <Button
                 onClick={this.resetError}
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Try Again
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => window.location.reload()}
               >
                 Refresh Page

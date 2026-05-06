@@ -1,21 +1,78 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { toast } from "sonner";
-import { Loader2, Lock, AlertCircle } from "lucide-react";
-import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
-import { getAuthErrorMessage } from "@/utils/errorHandling";
+  AuthAlert,
+  AuthButton,
+  AuthCard,
+  AuthInput,
+  AuthLayout,
+  AuthPasswordStrength,
+} from "@/components/auth";
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+
+type ResetField = "password" | "confirmPassword";
+
+const successMessage =
+  "Password reset successful. Please sign in with your new password.";
+
+const getErrorText = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "");
+  }
+
+  return "";
+};
+
+const isConnectionError = (message: string) =>
+  /network|timeout|timed out|failed to fetch|fetch failed|connection/i.test(
+    message,
+  );
+
+const getResetErrorMessage = (error: unknown) =>
+  isConnectionError(getErrorText(error))
+    ? "Unable to connect. Please check your internet connection."
+    : "Unable to update your password.";
+
+const validatePassword = (value: string) => {
+  if (!value) {
+    return "Password is required";
+  }
+
+  if (value.length < 6) {
+    return "Password must be at least 6 characters";
+  }
+
+  return undefined;
+};
+
+const validateConfirmPassword = (value: string, password: string) => {
+  if (!value) {
+    return "Please confirm your password";
+  }
+
+  if (value !== password) {
+    return "Passwords don't match";
+  }
+
+  return undefined;
+};
 
 export const ResetPasswordPage = () => {
   const navigate = useNavigate();
@@ -24,50 +81,56 @@ export const ResetPasswordPage = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [touched, setTouched] = useState<Record<ResetField, boolean>>({
+    password: false,
+    confirmPassword: false,
+  });
+  const [submitted, setSubmitted] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [resetSucceeded, setResetSucceeded] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  const successTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // The Supabase client (detectSessionInUrl: true, flowType: "pkce")
-    // auto-exchanges the ?code= parameter for a session. We must NOT call
-    // exchangeCodeForSession manually — that creates a race condition where
-    // both compete to consume the same code and one fails.
-    //
-    // Instead, listen for auth state changes. When Supabase auto-exchanges
-    // successfully it emits PASSWORD_RECOVERY or SIGNED_IN. Either means the
-    // session is ready and the user can set a new password.
-
     let resolved = false;
+    let mounted = true;
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (resolved) return;
+      if (!mounted || resolved) return;
 
       if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
         resolved = true;
-        // Clean ?code from URL so it can't be reused / bookmarked
         window.history.replaceState(null, "", "/reset-password");
         setIsValidToken(true);
-        return;
       }
     });
 
-    // Fallback: if the session was already established (e.g. auto-exchange
-    // finished before this effect ran), check it directly after a tick.
-    const fallbackTimer = setTimeout(async () => {
+    const fallbackTimer = window.setTimeout(() => {
       if (resolved) return;
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        resolved = true;
-        window.history.replaceState(null, "", "/reset-password");
-        setIsValidToken(true);
-      }
+
+      void supabase.auth
+        .getSession()
+        .then(({ data: { session } }) => {
+          if (!mounted || resolved) return;
+
+          if (session?.user) {
+            resolved = true;
+            window.history.replaceState(null, "", "/reset-password");
+            setIsValidToken(true);
+          }
+        })
+        .catch(() => {
+          if (!mounted || resolved) return;
+
+          resolved = true;
+          setIsValidToken(false);
+        });
     }, 500);
 
-    // Timeout: if neither approach resolves within 8s, mark as invalid.
-    const timeout = setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       if (!resolved) {
         resolved = true;
         setIsValidToken(false);
@@ -75,217 +138,265 @@ export const ResetPasswordPage = () => {
     }, 8000);
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      clearTimeout(fallbackTimer);
-      clearTimeout(timeout);
+      window.clearTimeout(fallbackTimer);
+      window.clearTimeout(timeout);
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
+  }, []);
 
-    if (password.length < 8) {
-      setFormError("Password must be at least 8 characters long.");
+  const passwordError =
+    touched.password || submitted ? validatePassword(password) : undefined;
+  const confirmPasswordError =
+    touched.confirmPassword || submitted
+      ? validateConfirmPassword(confirmPassword, password)
+      : undefined;
+  const passwordsMatch = Boolean(
+    password && confirmPassword && password === confirmPassword,
+  );
+
+  const handleFieldBlur = (field: ResetField) => {
+    setTouched((current) => ({ ...current, [field]: true }));
+  };
+
+  const focusFirstInvalidField = (
+    nextPasswordError?: string,
+    nextConfirmPasswordError?: string,
+  ) => {
+    if (nextPasswordError) {
+      passwordRef.current?.focus();
       return;
     }
 
-    if (password !== confirmPassword) {
-      setFormError("Passwords do not match.");
+    if (nextConfirmPasswordError) {
+      confirmPasswordRef.current?.focus();
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+    setAlertMessage(null);
+
+    const nextPasswordError = validatePassword(password);
+    const nextConfirmPasswordError = validateConfirmPassword(
+      confirmPassword,
+      password,
+    );
+
+    if (nextPasswordError || nextConfirmPasswordError) {
+      focusFirstInvalidField(nextPasswordError, nextConfirmPasswordError);
       return;
     }
 
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({
-        password: password,
+        password,
       });
 
       if (error) {
-        setFormError(getAuthErrorMessage(error));
-      } else {
-        clearRecoveryMode();
-        toast.success("Password updated successfully!");
+        setAlertMessage(getResetErrorMessage(error));
+        return;
+      }
 
-        // Sign out the user after password reset
-        const { error: signOutError } = await supabase.auth.signOut();
-        if (signOutError) {
-          console.error("Password reset sign-out error:", signOutError);
-        }
+      clearRecoveryMode();
 
-        // Navigate to login with success message
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error("Password reset sign-out error:", signOutError);
+      }
+
+      setResetSucceeded(true);
+      successTimerRef.current = window.setTimeout(() => {
         navigate("/auth", {
           state: {
-            message:
-              "Password reset successful. Please sign in with your new password.",
+            message: successMessage,
           },
         });
-      }
+      }, 500);
     } catch (error) {
-      setFormError(getAuthErrorMessage(error));
+      setAlertMessage(getResetErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
-  if (isValidToken === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">
+  const renderLoadingState = () => (
+    <AuthLayout>
+      <AuthCard>
+        <div
+          className="auth-reset-state auth-reset-state--loading"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="auth-reset-spinner" aria-hidden="true" />
+          <p className="auth-reset-status auth-recovery-fade auth-recovery-delay-0">
             Verifying your reset link...
           </p>
         </div>
-      </div>
-    );
+      </AuthCard>
+    </AuthLayout>
+  );
+
+  const renderInvalidState = () => (
+    <AuthLayout>
+      <AuthCard>
+        <div className="auth-reset-state auth-reset-state--invalid">
+          <AlertTriangle
+            className="auth-reset-icon auth-reset-icon--danger auth-recovery-scale auth-recovery-delay-0"
+            aria-hidden="true"
+          />
+          <h1 className="auth-reset-heading auth-recovery-slide-up auth-recovery-delay-100">
+            Link Expired
+          </h1>
+          <p className="auth-reset-copy auth-recovery-slide-up auth-recovery-delay-200">
+            This password reset link is invalid or has expired. Please request a
+            new one.
+          </p>
+          <div className="auth-reset-actions auth-recovery-slide-up auth-recovery-delay-300">
+            <AuthButton href="/forgot-password">Request New Link</AuthButton>
+            <AuthButton href="/auth#signin" variant="ghost">
+              Back to Sign In
+            </AuthButton>
+          </div>
+        </div>
+      </AuthCard>
+    </AuthLayout>
+  );
+
+  const renderSuccessState = () => (
+    <div
+      className="auth-reset-state auth-reset-state--success"
+      aria-live="polite"
+    >
+      <CheckCircle2
+        className="auth-reset-icon auth-reset-icon--success auth-recovery-scale auth-recovery-delay-0"
+        aria-hidden="true"
+      />
+      <p className="auth-reset-success-text auth-recovery-slide-up auth-recovery-delay-100">
+        Password updated!
+      </p>
+    </div>
+  );
+
+  const renderFormState = () => (
+    <AuthLayout>
+      <AuthCard>
+        {resetSucceeded ? (
+          renderSuccessState()
+        ) : (
+          <div className="auth-reset-content">
+            <div className="auth-reset-header">
+              <ShieldCheck
+                className="auth-reset-icon auth-reset-icon--secure auth-recovery-scale auth-recovery-delay-0"
+                aria-hidden="true"
+              />
+              <h1 className="auth-reset-heading auth-recovery-slide-up auth-recovery-delay-100">
+                Set your new password
+              </h1>
+              <p className="auth-reset-copy auth-recovery-slide-up auth-recovery-delay-200">
+                Choose a strong password for your account.
+              </p>
+            </div>
+
+            {alertMessage ? (
+              <AuthAlert
+                variant="error"
+                onDismiss={() => setAlertMessage(null)}
+              >
+                {alertMessage}
+              </AuthAlert>
+            ) : null}
+
+            <form
+              className="auth-reset-form"
+              onSubmit={handleSubmit}
+              noValidate
+            >
+              <div className="auth-recovery-slide-up auth-recovery-delay-300">
+                <AuthInput
+                  ref={passwordRef}
+                  id="reset-password-new"
+                  label="New Password"
+                  type="password"
+                  placeholder="Min. 6 characters"
+                  value={password}
+                  onBlur={() => handleFieldBlur("password")}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setAlertMessage(null);
+                  }}
+                  icon={<Lock aria-hidden="true" />}
+                  error={passwordError}
+                  disabled={loading}
+                  minLength={6}
+                  autoComplete="new-password"
+                  passwordToggleTabIndex={0}
+                  required
+                />
+                <AuthPasswordStrength password={password} />
+              </div>
+
+              <div className="auth-recovery-slide-up auth-recovery-delay-400">
+                <AuthInput
+                  ref={confirmPasswordRef}
+                  id="reset-password-confirm"
+                  label="Confirm Password"
+                  type="password"
+                  placeholder="Re-enter your password"
+                  value={confirmPassword}
+                  onBlur={() => handleFieldBlur("confirmPassword")}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setAlertMessage(null);
+                  }}
+                  icon={<Lock aria-hidden="true" />}
+                  error={confirmPasswordError}
+                  disabled={loading}
+                  minLength={6}
+                  autoComplete="new-password"
+                  passwordToggleTabIndex={0}
+                  required
+                />
+                {passwordsMatch ? (
+                  <p
+                    className="auth-reset-match auth-reset-match--valid"
+                    aria-live="polite"
+                  >
+                    <Check aria-hidden="true" />
+                    <span>Passwords match</span>
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="auth-recovery-slide-up auth-recovery-delay-500">
+                <AuthButton type="submit" loading={loading}>
+                  Reset Password
+                </AuthButton>
+              </div>
+            </form>
+          </div>
+        )}
+      </AuthCard>
+    </AuthLayout>
+  );
+
+  if (isValidToken === null) {
+    return renderLoadingState();
   }
 
   if (isValidToken === false) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-        <LandingPageHeader onLogin={() => {}} showUserMenu={false} />
-        <div className="flex items-center justify-center pt-8 pb-16 px-4">
-          <div className="w-full max-w-md">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-red-600 mb-2">
-                  <AlertCircle className="h-5 w-5" />
-                  <CardTitle>Invalid or Expired Link</CardTitle>
-                </div>
-                <CardDescription>
-                  This password reset link is invalid or has expired.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Password reset links expire after a certain time for security
-                  reasons. Please request a new password reset link to continue.
-                </p>
-                <Button
-                  onClick={() => navigate("/forgot-password")}
-                  className="w-full"
-                >
-                  Request New Reset Link
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
+    return renderInvalidState();
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <LandingPageHeader onLogin={() => {}} showUserMenu={false} />
-      <div className="flex items-center justify-center pt-8 pb-16 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Set New Password
-            </h1>
-            <p className="text-gray-600">Enter your new password below</p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Create New Password</CardTitle>
-              <CardDescription>
-                Choose a strong password that you haven't used before
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {formError && (
-                  <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter new password (min 8 characters)"
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (formError) {
-                          setFormError(null);
-                        }
-                      }}
-                      className="pl-10"
-                      disabled={loading}
-                      minLength={8}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      placeholder="Confirm your new password"
-                      value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value);
-                        if (formError) {
-                          setFormError(null);
-                        }
-                      }}
-                      className="pl-10"
-                      disabled={loading}
-                      minLength={8}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>Your password must:</p>
-                  <ul className="list-disc list-inside ml-2">
-                    <li>Be at least 8 characters long</li>
-                    <li>Match the confirmation password</li>
-                  </ul>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={loading || !password || !confirmPassword}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating password...
-                    </>
-                  ) : (
-                    "Reset Password"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <div className="text-center mt-6">
-            <button
-              onClick={() => navigate("/auth")}
-              className="text-sm text-gray-600 hover:underline"
-            >
-              Back to login
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return renderFormState();
 };

@@ -18,11 +18,7 @@ import "./index.css";
 import "./styles/joy-tailwind-bridge.css";
 
 import "./utils/globalToastReplace";
-import { initUptrace } from "@/utils/uptrace";
 import { logDevError, logPromiseRejection } from "@/utils/devErrorLogger";
-
-// Initialize Uptrace for frontend monitoring
-// initUptrace() // TEMPORARILY DISABLED
 
 // Global error handlers for enhanced debugging visibility
 const isDev =
