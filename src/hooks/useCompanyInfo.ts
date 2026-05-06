@@ -209,7 +209,7 @@ export const useCompanyInfo = () => {
               : profile.location_info || "";
 
           setCompanyInfoIfChanged({
-            name: profile.company_name || "Your Company",
+            name: profile.company_name || "",
             // Use structured address, fallback to location_info for legacy data
             address:
               fullAddress || "123 Business St, Suite 100, City, State 12345",

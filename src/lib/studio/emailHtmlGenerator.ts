@@ -1604,17 +1604,38 @@ export function renderFooterBlockToEmailHtml(
     dark ? "rgba(255,255,255,0.16)" : "#e2e8f0",
   );
   const paddingY = numberValue(block.verticalPadding, 32);
-  const businessName = stringValue(block.businessName, "Your Business");
+  // Prefer the design-system / company-profile name over the literal
+  // "Your Business" placeholder. Older campaigns saved with the
+  // placeholder in block.businessName get the proper name at render.
+  const designSystemBusinessName = stringValue(designSystem?.company.name);
+  const rawBlockBusinessName = stringValue(block.businessName);
+  const blockBusinessName =
+    rawBlockBusinessName === "Your Business" ||
+    rawBlockBusinessName === "Your Company"
+      ? ""
+      : rawBlockBusinessName;
+  const businessName =
+    blockBusinessName || designSystemBusinessName || "Your Business";
   const address = stringValue(block.address, "123 Main St\nCity, State");
   const complianceText = stringValue(
     block.complianceText,
     DEFAULT_COMPLIANCE_TEXT,
   ).replace("{name}", businessName);
   const complianceHtml = sanitizeRichHtml(complianceText, designSystem);
-  const copyrightText = stringValue(
-    block.copyright || block.copyrightText,
-    `© ${new Date().getFullYear()} ${businessName}`,
-  );
+  // If the stored copyright is a leftover placeholder (e.g. older
+  // campaigns saved with "© 2026 Your Company" because the design system
+  // had no real company name at block-creation time), substitute the
+  // year + actual businessName at render so the recipient never sees the
+  // placeholder. Operator-typed copyright that happens to contain those
+  // strings will lose them too — that is intentional; nothing legitimate
+  // says "Your Company" in a campaign footer.
+  const storedCopyright = stringValue(block.copyright || block.copyrightText);
+  const copyrightHasPlaceholder =
+    /Your Company|Your Business/i.test(storedCopyright);
+  const copyrightText =
+    !storedCopyright || copyrightHasPlaceholder
+      ? `© ${new Date().getFullYear()} ${businessName}`
+      : storedCopyright;
   const socialIconsHtml = renderFooterSocialIcons(
     block,
     designSystem,
