@@ -191,8 +191,7 @@ function parseSourceBundle(value: unknown): PublishSourceBundle | null {
   return {
     bundleId,
     channel,
-    snapshotId:
-      optionalString(sourceBundle.snapshotId),
+    snapshotId: optionalString(sourceBundle.snapshotId),
     snapshotVersion:
       typeof sourceBundle.snapshotVersion === "number"
         ? sourceBundle.snapshotVersion
@@ -926,14 +925,7 @@ const PublishPage = () => {
         setTemplatePrefillDone(true);
       }
     })();
-  }, [
-    templatePrefillDone,
-    user,
-    tenant,
-    tenantLoading,
-    queryClient,
-    refetch,
-  ]);
+  }, [templatePrefillDone, user, tenant, tenantLoading, queryClient, refetch]);
 
   // Blank-composer entry: inserts an empty content_tasks row and opens the
   // composer drawer pointed at it. Called from (a) the ?compose=blank URL
@@ -1198,11 +1190,10 @@ const PublishPage = () => {
                   console.error("Archive undo error:", undoError);
                   toast({
                     title: "Couldn't restore item",
-                    description:
-                      getErrorMessage(
-                        undoError,
-                        "Please refresh and try again.",
-                      ),
+                    description: getErrorMessage(
+                      undoError,
+                      "Please refresh and try again.",
+                    ),
                     variant: "destructive",
                   });
                 }

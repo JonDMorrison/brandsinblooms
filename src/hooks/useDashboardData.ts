@@ -6,8 +6,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { memoryCache, apiDeduplicator } from "@/utils/performanceOptimizations";
 
 type ContentTaskRow = Database["public"]["Tables"]["content_tasks"]["Row"];
-type ScheduledPostRow =
-  Database["public"]["Tables"]["scheduled_posts"]["Row"];
+type ScheduledPostRow = Database["public"]["Tables"]["scheduled_posts"]["Row"];
 type SocialConnectionRow =
   Database["public"]["Tables"]["social_connections"]["Row"];
 

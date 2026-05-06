@@ -27,7 +27,6 @@ import {
 import { validateCarouselPost } from "@/utils/validateCarouselPost";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { resolveTenantMutationContext } from "@/utils/resolveTenantMutationContext";
 
 const PLATFORM_LIMITS = {
@@ -48,6 +47,21 @@ const PLATFORM_TIPS = {
   ],
 } as const;
 
+const CAROUSEL_STUDIO_TARGET_COUNT = {
+  instagram: 5,
+  facebook: 6,
+} as const;
+
+const CAROUSEL_STUDIO_ASPECT_RATIO = {
+  instagram: "1:1",
+  facebook: "16:9",
+} as const;
+
+const CAROUSEL_STUDIO_CONTEXT_CHANNEL = {
+  instagram: "instagram_carousel",
+  facebook: "facebook_carousel",
+} as const;
+
 const CarouselComposerPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -62,10 +76,10 @@ const CarouselComposerPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
-  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
-
-  const { generateImageForChannel, isGenerating: isSingleImageGenerating } =
-    useImageGeneration();
+  const [studioContinuation, setStudioContinuation] = useState<{
+    lastFilledIndex: number;
+    nextIndex: number;
+  } | null>(null);
   const { open } = useAIImageStudio();
 
   const limits = PLATFORM_LIMITS[platform];
@@ -74,6 +88,12 @@ const CarouselComposerPage = () => {
     caption.trim() ||
     [topicTitle, topicDescription].filter(Boolean).join(". ") ||
     "Beautiful garden and nature scenes";
+  const studioTargetCount = CAROUSEL_STUDIO_TARGET_COUNT[platform];
+  const studioTopicTitle = topicTitle || `${limits.name} carousel`;
+  const studioContextSnippet =
+    (caption.trim() || topicDescription || generationContext)
+      .trim()
+      .slice(0, 100) || `${limits.name} carousel image`;
 
   const validation = useMemo(
     () =>
@@ -124,50 +144,97 @@ const CarouselComposerPage = () => {
     }
   };
 
-  const handleBulkGenerateImages = async () => {
-    const imagesToGenerate = platform === "instagram" ? 5 : 6;
-    setIsBulkGenerating(true);
+  const openCarouselImageStudio = (
+    slotIndex: number,
+    options?: { continuationTargetCount?: number },
+  ) => {
+    const displayLimit = options?.continuationTargetCount || studioTargetCount;
 
-    try {
-      const generatedUrls: string[] = [];
-
-      for (let index = 0; index < imagesToGenerate; index += 1) {
-        const result = await generateImageForChannel(
-          platform,
-          `${generationContext} (Image ${index + 1} of ${imagesToGenerate})`,
-          `Carousel image ${index + 1}`,
-        );
-
-        if (result?.imageUrl) {
-          generatedUrls.push(result.imageUrl);
-        }
-      }
-
-      setCarouselImages(generatedUrls);
-      toast.success("Carousel images generated.");
-    } catch (error) {
-      console.error("Bulk generation failed:", error);
-      toast.error("Failed to generate all images.");
-    } finally {
-      setIsBulkGenerating(false);
-    }
-  };
-
-  const handleImageSelect = (index: number) => {
     open({
-      browseOnly: true,
+      aspectRatioHint: CAROUSEL_STUDIO_ASPECT_RATIO[platform],
+      assignmentLabel: `Slide ${slotIndex + 1}`,
       channel: platform,
-      contentContext: generationContext,
-      contextLabel: `Replace image ${index + 1} from your library, uploads, or AI.`,
-      defaultTab: "my-images",
+      contentTitle: `${studioTopicTitle} - Slide ${slotIndex + 1}`,
+      contentContext: `${limits.name} carousel image ${slotIndex + 1} for ${studioTopicTitle}${topicDescription ? ` - ${topicDescription}` : ""}`,
+      context: {
+        source: "content-generation",
+        channel: CAROUSEL_STUDIO_CONTEXT_CHANNEL[platform],
+        topicTitle: studioTopicTitle,
+        topicDescription: topicDescription || generationContext,
+        contentSnippet: studioContextSnippet,
+      },
+      contextLabel: `${limits.name} carousel slot ${slotIndex + 1} of ${displayLimit}`,
+      contextType: "content_generation_carousel",
+      defaultTab: "ai",
+      initialPrompt: `${studioTopicTitle} - slide ${slotIndex + 1} ${limits.name} carousel image`,
       onSelect: (imageUrl) => {
         setCarouselImages((previousImages) => {
           const nextImages = [...previousImages];
-          nextImages[index] = imageUrl;
+          if (slotIndex >= nextImages.length) {
+            nextImages.push(imageUrl);
+          } else {
+            nextImages[slotIndex] = imageUrl;
+          }
           return nextImages;
         });
+
+        if (
+          options?.continuationTargetCount &&
+          slotIndex + 1 < options.continuationTargetCount
+        ) {
+          setStudioContinuation({
+            lastFilledIndex: slotIndex,
+            nextIndex: slotIndex + 1,
+          });
+          return;
+        }
+
+        setStudioContinuation(null);
       },
     });
+  };
+
+  const handleOpenAddImageStudio = () => {
+    if (carouselImages.length >= 10) {
+      return;
+    }
+
+    setStudioContinuation(null);
+    openCarouselImageStudio(carouselImages.length);
+  };
+
+  const handleStartSequentialStudioFill = () => {
+    if (carouselImages.length >= studioTargetCount) {
+      toast.message("All suggested carousel slots are already filled.");
+      return;
+    }
+
+    setStudioContinuation(null);
+    openCarouselImageStudio(carouselImages.length, {
+      continuationTargetCount: studioTargetCount,
+    });
+  };
+
+  const handleContinueStudioFill = () => {
+    if (!studioContinuation) {
+      return;
+    }
+
+    const nextIndex = studioContinuation.nextIndex;
+    setStudioContinuation(null);
+    openCarouselImageStudio(nextIndex, {
+      continuationTargetCount: studioTargetCount,
+    });
+  };
+
+  const handleCarouselImagesChange = (nextImages: string[]) => {
+    setStudioContinuation(null);
+    setCarouselImages(nextImages);
+  };
+
+  const handleImageSelect = (index: number) => {
+    setStudioContinuation(null);
+    openCarouselImageStudio(index);
   };
 
   const handlePublish = async () => {
@@ -295,9 +362,7 @@ const CarouselComposerPage = () => {
               "linear-gradient(135deg, rgba(var(--joy-palette-background-bodyChannel) / 0.98), rgba(var(--joy-palette-primary-mainChannel) / 0.08))",
           }}
         >
-          {isPublishing || isBulkGenerating ? (
-            <LinearProgress thickness={3} />
-          ) : null}
+          {isPublishing ? <LinearProgress thickness={3} /> : null}
           <Stack
             direction={{ xs: "column", lg: "row" }}
             spacing={2}
@@ -431,42 +496,63 @@ const CarouselComposerPage = () => {
                   variant="soft"
                   color="neutral"
                   startDecorator={<ImagePlus size={16} />}
-                  onClick={() => {
-                    open({
-                      channel: platform,
-                      contentContext: generationContext,
-                      contextLabel:
-                        "Add a carousel image from your library, uploads, or AI.",
-                      defaultTab: "my-images",
-                      onSelect: (imageUrl) => {
-                        setCarouselImages((previousImages) =>
-                          previousImages.length < 10
-                            ? [...previousImages, imageUrl]
-                            : previousImages,
-                        );
-                      },
-                    });
-                  }}
+                  onClick={handleOpenAddImageStudio}
                   disabled={carouselImages.length >= 10}
                 >
-                  Add image
+                  Open AI Studio
                 </Button>
                 <Button
                   variant="soft"
                   color="primary"
                   startDecorator={<Wand2 size={16} />}
-                  loading={isBulkGenerating || isSingleImageGenerating}
-                  onClick={() => void handleBulkGenerateImages()}
-                  disabled={isBulkGenerating || isSingleImageGenerating}
+                  onClick={handleStartSequentialStudioFill}
+                  disabled={carouselImages.length >= studioTargetCount}
                 >
-                  Generate all
+                  Generate images
                 </Button>
               </Stack>
             </Stack>
 
+            {studioContinuation ? (
+              <Card
+                variant="soft"
+                color="primary"
+                sx={{ borderRadius: "20px", p: 2, gap: 1.25 }}
+              >
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                >
+                  <Stack spacing={0.5}>
+                    <Typography level="title-sm">
+                      Image added to slot{" "}
+                      {studioContinuation.lastFilledIndex + 1}
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                      Open AI Studio for slot {studioContinuation.nextIndex + 1}
+                      ?
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button
+                      variant="plain"
+                      color="neutral"
+                      onClick={() => setStudioContinuation(null)}
+                    >
+                      Not now
+                    </Button>
+                    <Button onClick={handleContinueStudioFill}>Continue</Button>
+                  </Stack>
+                </Stack>
+              </Card>
+            ) : null}
+
             <CarouselImageSelector
               images={carouselImages}
-              onChange={setCarouselImages}
+              onAddImage={handleOpenAddImageStudio}
+              onChange={handleCarouselImagesChange}
               platform={platform}
               onImageClick={handleImageSelect}
             />

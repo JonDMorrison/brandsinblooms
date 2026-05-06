@@ -39,7 +39,6 @@ import {
   FileText,
   Hash,
   Image as ImageIcon,
-  Images,
   Megaphone,
   Newspaper,
   Send,
@@ -49,11 +48,13 @@ import {
   X,
 } from "lucide-react";
 import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
-import { MediaSelector } from "@/components/image/MediaSelector";
+import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { sanitizeHtml } from "@/utils/htmlSanitizer";
-import { supabase } from "@/integrations/supabase/client";
-import { AIImageLoadingCard } from "@/components/image/AIImageLoadingCard";
+import type {
+  AIImageStudioAspectRatio,
+  AIImageStudioSelectionMetadata,
+} from "@/components/crm/ai-image-studio/types";
 
 interface GeneratedContentModalProps {
   open: boolean;
@@ -219,6 +220,61 @@ const normalizeDraftItem = (item: GeneratedBundleItem): DraftItem => ({
   _selectedCta: null,
 });
 
+const STUDIO_ASPECT_RATIO_HINTS: Record<
+  GeneratedBundleItem["channel"],
+  AIImageStudioAspectRatio
+> = {
+  blog: "16:9",
+  facebook: "16:9",
+  instagram: "1:1",
+  newsletter: "16:9",
+  video: "16:9",
+};
+
+const buildStudioContentSnippet = (item: DraftItem) =>
+  sanitizeWeekNumbers(getPrimaryText(item))
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
+const buildStudioInitialPrompt = (item: DraftItem, bundleTitle: string) => {
+  const storedImageQuery = item.imageQuery?.trim();
+
+  if (storedImageQuery) {
+    return storedImageQuery;
+  }
+
+  return `${item.title?.trim() || bundleTitle} - ${CHANNEL_CONFIG[normalizeChannel(item.channel)].label} content image`;
+};
+
+const buildStudioContentContext = (item: DraftItem, bundleTitle: string) => {
+  const channelLabel = CHANNEL_CONFIG[normalizeChannel(item.channel)].label;
+  const itemTitle = item.title?.trim();
+
+  if (itemTitle && itemTitle !== bundleTitle) {
+    return `${channelLabel} post about ${bundleTitle} - ${itemTitle}`;
+  }
+
+  return `${channelLabel} post about ${bundleTitle}`;
+};
+
+const mapStudioMetadataToDraftMedia = (
+  item: DraftItem,
+  imageUrl: string,
+  metadata?: AIImageStudioSelectionMetadata,
+): DraftMedia => ({
+  url: imageUrl,
+  alt:
+    metadata?.altText ||
+    item.media?.alt ||
+    item.title ||
+    "Selected content image",
+  source: metadata?.source || "ai-generated",
+  globalImageId: metadata?.globalImageId,
+  tags: metadata?.tags?.map((tag) => tag.name).filter(Boolean),
+});
+
 const getPrimaryText = (item: DraftItem) => {
   const candidates = [
     item.body,
@@ -321,6 +377,7 @@ export function GeneratedContentModal({
   const { bundleId, snapshotId, setBundleIds } = useCreateFlow();
   const { query, update } = useGeneratedBundle(bundleId || undefined);
   const navigate = useNavigate();
+  const { open: openImageStudio } = useAIImageStudio();
 
   const sourceItems = useMemo(
     () => (query.data?.content.items || []).map(normalizeDraftItem),
@@ -331,15 +388,7 @@ export function GeneratedContentModal({
   const [dirty, setDirty] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState(0);
   const [hashtagInput, setHashtagInput] = useState("");
-  const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false);
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
-  const [imageGenerationIndex, setImageGenerationIndex] = useState<
-    number | null
-  >(null);
-  const [imageGenerationProgress, setImageGenerationProgress] = useState({
-    completed: 0,
-    total: 0,
-  });
   const [snackbarState, setSnackbarState] = useState<{
     open: boolean;
     color: SnackbarColor;
@@ -448,7 +497,6 @@ export function GeneratedContentModal({
 
   const finalizeClose = useCallback(() => {
     setConfirmCloseOpen(false);
-    setMediaSelectorOpen(false);
     setDirty(new Set());
     setBundleIds(null, null);
     onOpenChange(false);
@@ -490,7 +538,10 @@ export function GeneratedContentModal({
 
         return true;
       } catch (error) {
-        showSnackbar(getErrorMessage(error, "Failed to save changes"), "danger");
+        showSnackbar(
+          getErrorMessage(error, "Failed to save changes"),
+          "danger",
+        );
         return false;
       }
     },
@@ -634,67 +685,38 @@ export function GeneratedContentModal({
     [activeItem, activeTab, appendCtaToItem, editItem],
   );
 
-  const handleGenerateImage = useCallback(async () => {
-    if (!activeItem) {
-      return;
-    }
+  const handleOpenImageStudio = useCallback(
+    (index: number, item: DraftItem) => {
+      const channel = normalizeChannel(item.channel);
+      const channelConfig = CHANNEL_CONFIG[channel];
 
-    setImageGenerationIndex(activeTab);
-    setImageGenerationProgress({ completed: 0, total: 1 });
-
-    try {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
-      if (!currentUser) {
-        throw new Error("User not authenticated");
-      }
-
-      const contentContext =
-        activeItem.imageQuery ||
-        activeItem.body ||
-        activeItem.caption ||
-        activeItem.script ||
-        activeItem.title ||
-        "seasonal garden content";
-
-      const { data, error } = await supabase.functions.invoke(
-        "generate-ai-image",
-        {
-          body: {
-            contentContext,
-            contentTitle: activeItem.title || "",
-            channel: normalizeChannel(activeItem.channel),
-            uploadToStorage: true,
-            storageBucket: "global-ai-images",
-            userId: currentUser.id,
-          },
+      openImageStudio({
+        aspectRatioHint: STUDIO_ASPECT_RATIO_HINTS[channel],
+        assignmentLabel: item.title?.trim() || `${channelConfig.label} image`,
+        channel,
+        contentTitle: item.title?.trim() || bundleTitle,
+        contentContext: buildStudioContentContext(item, bundleTitle),
+        context: {
+          source: "content-generation",
+          channel,
+          topicTitle: bundleTitle,
+          topicDescription: item.summary?.trim() || channelConfig.description,
+          contentSnippet: buildStudioContentSnippet(item),
         },
-      );
-
-      if (error || !data?.imageUrl) {
-        throw error || new Error("Image generation failed");
-      }
-
-      editItem(activeTab, {
-        media: {
-          url: data.imageUrl,
-          alt: activeItem.title || "AI-generated image",
-          source: "ai_generated",
-          globalImageId: data.globalImageId,
-          tags: data.metadata?.tags || [],
+        contextLabel: `${channelConfig.label} image for ${item.title?.trim() || bundleTitle}`,
+        contextType: "content_generation_bundle_item",
+        defaultTab: "ai",
+        initialPrompt: buildStudioInitialPrompt(item, bundleTitle),
+        onSelect: (imageUrl, metadata) => {
+          editItem(index, {
+            media: mapStudioMetadataToDraftMedia(item, imageUrl, metadata),
+          });
+          showSnackbar("Image updated from AI Studio", "success");
         },
       });
-      setImageGenerationProgress({ completed: 1, total: 1 });
-      showSnackbar("New image generated", "success");
-    } catch (error) {
-      showSnackbar(getErrorMessage(error, "Image generation failed"), "danger");
-    } finally {
-      setImageGenerationIndex(null);
-      setImageGenerationProgress({ completed: 0, total: 0 });
-    }
-  }, [activeItem, activeTab, editItem, showSnackbar]);
+    },
+    [bundleTitle, editItem, openImageStudio, showSnackbar],
+  );
 
   const handlePublish = useCallback(async () => {
     if (!bundleId || approvedSocialCount === 0) {
@@ -748,7 +770,14 @@ export function GeneratedContentModal({
       finalizeClose();
       navigate(`/crm/campaigns/new?${params.toString()}`);
     },
-    [bundleId, bundleTitle, finalizeClose, navigate, persistDraftChanges, showSnackbar],
+    [
+      bundleId,
+      bundleTitle,
+      finalizeClose,
+      navigate,
+      persistDraftChanges,
+      showSnackbar,
+    ],
   );
 
   const renderSocialPreview = (item: DraftItem) => {
@@ -1549,15 +1578,6 @@ export function GeneratedContentModal({
                                       <Typography level="title-sm">
                                         Featured image
                                       </Typography>
-                                      {item.media?.source === "ai_generated" ? (
-                                        <Chip
-                                          size="sm"
-                                          variant="soft"
-                                          color="success"
-                                        >
-                                          AI generated
-                                        </Chip>
-                                      ) : null}
                                     </Stack>
 
                                     {item.media?.url ? (
@@ -1592,6 +1612,13 @@ export function GeneratedContentModal({
                                           <Typography level="body-sm">
                                             No image selected yet
                                           </Typography>
+                                          <Typography
+                                            level="body-xs"
+                                            color="neutral"
+                                          >
+                                            Open AI Studio to generate, upload,
+                                            or reuse an image.
+                                          </Typography>
                                         </Stack>
                                       </Sheet>
                                     )}
@@ -1600,47 +1627,35 @@ export function GeneratedContentModal({
                                       direction={{ xs: "column", sm: "row" }}
                                       spacing={1}
                                       useFlexGap
+                                      alignItems={{ sm: "center" }}
                                     >
                                       <Button
-                                        variant="solid"
-                                        startDecorator={
-                                          imageGenerationIndex === index ? (
-                                            <CircularProgress
-                                              size="sm"
-                                              color="neutral"
-                                            />
-                                          ) : (
-                                            <Sparkles size={16} />
-                                          )
-                                        }
+                                        variant="outlined"
+                                        color="primary"
+                                        startDecorator={<Sparkles size={16} />}
                                         onClick={() =>
-                                          void handleGenerateImage()
-                                        }
-                                        disabled={imageGenerationIndex !== null}
-                                      >
-                                        Generate new image
-                                      </Button>
-                                      <Button
-                                        variant="soft"
-                                        startDecorator={<Images size={16} />}
-                                        onClick={() =>
-                                          setMediaSelectorOpen(true)
+                                          handleOpenImageStudio(index, item)
                                         }
                                       >
-                                        Choose from library
+                                        Open AI Studio
                                       </Button>
-                                      <Button
+                                      <IconButton
                                         variant="plain"
                                         color="danger"
-                                        startDecorator={<Trash2 size={16} />}
+                                        aria-label="Remove featured image"
                                         onClick={() =>
                                           editItem(index, { media: null })
                                         }
                                         disabled={!item.media?.url}
                                       >
-                                        Remove
-                                      </Button>
+                                        <Trash2 size={16} />
+                                      </IconButton>
                                     </Stack>
+                                    <Typography level="body-xs" color="neutral">
+                                      Use the studio to edit prompts, browse My
+                                      Images, or upload a replacement without
+                                      leaving this review.
+                                    </Typography>
                                   </Stack>
                                 </Card>
                               </Stack>
@@ -1791,69 +1806,6 @@ export function GeneratedContentModal({
         </ModalDialog>
       </Modal>
 
-      <Modal
-        open={mediaSelectorOpen}
-        onClose={() => setMediaSelectorOpen(false)}
-      >
-        <ModalDialog
-          aria-modal="true"
-          sx={{
-            width: "min(96vw, 980px)",
-            maxWidth: "100%",
-            p: 0,
-            overflow: "hidden",
-          }}
-        >
-          <Sheet
-            sx={{ p: 2.5, borderBottom: "1px solid", borderColor: "divider" }}
-          >
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              spacing={2}
-              alignItems="flex-start"
-            >
-              <Stack spacing={0.5}>
-                <Typography level="h4">Choose from library</Typography>
-                <Typography level="body-sm" color="neutral">
-                  Browse suggestions and select the image that fits this draft
-                  best.
-                </Typography>
-              </Stack>
-              <IconButton
-                variant="plain"
-                color="neutral"
-                aria-label="Close image library"
-                onClick={() => setMediaSelectorOpen(false)}
-              >
-                <X size={18} />
-              </IconButton>
-            </Stack>
-          </Sheet>
-          <Sheet sx={{ p: 2.5, maxHeight: "75vh", overflow: "auto" }}>
-            {activeItem ? (
-              <MediaSelector
-                selectedImageUrl={activeItem.media?.url}
-                contentContext={activeItem.title || getPrimaryText(activeItem)}
-                onImageSelect={(imageUrl, metadata) => {
-                  editItem(activeTab, {
-                    media: {
-                      url: imageUrl,
-                      alt:
-                        metadata?.alt_text ||
-                        activeItem.media?.alt ||
-                        activeItem.title ||
-                        "Selected content image",
-                      source: metadata?.source || "library",
-                    },
-                  });
-                }}
-              />
-            ) : null}
-          </Sheet>
-        </ModalDialog>
-      </Modal>
-
       <Snackbar
         open={snackbarState.open}
         autoHideDuration={2000}
@@ -1863,31 +1815,6 @@ export function GeneratedContentModal({
       >
         {snackbarState.message}
       </Snackbar>
-
-      {imageGenerationIndex !== null ? (
-        <Box
-          sx={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1600,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backdropFilter: "blur(6px)",
-            backgroundColor: "rgba(15, 23, 42, 0.2)",
-          }}
-        >
-          <AIImageLoadingCard
-            progress={
-              imageGenerationProgress.total > 0
-                ? imageGenerationProgress
-                : undefined
-            }
-            message="Generating image"
-            subtitle="This may take 8-12 seconds"
-          />
-        </Box>
-      ) : null}
     </>
   );
 }

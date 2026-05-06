@@ -8,9 +8,12 @@ export interface AIPersonalizationDialogProps {
   aspectRatioHint?: AIImageStudioAspectRatio;
   browseOnly?: boolean;
   channel?: string;
+  contentTitle?: string;
   contentContext?: string;
+  context?: AIImageStudioContentGenerationContext;
   contextLabel?: string;
   defaultTab?: AIImageStudioTab;
+  initialPrompt?: string;
   blockId?: string;
   contextType?: string;
   campaignContext?: AIImageStudioCampaignContext;
@@ -27,9 +30,12 @@ export interface AIImageStudioDrawerProps {
   aspectRatioHint?: AIImageStudioAspectRatio;
   browseOnly?: boolean;
   channel?: string;
+  contentTitle?: string;
   contentContext?: string;
+  context?: AIImageStudioContentGenerationContext;
   contextLabel?: string;
   defaultTab?: AIImageStudioTab;
+  initialPrompt?: string;
   blockId?: string;
   contextType?: string;
   campaignContext?: AIImageStudioCampaignContext;
@@ -57,10 +63,19 @@ export interface AIImageStudioCampaignContext {
 
 export type AIImageStudioTab = "ai" | "my-images" | "upload";
 
+export interface AIImageStudioContentGenerationContext {
+  channel?: string;
+  contentSnippet?: string;
+  source?: string;
+  topicDescription?: string;
+  topicTitle?: string;
+}
+
 export interface AIImageStudioSelectionMetadata {
   altText?: string;
   attribution?: string;
   dimensions?: AIImageStudioImageDimensions | null;
+  globalImageId?: string;
   mimeType?: string | null;
   photographer?: string;
   photographerUrl?: string;
@@ -77,7 +92,9 @@ export interface AIImageStudioContextUpdate {
   assignmentLabel?: string;
   blockId?: string;
   campaignContext?: AIImageStudioCampaignContext;
+  contentTitle?: string;
   contentContext?: string;
+  context?: AIImageStudioContentGenerationContext;
   contextLabel?: string;
   contextType?: string;
 }
@@ -98,10 +115,13 @@ export interface AIImageStudioOpenOptions {
   browseOnly?: boolean;
   campaignContext?: AIImageStudioCampaignContext;
   channel?: string;
+  contentTitle?: string;
   contentContext?: string;
+  context?: AIImageStudioContentGenerationContext;
   contextLabel?: string;
   contextType?: string;
   defaultTab?: AIImageStudioTab;
+  initialPrompt?: string;
   multiBlockFlow?: AIImageStudioMultiBlockFlow;
   onClose?: () => void;
   onSelect: AIImageStudioSelectHandler;

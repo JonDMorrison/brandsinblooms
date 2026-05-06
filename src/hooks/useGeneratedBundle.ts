@@ -9,7 +9,13 @@ export interface GeneratedBundleItem {
   hashtags?: string[];
   imageQuery?: string;
   ctaSuggestions?: string[];
-  media?: { url?: string; alt?: string } | null;
+  media?: {
+    alt?: string;
+    globalImageId?: string;
+    source?: string;
+    tags?: string[];
+    url?: string;
+  } | null;
   _approved?: boolean;
 }
 
@@ -55,7 +61,7 @@ export function useGeneratedBundle(bundleId?: string) {
     enabled: !!bundleId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("draft_snapshots" as any)
+        .from("draft_snapshots")
         .select(
           "id, version, content, doc_id, doc_type, created_at, updated_at",
         )
@@ -64,7 +70,7 @@ export function useGeneratedBundle(bundleId?: string) {
         .order("version", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) throw error as any;
+      if (error) throw error;
       return data as unknown as GeneratedBundleSnapshot | null;
     },
   });
@@ -88,7 +94,7 @@ export function useGeneratedBundle(bundleId?: string) {
           new_content: content,
         },
       });
-      if (error) throw error as any;
+      if (error) throw error;
       return data as DraftMergeResponse;
     },
     onSuccess: (result) => {
