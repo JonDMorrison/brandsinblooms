@@ -155,11 +155,14 @@ const handler = async (req: Request): Promise<Response> => {
       resolvedHtml = "";
     }
 
+    let campaignSenderName = "";
     if (campaignId) {
       const { data: campaignRecord, error: campaignError } =
         await supabaseClient
           .from("crm_campaigns")
-          .select("id, metadata, content, subject_line, preheader_text")
+          .select(
+            "id, metadata, content, subject_line, preheader_text, sender_name",
+          )
           .eq("id", campaignId)
           .eq("tenant_id", tenantId)
           .maybeSingle();
@@ -172,6 +175,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       if (campaignRecord) {
+        if (
+          typeof campaignRecord.sender_name === "string" &&
+          campaignRecord.sender_name.trim().length > 0
+        ) {
+          campaignSenderName = campaignRecord.sender_name.trim();
+        }
         if (!subject?.trim() && campaignRecord.subject_line?.trim()) {
           resolvedSubject = campaignRecord.subject_line.trim();
         }
@@ -283,13 +292,36 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Resolve sender
+    // Resolve sender. The From-header display name follows the same
+    // priority order as the live send path:
+    //   1. campaign.sender_name (operator's per-campaign override)
+    //   2. domain default_from_name (senderConfig.fromName)
+    //   3. companyProfile.business_name / company_name
+    //   4. literal "BloomSuite" fallback
+    // Without this, a tenant with a verified domain but no
+    // default_from_name on the domain row would render as "Your Business"
+    // even when the operator typed a sender_name into the campaign UI.
     const senderConfig = await resolveSender(supabaseClient, tenantId, {
       userId: user.id,
     });
+    // senderConfig.fromName falls back to the literal string "Your
+    // Business" inside senderResolver when the email_domains row has no
+    // default_from_name set. Treat that as not-set so we keep falling
+    // through to the operator-meaningful sources.
+    const domainFromName =
+      typeof senderConfig?.fromName === "string" &&
+      senderConfig.fromName.trim().length > 0 &&
+      senderConfig.fromName.trim() !== "Your Business"
+        ? senderConfig.fromName.trim()
+        : "";
+    const resolvedSenderDisplayName =
+      campaignSenderName ||
+      domainFromName ||
+      companyProfile?.company_name ||
+      "BloomSuite";
     const fromAddress = senderConfig
-      ? buildFromAddress(senderConfig)
-      : `${companyProfile?.company_name || "BloomSuite"} <hello@notify.bloomsuite.app>`;
+      ? `${resolvedSenderDisplayName} <${senderConfig.fromEmail}>`
+      : `${resolvedSenderDisplayName} <hello@notify.bloomsuite.app>`;
     // Prioritize domain reply_to, fallback to company sender or user email
     const replyTo =
       senderConfig?.replyTo ||

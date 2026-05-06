@@ -1533,7 +1533,29 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const senderDisplayName = quotaCheck.sender?.from_name || companyName;
+    // Priority for the From header display name:
+    //   1. campaign.sender_name (operator's per-campaign override)
+    //   2. domain default_from_name (quotaCheck.sender.from_name)
+    //   3. companyProfile.company_name
+    //   4. last-resort literal "Your Garden Center"
+    // The literal placeholder "Your Business" — used as a fallback by
+    // senderResolver / canSendEmail when the domain row has no
+    // default_from_name — is treated as not-set so the chain keeps
+    // falling through to operator-meaningful values.
+    const trimmedCampaignSenderName =
+      typeof campaign.sender_name === "string"
+        ? campaign.sender_name.trim()
+        : "";
+    const rawDomainFromName =
+      typeof quotaCheck.sender?.from_name === "string"
+        ? quotaCheck.sender.from_name.trim()
+        : "";
+    const domainFromName =
+      rawDomainFromName.length > 0 && rawDomainFromName !== "Your Business"
+        ? rawDomainFromName
+        : "";
+    const senderDisplayName =
+      trimmedCampaignSenderName || domainFromName || companyName;
     const deliveryMethod = "custom_domain";
     const usesVerifiedDomain = true;
     activeDomainId = quotaCheck.domain?.id || null;
