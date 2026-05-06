@@ -1142,6 +1142,43 @@ serve((req: Request) => {
               0,
             );
 
+            // Guard against marking 'sent' for a campaign that never queued
+            // anything. If no jobs exist OR no recipient ledger rows exist,
+            // send-email-campaign crashed before queue creation. Marking such
+            // a campaign 'sent' with sent_at=now silently lies to the operator
+            // and breaks deliverability metrics. Mark 'failed' instead so the
+            // operator sees they need to re-send.
+            const { count: messageCount } = await supabase
+              .from("email_messages")
+              .select("id", { count: "exact", head: true })
+              .eq("campaign_id", sc.id);
+
+            const hasJobs = Array.isArray(allJobs) && allJobs.length > 0;
+            const hasMessages = (messageCount ?? 0) > 0;
+
+            if (!hasJobs && !hasMessages) {
+              await supabase
+                .from("crm_campaigns")
+                .update({
+                  status: "failed",
+                  failure_reason:
+                    "Campaign was marked sending but no recipient queue was created. The send pipeline crashed before queueing. Re-send the campaign.",
+                  send_error:
+                    "Stuck-sending campaign auto-finalized without a recipient queue.",
+                  send_blocked_reason: "stuck_sending_no_queue",
+                  send_completed_at: new Date().toISOString(),
+                  worker_heartbeat_at: new Date().toISOString(),
+                  claim_token: null,
+                })
+                .eq("id", sc.id);
+
+              console.warn(
+                `⚠️ Auto-failed stuck campaign ${sc.id} (no jobs, no messages); operator must re-send`,
+              );
+              finalized++;
+              continue;
+            }
+
             await supabase
               .from("crm_campaigns")
               .update({
