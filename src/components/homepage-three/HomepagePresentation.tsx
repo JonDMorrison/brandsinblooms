@@ -1,8 +1,8 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
 
+import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { HomepageAiCapabilitiesSection } from "./HomepageAiCapabilitiesSection";
 import { HomepageDifferentiatorsSection } from "./HomepageDifferentiatorsSection";
 import { HomepageFeatureHighlightsSection } from "./HomepageFeatureHighlightsSection";
@@ -13,11 +13,6 @@ import { HomepagePricingCtaFooterSection } from "./HomepagePricingCtaFooterSecti
 import { HomepageProblemSection } from "./HomepageProblemSection";
 import { HOMEPAGE_SEO, HOMEPAGE_STRUCTURED_DATA } from "./homepageSeo";
 import { trackHomepageEvent } from "./homepageTelemetry";
-import {
-  HOMEPAGE_NAV_ITEMS,
-  type HomepageNavItemConfig,
-} from "./sectionConfig";
-import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 import "./homepageThree.css";
 
 const HomepageHead = () => (
@@ -46,175 +41,14 @@ const HomepageHead = () => (
   </Helmet>
 );
 
-const BloomSuiteMark = () => (
-  <img src={bloomsuiteLogo} alt="BloomSuite" className="hp-logo-mark" />
-);
-
-interface NavigationShellProps {
-  mobileMenuOpen: boolean;
-  onMobileMenuToggle: () => void;
-  onMobileMenuClose: () => void;
-}
-
-const NavigationShell = ({
-  mobileMenuOpen,
-  onMobileMenuToggle,
-  onMobileMenuClose,
-}: NavigationShellProps) => {
-  const navigate = useNavigate();
-
-  const navigateToAuth = () => {
-    trackHomepageEvent("cta_click", {
-      label: "Start Free Trial",
-      href: "/auth",
-      source: "top_nav",
-    });
-    navigate("/auth");
-  };
-
-  const navigateToDemo = () => {
-    trackHomepageEvent("cta_click", {
-      label: "Book a Demo",
-      href: "/contact",
-      source: "top_nav",
-    });
-    navigate("/contact");
-  };
-
-  const handleNavItemClick = (
-    item: HomepageNavItemConfig,
-    event: MouseEvent<HTMLAnchorElement>,
-  ) => {
-    if (item.targetHref) {
-      event.preventDefault();
-      trackHomepageEvent("cta_click", {
-        label: item.label,
-        href: item.targetHref,
-        source: "top_nav",
-      });
-      navigate(item.targetHref);
-      onMobileMenuClose();
-      return;
-    }
-    // In-page anchors: let the browser handle the scroll. CSS sets
-    // scroll-behavior: smooth on <html> and scroll-margin-top on each
-    // section so anchored jumps tuck cleanly under the fixed nav.
-    onMobileMenuClose();
-  };
-
-  return (
-    <>
-      <nav className="hp-nav" aria-label="Homepage navigation">
-        <div className="hp-nav__inner">
-          <a
-            className="hp-brand"
-            href="#hero"
-            aria-label="Go to BloomSuite hero section"
-          >
-            <BloomSuiteMark />
-            <span>BloomSuite</span>
-          </a>
-
-          <div className="hp-nav__links" aria-label="Homepage sections">
-            {HOMEPAGE_NAV_ITEMS.map((item) => (
-              <a
-                key={item.category}
-                className="hp-nav__link"
-                href={item.targetHref ?? `#${item.targetSlug}`}
-                onClick={(event) => handleNavItemClick(item, event)}
-              >
-                <span>{item.label}</span>
-              </a>
-            ))}
-          </div>
-
-          <div className="hp-nav__actions">
-            <button
-              type="button"
-              className="hp-demo-link"
-              onClick={navigateToDemo}
-            >
-              Book a Demo
-            </button>
-            <button
-              type="button"
-              className="hp-trial-button"
-              onClick={navigateToAuth}
-            >
-              Start Free Trial
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="hp-menu-button"
-            onClick={onMobileMenuToggle}
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? (
-              <X aria-hidden="true" />
-            ) : (
-              <Menu aria-hidden="true" />
-            )}
-          </button>
-        </div>
-      </nav>
-
-      <div
-        className="hp-mobile-overlay"
-        data-open={mobileMenuOpen}
-        aria-hidden={!mobileMenuOpen}
-      >
-        <div className="hp-mobile-overlay__panel">
-          <div className="hp-mobile-overlay__links">
-            {HOMEPAGE_NAV_ITEMS.map((item) => (
-              <a
-                key={item.category}
-                className="hp-mobile-overlay__link"
-                href={item.targetHref ?? `#${item.targetSlug}`}
-                onClick={(event) => handleNavItemClick(item, event)}
-                tabIndex={mobileMenuOpen ? 0 : -1}
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-          <div className="hp-mobile-overlay__actions">
-            <button
-              type="button"
-              className="hp-mobile-overlay__cta hp-mobile-overlay__cta--primary"
-              onClick={navigateToAuth}
-              tabIndex={mobileMenuOpen ? 0 : -1}
-            >
-              Start Free Trial
-            </button>
-            <button
-              type="button"
-              className="hp-mobile-overlay__cta hp-mobile-overlay__cta--ghost"
-              onClick={navigateToDemo}
-              tabIndex={mobileMenuOpen ? 0 : -1}
-            >
-              Book a Demo
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-// Scrolling rebuild of the homepage. The scroll-engine, gesture lock,
-// progress rail, and per-section transition machinery from the previous
-// scroll-locked design were removed. Each section now renders as a normal
-// block in document flow; the browser handles scroll. The Pricing nav
-// item routes to /pricing via the targetHref shortcut added in
-// commit 05b25820. Hero, Features, AI, Integrations, and Pricing sections
-// reuse their existing components untouched. Three new sections —
-// Problem, Guide, and Differentiators — bring back the messaging spine
-// from the old landing page using the same glass + token design system.
+// Scrolling homepage. Each section renders as a normal block in document
+// flow; the browser handles scroll. Top nav now comes from the shared
+// LandingPageHeader so the homepage matches every other marketing page
+// (Pricing, FAQ, About, Features). The previous custom hp-nav + mobile
+// glass overlay + skip-link were retired with this swap; LandingPageHeader
+// is sticky and accessible without an explicit skip-link.
 export const HomepagePresentation = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     trackHomepageEvent("page_view", { section: "hero" });
@@ -232,20 +66,11 @@ export const HomepagePresentation = () => {
   return (
     // hp-token-scope brings the homepage CSS-variable ramp (--hp-green-*,
     // --hp-hover-duration, --hp-ease-hover, etc., declared in
-    // homepageTokens.css) into scope for the fixed nav and skip-link too.
-    // Without it, the nav lives outside .homepage-three and the
-    // .hp-trial-button background var(--hp-green-500) resolves to nothing
-    // — the pill would render with no fill.
+    // homepageTokens.css) into scope for any nav-level CSS that references
+    // them.
     <div className="hp-token-scope">
       <HomepageHead />
-      <a className="hp-skip-link" href="#homepage-main-content">
-        Skip to content
-      </a>
-      <NavigationShell
-        mobileMenuOpen={mobileMenuOpen}
-        onMobileMenuToggle={() => setMobileMenuOpen((open) => !open)}
-        onMobileMenuClose={() => setMobileMenuOpen(false)}
-      />
+      <LandingPageHeader onLogin={() => navigate("/auth")} showUserMenu />
       <main
         id="homepage-main-content"
         className="homepage-three homepage-three--scrolling"

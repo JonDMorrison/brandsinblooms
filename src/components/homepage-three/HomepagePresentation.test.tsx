@@ -62,9 +62,10 @@ describe("HomepagePresentation", () => {
       "data-device-tier",
       "fallback",
     );
-    expect(
-      screen.getByRole("navigation", { name: "Homepage navigation" }),
-    ).toBeInTheDocument();
+    // The "Homepage navigation" landmark and the "Homepage section
+    // progress" rail were retired when the homepage swapped to the
+    // shared LandingPageHeader (refactor/homepage-use-shared-nav). The
+    // older assertions on those elements were removed.
     expect(
       within(screen.getByLabelText("Homepage section progress")).getAllByRole(
         "button",
@@ -157,21 +158,16 @@ describe("HomepagePresentation", () => {
     );
 
     fireEvent.keyDown(window, { key: "ArrowDown" });
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Start Free Trial" })[0],
-    );
-
+    // The "Start Free Trial" button click + cta_click expectation was
+    // removed when the homepage adopted the shared LandingPageHeader —
+    // that button lived on the old custom hp-nav and no longer exists
+    // in this component. Section-view event still fires and is asserted.
     await waitFor(() =>
       expect(window.dataLayer).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             event: "homepage_section_view",
             section: "features",
-          }),
-          expect.objectContaining({
-            event: "homepage_cta_click",
-            label: "Start Free Trial",
-            href: "/auth",
           }),
         ]),
       ),
@@ -324,15 +320,11 @@ describe("HomepagePresentation", () => {
     });
   });
 
-  it("routes the Pricing nav item to the final conversion section", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.click(screen.getByRole("button", { name: "Pricing" }));
-
-    expect(shell).toHaveAttribute("data-current-section", "6");
-    expect(window.location.hash).toBe("#start");
-  });
+  // The "routes the Pricing nav item to the final conversion section"
+  // test was removed when the homepage adopted the shared
+  // LandingPageHeader. Pricing routing now goes through that header's
+  // <Link to="/pricing"> which is already covered by the shared nav's
+  // own tests.
 
   it("persists the footer disable animations link end-to-end", () => {
     renderHomepage("#start");
@@ -448,19 +440,8 @@ describe("HomepagePresentation", () => {
     expect(window.location.hash).toBe("#start");
   });
 
-  it("opens and closes the mobile glass menu", () => {
-    renderHomepage();
-
-    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
-    expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Close menu" }));
-    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-  });
+  // The "opens and closes the mobile glass menu" test was removed when
+  // the homepage adopted the shared LandingPageHeader. The custom
+  // hp-mobile-overlay panel + hp-menu-button no longer exist here;
+  // mobile nav behavior now lives entirely inside LandingPageHeader.
 });
