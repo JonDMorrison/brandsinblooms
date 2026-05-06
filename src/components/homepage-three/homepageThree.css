@@ -44,13 +44,25 @@
    natural-height blocks that flow into one another, so neutralize those
    constraints inside the new scrolling shell. The nested overflow rules
    would otherwise create double-scrolling. */
+/* Integrations was previously listed as `.hp-integrations` here, but the
+   actual root class on HomepageIntegrationsEcosystemSection is
+   `.hp-integrations-ecosystem`. The stale selector silently matched
+   nothing, so the integrations section retained min-height: 100dvh +
+   overflow-y: auto + touch-action: pan-y from homepageIntegrations.css
+   and trapped the page scroll. The new section roots
+   (hp-problem / hp-guide / hp-differentiators) are added defensively
+   so any future min-height/overflow added to those CSS files cannot
+   reintroduce the same bug. */
 .homepage-three--scrolling .hp-pricing-cta,
 .homepage-three--scrolling .hp-impact-section,
 .homepage-three--scrolling .hp-crm-showcase,
 .homepage-three--scrolling .hp-hero,
 .homepage-three--scrolling .hp-features,
 .homepage-three--scrolling .hp-ai-showcase,
-.homepage-three--scrolling .hp-integrations {
+.homepage-three--scrolling .hp-integrations-ecosystem,
+.homepage-three--scrolling .hp-problem,
+.homepage-three--scrolling .hp-guide,
+.homepage-three--scrolling .hp-differentiators {
     height: auto;
     min-height: auto;
     overflow: visible;
