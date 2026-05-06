@@ -1,15 +1,35 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { resolveSender, buildFromAddress, type SenderConfig } from "../_shared/senderResolver.ts";
-import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
-import { renderEmailForRecipient, type CustomerShape, type CompanyProfileShape } from "../_shared/emailRenderer.ts";
-import { logAutomationEmailExecution, checkAlreadySent, checkAndLogSuppression } from "../_shared/automationEmailExecution.ts";
+import {
+  resolveSender,
+  buildFromAddress,
+  type SenderConfig,
+} from "../_shared/senderResolver.ts";
+import {
+  checkSMSAvailability,
+  isChannelAvailable,
+} from "../_shared/channelAvailability.ts";
+import {
+  renderEmailForRecipient,
+  type CustomerShape,
+  type CompanyProfileShape,
+} from "../_shared/emailRenderer.ts";
+import {
+  logAutomationEmailExecution,
+  checkAlreadySent,
+  checkAndLogSuppression,
+} from "../_shared/automationEmailExecution.ts";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
-import { renderMergeTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
+import {
+  renderMergeTags,
+  createMergeTagDataFromCustomer,
+} from "../_shared/mergeTagEngine.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface OutboxMessage {
@@ -46,18 +66,27 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // FIX: [A1] - Add service-role-or-JWT authentication to prevent unauthenticated message processing
-  const authHeader = req.headers.get('Authorization');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    return new Response(JSON.stringify({ error: "Authorization required" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
   if (authHeader !== `Bearer ${serviceRoleKey}`) {
     // Not service role - verify as user JWT
-    const supabaseAuth = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
-    const token = authHeader.replace('Bearer ', '');
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    );
+    const token = authHeader.replace("Bearer ", "");
     const { error: authErr } = await supabaseAuth.auth.getUser(token);
     if (authErr) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
   }
 
@@ -67,7 +96,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     // FIX: [A19] - Also rediscover stuck 'processing' messages with expired locks (>10 min old)
@@ -76,17 +105,24 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: tenantRows, error: tenantError } = await supabase
       .from("crm_outbox")
       .select("tenant_id")
-      .or(`status.eq.queued,and(status.eq.processing,updated_at.lt.${stuckCutoff})`)
+      .or(
+        `status.eq.queued,and(status.eq.processing,updated_at.lt.${stuckCutoff})`,
+      )
       .lte("scheduled_at", new Date().toISOString())
       .or("locked_until.is.null,locked_until.lt." + new Date().toISOString())
       .limit(100);
 
     if (tenantError) {
-      console.error("❌ Failed to find tenants with queued messages:", tenantError);
+      console.error(
+        "❌ Failed to find tenants with queued messages:",
+        tenantError,
+      );
       throw tenantError;
     }
 
-    const tenantIds = [...new Set((tenantRows || []).map((r: any) => r.tenant_id))];
+    const tenantIds = [
+      ...new Set((tenantRows || []).map((r: any) => r.tenant_id)),
+    ];
 
     if (tenantIds.length === 0) {
       console.log("📭 No tenants with queued messages");
@@ -99,7 +135,10 @@ const handler = async (req: Request): Promise<Response> => {
           skipped: 0,
           duration_ms: Date.now() - startTime,
         }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
       );
     }
 
@@ -108,20 +147,27 @@ const handler = async (req: Request): Promise<Response> => {
     // 2. Claim messages for each tenant using the new tenant-scoped RPC
     let allClaimedMessages: OutboxMessage[] = [];
     for (const tenantId of tenantIds) {
-      const { data: tenantMessages, error: claimError } = await supabase
-        .rpc("claim_outbox_messages", {
+      const { data: tenantMessages, error: claimError } = await supabase.rpc(
+        "claim_outbox_messages",
+        {
           p_tenant_id: tenantId,
           p_limit: BATCH_SIZE,
-          p_worker_id: WORKER_ID
-        });
+          p_worker_id: WORKER_ID,
+        },
+      );
 
       if (claimError) {
-        console.error(`❌ Failed to claim messages for tenant ${tenantId}:`, claimError);
+        console.error(
+          `❌ Failed to claim messages for tenant ${tenantId}:`,
+          claimError,
+        );
         continue;
       }
 
       if (tenantMessages && tenantMessages.length > 0) {
-        console.log(`📨 Claimed ${tenantMessages.length} messages for tenant ${tenantId}`);
+        console.log(
+          `📨 Claimed ${tenantMessages.length} messages for tenant ${tenantId}`,
+        );
         allClaimedMessages = allClaimedMessages.concat(tenantMessages);
       }
     }
@@ -137,13 +183,18 @@ const handler = async (req: Request): Promise<Response> => {
           skipped: 0,
           duration_ms: Date.now() - startTime,
         }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
       );
     }
 
     const claimedMessages = allClaimedMessages;
 
-    console.log(`📨 Claimed ${claimedMessages.length} messages (status already set to 'processing')`);
+    console.log(
+      `📨 Claimed ${claimedMessages.length} messages (status already set to 'processing')`,
+    );
 
     let sent = 0;
     let failed = 0;
@@ -152,14 +203,22 @@ const handler = async (req: Request): Promise<Response> => {
     // 2. Process each claimed message
     for (const message of claimedMessages as OutboxMessage[]) {
       try {
-        console.log(`🔒 Processing message ${message.id} (${message.message_type} to ${message.recipient})`);
+        console.log(
+          `🔒 Processing message ${message.id} (${message.message_type} to ${message.recipient})`,
+        );
 
         // 3. Check channel availability before attempting to send
         const channelStatus = isChannelAvailable(message.message_type);
 
         if (!channelStatus.available) {
-          console.log(`⏭️ Skipping ${message.message_type} step - channel not available: ${channelStatus.reason}`);
-          await skipMessage(supabase, message, channelStatus.reason || 'Channel not configured');
+          console.log(
+            `⏭️ Skipping ${message.message_type} step - channel not available: ${channelStatus.reason}`,
+          );
+          await skipMessage(
+            supabase,
+            message,
+            channelStatus.reason || "Channel not configured",
+          );
           if (message.automation_run_id) {
             await advanceAutomationRun(supabase, message);
           }
@@ -171,20 +230,35 @@ const handler = async (req: Request): Promise<Response> => {
         // To prevent this, add an is_active check on crm_automations here before sending if needed.
 
         // 4. Send the message based on type
-        let sendResult: { success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean };
+        let sendResult: {
+          success: boolean;
+          error?: string;
+          shouldSkip?: boolean;
+          external_id?: string;
+          canRetry?: boolean;
+        };
 
         if (message.message_type === "email") {
           sendResult = await sendEmail(supabase, message);
         } else if (message.message_type === "sms") {
           sendResult = await sendSMS(supabase, message);
         } else {
-          sendResult = { success: false, error: `Unknown message type: ${message.message_type}` };
+          sendResult = {
+            success: false,
+            error: `Unknown message type: ${message.message_type}`,
+          };
         }
 
         // 5. Handle skip response from send functions
         if (sendResult.shouldSkip) {
-          console.log(`⏭️ Skipping ${message.message_type} step - ${sendResult.error}`);
-          await skipMessage(supabase, message, sendResult.error || 'Channel not available');
+          console.log(
+            `⏭️ Skipping ${message.message_type} step - ${sendResult.error}`,
+          );
+          await skipMessage(
+            supabase,
+            message,
+            sendResult.error || "Channel not available",
+          );
           if (message.automation_run_id) {
             await advanceAutomationRun(supabase, message);
           }
@@ -208,24 +282,31 @@ const handler = async (req: Request): Promise<Response> => {
             .eq("id", message.id);
 
           // Log to crm_message_logs with external_id
-          const { error: logError } = await supabase.from("crm_message_logs").insert({
-            outbox_id: message.id,
-            tenant_id: message.tenant_id,
-            message_type: message.message_type,
-            recipient: message.recipient,
-            status: "sent",
-            external_id: sendResult.external_id || null,
-            metadata: {
-              automation_id: message.automation_id,
-              customer_id: message.customer_id,
-              step_index: message.step_index,
-            },
-          });
+          const { error: logError } = await supabase
+            .from("crm_message_logs")
+            .insert({
+              outbox_id: message.id,
+              tenant_id: message.tenant_id,
+              message_type: message.message_type,
+              recipient: message.recipient,
+              status: "sent",
+              external_id: sendResult.external_id || null,
+              metadata: {
+                automation_id: message.automation_id,
+                customer_id: message.customer_id,
+                step_index: message.step_index,
+              },
+            });
 
           if (logError) {
-            console.error(`⚠️ Failed to log message to crm_message_logs:`, logError);
+            console.error(
+              `⚠️ Failed to log message to crm_message_logs:`,
+              logError,
+            );
           } else {
-            console.log(`📝 Logged to crm_message_logs: external_id=${sendResult.external_id}`);
+            console.log(
+              `📝 Logged to crm_message_logs: external_id=${sendResult.external_id}`,
+            );
           }
 
           // Log success in automation logs (resilient to missing unique constraint)
@@ -235,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
               customer_id: message.customer_id,
               step_index: message.step_index,
               message_type: message.message_type,
-              status: 'sent',
+              status: "sent",
               sent_at: sentAt,
             });
           }
@@ -246,14 +327,18 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           sent++;
-          console.log(`✅ Sent ${message.message_type} to ${message.recipient} (external_id: ${sendResult.external_id})`);
+          console.log(
+            `✅ Sent ${message.message_type} to ${message.recipient} (external_id: ${sendResult.external_id})`,
+          );
         } else {
           const newRetryCount = (message.retry_count || 0) + 1;
           const maxRetries = message.max_retries || 3;
 
           // If the sender tells us not to retry, treat as terminal immediately.
           const isNonRetryable = sendResult.canRetry === false;
-          const effectiveRetryCount = isNonRetryable ? maxRetries : newRetryCount;
+          const effectiveRetryCount = isNonRetryable
+            ? maxRetries
+            : newRetryCount;
 
           if (effectiveRetryCount >= maxRetries) {
             // Max retries reached, mark message as failed
@@ -288,7 +373,9 @@ const handler = async (req: Request): Promise<Response> => {
 
             // Soft failure mode: Continue to next step instead of blocking entire automation
             if (SOFT_FAILURE_MODE && message.automation_run_id) {
-              console.log(`⚠️ Soft failure mode: Step ${message.step_index} (${message.message_type}) failed, continuing to next step`);
+              console.log(
+                `⚠️ Soft failure mode: Step ${message.step_index} (${message.message_type}) failed, continuing to next step`,
+              );
 
               // Log as soft_failed in automation logs
               if (message.automation_id) {
@@ -297,17 +384,16 @@ const handler = async (req: Request): Promise<Response> => {
                   customer_id: message.customer_id,
                   step_index: message.step_index,
                   message_type: message.message_type,
-                  status: 'soft_failed',
+                  status: "soft_failed",
                   error_message: sendResult.error,
                   skip_reason: isNonRetryable
-                    ? 'Non-retryable failure - bypassed to continue automation'
+                    ? "Non-retryable failure - bypassed to continue automation"
                     : `Failed after ${effectiveRetryCount} retries - bypassed to continue automation`,
                 });
               }
 
               // Continue to next step despite failure
               await advanceAutomationRun(supabase, message);
-
             } else if (message.automation_run_id) {
               // Original behavior: mark entire automation as failed
               await supabase
@@ -321,12 +407,14 @@ const handler = async (req: Request): Promise<Response> => {
 
             failed++;
             console.error(
-              `❌ Message ${message.id} failed${isNonRetryable ? ' (non-retryable)' : ''} after ${effectiveRetryCount} retries: ${sendResult.error}`
+              `❌ Message ${message.id} failed${isNonRetryable ? " (non-retryable)" : ""} after ${effectiveRetryCount} retries: ${sendResult.error}`,
             );
           } else {
             // Schedule retry with exponential backoff
             const backoffMinutes = Math.pow(2, newRetryCount);
-            const nextRetry = new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString();
+            const nextRetry = new Date(
+              Date.now() + backoffMinutes * 60 * 1000,
+            ).toISOString();
 
             await supabase
               .from("crm_outbox")
@@ -340,11 +428,16 @@ const handler = async (req: Request): Promise<Response> => {
               })
               .eq("id", message.id);
 
-            console.log(`🔄 Scheduled retry ${newRetryCount}/${maxRetries} for message ${message.id} at ${nextRetry}`);
+            console.log(
+              `🔄 Scheduled retry ${newRetryCount}/${maxRetries} for message ${message.id} at ${nextRetry}`,
+            );
           }
         }
       } catch (messageError) {
-        console.error(`❌ Error processing message ${message.id}:`, messageError);
+        console.error(
+          `❌ Error processing message ${message.id}:`,
+          messageError,
+        );
 
         // Unlock the message on error and set back to queued
         await supabase
@@ -353,7 +446,10 @@ const handler = async (req: Request): Promise<Response> => {
             status: "queued",
             locked_until: null,
             locked_by: null,
-            error_message: messageError instanceof Error ? messageError.message : "Unknown error",
+            error_message:
+              messageError instanceof Error
+                ? messageError.message
+                : "Unknown error",
           })
           .eq("id", message.id);
 
@@ -362,7 +458,9 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`✅ [${WORKER_ID}] Outbox processing complete: ${sent} sent, ${skipped} skipped, ${failed} failed in ${duration}ms`);
+    console.log(
+      `✅ [${WORKER_ID}] Outbox processing complete: ${sent} sent, ${skipped} skipped, ${failed} failed in ${duration}ms`,
+    );
 
     return new Response(
       JSON.stringify({
@@ -374,13 +472,21 @@ const handler = async (req: Request): Promise<Response> => {
         worker_id: WORKER_ID,
         duration_ms: duration,
       }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
   } catch (error) {
     console.error("💥 Outbox processor error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
   }
 };
@@ -391,7 +497,7 @@ const handler = async (req: Request): Promise<Response> => {
 async function skipMessage(
   supabase: ReturnType<typeof createClient>,
   message: OutboxMessage,
-  reason: string
+  reason: string,
 ): Promise<void> {
   const now = new Date().toISOString();
 
@@ -431,7 +537,7 @@ async function skipMessage(
         status: "skipped_no_channel",
         skip_reason: reason,
       },
-      { onConflict: "automation_id,customer_id,step_index" }
+      { onConflict: "automation_id,customer_id,step_index" },
     );
   }
 
@@ -443,7 +549,7 @@ async function skipMessage(
  */
 async function getAutomationNodeId(
   supabase: ReturnType<typeof createClient>,
-  message: OutboxMessage
+  message: OutboxMessage,
 ): Promise<string | null> {
   // Prefer the stored node ID (new behavior)
   if (message.automation_node_id) {
@@ -462,7 +568,10 @@ async function getAutomationNodeId(
 
     if (!automation?.workflow_steps) return `step-${message.step_index}`;
 
-    const steps = automation.workflow_steps as Array<{ id?: string; node_id?: string }>;
+    const steps = automation.workflow_steps as Array<{
+      id?: string;
+      node_id?: string;
+    }>;
     const step = steps[message.step_index];
     return step?.id || step?.node_id || `step-${message.step_index}`;
   } catch {
@@ -472,8 +581,14 @@ async function getAutomationNodeId(
 
 async function sendEmail(
   supabase: ReturnType<typeof createClient>,
-  message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
+  message: OutboxMessage,
+): Promise<{
+  success: boolean;
+  error?: string;
+  shouldSkip?: boolean;
+  external_id?: string;
+  canRetry?: boolean;
+}> {
   // Get automation node ID for execution logging
   const automationNodeId = message.automation_id
     ? await getAutomationNodeId(supabase, message)
@@ -492,8 +607,15 @@ async function sendEmail(
       });
 
       if (!suppressionCheck.allowed) {
-        console.log(`⏭️ [SendEmail] Suppression check failed: ${suppressionCheck.reason}`);
-        return { success: false, error: suppressionCheck.reason, shouldSkip: true, canRetry: false };
+        console.log(
+          `⏭️ [SendEmail] Suppression check failed: ${suppressionCheck.reason}`,
+        );
+        return {
+          success: false,
+          error: suppressionCheck.reason,
+          shouldSkip: true,
+          canRetry: false,
+        };
       }
 
       // Check if already sent to prevent duplicates
@@ -504,18 +626,25 @@ async function sendEmail(
       });
 
       if (alreadySent) {
-        console.log(`⏭️ [SendEmail] Already sent to customer ${message.customer_id}`);
+        console.log(
+          `⏭️ [SendEmail] Already sent to customer ${message.customer_id}`,
+        );
         await logAutomationEmailExecution(supabase, {
           tenant_id: message.tenant_id,
           automation_id: message.automation_id,
           automation_node_id: automationNodeId,
           customer_id: message.customer_id,
           email: message.recipient,
-          status: 'skipped',
-          reason: 'already_sent',
+          status: "skipped",
+          reason: "already_sent",
           outbox_id: message.id,
         });
-        return { success: false, error: 'already_sent', shouldSkip: true, canRetry: false };
+        return {
+          success: false,
+          error: "already_sent",
+          shouldSkip: true,
+          canRetry: false,
+        };
       }
     }
 
@@ -529,12 +658,18 @@ async function sendEmail(
         deliveryMethod: templateData.sender_config.delivery_method,
         domainId: templateData.sender_config.domain_id,
         // Extract reply-to with fallback to sender email
-        replyTo: templateData.sender_config.reply_to || templateData.sender_config.from_email,
+        replyTo:
+          templateData.sender_config.reply_to ||
+          templateData.sender_config.from_email,
       } as SenderConfig;
-      console.log(`📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail}), reply-to: ${senderConfig.replyTo}`);
+      console.log(
+        `📧 [SendEmail] Using pre-resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail}), reply-to: ${senderConfig.replyTo}`,
+      );
     } else {
       senderConfig = await resolveSender(supabase, message.tenant_id, {});
-      console.log(`📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+      console.log(
+        `📧 [SendEmail] Dynamically resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`,
+      );
     }
 
     // Get company profile for unified rendering
@@ -550,11 +685,11 @@ async function sendEmail(
     if (tenantUser?.id) {
       const { data: profile } = await supabase
         .from("company_profiles")
-        .select("company_name, location_info, company_email, company_phone, website_url")
+        .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
         .eq("user_id", tenantUser.id)
         .single();
       companyName = profile?.company_name || "Your Business";
-      companyProfile = profile;
+      companyProfile = (profile as CompanyProfileShape | null) || null;
     }
 
     // Fetch customer data for unified rendering
@@ -565,13 +700,15 @@ async function sendEmail(
       .single();
 
     // Use unified renderer for consistent merge tag handling
-    const customerShape: CustomerShape | null = customer ? {
-      id: customer.id,
-      email: customer.email,
-      first_name: customer.first_name,
-      last_name: customer.last_name,
-      phone: customer.phone,
-    } : null;
+    const customerShape: CustomerShape | null = customer
+      ? {
+          id: customer.id,
+          email: customer.email,
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          phone: customer.phone,
+        }
+      : null;
 
     const rendered = renderEmailForRecipient({
       tenantId: message.tenant_id,
@@ -579,27 +716,32 @@ async function sendEmail(
       subject: message.subject || "Message from automation",
       customer: customerShape,
       companyProfile,
-      mode: 'send',
+      mode: "send",
       includeFooter: true,
     });
 
-    console.log(`📧 [SendEmail] Unified renderer diagnostics: ${rendered.diagnostics.usedTags.length} tags, ${rendered.diagnostics.missingTags.length} missing`);
+    console.log(
+      `📧 [SendEmail] Unified renderer diagnostics: ${rendered.diagnostics.usedTags.length} tags, ${rendered.diagnostics.missingTags.length} missing`,
+    );
 
     // Call the transactional email function (returns external_id)
-    const { data, error } = await supabase.functions.invoke("send-transactional-email", {
-      body: {
-        to: message.recipient,
-        subject: rendered.renderedSubject,
-        html_content: rendered.renderedHtml,
-        from_name: companyName,
-        from_email: senderConfig.fromEmail,
-        reply_to: senderConfig.replyTo,
-        tags: [
-          { name: "automation_id", value: message.automation_id || "none" },
-          { name: "tenant_id", value: message.tenant_id },
-        ],
+    const { data, error } = await supabase.functions.invoke(
+      "send-transactional-email",
+      {
+        body: {
+          to: message.recipient,
+          subject: rendered.renderedSubject,
+          html_content: rendered.renderedHtml,
+          from_name: companyName,
+          from_email: senderConfig.fromEmail,
+          reply_to: senderConfig.replyTo,
+          tags: [
+            { name: "automation_id", value: message.automation_id || "none" },
+            { name: "tenant_id", value: message.tenant_id },
+          ],
+        },
       },
-    });
+    );
 
     if (error) {
       console.error(`❌ [SendEmail] Invoke error:`, error.message);
@@ -611,8 +753,8 @@ async function sendEmail(
           automation_node_id: automationNodeId,
           customer_id: message.customer_id,
           email: message.recipient,
-          status: 'failed',
-          reason: 'send_error',
+          status: "failed",
+          reason: "send_error",
           error: error.message,
           outbox_id: message.id,
         });
@@ -632,20 +774,25 @@ async function sendEmail(
           automation_node_id: automationNodeId,
           customer_id: message.customer_id,
           email: message.recipient,
-          status: 'failed',
-          reason: data?.skipable ? 'send_error' : 'send_error',
-          error: data?.error || 'Email send failed',
+          status: "failed",
+          reason: data?.skipable ? "send_error" : "send_error",
+          error: data?.error || "Email send failed",
           outbox_id: message.id,
         });
       }
 
       if (data?.skipable) {
-        return { success: false, error: data.error, shouldSkip: true, canRetry: false };
+        return {
+          success: false,
+          error: data.error,
+          shouldSkip: true,
+          canRetry: false,
+        };
       }
       return {
         success: false,
         error: data?.error || "Email send failed",
-        canRetry: typeof data?.canRetry === 'boolean' ? data.canRetry : true,
+        canRetry: typeof data?.canRetry === "boolean" ? data.canRetry : true,
       };
     }
 
@@ -657,13 +804,15 @@ async function sendEmail(
         automation_node_id: automationNodeId,
         customer_id: message.customer_id,
         email: message.recipient,
-        status: 'sent',
+        status: "sent",
         resend_message_id: data.external_id,
         outbox_id: message.id,
       });
     }
 
-    console.log(`✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}, external_id: ${data.external_id}`);
+    console.log(
+      `✅ [SendEmail] Email sent via ${senderConfig.deliveryMethod}: ${message.recipient}, external_id: ${data.external_id}`,
+    );
     return { success: true, external_id: data.external_id };
   } catch (err) {
     console.error(`❌ [SendEmail] Exception:`, err);
@@ -675,20 +824,29 @@ async function sendEmail(
         automation_node_id: automationNodeId,
         customer_id: message.customer_id,
         email: message.recipient,
-        status: 'failed',
-        reason: 'send_error',
-        error: err instanceof Error ? err.message : 'Email send failed',
+        status: "failed",
+        reason: "send_error",
+        error: err instanceof Error ? err.message : "Email send failed",
         outbox_id: message.id,
       });
     }
-    return { success: false, error: err instanceof Error ? err.message : "Email send failed" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Email send failed",
+    };
   }
 }
 
 async function sendSMS(
   supabase: ReturnType<typeof createClient>,
-  message: OutboxMessage
-): Promise<{ success: boolean; error?: string; shouldSkip?: boolean; external_id?: string; canRetry?: boolean }> {
+  message: OutboxMessage,
+): Promise<{
+  success: boolean;
+  error?: string;
+  shouldSkip?: boolean;
+  external_id?: string;
+  canRetry?: boolean;
+}> {
   try {
     // ── SMS Idempotency Check ──
     // Prevent duplicate SMS to the same customer for the same automation node
@@ -698,21 +856,32 @@ async function sendSMS(
         // FIX: [A13] - Add node/step specificity to SMS dedup check to prevent multi-step SMS automations from being incorrectly skipped
         // Check crm_message_logs for an already-sent SMS for this automation+node+customer
         const { data: existingSms } = await supabase
-          .from('crm_message_logs')
-          .select('id')
-          .eq('tenant_id', message.tenant_id)
-          .eq('message_type', 'sms')
-          .eq('status', 'sent')
-          .eq('recipient', message.recipient)
-          .filter('metadata->>automation_id', 'eq', message.automation_id)
-          .filter('metadata->>customer_id', 'eq', message.customer_id)
-          .filter('metadata->>step_index', 'eq', String(message.step_index || 0))
+          .from("crm_message_logs")
+          .select("id")
+          .eq("tenant_id", message.tenant_id)
+          .eq("message_type", "sms")
+          .eq("status", "sent")
+          .eq("recipient", message.recipient)
+          .filter("metadata->>automation_id", "eq", message.automation_id)
+          .filter("metadata->>customer_id", "eq", message.customer_id)
+          .filter(
+            "metadata->>step_index",
+            "eq",
+            String(message.step_index || 0),
+          )
           .limit(1)
           .maybeSingle();
 
         if (existingSms) {
-          console.log(`⏭️ [SendSMS] Already sent SMS to ${message.recipient} for automation ${message.automation_id} node ${automationNodeId} — skipping duplicate`);
-          return { success: false, error: 'already_sent', shouldSkip: true, canRetry: false };
+          console.log(
+            `⏭️ [SendSMS] Already sent SMS to ${message.recipient} for automation ${message.automation_id} node ${automationNodeId} — skipping duplicate`,
+          );
+          return {
+            success: false,
+            error: "already_sent",
+            shouldSkip: true,
+            canRetry: false,
+          };
         }
       }
     }
@@ -746,10 +915,12 @@ async function sendSMS(
 
     // Check for any skipable response (unsupported region, not configured, etc.)
     if (data?.skipable) {
-      console.log(`📱 [SendSMS] Skipable SMS response: ${data.error || data.message}`);
+      console.log(
+        `📱 [SendSMS] Skipable SMS response: ${data.error || data.message}`,
+      );
       return {
         success: false,
-        error: data.message || data.error || 'SMS skipped',
+        error: data.message || data.error || "SMS skipped",
         shouldSkip: true,
         canRetry: false,
       };
@@ -759,7 +930,7 @@ async function sendSMS(
       return {
         success: false,
         error: data.error,
-        canRetry: typeof data?.canRetry === 'boolean' ? data.canRetry : true,
+        canRetry: typeof data?.canRetry === "boolean" ? data.canRetry : true,
       };
     }
 
@@ -769,7 +940,10 @@ async function sendSMS(
     return { success: true, external_id: twilioSid };
   } catch (err) {
     console.error(`❌ [SendSMS] Exception:`, err);
-    return { success: false, error: err instanceof Error ? err.message : "SMS send failed" };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "SMS send failed",
+    };
   }
 }
 
@@ -784,34 +958,38 @@ async function writeAutomationLog(
     sent_at?: string;
     error_message?: string;
     skip_reason?: string;
-  }
+  },
 ): Promise<void> {
   // Prefer upsert when a unique constraint exists; fall back to insert otherwise.
   const { error: upsertError } = await supabase
-    .from('crm_automation_logs')
-    .upsert(row as any, { onConflict: 'automation_id,customer_id,step_index' });
+    .from("crm_automation_logs")
+    .upsert(row as any, { onConflict: "automation_id,customer_id,step_index" });
 
   if (!upsertError) return;
 
-  const message = (upsertError as any)?.message || '';
+  const message = (upsertError as any)?.message || "";
   const code = (upsertError as any)?.code;
   const looksLikeMissingConstraint =
-    code === '42P10' || message.toLowerCase().includes('no unique') || message.toLowerCase().includes('on conflict');
+    code === "42P10" ||
+    message.toLowerCase().includes("no unique") ||
+    message.toLowerCase().includes("on conflict");
 
   if (!looksLikeMissingConstraint) {
-    console.error('⚠️ Failed to upsert crm_automation_logs:', upsertError);
+    console.error("⚠️ Failed to upsert crm_automation_logs:", upsertError);
     return;
   }
 
-  const { error: insertError } = await supabase.from('crm_automation_logs').insert(row as any);
+  const { error: insertError } = await supabase
+    .from("crm_automation_logs")
+    .insert(row as any);
   if (insertError) {
-    console.error('⚠️ Failed to insert crm_automation_logs:', insertError);
+    console.error("⚠️ Failed to insert crm_automation_logs:", insertError);
   }
 }
 
 async function advanceAutomationRun(
   supabase: ReturnType<typeof createClient>,
-  message: OutboxMessage
+  message: OutboxMessage,
 ): Promise<void> {
   if (!message.automation_run_id) return;
 
@@ -845,31 +1023,29 @@ async function advanceAutomationRun(
       const tenantId = run.tenant_id || run.automation?.tenant_id;
       if (tenantId) {
         const { data: customer } = await supabase
-          .from('crm_customers')
-          .select('first_name, last_name, email')
-          .eq('id', message.customer_id)
+          .from("crm_customers")
+          .select("first_name, last_name, email")
+          .eq("id", message.customer_id)
           .maybeSingle();
 
         await logActivityEvent(supabase, {
           tenant_id: tenantId,
           customer_id: message.customer_id,
-          actor_type: 'automation',
-          source: 'automation',
-          activity_type: 'automation.completed',
-          status: 'success',
-          title: `Automation completed: ${run.automation?.name || 'Automation'}`,
+          actor_type: "automation",
+          source: "automation",
+          activity_type: "automation.completed",
+          status: "success",
+          title: `Automation completed: ${run.automation?.name || "Automation"}`,
           description: {
-            parts: [
-              { type: 'text', text: 'Automation run completed.' },
-            ],
+            parts: [{ type: "text", text: "Automation run completed." }],
           },
           metadata: {
             automation_id: message.automation_id,
             automation_run_id: message.automation_run_id,
             customer_name:
-              `${customer?.first_name ?? ''} ${customer?.last_name ?? ''}`.trim() ||
+              `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim() ||
               customer?.email ||
-              'Customer',
+              "Customer",
             customer_first_name: customer?.first_name ?? null,
             customer_last_name: customer?.last_name ?? null,
           },
@@ -910,9 +1086,10 @@ async function advanceAutomationRun(
         if (Array.isArray(rawWorkflowSteps)) {
           let messageStepCount = 0;
           for (const rawStep of rawWorkflowSteps) {
-            if (rawStep.type === 'email' || rawStep.type === 'sms') {
+            if (rawStep.type === "email" || rawStep.type === "sms") {
               if (messageStepCount === nextStepIndex) {
-                nextStepNodeId = rawStep.node_id || rawStep.id || `step_${nextStepIndex}`;
+                nextStepNodeId =
+                  rawStep.node_id || rawStep.id || `step_${nextStepIndex}`;
                 break;
               }
               messageStepCount++;
@@ -921,51 +1098,68 @@ async function advanceAutomationRun(
         }
 
         // Enqueue next step with status='queued'
-        const { error: insertError } = await supabase.from("crm_outbox").insert({
-          tenant_id: message.tenant_id,
-          automation_id: message.automation_id,
-          automation_run_id: message.automation_run_id,
-          automation_node_id: nextStepNodeId,
-          customer_id: message.customer_id,
-          message_type: nextStep.type,
-          recipient: nextStep.type === "sms" ? customer.phone : customer.email,
-          subject: nextStep.subject || null,
-          content: nextStep.text,
-          step_index: nextStepIndex,
-          scheduled_at: nextScheduledAt,
-          status: "queued",  // Standardized: always use queued
-          template_data: {
-            automation_name: run.automation?.name,
+        const { error: insertError } = await supabase
+          .from("crm_outbox")
+          .insert({
+            tenant_id: message.tenant_id,
+            automation_id: message.automation_id,
+            automation_run_id: message.automation_run_id,
+            automation_node_id: nextStepNodeId,
+            customer_id: message.customer_id,
+            message_type: nextStep.type,
+            recipient:
+              nextStep.type === "sms" ? customer.phone : customer.email,
+            subject: nextStep.subject || null,
+            content: nextStep.text,
             step_index: nextStepIndex,
-            customer_data: customer,
-            channel_available: nextChannelStatus.available,
-            channel_skip_reason: nextChannelStatus.reason,
-          },
-        });
+            scheduled_at: nextScheduledAt,
+            status: "queued", // Standardized: always use queued
+            template_data: {
+              automation_name: run.automation?.name,
+              step_index: nextStepIndex,
+              customer_data: customer,
+              channel_available: nextChannelStatus.available,
+              channel_skip_reason: nextChannelStatus.reason,
+            },
+          });
 
         if (insertError) {
-          console.error(`❌ Failed to enqueue step ${nextStepIndex}:`, insertError);
+          console.error(
+            `❌ Failed to enqueue step ${nextStepIndex}:`,
+            insertError,
+          );
           return;
         }
-        console.log(`📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`);
+        console.log(
+          `📬 Enqueued next step ${nextStepIndex} for customer ${customer.email}`,
+        );
       }
 
       // FIX: [A11] - Cancel automation run when customer is deleted instead of leaving it stuck in 'active' state
       if (!customer) {
-        console.warn(`Customer not found for automation run ${message.automation_run_id}, cancelling run`);
+        console.warn(
+          `Customer not found for automation run ${message.automation_run_id}, cancelling run`,
+        );
         await supabase
-          .from('automation_runs')
-          .update({ status: 'cancelled', error_message: 'Customer deleted during automation', completed_at: new Date().toISOString() })
-          .eq('id', message.automation_run_id);
+          .from("automation_runs")
+          .update({
+            status: "cancelled",
+            error_message: "Customer deleted during automation",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", message.automation_run_id);
       }
     }
   } catch (err) {
-    console.error(`❌ Error advancing automation run ${message.automation_run_id}:`, err);
+    console.error(
+      `❌ Error advancing automation run ${message.automation_run_id}:`,
+      err,
+    );
   }
 }
 
 interface WorkflowStep {
-  type: 'email' | 'sms';
+  type: "email" | "sms";
   delayMin: number;
   subject?: string;
   text: string;
@@ -973,7 +1167,9 @@ interface WorkflowStep {
 
 function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
   if (Array.isArray(workflowSteps)) {
-    console.log(`🔄 Normalizing array format (${workflowSteps.length} raw steps)`);
+    console.log(
+      `🔄 Normalizing array format (${workflowSteps.length} raw steps)`,
+    );
 
     // Calculate cumulative delays from delay nodes
     let cumulativeDelayFromDelayNodes = 0;
@@ -981,47 +1177,61 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
 
     for (const step of workflowSteps) {
       // If this is a delay-type node, accumulate it for the next message step
-      if (step.type === 'delay') {
+      if (step.type === "delay") {
         cumulativeDelayFromDelayNodes += parseStepDelay(step);
-        console.log(`  ⏳ Delay node: accumulated ${cumulativeDelayFromDelayNodes} min`);
+        console.log(
+          `  ⏳ Delay node: accumulated ${cumulativeDelayFromDelayNodes} min`,
+        );
         continue;
       }
 
       // Only process email and sms steps
-      if (step.type === 'email' || step.type === 'sms') {
+      if (step.type === "email" || step.type === "sms") {
         const stepDelay = parseStepDelay(step);
         const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
 
         normalizedSteps.push({
-          type: step.type as 'email' | 'sms',
+          type: step.type as "email" | "sms",
           delayMin: totalDelay,
-          subject: step.subject || '',
-          text: step.content || step.text || ''
+          subject: step.subject || "",
+          text: step.content || step.text || "",
         });
 
-        console.log(`  📧 ${step.type} step: delay=${totalDelay}min, content=${(step.content || step.text || '').substring(0, 50)}...`);
+        console.log(
+          `  📧 ${step.type} step: delay=${totalDelay}min, content=${(step.content || step.text || "").substring(0, 50)}...`,
+        );
 
         // Reset cumulative delay after applying to a message step
         cumulativeDelayFromDelayNodes = 0;
       }
     }
 
-    console.log(`📋 Normalized ${normalizedSteps.length} message steps from ${workflowSteps.length} raw steps`);
+    console.log(
+      `📋 Normalized ${normalizedSteps.length} message steps from ${workflowSteps.length} raw steps`,
+    );
     return normalizedSteps;
   }
 
   // Handle React Flow format with nodes/edges
-  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
-    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
+  if (
+    workflowSteps &&
+    typeof workflowSteps === "object" &&
+    Array.isArray(workflowSteps.nodes)
+  ) {
+    console.log(
+      `🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`,
+    );
     return workflowSteps.nodes
-      .filter((node: any) => node.type === 'email' || node.type === 'sms')
+      .filter((node: any) => node.type === "email" || node.type === "sms")
       .map((node: any) => {
-        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
+        const delayMin = node.data?.delay
+          ? parseDelayToMinutes(node.data.delay)
+          : 0;
         return {
-          type: node.type as 'email' | 'sms',
+          type: node.type as "email" | "sms",
           delayMin,
-          subject: node.data?.subject || '',
-          text: node.data?.content || node.data?.text || ''
+          subject: node.data?.subject || "",
+          text: node.data?.content || node.data?.text || "",
         };
       });
   }
@@ -1032,7 +1242,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
 
 function parseStepDelay(step: any): number {
   // Handle direct delayMin
-  if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
+  if (typeof step.delayMin === "number" && !isNaN(step.delayMin)) {
     return step.delayMin;
   }
 
@@ -1040,11 +1250,16 @@ function parseStepDelay(step: any): number {
   if (step.delayValue !== undefined && step.delayUnit) {
     const value = parseInt(step.delayValue, 10) || 0;
     switch (step.delayUnit) {
-      case 'minutes': return value;
-      case 'hours': return value * 60;
-      case 'days': return value * 60 * 24;
-      case 'weeks': return value * 60 * 24 * 7;
-      default: return 0;
+      case "minutes":
+        return value;
+      case "hours":
+        return value * 60;
+      case "days":
+        return value * 60 * 24;
+      case "weeks":
+        return value * 60 * 24 * 7;
+      default:
+        return 0;
     }
   }
 
@@ -1057,8 +1272,8 @@ function parseStepDelay(step: any): number {
 }
 
 function parseDelayToMinutes(delay: string | number): number {
-  if (typeof delay === 'number') return delay;
-  if (!delay || delay === 'Immediate') return 0;
+  if (typeof delay === "number") return delay;
+  if (!delay || delay === "Immediate") return 0;
 
   const lower = delay.toLowerCase();
   const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
@@ -1068,11 +1283,16 @@ function parseDelayToMinutes(delay: string | number): number {
   const unit = match[2];
 
   switch (unit) {
-    case 'minute': return value;
-    case 'hour': return value * 60;
-    case 'day': return value * 60 * 24;
-    case 'week': return value * 60 * 24 * 7;
-    default: return 0;
+    case "minute":
+      return value;
+    case "hour":
+      return value * 60;
+    case "day":
+      return value * 60 * 24;
+    case "week":
+      return value * 60 * 24 * 7;
+    default:
+      return 0;
   }
 }
 

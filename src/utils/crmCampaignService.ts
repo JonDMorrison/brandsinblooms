@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
-import { convertEmailBlockToContentBlock } from "@/utils/blockFieldMapping";
 import { logDevError, logSupabaseError } from "@/utils/devErrorLogger";
 import { ContentBlock } from "@/types/emailBuilder";
 import {
@@ -55,10 +54,20 @@ export interface CampaignBlock {
   order_index: number;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function isBackgroundImageBlock(type: string) {
+  return ["header", "newsletter-header", "email-safe-hero"].includes(type);
+}
+
 export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
   try {
     const contentBlocks = (campaignData.content_blocks ?? []).flatMap(
-      (block) => {
+      (block, index) => {
         if (!block || typeof block !== "object") {
           return [] as ContentBlock[];
         }
@@ -69,8 +78,42 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
         }
 
         if (typeof candidate.block_type === "string") {
+          const content = toRecord(candidate.content);
+          const imageUrl =
+            typeof candidate.image_url === "string"
+              ? candidate.image_url
+              : null;
+          const ctaText =
+            typeof candidate.cta_text === "string"
+              ? candidate.cta_text
+              : undefined;
+          const ctaUrl =
+            typeof candidate.cta_url === "string"
+              ? candidate.cta_url
+              : undefined;
+          const type = candidate.block_type as ContentBlock["type"];
+
           return [
-            convertEmailBlockToContentBlock(candidate as unknown as EmailBlock),
+            {
+              id:
+                typeof candidate.id === "string"
+                  ? candidate.id
+                  : `legacy-block-${index}`,
+              type,
+              source:
+                candidate.source === "newsletter" ||
+                candidate.source === "ai" ||
+                candidate.source === "template" ||
+                candidate.source === "manual"
+                  ? candidate.source
+                  : "manual",
+              ...content,
+              ...(isBackgroundImageBlock(type)
+                ? { backgroundImageUrl: imageUrl }
+                : { imageUrl }),
+              ...(ctaText ? { ctaText, buttonText: ctaText } : {}),
+              ...(ctaUrl ? { ctaUrl, buttonUrl: ctaUrl } : {}),
+            } satisfies ContentBlock,
           ];
         }
 

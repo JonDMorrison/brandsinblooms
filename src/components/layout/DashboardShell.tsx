@@ -15,7 +15,6 @@ import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
-import useMediaQuery from "@mui/material/useMediaQuery";
 import { LocationBlockingBanner } from "@/components/location/LocationBlockingBanner";
 import { DashboardSidebar } from "@/components/navigation/DashboardSidebar";
 import {
@@ -40,6 +39,7 @@ import {
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpWidget } from "@/components/ui/HelpWidget";
+import useMediaQuery from "@/hooks/use-media-query";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 
 const LazyCommandPalette = lazy(() =>
@@ -137,12 +137,15 @@ export function DashboardShell({
     [contentWidth, mode, pathname],
   );
 
-  const openCommandPalette = useCallback((source: SearchOpenSource = "click") => {
-    setIsMobileSidebarOpen(false);
-    setCommandPaletteOpenSource(source);
-    setHasRequestedCommandPalette(true);
-    setIsCommandPaletteOpen(true);
-  }, []);
+  const openCommandPalette = useCallback(
+    (source: SearchOpenSource = "click") => {
+      setIsMobileSidebarOpen(false);
+      setCommandPaletteOpenSource(source);
+      setHasRequestedCommandPalette(true);
+      setIsCommandPaletteOpen(true);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (storedPreferenceRef.current !== null) {

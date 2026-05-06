@@ -104,7 +104,69 @@ export function createMockSupabaseClient(
     recorder,
     client: {
       auth: {
-        getUser: async (_token?: string) => {
+        admin: {
+          getUserById: (userId: string) => {
+            const queue = responses.get("auth:admin:getUserById") ?? [];
+            const next =
+              queue.length > 0
+                ? queue.shift()
+                : { data: { user: null }, error: null };
+            responses.set("auth:admin:getUserById", queue);
+            recorder.push({
+              table: "auth",
+              operation: "rpc",
+              payload: { method: "admin.getUserById", userId },
+              filters: [],
+            });
+            return Promise.resolve(next as QueryResponse<{ user: unknown }>);
+          },
+          getUserByEmail: (email: string) => {
+            const queue = responses.get("auth:admin:getUserByEmail") ?? [];
+            const next =
+              queue.length > 0
+                ? queue.shift()
+                : { data: { user: null }, error: null };
+            responses.set("auth:admin:getUserByEmail", queue);
+            recorder.push({
+              table: "auth",
+              operation: "rpc",
+              payload: { method: "admin.getUserByEmail", email },
+              filters: [],
+            });
+            return Promise.resolve(next as QueryResponse<{ user: unknown }>);
+          },
+          listUsers: (params?: { page?: number; perPage?: number }) => {
+            const queue = responses.get("auth:admin:listUsers") ?? [];
+            const next =
+              queue.length > 0
+                ? queue.shift()
+                : { data: { users: [] }, error: null };
+            responses.set("auth:admin:listUsers", queue);
+            recorder.push({
+              table: "auth",
+              operation: "rpc",
+              payload: { method: "admin.listUsers", params },
+              filters: [],
+            });
+            return Promise.resolve(next as QueryResponse<{ users: unknown[] }>);
+          },
+          createUser: (attributes: unknown) => {
+            const queue = responses.get("auth:admin:createUser") ?? [];
+            const next =
+              queue.length > 0
+                ? queue.shift()
+                : { data: { user: null }, error: null };
+            responses.set("auth:admin:createUser", queue);
+            recorder.push({
+              table: "auth",
+              operation: "rpc",
+              payload: { method: "admin.createUser", attributes },
+              filters: [],
+            });
+            return Promise.resolve(next as QueryResponse<{ user: unknown }>);
+          },
+        },
+        getUser: (_token?: string) => {
           const queue = responses.get("auth:getUser") ?? [];
           const next =
             queue.length > 0
@@ -117,7 +179,7 @@ export function createMockSupabaseClient(
             payload: { method: "getUser" },
             filters: [],
           });
-          return next as QueryResponse<{ user: unknown }>;
+          return Promise.resolve(next as QueryResponse<{ user: unknown }>);
         },
       },
       from(table: string) {
@@ -155,7 +217,7 @@ export function createMockSupabaseClient(
         return Promise.resolve(next as QueryResponse<unknown>);
       },
       functions: {
-        invoke: async (name: string, payload?: unknown) => {
+        invoke: (name: string, payload?: unknown) => {
           recorder.push({
             table: `functions:${name}`,
             operation: "rpc",
@@ -166,7 +228,7 @@ export function createMockSupabaseClient(
           const next =
             queue.length > 0 ? queue.shift() : { data: null, error: null };
           responses.set(`functions:${name}`, queue);
-          return next as QueryResponse<unknown>;
+          return Promise.resolve(next as QueryResponse<unknown>);
         },
       },
     },

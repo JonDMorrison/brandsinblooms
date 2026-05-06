@@ -26,13 +26,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui-legacy/tabs";
-import { Search, Send, Filter } from "lucide-react";
+import { Search, Send, Filter, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useTenant } from "@/hooks/useTenant";
 import { usePublishActions } from "@/hooks/usePublishActions";
 import { validatePostForPlatform } from "@/utils/validatePost";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import PostCard from "@/components/publish/PostCard";
@@ -48,11 +49,31 @@ import type {
   ScheduleInput,
   PublishSourceBundle,
 } from "@/types/publish";
+import { findPostTemplate } from "@/lib/social/postTemplates";
+import { isWithinRecencyWindow } from "@/lib/social/publishItemRecency";
 
 type BundleFilterState = {
   bundleId: string;
   approvedChannels: Platform[];
   previewTitle?: string | null;
+};
+
+type ContentTaskRow = Database["public"]["Tables"]["content_tasks"]["Row"];
+type ContentTaskInsert =
+  Database["public"]["Tables"]["content_tasks"]["Insert"];
+type ContentTaskUpdate =
+  Database["public"]["Tables"]["content_tasks"]["Update"];
+type JsonRecord = { [key: string]: Json | undefined };
+type ExistingBundleTask = Pick<
+  ContentTaskRow,
+  "id" | "post_type" | "status" | "image_metadata"
+>;
+
+type BundleContentItem = Record<string, unknown> & {
+  media?: {
+    url?: unknown;
+    alt?: unknown;
+  } | null;
 };
 
 type BundleSnapshotRow = {
@@ -62,7 +83,7 @@ type BundleSnapshotRow = {
     sourceLabel?: string;
     previewTitle?: string;
     recommendedImages?: Array<{ url?: string; alt?: string }>;
-    items?: Array<Record<string, any>>;
+    items?: BundleContentItem[];
   } | null;
 };
 
@@ -71,11 +92,46 @@ type BundlePublishDraft = {
   caption: string;
   imageUrl: string | null;
   imageAlt: string | null;
-  attachments: Record<string, any> | null;
+  attachments: JsonRecord | null;
   hashtags: string | null;
 };
 
 const FINALIZED_TASK_STATUSES = new Set(["scheduled", "published"]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function optionalString(value: unknown) {
+  const text = stringValue(value);
+  return text || null;
+}
+
+function getRecordString(record: unknown, key: string) {
+  return isRecord(record) ? optionalString(record[key]) : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function toJsonRecord(value: unknown): JsonRecord | null {
+  return isRecord(value) ? (value as JsonRecord) : null;
+}
+
+function getAttachmentImageUrl(attachments: Json | null) {
+  const attachmentRecord = toJsonRecord(attachments);
+  const image = attachmentRecord?.image;
+  return getRecordString(image, "url");
+}
+
+function getTaskExtraString(task: unknown, key: string) {
+  return getRecordString(task, key);
+}
 
 function normalizePlatform(value: string | null | undefined): Platform | null {
   if (value === "facebook" || value === "instagram") {
@@ -98,14 +154,14 @@ function parseApprovedChannelsParam(value: string | null): Platform[] {
   return Array.from(new Set(platforms));
 }
 
-function extractBundleContent(item: Record<string, any>) {
+function extractBundleContent(item: BundleContentItem) {
   const candidates = [
-    item.body,
-    item.markdown,
-    item.script,
-    item.caption,
-    item.text,
-    item.content,
+    stringValue(item.body),
+    stringValue(item.markdown),
+    stringValue(item.script),
+    stringValue(item.caption),
+    stringValue(item.text),
+    stringValue(item.content),
   ].filter(Boolean);
 
   return (
@@ -120,14 +176,13 @@ function parseSourceBundle(value: unknown): PublishSourceBundle | null {
     return null;
   }
 
-  const sourceBundle = (value as Record<string, any>).sourceBundle;
-  if (!sourceBundle || typeof sourceBundle !== "object") {
+  const sourceBundle = value.sourceBundle;
+  if (!isRecord(sourceBundle)) {
     return null;
   }
 
-  const bundleId =
-    typeof sourceBundle.bundleId === "string" ? sourceBundle.bundleId : null;
-  const channel = normalizePlatform(sourceBundle.channel);
+  const bundleId = optionalString(sourceBundle.bundleId);
+  const channel = normalizePlatform(optionalString(sourceBundle.channel));
 
   if (!bundleId || !channel) {
     return null;
@@ -137,17 +192,12 @@ function parseSourceBundle(value: unknown): PublishSourceBundle | null {
     bundleId,
     channel,
     snapshotId:
-      typeof sourceBundle.snapshotId === "string"
-        ? sourceBundle.snapshotId
-        : null,
+      optionalString(sourceBundle.snapshotId),
     snapshotVersion:
       typeof sourceBundle.snapshotVersion === "number"
         ? sourceBundle.snapshotVersion
         : null,
-    previewTitle:
-      typeof sourceBundle.previewTitle === "string"
-        ? sourceBundle.previewTitle
-        : null,
+    previewTitle: optionalString(sourceBundle.previewTitle),
   };
 }
 
@@ -155,17 +205,18 @@ function buildBundleImageMetadata(
   existingMetadata: unknown,
   sourceBundle: PublishSourceBundle,
 ) {
-  const baseMetadata =
-    existingMetadata &&
-    typeof existingMetadata === "object" &&
-    !Array.isArray(existingMetadata)
-      ? (existingMetadata as Record<string, unknown>)
-      : {};
+  const baseMetadata = toJsonRecord(existingMetadata) ?? {};
 
   return {
     ...baseMetadata,
-    sourceBundle,
-  };
+    sourceBundle: {
+      bundleId: sourceBundle.bundleId,
+      channel: sourceBundle.channel,
+      snapshotId: sourceBundle.snapshotId ?? null,
+      snapshotVersion: sourceBundle.snapshotVersion ?? null,
+      previewTitle: sourceBundle.previewTitle ?? null,
+    },
+  } satisfies JsonRecord;
 }
 
 function extractApprovedBundleDrafts(
@@ -262,6 +313,12 @@ const PublishPage = () => {
   const [drawerMode, setDrawerMode] = useState<ComposerMode>("edit");
   const [selectedItem, setSelectedItem] = useState<PublishItem | null>(null);
 
+  // Track task IDs that were just inserted by a template or blank-compose
+  // prefill but haven't been touched by the user. If the user clicks Cancel
+  // without editing, we soft-delete the row to prevent orphan drafts piling
+  // up in the Ready queue (the original Maple Park bug pattern).
+  const freshPrefillTaskIdsRef = useRef<Set<string>>(new Set());
+
   // Convert dashboard data to PublishItem format (ready to post)
   const publishItems: PublishItem[] = useMemo(() => {
     const tasks = dashboardData?.tasks || [];
@@ -291,13 +348,14 @@ const PublishPage = () => {
           accountId: connection?.platform_account_id || null,
           accountName: connection?.platform_account_name || null,
           caption: task.ai_output?.trim() || null,
-          firstComment: (task as any).first_comment || null,
+          firstComment: getTaskExtraString(task, "first_comment"),
           mediaUrl:
-            task.image_url || (task.attachments as any)?.image?.url || null,
+            task.image_url || getAttachmentImageUrl(task.attachments) || null,
           scheduledFor: scheduledPost?.publish_at || null,
           status: task.status.toLowerCase() as PublishItem["status"],
+          createdAt: task.created_at ?? null,
           attachments: task.attachments,
-          sourceBundle: parseSourceBundle((task as any).image_metadata),
+          sourceBundle: parseSourceBundle(task.image_metadata),
         };
       });
   }, [dashboardData]);
@@ -329,14 +387,15 @@ const PublishPage = () => {
             accountId: connection?.platform_account_id || null,
             accountName: connection?.platform_account_name || null,
             caption: task.ai_output?.trim() || null,
-            firstComment: (task as any).first_comment || null,
+            firstComment: getTaskExtraString(task, "first_comment"),
             mediaUrl:
-              task.image_url || (task.attachments as any)?.image?.url || null,
+              task.image_url || getAttachmentImageUrl(task.attachments) || null,
             scheduledFor: null,
             status: "published" as const,
+            createdAt: task.created_at ?? null,
             attachments: task.attachments,
             publishedAt: scheduledPost?.publish_at || task.created_at,
-            sourceBundle: parseSourceBundle((task as any).image_metadata),
+            sourceBundle: parseSourceBundle(task.image_metadata),
           };
         })
         .sort(
@@ -397,8 +456,16 @@ const PublishPage = () => {
       }));
   }, [dashboardData]);
 
+  // Older-than-30-days items are hidden by default and surfaced behind a
+  // toggle. content_tasks accumulate without lifecycle (Maple Park had a
+  // queue of 6-month-stale Halloween content visible by default), so we
+  // filter the visual default to "last 30 days" without throwing away the
+  // older items entirely. Boundary logic lives in
+  // src/lib/social/publishItemRecency.ts and is unit-tested there.
+  const [showOlderReady, setShowOlderReady] = useState(false);
+
   // Filter ready items by search term
-  const filteredReadyItems = useMemo(() => {
+  const searchFilteredReadyItems = useMemo(() => {
     if (!searchTerm) return bundleScopedReadyItems;
     const term = searchTerm.toLowerCase();
     return bundleScopedReadyItems.filter(
@@ -408,6 +475,27 @@ const PublishPage = () => {
         item.accountName?.toLowerCase().includes(term),
     );
   }, [bundleScopedReadyItems, searchTerm]);
+
+  // Split into recent (≤30d) vs older (>30d). Default view shows only recent;
+  // user can expand "Older" to see the rest.
+  const recentReadyItems = useMemo(
+    () =>
+      searchFilteredReadyItems.filter((item) =>
+        isWithinRecencyWindow(item.createdAt),
+      ),
+    [searchFilteredReadyItems],
+  );
+  const olderReadyItems = useMemo(
+    () =>
+      searchFilteredReadyItems.filter(
+        (item) => !isWithinRecencyWindow(item.createdAt),
+      ),
+    [searchFilteredReadyItems],
+  );
+
+  const filteredReadyItems = showOlderReady
+    ? searchFilteredReadyItems
+    : recentReadyItems;
 
   // Filter published items by search term
   const filteredPublishedItems = useMemo(() => {
@@ -505,7 +593,7 @@ const PublishPage = () => {
     (async () => {
       try {
         const { data, error } = await supabase
-          .from("draft_snapshots" as any)
+          .from("draft_snapshots")
           .select("id, version, content")
           .eq("doc_type", "content_bundle")
           .eq("doc_id", requestedBundleId)
@@ -517,7 +605,13 @@ const PublishPage = () => {
           return;
         }
 
-        const bundleData = data as BundleSnapshotRow | null;
+        const bundleData = data
+          ? ({
+              id: data.id,
+              version: data.version,
+              content: data.content as BundleSnapshotRow["content"],
+            } satisfies BundleSnapshotRow)
+          : null;
 
         if (error || !bundleData?.content) {
           cleanUrl();
@@ -573,11 +667,14 @@ const PublishPage = () => {
           throw existingTasksError;
         }
 
-        const existingOpenTasksByChannel = new Map<Platform, any>();
+        const existingOpenTasksByChannel = new Map<
+          Platform,
+          ExistingBundleTask
+        >();
         for (const task of existingTasks || []) {
-          const sourceBundle = parseSourceBundle((task as any).image_metadata);
-          const platform = normalizePlatform((task as any).post_type);
-          const status = String((task as any).status || "").toLowerCase();
+          const sourceBundle = parseSourceBundle(task.image_metadata);
+          const platform = normalizePlatform(task.post_type);
+          const status = task.status.toLowerCase();
 
           if (
             !sourceBundle ||
@@ -603,7 +700,7 @@ const PublishPage = () => {
             snapshotVersion: bundleData.version,
             previewTitle,
           };
-          const taskPayload: Record<string, any> = {
+          const taskPayload: ContentTaskInsert = {
             user_id: user.id,
             tenant_id: tenant.id,
             post_type: draft.channel,
@@ -653,13 +750,10 @@ const PublishPage = () => {
 
         const staleTaskIds = (existingTasks || [])
           .filter((task) => {
-            const sourceBundle = parseSourceBundle(
-              (task as any).image_metadata,
-            );
+            const sourceBundle = parseSourceBundle(task.image_metadata);
             const channel =
-              sourceBundle?.channel ||
-              normalizePlatform((task as any).post_type);
-            const status = String((task as any).status || "").toLowerCase();
+              sourceBundle?.channel || normalizePlatform(task.post_type);
+            const status = task.status.toLowerCase();
 
             return (
               sourceBundle?.bundleId === requestedBundleId &&
@@ -726,6 +820,192 @@ const PublishPage = () => {
     }
   }, [user, isLoading]);
 
+  // Template-prefill: when the URL has ?template=<id>, look up the template
+  // (defined in src/lib/social/postTemplates.ts), insert a new content_tasks
+  // row with the template content, and auto-open the composer drawer pointed
+  // at it. Marks "done" in localStorage so a refresh doesn't double-insert,
+  // and strips ?template= from the URL after processing.
+  const [templatePrefillDone, setTemplatePrefillDone] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const templateId = params.get("template");
+    if (
+      !templateId ||
+      templatePrefillDone ||
+      !user ||
+      !tenant ||
+      tenantLoading
+    ) {
+      return;
+    }
+
+    const template = findPostTemplate(templateId);
+    if (!template) {
+      // Unknown template id — clean the URL and do nothing.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("template");
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+      setTemplatePrefillDone(true);
+      return;
+    }
+
+    const prefillKey = `publish-prefill:template:${templateId}:${tenant.id}`;
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("template");
+      const qs = url.searchParams.toString();
+      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+    };
+
+    if (localStorage.getItem(prefillKey) === "done") {
+      cleanUrl();
+      setTemplatePrefillDone(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        const insertPayload: ContentTaskInsert = {
+          user_id: user.id,
+          tenant_id: tenant.id,
+          // Default to instagram (most common single-image social platform);
+          // user can switch via the composer drawer's account picker.
+          post_type: "instagram",
+          ai_output: template.content,
+          status: "review",
+        };
+
+        const { data: inserted, error: insertError } = await supabase
+          .from("content_tasks")
+          .insert(insertPayload)
+          .select("*")
+          .single();
+
+        if (insertError || !inserted) {
+          console.error(
+            "Template prefill: content_tasks insert failed",
+            insertError,
+          );
+          cleanUrl();
+          setTemplatePrefillDone(true);
+          return;
+        }
+
+        localStorage.setItem(prefillKey, "done");
+        cleanUrl();
+        setTemplatePrefillDone(true);
+
+        // Refresh the dashboard data so the new task appears in the list.
+        queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await refetch?.();
+
+        // Auto-open the drawer on the freshly inserted task. Mark it as a
+        // fresh prefill so onCancelUntouched can soft-delete if the user
+        // backs out without editing.
+        const newItem: PublishItem = {
+          taskId: inserted.id,
+          tenantId: tenant.id,
+          platform: "instagram",
+          accountId: null,
+          accountName: null,
+          caption: template.content,
+          firstComment: null,
+          mediaUrl: null,
+          scheduledFor: null,
+          status: "review",
+          attachments: null,
+        };
+        freshPrefillTaskIdsRef.current.add(newItem.taskId);
+        setSelectedItem(newItem);
+        setDrawerMode("edit");
+        setDrawerOpen(true);
+      } catch (e) {
+        console.error("Template prefill error:", e);
+        cleanUrl();
+        setTemplatePrefillDone(true);
+      }
+    })();
+  }, [
+    templatePrefillDone,
+    user,
+    tenant,
+    tenantLoading,
+    queryClient,
+    refetch,
+  ]);
+
+  // Blank-composer entry: inserts an empty content_tasks row and opens the
+  // composer drawer pointed at it. Called from (a) the ?compose=blank URL
+  // handler below, when the user clicks "Start blank" on the dashboard
+  // PostComposerModal, and (b) the "New Post" button on this page so direct
+  // visitors to /publish have a discoverable entry point. The orphan-on-Cancel
+  // case is handled separately by the freshPrefillTaskIdRef logic.
+  const openBlankComposer = useCallback(async () => {
+    if (!user || !tenant) return;
+    try {
+      const insertPayload: ContentTaskInsert = {
+        user_id: user.id,
+        tenant_id: tenant.id,
+        post_type: "instagram",
+        ai_output: "",
+        status: "review",
+      };
+      const { data: inserted, error: insertError } = await supabase
+        .from("content_tasks")
+        .insert(insertPayload)
+        .select("*")
+        .single();
+      if (insertError || !inserted) {
+        console.error("Blank composer: insert failed", insertError);
+        toast({
+          title: "Couldn't start a new post",
+          description: "Try again in a moment.",
+          variant: "destructive",
+        });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+      await refetch?.();
+      const newItem: PublishItem = {
+        taskId: inserted.id,
+        tenantId: tenant.id,
+        platform: "instagram",
+        accountId: null,
+        accountName: null,
+        caption: "",
+        firstComment: null,
+        mediaUrl: null,
+        scheduledFor: null,
+        status: "review",
+        attachments: null,
+      };
+      // Track for cancel-without-edit cleanup (parallel to template flow).
+      freshPrefillTaskIdsRef.current.add(newItem.taskId);
+      setSelectedItem(newItem);
+      setDrawerMode("edit");
+      setDrawerOpen(true);
+    } catch (e) {
+      console.error("Blank composer error:", e);
+    }
+  }, [user, tenant, queryClient, refetch, toast]);
+
+  // ?compose=blank URL handler — opens an empty composer when the user clicks
+  // "Start blank" on PostComposerModal. Strips the param after consuming so a
+  // refresh doesn't reopen the dialog.
+  const [blankComposeDone, setBlankComposeDone] = useState(false);
+  useEffect(() => {
+    if (blankComposeDone || !user || !tenant || tenantLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("compose") !== "blank") return;
+    setBlankComposeDone(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("compose");
+    const qs = url.searchParams.toString();
+    window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+    void openBlankComposer();
+  }, [blankComposeDone, user, tenant, tenantLoading, openBlankComposer]);
+
   // Drawer handlers
   const handleOpenDrawer = (item: PublishItem, mode: ComposerMode) => {
     setSelectedItem(item);
@@ -738,6 +1018,29 @@ const PublishPage = () => {
     setSelectedItem(null);
   };
 
+  // Soft-delete the row if the user opened a fresh template/blank prefill,
+  // didn't edit anything, and clicked Cancel. This complements the strict
+  // unique index added in Fix C: instead of leaving cancelled drafts in the
+  // queue (the Maple Park pattern), they vanish from view immediately. Still
+  // recoverable server-side via deleted_at = <timestamp>.
+  const handleCancelUntouched = useCallback(
+    async (taskId: string) => {
+      if (!freshPrefillTaskIdsRef.current.has(taskId)) return;
+      freshPrefillTaskIdsRef.current.delete(taskId);
+      try {
+        await supabase
+          .from("content_tasks")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", taskId);
+        queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await refetch?.();
+      } catch (e) {
+        console.error("Cancel-untouched soft-delete failed:", e);
+      }
+    },
+    [queryClient, refetch],
+  );
+
   // Save draft handler
   const handleSaveDraft = useCallback(
     async (
@@ -747,12 +1050,15 @@ const PublishPage = () => {
         mediaUrl?: string | null;
         firstComment?: string | null;
         accountId?: string | null;
+        platform?: "facebook" | "instagram";
       },
     ) => {
-      const updateData: any = {};
+      const updateData: ContentTaskUpdate = {};
       if (partial.caption !== undefined) updateData.ai_output = partial.caption;
       if (partial.mediaUrl !== undefined)
         updateData.image_url = partial.mediaUrl;
+      if (partial.platform !== undefined)
+        updateData.post_type = partial.platform;
       // Note: firstComment is Instagram-specific and not stored in content_tasks
       // Note: accountId is not stored in content_tasks - it's passed to publish functions
 
@@ -775,13 +1081,20 @@ const PublishPage = () => {
 
       if (error) throw error;
 
+      // Once a fresh prefill has been edited and saved, it's no longer a
+      // candidate for cancel-without-edit cleanup.
+      freshPrefillTaskIdsRef.current.delete(taskId);
+
       // Update local state optimistically
       const updated: PublishItem = {
         ...(selectedItem as PublishItem),
         caption: data.ai_output || null,
         mediaUrl: data.image_url || null,
-        firstComment: (data as any).first_comment || null,
-        accountId: (data as any).account_id || null,
+        firstComment: getTaskExtraString(data, "first_comment"),
+        accountId: getTaskExtraString(data, "account_id"),
+        platform: (data.post_type ?? selectedItem?.platform ?? "instagram") as
+          | "facebook"
+          | "instagram",
       };
       setSelectedItem(updated);
 
@@ -825,37 +1138,95 @@ const PublishPage = () => {
     [schedule, refetch, queryClient],
   );
 
-  // Delete handler
-  const handleDelete = useCallback(
+  // Archive (soft-delete) handler with 5-second undo.
+  //
+  // Sets content_tasks.deleted_at = now() so the row stops appearing in
+  // useDashboardData's query (which filters deleted_at IS NULL). The user
+  // gets a toast with an Undo action that clears deleted_at if clicked
+  // within 5 seconds. After the toast dismisses, the soft-delete is
+  // effectively permanent for the UI but the row is still recoverable
+  // server-side.
+  //
+  // Optimistic UX: we issue the DB update immediately, then surface the
+  // undo. If the DB update fails we surface an error toast and refetch to
+  // restore the original state.
+  const archivedItemsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+  const handleArchive = useCallback(
     async (item: PublishItem) => {
-      if (
-        !confirm(
-          "Are you sure you want to delete this content? This action cannot be undone.",
-        )
-      ) {
-        return;
-      }
+      const taskId = item.taskId;
+      const archivedAt = new Date().toISOString();
 
       try {
         const { error } = await supabase
           .from("content_tasks")
-          .delete()
-          .eq("id", item.taskId);
+          .update({ deleted_at: archivedAt })
+          .eq("id", taskId);
 
         if (error) throw error;
 
+        // Refresh data to remove the archived item from the list
+        await refetch?.();
+
         toast({
-          title: "Content deleted",
-          description: "The content has been successfully deleted.",
+          title: "Item archived",
+          description: "Click Undo to restore.",
+          action: (
+            <button
+              type="button"
+              onClick={async () => {
+                const pending = archivedItemsRef.current.get(taskId);
+                if (pending) {
+                  clearTimeout(pending);
+                  archivedItemsRef.current.delete(taskId);
+                }
+
+                try {
+                  const { error: undoError } = await supabase
+                    .from("content_tasks")
+                    .update({ deleted_at: null })
+                    .eq("id", taskId);
+
+                  if (undoError) throw undoError;
+
+                  await refetch?.();
+                  toast({
+                    title: "Item restored",
+                  });
+                } catch (undoError) {
+                  console.error("Archive undo error:", undoError);
+                  toast({
+                    title: "Couldn't restore item",
+                    description:
+                      getErrorMessage(
+                        undoError,
+                        "Please refresh and try again.",
+                      ),
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="text-sm font-semibold underline-offset-2 hover:underline"
+            >
+              Undo
+            </button>
+          ),
+          duration: 5000,
         });
 
-        // Refresh data to remove the deleted item
-        refetch?.();
-      } catch (error: any) {
-        console.error("Delete error:", error);
+        // Track the timeout so a second click on Undo can cancel it. The
+        // archive itself is already persisted; this timer just clears the
+        // tracking map entry once the undo window closes.
+        const timeout = setTimeout(() => {
+          archivedItemsRef.current.delete(taskId);
+        }, 5000);
+        archivedItemsRef.current.set(taskId, timeout);
+      } catch (error) {
+        console.error("Archive error:", error);
         toast({
           title: "Error",
-          description: error.message || "Failed to delete content",
+          description: getErrorMessage(error, "Failed to archive content"),
           variant: "destructive",
         });
       }
@@ -889,8 +1260,8 @@ const PublishPage = () => {
         </div>
 
         {/* Search Bar */}
-        <div className="flex gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-wrap gap-3 sm:gap-4">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               placeholder="Search posts by caption, platform, or account..."
@@ -905,6 +1276,10 @@ const PublishPage = () => {
             aria-label="Filter publish items"
           >
             <Filter className="w-4 h-4" />
+          </Button>
+          <Button onClick={() => void openBlankComposer()}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            New Post
           </Button>
         </div>
       </div>
@@ -952,44 +1327,76 @@ const PublishPage = () => {
           {/* Ready to Post Content List */}
           <div className="space-y-4">
             {filteredReadyItems.length === 0 ? (
+              // Three distinct empty states:
+              //   1. searchTerm active → "No matching content"
+              //   2. all items are >30 days old → "No recent content" + the
+              //      olderReadyItems toggle (rendered outside this branch
+              //      below). This is Maple Park's case — without the toggle
+              //      surfacing, their 12 stale rows were unreachable.
+              //   3. tenant truly has no content → first-touch empty state
               <Card className="col-span-full">
                 <CardContent className="text-center py-12">
                   <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <CardTitle className="mb-2">
-                    {publishItems.length === 0
-                      ? "No content ready to publish"
-                      : "No matching content"}
+                    {searchTerm
+                      ? "No matching content"
+                      : olderReadyItems.length > 0
+                        ? "No recent content"
+                        : "No content ready to publish"}
                   </CardTitle>
                   <CardDescription>
-                    {publishItems.length === 0
-                      ? "Approved content from the Create Flow will appear here ready for publishing."
-                      : "Try adjusting your search terms to find content."}
+                    {searchTerm
+                      ? "Try adjusting your search terms to find content."
+                      : olderReadyItems.length > 0
+                        ? `All your content is more than 30 days old. Show older items below to review or archive.`
+                        : "Approved content from the Create Flow will appear here ready for publishing."}
                   </CardDescription>
                 </CardContent>
               </Card>
             ) : (
-              filteredReadyItems.map((item) => (
-                <div
-                  key={`ready-${item.taskId}-${filteredReadyItems.length}`}
-                  ref={(element) => {
-                    cardRefs.current[item.taskId] = element;
-                  }}
-                  className={cn(
-                    "transition-all duration-300 rounded-[28px]",
-                    activeHighlightTaskId === item.taskId &&
-                      "ring-2 ring-primary ring-offset-2 shadow-lg",
-                  )}
-                >
-                  <PostCard
-                    item={item}
-                    onEdit={(item) => handleOpenDrawer(item, "edit")}
-                    onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                    onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                    onDelete={handleDelete}
-                  />
-                </div>
-              ))
+              <>
+                {filteredReadyItems.map((item) => (
+                  <div
+                    key={`ready-${item.taskId}-${filteredReadyItems.length}`}
+                    ref={(element) => {
+                      cardRefs.current[item.taskId] = element;
+                    }}
+                    className={cn(
+                      "transition-all duration-300 rounded-[28px]",
+                      activeHighlightTaskId === item.taskId &&
+                        "ring-2 ring-primary ring-offset-2 shadow-lg",
+                    )}
+                  >
+                    <PostCard
+                      item={item}
+                      onEdit={(item) => handleOpenDrawer(item, "edit")}
+                      onPublishNow={(item) => handleOpenDrawer(item, "edit")}
+                      onSchedule={(item) => handleOpenDrawer(item, "schedule")}
+                      onDelete={handleArchive}
+                    />
+                  </div>
+                ))}
+              </>
             )}
+            {/* Older-items toggle is rendered OUTSIDE the empty/non-empty
+                ternary so it stays accessible even when recentReadyItems is
+                empty (the Maple Park case). Hidden when there are zero older
+                items or a search term is active (search applies to all items
+                already). */}
+            {olderReadyItems.length > 0 && !searchTerm ? (
+              <div className="pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOlderReady((current) => !current)}
+                >
+                  {showOlderReady
+                    ? `Hide older items (${olderReadyItems.length})`
+                    : `Show older items (${olderReadyItems.length})`}
+                </Button>
+              </div>
+            ) : null}
           </div>
         </TabsContent>
 
@@ -1031,7 +1438,7 @@ const PublishPage = () => {
                     onEdit={(item) => handleOpenDrawer(item, "edit")}
                     onPublishNow={(item) => handleOpenDrawer(item, "edit")}
                     onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                    onDelete={handleDelete}
+                    onDelete={handleArchive}
                   />
                 </div>
               ))
@@ -1051,6 +1458,7 @@ const PublishPage = () => {
         onSaveDraft={handleSaveDraft}
         onPublishNow={handlePublishNow}
         onSchedule={handleSchedule}
+        onCancelUntouched={handleCancelUntouched}
       />
     </div>
   );

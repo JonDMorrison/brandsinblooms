@@ -1,8 +1,78 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { memoryCache, apiDeduplicator } from "@/utils/performanceOptimizations";
+
+type ContentTaskRow = Database["public"]["Tables"]["content_tasks"]["Row"];
+type ScheduledPostRow =
+  Database["public"]["Tables"]["scheduled_posts"]["Row"];
+type SocialConnectionRow =
+  Database["public"]["Tables"]["social_connections"]["Row"];
+
+type DashboardCampaign = {
+  id: string;
+  title: string | null;
+  start_date: string | null;
+  week_number: number | null;
+  user_id: string | null;
+  tenant_id: string | null;
+  created_by_user_id: string | null;
+};
+
+type TaskCampaignSummary = {
+  title: string | null;
+  user_id: string | null;
+  tenant_id: string | null;
+} | null;
+
+export type DashboardContentTask = Pick<
+  ContentTaskRow,
+  | "id"
+  | "status"
+  | "ai_output"
+  | "post_type"
+  | "scheduled_date"
+  | "created_at"
+  | "attachments"
+  | "image_metadata"
+  | "image_url"
+  | "campaign_id"
+  | "tenant_id"
+> & {
+  campaigns: TaskCampaignSummary;
+};
+
+export type DashboardScheduledTask = DashboardContentTask & {
+  scheduledMeta: {
+    platform: ScheduledPostRow["platform"];
+    publish_at: ScheduledPostRow["publish_at"];
+    status: ScheduledPostRow["status"];
+    mode: ScheduledPostRow["mode"];
+  } | null;
+};
+
+export type DashboardSocialConnection = Pick<
+  SocialConnectionRow,
+  | "id"
+  | "platform"
+  | "platform_account_id"
+  | "platform_account_name"
+  | "username"
+  | "is_active"
+>;
+
+export type DashboardData = {
+  currentCampaign: DashboardCampaign | null;
+  tasks: DashboardContentTask[];
+  drafts: DashboardContentTask[];
+  scheduledTasks: DashboardContentTask[];
+  publishedTasks: DashboardContentTask[];
+  scheduledByDate: Record<string, DashboardScheduledTask[]>;
+  scheduledPosts: ScheduledPostRow[];
+  socialConnections: DashboardSocialConnection[];
+};
 
 export const useDashboardData = () => {
   const { user } = useAuth();
@@ -16,7 +86,7 @@ export const useDashboardData = () => {
       const cacheKey = `dashboard-${user.id}-${tenant?.id || "no-tenant"}`;
 
       // Check cache first
-      const cached = memoryCache.get(cacheKey);
+      const cached = memoryCache.get(cacheKey) as DashboardData | null;
       if (cached) {
         return cached;
       }
@@ -71,6 +141,7 @@ export const useDashboardData = () => {
             "scheduled",
             "published",
           ])
+          .is("deleted_at", null)
           .order("created_at", { ascending: false });
 
         // Always filter by user ownership - never show other users' content
@@ -109,12 +180,15 @@ export const useDashboardData = () => {
         // Fetch social connections
         const { data: connections } = await supabase
           .from("social_connections")
-          .select("id, platform, platform_account_name, is_active")
+          .select(
+            "id, platform, platform_account_id, platform_account_name, username, is_active",
+          )
           .eq("user_id", user.id)
           .eq("is_active", true);
 
         // Separate tasks by status
-        const allTasks = tasks || [];
+        const allTasks = (tasks || []) as DashboardContentTask[];
+        const allScheduledPosts = scheduledPosts || [];
         const drafts = allTasks.filter((task) =>
           ["draft", "generated", "approved", "review"].includes(task.status),
         );
@@ -135,7 +209,7 @@ export const useDashboardData = () => {
               if (!acc[dateKey]) acc[dateKey] = [];
 
               // Find matching scheduled post for additional metadata including mode
-              const scheduledPost = scheduledPosts?.find(
+              const scheduledPost = allScheduledPosts.find(
                 (sp) => sp.task_id === task.id,
               );
 
@@ -153,18 +227,18 @@ export const useDashboardData = () => {
             }
             return acc;
           },
-          {} as Record<string, any[]>,
+          {} as Record<string, DashboardScheduledTask[]>,
         );
 
-        const result = {
+        const result: DashboardData = {
           currentCampaign,
           tasks: allTasks,
           drafts,
           scheduledTasks,
           publishedTasks,
           scheduledByDate,
-          scheduledPosts: scheduledPosts || [],
-          socialConnections: connections || [],
+          scheduledPosts: allScheduledPosts,
+          socialConnections: (connections || []) as DashboardSocialConnection[],
         };
 
         // Cache the result for 2 minutes

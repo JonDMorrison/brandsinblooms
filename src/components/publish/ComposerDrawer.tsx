@@ -59,7 +59,7 @@ export type ComposerDrawerProps = {
   // Callbacks provided by parent (PublishPage)
   onClose: () => void;
 
-  // Persist edits to the source task (caption, mediaUrl, firstComment).
+  // Persist edits to the source task (caption, mediaUrl, firstComment, platform).
   // Return the updated item for optimistic UI.
   onSaveDraft: (
     taskId: string,
@@ -68,8 +68,15 @@ export type ComposerDrawerProps = {
       mediaUrl?: string | null;
       firstComment?: string | null;
       accountId?: string | null;
+      platform?: "facebook" | "instagram";
     },
   ) => Promise<PublishItem>;
+
+  // Optional: called when the user clicks Cancel on a draft they never
+  // modified. PublishPage uses this to soft-delete fresh template/blank
+  // prefills (which insert a content_tasks row up front) so cancelled
+  // drafts don't pile up in the Ready queue.
+  onCancelUntouched?: (taskId: string) => void;
 
   // Final actions: call the hook that invokes 'publish-task'
   onPublishNow: (taskId: string, input: PublishNowInput) => Promise<void>;
@@ -91,6 +98,7 @@ export default function ComposerDrawer({
   onSaveDraft,
   onPublishNow,
   onSchedule,
+  onCancelUntouched,
   validate = validatePostForPlatform,
 }: ComposerDrawerProps) {
   const { toast } = useToast();
@@ -102,6 +110,9 @@ export default function ComposerDrawer({
   const [localMediaUrl, setLocalMediaUrl] = useState<string | null>(null);
   const [localFirstComment, setLocalFirstComment] = useState("");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [localPlatform, setLocalPlatform] = useState<"facebook" | "instagram">(
+    "instagram",
+  );
   const [selectedDate, setSelectedDate] = useState<Date>(
     addHours(new Date(), 1),
   );
@@ -126,6 +137,7 @@ export default function ComposerDrawer({
       setLocalMediaUrl(item.mediaUrl || null);
       setLocalFirstComment(item.firstComment || "");
       setSelectedAccountId(item.accountId || "");
+      setLocalPlatform(item.platform);
       setMode(initialMode);
       setPreviewPlatform(item.platform);
 
@@ -157,16 +169,17 @@ export default function ComposerDrawer({
   useEffect(() => {
     if (item && selectedAccountId) {
       const input: PublishNowInput = {
-        platform: item.platform,
+        platform: localPlatform,
         accountId: selectedAccountId,
         caption: localCaption,
         mediaUrl: localMediaUrl,
         firstComment: localFirstComment,
       };
-      setValidation(validate(item.platform, input));
+      setValidation(validate(localPlatform, input));
     }
   }, [
     item,
+    localPlatform,
     localCaption,
     localMediaUrl,
     localFirstComment,
@@ -176,16 +189,17 @@ export default function ComposerDrawer({
 
   if (!item) return null;
 
-  const PlatformIcon = item.platform === "facebook" ? Facebook : Instagram;
+  const PlatformIcon = localPlatform === "facebook" ? Facebook : Instagram;
   const platformAccounts = accounts.filter(
-    (acc) => acc.platform === item.platform,
+    (acc) => acc.platform === localPlatform,
   );
 
   const hasChanges =
     localCaption !== (item.caption || "") ||
     localMediaUrl !== (item.mediaUrl || null) ||
     localFirstComment !== (item.firstComment || "") ||
-    selectedAccountId !== (item.accountId || "");
+    selectedAccountId !== (item.accountId || "") ||
+    localPlatform !== item.platform;
 
   const scheduledPreview = (() => {
     const publishAt = new Date(selectedDate);
@@ -209,6 +223,7 @@ export default function ComposerDrawer({
         mediaUrl: localMediaUrl,
         firstComment: localFirstComment,
         accountId: selectedAccountId,
+        platform: localPlatform,
       });
 
       toast({
@@ -239,11 +254,12 @@ export default function ComposerDrawer({
           mediaUrl: localMediaUrl,
           firstComment: localFirstComment,
           accountId: selectedAccountId,
+          platform: localPlatform,
         });
       }
 
       await onPublishNow(item.taskId, {
-        platform: item.platform,
+        platform: localPlatform,
         accountId: selectedAccountId,
         caption: localCaption,
         mediaUrl: localMediaUrl,
@@ -280,6 +296,7 @@ export default function ComposerDrawer({
           mediaUrl: localMediaUrl,
           firstComment: localFirstComment,
           accountId: selectedAccountId,
+          platform: localPlatform,
         });
       }
 
@@ -287,7 +304,7 @@ export default function ComposerDrawer({
       const publishAt = scheduledPreview;
 
       await onSchedule(item.taskId, {
-        platform: item.platform,
+        platform: localPlatform,
         accountId: selectedAccountId,
         caption: localCaption,
         mediaUrl: localMediaUrl,
@@ -315,13 +332,13 @@ export default function ComposerDrawer({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white z-50">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto bg-white z-50 sm:w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <PlatformIcon
               className={cn(
                 "w-5 h-5",
-                item.platform === "facebook"
+                localPlatform === "facebook"
                   ? "text-blue-600"
                   : "text-pink-500",
               )}
@@ -349,7 +366,49 @@ export default function ComposerDrawer({
             </Button>
           </div>
 
-          {/* Account Selection */}
+          {/* Platform Selection. Always rendered so users with FB+IG connected
+              can switch the post's target. Disabled buttons mean "no active
+              connection for that platform" — points users at the connect flow. */}
+          <div className="space-y-2">
+            <Label>Platform</Label>
+            <div className="flex gap-2">
+              {(["instagram", "facebook"] as const).map((p) => {
+                const hasConn = accounts.some((a) => a.platform === p);
+                const isActive = localPlatform === p;
+                const Icon = p === "facebook" ? Facebook : Instagram;
+                return (
+                  <Button
+                    key={p}
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    size="sm"
+                    disabled={!hasConn}
+                    onClick={() => {
+                      if (!hasConn) return;
+                      setLocalPlatform(p);
+                      const firstAccount = accounts.find(
+                        (a) => a.platform === p,
+                      );
+                      setSelectedAccountId(firstAccount?.accountId ?? "");
+                    }}
+                    aria-pressed={isActive}
+                    title={
+                      hasConn
+                        ? `Post to ${p}`
+                        : `No connected ${p} account — connect one in Settings`
+                    }
+                  >
+                    <Icon className="w-4 h-4 mr-1.5" />
+                    {p === "facebook" ? "Facebook" : "Instagram"}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Account Selection — only relevant when the chosen platform has
+              multiple connected pages/accounts (e.g., agency tenants with
+              several IG Business accounts). */}
           {platformAccounts.length > 1 && (
             <div className="space-y-2">
               <Label>Account</Label>
@@ -392,16 +451,16 @@ export default function ComposerDrawer({
               onChange={(e) => setLocalCaption(e.target.value)}
               placeholder="Write your caption..."
               className="min-h-[120px]"
-              maxLength={item.platform === "instagram" ? 2200 : 63206}
+              maxLength={localPlatform === "instagram" ? 2200 : 63206}
             />
             <div className="text-sm text-gray-500 text-right">
               {localCaption.length} /{" "}
-              {item.platform === "instagram" ? "2,200" : "63,206"} characters
+              {localPlatform === "instagram" ? "2,200" : "63,206"} characters
             </div>
           </div>
 
           {/* First Comment (Instagram only) */}
-          {item.platform === "instagram" && (
+          {localPlatform === "instagram" && (
             <div className="space-y-2">
               <Label>First Comment (Optional)</Label>
               <Input
@@ -444,6 +503,12 @@ export default function ComposerDrawer({
                       disabled={(date) =>
                         startOfDay(date) < startOfDay(new Date())
                       }
+                      // Constrain the year dropdown to "now through 5 years out"
+                      // so users can't accidentally schedule for 1927. Calendar
+                      // default is 100yr-back / 10yr-forward (right for DOB
+                      // pickers but wrong for forward-only scheduling).
+                      fromYear={new Date().getFullYear()}
+                      toYear={new Date().getFullYear() + 5}
                       initialFocus
                     />
                   </div>
@@ -523,8 +588,9 @@ export default function ComposerDrawer({
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
+          {/* Action Buttons. flex-wrap so small screens (≤375px) can stack the
+              row without clipping Publish Now off the right edge. */}
+          <div className="flex flex-wrap gap-2 pt-4 border-t">
             {hasChanges && (
               <Button
                 variant="outline"
@@ -545,12 +611,20 @@ export default function ComposerDrawer({
               Preview
             </Button>
 
-            <Button variant="outline" onClick={onClose}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!hasChanges && item) onCancelUntouched?.(item.taskId);
+                onClose();
+              }}
+            >
               Cancel
             </Button>
 
-            {/* Right side buttons */}
-            <div className="flex gap-2 ml-auto">
+            {/* Right side buttons. flex-1 basis on mobile so the primary action
+                stretches to a tappable size; ml-auto restores right alignment
+                on sm+ screens where the row fits on a single line. */}
+            <div className="flex flex-wrap gap-2 sm:ml-auto">
               {mode === "schedule" && (
                 <Button
                   onClick={handleSchedule}

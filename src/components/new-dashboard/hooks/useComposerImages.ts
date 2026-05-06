@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { useUnsplash } from "@/hooks/useUnsplash";
 import { ImageAttachment } from "@/lib/contentTypes";
 import { extractKeywords } from "@/utils/imageKeywords";
+import {
+  formatFallbackImages,
+  getRelevantFallbacks,
+} from "@/services/gardenCenterFallbacks";
 
 export const useComposerImages = (selectedDraft: any) => {
   const [images, setImages] = useState<ImageAttachment[]>([]);
@@ -10,12 +13,7 @@ export const useComposerImages = (selectedDraft: any) => {
   const [imagesFetching, setImagesFetching] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  const {
-    getSmartImages,
-    searchImages,
-    refreshImages,
-    loading: imagesLoading,
-  } = useUnsplash();
+  const imagesLoading = imagesFetching;
 
   useEffect(() => {
     if (selectedDraft?.ai_output) {
@@ -60,14 +58,20 @@ export const useComposerImages = (selectedDraft: any) => {
       if (!hasGardenContext) {
         query = `${keywords} garden`;
       }
-      const fetchedImages = await getSmartImages(query);
+      const fetchedImages = formatFallbackImages(
+        getRelevantFallbacks(query, 6),
+        query,
+      );
       setImages(fetchedImages);
 
       if (fetchedImages.length > 0) {
         setSelectedImageId(fetchedImages[0].id);
       } else {
         const fallbackQuery = `${selectedDraft.post_type || "gardening"} garden center plants`;
-        const fallbackImages = await getSmartImages(fallbackQuery);
+        const fallbackImages = formatFallbackImages(
+          getRelevantFallbacks(fallbackQuery, 6),
+          fallbackQuery,
+        );
 
         if (fallbackImages.length > 0) {
           setImages(fallbackImages);
@@ -113,7 +117,10 @@ export const useComposerImages = (selectedDraft: any) => {
         query = `${keywords} garden`;
       }
 
-      const newImages = await refreshImages(query);
+      const newImages = formatFallbackImages(
+        getRelevantFallbacks(query, 6),
+        query,
+      );
       setImages(newImages);
       setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
     } catch (error) {
@@ -140,7 +147,10 @@ export const useComposerImages = (selectedDraft: any) => {
         enhancedQuery = `${query} garden`;
       }
 
-      const searchResults = await searchImages(enhancedQuery);
+      const searchResults = formatFallbackImages(
+        getRelevantFallbacks(enhancedQuery, 6),
+        enhancedQuery,
+      );
       setImages(searchResults);
       setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
     } catch (error) {

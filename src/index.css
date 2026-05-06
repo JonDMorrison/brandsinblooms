@@ -3,7 +3,6 @@
 @import 'tailwindcss/utilities';
 @import './components/smart-time/smart-time.css';
 @import './styles/mobile/campaign-creator.css';
-@import './styles/click-to-edit.css';
 @import './styles/newsletter-layouts.css';
 @import './styles/animations.css';
 @import './styles/themes/core-palette-home.css';

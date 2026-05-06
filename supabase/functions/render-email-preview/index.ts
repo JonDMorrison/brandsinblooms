@@ -17,7 +17,8 @@ import {
   getUniqueUrls,
   hasPII,
 } from "../_shared/linkRewriter.ts";
-import type { RenderableContentBlock } from "../_shared/campaignEmailSource.ts";
+import type { RenderableContentBlock } from "../_shared/campaignEmailContent.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +31,7 @@ interface PreviewRequest {
   html?: string;
   contentBlocks?: RenderableContentBlock[] | null;
   subject?: string;
+  previewText?: string;
   customerId?: string;
   sampleCustomer?: {
     first_name?: string;
@@ -67,6 +69,7 @@ async function buildTrackedLinkMap({
   tenantId,
   campaignId,
   subject,
+  previewText,
   html,
   contentBlocks,
   customer,
@@ -76,6 +79,7 @@ async function buildTrackedLinkMap({
   tenantId: string;
   campaignId: string;
   subject: string;
+  previewText: string;
   html: string;
   contentBlocks: RenderableContentBlock[] | null;
   customer: CustomerShape | null;
@@ -111,6 +115,7 @@ async function buildTrackedLinkMap({
     tenantId,
     campaignId,
     subject,
+    previewText,
     html,
     contentBlocks,
     customer,
@@ -192,6 +197,7 @@ serve(async (req) => {
       html = "",
       contentBlocks = null,
       subject,
+      previewText = "",
       customerId,
       sampleCustomer,
       includeFooter = false,
@@ -287,34 +293,12 @@ serve(async (req) => {
       if (userData) {
         const { data: profileData } = await supabase
           .from("company_profiles")
-          .select("*")
+          .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
           .eq("user_id", userData.id)
           .single();
 
         if (profileData) {
-          companyProfile = {
-            company_name: profileData.company_name,
-            location_info: profileData.location_info,
-            company_email: profileData.company_email,
-            company_phone: profileData.company_phone,
-            website_url: profileData.website_url,
-            street_address: profileData.street_address,
-            city: profileData.city,
-            state_province: profileData.state_province,
-            postal_code: profileData.postal_code,
-            country: profileData.country,
-            footer_legal_text: profileData.footer_legal_text,
-            facebook_url: profileData.facebook_url,
-            instagram_url: profileData.instagram_url,
-            tiktok_url: profileData.tiktok_url,
-            pinterest_url: profileData.pinterest_url,
-            youtube_url: profileData.youtube_url,
-            linkedin_url: profileData.linkedin_url,
-            brand_primary_color: profileData.brand_primary_color,
-            brand_secondary_color: profileData.brand_secondary_color,
-            feature_flags:
-              profileData.feature_flags as CompanyProfileShape["feature_flags"],
-          };
+          companyProfile = profileData as CompanyProfileShape;
         }
       }
     }
@@ -333,6 +317,7 @@ serve(async (req) => {
           tenantId,
           campaignId: campaignId!,
           subject: subject || "",
+          previewText,
           html,
           contentBlocks,
           customer,
@@ -347,6 +332,7 @@ serve(async (req) => {
       html,
       contentBlocks,
       subject: subject || "",
+      previewText,
       customer,
       companyProfile,
       mode: renderMode,

@@ -181,8 +181,11 @@ const escapeHtml = (value: string) =>
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
+    .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 const normalizeChannel = (
   channel: ModalChannel,
@@ -428,7 +431,12 @@ export function GeneratedContentModal({
   const editItem = useCallback((index: number, patch: Partial<DraftItem>) => {
     setDraftItems((prev) => {
       const next = [...prev];
-      next[index] = { ...(next[index] || {}), ...patch };
+      const currentItem = next[index];
+      if (!currentItem) {
+        return prev;
+      }
+
+      next[index] = { ...currentItem, ...patch };
       return next;
     });
     setDirty((prev) => {
@@ -481,8 +489,8 @@ export function GeneratedContentModal({
         }
 
         return true;
-      } catch (error: any) {
-        showSnackbar(error?.message || "Failed to save changes", "danger");
+      } catch (error) {
+        showSnackbar(getErrorMessage(error, "Failed to save changes"), "danger");
         return false;
       }
     },
@@ -680,8 +688,8 @@ export function GeneratedContentModal({
       });
       setImageGenerationProgress({ completed: 1, total: 1 });
       showSnackbar("New image generated", "success");
-    } catch (error: any) {
-      showSnackbar(error?.message || "Image generation failed", "danger");
+    } catch (error) {
+      showSnackbar(getErrorMessage(error, "Image generation failed"), "danger");
     } finally {
       setImageGenerationIndex(null);
       setImageGenerationProgress({ completed: 0, total: 0 });
@@ -712,6 +720,36 @@ export function GeneratedContentModal({
     navigate,
     persistDraftChanges,
   ]);
+
+  const handleOpenNewsletterDraft = useCallback(
+    async (item: DraftItem) => {
+      if (!bundleId) {
+        return;
+      }
+
+      const saved = await persistDraftChanges();
+      if (!saved) {
+        return;
+      }
+
+      const newsletterData = {
+        title: item.title || bundleTitle,
+        content: sanitizeWeekNumbers(item.body || getPrimaryText(item)),
+        featuredImage: item.media?.url || "",
+        bundleId,
+      };
+      const params = new URLSearchParams({
+        type: "newsletter",
+        bundleId,
+        prefillData: JSON.stringify(newsletterData),
+      });
+
+      showSnackbar("Opening Campaign Draft", "success");
+      finalizeClose();
+      navigate(`/crm/campaigns/new?${params.toString()}`);
+    },
+    [bundleId, bundleTitle, finalizeClose, navigate, persistDraftChanges, showSnackbar],
+  );
 
   const renderSocialPreview = (item: DraftItem) => {
     const previewText = sanitizeWeekNumbers(getPrimaryText(item));
@@ -1355,6 +1393,21 @@ export function GeneratedContentModal({
                                 >
                                   {item._approved ? "Approved" : "Approve item"}
                                 </Button>
+                                {normalizeChannel(item.channel) ===
+                                  "newsletter" && item._approved ? (
+                                  <Button
+                                    size="sm"
+                                    variant="soft"
+                                    color="primary"
+                                    data-testid="send-to-block-builder"
+                                    startDecorator={<Newspaper size={16} />}
+                                    onClick={() =>
+                                      void handleOpenNewsletterDraft(item)
+                                    }
+                                  >
+                                    Open Campaign Draft
+                                  </Button>
+                                ) : null}
                               </Stack>
                             </Stack>
 
@@ -1782,7 +1835,7 @@ export function GeneratedContentModal({
               <MediaSelector
                 selectedImageUrl={activeItem.media?.url}
                 contentContext={activeItem.title || getPrimaryText(activeItem)}
-                onImageSelect={(imageUrl: string, metadata?: any) => {
+                onImageSelect={(imageUrl, metadata) => {
                   editItem(activeTab, {
                     media: {
                       url: imageUrl,

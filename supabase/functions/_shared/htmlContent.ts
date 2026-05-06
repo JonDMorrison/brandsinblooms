@@ -27,6 +27,41 @@ import sanitizeHtml from "npm:sanitize-html@2.17.3";
 
 import { RICH_TEXT_SANITIZE_OPTIONS } from "./htmlContentSanitizeConfig.ts";
 
+const RICH_TEXT_ENTITY_PATTERN =
+  /&(nbsp|amp|lt|gt|quot|#0*39|#x27);/i;
+
+function decodeHtmlEntities(value: string): string {
+  let decoded = value;
+
+  for (let index = 0; index < 2; index += 1) {
+    const nextValue = decoded
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&#0*39;/gi, "'")
+      .replace(/&#x27;/gi, "'")
+      .replace(/&quot;/gi, '"')
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&amp;/gi, "&");
+
+    if (nextValue === decoded) {
+      break;
+    }
+
+    decoded = nextValue;
+  }
+
+  return decoded;
+}
+
+function normalizeRichTextInput(value: string): string {
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(value) || !RICH_TEXT_ENTITY_PATTERN.test(value)) {
+    return value;
+  }
+
+  const decoded = decodeHtmlEntities(value);
+  return /<\/?[a-z][a-z0-9]*\b/i.test(decoded) ? decoded : value;
+}
+
 export function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -53,8 +88,9 @@ export function escapeHtmlAttribute(value: string | null | undefined): string {
 export function toHtmlText(value: string | null | undefined): string {
   const str = String(value ?? "");
   if (!str) return "";
-  if (/<\/?[a-z][a-z0-9]*\b/i.test(str)) {
-    return sanitizeHtml(str, RICH_TEXT_SANITIZE_OPTIONS);
+  const normalized = normalizeRichTextInput(str);
+  if (/<\/?[a-z][a-z0-9]*\b/i.test(normalized)) {
+    return sanitizeHtml(normalized, RICH_TEXT_SANITIZE_OPTIONS);
   }
   return escapeHtml(str).replace(/\n/g, "<br />");
 }

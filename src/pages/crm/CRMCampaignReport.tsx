@@ -19,7 +19,6 @@ import {
 import {
   ChevronLeft,
   Copy,
-  ExternalLink,
   FileDown,
   Mail,
   MoreHorizontal,
@@ -718,7 +717,6 @@ export default function CRMCampaignReport() {
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
   const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
-  const [fullPreviewOpen, setFullPreviewOpen] = React.useState(false);
   const lastStatusRef = React.useRef<string | null>(null);
 
   const reportQuery = useQuery({
@@ -839,72 +837,7 @@ export default function CRMCampaignReport() {
 
   const report = reportQuery.data;
   const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
-  const emailPreviewQuery = useQuery({
-    queryKey: [
-      "crm-campaign-report-preview",
-      campaignId,
-      reportQuery.dataUpdatedAt,
-      report?.previewRecipient.customerId ?? null,
-      report?.previewRecipient.sampleCustomer?.email ?? null,
-    ],
-    enabled:
-      Boolean(report) &&
-      report?.campaign.channel === "email" &&
-      (report.contentBlocks.length > 0 || report.rawContent.trim().length > 0),
-    retry: false,
-    queryFn: async (): Promise<RenderedEmailPreview> => {
-      if (!report || !campaignId) {
-        throw new Error("Campaign preview context is unavailable.");
-      }
-
-      const body = {
-        tenantId: report.tenantId ?? undefined,
-        subject: report.subjectLine,
-        campaignId,
-        customerId: report.previewRecipient.customerId ?? undefined,
-        sampleCustomer: report.previewRecipient.sampleCustomer ?? undefined,
-        includeFooter: true,
-        enableLinkTracking: true,
-        exactSendPreview: true,
-        ...(report.contentBlocks.length > 0
-          ? { contentBlocks: report.contentBlocks }
-          : { html: report.rawContent }),
-      };
-
-      const { data, error } = await supabase.functions.invoke(
-        "render-email-preview",
-        { body },
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      return {
-        renderedHtml:
-          typeof data?.renderedHtml === "string" ? data.renderedHtml : "",
-        renderedSubject:
-          typeof data?.renderedSubject === "string"
-            ? data.renderedSubject
-            : report.subjectLine,
-        diagnostics: data?.diagnostics,
-      };
-    },
-  });
-  const emailPreviewErrorMessage =
-    emailPreviewQuery.error instanceof Error
-      ? emailPreviewQuery.error.message
-      : null;
-  const allowLegacyFallback =
-    Boolean(report) &&
-    report?.campaign.channel === "email" &&
-    report.contentBlocks.length === 0 &&
-    report.rawContent.trim().length > 0;
-  const renderedSubjectLine =
-    emailPreviewQuery.data?.renderedSubject || report?.subjectLine || "";
-  const hasPreviewFrame =
-    Boolean(emailPreviewQuery.data?.renderedHtml) ||
-    (Boolean(emailPreviewQuery.isError) && allowLegacyFallback);
+  const renderedSubjectLine = report?.subjectLine || "";
 
   React.useEffect(() => {
     lastStatusRef.current = report?.campaign.status ?? null;
@@ -1269,18 +1202,6 @@ export default function CRMCampaignReport() {
               <Typography level="title-sm" fontWeight="lg">
                 What was sent
               </Typography>
-              {!reportQuery.isLoading ? (
-                <JoyButton
-                  variant="plain"
-                  color="neutral"
-                  size="sm"
-                  startDecorator={<ExternalLink size={14} />}
-                  sx={{ flexShrink: 0 }}
-                  onClick={() => setFullPreviewOpen(true)}
-                >
-                  View full size
-                </JoyButton>
-              ) : null}
             </Stack>
 
             {reportQuery.isLoading ? (
@@ -1306,24 +1227,32 @@ export default function CRMCampaignReport() {
                     </Typography>
                   </Sheet>
                 ) : report ? (
-                  renderEmailPreviewContent({
-                    rawHtml: report.rawContent,
-                    renderedHtml: emailPreviewQuery.data?.renderedHtml || "",
-                    isLoading: emailPreviewQuery.isLoading,
-                    isError: emailPreviewQuery.isError,
-                    errorMessage: emailPreviewErrorMessage,
-                    onRetry: () => void emailPreviewQuery.refetch(),
-                    allowLegacyFallback,
-                  })
+                  <Sheet
+                    variant="soft"
+                    color="warning"
+                    sx={{ borderRadius: "lg", p: 2.5 }}
+                  >
+                    <Stack spacing={1}>
+                      <Typography level="body-sm" fontWeight="lg">
+                        Email preview removed during rebuild
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "warning.700" }}>
+                        This report no longer renders live email previews or
+                        replays current block content.
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                        Subject and delivery analytics remain available while
+                        the campaign builder is rebuilt.
+                      </Typography>
+                    </Stack>
+                  </Sheet>
                 ) : null}
-                {hasPreviewFrame || report?.campaign.channel === "sms" ? (
+                {report?.campaign.channel === "sms" ? (
                   <Typography
                     level="body-xs"
                     sx={{ color: "neutral.400", textAlign: "center" }}
                   >
-                    Scroll to see more · or click "View full size" for the
-                    complete{" "}
-                    {report?.campaign.channel === "sms" ? "message" : "email"}
+                    Scroll to see more of the SMS body.
                   </Typography>
                 ) : null}
               </Stack>
@@ -1371,18 +1300,6 @@ export default function CRMCampaignReport() {
             )}
           </JoyCardContent>
         </JoyCard>
-
-        <ReportFullPreviewDialog
-          open={fullPreviewOpen}
-          onClose={() => setFullPreviewOpen(false)}
-          report={report}
-          preview={emailPreviewQuery.data}
-          previewLoading={emailPreviewQuery.isLoading}
-          previewError={emailPreviewQuery.isError}
-          previewErrorMessage={emailPreviewErrorMessage}
-          allowLegacyFallback={allowLegacyFallback}
-          onRetryPreview={() => void emailPreviewQuery.refetch()}
-        />
       </Stack>
     </PageContainer>
   );

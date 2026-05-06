@@ -15,6 +15,7 @@ import {
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
+import { RecoveryRoute } from "@/components/RecoveryRoute";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
@@ -160,6 +161,9 @@ const AuthCallbackPage = lazyNamed(
   () => import("@/pages/AuthCallbackPage"),
   "AuthCallbackPage",
 );
+const OAuthAuthorizePage = lazyRetry(
+  () => import("@/pages/OAuthAuthorizePage"),
+);
 const CallbackPage = lazyRetry(
   () => import("@/pages/integrations/lightspeed/CallbackPage"),
 );
@@ -251,6 +255,9 @@ const EmailSendingSettings = lazyRetry(
 // ============================================================
 const CRMCampaignEditorPage = lazyRetry(
   () => import("@/pages/crm/CRMCampaignEditorPage"),
+);
+const CampaignStudioPage = lazyRetry(
+  () => import("@/pages/crm/CampaignStudioPage"),
 );
 const SavedBlocksPage = lazyNamed(
   () => import("@/pages/crm/SavedBlocksPage"),
@@ -444,6 +451,24 @@ function renderProtectedSidebarLazyPage(
   );
 }
 
+function renderProtectedFullscreenLazyPage(
+  page: React.ReactElement,
+  skeleton: ProtectedSidebarSkeletonVariant,
+  options: ProtectedSidebarLazyPageOptions = CRM_LAZY_PAGE_OPTIONS,
+) {
+  const { dashboardHref, linkLabel } = options;
+
+  return (
+    <ProtectedRoute>
+      <ChunkErrorBoundary dashboardHref={dashboardHref} linkLabel={linkLabel}>
+        <Suspense fallback={<PageSkeleton variant={skeleton} />}>
+          {page}
+        </Suspense>
+      </ChunkErrorBoundary>
+    </ProtectedRoute>
+  );
+}
+
 function App() {
   return (
     <HelmetProvider>
@@ -480,9 +505,9 @@ function App() {
               <Route
                 path="/reset-password"
                 element={
-                  <PublicRoute>
+                  <RecoveryRoute>
                     <ResetPasswordPage />
-                  </PublicRoute>
+                  </RecoveryRoute>
                 }
               />
               <Route
@@ -859,6 +884,20 @@ function App() {
               )}
             />
             <Route
+              path="/crm/campaigns/:campaignId/edit"
+              element={renderProtectedSidebarLazyPage(
+                <CRMCampaignEditorPage />,
+                "form",
+              )}
+            />
+            <Route
+              path="/crm/campaigns/:id/studio"
+              element={renderProtectedFullscreenLazyPage(
+                <CampaignStudioPage />,
+                "dashboard",
+              )}
+            />
+            <Route
               path="/crm/campaigns/:campaignId"
               element={renderProtectedSidebarLazyPage(
                 <CRMCampaignEditorPage />,
@@ -1003,6 +1042,7 @@ function App() {
             </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
             <Route element={<CallbackLazyBoundary />}>
+              <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route
                 path="/integrations/lightspeed/callback"

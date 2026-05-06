@@ -1,6 +1,9 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@panva/jose@^6.2.2": "6.2.3",
+    "jsr:@panva/oauth4webapi@^3.8.5": "3.8.6",
+    "jsr:@panva/openid-client@6.8.4": "6.8.4",
     "jsr:@std/assert@^1.0.13": "1.0.19",
     "jsr:@std/assert@^1.0.17": "1.0.19",
     "jsr:@std/async@^1.0.13": "1.2.0",
@@ -67,6 +70,7 @@
     "npm:@tiptap/pm@^3.0.7": "3.22.3",
     "npm:@tiptap/react@^3.0.7": "3.22.3_@tiptap+core@3.22.3__@tiptap+pm@3.22.3_@tiptap+pm@3.22.3_@types+react@18.3.28_@types+react-dom@18.3.7__@types+react@18.3.28_react@18.3.1_react-dom@18.3.1__react@18.3.1_@floating-ui+dom@1.7.6",
     "npm:@tiptap/starter-kit@^3.0.7": "3.22.3",
+    "npm:@types/bcryptjs@2.4.6": "2.4.6",
     "npm:@types/node@^22.5.5": "22.19.17",
     "npm:@types/react-dom@^18.3.0": "18.3.7_@types+react@18.3.28",
     "npm:@types/react@^18.3.3": "18.3.28",
@@ -76,6 +80,7 @@
     "npm:@vitest/ui@^3.2.4": "3.2.4_vitest@3.2.4_@types+node@22.19.17_jsdom@26.1.0",
     "npm:@xyflow/react@^12.8.2": "12.10.2_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.28",
     "npm:autoprefixer@^10.4.20": "10.4.27_postcss@8.5.9",
+    "npm:bcryptjs@^2.4.3": "2.4.3",
     "npm:class-variance-authority@~0.7.1": "0.7.1",
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:cmdk@1": "1.1.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.28_@types+react-dom@18.3.7__@types+react@18.3.28",
@@ -90,6 +95,8 @@
     "npm:globals@^15.9.0": "15.15.0",
     "npm:highlight.js@^11.11.1": "11.11.1",
     "npm:input-otp@^1.2.4": "1.4.2_react@18.3.1_react-dom@18.3.1__react@18.3.1",
+    "npm:jose@6.2.2": "6.2.2",
+    "npm:jose@^6.2.2": "6.2.2",
     "npm:js-yaml@^4.1.0": "4.1.1",
     "npm:jsdom@^26.1.0": "26.1.0",
     "npm:lottie-react@^2.4.1": "2.4.1_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -128,6 +135,19 @@
     "npm:zustand@^5.0.7": "5.0.12_@types+react@18.3.28_react@18.3.1"
   },
   "jsr": {
+    "@panva/jose@6.2.3": {
+      "integrity": "57cc772f01b2ac60f847a7e6ec815059762768186266ed833fb59953e9611312"
+    },
+    "@panva/oauth4webapi@3.8.6": {
+      "integrity": "37569071868714cee36c5df8be7939efcf68811e849a80b87d4be22aff331c50"
+    },
+    "@panva/openid-client@6.8.4": {
+      "integrity": "656014de1dd3e08dd05a7b60d3e19d4a5371c324f322bdedf844bb0d05693c2c",
+      "dependencies": [
+        "jsr:@panva/jose",
+        "jsr:@panva/oauth4webapi"
+      ]
+    },
     "@std/assert@1.0.19": {
       "integrity": "eaada96ee120cb980bc47e040f82814d786fe8162ecc53c91d8df60b8755991e",
       "dependencies": [
@@ -2974,6 +2994,9 @@
     "@types/aria-query@5.0.4": {
       "integrity": "sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw=="
     },
+    "@types/bcryptjs@2.4.6": {
+      "integrity": "sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ=="
+    },
     "@types/chai@5.2.3": {
       "integrity": "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==",
       "dependencies": [
@@ -3498,6 +3521,9 @@
     "baseline-browser-mapping@2.10.17": {
       "integrity": "sha512-HdrkN8eVG2CXxeifv/VdJ4A4RSra1DTW8dc/hdxzhGHN8QePs6gKaWM9pHPcpCoxYZJuOZ8drHmbdpLHjCYjLA==",
       "bin": true
+    },
+    "bcryptjs@2.4.3": {
+      "integrity": "sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ=="
     },
     "bin-links@6.0.0": {
       "integrity": "sha512-X4CiKlcV2GjnCMwnKAfbVWpHa++65th9TuzAEYtZoATiOE2DQKhSp4CJlyLoTqdhBKlXjpXjCTYPNNFS33Fi6w==",
@@ -4662,6 +4688,9 @@
     "jiti@1.21.7": {
       "integrity": "sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==",
       "bin": true
+    },
+    "jose@6.2.2": {
+      "integrity": "sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ=="
     },
     "js-beautify@1.15.4": {
       "integrity": "sha512-9/KXeZUKKJwqCXUdBxFJ3vPh467OCckSBmYDwSK/EtV090K+iMJ7zx2S3HLVDIWFQdqMIsZWbnaGiba18aWhaA==",
@@ -6512,6 +6541,39 @@
   },
   "redirects": {
     "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.103.0",
+    "https://esm.sh/@types/get-intrinsic@~1.2.3/index.d.ts": "https://esm.sh/@types/get-intrinsic@1.2.3/index.d.ts",
+    "https://esm.sh/@types/object-inspect@~1.13.0/index.d.ts": "https://esm.sh/@types/object-inspect@1.13.0/index.d.ts",
+    "https://esm.sh/@types/qs@~6.15.0/index.d.ts": "https://esm.sh/@types/qs@6.15.0/index.d.ts",
+    "https://esm.sh/async-function@^1.0.0?target=denonext": "https://esm.sh/async-function@1.0.0?target=denonext",
+    "https://esm.sh/async-generator-function@^1.0.0?target=denonext": "https://esm.sh/async-generator-function@1.0.0?target=denonext",
+    "https://esm.sh/call-bind-apply-helpers@^1.0.1?target=denonext": "https://esm.sh/call-bind-apply-helpers@1.0.2?target=denonext",
+    "https://esm.sh/call-bind-apply-helpers@^1.0.2/functionApply?target=denonext": "https://esm.sh/call-bind-apply-helpers@1.0.2/functionApply?target=denonext",
+    "https://esm.sh/call-bind-apply-helpers@^1.0.2/functionCall?target=denonext": "https://esm.sh/call-bind-apply-helpers@1.0.2/functionCall?target=denonext",
+    "https://esm.sh/call-bind-apply-helpers@^1.0.2?target=denonext": "https://esm.sh/call-bind-apply-helpers@1.0.2?target=denonext",
+    "https://esm.sh/call-bound@^1.0.2?target=denonext": "https://esm.sh/call-bound@1.0.4?target=denonext",
+    "https://esm.sh/dunder-proto@^1.0.1/get?target=denonext": "https://esm.sh/dunder-proto@1.0.1/get?target=denonext",
+    "https://esm.sh/es-object-atoms@^1.0.0?target=denonext": "https://esm.sh/es-object-atoms@1.1.1?target=denonext",
+    "https://esm.sh/es-object-atoms@^1.1.1?target=denonext": "https://esm.sh/es-object-atoms@1.1.1?target=denonext",
+    "https://esm.sh/generator-function@^2.0.0?target=denonext": "https://esm.sh/generator-function@2.0.1?target=denonext",
+    "https://esm.sh/get-intrinsic@^1.2.5?target=denonext": "https://esm.sh/get-intrinsic@1.3.1?target=denonext",
+    "https://esm.sh/get-intrinsic@^1.3.0?target=denonext": "https://esm.sh/get-intrinsic@1.3.1?target=denonext",
+    "https://esm.sh/get-proto@^1.0.1/Object.getPrototypeOf?target=denonext": "https://esm.sh/get-proto@1.0.1/Object.getPrototypeOf?target=denonext",
+    "https://esm.sh/get-proto@^1.0.1/Reflect.getPrototypeOf?target=denonext": "https://esm.sh/get-proto@1.0.1/Reflect.getPrototypeOf?target=denonext",
+    "https://esm.sh/get-proto@^1.0.1?target=denonext": "https://esm.sh/get-proto@1.0.1?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/abs?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/abs?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/floor?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/floor?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/max?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/max?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/min?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/min?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/pow?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/pow?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/round?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/round?target=denonext",
+    "https://esm.sh/math-intrinsics@^1.1.0/sign?target=denonext": "https://esm.sh/math-intrinsics@1.1.0/sign?target=denonext",
+    "https://esm.sh/object-inspect@^1.13.3?target=denonext": "https://esm.sh/object-inspect@1.13.4?target=denonext",
+    "https://esm.sh/object-inspect@^1.13.4?target=denonext": "https://esm.sh/object-inspect@1.13.4?target=denonext",
+    "https://esm.sh/qs@^6.11.0?target=denonext": "https://esm.sh/qs@6.15.1?target=denonext",
+    "https://esm.sh/side-channel-list@^1.0.0?target=denonext": "https://esm.sh/side-channel-list@1.0.1?target=denonext",
+    "https://esm.sh/side-channel-map@^1.0.1?target=denonext": "https://esm.sh/side-channel-map@1.0.1?target=denonext",
+    "https://esm.sh/side-channel-weakmap@^1.0.2?target=denonext": "https://esm.sh/side-channel-weakmap@1.0.2?target=denonext",
+    "https://esm.sh/side-channel@^1.1.0?target=denonext": "https://esm.sh/side-channel@1.1.0?target=denonext",
     "https://esm.sh/stripe@14": "https://esm.sh/stripe@14.25.0"
   },
   "remote": {
@@ -6561,13 +6623,72 @@
     "https://deno.land/x/media_types@v2.9.0/mod.ts": "d63583b978d32eff8b76e1ae5d83cba2fb27baa90cc1bcb0ad15a06122ea8c19",
     "https://deno.land/x/xhr@0.1.0/mod.ts": "5200325d879e571961f0927e8e32e66fd33f4ba0d29a219560cf9e0fe9bc6cdf",
     "https://esm.sh/@supabase/supabase-js@2.103.0": "513f5e7364668df19963929fd207a721e659e5c69875d8f1c1fe44b0a95d534d",
-    "https://esm.sh/stripe@14.25.0": "5c144d95e39f91ac9633debba114dc7260c0e312d70d7d89a8f90bf95ae65595"
+    "https://esm.sh/async-function@1.0.0/denonext/async-function.mjs": "9a68a79494e7318827f19367915e5e8c902d81d395a2a429114371d8f506afd8",
+    "https://esm.sh/async-function@1.0.0?target=denonext": "c5e89ac5310741350e80c75eb1ff0c24bdaa16db5bf0f9181fceea7e3bca763e",
+    "https://esm.sh/async-generator-function@1.0.0/denonext/async-generator-function.mjs": "c7d6e6484a0083577a002c3114e08d84762b6f74327c89cd0129226cefd7436a",
+    "https://esm.sh/async-generator-function@1.0.0?target=denonext": "7b92d0f159fcd05e4cb37faf06fe4d83333517287a9fd3fa1c3dfa34bfa99891",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/denonext/actualApply.mjs": "e40dd22950f5eb996a325283de44db908753de3396f81ca4b4b186809ec7404b",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/denonext/call-bind-apply-helpers.mjs": "1c096a11476850297224ad825a8e505c23fcc555a8474e929897f8d799fef30b",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/denonext/functionApply.mjs": "20d90adbc9be9d9b51fe4fe1019f8bd1d0823f27a2557eed275b9e44c07260c5",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/denonext/functionCall.mjs": "b36700f863bccd6667f66bfdc7cd9a252129cb203bf5eef59bf29046b9da1467",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/denonext/reflectApply.mjs": "ad4d25d2a301d5d1701b908c50aa229ff4b5e62f05136d3828f1a26d5dc901f6",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/functionApply?target=denonext": "62c4f7ef478c97ef7b1ba0e303d61df3cb4a1df4317b606e43b655f0e4219c43",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2/functionCall?target=denonext": "4366685652c948d1c2ca5264d496bb739f52ee5860950a1496e5214759135cc8",
+    "https://esm.sh/call-bind-apply-helpers@1.0.2?target=denonext": "905e972ffcd24bdbceda3bc3208a2102b1ba8ebc2e74e55e42433ad17e1e455e",
+    "https://esm.sh/call-bound@1.0.4/denonext/call-bound.mjs": "08fb5feeb1c0e871cfd19912759ea62b7023bac1d443ffb498f3968082bb3711",
+    "https://esm.sh/call-bound@1.0.4?target=denonext": "8861d775f1c2f685b8985662bfc0eb9037cef7c41c7ee39ae49306662933cc67",
+    "https://esm.sh/dunder-proto@1.0.1/denonext/get.mjs": "8249c9d4dfb0c1f5ee60df6588c77153a4da927b2759e7059b4124c69a8e9223",
+    "https://esm.sh/dunder-proto@1.0.1/get?target=denonext": "13d001daa54e39c69fe8034e0f54ecf326c1b44fcdf005b47a16087c535ee15e",
+    "https://esm.sh/es-object-atoms@1.1.1/denonext/es-object-atoms.mjs": "002f305a1112ee598445ab88204560f9e3e1595d4086d4b044d845364df196d1",
+    "https://esm.sh/es-object-atoms@1.1.1?target=denonext": "42f0f1f77d6dc7e20b9510cd914b97e8f20c57c218bccd433292a9d86a7f2123",
+    "https://esm.sh/generator-function@2.0.1/denonext/generator-function.mjs": "c0830dd65531f61823dd69e7d9f8fedace61f5810aa3ef4a47c876638ccce5a2",
+    "https://esm.sh/generator-function@2.0.1?target=denonext": "d69b75b5af8feab1b72504ae1c088a112345997bc2fb03e78bc4b5cc2c717b30",
+    "https://esm.sh/get-intrinsic@1.3.1/denonext/get-intrinsic.mjs": "af07ca16f714e1faaca241d5f136cae8e6d8300dc1cfcee3d2b670008fcfd579",
+    "https://esm.sh/get-intrinsic@1.3.1?target=denonext": "e293e28f884cf6eb97da776907dd175a9b20a072d4b90898b590d7a156449f72",
+    "https://esm.sh/get-proto@1.0.1/Object.getPrototypeOf?target=denonext": "07ea2fdda9026eb3b7e18eff95a1314a82db3b37efd0e4a1b7bd91c454bfd492",
+    "https://esm.sh/get-proto@1.0.1/Reflect.getPrototypeOf?target=denonext": "08346568b8d1b2532dfff0affbb99b0400960313cb1b350969f9ca1f889ac700",
+    "https://esm.sh/get-proto@1.0.1/denonext/Object.getPrototypeOf.mjs": "d62989d14e99b23a7604030f5b2c176b55067bd790d9056fd7b8a7f324c13c62",
+    "https://esm.sh/get-proto@1.0.1/denonext/Reflect.getPrototypeOf.mjs": "4b884fb35dbdc6b2a67708f195cf46435514a7eb3930578453176aafe59d49fe",
+    "https://esm.sh/get-proto@1.0.1/denonext/get-proto.mjs": "0e4ddb145c883b3f941aeba555feb48b9f177838d070449782265daf59b77377",
+    "https://esm.sh/get-proto@1.0.1?target=denonext": "fa3e52250f16f485da729565f1f41dcbb23edeb64420db0146e374cc835c9b04",
+    "https://esm.sh/math-intrinsics@1.1.0/abs?target=denonext": "b43b9b3996b29cda49a1ad6d71b876095144b3252c761b4338e8870e5073542e",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/abs.mjs": "08304368394a36ee89a52def8a533da1f7c602891647a3e10543a8bbdb746c8b",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/floor.mjs": "c5e41bb95fa47641ca012faa0a093eef6401d3ace4479a85e39cf726eb184785",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/isNaN.mjs": "4c0aa9576873f1a60fc724bf6a7959ae3eb30e6b002aa3a94a00f6d071ae4fb2",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/max.mjs": "d7b63113695c5fef18e6c505fb0db439cefefe5d6578283207bbed54287c53e9",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/min.mjs": "445c0cbc6acecab1076657ce2b3ce8783b6bd7ec638b76b128dae98a92a9876a",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/pow.mjs": "b15d61336938ae7d84cd9e223509cb576cc2b89a34ec678889c6cdc82bfdd45c",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/round.mjs": "a96681000e62bc8c0ff3582a77981fc88fa3034ed5bb85b3e1a15047eeb954b6",
+    "https://esm.sh/math-intrinsics@1.1.0/denonext/sign.mjs": "323a0314efc3a9892beebf5cdd3b6a1d71986821b58548b3a593f8103e4c49b0",
+    "https://esm.sh/math-intrinsics@1.1.0/floor?target=denonext": "58bd34b24e7c69b79e09243ed99bf0aa35e0423524c5d6f3986d46f72b19cdab",
+    "https://esm.sh/math-intrinsics@1.1.0/max?target=denonext": "67e6a93d9f2dd0eb70967013abd67be262b7651e05c4384c9899621ed29db5bb",
+    "https://esm.sh/math-intrinsics@1.1.0/min?target=denonext": "869cb45f08e5642671cb4e0078b73fae5e767656e7ab86a208ca721d67b42fb1",
+    "https://esm.sh/math-intrinsics@1.1.0/pow?target=denonext": "4f42df7a6c0593efdb1edb840affe3a464884ac3287fa18b03810021ee55a5fb",
+    "https://esm.sh/math-intrinsics@1.1.0/round?target=denonext": "635d454d1f3fe901ab84dc7508ca8ba90825085b051278f083986ab8d763e675",
+    "https://esm.sh/math-intrinsics@1.1.0/sign?target=denonext": "67eede9463cdb90393f9e449e8d6d59283db42ff1793fc381292a5612e535cfe",
+    "https://esm.sh/object-inspect@1.13.4/denonext/object-inspect.mjs": "45c312125d1f5469db2840085ce40fa3fbaab81bebcb4b2f79153f9eeaa05230",
+    "https://esm.sh/object-inspect@1.13.4?target=denonext": "426a13b7cd2fb610060e1d943f1ae802ef3873c2055b80dd75b39fddcb5b91f9",
+    "https://esm.sh/qs@6.15.1/denonext/qs.mjs": "6f667d2181b01ae15dc7e9dcfd9f806bdf934382b8f8e2cacb9b8a3ee1f76d38",
+    "https://esm.sh/qs@6.15.1?target=denonext": "fa3c3e4402315574bb0a6df73e011a130995a474b2d0ebc5fc234f1a5cae9874",
+    "https://esm.sh/side-channel-list@1.0.1/denonext/side-channel-list.mjs": "c5645369dabde028779a14220cbf07fd306949004ce0b96ceca37b9c0a67477d",
+    "https://esm.sh/side-channel-list@1.0.1?target=denonext": "048acf95bc6b0fbc223931d6c49be2d929d9a6d3ebde2ab9897fae38df154cc0",
+    "https://esm.sh/side-channel-map@1.0.1/denonext/side-channel-map.mjs": "5c6c38348826aa2b41eb5654fff235ae06a06c6f0b02ad736b6f226704d7043a",
+    "https://esm.sh/side-channel-map@1.0.1?target=denonext": "8b59be4ffd58b5654971b600ca894755e9277c9be88dbfcc5673b2e85d8d30ec",
+    "https://esm.sh/side-channel-weakmap@1.0.2/denonext/side-channel-weakmap.mjs": "5bee9551eadb611a71937950a614bd9d46ca5139afbb20e28321c1704953b367",
+    "https://esm.sh/side-channel-weakmap@1.0.2?target=denonext": "f6ca783896c64a8ca09f483a7809e053e4e31b1569b5c5251ed5813561330dfe",
+    "https://esm.sh/side-channel@1.1.0/denonext/side-channel.mjs": "2b14f5c6f2fc136405c1bda1897e81a87993ee525b4eff74232b8e6cacf9b759",
+    "https://esm.sh/side-channel@1.1.0?target=denonext": "af0b34fab98933edb9b50119e3383d0f2df5451b179ded5e92007d6f773d12e2",
+    "https://esm.sh/stripe@14.25.0": "5c144d95e39f91ac9633debba114dc7260c0e312d70d7d89a8f90bf95ae65595",
+    "https://esm.sh/stripe@14.25.0/denonext/stripe.mjs": "4001e85651cdcef056f1c6132f4fa1245fc5aa0950fae2a91b480e2269ffd4c4"
   },
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.13",
       "jsr:@std/async@^1.0.13",
-      "jsr:@std/testing@^1.0.14"
+      "jsr:@std/testing@^1.0.14",
+      "npm:@supabase/supabase-js@2",
+      "npm:bcryptjs@^2.4.3",
+      "npm:jose@6.2.2"
     ],
     "packageJson": {
       "dependencies": [
@@ -6653,6 +6774,7 @@
         "npm:globals@^15.9.0",
         "npm:highlight.js@^11.11.1",
         "npm:input-otp@^1.2.4",
+        "npm:jose@^6.2.2",
         "npm:js-yaml@^4.1.0",
         "npm:jsdom@^26.1.0",
         "npm:lottie-react@^2.4.1",

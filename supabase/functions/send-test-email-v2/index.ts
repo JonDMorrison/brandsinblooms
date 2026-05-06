@@ -9,8 +9,9 @@ import {
 import {
   resolveCampaignEmailSource,
   type RenderableContentBlock,
-} from "../_shared/campaignEmailSource.ts";
+} from "../_shared/campaignEmailContent.ts";
 import { resolveSender, buildFromAddress } from "../_shared/senderResolver.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -23,6 +24,7 @@ const corsHeaders = {
 interface TestSendPayload {
   toEmail: string;
   subject?: string;
+  previewText?: string;
   html?: string;
   contentBlocks?: RenderableContentBlock[] | null;
   customerId?: string;
@@ -49,6 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
     const {
       toEmail,
       subject,
+      previewText,
       html,
       contentBlocks,
       customerId,
@@ -112,14 +115,16 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const campaignSourceClient: Parameters<
-      typeof resolveCampaignEmailSource
-    >[0] = {
-      from: (table) => ({
-        select: (columns) => ({
-          eq: (column, value) => ({
-            order: async (orderColumn, options) => {
-              const result = await supabaseClient
+    const typedSupabaseClient = supabaseClient as any;
+    const campaignSourceClient: any = {
+      from: (table: string) => ({
+        select: (columns: string) => ({
+          eq: (column: string, value: string) => ({
+            order: async (
+              orderColumn: string,
+              options?: { ascending?: boolean },
+            ) => {
+              const result = await typedSupabaseClient
                 .from(table)
                 .select(columns)
                 .eq(column, value)
@@ -142,6 +147,8 @@ const handler = async (req: Request): Promise<Response> => {
       typeof subject === "string" && subject.trim().length > 0
         ? subject.trim()
         : "Test Email";
+    let resolvedPreviewText =
+      typeof previewText === "string" ? previewText.trim() : "";
 
     if (Array.isArray(contentBlocks) && contentBlocks.length > 0) {
       resolvedContentBlocks = contentBlocks;
@@ -152,7 +159,7 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: campaignRecord, error: campaignError } =
         await supabaseClient
           .from("crm_campaigns")
-          .select("id, metadata, content, subject_line")
+          .select("id, metadata, content, subject_line, preheader_text")
           .eq("id", campaignId)
           .eq("tenant_id", tenantId)
           .maybeSingle();
@@ -169,12 +176,21 @@ const handler = async (req: Request): Promise<Response> => {
           resolvedSubject = campaignRecord.subject_line.trim();
         }
 
+        if (!resolvedPreviewText && campaignRecord.preheader_text?.trim()) {
+          resolvedPreviewText = campaignRecord.preheader_text.trim();
+        }
+
         if (!resolvedContentBlocks) {
-          const source = await resolveCampaignEmailSource(campaignSourceClient, {
-            id: campaignRecord.id,
-            metadata: campaignRecord.metadata,
-            content: campaignRecord.content,
-          });
+          const source = await resolveCampaignEmailSource(
+            campaignSourceClient,
+            {
+              id: campaignRecord.id,
+              metadata: campaignRecord.metadata,
+              content: campaignRecord.content,
+              subject_line: campaignRecord.subject_line,
+              preheader_text: campaignRecord.preheader_text,
+            },
+          );
           if (source.contentBlocks.length > 0) {
             resolvedContentBlocks = source.contentBlocks;
             resolvedHtml = "";
@@ -203,7 +219,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Fetch company profile
     const { data: companyProfile } = await supabaseClient
       .from("company_profiles")
-      .select("*")
+      .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
       .eq("user_id", user.id)
       .single();
 
@@ -233,7 +249,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else if (sampleCustomer) {
       customer = {
-        email: sampleCustomer.email || "sample@example.com",
+        email: sampleCustomer.email || "sample@demo-gardens.test",
         first_name: sampleCustomer.first_name || "Jane",
         last_name: sampleCustomer.last_name || "Gardener",
         phone: sampleCustomer.phone || "(555) 123-4567",
@@ -245,6 +261,7 @@ const handler = async (req: Request): Promise<Response> => {
       tenantId,
       campaignId,
       subject: resolvedSubject,
+      previewText: resolvedPreviewText,
       html: resolvedHtml,
       contentBlocks: resolvedContentBlocks,
       customer,

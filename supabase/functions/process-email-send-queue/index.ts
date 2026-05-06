@@ -15,7 +15,8 @@ import {
 import {
   resolveCampaignEmailSource,
   type CampaignEmailSource,
-} from "../_shared/campaignEmailSource.ts";
+} from "../_shared/campaignEmailContent.ts";
+import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -272,6 +273,7 @@ function buildEmailPayloadOptimized(
     tenantId: campaign.tenant_id,
     campaignId: campaign.id,
     subject: campaign.subject_line || "Newsletter from your Garden Center",
+    previewText: campaign.preheader_text || campaign.preheader || "",
     html: campaignSource.html,
     contentBlocks: campaignSource.contentBlocks,
     customer: toCustomerShape(customer),
@@ -1800,7 +1802,7 @@ serve((req: Request) => {
                   const { data: cRow, error: cErr } = await supabase
                     .from("crm_campaigns")
                     .select(
-                      "id, tenant_id, user_id, status, content, metadata, subject_line, from_email_domain_id, actual_sender_email, sender_display_name, delivery_method",
+                      "id, tenant_id, user_id, status, content, metadata, subject_line, preheader_text, from_email_domain_id, actual_sender_email, sender_display_name, delivery_method",
                     )
                     .eq("id", campaignId)
                     .maybeSingle();
@@ -1819,15 +1821,7 @@ serve((req: Request) => {
                   if (!companyProfileCache.has(userId)) {
                     const { data: pRow, error: pErr } = await supabase
                       .from("company_profiles")
-                      .select(
-                        `
-                  email_auth_status, custom_sender_email, company_name, location_info,
-                  street_address, city, state_province, postal_code, country,
-                  website_url, company_email, company_phone,
-                  facebook_url, instagram_url, tiktok_url, pinterest_url, youtube_url, linkedin_url,
-                  footer_legal_text, brand_primary_color, brand_text_color, feature_flags
-                `,
-                      )
+                      .select(COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT)
                       .eq("user_id", userId)
                       .maybeSingle();
                     if (pErr)
@@ -1964,6 +1958,8 @@ serve((req: Request) => {
                       subject:
                         campaign.subject_line ||
                         "Newsletter from your Garden Center",
+                      previewText:
+                        campaign.preheader_text || campaign.preheader || "",
                       html: campaignSource.html,
                       contentBlocks: campaignSource.contentBlocks,
                       customer: representativeCustomer

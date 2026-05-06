@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-// Removed sonner import - using global toast replacement
 import {
   getRelevantFallbacks,
   formatFallbackImages,
@@ -13,8 +11,8 @@ interface ImageSuggestion {
   download_url: string;
   alt: string;
   photographer: string;
-  unsplash_id: string;
   query: string;
+  source?: string;
 }
 
 // Generate exactly 4 curated garden center placeholder images
@@ -183,32 +181,9 @@ export const useImageSuggestions = (
   const [hasStoredImages, setHasStoredImages] = useState(false);
 
   const fetchStoredImages = async (taskId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("image_suggestions")
-        .select("*")
-        .eq("content_task_id", taskId)
-        .order("created_at", { ascending: false })
-        .limit(4); // Only get 4 images
-
-      if (error) {
-        console.error("[IMAGE_HOOK] Error fetching stored images:", error);
-        return false;
-      }
-
-      if (data && data.length > 0) {
-        setImages(data.slice(0, 4)); // Ensure max 4 images
-        setQuery(data[0].query);
-        setUsingPlaceholders(false);
-        setHasStoredImages(true);
-        return true;
-      }
-      setHasStoredImages(false);
-      return false;
-    } catch (error) {
-      console.error("[IMAGE_HOOK] Exception fetching stored images:", error);
-      return false;
-    }
+    void taskId;
+    setHasStoredImages(false);
+    return false;
   };
 
   const fetchNewImages = async (
@@ -243,45 +218,14 @@ export const useImageSuggestions = (
         const titleKeywords = extractKeywordsFromContent(campaignTitle);
         finalQuery = buildSmartQuery(titleKeywords, contentType || "instagram");
       }
-      const { data, error } = await supabase.functions.invoke(
-        "fetch-unsplash-images",
-        {
-          body: {
-            query: finalQuery,
-            contentTaskId: taskId,
-            maxImages: 4, // Request exactly 4 images
-          },
-        },
+      const placeholders = getGardenCenterPlaceholderImages(
+        finalQuery,
+        contentType || "instagram",
       );
-
-      if (error) {
-        const placeholders = getGardenCenterPlaceholderImages(
-          finalQuery,
-          contentType || "instagram",
-        );
-        setImages(placeholders);
-        setQuery(finalQuery);
-        setUsingPlaceholders(true);
-        setHasStoredImages(false);
-        return;
-      }
-
-      if (data?.images && data.images.length > 0) {
-        const limitedImages = data.images.slice(0, 4); // Ensure max 4 images
-        setImages(limitedImages);
-        setQuery(finalQuery);
-        setUsingPlaceholders(false);
-        setHasStoredImages(true);
-      } else {
-        const placeholders = getGardenCenterPlaceholderImages(
-          finalQuery,
-          contentType || "instagram",
-        );
-        setImages(placeholders);
-        setQuery(finalQuery);
-        setUsingPlaceholders(true);
-        setHasStoredImages(false);
-      }
+      setImages(placeholders);
+      setQuery(finalQuery);
+      setUsingPlaceholders(true);
+      setHasStoredImages(false);
     } catch (error) {
       console.error("[IMAGE_HOOK] Error fetching images:", error);
 

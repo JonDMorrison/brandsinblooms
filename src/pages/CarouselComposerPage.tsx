@@ -14,7 +14,7 @@ import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { CarouselImageSelector } from "@/components/social/CarouselImageSelector";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
-import { AIPersonalizationDialog } from "@/components/crm/AIPersonalizationDialog";
+import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import {
   AlertCircle,
   ArrowLeft,
@@ -63,13 +63,10 @@ const CarouselComposerPage = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
-  const [showAIDialog, setShowAIDialog] = useState(false);
-  const [editingImageIndex, setEditingImageIndex] = useState<number | null>(
-    null,
-  );
 
   const { generateImageForChannel, isGenerating: isSingleImageGenerating } =
     useImageGeneration();
+  const { open } = useAIImageStudio();
 
   const limits = PLATFORM_LIMITS[platform];
   const captionLength = caption.length;
@@ -157,21 +154,20 @@ const CarouselComposerPage = () => {
   };
 
   const handleImageSelect = (index: number) => {
-    setEditingImageIndex(index);
-    setShowAIDialog(true);
-  };
-
-  const handleAIImageSelect = (imageUrl: string) => {
-    if (editingImageIndex !== null) {
-      const nextImages = [...carouselImages];
-      nextImages[editingImageIndex] = imageUrl;
-      setCarouselImages(nextImages);
-    } else if (carouselImages.length < 10) {
-      setCarouselImages([...carouselImages, imageUrl]);
-    }
-
-    setShowAIDialog(false);
-    setEditingImageIndex(null);
+    open({
+      browseOnly: true,
+      channel: platform,
+      contentContext: generationContext,
+      contextLabel: `Replace image ${index + 1} from your library, uploads, or AI.`,
+      defaultTab: "my-images",
+      onSelect: (imageUrl) => {
+        setCarouselImages((previousImages) => {
+          const nextImages = [...previousImages];
+          nextImages[index] = imageUrl;
+          return nextImages;
+        });
+      },
+    });
   };
 
   const handlePublish = async () => {
@@ -436,8 +432,20 @@ const CarouselComposerPage = () => {
                   color="neutral"
                   startDecorator={<ImagePlus size={16} />}
                   onClick={() => {
-                    setEditingImageIndex(null);
-                    setShowAIDialog(true);
+                    open({
+                      channel: platform,
+                      contentContext: generationContext,
+                      contextLabel:
+                        "Add a carousel image from your library, uploads, or AI.",
+                      defaultTab: "my-images",
+                      onSelect: (imageUrl) => {
+                        setCarouselImages((previousImages) =>
+                          previousImages.length < 10
+                            ? [...previousImages, imageUrl]
+                            : previousImages,
+                        );
+                      },
+                    });
                   }}
                   disabled={carouselImages.length >= 10}
                 >
@@ -602,15 +610,6 @@ const CarouselComposerPage = () => {
           isCarousel
         />
       ) : null}
-
-      <AIPersonalizationDialog
-        open={showAIDialog}
-        onOpenChange={setShowAIDialog}
-        onImageSelect={handleAIImageSelect}
-        channel={platform}
-        contentContext={generationContext}
-        contextType="carousel_builder"
-      />
     </ProtectedPageWrapper>
   );
 };
