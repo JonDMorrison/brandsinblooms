@@ -5,7 +5,6 @@ import { HomepageCrmShowcaseSection } from "./HomepageCrmShowcaseSection";
 import {
   CRM_CALLOUTS,
   CRM_SHOWCASE_HEADER,
-  CRM_TRUST_METRICS,
 } from "./content/crmShowcaseContent";
 
 const CRM_DASHBOARD_SCREENSHOT_ALT =
@@ -47,15 +46,14 @@ describe("HomepageCrmShowcaseSection", () => {
     }
   });
 
-  it("renders trust metrics as inline supporting evidence", () => {
+  it("does not render the trust-metrics dl when CRM_TRUST_METRICS is empty", () => {
+    // The 4.9/5 / 99.9% / < 2 min strip was hidden until verified — the
+    // metrics array is empty and HomepageCrmShowcaseSection conditionally
+    // omits the <dl> entirely. Asserting absence keeps a regression
+    // (e.g. someone re-adds an empty <dl>) from quietly slipping past.
     render(<HomepageCrmShowcaseSection isActive motionEnabled />);
 
-    const metrics = screen.getByLabelText("CRM trust metrics");
-
-    for (const metric of CRM_TRUST_METRICS) {
-      expect(within(metrics).getByText(metric.value)).toBeInTheDocument();
-      expect(within(metrics).getByText(metric.label)).toBeInTheDocument();
-    }
+    expect(screen.queryByLabelText("CRM trust metrics")).toBeNull();
   });
 
   it("accepts a real screenshot source without changing the frame API", () => {
