@@ -75,15 +75,15 @@ describe("HomepageFeatureHighlightsSection", () => {
       />,
     );
 
-    // Feature placeholderLabel for smart-crm was renamed to "Customer CRM"
-    // in the homepage copy rewrite. Alt text follows the same label.
-    expect(screen.getByAltText("Customer CRM preview")).toHaveAttribute(
-      "src",
-      "/customer-dashboard.png",
-    );
+    // Feature placeholderLabel for smart-crm is "Remember Every Customer"
+    // (outcome-led copy rewrite). Alt text + placeholder aria-label
+    // follow the same label.
+    expect(
+      screen.getByAltText("Remember Every Customer preview"),
+    ).toHaveAttribute("src", "/customer-dashboard.png");
     expect(
       screen.queryByRole("img", {
-        name: "Customer CRM screenshot placeholder",
+        name: "Remember Every Customer screenshot placeholder",
       }),
     ).toBeNull();
   });
