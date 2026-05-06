@@ -14,6 +14,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
   const { user, loading } = useAuth();
   const [isAwaitingRehydration, setIsAwaitingRehydration] = useState(false);
   const hasPersistedSession = !user && hasPersistedAuthState();
+  const isResetPasswordRoute = window.location.pathname === "/reset-password";
 
   useEffect(() => {
     if (!user && hasPersistedSession) {
@@ -40,8 +41,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  // If user is authenticated, always redirect to dashboard
-  if (user) {
+  if (user && !isResetPasswordRoute) {
     return <Navigate to="/dashboard" replace />;
   }
 

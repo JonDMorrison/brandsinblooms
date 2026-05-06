@@ -1,40 +1,237 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui-legacy/button';
-import { Input } from '@/components/ui-legacy/input';
-import { Label } from '@/components/ui-legacy/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui-legacy/tabs';
-import { toast } from 'sonner';
-import { Loader2, Mail, Lock, User } from 'lucide-react';
-import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
+import { useEffect, useState } from "react";
+import type { CSSProperties, FormEvent, ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  AuthAlert,
+  AuthButton,
+  AuthCard,
+  AuthInput,
+  AuthLayout,
+  AuthPasswordStrength,
+  AuthTabGroup,
+} from "@/components/auth";
+import { Building2, Leaf, Lock, Mail, User } from "lucide-react";
+
+type AuthMode = "signin" | "signup";
+type SignInField = "email" | "password";
+type SignUpField = "fullName" | "companyName" | "email" | "password";
+
+interface SignInFormState {
+  email: string;
+  password: string;
+}
+
+interface SignUpFormState {
+  fullName: string;
+  companyName: string;
+  email: string;
+  password: string;
+}
+
+interface AuthAlertState {
+  variant: "error" | "success";
+  content: ReactNode;
+}
+
+const getModeFromHash = (hash: string): AuthMode =>
+  hash === "#signup" ? "signup" : "signin";
+
+const getEntryStyle = (delayMs: number) =>
+  ({ "--auth-entry-delay": `${delayMs}ms` }) as CSSProperties;
+
+const getErrorText = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as { message?: unknown }).message ?? "");
+  }
+
+  return "";
+};
+
+const isConnectionError = (message: string) =>
+  /network|timeout|timed out|failed to fetch|fetch failed|connection/i.test(
+    message,
+  );
+
+const mapSignInError = (error: unknown) => {
+  const message = getErrorText(error);
+
+  if (/invalid login credentials/i.test(message)) {
+    return "The email or password you entered is incorrect.";
+  }
+
+  if (/email not confirmed/i.test(message)) {
+    return "Please check your inbox and confirm your email before signing in.";
+  }
+
+  if (isConnectionError(message)) {
+    return "Unable to connect. Please check your internet connection.";
+  }
+
+  return "Something went wrong. Please try again.";
+};
+
+const validateSignIn = (form: SignInFormState) => ({
+  email: form.email.trim() ? undefined : "Email is required",
+  password: form.password ? undefined : "Password is required",
+});
+
+const validateSignUp = (form: SignUpFormState) => ({
+  fullName: form.fullName.trim() ? undefined : "Full name is required",
+  companyName: form.companyName.trim() ? undefined : "Company name is required",
+  email: form.email.trim() ? undefined : "Email is required",
+  password: !form.password
+    ? "Password is required"
+    : form.password.length < 6
+      ? "Password must be at least 6 characters"
+      : undefined,
+});
 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [companyName, setCompanyName] = useState('');
+  const [mode, setMode] = useState<AuthMode>(() =>
+    getModeFromHash(location.hash),
+  );
+  const [displayedMode, setDisplayedMode] = useState<AuthMode>(mode);
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [alert, setAlert] = useState<AuthAlertState | null>(null);
+  const [signInForm, setSignInForm] = useState<SignInFormState>({
+    email: "",
+    password: "",
+  });
+  const [signUpForm, setSignUpForm] = useState<SignUpFormState>({
+    fullName: "",
+    companyName: "",
+    email: "",
+    password: "",
+  });
+  const [signInTouched, setSignInTouched] = useState<
+    Record<SignInField, boolean>
+  >({
+    email: false,
+    password: false,
+  });
+  const [signUpTouched, setSignUpTouched] = useState<
+    Record<SignUpField, boolean>
+  >({
+    fullName: false,
+    companyName: false,
+    email: false,
+    password: false,
+  });
+  const [signInSubmitted, setSignInSubmitted] = useState(false);
+  const [signUpSubmitted, setSignUpSubmitted] = useState(false);
+  const [signUpSuccess, setSignUpSuccess] = useState(false);
 
-  // Show success message if navigated from password reset
+  const signInValidation = validateSignIn(signInForm);
+  const signUpValidation = validateSignUp(signUpForm);
+  const signInErrors = {
+    email:
+      signInTouched.email || signInSubmitted
+        ? signInValidation.email
+        : undefined,
+    password:
+      signInTouched.password || signInSubmitted
+        ? signInValidation.password
+        : undefined,
+  };
+
+  const signUpErrors = {
+    fullName:
+      signUpTouched.fullName || signUpSubmitted
+        ? signUpValidation.fullName
+        : undefined,
+    companyName:
+      signUpTouched.companyName || signUpSubmitted
+        ? signUpValidation.companyName
+        : undefined,
+    email:
+      signUpTouched.email || signUpSubmitted
+        ? signUpValidation.email
+        : undefined,
+    password:
+      signUpTouched.password || signUpSubmitted
+        ? signUpValidation.password
+        : undefined,
+  };
+
   useEffect(() => {
-    const message = location.state?.message;
-    if (message) {
-      toast.success(message);
-      // Clear the state
-      navigate('/auth', { replace: true, state: {} });
-    }
-  }, [location, navigate]);
+    setMode(getModeFromHash(location.hash));
+  }, [location.hash]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error('Please fill in all fields');
+  useEffect(() => {
+    if (mode === displayedMode) {
+      return undefined;
+    }
+
+    setIsSwitchingMode(true);
+    const timerId = window.setTimeout(() => {
+      setDisplayedMode(mode);
+      setIsSwitchingMode(false);
+    }, 200);
+
+    return () => window.clearTimeout(timerId);
+  }, [displayedMode, mode]);
+
+  useEffect(() => {
+    const message = (location.state as { message?: string } | null)?.message;
+
+    if (message) {
+      setAlert({ variant: "success", content: message });
+      navigate(
+        {
+          pathname: "/auth",
+          hash: location.hash,
+        },
+        { replace: true, state: {} },
+      );
+    }
+  }, [location.hash, location.state, navigate]);
+
+  const handleModeChange = (nextMode: AuthMode) => {
+    if (nextMode === mode) {
       return;
     }
+
+    setAlert(null);
+    navigate({
+      pathname: location.pathname,
+      search: location.search,
+      hash: `#${nextMode}`,
+    });
+  };
+
+  const handleSignInFieldBlur = (field: SignInField) => {
+    setSignInTouched((current) => ({ ...current, [field]: true }));
+  };
+
+  const handleSignUpFieldBlur = (field: SignUpField) => {
+    setSignUpTouched((current) => ({ ...current, [field]: true }));
+  };
+
+  const handleSignIn = async (e: FormEvent) => {
+    e.preventDefault();
+    setSignInSubmitted(true);
+    setAlert(null);
+
+    const errors = validateSignIn(signInForm);
+    if (errors.email || errors.password) {
+      return;
+    }
+
+    const email = signInForm.email.trim();
+    const password = signInForm.password;
 
     setLoading(true);
     try {
@@ -44,24 +241,36 @@ export const AuthPage = () => {
       });
 
       if (error) {
-        toast.error(error.message);
+        setAlert({ variant: "error", content: mapSignInError(error) });
       } else if (data.user) {
-        toast.success('Signed in successfully!');
-        navigate('/dashboard');
+        navigate("/dashboard");
       }
     } catch (error) {
-      toast.error('An unexpected error occurred');
+      setAlert({ variant: "error", content: mapSignInError(error) });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !fullName || !companyName) {
-      toast.error('Please fill in all fields');
+    setSignUpSubmitted(true);
+    setAlert(null);
+
+    const errors = validateSignUp(signUpForm);
+    if (
+      errors.fullName ||
+      errors.companyName ||
+      errors.email ||
+      errors.password
+    ) {
       return;
     }
+
+    const email = signUpForm.email.trim();
+    const password = signUpForm.password;
+    const fullName = signUpForm.fullName.trim();
+    const companyName = signUpForm.companyName.trim();
 
     setLoading(true);
     try {
@@ -73,223 +282,352 @@ export const AuthPage = () => {
             full_name: fullName,
             company_name: companyName,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
       });
 
       if (error) {
-        toast.error(error.message);
+        const message = getErrorText(error);
+
+        if (/password .+ at least 6 characters/i.test(message)) {
+          setSignUpTouched((current) => ({ ...current, password: true }));
+          setSignUpSubmitted(true);
+        } else if (/user already registered/i.test(message)) {
+          setAlert({
+            variant: "error",
+            content: (
+              <>
+                An account with this email already exists.{" "}
+                <button
+                  type="button"
+                  className="auth-alert-link"
+                  onClick={() => handleModeChange("signin")}
+                >
+                  Sign In
+                </button>
+                .
+              </>
+            ),
+          });
+        } else if (isConnectionError(message)) {
+          setAlert({
+            variant: "error",
+            content: "Unable to connect.",
+          });
+        } else {
+          setAlert({
+            variant: "error",
+            content: "Something went wrong. Please try again.",
+          });
+        }
       } else if (data.user) {
-        // Send admin notification about new signup
         try {
-          await supabase.functions.invoke('send-admin-notification', {
+          await supabase.functions.invoke("send-admin-notification", {
             body: {
-              type: 'trial_signup',
+              type: "trial_signup",
               user_id: data.user.id,
               user_email: data.user.email || email,
               user_name: fullName,
-              company_name: companyName
-            }
+              company_name: companyName,
+            },
           });
         } catch (notifError) {
-          console.error('Failed to send admin notification:', notifError);
-          // Don't block signup flow if notification fails
+          console.error("Failed to send admin notification:", notifError);
         }
 
         if (data.user.email_confirmed_at) {
-          toast.success('Account created successfully!');
-          navigate('/onboarding');
+          navigate("/onboarding");
         } else {
-          toast.success('Please check your email to confirm your account');
+          setSignUpSuccess(true);
+          setAlert({
+            variant: "success",
+            content:
+              "Account created! Please check your email to verify your account.",
+          });
         }
       }
     } catch (error) {
-      toast.error('An unexpected error occurred');
+      const message = getErrorText(error);
+      setAlert({
+        variant: "error",
+        content: isConnectionError(message)
+          ? "Unable to connect."
+          : "Something went wrong. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  const renderAlert = () =>
+    alert ? (
+      <AuthAlert variant={alert.variant} onDismiss={() => setAlert(null)}>
+        {alert.content}
+      </AuthAlert>
+    ) : null;
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <LandingPageHeader onLogin={() => {}} showUserMenu={false} />
-      <div className="flex items-center justify-center pt-8 pb-16 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">BloomSuite</h1>
-            <p className="text-gray-600">Welcome back to your marketing hub</p>
+  const renderSignInForm = () => (
+    <div className="auth-mode-content">
+      <div className="auth-mode-copy">
+        <h1 className="auth-form-heading auth-stagger" style={getEntryStyle(0)}>
+          Welcome back
+        </h1>
+        <p
+          className="auth-form-subheading auth-stagger"
+          style={getEntryStyle(100)}
+        >
+          Sign in to your BloomSuite account
+        </p>
+      </div>
+
+      {renderAlert()}
+
+      <form
+        className="auth-form auth-form--signin"
+        onSubmit={handleSignIn}
+        noValidate
+      >
+        <div className="auth-form-fields auth-form-fields--signin">
+          <div className="auth-stagger" style={getEntryStyle(200)}>
+            <AuthInput
+              id="signin-email"
+              label="Email"
+              type="email"
+              placeholder="you@company.com"
+              value={signInForm.email}
+              onBlur={() => handleSignInFieldBlur("email")}
+              onChange={(e) => {
+                setSignInForm((current) => ({
+                  ...current,
+                  email: e.target.value,
+                }));
+                setAlert(null);
+              }}
+              icon={<Mail aria-hidden="true" />}
+              error={signInErrors.email}
+              disabled={loading}
+              autoComplete="email"
+              required
+            />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Your Account</CardTitle>
-              <CardDescription>
-                Sign in to your account or create a new one to get started
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="signin" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="signin">Sign In</TabsTrigger>
-                  <TabsTrigger value="signup">Create Account</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="signin">
-                  <form onSubmit={handleSignIn} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signin-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signin-password">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signin-password"
-                          type="password"
-                          placeholder="Enter your password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Signing in...
-                        </>
-                      ) : (
-                        'Sign In'
-                      )}
-                    </Button>
-                    
-                    <div className="text-center">
-                      <Link
-                        to="/forgot-password"
-                        className="text-sm text-blue-600 hover:underline"
-                      >
-                        Forgot your password?
-                      </Link>
-                    </div>
-                  </form>
-                </TabsContent>
-                
-                <TabsContent value="signup">
-                  <form onSubmit={handleSignUp} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-name">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signup-name"
-                          type="text"
-                          placeholder="Enter your full name"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="company-name">Company Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="company-name"
-                          type="text"
-                          placeholder="Enter your company name"
-                          value={companyName}
-                          onChange={(e) => setCompanyName(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signup-email"
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-password">Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="signup-password"
-                          type="password"
-                          placeholder="Create a password (min 6 characters)"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10"
-                          disabled={loading}
-                          minLength={6}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating account...
-                        </>
-                      ) : (
-                        'Create Account'
-                      )}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-          
-          <div className="text-center mt-6">
-            <button
-              onClick={() => navigate('/')}
-              className="text-sm text-gray-600 hover:underline"
-            >
-              ← Back to homepage
-            </button>
+          <div className="auth-stagger" style={getEntryStyle(300)}>
+            <AuthInput
+              id="signin-password"
+              label="Password"
+              type="password"
+              placeholder="Enter your password"
+              value={signInForm.password}
+              onBlur={() => handleSignInFieldBlur("password")}
+              onChange={(e) => {
+                setSignInForm((current) => ({
+                  ...current,
+                  password: e.target.value,
+                }));
+                setAlert(null);
+              }}
+              icon={<Lock aria-hidden="true" />}
+              error={signInErrors.password}
+              disabled={loading}
+              autoComplete="current-password"
+              required
+            />
           </div>
         </div>
-      </div>
+
+        <div
+          className="auth-signin-options auth-stagger"
+          style={getEntryStyle(350)}
+        >
+          <label className="auth-checkbox-control">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              disabled={loading}
+            />
+            <span className="auth-checkbox-control__box" aria-hidden="true" />
+            <span>Remember me</span>
+          </label>
+          <Link to="/forgot-password" className="auth-inline-link">
+            Forgot password?
+          </Link>
+        </div>
+
+        <div className="auth-stagger" style={getEntryStyle(400)}>
+          <AuthButton type="submit" loading={loading}>
+            Sign In
+          </AuthButton>
+        </div>
+      </form>
     </div>
+  );
+
+  const renderSignUpForm = () => (
+    <div className="auth-mode-content">
+      <div className="auth-mode-copy">
+        <h1 className="auth-form-heading auth-stagger" style={getEntryStyle(0)}>
+          Create your account
+        </h1>
+        <p
+          className="auth-form-subheading auth-stagger"
+          style={getEntryStyle(100)}
+        >
+          Start growing your green business with AI
+        </p>
+      </div>
+
+      {renderAlert()}
+
+      <form
+        className={`auth-form auth-form--signup${signUpSuccess ? " auth-form--dimmed" : ""}`}
+        onSubmit={handleSignUp}
+        noValidate
+      >
+        <div className="auth-form-fields auth-form-fields--signup">
+          <div className="auth-stagger" style={getEntryStyle(180)}>
+            <AuthInput
+              id="signup-name"
+              label="Full Name"
+              type="text"
+              placeholder="Your full name"
+              value={signUpForm.fullName}
+              onBlur={() => handleSignUpFieldBlur("fullName")}
+              onChange={(e) => {
+                setSignUpForm((current) => ({
+                  ...current,
+                  fullName: e.target.value,
+                }));
+                setAlert(null);
+                setSignUpSuccess(false);
+              }}
+              icon={<User aria-hidden="true" />}
+              error={signUpErrors.fullName}
+              disabled={loading}
+              autoComplete="name"
+              required
+            />
+          </div>
+
+          <div className="auth-stagger" style={getEntryStyle(250)}>
+            <AuthInput
+              id="company-name"
+              label="Company Name"
+              type="text"
+              placeholder="Your garden centre or business"
+              value={signUpForm.companyName}
+              onBlur={() => handleSignUpFieldBlur("companyName")}
+              onChange={(e) => {
+                setSignUpForm((current) => ({
+                  ...current,
+                  companyName: e.target.value,
+                }));
+                setAlert(null);
+                setSignUpSuccess(false);
+              }}
+              icon={<Building2 aria-hidden="true" />}
+              error={signUpErrors.companyName}
+              disabled={loading}
+              required
+            />
+          </div>
+
+          <div className="auth-stagger" style={getEntryStyle(320)}>
+            <AuthInput
+              id="signup-email"
+              label="Email"
+              type="email"
+              placeholder="you@company.com"
+              value={signUpForm.email}
+              onBlur={() => handleSignUpFieldBlur("email")}
+              onChange={(e) => {
+                setSignUpForm((current) => ({
+                  ...current,
+                  email: e.target.value,
+                }));
+                setAlert(null);
+                setSignUpSuccess(false);
+              }}
+              icon={<Mail aria-hidden="true" />}
+              error={signUpErrors.email}
+              disabled={loading}
+              autoComplete="email"
+              required
+            />
+          </div>
+
+          <div className="auth-stagger" style={getEntryStyle(390)}>
+            <AuthInput
+              id="signup-password"
+              label="Password"
+              type="password"
+              placeholder="Min. 6 characters"
+              value={signUpForm.password}
+              onBlur={() => handleSignUpFieldBlur("password")}
+              onChange={(e) => {
+                setSignUpForm((current) => ({
+                  ...current,
+                  password: e.target.value,
+                }));
+                setAlert(null);
+                setSignUpSuccess(false);
+              }}
+              icon={<Lock aria-hidden="true" />}
+              error={signUpErrors.password}
+              disabled={loading}
+              minLength={6}
+              autoComplete="new-password"
+              required
+            />
+            <AuthPasswordStrength password={signUpForm.password} />
+          </div>
+        </div>
+
+        <p className="auth-terms auth-stagger" style={getEntryStyle(450)}>
+          By creating an account, you agree to our{" "}
+          <Link to="/terms">Terms of Service</Link> and{" "}
+          <Link to="/privacy">Privacy Policy</Link>.
+        </p>
+
+        <div className="auth-stagger" style={getEntryStyle(420)}>
+          <AuthButton type="submit" loading={loading}>
+            Create Account
+          </AuthButton>
+        </div>
+      </form>
+    </div>
+  );
+
+  return (
+    <AuthLayout>
+      <div className="auth-page-shell">
+        <AuthCard className="auth-page-card">
+          <div className="auth-content-panel auth-content-panel--auth-page">
+            <AuthTabGroup<AuthMode>
+              ariaLabel="Authentication mode"
+              value={mode}
+              onValueChange={handleModeChange}
+              options={[
+                { value: "signin", label: "Sign In" },
+                { value: "signup", label: "Sign Up" },
+              ]}
+            />
+
+            <div
+              className={`auth-mode-panel ${isSwitchingMode ? "auth-mode-panel--exiting" : "auth-mode-panel--entering"}`}
+            >
+              {displayedMode === "signin"
+                ? renderSignInForm()
+                : renderSignUpForm()}
+            </div>
+          </div>
+        </AuthCard>
+
+        <div className="auth-social-proof">
+          <Leaf aria-hidden="true" />
+          <span>Trusted by 200+ green businesses</span>
+        </div>
+      </div>
+    </AuthLayout>
   );
 };

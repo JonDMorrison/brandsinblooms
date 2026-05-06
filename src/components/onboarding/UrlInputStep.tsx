@@ -1,14 +1,9 @@
-
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
-import { Loader2, Globe, Edit, AlertTriangle, RefreshCw } from "lucide-react";
+import { AuthAlert, AuthButton, AuthInput } from "@/components/auth";
+import { Globe, RefreshCw } from "lucide-react";
 
 interface AnalysisError {
-  type: 'network' | 'validation' | 'extraction' | 'unknown';
+  type: "network" | "validation" | "extraction" | "unknown";
   message: string;
   canRetry: boolean;
   suggestedAction?: string;
@@ -24,20 +19,33 @@ interface UrlInputStepProps {
   onResetAnalysis?: () => void;
 }
 
-export const UrlInputStep = ({ 
-  websiteUrl, 
-  setWebsiteUrl, 
-  onAnalyze, 
-  onManualEntry, 
+export const UrlInputStep = ({
+  websiteUrl,
+  setWebsiteUrl,
+  onAnalyze,
+  onManualEntry,
   isAnalyzing,
   analysisError,
-  onResetAnalysis
+  onResetAnalysis,
 }: UrlInputStepProps) => {
   const [error, setError] = useState("");
+
+  const hasValidHttpsUrl = (value: string) => {
+    try {
+      const parsedUrl = new URL(value.trim());
+      return parsedUrl.protocol === "https:" && Boolean(parsedUrl.hostname);
+    } catch {
+      return false;
+    }
+  };
 
   const handleAnalyze = () => {
     if (!websiteUrl.trim()) {
       setError("Please enter a website URL");
+      return;
+    }
+    if (!hasValidHttpsUrl(websiteUrl)) {
+      setError("Please enter a valid URL");
       return;
     }
     setError("");
@@ -51,137 +59,98 @@ export const UrlInputStep = ({
     setError("");
   };
 
-  const getErrorVariant = (errorType: string) => {
-    switch (errorType) {
-      case 'network':
-        return 'default';
-      case 'validation':
-        return 'destructive';
-      case 'extraction':
-        return 'default';
-      default:
-        return 'destructive';
-    }
-  };
-
   return (
-    <Card className="w-full max-w-lg md:max-w-lg mx-4 md:mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
-      <CardHeader className="text-center pb-6">
-        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <Edit className="h-8 w-8 text-brand-green" />
+    <div className="auth-onboarding-step auth-onboarding-step--url">
+      <div className="auth-onboarding-step__header">
+        <div className="auth-icon-bubble auth-icon-bubble--large">
+          <Globe aria-hidden="true" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-foreground">
-          Paste Your Website
-        </CardTitle>
-        <p className="text-gray-600 mt-2">
-          We'll analyze your site to learn your brand voice and customer style.
+        <h1>Let's set up your store</h1>
+        <p>
+          Enter your website and BloomSuite will build a starter profile from
+          your brand, products, and location details.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Error Display */}
-        {analysisError && (
-          <Alert variant={getErrorVariant(analysisError.type)}>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="space-y-2">
-              <div>{analysisError.message}</div>
-              {analysisError.suggestedAction && (
-                <div className="text-sm opacity-90">
-                  <strong>Suggestion:</strong> {analysisError.suggestedAction}
-                </div>
-              )}
-              <div className="flex gap-2 mt-3">
-                {analysisError.canRetry && (
-                  <Button
-                    onClick={handleTryAgain}
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                  >
-                    <RefreshCw className="w-3 h-3 mr-1" />
-                    Try Again
-                  </Button>
-                )}
-                <Button
-                  onClick={onManualEntry}
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                >
-                  Manual Entry Instead
-                </Button>
+      </div>
+
+      {/* Error Display */}
+      {analysisError && (
+        <AuthAlert
+          key={analysisError.message}
+          variant={analysisError.type === "validation" ? "error" : "info"}
+        >
+          <span className="auth-onboarding-alert-stack">
+            <div>{analysisError.message}</div>
+            {analysisError.suggestedAction && (
+              <div className="auth-onboarding-muted">
+                <strong>Suggestion:</strong> {analysisError.suggestedAction}
               </div>
-            </AlertDescription>
-          </Alert>
-        )}
+            )}
+            <div className="auth-onboarding-actions auth-onboarding-actions--inline">
+              {analysisError.canRetry && (
+                <AuthButton
+                  onClick={handleTryAgain}
+                  variant="secondary"
+                  fullWidth={false}
+                  size="sm"
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Try Again
+                </AuthButton>
+              )}
+              <AuthButton
+                onClick={onManualEntry}
+                variant="secondary"
+                fullWidth={false}
+                size="sm"
+              >
+                Manual Entry Instead
+              </AuthButton>
+            </div>
+          </span>
+        </AuthAlert>
+      )}
 
-        <div className="space-y-2">
-          <Label htmlFor="website-url" className="text-gray-700 font-medium">
-            Website URL
-          </Label>
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              id="website-url"
-              type="url"
-              value={websiteUrl}
-              onChange={(e) => {
-                setWebsiteUrl(e.target.value);
-                setError("");
-                // Clear analysis error when user starts typing
-                if (analysisError && onResetAnalysis) {
-                  onResetAnalysis();
-                }
-              }}
-              placeholder="https://your-garden-center.com"
-              className="pl-10 h-12 border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
-              disabled={isAnalyzing}
-            />
-          </div>
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
-        </div>
+      <AuthInput
+        id="website-url"
+        label="Website URL"
+        type="url"
+        value={websiteUrl}
+        onChange={(e) => {
+          setWebsiteUrl(e.target.value);
+          setError("");
+          // Clear analysis error when user starts typing
+          if (analysisError && onResetAnalysis) {
+            onResetAnalysis();
+          }
+        }}
+        placeholder="https://your-garden-center.com"
+        icon={<Globe aria-hidden="true" />}
+        disabled={isAnalyzing}
+        error={error}
+      />
 
-        <Button 
-          onClick={handleAnalyze}
-          disabled={isAnalyzing}
-          className="w-full h-12 bg-brand-teal hover:bg-brand-teal-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
-        >
-          {isAnalyzing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            "Analyze Website"
-          )}
-        </Button>
+      <AuthButton
+        onClick={handleAnalyze}
+        disabled={isAnalyzing}
+        loading={isAnalyzing}
+      >
+        Analyze My Website
+      </AuthButton>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-brand-green/20" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-4 text-gray-500">— or —</span>
-          </div>
-        </div>
+      <AuthButton
+        onClick={onManualEntry}
+        variant="ghost"
+        disabled={isAnalyzing}
+        className="auth-onboarding-manual-link"
+      >
+        Don't have a website? Set up manually →
+      </AuthButton>
 
-        <Button 
-          onClick={onManualEntry}
-          variant="outline"
-          className="w-full h-12 border-brand-green/30 hover:bg-muted hover:border-brand-green transition-all duration-200 rounded-lg"
-          disabled={isAnalyzing}
-        >
-          Enter Details Manually
-        </Button>
-
-        {/* Help Text */}
-        <div className="text-xs text-gray-500 text-center space-y-1">
-          <p>Having trouble? Try entering your full website URL including "https://"</p>
-          <p>Example: https://www.yoursite.com</p>
-          <p className="text-brand-green font-medium">🔒 Your data is processed securely and never stored</p>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Help Text */}
+      <div className="auth-onboarding-help">
+        <p>Use your full secure URL, for example https://www.yoursite.com.</p>
+        <p>Your data is processed securely and never stored.</p>
+      </div>
+    </div>
   );
 };

@@ -1,4 +1,4 @@
-import { KeyboardEvent, useMemo, useState } from "react";
+import { KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/joy/Avatar";
 import Badge from "@mui/joy/Badge";
@@ -28,11 +28,16 @@ import {
   UserCircle2,
   X,
 } from "lucide-react";
-import { ReportProblemDialog } from "@/components/reportProblem/ReportProblemDialog";
 import { useDashboardShell } from "@/components/layout/DashboardShell";
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutCompletely } from "@/integrations/supabase/client";
+
+const LazyReportProblemDialog = lazy(() =>
+  import("@/components/reportProblem/ReportProblemDialog").then((module) => ({
+    default: module.ReportProblemDialog,
+  })),
+);
 
 export const DASHBOARD_TOPBAR_HEIGHT = 56;
 
@@ -584,10 +589,14 @@ export function DashboardTopBar({
         </Box>
       </Sheet>
 
-      <ReportProblemDialog
-        open={isReportProblemOpen}
-        onOpenChange={setIsReportProblemOpen}
-      />
+      {isReportProblemOpen ? (
+        <Suspense fallback={null}>
+          <LazyReportProblemDialog
+            open={isReportProblemOpen}
+            onOpenChange={setIsReportProblemOpen}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 }

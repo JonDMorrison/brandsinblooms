@@ -15,12 +15,10 @@ import {
 
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PublicRoute } from "@/components/PublicRoute";
-import { AuthPage } from "@/components/auth/AuthPage";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
 import { RedirectWithQuery } from "@/components/RedirectWithQuery";
 import { NavigationTracker } from "@/components/NavigationTracker";
-import { OAuthCallbackHandler } from "@/components/migrations/OAuthCallbackHandler";
 import { lazyNamed } from "@/utils/lazyNamed";
 import { lazyRetry } from "@/utils/lazyRetry";
 
@@ -111,6 +109,10 @@ const IntegrationDetailPage = lazyRetry(
 // ============================================================
 // LAZY-LOADED PUBLIC / AUTH / MARKETING PAGES
 // ============================================================
+const AuthPage = lazyNamed(
+  () => import("@/components/auth/AuthPage"),
+  "AuthPage",
+);
 const ForgotPasswordPage = lazyNamed(
   () => import("@/pages/ForgotPasswordPage"),
   "ForgotPasswordPage",
@@ -159,6 +161,10 @@ const WebsiteWaitlistPage = lazyNamed(
 const AuthCallbackPage = lazyNamed(
   () => import("@/pages/AuthCallbackPage"),
   "AuthCallbackPage",
+);
+const OAuthCallbackHandler = lazyNamed(
+  () => import("@/components/migrations/OAuthCallbackHandler"),
+  "OAuthCallbackHandler",
 );
 const CallbackPage = lazyRetry(
   () => import("@/pages/integrations/lightspeed/CallbackPage"),
@@ -452,15 +458,15 @@ function App() {
           <NavigationTracker />
           <Routes>
             {/* Public routes */}
-            <Route
-              path="/auth"
-              element={
-                <PublicRoute>
-                  <AuthPage />
-                </PublicRoute>
-              }
-            />
             <Route element={<PublicLazyBoundary />}>
+              <Route
+                path="/auth"
+                element={
+                  <PublicRoute>
+                    <AuthPage />
+                  </PublicRoute>
+                }
+              />
               <Route
                 path="/forgot-password"
                 element={

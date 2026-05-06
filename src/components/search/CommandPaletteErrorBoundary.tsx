@@ -5,7 +5,26 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertTriangle } from "lucide-react";
-import { captureException } from "@/utils/uptrace";
+
+const reportException = (error: Error, context: Record<string, unknown>) => {
+  const telemetryEnabled =
+    Boolean(import.meta.env.VITE_UPTRACE_DSN) &&
+    String(import.meta.env.VITE_DISABLE_TELEMETRY || "").toLowerCase() !==
+      "true";
+
+  if (!telemetryEnabled) {
+    return;
+  }
+
+  import("@/utils/uptrace")
+    .then(({ captureException }) => captureException(error, context))
+    .catch((reportingError) => {
+      console.error(
+        "[CommandPaletteErrorBoundary] Failed to load telemetry:",
+        reportingError,
+      );
+    });
+};
 
 interface CommandPaletteErrorBoundaryProps {
   children: ReactNode;
@@ -26,12 +45,14 @@ export class CommandPaletteErrorBoundary extends Component<
     error: null,
   };
 
-  static getDerivedStateFromError(error: Error): CommandPaletteErrorBoundaryState {
+  static getDerivedStateFromError(
+    error: Error,
+  ): CommandPaletteErrorBoundaryState {
     return { error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    captureException(error, {
+    reportException(error, {
       component: "CommandPaletteErrorBoundary",
       componentStack: errorInfo.componentStack,
     });
@@ -76,7 +97,8 @@ export class CommandPaletteErrorBoundary extends Component<
             p: 3,
             borderRadius: "var(--joy-radius-lg)",
             backgroundColor: "background.surface",
-            border: "1px solid rgba(var(--joy-palette-neutral-mainChannel) / 0.12)",
+            border:
+              "1px solid rgba(var(--joy-palette-neutral-mainChannel) / 0.12)",
             boxShadow: "0 28px 80px rgba(15, 23, 42, 0.18)",
           }}
         >
@@ -96,7 +118,9 @@ export class CommandPaletteErrorBoundary extends Component<
                 <AlertTriangle size={18} strokeWidth={1.9} />
               </Box>
               <Stack spacing={0.25}>
-                <Typography level="title-md">Search ran into a problem.</Typography>
+                <Typography level="title-md">
+                  Search ran into a problem.
+                </Typography>
                 <Typography level="body-sm" sx={{ color: "neutral.600" }}>
                   Close and reopen the palette to reset it.
                 </Typography>

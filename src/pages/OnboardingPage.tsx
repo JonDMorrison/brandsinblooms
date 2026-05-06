@@ -6,18 +6,17 @@ import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
-  Loader2,
   CheckCircle,
-  Bookmark,
   FileText,
   Mail,
   Share2,
   Video,
   Newspaper,
+  LogOut,
 } from "lucide-react";
-import { Button } from "@/components/ui-legacy/button";
-import { Card, CardContent } from "@/components/ui-legacy/card";
+import { AuthButton, AuthCard, AuthLayout } from "@/components/auth";
 
 interface ContentPreviewItem {
   id: string;
@@ -29,16 +28,16 @@ interface ContentPreviewItem {
 
 type OnboardingStep = "flow" | "generating" | "preview" | "complete";
 
-const POST_TYPE_ICONS: Record<string, React.ReactNode> = {
-  newsletter: <Newspaper className="w-4 h-4" />,
-  email: <Mail className="w-4 h-4" />,
-  instagram: <Share2 className="w-4 h-4" />,
-  facebook: <Share2 className="w-4 h-4" />,
-  video_script: <Video className="w-4 h-4" />,
+const POST_TYPE_ICONS: Record<string, ReactNode> = {
+  newsletter: <Newspaper />,
+  email: <Mail />,
+  instagram: <Share2 />,
+  facebook: <Share2 />,
+  video_script: <Video />,
 };
 
 const OnboardingPage = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const {
     isCompleted,
     hasEverCompleted,
@@ -52,7 +51,7 @@ const OnboardingPage = () => {
   const [generatedContent, setGeneratedContent] = useState<
     ContentPreviewItem[]
   >([]);
-  const [pollAttempts, setPollAttempts] = useState(0);
+  const [, setPollAttempts] = useState(0);
   // FIX: M3 - Track whether content poll timed out so we can show a message
   const [contentTimedOut, setContentTimedOut] = useState(false);
   const MAX_POLL_ATTEMPTS = 20; // ~60 seconds at 3s intervals
@@ -156,7 +155,7 @@ const OnboardingPage = () => {
     return () => clearInterval(interval);
   }, [step, pollForContent]);
 
-  const handleOnboardingComplete = async (data: any) => {
+  const handleOnboardingComplete = async (data: unknown) => {
     if (!user) {
       console.error(
         "❌ OnboardingPage: No user found during onboarding completion",
@@ -199,15 +198,98 @@ const OnboardingPage = () => {
     }
   };
 
+  const renderOnboardingShell = (children: ReactNode) => (
+    <AuthLayout
+      contentSize="onboarding"
+      showHomeLink={false}
+      headerAction={
+        <AuthButton
+          type="button"
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          className="auth-onboarding-signout"
+          onClick={() => {
+            void signOut();
+          }}
+        >
+          <LogOut aria-hidden="true" />
+          Sign Out
+        </AuthButton>
+      }
+    >
+      {children}
+    </AuthLayout>
+  );
+
+  const renderCompletionState = () =>
+    renderOnboardingShell(
+      <AuthCard>
+        <div className="auth-onboarding-complete">
+          <svg
+            className="auth-onboarding-complete__check"
+            viewBox="0 0 64 64"
+            role="img"
+            aria-labelledby="onboarding-complete-title"
+            focusable="false"
+          >
+            <title id="onboarding-complete-title">Setup complete</title>
+            <circle
+              className="auth-onboarding-complete__circle"
+              cx="32"
+              cy="32"
+              r="30"
+            />
+            <path
+              className="auth-onboarding-complete__mark"
+              d="M20.5 33.5 28.2 41 44.5 24"
+            />
+          </svg>
+          <div className="auth-onboarding-complete__copy">
+            <h1>You're all set!</h1>
+            <p>Your BloomSuite store is ready. Let's explore your dashboard.</p>
+          </div>
+          {contentTimedOut ? (
+            <div className="auth-onboarding-note auth-onboarding-note--warning">
+              Your content is still being generated. Check your content library
+              in a few minutes.
+            </div>
+          ) : null}
+          <div className="auth-onboarding-complete__actions">
+            <AuthButton
+              onClick={() => {
+                markAsCompleted();
+                navigate("/dashboard", { replace: true });
+              }}
+            >
+              Go to Dashboard
+            </AuthButton>
+            <AuthButton
+              variant="ghost"
+              onClick={() => {
+                markAsCompleted();
+                navigate("/settings/domain", { replace: true });
+              }}
+            >
+              Set Up Custom Domain
+            </AuthButton>
+          </div>
+        </div>
+      </AuthCard>,
+    );
+
   // Loading state
   if (loading || onboardingLoading) {
-    return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-garden-green" />
-          <p className="text-text-secondary">Loading...</p>
+    return renderOnboardingShell(
+      <AuthCard>
+        <div className="auth-onboarding-loading">
+          <span
+            className="auth-spinner auth-onboarding-loading__spinner"
+            aria-hidden="true"
+          />
+          <p>Loading...</p>
         </div>
-      </div>
+      </AuthCard>,
     );
   }
 
@@ -217,206 +299,85 @@ const OnboardingPage = () => {
 
   // Step: Generating content — show loading with progress
   if (step === "generating") {
-    return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Generating your content...
-            </h1>
-            <p className="text-gray-600">
-              Our AI is creating personalized marketing content for your garden
-              center. This usually takes 30-60 seconds.
-            </p>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
-              style={{
-                width: `${Math.min(
-                  95,
-                  (pollAttempts / MAX_POLL_ATTEMPTS) * 100,
-                )}%`,
-              }}
-            />
-          </div>
-          <Button
-            variant="ghost"
-            onClick={handleSkipPreview}
-            className="text-gray-500"
-          >
-            Skip preview and go to dashboard
-          </Button>
-        </div>
-      </div>
-    );
+    return renderCompletionState();
   }
 
   // Step: Preview generated content
   if (step === "preview") {
-    return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl space-y-6">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <FileText className="w-8 h-8 text-green-600" />
+    return renderOnboardingShell(
+      <AuthCard>
+        <div className="auth-onboarding-preview">
+          <div className="auth-onboarding-preview__header">
+            <div className="auth-icon-bubble">
+              <FileText aria-hidden="true" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Your content is ready!
-            </h1>
-            <p className="text-gray-600">
+            <h1>Your content is ready!</h1>
+            <p>
               Here's a preview of what we created. You can edit any of these
               from your dashboard.
             </p>
           </div>
 
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+          <div className="auth-scroll-area auth-onboarding-preview__list">
             {generatedContent.map((item) => (
-              <Card key={item.id} className="border border-gray-200">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
-                      {POST_TYPE_ICONS[item.post_type] || (
-                        <FileText className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900 text-sm">
-                          {item.title}
-                        </span>
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full capitalize">
-                          {item.post_type.replace("_", " ")}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        {item.content}
-                      </p>
-                    </div>
+              <div
+                key={item.id}
+                className="auth-list-card auth-onboarding-preview__item"
+              >
+                <div className="auth-onboarding-preview__item-grid">
+                  <div className="auth-onboarding-preview__item-icon">
+                    {POST_TYPE_ICONS[item.post_type] || <FileText />}
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="auth-onboarding-preview__item-copy">
+                    <div className="auth-onboarding-preview__item-title-row">
+                      <span className="auth-onboarding-preview__item-title">
+                        {item.title}
+                      </span>
+                      <span className="auth-onboarding-preview__item-type">
+                        {item.post_type.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p>{item.content}</p>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
-          <div className="flex gap-3 justify-center">
-            <Button onClick={handleApproveContent} className="px-8">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Looks great — continue
-            </Button>
-            <Button
-              variant="outline"
+          <div className="auth-onboarding-actions auth-onboarding-actions--center">
+            <AuthButton onClick={handleApproveContent} fullWidth={false}>
+              <CheckCircle aria-hidden="true" />
+              Looks great - continue
+            </AuthButton>
+            <AuthButton
+              variant="secondary"
               onClick={handleSkipPreview}
-              className="text-gray-600"
+              fullWidth={false}
             >
               I'll review later
-            </Button>
+            </AuthButton>
           </div>
         </div>
-      </div>
+      </AuthCard>,
     );
   }
 
   // Step: Complete — success screen
   if (step === "complete") {
-    return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Your account is ready!
-            </h1>
-            <p className="text-gray-600">
-              You can now access BloomSuite anytime from:
-            </p>
-          </div>
-          <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm space-y-2">
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-              <Bookmark className="w-4 h-4" />
-              <span className="font-medium">Bookmark your login page</span>
-            </div>
-            <code className="font-mono text-sm font-semibold text-gray-900 select-all break-words">
-              https://bloomsuite.app/auth
-            </code>
-            <p className="text-xs text-gray-500">
-              Use this URL anytime to sign in. Save it now so you always know
-              where to go.
-            </p>
-          </div>
-          {/* FIX: M3 - Show timeout message when content generation is still running */}
-          {contentTimedOut && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-              Your content is still being generated — check your content library
-              in a few minutes.
-            </div>
-          )}
-          {/* Domain setup prompt — nudge before navigating to dashboard */}
-          <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg text-left space-y-2">
-            <p className="text-sm font-semibold text-teal-900">
-              One more thing: connect your sending domain
-            </p>
-            <p className="text-xs text-teal-700">
-              This is required to send emails to your customers. Takes about 5
-              minutes to set up.
-            </p>
-            <div className="flex gap-2 pt-1">
-              <Button
-                size="sm"
-                className="bg-teal-600 hover:bg-teal-700 text-white"
-                onClick={() => {
-                  markAsCompleted();
-                  navigate("/settings/domain", { replace: true });
-                }}
-              >
-                Set up my domain now
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-teal-600"
-                onClick={() => {
-                  markAsCompleted();
-                  navigate("/dashboard", { replace: true });
-                }}
-              >
-                I'll do this later
-              </Button>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              markAsCompleted();
-              navigate("/dashboard", { replace: true });
-            }}
-          >
-            Go to My Dashboard
-          </Button>
-        </div>
-      </div>
-    );
+    return renderCompletionState();
   }
 
   // Step: Flow — show onboarding wizard
   const isManualFlow = window.location.pathname === "/onboarding/manual";
 
-  return (
+  return renderOnboardingShell(
     <EnhancedErrorBoundary onReset={handleReset}>
-      <div className="min-h-screen bg-garden-background">
-        {isManualFlow ? (
-          <OnboardingFlow onComplete={handleOnboardingComplete} />
-        ) : (
-          <SimplifiedOnboardingFlow onComplete={handleOnboardingComplete} />
-        )}
-      </div>
-    </EnhancedErrorBoundary>
+      {isManualFlow ? (
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      ) : (
+        <SimplifiedOnboardingFlow onComplete={handleOnboardingComplete} />
+      )}
+    </EnhancedErrorBoundary>,
   );
 };
 

@@ -7,40 +7,90 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="shortcut icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
+  <link rel="preload" as="image" href="/homepage/section-1.png" fetchpriority="high" />
   <meta name="msapplication-TileColor" content="#22C55E" />
   <meta name="theme-color" content="#22C55E" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="grammarly-disable-indicator" content="true" />
   <meta name="grammarly-initialized" content="false" />
 
   <!-- SEO Meta Tags -->
-  <title>BloomSuite - AI-Powered Marketing for Garden Centers</title>
-  <meta name="description" content="BloomSuite helps independent garden centers grow with AI-powered content, email campaigns, social media automation, and CRM — all in one platform." />
+  <title>BloomSuite — AI-Powered CRM for Garden Centres, Florists & Green Businesses</title>
+  <meta name="description" content="BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses." />
   <meta name="keywords"
     content="garden center marketing, social media automation, plant nursery marketing, horticultural marketing, Instagram content, Facebook posts, email marketing, content generation, BloomSuite" />
 
   <!-- Open Graph Tags -->
   <meta property="og:site_name" content="BloomSuite" />
-  <meta property="og:title" content="BloomSuite - AI-Powered Marketing for Garden Centers" />
-  <meta property="og:description" content="The all-in-one marketing platform built for independent garden centers. AI content, email campaigns, social scheduling, and CRM." />
+  <meta property="og:title" content="BloomSuite — AI-Powered CRM for Garden Centres, Florists & Green Businesses" />
+  <meta property="og:description" content="BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://bloomsuite.app" />
+  <meta property="og:url" content="https://bloomsuite.app/" />
   <meta property="og:image" content="https://bloomsuite.app/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="BloomSuite - AI-Powered Marketing for Garden Centers" />
+  <meta property="og:image:alt" content="BloomSuite AI-powered CRM for garden centres, florists and green businesses" />
 
   <!-- Twitter Card Tags -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="BloomSuite - AI-Powered Marketing for Garden Centers" />
-  <meta name="twitter:description" content="The all-in-one marketing platform built for independent garden centers." />
+  <meta name="twitter:title" content="BloomSuite — AI-Powered CRM for Garden Centres, Florists & Green Businesses" />
+  <meta name="twitter:description" content="BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses." />
   <meta name="twitter:image" content="https://bloomsuite.app/og-image.png" />
+  <meta name="twitter:image:alt" content="BloomSuite AI-powered CRM for garden centres, florists and green businesses" />
 
   <!-- Additional Meta Tags -->
   <meta name="robots" content="index, follow" />
   <meta name="author" content="BloomSuite" />
-  <link rel="canonical" href="https://bloomsuite.app" />
+  <link rel="canonical" href="https://bloomsuite.app/" />
   <meta name="emotion-insertion-point" content="" />
+
+  <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "BloomSuite",
+        "url": "https://bloomsuite.app/",
+        "logo": "https://bloomsuite.app/favicon.png",
+        "sameAs": [
+          "https://www.linkedin.com/",
+          "https://x.com/",
+          "https://www.instagram.com/"
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "BloomSuite",
+        "url": "https://bloomsuite.app/",
+        "description": "BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses.",
+        "publisher": {
+          "@type": "Organization",
+          "name": "BloomSuite"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "BloomSuite",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://bloomsuite.app/",
+        "description": "BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "category": "FreeTrial"
+        },
+        "audience": {
+          "@type": "Audience",
+          "audienceType": "Garden centres, florists and green businesses"
+        }
+      }
+    ]
+  </script>
 
   <!-- Fonts with optimized loading -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -58,6 +108,67 @@
     /* Initial loading state */
     #root {
       min-height: 100vh;
+    }
+
+    .initial-loading-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      color: #0F172A;
+      background: #FFFFFF;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .initial-loading-screen__brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 900;
+    }
+
+    .initial-loading-screen__mark {
+      width: 34px;
+      height: 34px;
+      color: #16A34A;
+    }
+
+    .initial-loading-screen__bar {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 4px;
+      overflow: hidden;
+      background: #DCFCE7;
+    }
+
+    .initial-loading-screen__bar::before {
+      content: "";
+      display: block;
+      width: 42%;
+      height: 100%;
+      background: #16A34A;
+      animation: initial-loading-progress 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes initial-loading-progress {
+      from {
+        transform: translateX(-100%);
+      }
+
+      to {
+        transform: translateX(240%);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .initial-loading-screen__bar::before {
+        animation: none;
+        width: 100%;
+      }
     }
 
     /* Remove FOUC */
@@ -122,7 +233,20 @@
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div class="initial-loading-screen" role="status" aria-live="polite" aria-label="Loading BloomSuite">
+      <div class="initial-loading-screen__brand" aria-hidden="true">
+        <svg class="initial-loading-screen__mark" viewBox="0 0 44 44">
+          <path d="M22 36V17" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="3.5"></path>
+          <path d="M22 20C12 20 8 14 9 7c7-1 13 3 13 13Z" fill="currentColor"></path>
+          <path d="M22 23c10 0 14-6 13-13-7-1-13 3-13 13Z" fill="currentColor" opacity="0.74"></path>
+          <circle cx="22" cy="37" r="3.25" fill="currentColor" opacity="0.92"></circle>
+        </svg>
+        <span>BloomSuite</span>
+      </div>
+      <div class="initial-loading-screen__bar" aria-hidden="true"></div>
+    </div>
+  </div>
   <div id="modal-root"></div>
   <div id="overlay-root"></div>
   <script type="module" src="/src/main.tsx"></script>
