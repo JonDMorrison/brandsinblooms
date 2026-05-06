@@ -215,22 +215,20 @@ async function loadCampaignBlockRows(
   }
 
   const sourceClient = client as CampaignSourceClient;
-  const order = sourceClient
+  // Chain .order() directly. Capturing `.order` as a free reference and
+  // calling it bare drops the PostgrestFilterBuilder receiver, which makes
+  // postgrest-js crash on `this.url` inside the method body.
+  const result = await sourceClient
     .from?.("campaign_blocks")
-    .select?.("*")
-    .eq?.("campaign_id", campaignId).order;
+    ?.select?.("*")
+    ?.eq?.("campaign_id", campaignId)
+    ?.order?.("order_index", { ascending: true });
 
-  if (!order) {
+  if (!result || result.error || !Array.isArray(result.data)) {
     return [];
   }
 
-  const { data, error } = await order("order_index", { ascending: true });
-
-  if (error || !Array.isArray(data)) {
-    return [];
-  }
-
-  return data.filter((item) => getRecord(item)) as RenderableContentBlock[];
+  return result.data.filter((item) => getRecord(item)) as RenderableContentBlock[];
 }
 
 export async function resolveCampaignEmailSource(
