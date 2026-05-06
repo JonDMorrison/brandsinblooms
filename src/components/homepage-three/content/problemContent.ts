@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { Clock, Layers, UserMinus, Sprout } from "lucide-react";
+import { KeyRound, Unplug, ClipboardList, Zap } from "lucide-react";
 
 export interface ProblemCardConfig {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -8,35 +8,35 @@ export interface ProblemCardConfig {
 }
 
 export const PROBLEM_SECTION_HEADER = {
-  eyebrow: "The reality",
-  headline: "Marketing for garden centres usually looks like this.",
+  eyebrow: "Sound familiar?",
+  headline: "Marketing feels harder than it should.",
   subtext:
-    "Most garden centres are running customer marketing on tools built for someone else's business. The patches show.",
+    "Most garden centres are running customer marketing across a stack of disconnected tools that weren't built with them in mind. Time, data, and customers all leak out.",
 };
 
 export const PROBLEM_CARDS: ProblemCardConfig[] = [
   {
-    icon: Clock,
-    title: "Marketing eats your week",
+    icon: KeyRound,
+    title: "Too many logins, too many tabs",
     description:
-      "Social posts, email drafts, campaign planning. The list is long and lives outside the work that actually runs the store.",
+      "A scheduler in one tab, email in another, a CRM somewhere else, analytics in a fourth. You spend more time finding the right login than doing the actual work.",
   },
   {
-    icon: Layers,
+    icon: Unplug,
     title: "Tools that don't talk to each other",
     description:
-      "A scheduler, an email platform, a CRM, an analytics dashboard. Each does one thing, none of them share data, and the bill adds up every month.",
+      "Customer info lives in one system, sales in another, campaigns in a third. The data never connects, so customers get mixed messages and you never see the full picture.",
   },
   {
-    icon: UserMinus,
-    title: "Customers slip through the cracks",
+    icon: ClipboardList,
+    title: "No real system, just instinct",
     description:
-      "A walk-in browses, doesn't buy, and you never reach them again. Without an easy way to follow up, the next visit is a coin flip.",
+      "When the busy season hits, you're running on memory and sticky notes. The work is real, but the playbook lives in your head and that doesn't scale.",
   },
   {
-    icon: Sprout,
-    title: "Generic tools, generic results",
+    icon: Zap,
+    title: "Modern tools, missing for garden centres",
     description:
-      "Most marketing software treats a garden centre like any other shop. Plant seasons, regional weather, and recurring customers don't fit the template.",
+      "AI, automation, smart segmentation. The tools that move other businesses forward weren't built with garden centres in mind. Most owners are stuck on yesterday's stack.",
   },
 ];
