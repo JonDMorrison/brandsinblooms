@@ -1558,6 +1558,43 @@ function getFooterSocialLinks(
   };
 }
 
+// Monochrome SVG path data for each supported social platform. Paths are
+// designed for a 24x24 viewBox and rendered with currentColor inside an
+// <svg> embedded as a data: URI so the icon inherits whatever color we
+// pass in. The "x" key is an alias for the historical "twitter"
+// platform value some tenant configs still emit.
+const SOCIAL_ICON_SVG_PATHS: Record<string, string> = {
+  facebook:
+    "M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z",
+  instagram:
+    "M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2zm-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4H7.6zm9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8 1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25zM12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3z",
+  twitter:
+    "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z",
+  x: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z",
+  linkedin:
+    "M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z",
+  youtube:
+    "M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z",
+  tiktok:
+    "M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.1z",
+  pinterest:
+    "M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.083.099.095.186.07.287-.077.319-.247.997-.28 1.137-.044.183-.145.222-.336.135-1.249-.581-2.03-2.407-2.03-3.874 0-3.154 2.292-6.052 6.608-6.052 3.469 0 6.165 2.473 6.165 5.776 0 3.447-2.173 6.22-5.19 6.22-1.013 0-1.965-.525-2.291-1.148l-.623 2.378c-.226.869-.835 1.958-1.244 2.621.937.29 1.931.446 2.962.446 6.627 0 12-5.373 12-12S18.627 0 12 0z",
+  threads:
+    "M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.85 8.535c.98-1.46 2.568-2.26 4.567-2.26h.044c3.346.02 5.337 2.07 5.535 5.65.115.046.227.097.337.15 1.535.722 2.66 1.81 3.252 3.143.81 1.836.844 4.815-1.747 7.347-1.835 1.81-3.967 2.63-7.034 2.65zm-2.71-9.498a4.43 4.43 0 0 0-.62.04c-.62.072-1.106.273-1.422.572-.286.27-.378.575-.358.94.034.622.683.937 1.301.937h.025c.778 0 1.318-.34 1.66-.79.352-.46.488-1.137.487-1.93-.4-.048-.764-.057-1.07-.057z",
+};
+
+function buildSocialIconDataUri(
+  platform: SocialLink["platform"],
+  iconColor: string,
+): string {
+  const path = SOCIAL_ICON_SVG_PATHS[platform];
+  if (!path) return "";
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${iconColor}">` +
+    `<path d="${path}"/></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 function getFooterSocialGlyph(platform: SocialLink["platform"]) {
   switch (platform) {
     case "twitter":
@@ -1596,8 +1633,12 @@ function renderFooterSocialIcons(
           ? colorWithOpacity(iconColor, centered ? 0.18 : 0.14)
           : "transparent";
       const borderColor = iconStyle === "outlined" ? iconColor : "transparent";
+      const iconUri = buildSocialIconDataUri(link.platform, iconColor);
+      const inner = iconUri
+        ? `<img src="${escapeAttribute(iconUri)}" alt="${escapeAttribute(SOCIAL_LABELS[link.platform])}" width="16" height="16" style="display:block;width:16px;height:16px;border:0;outline:none;text-decoration:none;" />`
+        : `<span style="font-family:${getFontStack(designSystem, "button")};font-size:11px;font-weight:700;line-height:1;color:${iconColor};">${escapeHtml(getFooterSocialGlyph(link.platform))}</span>`;
 
-      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${escapeAttribute(SOCIAL_LABELS[link.platform])}" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:${borderRadius};border:1px solid ${borderColor};background-color:${backgroundColor};color:${iconColor};font-family:${getFontStack(designSystem, "button")};font-size:11px;font-weight:700;line-height:1;text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${index === 0 ? "0" : "0 0 0 8px"};">${escapeHtml(getFooterSocialGlyph(link.platform))}</a>`;
+      return `<a href="${escapeAttribute(href)}" target="_blank" aria-label="${escapeAttribute(SOCIAL_LABELS[link.platform])}" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:${borderRadius};border:1px solid ${borderColor};background-color:${backgroundColor};text-decoration:none;opacity:${placeholder ? 0.38 : 1};margin:${index === 0 ? "0" : "0 0 0 8px"};">${inner}</a>`;
     })
     .join("")}</div>`;
 }
