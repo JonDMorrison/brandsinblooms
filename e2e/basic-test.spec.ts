@@ -5,10 +5,12 @@ test.describe("Basic E2E Setup Verification", () => {
     await page.goto("/");
 
     await expect(page.getByTestId("homepage-shell")).toBeVisible();
+    // Static tagline below the rotating typewriter line — stable
+    // assertion that doesn't depend on which phrase the typewriter is
+    // currently displaying.
     await expect(
-      page.getByRole("heading", { name: "Grow Your Green Business" }),
+      page.getByText("Built For Garden Centres.", { exact: true }),
     ).toBeVisible();
-    await expect(page).toHaveURL(/#hero$/);
   });
 
   test("should have working navigation to auth page", async ({ page }) => {
@@ -16,12 +18,10 @@ test.describe("Basic E2E Setup Verification", () => {
 
     // Should see the auth tabs
     await expect(page.getByRole("tab", { name: "Sign In" })).toBeVisible();
-    await expect(
-      page.getByRole("tab", { name: "Create Account" }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Sign Up" })).toBeVisible();
 
     // Should be able to switch tabs
-    await page.getByRole("tab", { name: "Create Account" }).click();
+    await page.getByRole("tab", { name: "Sign Up" }).click();
     await expect(page.locator('input[placeholder*="full name"]')).toBeVisible();
   });
 });

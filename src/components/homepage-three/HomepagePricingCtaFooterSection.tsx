@@ -22,9 +22,12 @@ interface HomepagePricingCtaFooterSectionProps {
 }
 
 const BloomSuiteFooterMark = () => (
+  // alt="" because the parent <a> already has aria-label "Go to
+  // BloomSuite homepage" — labelling the image would make screen
+  // readers announce the brand twice for one link.
   <img
     src={bloomsuiteLogo}
-    alt="BloomSuite"
+    alt=""
     className="hp-pricing-footer__mark"
   />
 );
@@ -282,7 +285,7 @@ export const HomepagePricingCtaFooterSection = ({
                     href={social.href}
                     aria-label={social.label}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     <Icon aria-hidden="true" />
                   </a>
