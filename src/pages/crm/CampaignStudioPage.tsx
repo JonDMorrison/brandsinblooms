@@ -59,6 +59,10 @@ import {
   persistCampaignDraft,
 } from "@/lib/crm/campaignEditor";
 import { CampaignDraftConflictError } from "@/lib/crm/campaignDraftPersistence";
+import {
+  classifyExternalCampaignChange,
+  type CampaignChangeClassification,
+} from "@/lib/crm/campaignChangeClassifier";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContentBlock } from "@/types/emailBuilder";
 import type {
@@ -662,9 +666,9 @@ function CampaignStudioPageContent() {
   const [saveMessage, setSaveMessage] = React.useState<string | null>(null);
   const [savedFingerprint, setSavedFingerprint] = React.useState("");
   const [lastSavedAt, setLastSavedAt] = React.useState<string | null>(null);
-  const [externalUpdateMessage, setExternalUpdateMessage] = React.useState<
-    string | null
-  >(null);
+  const [externalUpdateNotice, setExternalUpdateNotice] =
+    React.useState<CampaignChangeClassification | null>(null);
+  const hasUnsavedChangesRef = React.useRef(false);
   const [activeCanvasDragBlockId, setActiveCanvasDragBlockId] = React.useState<
     string | null
   >(null);
@@ -741,6 +745,9 @@ function CampaignStudioPageContent() {
 
   const hasUnsavedChanges =
     !isLoading && currentFingerprint !== savedFingerprint;
+  React.useEffect(() => {
+    hasUnsavedChangesRef.current = hasUnsavedChanges;
+  }, [hasUnsavedChanges]);
   const activeCanvasDragBlock = React.useMemo(
     () =>
       activeCanvasDragBlockId
@@ -869,11 +876,22 @@ function CampaignStudioPageContent() {
         })
         .catch((error) => {
           if (error instanceof CampaignDraftConflictError) {
+            // The save itself was rejected because the row's updated_at
+            // moved server-side. We do not have the new row body here,
+            // so fall back to the warning shape — a conflict at write
+            // time always implies the user has unsaved local edits to
+            // protect.
             setSaveStatus("conflict");
             setSaveMessage(error.message);
-            setExternalUpdateMessage(
-              "This campaign changed in another tab. Reload before continuing.",
-            );
+            setExternalUpdateNotice({
+              scenario: "content_with_local",
+              severity: "warning",
+              message:
+                "This campaign was changed by another tab or session while you were editing.",
+              detail: "Your current unsaved edits will be lost on reload.",
+              localChangesAtRisk: true,
+              reason: "content_changed",
+            });
             return null;
           }
 
@@ -1648,7 +1666,7 @@ function CampaignStudioPageContent() {
         setLastSavedAt(record.updatedAt);
         setSaveStatus("idle");
         setSaveMessage(null);
-        setExternalUpdateMessage(null);
+        setExternalUpdateNotice(null);
       } catch (error) {
         if (cancelled) {
           return;
@@ -1755,9 +1773,37 @@ function CampaignStudioPageContent() {
               return;
             }
 
-            setExternalUpdateMessage(
-              "This campaign changed in another tab. Reload before continuing.",
-            );
+            // Classify the incoming row against the last-known server
+            // state so we can show "your edits are safe" when only
+            // status / metadata moved (e.g. a platform admin reset, a
+            // stuck-send recovery, or a support audit_correction
+            // backfill) instead of the alarming "modified in another
+            // tab" warning.
+            const incomingRow = payload.new as Record<string, unknown>;
+            const lastKnownRecord = campaignRecordRef.current;
+            const classification = classifyExternalCampaignChange({
+              incomingRow: {
+                content:
+                  typeof incomingRow.content === "string"
+                    ? incomingRow.content
+                    : null,
+                metadata:
+                  incomingRow.metadata &&
+                  typeof incomingRow.metadata === "object" &&
+                  !Array.isArray(incomingRow.metadata)
+                    ? (incomingRow.metadata as Record<string, unknown>)
+                    : null,
+              },
+              lastKnownRecord: lastKnownRecord
+                ? {
+                    content: lastKnownRecord.content,
+                    contentBlocks: lastKnownRecord.contentBlocks,
+                    metadata: lastKnownRecord.metadata,
+                  }
+                : null,
+              hasUnsavedLocalChanges: hasUnsavedChangesRef.current,
+            });
+            setExternalUpdateNotice(classification);
           },
         )
         .subscribe();
@@ -2174,8 +2220,12 @@ function CampaignStudioPageContent() {
             saveStatus={saveStatus}
             saveMessage={saveMessage}
             hasUnsavedChanges={hasUnsavedChanges}
-            externalUpdateMessage={externalUpdateMessage}
-            onDismissExternalUpdate={() => setExternalUpdateMessage(null)}
+            externalUpdateNotice={externalUpdateNotice}
+            onDismissExternalUpdate={() => setExternalUpdateNotice(null)}
+            onReloadCampaign={() => {
+              setExternalUpdateNotice(null);
+              setLoadRevision((revision) => revision + 1);
+            }}
             onSave={handleSave}
             onExit={() => {
               void handleExit();
