@@ -1,19 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { HomepageFeatureHighlightsSection } from "./HomepageFeatureHighlightsSection";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
 } from "./content/featureHighlightsContent";
 
+const renderInRouter = (ui: React.ReactNode) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe("HomepageFeatureHighlightsSection", () => {
   it("renders the standard feature section header", () => {
-    // The trust strip + 6 logos at the top of the Features section was
-    // removed — the full Integrations section further down covers the
-    // same ground with more detail. The trust assertions that used to
-    // live in this test were removed alongside the markup.
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
 
     expect(
       screen.getByText(FEATURE_SECTION_HEADER.eyebrow),
@@ -27,7 +27,7 @@ describe("HomepageFeatureHighlightsSection", () => {
   });
 
   it("renders accessible feature cards with bundled illustrations for every id", () => {
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
 
     const cards = screen.getAllByRole("article");
 
@@ -38,8 +38,6 @@ describe("HomepageFeatureHighlightsSection", () => {
       ).toBeInTheDocument();
       expect(screen.getByText(feature.description)).toBeInTheDocument();
 
-      // Every card now ships with a bundled illustration; the old
-      // gray-skeleton fallback path has been removed.
       expect(
         screen.getByAltText(`${feature.placeholderLabel} illustration`),
       ).toBeInTheDocument();
@@ -50,8 +48,30 @@ describe("HomepageFeatureHighlightsSection", () => {
     }
   });
 
+  it("wires each card to its /features/<slug> route", () => {
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
+    // Smart CRM card → /features/customer-crm (the live Stage 1 route).
+    // The other 5 slugs are wired even though only customer-crm has a
+    // resolved content config in Stage 1.
+    const expectedSlugs: Record<string, string> = {
+      "smart-crm": "customer-crm",
+      "campaign-builder": "campaigns",
+      "inventory-orders": "inventory-orders",
+      "page-editor": "storefront",
+      "analytics-dashboard": "analytics",
+      "multi-store": "unified-platform",
+    };
+    for (const feature of FEATURE_HIGHLIGHTS) {
+      const link = screen.getByRole("link", { name: feature.title });
+      expect(link).toHaveAttribute(
+        "href",
+        `/features/${expectedSlugs[feature.id]}`,
+      );
+    }
+  });
+
   it("accepts override screenshot sources through the screenshot map prop", () => {
-    render(
+    renderInRouter(
       <HomepageFeatureHighlightsSection
         isActive
         motionEnabled
@@ -65,7 +85,9 @@ describe("HomepageFeatureHighlightsSection", () => {
   });
 
   it("marks fallback mode for static card rendering", () => {
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled={false} />);
+    renderInRouter(
+      <HomepageFeatureHighlightsSection isActive motionEnabled={false} />,
+    );
 
     expect(screen.getByTestId("homepage-feature-highlights")).toHaveAttribute(
       "data-motion-enabled",

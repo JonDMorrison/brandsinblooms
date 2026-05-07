@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
@@ -28,6 +29,21 @@ const DEFAULT_FEATURE_SCREENSHOTS: Record<FeatureHighlightId, string> = {
   "multi-store": multiStoreIllustration,
 };
 
+// Maps each card's FeatureHighlightId to the slug used by the SEO
+// landing pages under /features/<slug>. Stage 1 only ships the
+// customer-crm page; the other five are documented routes that will
+// resolve once Stage 2 lands their content configs (the
+// FeatureDetailPage redirects unregistered slugs back to /features so
+// they fail soft, not hard).
+const FEATURE_DETAIL_SLUGS: Record<FeatureHighlightId, string> = {
+  "smart-crm": "customer-crm",
+  "campaign-builder": "campaigns",
+  "inventory-orders": "inventory-orders",
+  "page-editor": "storefront",
+  "analytics-dashboard": "analytics",
+  "multi-store": "unified-platform",
+};
+
 interface HomepageFeatureHighlightsSectionProps {
   isActive: boolean;
   motionEnabled: boolean;
@@ -47,6 +63,7 @@ const FeaturePreviewCard = ({
 }: FeaturePreviewCardProps) => {
   const titleId = `hp-feature-title-${feature.id}`;
   const descriptionId = `hp-feature-description-${feature.id}`;
+  const slug = FEATURE_DETAIL_SLUGS[feature.id];
 
   return (
     <article
@@ -56,23 +73,29 @@ const FeaturePreviewCard = ({
       className="hp-feature-card"
       style={{ "--hp-feature-card-delay": `${index * 80}ms` } as CSSProperties}
     >
-      <div className="hp-feature-card__preview">
-        <img
-          className="hp-feature-card__image"
-          src={src}
-          alt={`${feature.placeholderLabel} illustration`}
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
-      <div className="hp-feature-card__body">
-        <h3 id={titleId} className="hp-feature-card__title">
-          {feature.title}
-        </h3>
-        <p id={descriptionId} className="hp-feature-card__description">
-          {feature.description}
-        </p>
-      </div>
+      <Link
+        to={`/features/${slug}`}
+        className="hp-feature-card__link"
+        aria-labelledby={titleId}
+      >
+        <div className="hp-feature-card__preview">
+          <img
+            className="hp-feature-card__image"
+            src={src}
+            alt={`${feature.placeholderLabel} illustration`}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <div className="hp-feature-card__body">
+          <h3 id={titleId} className="hp-feature-card__title">
+            {feature.title}
+          </h3>
+          <p id={descriptionId} className="hp-feature-card__description">
+            {feature.description}
+          </p>
+        </div>
+      </Link>
     </article>
   );
 };
