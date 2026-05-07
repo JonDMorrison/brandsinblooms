@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { GlassButton } from "./glass";
-import { HERO_CONTENT } from "./content/heroContent";
+import { HERO_CONTENT, HERO_ROTATING_PHRASES } from "./content/heroContent";
+import { useTypewriter } from "@/hooks/useTypewriter";
 import heroBanner from "@/assets/hero-banner.png";
 import "./homepageHero.css";
 
@@ -16,6 +17,9 @@ export const HomepageHeroSection = ({
 }: HomepageHeroSectionProps) => {
   const heroRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLImageElement>(null);
+  const rotatingText = useTypewriter({
+    phrases: [...HERO_ROTATING_PHRASES],
+  });
 
   // Subtle scroll parallax: the banner moves at 70% of scroll speed so
   // the hero feels grounded while the rest of the page slides past it.
@@ -70,11 +74,20 @@ export const HomepageHeroSection = ({
       <div className="hp-hero__copy" aria-labelledby="homepage-hero-title">
         <p className="hp-hero__eyebrow">{HERO_CONTENT.eyebrow}</p>
         <h1 id="homepage-hero-title" className="hp-hero__headline">
-          <span className="hp-hero__headline-line hp-hero__headline-line--dark">
-            {HERO_CONTENT.headlineLineOne}
+          <span className="hp-hero__headline-line hp-hero__headline-line--rotating hp-hero__headline-line--dark">
+            <span
+              className="hp-hero__rotating-text"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {rotatingText}
+            </span>
+            <span className="hp-hero__cursor" aria-hidden="true">
+              |
+            </span>
           </span>
-          <span className="hp-hero__headline-line hp-hero__headline-line--green">
-            {HERO_CONTENT.headlineLineTwo}
+          <span className="hp-hero__headline-line hp-hero__headline-line--static hp-hero__headline-line--green">
+            {HERO_CONTENT.staticTagline}
           </span>
         </h1>
         <p className="hp-hero__subtext">{HERO_CONTENT.subtext}</p>
