@@ -61,6 +61,8 @@ import {
   useDesignSystem,
 } from "@/contexts/DesignSystemContext";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
+import { classifySender } from "@/lib/crm/senderSeverity";
+import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -111,7 +113,7 @@ const PREFLIGHT_STATUS_META: Record<
     dotColor: "warning.400",
   },
   blocked: {
-    label: "Blocked",
+    label: "Cannot send",
     color: "danger",
     dotColor: "danger.400",
   },
@@ -333,11 +335,28 @@ function ReadinessSummary({
   const hasBlockers = blockedCount > 0;
   const Icon = allReady ? CheckCircle2 : hasBlockers ? XCircle : AlertTriangle;
   const color = allReady ? "success" : hasBlockers ? "danger" : "warning";
+  // Differentiate blocking from recommended in the headline message.
+  // When some items are blocked AND others are warnings, surface
+  // both counts so the user understands the difference between "must
+  // fix" and "should fix" before sending.
   const message = allReady
     ? "All checks passed - ready to send"
     : hasBlockers
-      ? `${blockedCount} ${blockedCount === 1 ? "item" : "items"} must be resolved`
+      ? warningCount > 0
+        ? `${blockedCount} ${blockedCount === 1 ? "item is" : "items are"} blocking send · ${warningCount} recommended`
+        : `${blockedCount} ${blockedCount === 1 ? "item is" : "items are"} blocking send`
       : `${warningCount} ${warningCount === 1 ? "item needs" : "items need"} attention`;
+
+  // Build a parallel count breakdown shown on the right. When mixed,
+  // we show "blocking · recommended · ready" so all three numbers
+  // are visible at once without needing to scroll the list.
+  const countLabel = hasBlockers
+    ? warningCount > 0
+      ? `${blockedCount} blocking · ${warningCount} recommended · ${readyCount} ready`
+      : `${blockedCount} blocking · ${readyCount} of ${totalCount} ready`
+    : warningCount > 0
+      ? `${warningCount} recommended · ${readyCount} of ${totalCount} ready`
+      : `${readyCount} of ${totalCount} ready`;
 
   return (
     <Box
@@ -376,7 +395,7 @@ function ReadinessSummary({
           whiteSpace: "nowrap",
         }}
       >
-        {readyCount} of {totalCount} ready
+        {countLabel}
       </Typography>
     </Box>
   );
@@ -729,28 +748,29 @@ function CampaignEditorScreen() {
     navigateToSavedDraft: boolean;
   } | null>(null);
 
-  const activeDomains = React.useMemo(
-    () => emailDomains.filter((domain) => domain.status === "active"),
-    [emailDomains],
-  );
-
-  const senderDomain = React.useMemo(() => {
-    if (!senderEmail.includes("@")) {
-      return "";
+  // Three-bucket sender classification (ready / warning / blocked)
+  // with specific reason codes. Drives the preflight item severity,
+  // the message text shown to the user, AND the Send Campaign button
+  // gating below. Loading-state guard prevents flashing a spurious
+  // "blocked" classification while the email_domains query is still
+  // resolving.
+  const senderClassification = React.useMemo<SenderClassification>(() => {
+    if (campaignType === "email" && emailDomainsLoading) {
+      return { status: "ready" };
     }
-
-    return senderEmail.split("@").pop()?.toLowerCase() || "";
-  }, [senderEmail]);
-
-  const domainVerified = React.useMemo(() => {
-    return activeDomains.some((domain) => {
-      const defaultEmail = domain.default_from_email?.toLowerCase() || "";
-      return (
-        domain.domain.toLowerCase() === senderDomain ||
-        defaultEmail === senderEmail.toLowerCase()
-      );
+    return classifySender({
+      senderEmail,
+      senderName,
+      emailDomains,
+      campaignType,
     });
-  }, [activeDomains, senderDomain, senderEmail]);
+  }, [
+    campaignType,
+    emailDomains,
+    emailDomainsLoading,
+    senderEmail,
+    senderName,
+  ]);
 
   const meaningfulEmailBlockCount = React.useMemo(
     () =>
@@ -923,7 +943,19 @@ function CampaignEditorScreen() {
       blockers.push("SMS message is required before sending.");
     }
 
-    if (!senderEmail.trim()) {
+    // Hard sender blockers (paused/failed/no-sender/domain-not-
+    // registered). The classifier already produces the user-facing
+    // copy — push that exact line so the existing send-confirm
+    // dialog and disabled-button tooltip surface the same reason
+    // the Review & Send list shows. Without this, paused / failed
+    // domains used to slip through to "Send Campaign" and bounce
+    // at the email provider.
+    if (
+      campaignType === "email" &&
+      senderClassification.status === "blocked"
+    ) {
+      blockers.push(senderClassification.message);
+    } else if (!senderEmail.trim()) {
       blockers.push("Sender email is required.");
     }
 
@@ -951,6 +983,7 @@ function CampaignEditorScreen() {
     hasComplianceFooter,
     meaningfulEmailBlockCount,
     name,
+    senderClassification,
     senderEmail,
     sendBlockedReason,
     smsMessage,
@@ -960,8 +993,17 @@ function CampaignEditorScreen() {
   const sendWarningLines = React.useMemo(() => {
     const warnings: string[] = [];
 
-    if (campaignType === "email" && senderEmail && !domainVerified) {
-      warnings.push("This sender domain is not currently verified.");
+    // Sender warnings (pending DNS, free-mail, generic display name)
+    // surface the specific reason from the classifier rather than the
+    // old generic "not verified" line. Blocked sender states already
+    // appear in sendBlockerLines, so we deliberately don't duplicate
+    // them here.
+    if (
+      campaignType === "email" &&
+      senderEmail &&
+      senderClassification.status === "warning"
+    ) {
+      warnings.push(senderClassification.message);
     }
 
     if (autoSaveStatus === "error") {
@@ -969,7 +1011,7 @@ function CampaignEditorScreen() {
     }
 
     return warnings;
-  }, [autoSaveStatus, campaignType, domainVerified, senderEmail]);
+  }, [autoSaveStatus, campaignType, senderClassification, senderEmail]);
 
   const preflightItems = React.useMemo<PreflightItem[]>(() => {
     return [
@@ -1032,22 +1074,35 @@ function CampaignEditorScreen() {
         value: senderEmail || "No sender email configured",
         detail:
           campaignType === "email"
-            ? senderEmail
-              ? domainVerified
+            ? emailDomainsLoading && Boolean(senderEmail)
+              ? "Checking sender verification status."
+              : senderClassification.status === "ready"
                 ? "The active sender domain is verified."
-                : emailDomainsLoading
-                  ? "Checking sender verification status."
-                  : "The sender can still be reviewed, but verification is recommended."
-              : "Add a sender email before this campaign can go out."
+                : senderClassification.status === "warning"
+                  ? senderClassification.message
+                  : senderClassification.message
             : "SMS campaigns still use your saved sender settings.",
-        status: !senderEmail.trim()
-          ? "blocked"
-          : campaignType === "email" && !domainVerified
-            ? "warning"
-            : "ready",
-        action: !senderEmail.trim()
-          ? { label: "Configure sender", onClick: focusSetupSection }
-          : undefined,
+        status: senderClassification.status,
+        // Send users to the right place to fix it. NO_SENDER stays in-
+        // page (Setup section already has the email input). Every
+        // other blocked/warning reason needs the actual domain
+        // settings page where they can re-verify DNS, contact support
+        // about a paused reputation, etc.
+        action:
+          senderClassification.status === "blocked" &&
+          senderClassification.reason === "NO_SENDER"
+            ? { label: "Configure sender", onClick: focusSetupSection }
+            : senderClassification.status === "blocked"
+              ? {
+                  label: "Fix this",
+                  onClick: () => navigate("/crm/settings/email-sending"),
+                }
+              : senderClassification.status === "warning"
+                ? {
+                    label: "Open sender settings",
+                    onClick: () => navigate("/crm/settings/email-sending"),
+                  }
+                : undefined,
         loading:
           campaignType === "email" &&
           emailDomainsLoading &&
@@ -1144,7 +1199,6 @@ function CampaignEditorScreen() {
     autoSaveMessage,
     autoSaveStatus,
     campaignType,
-    domainVerified,
     emailDomainsLoading,
     focusAudienceSection,
     focusSetupSection,
@@ -1156,15 +1210,34 @@ function CampaignEditorScreen() {
     lastSavedAt,
     meaningfulEmailBlockCount,
     name,
+    navigate,
     pendingTemplateSave,
     preheaderText,
     campaignId,
+    senderClassification,
     senderEmail,
     selectedPersonas.length,
     selectedSegments.length,
     smsMessage,
     subjectLine,
   ]);
+
+  // Sort blocked items to the top of the list so red issues never
+  // hide below the scroll fold. Stable within bucket — we keep the
+  // original authoring order for items in the same severity so the
+  // logical flow (name → audience → sender → content → footer …)
+  // still reads correctly when nothing is blocked.
+  const orderedPreflightItems = React.useMemo(() => {
+    const severityRank: Record<typeof preflightItems[number]["status"], number> =
+      {
+        blocked: 0,
+        warning: 1,
+        ready: 2,
+      };
+    return [...preflightItems].sort(
+      (a, b) => severityRank[a.status] - severityRank[b.status],
+    );
+  }, [preflightItems]);
 
   const readyCount = preflightItems.filter(
     (item) => item.status === "ready",
@@ -1669,12 +1742,14 @@ function CampaignEditorScreen() {
             px: 2.5,
           }}
         >
-          {preflightItems.map((item, index) => (
+          {orderedPreflightItems.map((item, index) => (
             <Box
               key={item.id}
               sx={{
                 borderBottom:
-                  index < preflightItems.length - 1 ? "1px dashed" : "none",
+                  index < orderedPreflightItems.length - 1
+                    ? "1px dashed"
+                    : "none",
                 borderColor: "neutral.100",
               }}
             >
