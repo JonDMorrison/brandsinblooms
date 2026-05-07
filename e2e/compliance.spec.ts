@@ -27,8 +27,10 @@ test.describe("CASL compliance — unsubscribe + footer", () => {
     // TODO: pre-seed a test contact with consent_status = 'subscribed'
     // TODO: trigger a send to that contact (via test SMTP, not real provider)
     // TODO: extract the unsubscribe URL from the captured message
-    // TODO: visit the unsubscribe URL
-    await page.goto("/unsubscribe?token=TODO");
+    // The token is consumed by the validate-preference-token edge
+    // function and lands the user on /email-preferences?token=...
+    // (route mounted in src/App.tsx as <EmailPreferences />).
+    await page.goto("/email-preferences?token=TODO");
     await expect(
       page.getByRole("heading", { name: /unsubscribe/i }),
     ).toBeVisible();
