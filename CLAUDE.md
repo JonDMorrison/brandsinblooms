@@ -25,6 +25,38 @@ Auth and browser-test rules:
 - Prefer deterministic onboarding completion for test users by updating profile state instead of driving the brittle browser onboarding flow unless the onboarding UI itself is under test.
 - If a change depends on Supabase browser auth or direct REST or Edge Function calls, prefer the publishable key constant from `src/integrations/supabase/config.ts` instead of hardcoded anon fallbacks.
 
+## Testing
+
+End-to-end tests live in `e2e/` and run with Playwright (chromium + firefox + webkit + mobile projects). Config is `playwright.config.ts`; baseURL resolves via `e2e/utils/runtime-config.ts` and honors `PLAYWRIGHT_BASE_URL` / `BASE_URL` (default `http://127.0.0.1:8080`).
+
+Scripts:
+- `npm run test:e2e` — full suite (auto-starts `npm run dev` if nothing on 8080)
+- `npm run test:e2e:ui` — interactive Playwright UI
+- `npm run test:e2e:headed` — chromium with visible browser
+
+Existing coverage (read before adding more):
+- `e2e/auth/authentication.spec.ts` — login, signup, password reset, logout, route guards
+- `e2e/crm/customer-management.spec.ts` — CRUD + CSV import + segments
+- `e2e/campaigns/` — campaign builder, SMS campaigns, undo/redo, scheduling
+- `e2e/automations/automation-builder.spec.ts` — automation flows, analytics, errors
+- `e2e/integrations/twilio-integration.spec.ts` — real-number SMS smoke, MMS, webhooks
+- `e2e/suites/` — admin permissions, advanced CRM, error handling, post creation
+- `e2e/compliance.spec.ts` — CASL footer + unsubscribe (skeleton, gated, TODO selectors)
+- `e2e/subscription.spec.ts` — Stripe tier change UI (skeleton, gated by `STRIPE_TEST_MODE`)
+
+When adding tests:
+- Use the live auth selectors `#signin-email` and `#signin-password` per the auth-and-browser-test rules above.
+- Prefer deterministic onboarding completion via profile state over driving the onboarding UI unless that flow is the SUT.
+- Never hardcode a production domain — go through the runtime-config baseURL.
+- Billing tests stay skipped unless `STRIPE_TEST_MODE=1` is set; never run them against live Stripe keys.
+
+When tests break:
+- Real regression — fix the code.
+- Selector drift — update the selector or add a stable `data-testid`.
+- Local server didn't start on 8080 — `lsof -i :8080` and free the port.
+
+The Expect MCP (AI-driven exploratory browser testing) is registered globally in Claude Code; invoke `/expect` for ad-hoc test runs on top of the persistent suite.
+
 ## Lazy Loading Rules
 
 All page components must be lazy-loaded. Do not add static page imports in `src/App.tsx`.
