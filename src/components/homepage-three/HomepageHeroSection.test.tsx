@@ -5,16 +5,27 @@ import { HomepageHeroSection } from "./HomepageHeroSection";
 import { HERO_CONTENT } from "./content/heroContent";
 
 describe("HomepageHeroSection", () => {
-  it("renders the two-tone hero copy, CTA anchors, and the illustrated banner", () => {
-    render(<HomepageHeroSection isActive motionEnabled />);
+  it("renders the rotating headline scaffold, static tagline, CTA anchors, and the illustrated banner", () => {
+    const { container } = render(
+      <HomepageHeroSection isActive motionEnabled />,
+    );
 
     expect(screen.getByText(HERO_CONTENT.eyebrow)).toBeInTheDocument();
-    expect(screen.getByText(HERO_CONTENT.headlineLineOne)).toHaveClass(
+    // Rotating typewriter line is present (the text inside ticks over
+    // time; we just assert the live region exists with the dark tone).
+    const rotatingText = container.querySelector(".hp-hero__rotating-text");
+    expect(rotatingText).toBeInTheDocument();
+    expect(rotatingText).toHaveAttribute("aria-live", "polite");
+    expect(rotatingText).toHaveAttribute("aria-atomic", "true");
+    expect(rotatingText?.parentElement).toHaveClass(
       "hp-hero__headline-line--dark",
     );
-    expect(screen.getByText(HERO_CONTENT.headlineLineTwo)).toHaveClass(
+    // Static tagline keeps the brand-teal accent.
+    expect(screen.getByText(HERO_CONTENT.staticTagline)).toHaveClass(
       "hp-hero__headline-line--green",
     );
+    // Cursor sits beside the rotating text.
+    expect(container.querySelector(".hp-hero__cursor")).toBeInTheDocument();
     expect(screen.getByText(HERO_CONTENT.subtext)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: HERO_CONTENT.primaryCta }),
