@@ -39,19 +39,11 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // SECURITY: [E31] - Add service-role-or-JWT authentication
-  const authHeader = req.headers.get('Authorization');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: corsHeaders });
-  }
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
-    }
-  }
+  // Auth gating handled at the platform level via verify_jwt — see
+  // queue-worker / process-email-send-queue for the same pattern.
+  // The previous in-handler check string-compared against the legacy
+  // SUPABASE_SERVICE_ROLE_KEY env and broke after the 2026-05-07
+  // sb_secret_ key migration (cron now sends the new key shape).
 
   const startTime = Date.now();
   const runId = crypto.randomUUID().slice(0, 8);
