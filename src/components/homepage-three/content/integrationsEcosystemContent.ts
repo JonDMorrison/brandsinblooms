@@ -1,7 +1,7 @@
 import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
 import { socialIconUrls } from "@/utils/socialIcons";
 
-export type IntegrationCardSize = "standard" | "wide";
+export type IntegrationCardSize = "standard";
 
 export interface IntegrationLogoConfig {
   src: string;
@@ -35,37 +35,18 @@ export const INTEGRATIONS_SECTION_HEADER = {
 };
 
 export const INTEGRATION_COUNT_COPY = {
-  headline: "12+ integrations and growing",
+  headline: "10+ integrations and growing",
   cta: "Don't see yours? We'll build it.",
   ctaHref: "#contact",
 };
 
+// Ordered by category for scannability: POS first (the most-asked-
+// about integration for garden centres), then ecommerce, email,
+// social, analytics. Stripe (payments-only) and Cloudflare
+// (infrastructure-only) were dropped — neither speaks to the garden
+// centre operator's day-to-day. VMX POS added to round out the POS
+// row alongside Lightspeed, Square, and Clover.
 export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
-  {
-    id: "stripe",
-    name: "Stripe",
-    logo: {
-      src: getProviderLogo("stripe"),
-      alt: "Stripe logo",
-    },
-    category: "PAYMENTS",
-    description:
-      "Subscriptions, invoicing, and one-time payments, synced to customer profiles.",
-    size: "wide",
-    delayMs: 0,
-  },
-  {
-    id: "shopify",
-    name: "Shopify",
-    logo: {
-      src: getProviderLogo("shopify"),
-      alt: "Shopify logo",
-    },
-    category: "E-COMMERCE",
-    description: "Two-way sync of products, orders, and customers.",
-    size: "standard",
-    delayMs: 80,
-  },
   {
     id: "lightspeed",
     name: "Lightspeed",
@@ -76,7 +57,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     category: "POS",
     description: "Live inventory and sales sync, location by location.",
     size: "standard",
-    delayMs: 160,
+    delayMs: 0,
   },
   {
     id: "square",
@@ -89,59 +70,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     description:
       "Transactions and customer data flow into BloomSuite automatically.",
     size: "standard",
-    delayMs: 240,
-  },
-  {
-    id: "mailchimp",
-    name: "Mailchimp",
-    logo: {
-      src: getProviderLogo("mailchimp"),
-      alt: "Mailchimp logo",
-    },
-    category: "EMAIL",
-    description:
-      "Audiences and segments stay in lockstep across both platforms.",
-    size: "standard",
-    delayMs: 320,
-  },
-  {
-    id: "klaviyo",
-    name: "Klaviyo",
-    logo: {
-      src: getProviderLogo("klaviyo"),
-      alt: "Klaviyo logo",
-    },
-    category: "EMAIL",
-    description:
-      "Lifecycle flows, predictive analytics, and shared customer data.",
-    size: "wide",
-    delayMs: 400,
-  },
-  {
-    id: "constant-contact",
-    name: "Constant Contact",
-    logo: {
-      src: getProviderLogo("constant-contact"),
-      alt: "Constant Contact logo",
-    },
-    category: "EMAIL",
-    description:
-      "Sync lists, automate campaigns, and keep contact preferences in one place.",
-    size: "standard",
-    delayMs: 460,
-  },
-  {
-    id: "meta",
-    name: "Meta",
-    logo: {
-      src: socialIconUrls.facebook,
-      alt: "Facebook logo",
-    },
-    category: "SOCIAL",
-    description:
-      "Publish to Facebook and Instagram from your campaign builder.",
-    size: "standard",
-    delayMs: 520,
+    delayMs: 80,
   },
   {
     id: "clover",
@@ -154,19 +83,84 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     description:
       "Transactions, inventory, and customer data, synced to your dashboard.",
     size: "standard",
-    delayMs: 600,
+    delayMs: 160,
   },
   {
-    id: "cloudflare",
-    name: "Cloudflare",
+    id: "vmx-pos",
+    name: "VMX POS",
     logo: {
-      src: getProviderLogo("cloudflare"),
-      alt: "Cloudflare logo",
+      src: getProviderLogo("vmx-pos"),
+      alt: "VMX POS logo",
     },
-    category: "INFRASTRUCTURE",
-    description: "CDN, security, and DNS for your storefront, included.",
+    category: "POS",
+    description:
+      "Transactions, customer data, and receipt-level history syncing into BloomSuite live.",
     size: "standard",
-    delayMs: 680,
+    delayMs: 240,
+  },
+  {
+    id: "shopify",
+    name: "Shopify",
+    logo: {
+      src: getProviderLogo("shopify"),
+      alt: "Shopify logo",
+    },
+    category: "E-COMMERCE",
+    description: "Two-way sync of products, orders, and customers.",
+    size: "standard",
+    delayMs: 320,
+  },
+  {
+    id: "mailchimp",
+    name: "Mailchimp",
+    logo: {
+      src: getProviderLogo("mailchimp"),
+      alt: "Mailchimp logo",
+    },
+    category: "EMAIL",
+    description:
+      "Audiences and segments stay in lockstep across both platforms.",
+    size: "standard",
+    delayMs: 400,
+  },
+  {
+    id: "klaviyo",
+    name: "Klaviyo",
+    logo: {
+      src: getProviderLogo("klaviyo"),
+      alt: "Klaviyo logo",
+    },
+    category: "EMAIL",
+    description:
+      "Lifecycle flows, predictive analytics, and shared customer data.",
+    size: "standard",
+    delayMs: 480,
+  },
+  {
+    id: "constant-contact",
+    name: "Constant Contact",
+    logo: {
+      src: getProviderLogo("constant-contact"),
+      alt: "Constant Contact logo",
+    },
+    category: "EMAIL",
+    description:
+      "Sync lists, automate campaigns, and keep contact preferences in one place.",
+    size: "standard",
+    delayMs: 560,
+  },
+  {
+    id: "meta",
+    name: "Meta",
+    logo: {
+      src: socialIconUrls.facebook,
+      alt: "Facebook logo",
+    },
+    category: "SOCIAL",
+    description:
+      "Publish to Facebook and Instagram from your campaign builder.",
+    size: "standard",
+    delayMs: 640,
   },
   {
     id: "google-analytics",
@@ -179,6 +173,6 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     description:
       "Storefront traffic, conversions, and customer journeys mapped to your CRM.",
     size: "standard",
-    delayMs: 760,
+    delayMs: 720,
   },
 ];
