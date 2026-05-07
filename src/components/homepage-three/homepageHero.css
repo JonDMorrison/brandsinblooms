@@ -41,9 +41,15 @@
     gap: 4px;
     margin: 0;
     font-family: var(--hp-font-display);
-    font-size: clamp(36px, 6vw, 64px);
+    /* Tuned so the longest rotating phrase (43 chars) wraps to two
+       lines at 1280px and never to three lines down to 414px. Floor
+       2.25rem (36px) holds at narrow mobile; ceiling 4rem (64px) on
+       large desktop. The shared declaration applies to both the
+       rotating line and the static "Built For Garden Centres." line
+       so the visual rhythm stays consistent. */
+    font-size: clamp(2.25rem, 4.5vw, 4rem);
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1.1;
     letter-spacing: var(--hp-tracking-display);
 }
 
@@ -61,12 +67,21 @@
 }
 
 .hp-hero__headline-line--rotating {
-    display: inline-flex;
-    align-items: baseline;
-    /* Reserve vertical space so layout doesn't shift while text types
-       and erases. Tuned to fit the longest configured phrase wrapping
-       to two lines on mobile widths. */
-    min-height: 1.2em;
+    /* display: block (default for spans inside a grid h1) keeps the
+       typed text + cursor in normal inline flow so the cursor sits at
+       the end of the last visual line of text — never wrapping to its
+       own row below a 2-line phrase. (Earlier inline-flex caused the
+       cursor to flex-wrap to a 3rd row when the text filled 2.) */
+    display: block;
+    /* Reserve two lines of vertical space (2 × line-height 1.1 = 2.2em
+       plus ~0.2em of descender slack — without the slack, the parent
+       .hp-hero__headline-line { overflow: hidden } clips the bottom
+       3px of descenders ("g", "p", "y") on 2-line phrases) so the
+       subhead, CTAs, and banner below never reflow while a phrase
+       types from short to long or wraps from one line to two mid-
+       animation. The longest rotating phrase wraps to two lines at
+       1280px; shorter phrases just leave the second line empty. */
+    min-height: 2.4em;
 }
 
 .hp-hero__cursor {
@@ -237,8 +252,19 @@
         gap: 14px;
     }
 
-    .hp-hero__headline {
-        font-size: clamp(36px, 12vw, 48px);
+    /* No mobile font-size override: the base clamp(2.25rem, 4.5vw,
+       4rem) already floors at 36px below ~800px viewports, which is
+       what we want for narrow screens. */
+
+    .hp-hero__headline-line--rotating {
+        /* On narrow viewports the 36px font + container ~340px gives
+           ~17 chars per line, which means the 35-43 char phrases wrap
+           to 3 lines instead of 2. Reserve 3 lines of space (3 ×
+           line-height 1.1 = 3.3em + 0.1em descender slack) so the
+           3rd line isn't clipped by overflow:hidden on the parent
+           and the subhead/CTAs/banner below don't shift as a phrase
+           grows past 2 lines mid-animation. */
+        min-height: 3.4em;
     }
 
     .hp-hero__ctas {
