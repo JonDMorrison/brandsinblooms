@@ -31,6 +31,54 @@ import {
 import { sanitizeEmailHtmlImageSources } from "./emailImageUrl.ts";
 import type { ServerCompanyProfileShape } from "./resolveDesignSystem.ts";
 
+// Resolved at module load. Falls back to the production project URL
+// so the renderer keeps producing pixels even in environments where
+// SUPABASE_URL is not injected (preview / unit-test contexts).
+const TRACK_OPEN_BASE_URL = `${
+  Deno.env.get("SUPABASE_URL") ||
+  "https://udldmkqwnxhdeztyqcau.supabase.co"
+}/functions/v1/track-email-open`;
+
+function escapeUrlComponent(value: string | null | undefined): string {
+  return value ? encodeURIComponent(String(value)) : "";
+}
+
+function injectOpenTrackingPixel(
+  html: string,
+  params: {
+    tenantId: string | null | undefined;
+    campaignId: string | null | undefined;
+    customer: { id?: string | null; email?: string | null } | null | undefined;
+  },
+): string {
+  const c = escapeUrlComponent(params.campaignId);
+  const u = escapeUrlComponent(params.customer?.id);
+  const t = escapeUrlComponent(params.tenantId);
+  const e = escapeUrlComponent(params.customer?.email);
+  if (!c) return html;
+  const queryParts = [`c=${c}`];
+  if (u) queryParts.push(`u=${u}`);
+  if (t) queryParts.push(`t=${t}`);
+  if (e) queryParts.push(`e=${e}`);
+  const pixelUrl = `${TRACK_OPEN_BASE_URL}?${queryParts.join("&")}`;
+  // alt="" + role="presentation" so screen readers ignore the pixel.
+  // Inline display:block; border:0; etc. so Outlook/Gmail render the
+  // image as a 1x1 invisible image regardless of their default styles.
+  const pixelTag =
+    `<img src="${pixelUrl}" alt="" width="1" height="1" border="0" ` +
+    `style="display:block;width:1px;height:1px;border:0;outline:none;` +
+    `text-decoration:none;line-height:0;font-size:1px;mso-hide:all;" ` +
+    `aria-hidden="true" role="presentation" />`;
+  // Prefer to slot the pixel just before </body>. If the rendered HTML
+  // doesn't contain a closing body tag (rare — fragment-style render),
+  // append at the end.
+  const bodyClose = html.lastIndexOf("</body>");
+  if (bodyClose === -1) {
+    return `${html}${pixelTag}`;
+  }
+  return `${html.slice(0, bodyClose)}${pixelTag}${html.slice(bodyClose)}`;
+}
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -326,6 +374,20 @@ export function renderEmailForRecipient(
     "emailRenderer",
   );
   renderedHtml = imageSanitization.html;
+
+  // Inject our first-party open-tracking pixel into live sends. This
+  // makes us independent of per-domain Resend dashboard settings —
+  // the Mother's Day campaign sent from a domain with native open
+  // tracking off and registered zero opens; this pixel guarantees we
+  // capture opens regardless. Test sends are intentionally excluded
+  // so they don't pollute campaign analytics.
+  if (mode === "send" && campaignId && customer?.email) {
+    renderedHtml = injectOpenTrackingPixel(renderedHtml, {
+      tenantId,
+      campaignId,
+      customer,
+    });
+  }
 
   // Step 9: Log diagnostics
   console.log(
