@@ -871,3 +871,28 @@ html[data-darkreader-scheme] .homepage-three :is(.hp-brand, .hp-nav__link, .hp-d
         background: Canvas;
     }
 }
+/* Scroll-driven fade-up for sections below the hero. The class is
+   added at runtime by HomepagePresentation's IntersectionObserver
+   effect — sections get .hp-fade-up on mount and .is-visible the
+   first time they enter the viewport (one-shot reveal). */
+.hp-fade-up {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 500ms ease-out, transform 500ms ease-out;
+    will-change: opacity, transform;
+}
+
+.hp-fade-up.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .hp-fade-up,
+    .hp-fade-up.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}

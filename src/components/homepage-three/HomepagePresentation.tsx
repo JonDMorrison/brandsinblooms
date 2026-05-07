@@ -63,6 +63,62 @@ export const HomepagePresentation = () => {
     };
   }, []);
 
+  // Scroll-driven fade-up reveal for every section below the hero.
+  // Adds .hp-fade-up to each section after mount, then flips
+  // .is-visible the first time the section intersects the viewport
+  // (one-shot reveal so sections stay visible after they appear).
+  // The hero deliberately is NOT included — it's already on screen
+  // at page load. prefers-reduced-motion short-circuits the effect
+  // entirely; the @media block in homepageThree.css also no-ops the
+  // class transitions if reduced-motion is on (defense in depth).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // matchMedia isn't implemented by jsdom and may be missing in
+    // limited runtimes — guard so the page still mounts cleanly there
+    // (the fade-up effect simply doesn't run).
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const selectors = [
+      ".hp-problem",
+      ".hp-guide",
+      ".hp-features",
+      ".hp-crm-showcase",
+      ".hp-ai-showcase",
+      ".hp-impact-section",
+      ".hp-integrations-ecosystem",
+      ".hp-differentiators",
+      ".hp-pricing-cta",
+    ];
+    const elements = Array.from(
+      document.querySelectorAll<HTMLElement>(selectors.join(",")),
+    );
+    for (const el of elements) {
+      el.classList.add("hp-fade-up");
+    }
+
+    const observer = new IntersectionObserver(
+      (entries, obs) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            obs.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -10% 0px" },
+    );
+    for (const el of elements) {
+      observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     // hp-token-scope brings the homepage CSS-variable ramp (--hp-green-*,
     // --hp-hover-duration, --hp-ease-hover, etc., declared in
