@@ -1,18 +1,7 @@
-import type { CSSProperties } from "react";
-import { GlassButton, GlassChip, GlassScreenshotFrame } from "./glass";
-import { HERO_CONTENT, HERO_ROLE_BADGES } from "./content/heroContent";
+import { GlassButton } from "./glass";
+import { HERO_CONTENT } from "./content/heroContent";
+import heroBanner from "@/assets/hero-banner.png";
 import "./homepageHero.css";
-
-const CRM_DASHBOARD_SCREENSHOT_SRC = "/homepage/section-1.png";
-const CRM_DASHBOARD_SCREENSHOT_ALT =
-  "BloomSuite CRM Dashboard — customer management, campaigns, analytics, and AI assistant";
-const CRM_DASHBOARD_SCREENSHOT_STYLE: CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  objectPosition: "top left",
-  display: "block",
-};
 
 interface HomepageHeroSectionProps {
   isActive: boolean;
@@ -23,7 +12,6 @@ interface HomepageHeroSectionProps {
 export const HomepageHeroSection = ({
   isActive,
   motionEnabled,
-  screenshotSrc,
 }: HomepageHeroSectionProps) => (
   <div
     className="hp-hero"
@@ -60,43 +48,15 @@ export const HomepageHeroSection = ({
       </div>
     </div>
 
-    <div
-      className="hp-hero__visual"
-      aria-label="BloomSuite CRM dashboard preview"
-    >
-      <GlassScreenshotFrame
-        src={screenshotSrc || CRM_DASHBOARD_SCREENSHOT_SRC}
-        alt={CRM_DASHBOARD_SCREENSHOT_ALT}
-        showChrome
-        chromeUrl="app.bloomsuite.com"
-        imageLoading="eager"
-        imageFetchPriority="high"
-        imageStyle={CRM_DASHBOARD_SCREENSHOT_STYLE}
-        className="hp-hero-dashboard"
+    <div className="hp-hero__visual" aria-label="BloomSuite hero illustration">
+      <img
+        src={heroBanner}
+        alt="A garden centre owner using BloomSuite on a tablet, surrounded by floating panels showing campaigns, schedule, conversion tracking, and social posts"
+        className="hp-hero__banner"
+        loading="eager"
+        fetchPriority="high"
+        decoding="async"
       />
-
-      <ul className="hp-hero-badges" aria-label="BloomSuite customer roles">
-        {HERO_ROLE_BADGES.map((badge) => (
-          <li
-            key={badge.label}
-            className="hp-hero-badge"
-            data-position={badge.position}
-            data-optional={badge.optional ? "true" : "false"}
-            style={
-              {
-                "--hp-badge-delay": `${badge.delayMs}ms`,
-                "--hp-badge-float-duration": `${badge.floatDurationMs}ms`,
-                "--hp-badge-float-phase": `${badge.floatPhaseMs}ms`,
-              } as CSSProperties
-            }
-          >
-            <GlassChip className="hp-hero-badge__chip">
-              <span className="hp-hero-badge__dot" aria-hidden="true" />
-              {badge.label}
-            </GlassChip>
-          </li>
-        ))}
-      </ul>
     </div>
   </div>
 );

@@ -3,12 +3,9 @@
     z-index: 2;
     display: grid;
     /* Grid rows shrink to natural content height in scroll mode so the
-       mockup sits cleanly below the copy. The previous fixed-row sizing
-       was tuned for the scroll-locked viewport-fill layout. */
+       banner sits cleanly below the copy. */
     grid-template-rows: auto auto;
-    /* row-gap pushes the dashboard down enough that the top role badges
-       (positioned at -46px above the dashboard) clear the copy block. */
-    row-gap: clamp(56px, 6vw, 96px);
+    row-gap: clamp(40px, 5vw, 72px);
     align-items: start;
     justify-items: center;
     width: 100%;
@@ -84,81 +81,18 @@
     display: grid;
     justify-items: center;
     align-self: start;
-    width: min(75vw, 1120px);
+    /* Banner is ~21:9. Give it more horizontal room than the previous
+       narrower dashboard mockup got so the figure + floating panels read
+       cleanly. */
+    width: min(92vw, 1320px);
 }
 
-.hp-hero-dashboard {
-    align-self: start;
+.hp-hero__banner {
     width: 100%;
-    max-height: min(40dvh, 380px);
-    transform-origin: center top;
-}
-
-.hp-hero-dashboard .hp-screenshot-frame__placeholder {
-    min-height: clamp(230px, 34dvh, 330px);
-}
-
-.hp-hero-badges {
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    pointer-events: none;
-}
-
-.hp-hero-badge {
-    position: absolute;
-    opacity: 0;
-    transform: translateY(10px);
-}
-
-.hp-hero-badge__chip {
-    gap: 7px;
-    min-height: 32px;
-    padding-inline: 14px;
-    color: var(--hp-text);
-    font-size: clamp(0.72rem, 1vw, 0.82rem);
-    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
-}
-
-.hp-hero-badge__dot {
-    width: 7px;
-    height: 7px;
-    flex: 0 0 auto;
-    border-radius: var(--radius-full);
-    background: #68BEB9;
-    box-shadow: 0 0 0 4px rgba(104, 190, 185, 0.12);
-}
-
-.hp-hero-badge[data-position="top-left"] {
-    top: -46px;
-    left: 7%;
-}
-
-.hp-hero-badge[data-position="top-right"] {
-    top: -46px;
-    right: 7%;
-}
-
-.hp-hero-badge[data-position="bottom-left"] {
-    bottom: -34px;
-    left: 7%;
-}
-
-.hp-hero-badge[data-position="bottom-right"] {
-    right: 7%;
-    bottom: -34px;
-}
-
-.hp-hero-badge[data-position="mid-left"] {
-    top: 42%;
-    left: clamp(-160px, -11vw, -124px);
-}
-
-.hp-hero-badge[data-position="mid-right"] {
-    top: 45%;
-    right: clamp(-150px, -10vw, -118px);
+    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
 }
 
 .hp-hero[data-active="true"] .hp-hero__eyebrow {
@@ -181,38 +115,20 @@
     animation: hp-hero-slide-up var(--hp-entry-duration) var(--hp-ease-entry) 340ms both;
 }
 
-.hp-hero[data-active="true"] .hp-hero-dashboard {
-    animation: hp-hero-dashboard-enter var(--hp-entry-duration) var(--hp-ease-entry) 420ms both,
-        hp-hero-dashboard-drift 6s var(--hp-ease-drift) 820ms infinite alternate;
-}
-
-.hp-hero[data-active="true"] .hp-hero-badge {
-    animation: hp-hero-badge-enter 360ms var(--hp-ease-entry) var(--hp-badge-delay) both;
-}
-
-.hp-hero[data-active="true"] .hp-hero-badge__chip {
-    animation: hp-hero-badge-float var(--hp-badge-float-duration) var(--hp-ease-drift) var(--hp-badge-float-phase) infinite alternate;
+.hp-hero[data-active="true"] .hp-hero__banner {
+    animation: hp-hero-banner-enter var(--hp-entry-duration) var(--hp-ease-entry) 420ms both;
 }
 
 .hp-hero[data-active="false"] .hp-hero__eyebrow,
 .hp-hero[data-active="false"] .hp-hero__headline-line,
 .hp-hero[data-active="false"] .hp-hero__subtext,
 .hp-hero[data-active="false"] .hp-hero__ctas,
-.hp-hero[data-active="false"] .hp-hero-dashboard,
-.hp-hero[data-active="false"] .hp-hero-badge {
+.hp-hero[data-active="false"] .hp-hero__banner {
     opacity: 0;
 }
 
-.hp-hero[data-motion-enabled="false"] .hp-hero-dashboard {
+.hp-hero[data-motion-enabled="false"] .hp-hero__banner {
     animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
-}
-
-.hp-hero[data-motion-enabled="false"] .hp-hero-badge {
-    animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
-}
-
-.hp-hero[data-motion-enabled="false"] .hp-hero-badge__chip {
-    animation: none;
 }
 
 @keyframes hp-hero-fade {
@@ -249,63 +165,27 @@
     }
 }
 
-@keyframes hp-hero-dashboard-enter {
+@keyframes hp-hero-banner-enter {
     from {
         opacity: 0;
-        transform: translateY(60px);
+        transform: translateY(40px);
     }
 
     to {
         opacity: 1;
         transform: translateY(0);
-    }
-}
-
-@keyframes hp-hero-dashboard-drift {
-    from {
-        transform: translateY(0);
-    }
-
-    to {
-        transform: translateY(-8px);
-    }
-}
-
-@keyframes hp-hero-badge-enter {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes hp-hero-badge-float {
-    from {
-        transform: translateY(-3px);
-    }
-
-    to {
-        transform: translateY(3px);
     }
 }
 
 @media (max-width: 1100px) {
     .hp-hero__visual {
-        width: min(85vw, 920px);
-    }
-
-    .hp-hero-badge[data-optional="true"] {
-        display: none;
+        width: min(94vw, 980px);
     }
 }
 
 @media (max-width: 767px) {
     .hp-hero {
-        grid-template-rows: minmax(400px, 52.5dvh) minmax(220px, 1fr);
+        grid-template-rows: auto auto;
         padding: 84px 16px 52px;
     }
 
@@ -333,40 +213,11 @@
     .hp-hero__visual {
         width: 95vw;
     }
-
-    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
-        min-height: clamp(190px, 28dvh, 260px);
-    }
-
-    .hp-hero-badge[data-position="top-left"] {
-        top: -31px;
-        left: 3%;
-    }
-
-    .hp-hero-badge[data-position="top-right"] {
-        top: -31px;
-        right: 3%;
-    }
-
-    .hp-hero-badge[data-position="bottom-left"] {
-        bottom: -36px;
-        left: 2%;
-    }
-
-    .hp-hero-badge[data-position="bottom-right"] {
-        right: 2%;
-        bottom: -36px;
-    }
 }
 
 @media (max-height: 760px) and (min-width: 768px) {
     .hp-hero {
-        grid-template-rows: minmax(270px, 43dvh) minmax(240px, 1fr);
         padding-top: 82px;
-    }
-
-    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
-        min-height: clamp(210px, 30dvh, 300px);
     }
 }
 
@@ -376,8 +227,7 @@
     .hp-hero[data-active="true"] .hp-hero__headline-line,
     .hp-hero[data-active="true"] .hp-hero__subtext,
     .hp-hero[data-active="true"] .hp-hero__ctas,
-    .hp-hero[data-active="true"] .hp-hero-dashboard,
-    .hp-hero[data-active="true"] .hp-hero-badge {
+    .hp-hero[data-active="true"] .hp-hero__banner {
         animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
     }
 }
