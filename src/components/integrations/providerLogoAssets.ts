@@ -7,16 +7,15 @@ import lightspeedLogo from "@/assets/logos/lightspeed-x-series.svg";
 import mailchimpLogo from "@/assets/logos/mailchimp-new.png";
 import shopifyLogo from "@/assets/logos/shopify.svg";
 import slackLogo from "@/assets/logos/slack.jpeg";
-import stripeLogo from "@/assets/logos/stripe.png";
 import squareLogo from "@/assets/logos/square-new.png";
+import vmxPosLogo from "@/assets/logos/vmx-pos.png";
 import zapierLogo from "@/assets/logos/zapier.jpeg";
-import cloudflareLogo from "@/assets/logos/cloudflare.png";
 
 export const providerLogoAssets: Partial<Record<string, string>> = {
   square: squareLogo,
   clover: cloverLogo,
-  cloudflare: cloudflareLogo,
   lightspeed: lightspeedLogo,
+  "vmx-pos": vmxPosLogo,
   "google-analytics": googleAnalytics4Logo,
   mailchimp: mailchimpLogo,
   klaviyo: klaviyoLogo,
@@ -25,5 +24,4 @@ export const providerLogoAssets: Partial<Record<string, string>> = {
   hubspot: hubspotLogo,
   zapier: zapierLogo,
   slack: slackLogo,
-  stripe: stripeLogo,
 };
