@@ -152,6 +152,10 @@ const FeaturesPage = lazyNamed(
   () => import("@/pages/FeaturesPage"),
   "FeaturesPage",
 );
+const FeatureDetailPage = lazyRetry(() => import("@/pages/FeatureDetailPage"));
+const KnowledgeBasePage = lazyRetry(
+  () => import("@/pages/KnowledgeBasePage"),
+);
 const Home1Page = lazyNamed(() => import("@/pages/Home1Page"), "Home1Page");
 const EmailPreferences = lazyRetry(() => import("@/pages/EmailPreferences"));
 const PublicFormPage = lazyRetry(() => import("@/pages/PublicFormPage"));
@@ -547,6 +551,14 @@ function App() {
               />
               <Route path="/ecomm" element={<EcommPage />} />
               <Route path="/features" element={<FeaturesPage />} />
+              <Route
+                path="/features/:slug"
+                element={<FeatureDetailPage />}
+              />
+              <Route
+                path="/knowledge-base"
+                element={<KnowledgeBasePage />}
+              />
               <Route path="/home1" element={<Home1Page />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
