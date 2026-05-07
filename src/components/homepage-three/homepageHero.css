@@ -93,6 +93,23 @@
     max-height: 100%;
     object-fit: contain;
     display: block;
+    /* Fade the top 12% and bottom 8% of the illustration into the
+       white hero background so the banner edges blend in instead of
+       showing a sharp horizontal cut against adjacent sections. */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 92%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 92%,
+        transparent 100%
+    );
 }
 
 .hp-hero[data-active="true"] .hp-hero__eyebrow {
