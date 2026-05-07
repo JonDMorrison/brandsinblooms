@@ -150,11 +150,18 @@ describe("HomepagePricingCtaFooterSection", () => {
       within(footer).getByText(FOOTER_CONTENT.copyright),
     ).toBeInTheDocument();
 
-    for (const social of FOOTER_CONTENT.socials) {
-      expect(
-        within(footer).getByRole("link", { name: social.label }),
-      ).toHaveAttribute("href", social.href);
-    }
+    // Socials are omitted entirely until BloomSuite has real brand
+    // profiles (the placeholder LinkedIn/X/Instagram links pointed at
+    // platform homepages, not BloomSuite). The wrapping container
+    // should not render while FOOTER_CONTENT.socials is empty so we
+    // don't ship leftover spacing or an empty aria-labelled region.
+    expect(FOOTER_CONTENT.socials).toHaveLength(0);
+    expect(
+      footer.querySelector(".hp-pricing-footer__socials"),
+    ).toBeNull();
+    expect(
+      within(footer).queryByLabelText(FOOTER_CONTENT.socialLabel),
+    ).toBeNull();
 
     for (const column of FOOTER_CONTENT.columns) {
       expect(

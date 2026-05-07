@@ -1,5 +1,4 @@
 import type { ComponentType, SVGProps } from "react";
-import { Instagram, Linkedin, Twitter } from "lucide-react";
 
 // Plan IDs are kept as starter/growth/enterprise to avoid breaking the
 // PRICING_MOBILE_INITIAL_PLAN_ID reference and any consumer that branches
@@ -149,23 +148,8 @@ export const FOOTER_CONTENT = {
   socialLabel: "BloomSuite social links",
   disableAnimationsLabel: "Disable animations",
   copyright: "© 2026 BloomSuite. All rights reserved.",
-  socials: [
-    {
-      label: "LinkedIn",
-      href: "https://www.linkedin.com/",
-      icon: Linkedin,
-    },
-    {
-      label: "Twitter/X",
-      href: "https://x.com/",
-      icon: Twitter,
-    },
-    {
-      label: "Instagram",
-      href: "https://www.instagram.com/",
-      icon: Instagram,
-    },
-  ] satisfies FooterSocialLinkConfig[],
+  // TODO: add social entries when BloomSuite Facebook/Instagram/LinkedIn profiles are created
+  socials: [] satisfies FooterSocialLinkConfig[],
   columns: [
     {
       title: "PRODUCT",

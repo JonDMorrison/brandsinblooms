@@ -271,27 +271,29 @@ export const HomepagePricingCtaFooterSection = ({
             <p className="hp-pricing-footer__tagline">
               {FOOTER_CONTENT.tagline}
             </p>
-            <div
-              className="hp-pricing-footer__socials"
-              aria-label={FOOTER_CONTENT.socialLabel}
-            >
-              {FOOTER_CONTENT.socials.map((social) => {
-                const Icon = social.icon;
+            {FOOTER_CONTENT.socials.length > 0 && (
+              <div
+                className="hp-pricing-footer__socials"
+                aria-label={FOOTER_CONTENT.socialLabel}
+              >
+                {FOOTER_CONTENT.socials.map((social) => {
+                  const Icon = social.icon;
 
-                return (
-                  <a
-                    key={social.label}
-                    className="hp-pricing-footer__social-link"
-                    href={social.href}
-                    aria-label={social.label}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Icon aria-hidden="true" />
-                  </a>
-                );
-              })}
-            </div>
+                  return (
+                    <a
+                      key={social.label}
+                      className="hp-pricing-footer__social-link"
+                      href={social.href}
+                      aria-label={social.label}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Icon aria-hidden="true" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <nav
