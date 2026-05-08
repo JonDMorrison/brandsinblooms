@@ -4,7 +4,7 @@ export const HERO_CONTENT = {
   // line cycles through HERO_ROTATING_PHRASES below; the closer stays put.
   staticTagline: "Built For Garden Centres.",
   subtext:
-    "BloomSuite gives garden centres and florists one place to manage customers, run email and SMS campaigns, build a storefront, and connect to Lightspeed, Stripe, Shopify, and Mailchimp.",
+    "Run your customer marketing and online sales from one platform. Spend more time on the floor, less on the laptop.",
   primaryCta: "Start free trial",
   secondaryCta: "Book a demo",
   primaryHref: "/auth",
