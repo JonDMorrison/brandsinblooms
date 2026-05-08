@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -56,6 +56,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onBlur,
   autoFocus = false,
 }) => {
+  const lastSyncedContentRef = useRef(content);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -71,7 +73,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     ],
     content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      lastSyncedContentRef.current = html;
+      onChange(html);
     },
     onFocus: () => {
       onFocus?.();
@@ -93,9 +97,20 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    if (!editor || editor.isDestroyed) {
+      return;
     }
+
+    if (content === lastSyncedContentRef.current) {
+      return;
+    }
+
+    if (editor.isFocused) {
+      return;
+    }
+
+    editor.commands.setContent(content, false);
+    lastSyncedContentRef.current = content;
   }, [content, editor]);
 
   useEffect(() => {

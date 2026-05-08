@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Box,
   Button,
-  Card,
-  Chip,
   CircularProgress,
-  Divider,
-  FormControl,
-  FormLabel,
-  IconButton,
   Input,
-  LinearProgress,
   Modal,
   ModalDialog,
+  ModalClose,
   Skeleton,
   Sheet,
   Snackbar,
@@ -24,7 +24,12 @@ import {
   Textarea,
   Typography,
 } from "@mui/joy";
-import ChipDelete from "@mui/joy/ChipDelete";
+import {
+  AutoAwesomeRounded,
+  CheckCircleRounded,
+  CloseRounded,
+  SendRounded,
+} from "@mui/icons-material";
 import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import {
@@ -35,20 +40,22 @@ import {
 import { useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
-  CheckCircle2,
+  AlertTriangle,
   FileText,
-  Hash,
   Image as ImageIcon,
   Megaphone,
   Newspaper,
-  Send,
   Sparkles,
-  Trash2,
   Video,
-  X,
 } from "lucide-react";
 import { EditableNewsletterPreview } from "./EditableNewsletterPreview";
 import { useAIImageStudio } from "@/hooks/useAIImageStudio";
+import {
+  useImageGenerationTracker,
+  type ImageGenJob,
+} from "@/hooks/useImageGenerationTracker";
+import { retryBundleImageGeneration } from "@/utils/parallelImageGeneration";
+import useMediaQuery from "@/hooks/use-media-query";
 import { sanitizeWeekNumbers } from "@/utils/weekNumberSanitizer";
 import { sanitizeHtml } from "@/utils/htmlSanitizer";
 import type {
@@ -231,6 +238,51 @@ const STUDIO_ASPECT_RATIO_HINTS: Record<
   video: "16:9",
 };
 
+const IMAGE_GENERATION_MESSAGES: Record<
+  GeneratedBundleItem["channel"],
+  string
+> = {
+  blog: "Creating your blog header image...",
+  facebook: "Generating your Facebook image...",
+  instagram: "Crafting your Instagram visual...",
+  newsletter: "Designing your newsletter image...",
+  video: "Preparing your video thumbnail...",
+};
+
+const DEFAULT_CHANNEL: GeneratedBundleItem["channel"] = "newsletter";
+
+const THIN_SCROLLBAR_SX = {
+  "&::-webkit-scrollbar": { width: "4px" },
+  "&::-webkit-scrollbar-thumb": {
+    bgcolor: "neutral.300",
+    borderRadius: "4px",
+  },
+} as const;
+
+const EDIT_SECTION_LABEL_SX = {
+  fontSize: "11px",
+  fontWeight: 600,
+  color: "neutral.500",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  marginBottom: "8px",
+} as const;
+
+const FEATURED_IMAGE_ASPECT_RATIO = "16 / 9";
+
+const resolveChannel = (
+  channel: ModalChannel,
+): GeneratedBundleItem["channel"] => {
+  const normalized = normalizeChannel(channel);
+
+  return Object.prototype.hasOwnProperty.call(CHANNEL_CONFIG, normalized)
+    ? normalized
+    : DEFAULT_CHANNEL;
+};
+
+const getChannelConfig = (channel: ModalChannel) =>
+  CHANNEL_CONFIG[resolveChannel(channel)];
+
 const buildStudioContentSnippet = (item: DraftItem) =>
   sanitizeWeekNumbers(getPrimaryText(item))
     .replace(/<[^>]+>/g, " ")
@@ -240,16 +292,17 @@ const buildStudioContentSnippet = (item: DraftItem) =>
 
 const buildStudioInitialPrompt = (item: DraftItem, bundleTitle: string) => {
   const storedImageQuery = item.imageQuery?.trim();
+  const channelConfig = getChannelConfig(item.channel);
 
   if (storedImageQuery) {
     return storedImageQuery;
   }
 
-  return `${item.title?.trim() || bundleTitle} - ${CHANNEL_CONFIG[normalizeChannel(item.channel)].label} content image`;
+  return `${item.title?.trim() || bundleTitle} - ${channelConfig.label} content image`;
 };
 
 const buildStudioContentContext = (item: DraftItem, bundleTitle: string) => {
-  const channelLabel = CHANNEL_CONFIG[normalizeChannel(item.channel)].label;
+  const channelLabel = getChannelConfig(item.channel).label;
   const itemTitle = item.title?.trim();
 
   if (itemTitle && itemTitle !== bundleTitle) {
@@ -274,6 +327,156 @@ const mapStudioMetadataToDraftMedia = (
   globalImageId: metadata?.globalImageId,
   tags: metadata?.tags?.map((tag) => tag.name).filter(Boolean),
 });
+
+const mapImageJobToDraftMedia = (
+  item: DraftItem,
+  job: ImageGenJob,
+): DraftMedia => ({
+  url: job.imageUrl || undefined,
+  alt: item.media?.alt || item.title || "Generated content image",
+  source: "ai-generated",
+  globalImageId: job.globalImageId,
+  tags: job.tags,
+});
+
+function EditSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Box sx={{ marginBottom: "20px" }}>
+      <Typography sx={EDIT_SECTION_LABEL_SX}>{label}</Typography>
+      {children}
+    </Box>
+  );
+}
+
+function GeneratingImageState({
+  channel,
+  startedAt,
+}: {
+  channel: GeneratedBundleItem["channel"];
+  startedAt: number;
+}) {
+  const prefersReducedMotion = useMediaQuery(
+    "(prefers-reduced-motion: reduce)",
+  );
+  const [showDurationHint, setShowDurationHint] = useState(
+    Date.now() - startedAt >= 10000,
+  );
+
+  useEffect(() => {
+    if (showDurationHint) {
+      return;
+    }
+
+    const remainingDelay = Math.max(0, 10000 - (Date.now() - startedAt));
+    const timeoutId = window.setTimeout(() => {
+      setShowDurationHint(true);
+    }, remainingDelay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showDurationHint, startedAt]);
+
+  return (
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{
+        position: "relative",
+        aspectRatio: FEATURED_IMAGE_ASPECT_RATIO,
+        borderRadius: "10px",
+        display: "grid",
+        placeItems: "center",
+        overflow: "hidden",
+        backgroundColor: "background.level1",
+        backgroundImage:
+          "linear-gradient(90deg, transparent 0%, rgba(var(--joy-palette-primary-mainChannel) / 0.08) 50%, transparent 100%)",
+        backgroundSize: "200% 100%",
+        animation: prefersReducedMotion
+          ? "none"
+          : "content-image-shimmer 2s ease-in-out infinite",
+        "@keyframes content-image-shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+      }}
+    >
+      <Stack
+        spacing={1}
+        alignItems="center"
+        sx={{ padding: "0 16px", textAlign: "center" }}
+      >
+        {prefersReducedMotion ? (
+          <Sparkles size={20} />
+        ) : (
+          <CircularProgress size="sm" variant="soft" color="primary" />
+        )}
+        <Typography level="body-xs" color="neutral">
+          {IMAGE_GENERATION_MESSAGES[channel]}
+        </Typography>
+        {showDurationHint ? (
+          <Typography level="body-xs" color="neutral">
+            This usually takes 15-30 seconds
+          </Typography>
+        ) : null}
+      </Stack>
+    </Sheet>
+  );
+}
+
+function FailedImageState({
+  channel,
+  onOpenStudio,
+  onRetry,
+}: {
+  channel: GeneratedBundleItem["channel"];
+  onOpenStudio: () => void;
+  onRetry: () => void;
+}) {
+  return (
+    <Sheet
+      variant="soft"
+      color="danger"
+      sx={{
+        aspectRatio: FEATURED_IMAGE_ASPECT_RATIO,
+        borderRadius: "10px",
+        display: "grid",
+        placeItems: "center",
+        bgcolor: "danger.50",
+      }}
+    >
+      <Stack
+        spacing={1.25}
+        alignItems="center"
+        sx={{ padding: "0 16px", textAlign: "center" }}
+      >
+        <AlertTriangle size={22} />
+        <Typography level="body-sm" color="danger">
+          Image generation failed
+        </Typography>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" color="danger" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+          <Button
+            variant="plain"
+            color="neutral"
+            size="sm"
+            onClick={onOpenStudio}
+          >
+            Open AI Studio
+          </Button>
+        </Stack>
+      </Stack>
+    </Sheet>
+  );
+}
 
 const getPrimaryText = (item: DraftItem) => {
   const candidates = [
@@ -378,6 +581,9 @@ export function GeneratedContentModal({
   const { query, update } = useGeneratedBundle(bundleId || undefined);
   const navigate = useNavigate();
   const { open: openImageStudio } = useAIImageStudio();
+  const imageJobs = useImageGenerationTracker((state) =>
+    bundleId ? state.jobs.get(bundleId) : undefined,
+  );
 
   const sourceItems = useMemo(
     () => (query.data?.content.items || []).map(normalizeDraftItem),
@@ -431,6 +637,50 @@ export function GeneratedContentModal({
     setHashtagInput("");
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!bundleId || !imageJobs) {
+      return;
+    }
+
+    const completedPatches = draftItems
+      .map((item, index) => {
+        const channel = resolveChannel(item.channel);
+        const job = imageJobs.get(channel);
+
+        if (item.media?.url || job?.status !== "completed" || !job.imageUrl) {
+          return null;
+        }
+
+        return {
+          index,
+          media: mapImageJobToDraftMedia(item, job),
+        };
+      })
+      .filter(
+        (patch): patch is { index: number; media: DraftMedia } =>
+          patch !== null,
+      );
+
+    if (completedPatches.length === 0) {
+      return;
+    }
+
+    const patchesByIndex = new Map(
+      completedPatches.map((patch) => [patch.index, patch.media]),
+    );
+
+    setDraftItems((currentItems) =>
+      currentItems.map((item, index) => {
+        if (item.media?.url) {
+          return item;
+        }
+
+        const media = patchesByIndex.get(index);
+        return media ? { ...item, media } : item;
+      }),
+    );
+  }, [bundleId, draftItems, imageJobs]);
+
   const bundleTitle = useMemo(() => {
     const titleFromBundle = query.data?.content.sourceLabel?.trim();
     if (titleFromBundle) {
@@ -443,16 +693,18 @@ export function GeneratedContentModal({
     return titleFromItems || "Generated content bundle";
   }, [draftItems, query.data?.content.sourceLabel]);
 
-  const bundleSubtitle = useMemo(() => {
+  const bundleModeLabel = useMemo(() => {
     const mode = query.data?.content.meta?.mode || "custom";
-    return `${MODE_LABELS[mode]} · ${formatRelativeTime(query.data?.created_at)}`;
-  }, [query.data?.content.meta?.mode, query.data?.created_at]);
+    return MODE_LABELS[mode];
+  }, [query.data?.content.meta?.mode]);
+
+  const bundleTimeAgo = useMemo(
+    () =>
+      formatRelativeTime(query.data?.created_at).replace(/^Generated\s+/, ""),
+    [query.data?.created_at],
+  );
 
   const activeItem = draftItems[activeTab] || null;
-  const activeChannel = activeItem
-    ? normalizeChannel(activeItem.channel)
-    : "newsletter";
-  const activeConfig = CHANNEL_CONFIG[activeChannel];
   const approvedCount = draftItems.filter((item) => item._approved).length;
   const approvedSocialChannels = useMemo(
     () =>
@@ -687,8 +939,8 @@ export function GeneratedContentModal({
 
   const handleOpenImageStudio = useCallback(
     (index: number, item: DraftItem) => {
-      const channel = normalizeChannel(item.channel);
-      const channelConfig = CHANNEL_CONFIG[channel];
+      const channel = resolveChannel(item.channel);
+      const channelConfig = getChannelConfig(item.channel);
 
       openImageStudio({
         aspectRatioHint: STUDIO_ASPECT_RATIO_HINTS[channel],
@@ -717,6 +969,142 @@ export function GeneratedContentModal({
     },
     [bundleTitle, editItem, openImageStudio, showSnackbar],
   );
+
+  const handleRetryImageGeneration = useCallback(
+    (item: DraftItem) => {
+      if (!bundleId) {
+        return;
+      }
+
+      const channel = resolveChannel(item.channel);
+      void retryBundleImageGeneration({ bundleId, channel }).catch((error) => {
+        console.error(
+          `[GeneratedContentModal] Failed to retry ${channel} image generation`,
+          error,
+        );
+      });
+    },
+    [bundleId],
+  );
+
+  const renderFeaturedImageArea = (index: number, item: DraftItem) => {
+    const channel = resolveChannel(item.channel);
+    const job = imageJobs?.get(channel);
+    const imageUrl =
+      item.media?.url ||
+      (job?.status === "completed" ? job.imageUrl || undefined : undefined);
+
+    if (imageUrl) {
+      return (
+        <Box
+          sx={{
+            position: "relative",
+            borderRadius: "10px",
+            overflow: "hidden",
+            "&:hover .generated-content-image-overlay": {
+              opacity: 1,
+            },
+          }}
+        >
+          <Box
+            component="img"
+            src={imageUrl}
+            alt={item.media?.alt || item.title || "Selected content image"}
+            sx={{
+              width: "100%",
+              aspectRatio: FEATURED_IMAGE_ASPECT_RATIO,
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+          <Box
+            className="generated-content-image-overlay"
+            sx={{
+              position: "absolute",
+              inset: 0,
+              bgcolor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              opacity: 0,
+              transition: "opacity 0.2s ease",
+            }}
+          >
+            <Button
+              size="sm"
+              variant="solid"
+              color="primary"
+              onClick={() => handleOpenImageStudio(index, item)}
+              sx={{ borderRadius: "8px", fontSize: "12px" }}
+            >
+              Change
+            </Button>
+            <Button
+              size="sm"
+              variant="solid"
+              color="danger"
+              onClick={() => editItem(index, { media: null })}
+              sx={{ borderRadius: "8px", fontSize: "12px" }}
+            >
+              Remove
+            </Button>
+          </Box>
+        </Box>
+      );
+    }
+
+    if (job?.status === "generating") {
+      return (
+        <GeneratingImageState channel={channel} startedAt={job.startedAt} />
+      );
+    }
+
+    if (job?.status === "failed") {
+      return (
+        <FailedImageState
+          channel={channel}
+          onRetry={() => handleRetryImageGeneration(item)}
+          onOpenStudio={() => handleOpenImageStudio(index, item)}
+        />
+      );
+    }
+
+    return (
+      <Box
+        onClick={() => handleOpenImageStudio(index, item)}
+        sx={{
+          width: "100%",
+          aspectRatio: FEATURED_IMAGE_ASPECT_RATIO,
+          borderRadius: "10px",
+          border: "1px dashed",
+          borderColor: "neutral.300",
+          bgcolor: "neutral.50",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          cursor: "pointer",
+          transition: "all 0.15s ease",
+          "&:hover": {
+            borderColor: "primary.300",
+            bgcolor: "primary.50",
+          },
+        }}
+      >
+        <AutoAwesomeRounded
+          htmlColor="var(--joy-palette-neutral-400)"
+          style={{ fontSize: 24 }}
+        />
+        <Typography
+          sx={{ fontSize: "12px", fontWeight: 500, color: "neutral.500" }}
+        >
+          Generate with AI Studio
+        </Typography>
+      </Box>
+    );
+  };
 
   const handlePublish = useCallback(async () => {
     if (!bundleId || approvedSocialCount === 0) {
@@ -781,100 +1169,143 @@ export function GeneratedContentModal({
   );
 
   const renderSocialPreview = (item: DraftItem) => {
+    const config = getChannelConfig(item.channel);
+    const channel = resolveChannel(item.channel);
     const previewText = sanitizeWeekNumbers(getPrimaryText(item));
-    const hashtags = (item.hashtags || []).join(" ");
+    const hashtags = item.hashtags || [];
 
     return (
-      <Card
-        variant="outlined"
+      <Box
         sx={{
-          borderRadius: "28px",
+          borderRadius: "12px",
+          border: "1px solid",
           borderColor: "neutral.200",
+          bgcolor: "background.surface",
           overflow: "hidden",
-          boxShadow: "sm",
         }}
       >
-        <Stack spacing={0}>
-          <Sheet sx={{ px: 2.5, py: 2, bgcolor: "background.level1" }}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Sheet
-                variant="soft"
-                color="primary"
-                sx={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  display: "grid",
-                  placeItems: "center",
-                  fontWeight: 700,
-                }}
-              >
-                {bundleTitle.slice(0, 1).toUpperCase()}
-              </Sheet>
-              <Stack spacing={0.25}>
-                <Typography level="title-sm">{bundleTitle}</Typography>
-                <Typography level="body-xs" color="neutral">
-                  {activeConfig.previewLabel}
-                </Typography>
-              </Stack>
-            </Stack>
-          </Sheet>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            padding: "14px 16px",
+            gap: "10px",
+          }}
+        >
+          <Box
+            sx={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              bgcolor: "primary.100",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "primary.600",
+              fontWeight: 700,
+              fontSize: "14px",
+            }}
+          >
+            {bundleTitle.slice(0, 1).toUpperCase()}
+          </Box>
+          <Box>
+            <Typography
+              sx={{ fontSize: "13px", fontWeight: 600, color: "neutral.800" }}
+            >
+              {bundleTitle}
+            </Typography>
+            <Typography sx={{ fontSize: "11px", color: "neutral.400" }}>
+              {config.label} post preview
+            </Typography>
+          </Box>
+        </Box>
 
-          {item.media?.url ? (
-            <Box
-              component="img"
-              src={item.media.url}
-              alt={item.media.alt || item.title || activeConfig.label}
-              sx={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }}
-            />
-          ) : (
-            <Sheet
-              variant="soft"
-              color="neutral"
+        {item.media?.url ? (
+          <Box
+            component="img"
+            src={item.media.url}
+            alt={item.media.alt || item.title || config.label}
+            sx={{
+              width: "100%",
+              aspectRatio: channel === "instagram" ? "1 / 1" : "16 / 9",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        ) : null}
+
+        <Box sx={{ padding: "14px 16px" }}>
+          <Typography
+            sx={{
+              fontSize: "13px",
+              color: "neutral.700",
+              lineHeight: 1.6,
+              whiteSpace: "pre-wrap",
+              maxHeight: "200px",
+              overflowY: "auto",
+              "&::-webkit-scrollbar": { width: "3px" },
+              "&::-webkit-scrollbar-thumb": {
+                bgcolor: "neutral.200",
+                borderRadius: "3px",
+              },
+            }}
+          >
+            {previewText ||
+              "Write the social copy in the editor to see it here."}
+          </Typography>
+
+          {hashtags.length > 0 ? (
+            <Typography
               sx={{
-                aspectRatio: "16 / 9",
-                display: "grid",
-                placeItems: "center",
-                color: "neutral.500",
+                fontSize: "12px",
+                color: "primary.500",
+                marginTop: "8px",
+                lineHeight: 1.5,
               }}
             >
-              <Stack spacing={1} alignItems="center">
-                <ImageIcon size={26} />
-                <Typography level="body-sm">No image selected yet</Typography>
-              </Stack>
-            </Sheet>
-          )}
-
-          <Stack spacing={1.25} sx={{ p: 2.5 }}>
-            <Typography level="title-md">
-              {item.title || `${activeConfig.label} draft`}
+              {hashtags.map((tag) => `#${tag.replace("#", "")}`).join(" ")}
             </Typography>
-            <Typography sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
-              {previewText ||
-                "Write the social copy in the editor to see it here."}
-            </Typography>
-            {hashtags ? (
-              <Typography
-                level="body-sm"
-                sx={{ color: "primary.500", whiteSpace: "pre-wrap" }}
-              >
-                {hashtags}
-              </Typography>
-            ) : null}
-          </Stack>
-        </Stack>
-      </Card>
+          ) : null}
+        </Box>
+      </Box>
     );
   };
 
   const renderBlogPreview = (item: DraftItem) => (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        borderRadius: "28px",
+        borderRadius: "12px",
+        border: "1px solid",
         borderColor: "neutral.200",
-        overflow: "hidden",
-        boxShadow: "sm",
+        bgcolor: "background.surface",
+        padding: "28px 24px",
+        "& h2": {
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "neutral.800",
+          marginBottom: "12px",
+          marginTop: "24px",
+        },
+        "& p": {
+          fontSize: "14px",
+          lineHeight: 1.7,
+          color: "neutral.600",
+          marginBottom: "12px",
+        },
+        "& ul": {
+          paddingLeft: "20px",
+          marginBottom: "12px",
+        },
+        "& li": {
+          fontSize: "14px",
+          lineHeight: 1.7,
+          color: "neutral.600",
+          marginBottom: "4px",
+        },
+        "& strong": {
+          fontWeight: 600,
+          color: "neutral.700",
+        },
       }}
     >
       {item.media?.url ? (
@@ -882,59 +1313,45 @@ export function GeneratedContentModal({
           component="img"
           src={item.media.url}
           alt={item.media.alt || item.title || "Blog cover image"}
-          sx={{ width: "100%", aspectRatio: "16 / 8", objectFit: "cover" }}
+          sx={{
+            width: "100%",
+            aspectRatio: "16 / 9",
+            objectFit: "cover",
+            borderRadius: "8px",
+            marginBottom: "20px",
+          }}
         />
       ) : null}
-      <Stack spacing={2} sx={{ p: { xs: 2.5, md: 3 } }}>
-        <Stack spacing={0.75}>
-          <Typography level="h2">{item.title || "Untitled article"}</Typography>
-          <Typography level="body-sm" color="neutral">
-            {activeConfig.previewLabel}
-          </Typography>
-        </Stack>
-        <Divider />
-        <Box
-          sx={{
-            "& h1": { fontSize: "1.75rem", mb: 2 },
-            "& h2": { fontSize: "1.45rem", mt: 3, mb: 1.5 },
-            "& h3": { fontSize: "1.2rem", mt: 2.5, mb: 1 },
-            "& p": { mb: 1.5, lineHeight: 1.8 },
-            "& ul, & ol": { pl: 3, mb: 1.5 },
-            "& li": { mb: 0.5 },
-          }}
-          dangerouslySetInnerHTML={{ __html: getBlogPreviewHtml(item) }}
-        />
-      </Stack>
-    </Card>
+      <Box dangerouslySetInnerHTML={{ __html: getBlogPreviewHtml(item) }} />
+    </Box>
   );
 
   const renderNewsletterPreview = (item: DraftItem) => (
-    <Sheet
-      variant="outlined"
+    <Box
       sx={{
-        borderRadius: "28px",
+        borderRadius: "12px",
+        border: "1px solid",
         borderColor: "neutral.200",
-        p: { xs: 1, md: 1.5 },
-        bgcolor: "background.level1",
+        bgcolor: "background.surface",
+        overflow: "hidden",
       }}
     >
       <EditableNewsletterPreview
         content={sanitizeWeekNumbers(item.body || "")}
         title={item.title || bundleTitle}
         onChange={(content) => editItem(activeTab, { body: content })}
-        className="border-none shadow-none bg-transparent"
       />
-    </Sheet>
+    </Box>
   );
 
   const renderVideoPreview = (item: DraftItem) => (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        borderRadius: "28px",
+        borderRadius: "12px",
+        border: "1px solid",
         borderColor: "neutral.200",
+        bgcolor: "background.surface",
         overflow: "hidden",
-        boxShadow: "sm",
       }}
     >
       {item.media?.url ? (
@@ -944,30 +1361,46 @@ export function GeneratedContentModal({
           alt={item.media.alt || item.title || "Video thumbnail"}
           sx={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }}
         />
-      ) : null}
-      <Stack spacing={1.5} sx={{ p: 2.5 }}>
-        <Typography level="title-lg">
+      ) : (
+        <Box
+          sx={{
+            width: "100%",
+            aspectRatio: "16 / 9",
+            bgcolor: "neutral.100",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "neutral.400",
+          }}
+        >
+          <Video size={28} />
+        </Box>
+      )}
+      <Box sx={{ padding: "20px 20px 22px 20px" }}>
+        <Typography
+          sx={{
+            fontSize: "15px",
+            fontWeight: 700,
+            color: "neutral.800",
+            marginBottom: "8px",
+          }}
+        >
           {item.title || "Video concept"}
         </Typography>
-        <Typography level="body-sm" color="neutral">
-          {activeConfig.previewLabel}
-        </Typography>
-        <Sheet
-          variant="soft"
-          color="neutral"
+        <Typography
           sx={{
-            borderRadius: "20px",
-            p: 2,
-            whiteSpace: "pre-wrap",
+            fontSize: "13px",
             lineHeight: 1.7,
+            color: "neutral.600",
+            whiteSpace: "pre-wrap",
           }}
         >
           {sanitizeWeekNumbers(
             item.script || item.body || "No script drafted yet.",
           )}
-        </Sheet>
-      </Stack>
-    </Card>
+        </Typography>
+      </Box>
+    </Box>
   );
 
   const renderPreview = (item: DraftItem) => {
@@ -990,93 +1423,113 @@ export function GeneratedContentModal({
 
   const renderBodyEditor = (item: DraftItem) => {
     const channel = normalizeChannel(item.channel);
+    const config = getChannelConfig(item.channel);
     const value = getPrimaryText(item);
 
     if (channel === "instagram" || channel === "facebook") {
-      const limit = activeConfig.charLimit || 0;
-      const overLimit = limit > 0 && value.length > limit;
+      const limit = config.charLimit || 0;
 
       return (
-        <FormControl>
-          <FormLabel>{activeConfig.bodyLabel}</FormLabel>
+        <EditSection label={config.bodyLabel.toUpperCase()}>
           <Textarea
-            minRows={10}
-            maxRows={18}
+            variant="outlined"
+            minRows={6}
+            maxRows={12}
             value={value}
             onChange={(event) =>
               handleTextChange(activeTab, event.target.value)
             }
-            placeholder={`Write the ${activeConfig.bodyLabel.toLowerCase()} here...`}
+            placeholder={`Write the ${config.bodyLabel.toLowerCase()} here...`}
+            sx={{
+              borderRadius: "10px",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              "--Textarea-focusedHighlight": "var(--joy-palette-primary-500)",
+            }}
           />
-          <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}>
-            <Typography level="body-xs" color="neutral">
-              Keep the lead line punchy and the CTA clear.
-            </Typography>
-            <Typography
-              level="body-xs"
-              color={overLimit ? "danger" : "neutral"}
-            >
-              {value.length} / {limit} chars
-            </Typography>
-          </Stack>
-        </FormControl>
+          <Typography
+            sx={{
+              fontSize: "11px",
+              color: "neutral.400",
+              textAlign: "right",
+              marginTop: "4px",
+            }}
+          >
+            {value.length} / {limit} chars
+          </Typography>
+        </EditSection>
       );
     }
 
     if (channel === "blog") {
       return (
-        <FormControl>
-          <FormLabel>{activeConfig.bodyLabel}</FormLabel>
+        <EditSection label="BODY">
           <Sheet
             variant="outlined"
             sx={{
-              borderRadius: "18px",
+              borderRadius: "10px",
               overflow: "hidden",
-              bgcolor: "background.body",
+              bgcolor: "background.surface",
             }}
           >
             <RichTextEditor
               content={item.body || item.markdown || ""}
               onChange={(html) => editItem(activeTab, { body: html })}
               placeholder="Write and format the article body..."
-              className="border-0"
             />
           </Sheet>
-        </FormControl>
+        </EditSection>
       );
     }
 
     if (channel === "video") {
       return (
-        <FormControl>
-          <FormLabel>{activeConfig.bodyLabel}</FormLabel>
+        <EditSection label={config.bodyLabel.toUpperCase()}>
           <Textarea
-            minRows={12}
-            maxRows={18}
+            variant="outlined"
+            minRows={6}
+            maxRows={12}
             value={value}
             onChange={(event) =>
               handleTextChange(activeTab, event.target.value)
             }
             placeholder="Shape the video script here..."
+            sx={{
+              borderRadius: "10px",
+              fontSize: "13px",
+              lineHeight: 1.6,
+              "--Textarea-focusedHighlight": "var(--joy-palette-primary-500)",
+            }}
           />
-        </FormControl>
+        </EditSection>
       );
     }
 
     return (
-      <Sheet
-        variant="soft"
-        color="neutral"
-        sx={{ borderRadius: "20px", p: 2.25 }}
-      >
-        <Typography level="title-sm">
-          Newsletter body editing lives in the preview pane
-        </Typography>
-        <Typography level="body-sm" color="neutral" sx={{ mt: 0.5 }}>
-          Use the newsletter preview’s edit mode to update the body while
-          keeping the block-style structure in view.
-        </Typography>
-      </Sheet>
+      <EditSection label="BODY">
+        <Sheet
+          variant="soft"
+          color="neutral"
+          sx={{ borderRadius: "10px", padding: "16px" }}
+        >
+          <Typography
+            sx={{ fontSize: "13px", fontWeight: 600, color: "neutral.700" }}
+          >
+            Newsletter body editing lives in the preview pane
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: "12px",
+              color: "neutral.500",
+              marginTop: "6px",
+              lineHeight: 1.6,
+            }}
+          >
+            Use the newsletter preview’s edit mode to update the body while
+            keeping the block-style structure in view.
+          </Typography>
+        </Sheet>
+      </EditSection>
     );
   };
 
@@ -1084,671 +1537,744 @@ export function GeneratedContentModal({
     <>
       <Modal open={open} onClose={handleRequestClose}>
         <ModalDialog
-          layout="fullscreen"
+          variant="plain"
           aria-modal="true"
-          sx={{ p: 0, bgcolor: "background.surface" }}
+          sx={{
+            width: "100%",
+            maxWidth: "1200px",
+            height: "100%",
+            maxHeight: "92vh",
+            margin: "auto",
+            borderRadius: "16px",
+            padding: 0,
+            overflow: "hidden",
+            bgcolor: "background.surface",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            display: "flex",
+            flexDirection: "column",
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
         >
-          <Sheet
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              height: "100%",
-              backgroundColor: "background.surface",
-            }}
+          <Box
+            sx={{ display: "flex", flexDirection: "column", height: "100%" }}
           >
-            <Sheet
-              sx={{
-                px: { xs: 2, md: 3 },
-                pt: 2.5,
-                pb: 2,
-                borderBottom: "1px solid",
-                borderColor: "divider",
-                backgroundColor: "background.surface",
-              }}
-            >
-              <Stack spacing={2}>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
+            {query.isLoading ? (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    padding: "20px 28px 0 28px",
+                  }}
                 >
-                  <Stack spacing={0.75} sx={{ pr: 2 }}>
-                    <Typography level="h2">{bundleTitle}</Typography>
-                    <Typography level="body-sm" color="neutral">
-                      {bundleSubtitle}
-                    </Typography>
-                  </Stack>
-                  <IconButton
-                    variant="plain"
-                    color="neutral"
-                    aria-label="Close generated content review"
-                    onClick={handleRequestClose}
-                  >
-                    <X size={18} />
-                  </IconButton>
-                </Stack>
-
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <Chip size="sm" variant="soft" color="primary">
-                    {`${draftItems.length} channels`}
-                  </Chip>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={approvedCount > 0 ? "success" : "neutral"}
-                  >
-                    {`${approvedCount} approved`}
-                  </Chip>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={approvedSocialCount > 0 ? "success" : "neutral"}
-                  >
-                    {`${approvedSocialCount} social ready`}
-                  </Chip>
-                  {dirtyCount > 0 ? (
-                    <Chip size="sm" variant="soft" color="warning">
-                      {`${dirtyCount} unsaved`}
-                    </Chip>
-                  ) : null}
-                </Stack>
-
-                {update.isPending ? <LinearProgress thickness={3} /> : null}
-              </Stack>
-            </Sheet>
-
-            <Sheet sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              {query.isLoading ? (
-                <Stack
-                  spacing={2.5}
-                  role="status"
-                  aria-live="polite"
-                  sx={{ height: "100%", px: { xs: 2, md: 3 }, py: 2.5 }}
+                  <Box sx={{ width: "100%", maxWidth: "320px" }}>
+                    <Skeleton
+                      variant="text"
+                      sx={{ width: "220px", height: "28px" }}
+                    />
+                    <Box sx={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "90px", height: "16px" }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "80px", height: "16px" }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "72px", height: "16px" }}
+                      />
+                    </Box>
+                  </Box>
+                  <ModalClose
+                    sx={{
+                      position: "static",
+                      borderRadius: "8px",
+                      "--ModalClose-radius": "8px",
+                    }}
+                  />
+                </Box>
+                <Box sx={{ padding: "16px 28px 0 28px" }}>
+                  <Skeleton
+                    variant="rectangular"
+                    sx={{ width: "100%", height: "48px", borderRadius: "10px" }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflow: "hidden",
+                    display: "flex",
+                    borderTop: "1px solid",
+                    borderColor: "neutral.100",
+                    marginTop: "16px",
+                  }}
                 >
-                  <Skeleton variant="text" sx={{ width: 220, height: 36 }} />
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    <Skeleton
-                      variant="rectangular"
-                      sx={{ width: 92, height: 28, borderRadius: "999px" }}
-                    />
-                    <Skeleton
-                      variant="rectangular"
-                      sx={{ width: 104, height: 28, borderRadius: "999px" }}
-                    />
-                    <Skeleton
-                      variant="rectangular"
-                      sx={{ width: 116, height: 28, borderRadius: "999px" }}
-                    />
-                  </Stack>
                   <Box
                     sx={{
-                      display: "grid",
-                      gap: 2.5,
-                      width: "100%",
-                      gridTemplateColumns: {
-                        xs: "1fr",
-                        xl: "minmax(0, 1.15fr) minmax(340px, 0.85fr)",
-                      },
-                      alignItems: "start",
+                      width: "55%",
+                      overflowY: "auto",
+                      padding: "24px 28px",
+                      borderRight: "1px solid",
+                      borderColor: "neutral.100",
+                      bgcolor: "neutral.50",
+                      ...THIN_SCROLLBAR_SX,
                     }}
                   >
-                    <Card
-                      variant="outlined"
-                      sx={{ borderRadius: "24px", p: 2.5 }}
-                    >
-                      <Stack spacing={2}>
-                        <Skeleton
-                          variant="text"
-                          sx={{ width: "34%", height: 28 }}
-                        />
-                        <Skeleton
-                          variant="rectangular"
-                          sx={{
-                            width: "100%",
-                            height: 320,
-                            borderRadius: "24px",
-                          }}
-                        />
-                        <Skeleton
-                          variant="text"
-                          sx={{ width: "86%", height: 18 }}
-                        />
-                        <Skeleton
-                          variant="text"
-                          sx={{ width: "72%", height: 18 }}
-                        />
-                      </Stack>
-                    </Card>
-                    <Card
-                      variant="outlined"
-                      sx={{ borderRadius: "24px", p: 2.5 }}
-                    >
-                      <Stack spacing={2}>
-                        <Skeleton
-                          variant="text"
-                          sx={{ width: "28%", height: 24 }}
-                        />
-                        <Skeleton
-                          variant="rectangular"
-                          sx={{
-                            width: "100%",
-                            height: 44,
-                            borderRadius: "14px",
-                          }}
-                        />
-                        <Skeleton
-                          variant="text"
-                          sx={{ width: "32%", height: 24 }}
-                        />
-                        <Skeleton
-                          variant="rectangular"
-                          sx={{
-                            width: "100%",
-                            height: 200,
-                            borderRadius: "18px",
-                          }}
-                        />
-                        <Skeleton
-                          variant="rectangular"
-                          sx={{
-                            width: "100%",
-                            height: 240,
-                            borderRadius: "22px",
-                          }}
-                        />
-                      </Stack>
-                    </Card>
+                    <Skeleton
+                      variant="rectangular"
+                      sx={{
+                        width: "100%",
+                        height: "420px",
+                        borderRadius: "12px",
+                      }}
+                    />
                   </Box>
-                  <Typography level="body-sm" color="neutral">
-                    Loading generated content...
-                  </Typography>
-                </Stack>
-              ) : draftItems.length === 0 ? (
-                <Stack
-                  spacing={1.5}
-                  alignItems="center"
-                  justifyContent="center"
-                  sx={{ height: "100%", px: 3 }}
-                >
-                  <Typography level="h3">No generated content yet</Typography>
-                  <Typography level="body-sm" color="neutral">
-                    Generate a bundle first, then come back here to review,
-                    edit, and approve it.
-                  </Typography>
-                </Stack>
-              ) : (
-                <Tabs
-                  value={String(activeTab)}
-                  onChange={(_, value) => {
-                    if (value !== null) {
-                      setActiveTab(Number(value));
-                    }
-                  }}
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Sheet
+                  <Box
                     sx={{
-                      px: { xs: 2, md: 3 },
-                      py: 1.5,
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      backgroundColor: "background.surface",
+                      width: "45%",
+                      overflowY: "auto",
+                      padding: "24px 24px",
+                      ...THIN_SCROLLBAR_SX,
                     }}
                   >
-                    <TabList
-                      aria-label="Generated content channels"
-                      sx={{ overflow: "auto", gap: 1, py: 0.5 }}
+                    <Stack spacing={2}>
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "80px", height: "18px" }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        sx={{
+                          width: "100%",
+                          height: "44px",
+                          borderRadius: "10px",
+                        }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "100px", height: "18px" }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        sx={{
+                          width: "100%",
+                          height: "220px",
+                          borderRadius: "10px",
+                        }}
+                      />
+                      <Skeleton
+                        variant="text"
+                        sx={{ width: "110px", height: "18px" }}
+                      />
+                      <Skeleton
+                        variant="rectangular"
+                        sx={{
+                          width: "100%",
+                          height: "210px",
+                          borderRadius: "10px",
+                        }}
+                      />
+                    </Stack>
+                  </Box>
+                </Box>
+              </>
+            ) : draftItems.length === 0 ? (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    padding: "20px 28px 0 28px",
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      level="title-lg"
+                      sx={{
+                        fontWeight: 700,
+                        color: "neutral.800",
+                        fontSize: "18px",
+                      }}
                     >
-                      {draftItems.map((item, index) => {
-                        const config =
-                          CHANNEL_CONFIG[normalizeChannel(item.channel)];
-                        const Icon = config.icon;
-                        const tabId = `generated-content-tab-${index}`;
-                        const panelId = `generated-content-panel-${index}`;
-
-                        return (
-                          <Tab
-                            key={`${item.channel}-${index}`}
-                            id={tabId}
-                            aria-controls={panelId}
-                            value={String(index)}
-                            variant="outlined"
-                            color={item._approved ? "success" : "neutral"}
-                            sx={{
-                              flex: "0 0 auto",
-                              borderRadius: "999px",
-                              minHeight: 44,
-                              px: 1.5,
-                            }}
-                          >
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              alignItems="center"
-                            >
-                              <Icon size={15} />
-                              <span>{config.label}</span>
-                              {item._approved ? (
-                                <Box
-                                  sx={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: "50%",
-                                    bgcolor: "success.500",
-                                  }}
-                                />
-                              ) : null}
-                            </Stack>
-                          </Tab>
-                        );
-                      })}
-                    </TabList>
-                  </Sheet>
-
-                  <Sheet
+                      {bundleTitle}
+                    </Typography>
+                    <Typography
+                      level="body-sm"
+                      sx={{ color: "neutral.500", marginTop: "4px" }}
+                    >
+                      Generate a bundle first, then review and approve it here.
+                    </Typography>
+                  </Box>
+                  <ModalClose
                     sx={{
-                      flex: 1,
-                      minHeight: 0,
-                      overflow: "auto",
-                      px: { xs: 2, md: 3 },
-                      py: 2.5,
+                      position: "static",
+                      borderRadius: "8px",
+                      "--ModalClose-radius": "8px",
+                    }}
+                    onClick={handleRequestClose}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "24px",
+                  }}
+                >
+                  <Box sx={{ textAlign: "center", maxWidth: "360px" }}>
+                    <Typography
+                      level="title-md"
+                      sx={{ fontWeight: 700, color: "neutral.800" }}
+                    >
+                      No generated content yet
+                    </Typography>
+                    <Typography
+                      level="body-sm"
+                      sx={{
+                        color: "neutral.500",
+                        marginTop: "8px",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      Generate a content bundle first, then come back here to
+                      review, edit, and approve each channel draft.
+                    </Typography>
+                  </Box>
+                </Box>
+              </>
+            ) : (
+              <Tabs
+                value={activeTab}
+                onChange={(_, value) => {
+                  if (value !== null) {
+                    setActiveTab(Number(value));
+                  }
+                }}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  flex: 1,
+                  minHeight: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    padding: "20px 28px 0 28px",
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      level="title-lg"
+                      sx={{
+                        fontWeight: 700,
+                        color: "neutral.800",
+                        fontSize: "18px",
+                      }}
+                    >
+                      {bundleTitle}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginTop: "4px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                        {bundleModeLabel} · Generated {bundleTimeAgo}
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: "3px",
+                          height: "3px",
+                          borderRadius: "50%",
+                          bgcolor: "neutral.300",
+                        }}
+                      />
+                      <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                        {draftItems.length} channels
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: "3px",
+                          height: "3px",
+                          borderRadius: "50%",
+                          bgcolor: "neutral.300",
+                        }}
+                      />
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color:
+                            approvedCount > 0 ? "success.600" : "neutral.400",
+                        }}
+                      >
+                        {approvedCount} approved
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <ModalClose
+                    sx={{
+                      position: "static",
+                      borderRadius: "8px",
+                      "--ModalClose-radius": "8px",
+                    }}
+                    onClick={handleRequestClose}
+                  />
+                </Box>
+
+                <Box sx={{ padding: "16px 28px 0 28px" }}>
+                  <TabList
+                    disableUnderline
+                    sx={{
+                      gap: "4px",
+                      bgcolor: "neutral.50",
+                      borderRadius: "10px",
+                      padding: "4px",
+                      "--TabList-gap": "4px",
+                      border: "1px solid",
+                      borderColor: "neutral.100",
                     }}
                   >
                     {draftItems.map((item, index) => {
-                      const config =
-                        CHANNEL_CONFIG[normalizeChannel(item.channel)];
-                      const ctaSuggestions = uniqueStrings([
-                        ...(item.ctaSuggestions || []),
-                        ...config.ctaFallbacks,
-                      ]);
+                      const config = getChannelConfig(item.channel);
+                      const Icon = config.icon;
 
                       return (
-                        <TabPanel
-                          key={`${item.channel}-panel-${index}`}
-                          id={`generated-content-panel-${index}`}
-                          aria-labelledby={`generated-content-tab-${index}`}
-                          value={String(index)}
-                          sx={{ p: 0 }}
+                        <Tab
+                          key={`${item.channel}-${index}`}
+                          value={index}
+                          disableIndicator
+                          sx={{
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            padding: "8px 16px",
+                            color: "neutral.600",
+                            minHeight: "auto",
+                            "&::after": {
+                              display: "none",
+                            },
+                            "&.Mui-selected": {
+                              bgcolor: "background.surface",
+                              color: "neutral.800",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                            },
+                            "&:hover:not(.Mui-selected)": {
+                              bgcolor: "neutral.100",
+                            },
+                          }}
                         >
-                          <Stack spacing={2.5}>
-                            <Stack
-                              direction={{ xs: "column", md: "row" }}
-                              justifyContent="space-between"
-                              spacing={1.5}
-                            >
-                              <Stack spacing={0.5}>
-                                <Typography level="h3">
-                                  {config.label}
-                                </Typography>
-                                <Typography level="body-sm" color="neutral">
-                                  {config.description}
-                                </Typography>
-                              </Stack>
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                useFlexGap
-                                flexWrap="wrap"
-                                alignItems="center"
-                              >
-                                {dirty.has(index) ? (
-                                  <Chip
-                                    size="sm"
-                                    variant="soft"
-                                    color="warning"
-                                  >
-                                    Unsaved changes
-                                  </Chip>
-                                ) : null}
-                                <Chip
-                                  size="sm"
-                                  variant="soft"
-                                  color={item._approved ? "success" : "neutral"}
-                                >
-                                  {item._approved
-                                    ? "Approved"
-                                    : "Needs approval"}
-                                </Chip>
-                                <Button
-                                  size="sm"
-                                  variant={item._approved ? "soft" : "solid"}
-                                  color={item._approved ? "success" : "primary"}
-                                  startDecorator={<CheckCircle2 size={16} />}
-                                  onClick={() => handleApproveToggle(index)}
-                                >
-                                  {item._approved ? "Approved" : "Approve item"}
-                                </Button>
-                                {normalizeChannel(item.channel) ===
-                                  "newsletter" && item._approved ? (
-                                  <Button
-                                    size="sm"
-                                    variant="soft"
-                                    color="primary"
-                                    data-testid="send-to-block-builder"
-                                    startDecorator={<Newspaper size={16} />}
-                                    onClick={() =>
-                                      void handleOpenNewsletterDraft(item)
-                                    }
-                                  >
-                                    Open Campaign Draft
-                                  </Button>
-                                ) : null}
-                              </Stack>
-                            </Stack>
-
-                            <Box
-                              sx={{
-                                display: "grid",
-                                gap: 2.5,
-                                gridTemplateColumns: {
-                                  xs: "1fr",
-                                  xl: "minmax(0, 1.15fr) minmax(340px, 0.85fr)",
-                                },
-                                alignItems: "start",
-                              }}
-                            >
-                              <Stack spacing={2}>{renderPreview(item)}</Stack>
-
-                              <Stack spacing={2}>
-                                <FormControl>
-                                  <FormLabel>Title</FormLabel>
-                                  <Input
-                                    value={item.title || ""}
-                                    onChange={(event) =>
-                                      editItem(index, {
-                                        title: event.target.value,
-                                      })
-                                    }
-                                    placeholder="Add a title for this draft"
-                                  />
-                                </FormControl>
-
-                                {renderBodyEditor(item)}
-
-                                {normalizeChannel(item.channel) ===
-                                  "instagram" ||
-                                normalizeChannel(item.channel) === "facebook" ||
-                                (item.hashtags || []).length > 0 ? (
-                                  <FormControl>
-                                    <FormLabel>Hashtags</FormLabel>
-                                    <Stack
-                                      direction="row"
-                                      spacing={1}
-                                      useFlexGap
-                                      flexWrap="wrap"
-                                      sx={{ mb: 1.25 }}
-                                    >
-                                      {(item.hashtags || []).map((hashtag) => (
-                                        <Chip
-                                          key={hashtag}
-                                          variant="soft"
-                                          color="primary"
-                                          endDecorator={
-                                            <ChipDelete
-                                              onDelete={() =>
-                                                handleRemoveHashtag(hashtag)
-                                              }
-                                            />
-                                          }
-                                        >
-                                          {hashtag}
-                                        </Chip>
-                                      ))}
-                                    </Stack>
-                                    <Stack
-                                      direction={{ xs: "column", sm: "row" }}
-                                      spacing={1}
-                                    >
-                                      <Input
-                                        value={hashtagInput}
-                                        onChange={(event) =>
-                                          setHashtagInput(event.target.value)
-                                        }
-                                        onKeyDown={(event) => {
-                                          if (event.key === "Enter") {
-                                            event.preventDefault();
-                                            handleAddHashtag();
-                                          }
-                                        }}
-                                        startDecorator={<Hash size={14} />}
-                                        placeholder="Add hashtag"
-                                      />
-                                      <Button
-                                        variant="soft"
-                                        onClick={handleAddHashtag}
-                                      >
-                                        Add hashtag
-                                      </Button>
-                                    </Stack>
-                                  </FormControl>
-                                ) : null}
-
-                                <FormControl>
-                                  <FormLabel>CTA suggestions</FormLabel>
-                                  <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    useFlexGap
-                                    flexWrap="wrap"
-                                  >
-                                    {ctaSuggestions.map((cta) => (
-                                      <Chip
-                                        key={cta}
-                                        variant={
-                                          item._selectedCta === cta
-                                            ? "solid"
-                                            : "soft"
-                                        }
-                                        color={
-                                          item._selectedCta === cta
-                                            ? "primary"
-                                            : "neutral"
-                                        }
-                                        onClick={() => handleSelectCta(cta)}
-                                        sx={{ cursor: "pointer" }}
-                                      >
-                                        {cta}
-                                      </Chip>
-                                    ))}
-                                  </Stack>
-                                  <Typography
-                                    level="body-xs"
-                                    color="neutral"
-                                    sx={{ mt: 1 }}
-                                  >
-                                    Selecting a CTA appends it to the draft so
-                                    it is preserved in the next save.
-                                  </Typography>
-                                </FormControl>
-
-                                <Card
-                                  variant="outlined"
-                                  sx={{ borderRadius: "22px", p: 2 }}
-                                >
-                                  <Stack spacing={1.5}>
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="center"
-                                    >
-                                      <Typography level="title-sm">
-                                        Featured image
-                                      </Typography>
-                                    </Stack>
-
-                                    {item.media?.url ? (
-                                      <Box
-                                        component="img"
-                                        src={item.media.url}
-                                        alt={
-                                          item.media.alt ||
-                                          item.title ||
-                                          "Selected content image"
-                                        }
-                                        sx={{
-                                          width: "100%",
-                                          aspectRatio: "16 / 9",
-                                          objectFit: "cover",
-                                          borderRadius: "18px",
-                                        }}
-                                      />
-                                    ) : (
-                                      <Sheet
-                                        variant="soft"
-                                        color="neutral"
-                                        sx={{
-                                          aspectRatio: "16 / 9",
-                                          borderRadius: "18px",
-                                          display: "grid",
-                                          placeItems: "center",
-                                        }}
-                                      >
-                                        <Stack spacing={1} alignItems="center">
-                                          <ImageIcon size={22} />
-                                          <Typography level="body-sm">
-                                            No image selected yet
-                                          </Typography>
-                                          <Typography
-                                            level="body-xs"
-                                            color="neutral"
-                                          >
-                                            Open AI Studio to generate, upload,
-                                            or reuse an image.
-                                          </Typography>
-                                        </Stack>
-                                      </Sheet>
-                                    )}
-
-                                    <Stack
-                                      direction={{ xs: "column", sm: "row" }}
-                                      spacing={1}
-                                      useFlexGap
-                                      alignItems={{ sm: "center" }}
-                                    >
-                                      <Button
-                                        variant="outlined"
-                                        color="primary"
-                                        startDecorator={<Sparkles size={16} />}
-                                        onClick={() =>
-                                          handleOpenImageStudio(index, item)
-                                        }
-                                      >
-                                        Open AI Studio
-                                      </Button>
-                                      <IconButton
-                                        variant="plain"
-                                        color="danger"
-                                        aria-label="Remove featured image"
-                                        onClick={() =>
-                                          editItem(index, { media: null })
-                                        }
-                                        disabled={!item.media?.url}
-                                      >
-                                        <Trash2 size={16} />
-                                      </IconButton>
-                                    </Stack>
-                                    <Typography level="body-xs" color="neutral">
-                                      Use the studio to edit prompts, browse My
-                                      Images, or upload a replacement without
-                                      leaving this review.
-                                    </Typography>
-                                  </Stack>
-                                </Card>
-                              </Stack>
-                            </Box>
-                          </Stack>
-                        </TabPanel>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <Icon size={14} />
+                            {config.label}
+                            {item._approved ? (
+                              <Box
+                                sx={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  bgcolor: "success.500",
+                                }}
+                              />
+                            ) : null}
+                          </Box>
+                        </Tab>
                       );
                     })}
-                  </Sheet>
-                </Tabs>
-              )}
-            </Sheet>
+                  </TabList>
+                </Box>
 
-            <Sheet
-              sx={{
-                px: { xs: 2, md: 3 },
-                py: 2,
-                borderTop: "1px solid",
-                borderColor: "divider",
-                backgroundColor: "background.surface",
-              }}
-            >
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={1.5}
-                justifyContent="space-between"
-                alignItems={{ md: "center" }}
-              >
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={approvedCount > 0 ? "success" : "neutral"}
-                  >
-                    {`${approvedCount} approved`}
-                  </Chip>
-                  <Chip
-                    size="sm"
-                    variant="soft"
-                    color={approvedSocialCount > 0 ? "success" : "neutral"}
-                  >
-                    {`${approvedSocialCount} social ready`}
-                  </Chip>
-                  {dirtyCount > 0 ? (
-                    <Chip size="sm" variant="soft" color="warning">
-                      {`${dirtyCount} unsaved`}
-                    </Chip>
-                  ) : null}
-                </Stack>
-
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  useFlexGap
+                <Box
+                  sx={{
+                    flex: 1,
+                    overflow: "hidden",
+                    display: "flex",
+                    borderTop: "1px solid",
+                    borderColor: "neutral.100",
+                    marginTop: "16px",
+                  }}
                 >
-                  <Button
-                    variant="soft"
-                    color="success"
-                    startDecorator={<CheckCircle2 size={16} />}
-                    onClick={handleApproveAll}
-                    disabled={
-                      draftItems.length === 0 ||
-                      draftItems.every((item) => item._approved)
-                    }
+                  {draftItems.map((item, index) => {
+                    const config = getChannelConfig(item.channel);
+                    const ctaSuggestions = uniqueStrings([
+                      ...(item.ctaSuggestions || []),
+                      ...config.ctaFallbacks,
+                    ]);
+                    const isSocialChannel =
+                      normalizeChannel(item.channel) === "instagram" ||
+                      normalizeChannel(item.channel) === "facebook";
+                    const canEditHashtags =
+                      isSocialChannel || (item.hashtags || []).length > 0;
+
+                    return (
+                      <TabPanel
+                        key={`${item.channel}-panel-${index}`}
+                        value={index}
+                        sx={{ padding: 0, flex: 1, minHeight: 0 }}
+                      >
+                        <Box
+                          sx={{
+                            height: "100%",
+                            display: "flex",
+                            borderTop: 0,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: "55%",
+                              overflowY: "auto",
+                              padding: "24px 28px",
+                              borderRight: "1px solid",
+                              borderColor: "neutral.100",
+                              bgcolor: "neutral.50",
+                              ...THIN_SCROLLBAR_SX,
+                            }}
+                          >
+                            {renderPreview(item)}
+                          </Box>
+
+                          <Box
+                            sx={{
+                              width: "45%",
+                              overflowY: "auto",
+                              padding: "24px 24px",
+                              ...THIN_SCROLLBAR_SX,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                marginBottom: "16px",
+                              }}
+                            >
+                              {item._approved ? (
+                                <Box
+                                  sx={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "4px 12px",
+                                    borderRadius: "100px",
+                                    bgcolor: "success.50",
+                                    border: "1px solid",
+                                    borderColor: "success.200",
+                                  }}
+                                >
+                                  <CheckCircleRounded
+                                    htmlColor="var(--joy-palette-success-600)"
+                                    style={{ fontSize: 14 }}
+                                  />
+                                  <Typography
+                                    sx={{
+                                      fontSize: "12px",
+                                      fontWeight: 600,
+                                      color: "success.700",
+                                    }}
+                                  >
+                                    Approved
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="soft"
+                                  color="success"
+                                  onClick={() => handleApproveToggle(index)}
+                                  startDecorator={
+                                    <CheckCircleRounded
+                                      style={{ fontSize: 14 }}
+                                    />
+                                  }
+                                  sx={{
+                                    borderRadius: "100px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Approve
+                                </Button>
+                              )}
+                            </Box>
+
+                            {normalizeChannel(item.channel) === "newsletter" &&
+                            item._approved ? (
+                              <Box sx={{ marginBottom: "20px" }}>
+                                <Button
+                                  variant="outlined"
+                                  color="neutral"
+                                  size="sm"
+                                  data-testid="send-to-block-builder"
+                                  startDecorator={<Newspaper size={16} />}
+                                  onClick={() =>
+                                    void handleOpenNewsletterDraft(item)
+                                  }
+                                  sx={{
+                                    borderRadius: "8px",
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Open Campaign Draft
+                                </Button>
+                              </Box>
+                            ) : null}
+
+                            <EditSection label="TITLE">
+                              <Input
+                                value={item.title || ""}
+                                onChange={(event) =>
+                                  editItem(index, {
+                                    title: event.target.value,
+                                  })
+                                }
+                                variant="outlined"
+                                sx={{
+                                  borderRadius: "10px",
+                                  fontSize: "14px",
+                                  fontWeight: 600,
+                                  "--Input-focusedHighlight":
+                                    "var(--joy-palette-primary-500)",
+                                }}
+                              />
+                            </EditSection>
+
+                            {renderBodyEditor(item)}
+
+                            {canEditHashtags ? (
+                              <EditSection label="HASHTAGS">
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: "6px",
+                                    marginBottom: "8px",
+                                  }}
+                                >
+                                  {(item.hashtags || []).map((tag) => (
+                                    <Box
+                                      key={tag}
+                                      sx={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        padding: "4px 10px",
+                                        borderRadius: "100px",
+                                        bgcolor: "primary.50",
+                                        border: "1px solid",
+                                        borderColor: "primary.100",
+                                        fontSize: "12px",
+                                        fontWeight: 500,
+                                        color: "primary.700",
+                                      }}
+                                    >
+                                      #{tag.replace("#", "")}
+                                      <Box
+                                        component="span"
+                                        onClick={() => handleRemoveHashtag(tag)}
+                                        sx={{
+                                          cursor: "pointer",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          color: "primary.400",
+                                          "&:hover": { color: "primary.700" },
+                                          marginLeft: "2px",
+                                        }}
+                                      >
+                                        <CloseRounded
+                                          style={{ fontSize: 13 }}
+                                        />
+                                      </Box>
+                                    </Box>
+                                  ))}
+                                </Box>
+                                <Input
+                                  placeholder="Add hashtag"
+                                  value={hashtagInput}
+                                  onChange={(event) =>
+                                    setHashtagInput(event.target.value)
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") {
+                                      event.preventDefault();
+                                      handleAddHashtag();
+                                    }
+                                  }}
+                                  variant="plain"
+                                  size="sm"
+                                  startDecorator={
+                                    <Typography
+                                      sx={{
+                                        color: "neutral.400",
+                                        fontSize: "13px",
+                                      }}
+                                    >
+                                      #
+                                    </Typography>
+                                  }
+                                  sx={{
+                                    fontSize: "12px",
+                                    borderRadius: "8px",
+                                    bgcolor: "neutral.50",
+                                    "--Input-focusedHighlight":
+                                      "var(--joy-palette-primary-200)",
+                                    maxWidth: "180px",
+                                  }}
+                                />
+                              </EditSection>
+                            ) : null}
+
+                            <EditSection label="CTA SUGGESTIONS">
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "6px",
+                                }}
+                              >
+                                {ctaSuggestions.map((cta) => {
+                                  const selected = item._selectedCta === cta;
+
+                                  return (
+                                    <Box
+                                      key={cta}
+                                      onClick={() => handleSelectCta(cta)}
+                                      sx={{
+                                        padding: "6px 14px",
+                                        borderRadius: "8px",
+                                        border: "1px solid",
+                                        borderColor: selected
+                                          ? "primary.300"
+                                          : "neutral.200",
+                                        bgcolor: selected
+                                          ? "primary.50"
+                                          : "background.surface",
+                                        fontSize: "12px",
+                                        fontWeight: 500,
+                                        color: selected
+                                          ? "primary.700"
+                                          : "neutral.600",
+                                        cursor: "pointer",
+                                        transition: "all 0.15s ease",
+                                        "&:hover": {
+                                          borderColor: "primary.300",
+                                          bgcolor: "primary.50",
+                                          color: "primary.700",
+                                        },
+                                      }}
+                                    >
+                                      {cta}
+                                    </Box>
+                                  );
+                                })}
+                              </Box>
+                            </EditSection>
+
+                            <EditSection label="FEATURED IMAGE">
+                              {renderFeaturedImageArea(index, item)}
+                            </EditSection>
+                          </Box>
+                        </Box>
+                      </TabPanel>
+                    );
+                  })}
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 28px",
+                    borderTop: "1px solid",
+                    borderColor: "neutral.100",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: "12px" }}
                   >
-                    Approve all
-                  </Button>
-                  <Button
-                    variant="solid"
-                    color="primary"
-                    startDecorator={
-                      update.isPending ? (
-                        <CircularProgress size="sm" color="neutral" />
-                      ) : undefined
-                    }
-                    onClick={() => void persistDraftChanges()}
-                    disabled={!hasUnsavedChanges || update.isPending}
-                  >
-                    Save changes
-                  </Button>
-                  <Button
-                    variant="solid"
-                    color="success"
-                    startDecorator={<Send size={16} />}
-                    onClick={() => void handlePublish()}
-                    disabled={approvedSocialCount === 0 || update.isPending}
-                  >
-                    Publish approved social
-                  </Button>
-                </Stack>
-              </Stack>
-            </Sheet>
-          </Sheet>
+                    <Typography sx={{ fontSize: "12px", color: "neutral.500" }}>
+                      {approvedCount} of {draftItems.length} approved
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: "flex", gap: "8px" }}>
+                    <Button
+                      variant="outlined"
+                      color="neutral"
+                      size="sm"
+                      onClick={handleApproveAll}
+                      disabled={
+                        draftItems.length === 0 ||
+                        draftItems.every((draftItem) => draftItem._approved)
+                      }
+                      startDecorator={
+                        <CheckCircleRounded style={{ fontSize: 16 }} />
+                      }
+                      sx={{
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Approve all
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="neutral"
+                      size="sm"
+                      onClick={() => void persistDraftChanges()}
+                      disabled={!hasUnsavedChanges || update.isPending}
+                      sx={{
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Save changes
+                    </Button>
+                    <Button
+                      color="primary"
+                      size="sm"
+                      onClick={() => void handlePublish()}
+                      disabled={approvedSocialCount === 0 || update.isPending}
+                      startDecorator={<SendRounded style={{ fontSize: 16 }} />}
+                      sx={{
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Publish approved
+                    </Button>
+                  </Box>
+                </Box>
+              </Tabs>
+            )}
+          </Box>
         </ModalDialog>
       </Modal>
 
@@ -1767,11 +2293,7 @@ export function GeneratedContentModal({
               You have unsaved edits in this content studio. Save them, discard
               them, or go back to keep editing.
             </Typography>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              justifyContent="flex-end"
-            >
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
               <Button
                 variant="plain"
                 color="neutral"

@@ -48,7 +48,6 @@ import {
 } from "@/components/joy/JoyDropdownMenu";
 import {
   useContentLibrary,
-  useContentLibraryCount,
   useDeleteBundle,
 } from "@/hooks/useContentLibrary";
 import type {
@@ -59,6 +58,7 @@ import type {
   LibrarySort,
 } from "@/lib/content/libraryTypes";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useImageGenerationTracker } from "@/hooks/useImageGenerationTracker";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateFlow } from "@/state/useCreateFlow";
 
@@ -242,6 +242,35 @@ function BundleCard({
   const publishChannel = getPublishChannel(bundle);
   const PlaceholderIcon =
     CHANNEL_META[getPrimaryPlaceholderChannel(bundle)].icon;
+  const imageJobs = useImageGenerationTracker((state) =>
+    state.jobs.get(bundle.bundleId),
+  );
+  const imageJobSummary = useMemo(() => {
+    const jobs = Array.from(imageJobs?.values() ?? []);
+
+    return {
+      allCompleted:
+        jobs.length > 0 && jobs.every((job) => job.status === "completed"),
+      isGenerating: jobs.some((job) => job.status === "generating"),
+    };
+  }, [imageJobs]);
+  const [showImagesReady, setShowImagesReady] = useState(false);
+
+  useEffect(() => {
+    if (!imageJobSummary.allCompleted) {
+      setShowImagesReady(false);
+      return;
+    }
+
+    setShowImagesReady(true);
+    const timeoutId = window.setTimeout(() => {
+      setShowImagesReady(false);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [imageJobSummary.allCompleted]);
 
   return (
     <Card
@@ -478,6 +507,23 @@ function BundleCard({
         <Typography level="body-xs" sx={{ color: approval.color }}>
           {approval.text}
         </Typography>
+
+        {imageJobSummary.isGenerating || showImagesReady ? (
+          <Chip
+            size="sm"
+            variant="soft"
+            color={imageJobSummary.isGenerating ? "primary" : "success"}
+            sx={{
+              alignSelf: "flex-start",
+              borderRadius: "999px",
+              transition: "opacity 180ms ease",
+            }}
+          >
+            {imageJobSummary.isGenerating
+              ? "Generating images..."
+              : "Images ready"}
+          </Chip>
+        ) : null}
       </Stack>
     </Card>
   );
@@ -573,7 +619,6 @@ export const BundleLibrary = () => {
   const [bundleToDelete, setBundleToDelete] = useState<ContentSummary | null>(
     null,
   );
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const processedTrackedBundleIdRef = useRef<string | null>(null);
   const debouncedSearch = useDebounce(search, 200);
@@ -607,7 +652,7 @@ export const BundleLibrary = () => {
     });
   }, [location.pathname, location.search, location.state, navigate, toast]);
 
-  const { data, isLoading } = useContentLibrary({
+  const { data, error, isInitialLoading, refetch } = useContentLibrary({
     search: debouncedSearch,
     mode,
     channel,
@@ -616,24 +661,17 @@ export const BundleLibrary = () => {
     sort,
   });
 
-  const countQuery = useContentLibraryCount({
-    search: debouncedSearch,
-    mode,
-    channel,
-  });
-
   const del = useDeleteBundle();
-  const items = data?.items || [];
-  const filteredCount = countQuery.data ?? data?.total ?? 0;
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
+  const filteredCount = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(filteredCount / PAGE_SIZE));
   const hasActiveFilters =
     Boolean(search.trim()) || mode !== "all" || channel !== "all";
 
-  useEffect(() => {
-    if (!isLoading) {
-      setHasLoadedOnce(true);
-    }
-  }, [isLoading]);
+  const showSkeleton = isInitialLoading;
+  const showError = !showSkeleton && Boolean(error);
+  const showEmpty = !showSkeleton && !showError && items.length === 0;
+  const showData = !showSkeleton && !showError && items.length > 0;
 
   useEffect(() => {
     if (page > totalPages) {
@@ -830,10 +868,13 @@ export const BundleLibrary = () => {
     setPage(1);
   };
 
-  const countLabel =
-    filteredCount === 0
-      ? "No results"
-      : `${filteredCount} bundle${filteredCount === 1 ? "" : "s"}`;
+  const countLabel = showSkeleton
+    ? "Loading content..."
+    : showError
+      ? "Unable to load bundles"
+      : filteredCount === 0
+        ? "No results"
+        : `${filteredCount} bundle${filteredCount === 1 ? "" : "s"}`;
 
   return (
     <Stack
@@ -909,7 +950,6 @@ export const BundleLibrary = () => {
             >
               <TabList
                 disableUnderline
-                disableIndicator
                 sx={{
                   gap: 0.5,
                   p: 0.5,
@@ -1011,7 +1051,7 @@ export const BundleLibrary = () => {
       </Sheet>
 
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {isLoading || !hasLoadedOnce ? (
+        {showSkeleton ? (
           <Box
             role="status"
             aria-live="polite"
@@ -1027,7 +1067,39 @@ export const BundleLibrary = () => {
               <BundleCardSkeleton key={`bundle-skeleton-${index}`} />
             ))}
           </Box>
-        ) : items.length === 0 && !activeGenerationBundleId ? (
+        ) : showError ? (
+          <Box
+            sx={{
+              minHeight: "calc(100vh - 21rem)",
+              display: "grid",
+              placeItems: "center",
+            }}
+          >
+            <Stack
+              spacing={2}
+              alignItems="center"
+              sx={{ maxWidth: 420, textAlign: "center" }}
+            >
+              <Typography level="title-lg">
+                Failed to load content
+              </Typography>
+              <Typography level="body-md" sx={{ color: "neutral.500" }}>
+                {error instanceof Error
+                  ? error.message
+                  : "Please try again."}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="danger"
+                onClick={() => {
+                  void refetch();
+                }}
+              >
+                Retry
+              </Button>
+            </Stack>
+          </Box>
+        ) : showEmpty ? (
           <Box
             sx={{
               minHeight: "calc(100vh - 21rem)",
@@ -1097,7 +1169,7 @@ export const BundleLibrary = () => {
               </Button>
             </Stack>
           </Box>
-        ) : (
+        ) : showData ? (
           <Stack spacing={2.5} sx={{ flex: 1 }}>
             <Box
               sx={{
@@ -1154,7 +1226,7 @@ export const BundleLibrary = () => {
               </Stack>
             ) : null}
           </Stack>
-        )}
+        ) : null}
       </Box>
 
       <GeneratedContentModal open={modalOpen} onOpenChange={setModalOpen} />

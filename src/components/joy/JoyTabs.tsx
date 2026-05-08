@@ -70,7 +70,6 @@ export const JoyTabsTrigger = React.forwardRef<
 >(({ sx, ...props }, ref) => (
   <JoyBaseTab
     ref={ref}
-    disableIndicator
     sx={mergeSx(
       {
         minHeight: 40,
@@ -79,6 +78,9 @@ export const JoyTabsTrigger = React.forwardRef<
         color: "neutral.700",
         transition:
           "background-color 160ms ease, color 160ms ease, box-shadow 160ms ease",
+        "&::after": {
+          display: "none",
+        },
         "&:hover": {
           backgroundColor: "neutral.100",
         },

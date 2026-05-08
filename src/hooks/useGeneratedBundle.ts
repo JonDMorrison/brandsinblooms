@@ -23,9 +23,16 @@ export interface GeneratedBundle {
   id: string;
   items: GeneratedBundleItem[];
   recommendedImages: { url: string; alt?: string }[];
+  channels?: string[];
+  generationStatus?: "pending" | "ready" | "failed";
+  generationError?: string | null;
   meta: {
     mode: "event" | "seasonal" | "custom" | "holiday";
     sourceId?: string;
+    generationStatus?: "pending" | "ready" | "failed";
+    generationError?: string | null;
+    sourceLabel?: string;
+    topicDescription?: string;
   };
   sourceLabel?: string;
   thumbnail?: string; // AI-generated thumbnail URL

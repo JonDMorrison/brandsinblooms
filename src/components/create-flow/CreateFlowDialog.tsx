@@ -47,6 +47,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { useDebounce } from "@/hooks/useDebounce";
 import { supabase } from "@/integrations/supabase/client";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
+import { useContentGenerationOrchestrator } from "@/hooks/useContentGenerationOrchestrator";
 import { useCreateFlow } from "@/state/useCreateFlow";
 import {
   getCurrentSeasonalTemplate,
@@ -55,10 +56,12 @@ import {
 } from "@/utils/seasonalTemplateService";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { sanitizeCampaignTitle } from "@/utils/weekNumberSanitizer";
+import { GeneratedContentModal } from "./GeneratedContentModal";
+import { GenerationProgressDialog } from "./GenerationProgressDialog";
 import type { CreateFlowRetryDraft } from "./createFlowTypes";
+import type { ImageTaskState } from "@/hooks/useContentGenerationOrchestrator";
 
 const PAGE_SIZE = 12;
-const GENERATION_REQUEST_TIMEOUT_MS = 120000;
 
 type Mode = "seasonal" | "holiday" | "custom";
 type Goal = "traffic" | "sales" | "awareness" | "none";
@@ -227,6 +230,13 @@ const DESELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
   facebook_carousel: false,
 };
 
+const IMAGE_GENERATION_CHANNEL_KEYS = new Set<ChannelKey>([
+  "newsletter",
+  "instagram",
+  "facebook",
+  "blog",
+]);
+
 const fmtLocalDate = (dateValue?: string) => {
   if (!dateValue) return "";
   try {
@@ -357,9 +367,14 @@ export function CreateFlowDialog({
     error: holidaysError,
     refetch: refetchHolidays,
   } = useSeasonalHolidays();
+  const orchestrator = useContentGenerationOrchestrator();
   const mountedRef = useRef(true);
   const transitionLockRef = useRef(false);
   const categoryCardRefs = useRef<Array<HTMLElement | null>>([]);
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [progressChannels, setProgressChannels] = useState<string[]>([]);
+  const [progressTopicTitle, setProgressTopicTitle] = useState("");
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -594,13 +609,15 @@ export function CreateFlowDialog({
   }, []);
 
   useEffect(() => {
-    if (!open) {
+    if (!open && !progressDialogOpen && !reviewModalOpen) {
       reset();
       resetLocalState();
     }
-  }, [open, reset, resetLocalState]);
+  }, [open, progressDialogOpen, reset, resetLocalState, reviewModalOpen]);
 
   const dismissWizard = () => {
+    orchestrator.reset();
+    setProgressDialogOpen(false);
     reset();
     resetLocalState();
     onOpenChange(false);
@@ -784,21 +801,6 @@ export function CreateFlowDialog({
       }
     }
 
-    if (currentPath === "custom") {
-    } else if (currentPath === "seasonal" && currentSourceId) {
-      const pickedTheme = currentWeeklyThemes.find(
-        (theme) => theme.id === currentSourceId,
-      );
-      if (pickedTheme) {
-      }
-    } else if (currentPath === "holiday" && currentSourceId) {
-      const pickedHoliday = currentHolidays.find(
-        (holiday) => holiday.id === currentSourceId,
-      );
-      if (pickedHoliday) {
-      }
-    }
-
     try {
       const {
         data: { user: currentUser },
@@ -819,99 +821,48 @@ export function CreateFlowDialog({
       }
 
       const workspaceId = currentUserRow?.tenant_id || currentUser.id;
-      const payload: {
-        mode: Mode;
-        sourceId?: string;
-        workspaceId: string;
-        userId: string;
-        channels: ChannelKey[];
-        userIdea?: {
-          title: string;
-          goal?: Exclude<Goal, "none">;
-          tone?: string;
-          notes?: string;
-        };
-        topicTitle?: string;
-        topicDescription?: string;
-        generationContext?: {
-          selectedChannels: ChannelKey[];
-          hasMixedCarousel: boolean;
-          carouselPlatform: "instagram" | "facebook" | null;
-        };
-      } = {
-        mode: currentPath,
-        sourceId: currentSourceId || undefined,
-        workspaceId,
-        userId: currentUser.id,
-        channels: generationChannels,
-        generationContext: {
-          selectedChannels,
-          hasMixedCarousel: includesCarousel,
-          carouselPlatform: includesCarousel
-            ? currentChannels.instagram_carousel
-              ? "instagram"
-              : "facebook"
-            : null,
-        },
+      const resolvedTopicTitle =
+        topicTitle || currentTitle || "Untitled Content";
+      const resolvedTopicDescription =
+        topicDescription || currentNotes || currentTone || "";
+      const generationContext = {
+        selectedChannels,
+        hasMixedCarousel: includesCarousel,
+        carouselPlatform: includesCarousel
+          ? currentChannels.instagram_carousel
+            ? "instagram"
+            : "facebook"
+          : null,
       };
+      const userIdea =
+        currentPath === "custom"
+          ? {
+              title: currentTitle,
+              goal: currentGoal === "none" ? undefined : currentGoal,
+              tone: currentTone || undefined,
+              notes: currentNotes || undefined,
+            }
+          : undefined;
 
-      if (currentPath === "custom") {
-        payload.userIdea = {
-          title: currentTitle,
-          goal: currentGoal === "none" ? undefined : currentGoal,
-          tone: currentTone || undefined,
-          notes: currentNotes || undefined,
-        };
-        payload.topicTitle = topicTitle;
-        payload.topicDescription = topicDescription;
-      }
+      setProgressChannels(generationChannels);
+      setProgressTopicTitle(resolvedTopicTitle);
+      setProgressDialogOpen(true);
 
-      if (currentPath === "seasonal" && currentSourceId) {
-        payload.topicTitle = topicTitle;
-        payload.topicDescription = topicDescription;
-      }
-
-      if (currentPath === "holiday" && currentSourceId) {
-        payload.topicTitle = topicTitle;
-        payload.topicDescription = topicDescription;
-      }
-
-      const timeout = new Promise<never>((_, reject) => {
-        window.setTimeout(
-          () => reject(new Error("Generation timed out after 120 seconds")),
-          GENERATION_REQUEST_TIMEOUT_MS,
-        );
-      });
-
-      const generation = supabase.functions.invoke(
-        "generate-multichannel-content",
-        { body: payload },
-      );
-
-      const result = (await Promise.race([generation, timeout])) as Awaited<
-        typeof generation
-      >;
-
-      if (result.error) {
-        console.error("Edge function returned error:", result.error);
-        throw result.error;
-      }
-
-      if (!result.data?.id || !result.data?.snapshotId) {
-        console.error("Invalid response from edge function:", {
-          received: result.data,
-          expectedFields: ["id", "snapshotId", "content"],
+      void orchestrator
+        .startGeneration({
+          mode: currentPath,
+          sourceId: currentSourceId || undefined,
+          topicTitle: resolvedTopicTitle,
+          topicDescription: resolvedTopicDescription,
+          channels: generationChannels,
+          workspaceId,
+          userId: currentUser.id,
+          userIdea,
+          generationContext,
+        })
+        .catch((error) => {
+          console.error("Content generation orchestration error:", error);
         });
-        throw new Error(
-          `Edge function did not return valid bundle IDs. Received: ${JSON.stringify(result.data)}`,
-        );
-      }
-
-      reset();
-      resetLocalState();
-      onOpenChange(false);
-      setBundleIds(result.data.id, result.data.snapshotId);
-      navigate(`/content/library?from=generation&doc_id=${result.data.id}`);
     } catch (error: unknown) {
       console.error("Content generation error:", error);
       setGenerationErrorMessage(classifyGenerationError(error));
@@ -959,6 +910,83 @@ export function CreateFlowDialog({
 
     void performTransition("cancel");
   };
+
+  const handleProgressReviewContent = () => {
+    if (!orchestrator.bundleId) {
+      return;
+    }
+
+    setReviewModalOpen(true);
+    setProgressDialogOpen(false);
+    resetLocalState();
+    onOpenChange(false);
+    setBundleIds(orchestrator.bundleId, orchestrator.snapshotId);
+  };
+
+  const handleProgressGoToLibrary = () => {
+    const targetUrl = orchestrator.bundleId
+      ? `/content/library?from=generation&doc_id=${orchestrator.bundleId}`
+      : "/content/library";
+
+    setProgressDialogOpen(false);
+    orchestrator.reset();
+    reset();
+    resetLocalState();
+    onOpenChange(false);
+    navigate(targetUrl);
+  };
+
+  const handleProgressClose = () => {
+    if (orchestrator.contentStatus === "failed") {
+      setProgressDialogOpen(false);
+      orchestrator.reset();
+      return;
+    }
+
+    handleProgressGoToLibrary();
+  };
+
+  const handleProgressRetry = () => {
+    void orchestrator.retry();
+  };
+
+  const handleReviewModalOpenChange = (nextOpen: boolean) => {
+    setReviewModalOpen(nextOpen);
+
+    if (!nextOpen) {
+      orchestrator.reset();
+      reset();
+      resetLocalState();
+    }
+  };
+
+  const progressDialogContentStatus =
+    progressDialogOpen && orchestrator.contentStatus === "idle"
+      ? "generating"
+      : orchestrator.contentStatus;
+  const progressDialogPhase =
+    progressDialogOpen && orchestrator.phase === "idle"
+      ? "content"
+      : orchestrator.phase;
+  const progressDialogImageTasks = useMemo(
+    () =>
+      progressChannels.reduce<Record<string, ImageTaskState>>(
+        (tasks, channel) => ({
+          ...tasks,
+          [channel]: {
+            status: IMAGE_GENERATION_CHANNEL_KEYS.has(channel as ChannelKey)
+              ? "waiting"
+              : "skipped",
+            imageQuery: "",
+            imageUrl: null,
+            thumbnailUrl: null,
+            error: null,
+          },
+        }),
+        {},
+      ),
+    [progressChannels],
+  );
 
   const renderTopicSelection = () => {
     if (selectedPath === "custom") {
@@ -1153,9 +1181,10 @@ export function CreateFlowDialog({
                   }}
                 >
                   <Stack
-                    direction={{ xs: "column", sm: "row" }}
+                    direction="row"
                     spacing={1.5}
                     justifyContent="space-between"
+                    sx={{ flexWrap: "wrap", alignItems: "flex-start" }}
                   >
                     <Box>
                       <Typography level="title-sm">
@@ -1170,12 +1199,7 @@ export function CreateFlowDialog({
                         </Typography>
                       ) : null}
                     </Box>
-                    <Box
-                      sx={{
-                        textAlign: { xs: "left", sm: "right" },
-                        flexShrink: 0,
-                      }}
-                    >
+                    <Box sx={{ textAlign: "right", flexShrink: 0 }}>
                       <Typography
                         level="body-xs"
                         sx={{ color: "text.secondary" }}
@@ -1383,8 +1407,9 @@ export function CreateFlowDialog({
           sx={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: { xs: "flex-start", sm: "center" },
-            flexDirection: { xs: "column", sm: "row" },
+            alignItems: "center",
+            flexDirection: "row",
+            flexWrap: "wrap",
             gap: 1.5,
           }}
         >
@@ -1414,7 +1439,7 @@ export function CreateFlowDialog({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
             gap: 2,
           }}
         >
@@ -1518,15 +1543,15 @@ export function CreateFlowDialog({
           layout="center"
           aria-modal="true"
           sx={{
-            width: { xs: "calc(100vw - 24px)", sm: "min(100vw - 48px, 920px)" },
+            width: "min(calc(100vw - 24px), 920px)",
             maxWidth: 920,
-            maxHeight: { xs: "calc(100dvh - 24px)", md: "min(88dvh, 860px)" },
-            borderRadius: { xs: "lg", md: "xl" },
+            maxHeight: "min(calc(100dvh - 24px), 860px)",
+            borderRadius: "24px",
             borderColor: "neutral.200",
             bgcolor: "background.surface",
             backgroundImage: "none",
             boxShadow: "lg",
-            p: { xs: 3, md: 4 },
+            p: 3,
             overflow: "hidden",
           }}
         >
@@ -1575,7 +1600,7 @@ export function CreateFlowDialog({
                 minHeight: 0,
                 overflowY: "auto",
                 mt: 4,
-                pr: { xs: 0, sm: 0.5 },
+                pr: 0,
               }}
             >
               {step === "category" ? (
@@ -1584,10 +1609,7 @@ export function CreateFlowDialog({
                   aria-label="Choose a content category"
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: "repeat(3, minmax(0, 1fr))",
-                    },
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                     gap: 2,
                   }}
                 >
@@ -1708,8 +1730,9 @@ export function CreateFlowDialog({
               sx={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: { xs: "stretch", sm: "center" },
-                flexDirection: { xs: "column", sm: "row" },
+                alignItems: "center",
+                flexDirection: "row",
+                flexWrap: "wrap",
                 gap: 1.5,
                 pt: 3,
                 mt: 3,
@@ -1763,6 +1786,28 @@ export function CreateFlowDialog({
           </Box>
         </ModalDialog>
       </Modal>
+
+      <GenerationProgressDialog
+        open={progressDialogOpen}
+        bundleId={orchestrator.bundleId}
+        channels={progressChannels}
+        topicTitle={progressTopicTitle}
+        phase={progressDialogPhase}
+        contentStatus={progressDialogContentStatus}
+        imageTasks={{
+          ...progressDialogImageTasks,
+          ...orchestrator.imageTasks,
+        }}
+        onReviewContent={handleProgressReviewContent}
+        onGoToLibrary={handleProgressGoToLibrary}
+        onRetry={handleProgressRetry}
+        onClose={handleProgressClose}
+      />
+
+      <GeneratedContentModal
+        open={reviewModalOpen}
+        onOpenChange={handleReviewModalOpenChange}
+      />
     </>
   );
 }

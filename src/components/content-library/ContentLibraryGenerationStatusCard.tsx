@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Alert from "@mui/joy/Alert";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
@@ -10,6 +10,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, Sparkles, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { CreateFlowRetryDraft } from "@/components/create-flow/createFlowTypes";
+
+const SNAPSHOT_POLL_INTERVAL_MS = 3000;
 
 type GenerationStatus = "loading" | "pending" | "ready" | "failed" | "timeout";
 
@@ -94,7 +96,6 @@ export function ContentLibraryGenerationStatusCard({
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [progressNow, setProgressNow] = useState(Date.now());
 
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const readyNotifiedRef = useRef(false);
   const failedNotifiedRef = useRef(false);
 
@@ -118,62 +119,58 @@ export function ContentLibraryGenerationStatusCard({
     return getProgressValue(elapsedMs, status);
   }, [progressNow, startedAt, status]);
 
-  const clearSubscription = () => {
-    if (channelRef.current) {
-      void supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-  };
+  const applySnapshot = useCallback(
+    (record: DraftSnapshotRecord) => {
+      const content = record.content || {};
+      const nextStatus =
+        content.generationStatus ||
+        (Array.isArray(content.items) && content.items.length > 0
+          ? "ready"
+          : "pending");
 
-  const applySnapshot = (record: DraftSnapshotRecord) => {
-    const content = record.content || {};
-    const nextStatus =
-      content.generationStatus ||
-      (Array.isArray(content.items) && content.items.length > 0
-        ? "ready"
-        : "pending");
-
-    setSnapshotId(record.id);
-    setTitle(content.sourceLabel || "Preparing your content");
-    setStartedAt(content.generationContext?.startedAt || record.created_at);
-    setSelectedChannels(
-      content.generationContext?.selectedChannels || content.channels || [],
-    );
-    setRetryDraft(content.retryDraft || null);
-    setHasMixedCarousel(Boolean(content.generationContext?.hasMixedCarousel));
-
-    if (nextStatus === "ready") {
-      setStatus("ready");
-      setErrorMessage(null);
-      clearSubscription();
-
-      if (!readyNotifiedRef.current) {
-        readyNotifiedRef.current = true;
-        queryClient.invalidateQueries({ queryKey: ["content-library"] });
-        queryClient.invalidateQueries({ queryKey: ["content-library-count"] });
-        onReady?.(bundleId, record.id);
-      }
-      return;
-    }
-
-    if (nextStatus === "failed") {
-      setStatus("failed");
-      setErrorMessage(
-        content.generationError ||
-          "We couldn't finish generating this content. Try again.",
+      setSnapshotId(record.id);
+      setTitle(content.sourceLabel || "Preparing your content");
+      setStartedAt(content.generationContext?.startedAt || record.created_at);
+      setSelectedChannels(
+        content.generationContext?.selectedChannels || content.channels || [],
       );
-      clearSubscription();
+      setRetryDraft(content.retryDraft || null);
+      setHasMixedCarousel(Boolean(content.generationContext?.hasMixedCarousel));
 
-      if (!failedNotifiedRef.current) {
-        failedNotifiedRef.current = true;
-        onFailed?.();
+      if (nextStatus === "ready") {
+        setStatus("ready");
+        setErrorMessage(null);
+
+        if (!readyNotifiedRef.current) {
+          readyNotifiedRef.current = true;
+          queryClient.invalidateQueries({ queryKey: ["content-library"] });
+          queryClient.invalidateQueries({
+            queryKey: ["content-library-count"],
+          });
+          onReady?.(bundleId, record.id);
+        }
+        return;
       }
-      return;
-    }
 
-    setStatus("pending");
-    setErrorMessage(null);
-  };
+      if (nextStatus === "failed") {
+        setStatus("failed");
+        setErrorMessage(
+          content.generationError ||
+            "We couldn't finish generating this content. Try again.",
+        );
+
+        if (!failedNotifiedRef.current) {
+          failedNotifiedRef.current = true;
+          onFailed?.();
+        }
+        return;
+      }
+
+      setStatus("pending");
+      setErrorMessage(null);
+    },
+    [bundleId, onFailed, onReady, queryClient],
+  );
 
   useEffect(() => {
     readyNotifiedRef.current = false;
@@ -188,7 +185,6 @@ export function ContentLibraryGenerationStatusCard({
     setHasMixedCarousel(false);
     setMixedAlertDismissed(false);
     setPhaseIndex(0);
-    clearSubscription();
 
     let isMounted = true;
 
@@ -222,35 +218,15 @@ export function ContentLibraryGenerationStatusCard({
 
     void loadSnapshot();
 
-    const channel = supabase
-      .channel(`content-bundle-generation-${bundleId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "draft_snapshots",
-          filter: `doc_id=eq.${bundleId}`,
-        },
-        (payload) => {
-          const record = (payload.new ||
-            payload.old) as Partial<DraftSnapshotRecord>;
-          if (record.doc_type !== "content_bundle") {
-            return;
-          }
-
-          applySnapshot(record as DraftSnapshotRecord);
-        },
-      )
-      .subscribe();
-
-    channelRef.current = channel;
+    const pollId = window.setInterval(() => {
+      void loadSnapshot();
+    }, SNAPSHOT_POLL_INTERVAL_MS);
 
     return () => {
       isMounted = false;
-      clearSubscription();
+      window.clearInterval(pollId);
     };
-  }, [bundleId]);
+  }, [applySnapshot, bundleId, onFailed]);
 
   useEffect(() => {
     if (status !== "pending" && status !== "loading") {
@@ -258,7 +234,6 @@ export function ContentLibraryGenerationStatusCard({
     }
 
     const timeoutId = window.setTimeout(() => {
-      clearSubscription();
       setStatus("timeout");
       setErrorMessage(TIMEOUT_MESSAGE);
 

@@ -186,7 +186,7 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
     pageSize = 24,
     sort = "newest",
   } = filters;
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
 
   const queryKey = useMemo(
     () => [
@@ -224,7 +224,16 @@ export function useContentLibrary(filters: LibraryFilters = {}) {
     refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 
-  return query;
+  const isInitialLoading =
+    tenantLoading ||
+    (!!tenant?.id &&
+      (query.status === "pending" ||
+        (query.fetchStatus === "fetching" && query.data === undefined)));
+
+  return {
+    ...query,
+    isInitialLoading,
+  };
 }
 
 export function useContentLibraryCount(filters: Partial<LibraryFilters> = {}) {

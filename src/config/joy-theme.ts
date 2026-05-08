@@ -363,6 +363,16 @@ const spacingScale: Record<number, string> = {
   24: "96px",
 };
 
+const bloomBreakpoints = {
+  values: {
+    xs: 0,
+    sm: 600,
+    md: 900,
+    lg: 1200,
+    xl: 1536,
+  },
+};
+
 const bloomSpacing = (...values: Array<number | string>) => {
   if (values.length === 0) {
     return "0px";
@@ -422,6 +432,7 @@ const disabledControlStyles = {
 };
 
 export const joyTheme = extendTheme({
+  breakpoints: bloomBreakpoints,
   focus: {
     thickness: "2px",
     selector: "&.Mui-focusVisible, &:focus-visible",
