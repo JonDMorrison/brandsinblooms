@@ -268,7 +268,7 @@ const OnboardingPage = () => {
               variant="ghost"
               onClick={() => {
                 markAsCompleted();
-                navigate("/settings/domain", { replace: true });
+                navigate("/crm/settings/email-sending", { replace: true });
               }}
             >
               Set Up Custom Domain

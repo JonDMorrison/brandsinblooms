@@ -347,7 +347,7 @@ export const SettingsHub = () => {
             icon={Mail}
             label="Email"
             status={emailStatus}
-            to="/crm/settings/email-auth"
+            to="/crm/settings/email-sending"
           />
         </Sheet>
 
