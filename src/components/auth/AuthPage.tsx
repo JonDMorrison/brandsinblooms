@@ -7,12 +7,47 @@ import {
   AuthButton,
   AuthCard,
   AuthInput,
-  AuthLayout,
   AuthPasswordStrength,
   AuthTabGroup,
 } from "@/components/auth";
+import { AuthNanoLeafParticles } from "@/components/auth/AuthNanoLeafParticles";
+import { useDeviceTier } from "@/components/homepage-three/performance/useDeviceTier";
+import { HERO_CONTENT } from "@/components/homepage-three/content/heroContent";
 import { Building2, Leaf, Lock, Mail, User } from "lucide-react";
 import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
+
+// Inline BloomSuite mark — same SVG previously rendered inside
+// AuthLayout. The split-screen layout doesn't use AuthLayout so the
+// mark moves here. Color stops match --auth-green-500 / --auth-green-300.
+const BloomSuiteMark = () => (
+  <svg
+    className="auth-layout__logo"
+    viewBox="0 0 40 40"
+    role="img"
+    aria-labelledby="auth-logo-title"
+    focusable="false"
+  >
+    <title id="auth-logo-title">BloomSuite</title>
+    <defs>
+      <linearGradient id="auth-logo-gradient" x1="8" y1="32" x2="32" y2="8">
+        <stop stopColor="#3E7C77" />
+        <stop offset="1" stopColor="#87DFD8" />
+      </linearGradient>
+    </defs>
+    <rect width="40" height="40" rx="12" fill="#E1FFFE" />
+    <path
+      d="M20 31c-5.7-4.28-8.55-8.8-8.55-13.56 0-4.05 2.34-7.12 5.53-7.12 1.72 0 3.02.78 3.89 2.34.86-1.56 2.16-2.34 3.89-2.34 3.19 0 5.53 3.07 5.53 7.12C30.29 22.2 26.86 26.72 20 31Z"
+      fill="url(#auth-logo-gradient)"
+    />
+    <path
+      d="M20.12 28.7c.28-4.26 1.58-8.38 3.92-12.36"
+      fill="none"
+      stroke="rgba(255,255,255,0.74)"
+      strokeLinecap="round"
+      strokeWidth="1.6"
+    />
+  </svg>
+);
 
 type AuthMode = "signin" | "signup";
 type SignInField = "email" | "password";
@@ -99,6 +134,10 @@ const validateSignUp = (form: SignUpFormState) => ({
 export const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  // Device tier drives particle density on the brand panel — same
+  // hook AuthLayout used to call. Read it here so the new split
+  // layout can scope the canvas to the left/top brand panel.
+  const { tier } = useDeviceTier();
   const returnTo = getSafeOAuthReturnTo(
     new URLSearchParams(location.search).get("returnTo"),
   );
@@ -609,36 +648,104 @@ export const AuthPage = () => {
     </div>
   );
 
-  return (
-    <AuthLayout>
-      <div className="auth-page-shell">
-        <AuthCard className="auth-page-card">
-          <div className="auth-content-panel auth-content-panel--auth-page">
-            <AuthTabGroup<AuthMode>
-              ariaLabel="Authentication mode"
-              value={mode}
-              onValueChange={handleModeChange}
-              options={[
-                { value: "signin", label: "Sign In" },
-                { value: "signup", label: "Sign Up" },
-              ]}
-            />
+  // Brand-panel copy keyed off the active mode. Tracks the visible
+  // form so a tab switch updates the welcome headline in lock-step.
+  const isSignUp = displayedMode === "signup";
+  const brandHeadline = isSignUp
+    ? "Start growing with BloomSuite"
+    : "Welcome back to BloomSuite";
 
-            <div
-              className={`auth-mode-panel ${isSwitchingMode ? "auth-mode-panel--exiting" : "auth-mode-panel--entering"}`}
+  return (
+    <main className="auth-shell auth-token-scope">
+      <div className="auth-split-shell">
+        <aside
+          className="auth-split-shell__brand"
+          aria-label="BloomSuite welcome panel"
+        >
+          {/*
+           * Existing canvas-based leaf scatter, scoped to the brand
+           * panel via this absolute-positioned wrapper at 28%
+           * opacity (vs ~3-5% on the legacy centered layout).
+           */}
+          <div
+            className="auth-split-shell__brand-particles"
+            aria-hidden="true"
+          >
+            <AuthNanoLeafParticles tier={tier} />
+          </div>
+
+          <div className="auth-split-shell__brand-content">
+            <Link
+              to="/"
+              className="auth-split-shell__brand-mark"
+              aria-label="BloomSuite home"
             >
-              {displayedMode === "signin"
-                ? renderSignInForm()
-                : renderSignUpForm()}
+              <BloomSuiteMark />
+              <span className="auth-split-shell__brand-wordmark">
+                BloomSuite
+              </span>
+            </Link>
+
+            <h2 className="auth-split-shell__brand-headline">
+              {brandHeadline}
+            </h2>
+
+            <p className="auth-split-shell__brand-tagline">
+              <strong>{HERO_CONTENT.staticTagline}</strong>
+              {HERO_CONTENT.subtext}
+            </p>
+
+            <div className="auth-split-shell__brand-trust">
+              <Leaf aria-hidden="true" />
+              <span>Trusted by 200+ green businesses</span>
             </div>
           </div>
-        </AuthCard>
+        </aside>
 
-        <div className="auth-social-proof">
-          <Leaf aria-hidden="true" />
-          <span>Trusted by 200+ green businesses</span>
-        </div>
+        <section
+          className="auth-split-shell__form"
+          aria-label="Sign in or create account"
+        >
+          <div className="auth-split-shell__form-inner">
+            <Link
+              to="/"
+              className="auth-layout__home-link auth-split-shell__home-link"
+            >
+              Back to Home
+            </Link>
+
+            <AuthCard className="auth-page-card">
+              <div className="auth-content-panel auth-content-panel--auth-page">
+                <AuthTabGroup<AuthMode>
+                  ariaLabel="Authentication mode"
+                  value={mode}
+                  onValueChange={handleModeChange}
+                  options={[
+                    { value: "signin", label: "Sign In" },
+                    { value: "signup", label: "Sign Up" },
+                  ]}
+                />
+
+                <div
+                  className={`auth-mode-panel ${isSwitchingMode ? "auth-mode-panel--exiting" : "auth-mode-panel--entering"}`}
+                >
+                  {displayedMode === "signin"
+                    ? renderSignInForm()
+                    : renderSignUpForm()}
+                </div>
+              </div>
+            </AuthCard>
+          </div>
+        </section>
+
+        <footer className="auth-split-shell__footer">
+          <span>© 2026 BloomSuite</span>
+          <span aria-hidden="true">•</span>
+          <Link to="/privacy">Privacy Policy</Link>
+          <span aria-hidden="true">•</span>
+          <Link to="/terms">Terms of Service</Link>
+        </footer>
       </div>
-    </AuthLayout>
+    </main>
   );
 };
