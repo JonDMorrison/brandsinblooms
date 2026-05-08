@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { X, Plus, GripVertical, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui-legacy/button';
-import { Alert, AlertDescription } from '@/components/ui-legacy/alert';
-import { ImageSelectButton } from '@/components/image';
+import React, { useState } from "react";
+import { X, Plus, GripVertical, AlertCircle } from "lucide-react";
+import Button from "@mui/joy/Button";
+import { Alert, AlertDescription } from "@/components/ui-legacy/alert";
 
 interface CarouselImageSelectorProps {
   images: string[];
   onChange: (images: string[]) => void;
-  platform: 'facebook' | 'instagram';
+  platform: "facebook" | "instagram";
   maxImages?: number;
   onImageClick?: (index: number) => void;
+  onAddImage?: () => void;
 }
 
 export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
@@ -17,24 +17,19 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
   onChange,
   platform,
   maxImages = 10,
-  onImageClick
+  onImageClick,
+  onAddImage,
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const platformLimits = {
-    facebook: { min: 2, max: 10, name: 'Facebook' },
-    instagram: { min: 2, max: 10, name: 'Instagram' }
+    facebook: { min: 2, max: 10, name: "Facebook" },
+    instagram: { min: 2, max: 10, name: "Instagram" },
   };
 
   const limits = platformLimits[platform];
   const canAddMore = images.length < Math.min(maxImages, limits.max);
   const needsMore = images.length < limits.min;
-
-  const handleImageSelect = (url: string) => {
-    if (canAddMore) {
-      onChange([...images, url]);
-    }
-  };
 
   const handleRemove = (index: number) => {
     onChange(images.filter((_, i) => i !== index));
@@ -52,7 +47,7 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
     const draggedImage = newImages[draggedIndex];
     newImages.splice(draggedIndex, 1);
     newImages.splice(index, 0, draggedImage);
-    
+
     onChange(newImages);
     setDraggedIndex(index);
   };
@@ -68,8 +63,9 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {limits.name} carousels require {limits.min}-{limits.max} images. 
-            {images.length > 0 && ` Add ${limits.min - images.length} more image${limits.min - images.length > 1 ? 's' : ''}.`}
+            {limits.name} carousels require {limits.min}-{limits.max} images.
+            {images.length > 0 &&
+              ` Add ${limits.min - images.length} more image${limits.min - images.length > 1 ? "s" : ""}.`}
           </AlertDescription>
         </Alert>
       )}
@@ -91,7 +87,7 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
               alt={`Carousel image ${index + 1}`}
               className="w-full h-full object-cover"
             />
-            
+
             {/* Drag Handle */}
             <div className="absolute top-2 left-2 bg-background/80 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <GripVertical className="w-4 h-4" />
@@ -104,7 +100,10 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
 
             {/* Remove Button */}
             <button
-              onClick={() => handleRemove(index)}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleRemove(index);
+              }}
               className="absolute bottom-2 right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
             >
               <X className="w-4 h-4" />
@@ -115,12 +114,14 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
         {/* Add Image Button */}
         {canAddMore && (
           <div className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors flex flex-col items-center justify-center gap-2">
-            <ImageSelectButton
-              onImageSelect={handleImageSelect}
-              selectedImageUrl={undefined}
-              buttonText="Add Image"
-              compact={true}
-            />
+            <Button
+              color="primary"
+              onClick={onAddImage}
+              startDecorator={<Plus className="w-4 h-4" />}
+              variant="outlined"
+            >
+              Open AI Studio
+            </Button>
           </div>
         )}
       </div>
@@ -128,7 +129,7 @@ export const CarouselImageSelector: React.FC<CarouselImageSelectorProps> = ({
       {/* Image Count */}
       <div className="text-sm text-muted-foreground text-center">
         {images.length} / {limits.max} images
-        {platform === 'instagram' && images.length >= limits.min && (
+        {platform === "instagram" && images.length >= limits.min && (
           <span className="ml-2 text-xs text-amber-600">
             • All images must have the same aspect ratio
           </span>

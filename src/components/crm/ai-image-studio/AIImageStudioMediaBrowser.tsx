@@ -899,6 +899,7 @@ export function AIImageStudioMediaBrowser({
               metadata: {
                 altText: row.user_prompt,
                 dimensions,
+                globalImageId: row.global_image_id,
                 mimeType: gallery.mime_type,
                 source: "global_image_gallery",
                 tags,

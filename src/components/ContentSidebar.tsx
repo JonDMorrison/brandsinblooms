@@ -1,6 +1,12 @@
 import { Button } from "@/components/ui-legacy/button";
 import { Badge } from "@/components/ui-legacy/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui-legacy/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui-legacy/dialog";
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,15 +19,31 @@ import { ImageSelectButton } from "./image";
 import { ApprovalButton } from "./content-sidebar/ApprovalButton";
 import { Edit, Save, X } from "lucide-react";
 
+interface ContentSidebarTask {
+  id: string;
+  ai_output?: string | null;
+  image_idea?: string | null;
+  post_type?: string;
+  scheduled_date: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 interface ContentSidebarProps {
-  task: any;
+  task: ContentSidebarTask | null;
   isOpen: boolean;
   onClose: () => void;
   onTaskUpdate?: () => void;
   initialEditMode?: boolean;
 }
 
-export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEditMode = false }: ContentSidebarProps) => {
+export const ContentSidebar = ({
+  task,
+  isOpen,
+  onClose,
+  onTaskUpdate,
+  initialEditMode = false,
+}: ContentSidebarProps) => {
   const [editedContent, setEditedContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(initialEditMode);
@@ -46,9 +68,9 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
     setIsSaving(true);
     try {
       const { error } = await supabase
-        .from('content_tasks')
+        .from("content_tasks")
         .update({ ai_output: editedContent })
-        .eq('id', task.id);
+        .eq("id", task.id);
 
       if (error) {
         // Error saving content
@@ -107,18 +129,18 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
               <Badge variant="outline">
                 {new Date(task.scheduled_date).toLocaleDateString()}
               </Badge>
-              
+
               {/* Add Approval Button */}
-              <ApprovalButton 
+              <ApprovalButton
                 taskId={task.id}
                 currentStatus={task.status}
                 onApproved={handleContentApproved}
               />
-              
+
               {!isEditing ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={toggleEditMode}
                   className="text-blue-600 hover:text-blue-700"
                 >
@@ -127,18 +149,18 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 </Button>
               ) : (
                 <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={cancelEditing}
                     className="text-gray-600"
                   >
                     <X className="w-4 h-4 mr-1" />
                     Cancel
                   </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={handleSaveChanges} 
+                  <Button
+                    size="sm"
+                    onClick={handleSaveChanges}
                     disabled={isSaving}
                     className="bg-green-600 hover:bg-green-700"
                   >
@@ -150,15 +172,17 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
             </div>
           </div>
           <DialogDescription>
-            {isEditing ? "Edit your content below" : "Review and manage your content"}
+            {isEditing
+              ? "Edit your content below"
+              : "Review and manage your content"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          <ContentApproval 
-            task={task} 
-            onTaskUpdate={onTaskUpdate} 
-            onClose={onClose} 
+          <ContentApproval
+            task={task}
+            onTaskUpdate={onTaskUpdate}
+            onClose={onClose}
           />
 
           <div className="grid lg:grid-cols-3 gap-6">
@@ -169,16 +193,18 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 task={task}
                 isEditing={isEditing}
               />
-              
+
               {/* Enhanced image selector below content */}
               <div className="p-4 border rounded-lg bg-gray-50">
-                <h3 className="font-medium text-lg mb-4">Add or Change Image</h3>
-                <ImageSelectButton 
+                <h3 className="font-medium text-lg mb-4">
+                  Add or Change Image
+                </h3>
+                <ImageSelectButton
                   onImageSelect={async (imageUrl, metadata) => {
                     // Image selected in sidebar
                     // The component handles database updates internally for tasks
                   }}
-                  contentContext={task?.ai_output}
+                  contentContext={task?.image_idea || task?.ai_output}
                 />
               </div>
             </div>

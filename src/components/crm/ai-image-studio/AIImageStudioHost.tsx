@@ -27,11 +27,14 @@ export default function AIImageStudioHost({
       browseOnly={options.browseOnly}
       campaignContext={options.campaignContext}
       channel={options.channel}
+      contentTitle={options.contentTitle}
       contentContext={options.contentContext}
+      context={options.context}
       contextLabel={options.contextLabel}
       contextType={options.contextType}
       defaultTab={options.defaultTab}
       getCurrentOptions={getCurrentOptions}
+      initialPrompt={options.initialPrompt}
       multiBlockFlow={options.multiBlockFlow}
       onClose={onClose}
       onImageSelect={options.onSelect}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "./useTenant";
+import { useToast } from "@/hooks/use-toast";
 import { generateHolidayContent } from "@/components/homepage/HolidayGenerationService";
 // Removed sonner import - using global toast replacement
 import { filterExpiredHolidays, hasExpiredHolidays } from "@/utils/dateUtils";
@@ -25,6 +26,7 @@ interface HolidayContentState {
 export const useSeasonalHolidays = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [allHolidays, setAllHolidays] = useState<Holiday[]>([]);
   const [holidayContentState, setHolidayContentState] = useState<
     Record<string, HolidayContentState>

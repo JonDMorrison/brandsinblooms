@@ -1,38 +1,64 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Textarea } from '@/components/ui-legacy/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
-import { Eye, ArrowLeft, ArrowRight } from 'lucide-react';
-import { usePlanWizard } from '../PlanWizardContext';
-import { PlanItem } from '../constants';
-import { EmailPreviewCard, FacebookPreviewCard, InstagramPreviewCard, SMSPreviewCard, BlogPreviewCard } from '../preview-cards';
-import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
-import { fetchSmartImage } from '@/services/unsplashService';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
+import React, { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui-legacy/card";
+import { Button } from "@/components/ui-legacy/button";
+import { Textarea } from "@/components/ui-legacy/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui-legacy/dialog";
+import { Eye, ArrowLeft, ArrowRight } from "lucide-react";
+import { usePlanWizard } from "../PlanWizardContext";
+import { PlanItem } from "../constants";
+import {
+  EmailPreviewCard,
+  FacebookPreviewCard,
+  InstagramPreviewCard,
+  SMSPreviewCard,
+  BlogPreviewCard,
+} from "../preview-cards";
+import { MediaSelectorImage } from "@/components/crm/MediaSelectorImage";
+import { fetchSmartImage } from "@/services/unsplashService";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface PlanStepPreviewProps {
   onNext: () => void;
   onBack: () => void;
 }
 
-export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack }) => {
+export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({
+  onNext,
+  onBack,
+}) => {
   const { state, updateItem } = usePlanWizard();
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
-  const [editedCaption, setEditedCaption] = useState('');
-  const [selectingImageFor, setSelectingImageFor] = useState<string | null>(null);
+  const [editedCaption, setEditedCaption] = useState("");
+  const [selectingImageFor, setSelectingImageFor] = useState<string | null>(
+    null,
+  );
   const [regeneratingItem, setRegeneratingItem] = useState<string | null>(null);
 
-  const enabledItems = state.items.filter(item => item.enabled);
-  const monthName = state.month ? format(new Date(state.month + '-01'), 'MMMM yyyy') : '';
+  const enabledItems = state.items.filter((item) => item.enabled);
+  const monthName = state.month
+    ? format(new Date(state.month + "-01"), "MMMM yyyy")
+    : "";
 
   // Group by week
-  const itemsByWeek = enabledItems.reduce((acc, item) => {
-    if (!acc[item.week]) acc[item.week] = [];
-    acc[item.week].push(item);
-    return acc;
-  }, {} as Record<number, PlanItem[]>);
+  const itemsByWeek = enabledItems.reduce(
+    (acc, item) => {
+      if (!acc[item.week]) acc[item.week] = [];
+      acc[item.week].push(item);
+      return acc;
+    },
+    {} as Record<number, PlanItem[]>,
+  );
 
   const handleEditContent = (item: PlanItem) => {
     setEditingItem(item);
@@ -43,7 +69,7 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
     if (editingItem) {
       updateItem(editingItem.id, { caption: editedCaption });
       setEditingItem(null);
-      toast.success('Content updated');
+      toast.success("Content updated");
     }
   };
 
@@ -51,9 +77,9 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
     setRegeneratingItem(item.id);
     try {
       // TODO: Call edge function to regenerate single item
-      toast.success('Content regenerated');
+      toast.success("Content regenerated");
     } catch (error) {
-      toast.error('Failed to regenerate');
+      toast.error("Failed to regenerate");
     } finally {
       setRegeneratingItem(null);
     }
@@ -64,7 +90,11 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
   };
 
   const handleImageSelected = async (imageUrl: string, itemId: string) => {
-    updateItem(itemId, { imageUrl });
+    updateItem(itemId, {
+      imageUrl,
+      imageGenerationStatus: "completed",
+      imageError: null,
+    });
     setSelectingImageFor(null);
   };
 
@@ -73,19 +103,19 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
       item,
       onEdit: () => handleEditContent(item),
       onRegenerate: () => handleRegenerateItem(item),
-      onImageSelect: () => handleImageSelect(item.id)
+      onImageSelect: () => handleImageSelect(item.id),
     };
 
     switch (item.type) {
-      case 'email':
+      case "email":
         return <EmailPreviewCard {...commonProps} />;
-      case 'facebook':
+      case "facebook":
         return <FacebookPreviewCard {...commonProps} />;
-      case 'instagram':
+      case "instagram":
         return <InstagramPreviewCard {...commonProps} />;
-      case 'sms':
+      case "sms":
         return <SMSPreviewCard {...commonProps} />;
-      case 'blog':
+      case "blog":
         return <BlogPreviewCard {...commonProps} />;
       default:
         return null;
@@ -93,8 +123,8 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
   };
 
   const getWeekLabel = (week: number) => {
-    const labels = ['Early', 'Mid', 'Late', 'End'];
-    return `${labels[week - 1] || 'Week ' + week} ${monthName.split(' ')[0]}`;
+    const labels = ["Early", "Mid", "Late", "End"];
+    return `${labels[week - 1] || "Week " + week} ${monthName.split(" ")[0]}`;
   };
 
   return (
@@ -106,7 +136,8 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
           <h2 className="text-3xl font-bold">Review & Customize</h2>
         </div>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Review your {enabledItems.length} content pieces for {monthName}. Edit copy, swap images, or regenerate any piece.
+          Review your {enabledItems.length} content pieces for {monthName}. Edit
+          copy, swap images, or regenerate any piece.
         </p>
       </div>
 
@@ -116,7 +147,7 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
           .sort((a, b) => Number(a) - Number(b))
           .map((weekNum) => {
             const weekItems = itemsByWeek[Number(weekNum)];
-            
+
             return (
               <div key={weekNum} className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -126,12 +157,10 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
                   </h3>
                   <div className="h-px bg-border flex-1" />
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {weekItems.map(item => (
-                    <div key={item.id}>
-                      {renderPreviewCard(item)}
-                    </div>
+                  {weekItems.map((item) => (
+                    <div key={item.id}>{renderPreviewCard(item)}</div>
                   ))}
                 </div>
               </div>
@@ -159,25 +188,41 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
               <Button variant="outline" onClick={() => setEditingItem(null)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveEdit}>
-                Save Changes
-              </Button>
+              <Button onClick={handleSaveEdit}>Save Changes</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Image Selector Dialog */}
-      <Dialog open={!!selectingImageFor} onOpenChange={() => setSelectingImageFor(null)}>
+      <Dialog
+        open={!!selectingImageFor}
+        onOpenChange={() => setSelectingImageFor(null)}
+      >
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Select Image</DialogTitle>
           </DialogHeader>
           {selectingImageFor && (
             <MediaSelectorImage
-              src={state.items.find(i => i.id === selectingImageFor)?.imageUrl || ''}
+              src={
+                state.items.find((i) => i.id === selectingImageFor)?.imageUrl ||
+                ""
+              }
               onChange={(url) => handleImageSelected(url, selectingImageFor)}
-              contentContext={state.items.find(i => i.id === selectingImageFor)?.caption || ''}
+              contentContext={
+                state.items.find((i) => i.id === selectingImageFor)
+                  ?.imageQuery ||
+                state.items.find((i) => i.id === selectingImageFor)
+                  ?.imageIdea ||
+                state.items.find((i) => i.id === selectingImageFor)?.caption ||
+                state.items.find((i) => i.id === selectingImageFor)?.title ||
+                ""
+              }
+              imageGenerationStatus={
+                state.items.find((i) => i.id === selectingImageFor)
+                  ?.imageGenerationStatus
+              }
             />
           )}
         </DialogContent>
@@ -185,19 +230,11 @@ export const PlanStepPreview: React.FC<PlanStepPreviewProps> = ({ onNext, onBack
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-8">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="gap-2"
-        >
+        <Button variant="outline" onClick={onBack} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back to Calendar
         </Button>
-        <Button
-          onClick={onNext}
-          size="lg"
-          className="gap-2"
-        >
+        <Button onClick={onNext} size="lg" className="gap-2">
           Continue to Review
           <ArrowRight className="h-4 w-4" />
         </Button>

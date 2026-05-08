@@ -119,7 +119,7 @@ export const ImageSection = ({
           }
         }}
         selectedImageUrl={selectedDraft?.attachments?.[0]?.url}
-        contentContext={selectedDraft?.ai_output}
+        contentContext={selectedDraft?.image_idea || selectedDraft?.ai_output}
         compact
       />
 

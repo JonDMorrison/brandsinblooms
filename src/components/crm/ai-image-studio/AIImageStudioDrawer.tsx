@@ -19,6 +19,7 @@ import { AIImageStudioPreviewLightbox } from "./AIImageStudioPreviewLightbox";
 import type {
   AIImageStudioAspectRatio,
   AIImageStudioCampaignContext,
+  AIImageStudioContentGenerationContext,
   AIImageStudioDrawerProps,
   AIImageStudioGenerationConfig,
   AIImageStudioImageResult,
@@ -134,6 +135,63 @@ function truncateSuggestionText(value: string, maxLength = 80) {
   }
 
   return `${normalizedValue.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function formatContentGenerationChannelLabel(channel?: string) {
+  const normalizedChannel = (channel || "content")
+    .replace(/[_-]+/g, " ")
+    .trim();
+
+  return normalizedChannel.replace(/\b\w/g, (character) =>
+    character.toUpperCase(),
+  );
+}
+
+function buildContentGenerationWelcomeSuggestions(
+  context?: AIImageStudioContentGenerationContext | null,
+) {
+  const topicTitle = context?.topicTitle?.trim();
+
+  if (!topicTitle) {
+    return undefined;
+  }
+
+  const channelLabel = formatContentGenerationChannelLabel(context.channel);
+  const suggestions = [
+    `${topicTitle} - hero image`,
+    `${topicTitle} - close-up product shot`,
+    `${channelLabel} optimized - ${topicTitle}`,
+    `Behind the scenes - ${topicTitle}`,
+  ].map((suggestion) => truncateSuggestionText(suggestion, 96));
+
+  return suggestions.filter(
+    (suggestion, index) =>
+      suggestions.findIndex(
+        (candidate) => candidate.toLowerCase() === suggestion.toLowerCase(),
+      ) === index,
+  );
+}
+
+function buildContentGenerationWelcomeDescription(
+  context?: AIImageStudioContentGenerationContext | null,
+) {
+  const topicTitle = context?.topicTitle?.trim();
+
+  if (!topicTitle) {
+    return undefined;
+  }
+
+  const channelLabel = formatContentGenerationChannelLabel(
+    context.channel,
+  ).toLowerCase();
+  const summary =
+    context?.topicDescription?.trim() || context?.contentSnippet?.trim() || "";
+
+  if (!summary) {
+    return `Create ${channelLabel} imagery for ${topicTitle} using the generated prompt or the suggestion chips below.`;
+  }
+
+  return `Create ${channelLabel} imagery for ${topicTitle}. ${truncateSuggestionText(summary, 132)}`;
 }
 
 function resolveRecommendedAspectRatio(
@@ -358,10 +416,13 @@ export function AIImageStudioDrawer({
   assignmentLabel: initialAssignmentLabel,
   browseOnly = false,
   channel = "newsletter",
+  contentTitle: initialContentTitle,
   contentContext: initialContentContext = "",
+  context: initialContext,
   contextLabel: initialContextLabel,
   campaignContext: initialCampaignContext,
   defaultTab = "ai",
+  initialPrompt: initialInitialPrompt = "",
   blockId: initialBlockId,
   contextType: initialContextType = "email_block",
   getCurrentOptions,
@@ -477,9 +538,13 @@ export function AIImageStudioDrawer({
   const blockId = liveOptions?.blockId ?? initialBlockId;
   const campaignContext =
     liveOptions?.campaignContext ?? initialCampaignContext;
+  const contentTitle = liveOptions?.contentTitle ?? initialContentTitle;
   const contentContext = liveOptions?.contentContext ?? initialContentContext;
+  const contentGenerationContext =
+    liveOptions?.context ?? initialContext ?? null;
   const contextLabel = liveOptions?.contextLabel ?? initialContextLabel;
   const contextType = liveOptions?.contextType ?? initialContextType;
+  const initialPrompt = liveOptions?.initialPrompt ?? initialInitialPrompt;
   const multiBlockFlow = liveOptions?.multiBlockFlow ?? initialMultiBlockFlow;
 
   const subtitle = React.useMemo(() => {
@@ -502,12 +567,18 @@ export function AIImageStudioDrawer({
     const targetLabel =
       assignmentLabel?.trim() || campaignContext?.blockLabel?.trim();
 
-    if (!campaignContext?.campaignName?.trim() || !targetLabel) {
+    if (campaignContext?.campaignName?.trim() && targetLabel) {
+      return `For: ${campaignContext.campaignName} -> ${targetLabel}`;
+    }
+
+    const topicTitle = contentGenerationContext?.topicTitle?.trim();
+
+    if (!topicTitle) {
       return undefined;
     }
 
-    return `For: ${campaignContext.campaignName} → ${targetLabel}`;
-  }, [assignmentLabel, campaignContext]);
+    return `For: Content generation -> ${topicTitle}`;
+  }, [assignmentLabel, campaignContext, contentGenerationContext]);
 
   const recommendedAspectRatio = React.useMemo(
     () => resolveRecommendedAspectRatio(aspectRatioHint, campaignContext),
@@ -515,11 +586,27 @@ export function AIImageStudioDrawer({
   );
 
   const welcomeSuggestions = React.useMemo(
-    () => buildWelcomeSuggestions(campaignContext),
-    [campaignContext],
+    () =>
+      buildContentGenerationWelcomeSuggestions(contentGenerationContext) ||
+      buildWelcomeSuggestions(campaignContext),
+    [campaignContext, contentGenerationContext],
+  );
+
+  const welcomeBlockLabel = React.useMemo(
+    () =>
+      contentGenerationContext?.topicTitle?.trim() ||
+      campaignContext?.blockLabel,
+    [campaignContext, contentGenerationContext],
   );
 
   const welcomeDescription = React.useMemo(() => {
+    const contentGenerationDescription =
+      buildContentGenerationWelcomeDescription(contentGenerationContext);
+
+    if (contentGenerationDescription) {
+      return contentGenerationDescription;
+    }
+
     const targetLabel =
       assignmentLabel?.trim() || campaignContext?.blockLabel?.trim();
 
@@ -528,7 +615,7 @@ export function AIImageStudioDrawer({
     }
 
     return `Use the live copy from this ${targetLabel} block as a starting point, then refine the art direction.`;
-  }, [assignmentLabel, campaignContext]);
+  }, [assignmentLabel, campaignContext, contentGenerationContext]);
 
   const selectionConfirmation = React.useMemo(() => {
     if (!selectionConfirmationLabel) {
@@ -837,6 +924,7 @@ export function AIImageStudioDrawer({
     const storedTab = window.sessionStorage.getItem(LAST_USED_TAB_STORAGE_KEY);
     const nextTab = isAIImageStudioTab(storedTab) ? storedTab : "ai";
     setActiveTab(defaultTab || nextTab);
+    setInputPrompt(initialPrompt.trim());
 
     if (aspectRatioHint) {
       setGenerationConfig((currentConfig) => ({
@@ -857,6 +945,7 @@ export function AIImageStudioDrawer({
     clearCloseAfterUseTimer,
     clearThinkingPhaseTimer,
     contextType,
+    initialPrompt,
     initializeSession,
     loadInitialMessages,
     open,
@@ -919,6 +1008,7 @@ export function AIImageStudioDrawer({
         confirmationLabel ||
           assignmentLabel?.trim() ||
           campaignContext?.blockLabel?.trim() ||
+          contentGenerationContext?.topicTitle?.trim() ||
           "selected block",
       );
 
@@ -927,6 +1017,7 @@ export function AIImageStudioDrawer({
           confirmationLabel ||
           assignmentLabel?.trim() ||
           campaignContext?.blockLabel?.trim() ||
+          contentGenerationContext?.topicTitle?.trim() ||
           "current target";
 
         setMessages((previousMessages) => [
@@ -950,6 +1041,7 @@ export function AIImageStudioDrawer({
     [
       assignmentLabel,
       campaignContext,
+      contentGenerationContext,
       multiBlockFlow,
       onImageSelect,
       scheduleCloseAfterSelection,
@@ -968,14 +1060,16 @@ export function AIImageStudioDrawer({
       altText:
         image.userPrompt ||
         image.enhancedPrompt ||
+        contentTitle ||
         contentContext ||
         "AI image",
       dimensions: image.dimensions || null,
+      globalImageId: image.globalImageId,
       mimeType: image.mimeType || null,
       source: "ai-generated",
       tags: image.tags,
     }),
-    [contentContext],
+    [contentContext, contentTitle],
   );
 
   const loadMoreMessages = React.useCallback(async () => {
@@ -1462,7 +1556,7 @@ export function AIImageStudioDrawer({
 
         const imageResult = await generateSingleImageDetailed({
           contentContext: configuredPrompt,
-          contentTitle: prompt,
+          contentTitle: contentTitle || prompt,
           channel: imageGenerationChannel,
           uploadToStorage: true,
         });
@@ -1623,6 +1717,7 @@ export function AIImageStudioDrawer({
       campaignContext,
       clearThinkingPhaseTimer,
       contentContext,
+      contentTitle,
       ensureSessionId,
       fetchThinkingMessages,
       generateSingleImageDetailed,
@@ -1713,13 +1808,14 @@ export function AIImageStudioDrawer({
     }
 
     finalizeSelection(selectedImage, {
-      altText: inputPrompt || contentContext || "AI image",
+      altText: inputPrompt || contentTitle || contentContext || "AI image",
       source: "ai-generated",
     });
   }, [
     blockId,
     contextType,
     contentContext,
+    contentTitle,
     finalizeSelection,
     inputPrompt,
     selectedImage,
@@ -1879,7 +1975,8 @@ export function AIImageStudioDrawer({
           },
         }}
         sx={{
-          zIndex: (theme) => theme.vars.zIndex.modal ?? theme.zIndex.modal,
+          zIndex: (theme) =>
+            (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 120,
           "--Drawer-transitionDuration": prefersReducedMotion ? "0ms" : "300ms",
           "--Drawer-transitionFunction": "cubic-bezier(0.22, 1, 0.36, 1)",
           "--Drawer-horizontalSize": "620px",
@@ -2065,7 +2162,7 @@ export function AIImageStudioDrawer({
                   onSuggestionSelect={handleSuggestionSelect}
                   onUseImage={(image) => handleUseGeneratedImage(image)}
                   paddingX={contentPaddingX}
-                  welcomeBlockLabel={campaignContext?.blockLabel}
+                  welcomeBlockLabel={welcomeBlockLabel}
                   welcomeDescription={welcomeDescription}
                   welcomeSuggestions={welcomeSuggestions}
                 />

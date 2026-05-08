@@ -8,7 +8,12 @@ import {
 import { Button } from "@/components/ui-legacy/button";
 import { Textarea } from "@/components/ui-legacy/textarea";
 import { Badge } from "@/components/ui-legacy/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui-legacy/tabs";
 import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Switch } from "@/components/ui-legacy/switch";
 import { Label } from "@/components/ui-legacy/label";
@@ -29,10 +34,25 @@ import { ContentOptimizer } from "./ContentOptimizer";
 import { ImageSelectButton } from "@/components/image";
 import { CarouselImageSelector } from "./CarouselImageSelector";
 
+interface SmartPostTask {
+  id: string;
+  ai_output?: string | null;
+  image_idea?: string | null;
+}
+
+interface PublishTaskResponse {
+  success?: boolean;
+  message?: string;
+  results?: Array<{
+    success?: boolean;
+    error?: string;
+  }>;
+}
+
 interface SmartPostComposerProps {
   isOpen: boolean;
   onClose: () => void;
-  task: any;
+  task: SmartPostTask;
   platform: "facebook" | "instagram";
   onSuccess: () => void;
   onPostingStart: () => void;
@@ -117,7 +137,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         .eq("id", task.id);
 
       // Prepare payload with carousel support
-      const payload: any = {
+      const payload: {
+        taskId: string;
+        platforms: Array<"facebook" | "instagram">;
+        isCarousel?: boolean;
+        mediaUrls?: string[];
+      } = {
         taskId: task.id,
         platforms: [platform],
       };
@@ -137,6 +162,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       });
 
       const { data: responseData, error } = functionResponse;
+      const typedResponse = (responseData || {}) as PublishTaskResponse;
 
       if (error) {
         console.error("❌ Edge function returned error:", error);
@@ -145,8 +171,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         );
       }
 
-      if (responseData?.success) {
-        const result = responseData.results?.[0];
+      if (typedResponse.success) {
+        const result = typedResponse.results?.[0];
         if (result?.success) {
           toast.success(`Successfully posted to ${platformName}!`);
           onSuccess();
@@ -156,12 +182,16 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         }
       } else {
         throw new Error(
-          responseData?.message || `Failed to post to ${platform}`,
+          typedResponse.message || `Failed to post to ${platform}`,
         );
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error posting to ${platform}:`, error);
-      toast.error(error.message || `Failed to post to ${platform}`);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Failed to post to ${platform}`,
+      );
     } finally {
       setIsPosting(false);
     }
@@ -271,7 +301,9 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                   onImageSelect={async (imageUrl, metadata) => {
                     // The component handles database updates internally
                   }}
-                  contentContext={content || task?.ai_output}
+                  contentContext={
+                    task?.image_idea || content || task?.ai_output
+                  }
                 />
               )}
             </div>
