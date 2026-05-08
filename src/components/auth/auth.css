@@ -2579,17 +2579,33 @@
     min-height: 140px;
     padding: 84px clamp(24px, 5vw, 56px) 28px;
     overflow: hidden;
-    color: var(--auth-text-light);
-    /* Brand teal gradient pulled directly from the existing token
-       ramp — same teal that appears on the homepage hero accent and
-       the auth primary CTA button. */
+    /* Same warm off-white surface as the form panel so the two
+       halves read as one continuous surface, distinguished by
+       content not by darkness contrast. The botanical decoration
+       and the brand-tinted gradient overlay below give the brand
+       panel its identity without going dark/corporate. */
+    color: var(--auth-text);
+    background: var(--auth-bg-subtle);
+}
+
+/* Soft brand-tinted gradient overlay — uses --auth-green-50 (the
+   lightest brand teal, #E1FFFE) at low opacity in one corner so
+   the panel feels garden-fresh without any heavy color. The
+   homepage subtle sections (homepageCrm.css linear-gradient(160deg,
+   #F8F9FB → #F0F4F7 → #F8F9FB)) use a similar diagonal soft sweep. */
+.auth-split-shell__brand::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background:
         radial-gradient(ellipse at top left,
-            rgba(135, 223, 216, 0.32) 0%,
-            rgba(62, 124, 119, 0) 60%),
-        linear-gradient(160deg,
-            var(--auth-green-700) 0%,
-            var(--auth-green-900) 100%);
+            rgba(135, 223, 216, 0.16) 0%,
+            rgba(135, 223, 216, 0) 55%),
+        radial-gradient(ellipse at bottom right,
+            rgba(225, 255, 254, 0.5) 0%,
+            rgba(225, 255, 254, 0) 60%);
 }
 
 .auth-split-shell__brand-particles {
@@ -2598,9 +2614,12 @@
     z-index: 0;
     pointer-events: none;
     /* Scope the existing AuthNanoLeafParticles canvas to this panel
-       only and lift its visibility from the ~3-5% it has on the
-       legacy centered layout to ~28% via this overlay opacity. */
-    opacity: 0.28;
+       only. With the panel now on a light off-white surface (vs
+       earlier dark-green gradient), we lower the wrapper opacity
+       slightly — the canvas's per-particle colors already use the
+       brand teal ramp which reads strongly enough against off-white
+       at 0.16 to feel like atmospheric drift, not visual noise. */
+    opacity: 0.16;
 }
 
 .auth-split-shell__brand-particles .auth-particle-canvas {
@@ -2623,13 +2642,18 @@
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    color: var(--auth-text-light);
+    color: var(--auth-green-900);
     text-decoration: none;
 }
 
-.auth-split-shell__brand-mark .auth-layout__logo {
-    width: 48px;
-    height: 48px;
+.auth-split-shell__brand-mark img {
+    /* Render the canonical homepage logo asset at hero size in the
+       auth context. The homepage nav uses h-7 w-7 (28px); we bump
+       to 56px here to give the brand panel a clear visual anchor. */
+    display: block;
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
 }
 
 .auth-split-shell__brand-wordmark {
@@ -2638,12 +2662,12 @@
     font-weight: 800;
     letter-spacing: -0.01em;
     line-height: 1;
-    color: var(--auth-text-light);
+    color: var(--auth-green-900);
 }
 
 .auth-split-shell__brand-headline {
     margin: 0;
-    color: var(--auth-text-light);
+    color: var(--auth-green-900);
     font-family: var(--auth-font-display);
     /* Match the homepage hero headline scale shipped this evening. */
     font-size: clamp(1.75rem, 3vw, 2.5rem);
@@ -2654,7 +2678,7 @@
 
 .auth-split-shell__brand-tagline {
     margin: 0;
-    color: rgba(225, 255, 254, 0.88);
+    color: var(--auth-text-muted);
     font-size: 15px;
     line-height: 1.55;
     max-width: 420px;
@@ -2663,7 +2687,7 @@
 .auth-split-shell__brand-tagline strong {
     display: block;
     margin-bottom: 4px;
-    color: var(--auth-text-light);
+    color: var(--auth-green-700);
     font-size: 16px;
     font-weight: 800;
     letter-spacing: 0.01em;
@@ -2673,7 +2697,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: rgba(225, 255, 254, 0.86);
+    color: var(--auth-green-700);
     font-size: 13px;
     font-weight: 700;
     line-height: 1.4;
@@ -2682,7 +2706,47 @@
 .auth-split-shell__brand-trust svg {
     width: 16px;
     height: 16px;
-    color: var(--auth-green-300);
+    color: var(--auth-green-500);
+}
+
+/* Botanical decoration anchored to the bottom-right of the brand
+   panel. Same teardrop leaf shape as the AuthNanoLeafParticles
+   canvas (bezier control points 0.72/-0.42 and 0.66/0.48 baked into
+   the SVG path) so the static decoration is visually continuous
+   with the canvas particles drifting across the panel above it.
+   Pure decoration — sits BELOW headline/tagline content via z-index
+   and aria-hidden via inline attribute on the SVG. */
+.auth-split-shell__brand-foliage {
+    position: absolute;
+    right: -4%;
+    bottom: -4%;
+    z-index: 0;
+    width: clamp(220px, 32vw, 380px);
+    height: auto;
+    pointer-events: none;
+    color: var(--auth-green-400);
+}
+
+@media (min-width: 1024px) {
+    .auth-split-shell__brand-foliage {
+        right: -2%;
+        bottom: -3%;
+        width: clamp(280px, 26vw, 420px);
+    }
+}
+
+@media (max-width: 767px) {
+    .auth-split-shell__brand-foliage {
+        right: -6%;
+        bottom: -10%;
+        width: 180px;
+    }
+}
+
+.auth-split-shell__brand-foliage svg {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 .auth-split-shell__form {
