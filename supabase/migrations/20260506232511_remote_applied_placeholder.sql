@@ -1,0 +1,3 @@
+-- Placeholder migration.
+-- This version exists in the remote Supabase migration history but was missing locally.
+-- No-op: schema already reflects this migration in the remote environment.
