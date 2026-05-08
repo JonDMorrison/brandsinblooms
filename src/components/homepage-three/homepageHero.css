@@ -5,13 +5,20 @@
     /* Grid rows shrink to natural content height in scroll mode so the
        banner sits cleanly below the copy. */
     grid-template-rows: auto auto;
-    row-gap: clamp(40px, 5vw, 72px);
+    /* Tightened from 40-72px so the banner illustration sits closer
+       to the CTAs after the headline shrunk to single-line size. */
+    row-gap: clamp(28px, 3.5vw, 52px);
     align-items: start;
     justify-items: center;
     width: 100%;
     height: 100%;
     min-height: 100dvh;
-    padding: 96px clamp(20px, 4vw, 64px) 64px;
+    /* Reduced top padding from 96px → 64px to lift the whole hero
+       composition (eyebrow → headline → CTAs → banner image) closer
+       to the viewport top. The banner illustration becomes more
+       visually prominent without growing its own dimensions because
+       more of it sits above the fold. */
+    padding: 64px clamp(20px, 4vw, 64px) 56px;
 }
 
 .hp-hero__copy {
@@ -38,16 +45,22 @@
 
 .hp-hero__headline {
     display: grid;
-    gap: 4px;
+    /* Tight gap so the rotating line and the static "Built For
+       Garden Centres." line read as visually adjacent. Was 4px when
+       the rotating line reserved 2-3 lines of vertical space — that
+       reservation is gone, so the two lines no longer need extra
+       breathing room between them. */
+    gap: 8px;
     margin: 0;
     font-family: var(--hp-font-display);
-    /* Tuned so the longest rotating phrase (43 chars) wraps to two
-       lines at 1280px and never to three lines down to 414px. Floor
-       2.25rem (36px) holds at narrow mobile; ceiling 4rem (64px) on
-       large desktop. The shared declaration applies to both the
-       rotating line and the static "Built For Garden Centres." line
-       so the visual rhythm stays consistent. */
-    font-size: clamp(2.25rem, 4.5vw, 4rem);
+    /* Sized so the longest rotating phrase (43 chars
+       "One marketing login for your whole business") fits on a
+       single line at 1024px viewport: at the 2.5rem (40px) cap with
+       Quicksand-900 char-width ≈ 0.5em, the phrase renders at
+       ~860px inside a ~942px container. Combined with white-space:
+       nowrap on the rotating line below, this guarantees one line
+       at every desktop breakpoint (>=768px). */
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
     font-weight: 900;
     line-height: 1.1;
     letter-spacing: var(--hp-tracking-display);
@@ -68,20 +81,22 @@
 
 .hp-hero__headline-line--rotating {
     /* display: block (default for spans inside a grid h1) keeps the
-       typed text + cursor in normal inline flow so the cursor sits at
-       the end of the last visual line of text — never wrapping to its
-       own row below a 2-line phrase. (Earlier inline-flex caused the
-       cursor to flex-wrap to a 3rd row when the text filled 2.) */
+       typed text + cursor in normal inline flow so the cursor sits
+       at the end of the typed text. (Earlier inline-flex caused the
+       cursor to flex-wrap to its own row when the text wrapped.) */
     display: block;
-    /* Reserve two lines of vertical space (2 × line-height 1.1 = 2.2em
-       plus ~0.2em of descender slack — without the slack, the parent
-       .hp-hero__headline-line { overflow: hidden } clips the bottom
-       3px of descenders ("g", "p", "y") on 2-line phrases) so the
-       subhead, CTAs, and banner below never reflow while a phrase
-       types from short to long or wraps from one line to two mid-
-       animation. The longest rotating phrase wraps to two lines at
-       1280px; shorter phrases just leave the second line empty. */
-    min-height: 2.4em;
+    /* Single line of vertical space — exactly enough for the line
+       itself, no animation reservation. Combined with white-space:
+       nowrap below this guarantees the rotating phrase never adds
+       vertical space mid-animation, so the static line and the rest
+       of the hero never shift. */
+    min-height: 1.1em;
+    /* Force single-line rendering on every desktop breakpoint
+       (>=768px). The headline font-size is tuned so the longest
+       phrase fits in the container at 1024px; nowrap is the safety
+       belt that prevents any mid-word wrap if our font math is off
+       at an unusual viewport. Mobile rule below restores wrapping. */
+    white-space: nowrap;
 }
 
 .hp-hero__cursor {
@@ -123,10 +138,11 @@
     display: grid;
     justify-items: center;
     align-self: start;
-    /* Banner is ~21:9. Give it more horizontal room than the previous
-       narrower dashboard mockup got so the figure + floating panels read
-       cleanly. */
-    width: min(92vw, 1320px);
+    /* Banner is ~21:9. Bumped from min(92vw, 1320px) to
+       min(96vw, 1600px) — the cap grows ~21% on ultra-wide
+       monitors and the bleed expands to 96vw on standard desktops
+       so the banner reads as the visual anchor of the hero. */
+    width: min(96vw, 1600px);
 }
 
 .hp-hero__banner {
@@ -238,33 +254,34 @@
 
 @media (max-width: 1100px) {
     .hp-hero__visual {
-        width: min(94vw, 980px);
+        /* Match the desktop bump proportionally: was 980px max →
+           grow to 1180px so the banner stays prominent on tablet. */
+        width: min(96vw, 1180px);
     }
 }
 
 @media (max-width: 767px) {
     .hp-hero {
         grid-template-rows: auto auto;
-        padding: 84px 16px 52px;
+        padding: 56px 16px 40px;
     }
 
     .hp-hero__copy {
         gap: 14px;
     }
 
-    /* No mobile font-size override: the base clamp(2.25rem, 4.5vw,
-       4rem) already floors at 36px below ~800px viewports, which is
-       what we want for narrow screens. */
-
     .hp-hero__headline-line--rotating {
-        /* On narrow viewports the 36px font + container ~340px gives
-           ~17 chars per line, which means the 35-43 char phrases wrap
-           to 3 lines instead of 2. Reserve 3 lines of space (3 ×
-           line-height 1.1 = 3.3em + 0.1em descender slack) so the
-           3rd line isn't clipped by overflow:hidden on the parent
-           and the subhead/CTAs/banner below don't shift as a phrase
-           grows past 2 lines mid-animation. */
-        min-height: 3.4em;
+        /* Mobile tradeoff: at the 28px floor (1.75rem) and ~340px
+           container width on iPhone SE, even the shortest phrases
+           barely fit on one line and the 38/43-char phrases must
+           wrap. Allow natural wrap on mobile so the phrase renders
+           in full instead of overflowing the viewport. The static
+           "Built For Garden Centres." line below shifts down by ~36px
+           when a wrapping phrase is animating; that's an acceptable
+           mobile tradeoff (the user is already scrolling) and far
+           better than truncation or a forced-tiny font. */
+        white-space: normal;
+        min-height: 1.1em;
     }
 
     .hp-hero__ctas {
@@ -281,13 +298,13 @@
     }
 
     .hp-hero__visual {
-        width: 95vw;
+        width: 100vw;
     }
 }
 
 @media (max-height: 760px) and (min-width: 768px) {
     .hp-hero {
-        padding-top: 82px;
+        padding-top: 48px;
     }
 }
 
