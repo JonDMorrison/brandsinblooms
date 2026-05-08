@@ -92,7 +92,14 @@ export function SetupNextStepsBanner() {
       title: "Send your first email campaign",
       description:
         "Your content library is ready — pick a template and send.",
-      href: "/crm/campaigns/new",
+      // Route to the newsletter picker (NewsletterNewPage at
+      // /newsletters/new) where users choose Start from Scratch /
+      // Pick an Idea / template — same destination the Getting
+      // Started "Send My First Newsletter" card was pointed at in
+      // commit 20126d26. /crm/campaigns/new mounts
+      // CRMCampaignEditorPage directly, which IS the blank editor
+      // we're trying to avoid dropping users into.
+      href: "/newsletters/new",
       cta: "Create campaign",
     });
   }

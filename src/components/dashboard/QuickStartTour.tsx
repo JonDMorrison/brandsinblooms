@@ -34,7 +34,7 @@ const tourSteps = [
     description: "Create a beautiful email campaign in just 3 minutes",
     icon: <Mail className="w-8 h-8 text-blue-600" />,
     action: "Create Newsletter",
-    route: "/crm/campaigns/new?type=newsletter",
+    route: "/newsletters/new",
     tips: [
       "Choose from pre-made templates",
       "AI helps write your content",
