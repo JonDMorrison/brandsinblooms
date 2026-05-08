@@ -96,7 +96,7 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
       description: "Use our templates to send your first email or SMS to connect with customers.",
       isComplete: campaignCount > 0,
       actions: [
-        { type: 'primary', label: 'Create Email Campaign', action: () => navigate('/crm/campaigns/new') },
+        { type: 'primary', label: 'Create Email Campaign', action: () => navigate('/newsletters/new') },
         { type: 'secondary', label: 'Create SMS Campaign', action: () => navigate('/crm/sms/new') }
       ]
     }
