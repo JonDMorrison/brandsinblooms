@@ -46,21 +46,18 @@
 .hp-hero__headline {
     display: grid;
     /* Tight gap so the rotating line and the static "Built For
-       Garden Centres." line read as visually adjacent. Was 4px when
-       the rotating line reserved 2-3 lines of vertical space — that
-       reservation is gone, so the two lines no longer need extra
-       breathing room between them. */
+       Garden Centres." line read as visually adjacent. */
     gap: 8px;
     margin: 0;
     font-family: var(--hp-font-display);
-    /* Sized so the longest rotating phrase (43 chars
-       "One marketing login for your whole business") fits on a
-       single line at 1024px viewport: at the 2.5rem (40px) cap with
-       Quicksand-900 char-width ≈ 0.5em, the phrase renders at
-       ~860px inside a ~942px container. Combined with white-space:
+    /* Sized so the longest rotating phrase (now 34 chars,
+       "Email and SMS that send themselves") fits on a single line
+       at 1024px viewport: at the 3.25rem (52px) cap with
+       Quicksand-900 char-width ≈ 0.52em, the phrase renders ~919px
+       wide inside a ~942px container. Combined with white-space:
        nowrap on the rotating line below, this guarantees one line
        at every desktop breakpoint (>=768px). */
-    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
     font-weight: 900;
     line-height: 1.1;
     letter-spacing: var(--hp-tracking-display);
@@ -97,6 +94,16 @@
        belt that prevents any mid-word wrap if our font math is off
        at an unusual viewport. Mobile rule below restores wrapping. */
     white-space: nowrap;
+    /* Override the parent .hp-hero__headline-line { overflow: hidden }
+       on the rotating line ONLY. With nowrap forcing single-line
+       layout, any momentary overflow during typing (e.g. while a
+       phrase is animating to its full width) used to get clipped
+       mid-word by overflow:hidden. The entrance clip-path reveal
+       still lives on its own animation and doesn't need overflow
+       hidden to do its job — it animates clip-path: inset(100% 0 0 0)
+       → inset(0 0 0 0) which clips its own content while running.
+       The static line below keeps overflow:hidden for safety. */
+    overflow: visible;
 }
 
 .hp-hero__cursor {
@@ -138,11 +145,15 @@
     display: grid;
     justify-items: center;
     align-self: start;
-    /* Banner is ~21:9. Bumped from min(92vw, 1320px) to
-       min(96vw, 1600px) — the cap grows ~21% on ultra-wide
-       monitors and the bleed expands to 96vw on standard desktops
-       so the banner reads as the visual anchor of the hero. */
-    width: min(96vw, 1600px);
+    /* Full-bleed: 100vw plus the classic margin-left:
+       calc(50% - 50vw) trick so the banner illustration breaks out
+       of the .hp-hero parent's horizontal padding and touches both
+       viewport edges at every breakpoint. The text content
+       (eyebrow, headline, subhead, CTAs) keeps its existing centered
+       padded layout — only the banner goes edge-to-edge. */
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
 }
 
 .hp-hero__banner {
@@ -252,13 +263,9 @@
     }
 }
 
-@media (max-width: 1100px) {
-    .hp-hero__visual {
-        /* Match the desktop bump proportionally: was 980px max →
-           grow to 1180px so the banner stays prominent on tablet. */
-        width: min(96vw, 1180px);
-    }
-}
+/* No tablet-specific .hp-hero__visual width override — the base
+   rule's 100vw + margin-left bleed trick already gives full-bleed at
+   every breakpoint. */
 
 @media (max-width: 767px) {
     .hp-hero {
@@ -297,9 +304,8 @@
         font-size: 0.88rem;
     }
 
-    .hp-hero__visual {
-        width: 100vw;
-    }
+    /* Mobile-specific .hp-hero__visual rule removed — the base
+       full-bleed rule already covers mobile. */
 }
 
 @media (max-height: 760px) and (min-width: 768px) {
