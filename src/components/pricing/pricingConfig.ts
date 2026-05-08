@@ -134,4 +134,14 @@ export const pricingFaqs = [
     question: "Is there a free trial?",
     answer: "Yes! We offer a 14-day free trial with full access to all features. No credit card required to start.",
   },
+  {
+    question: "Can I import my existing customer list?",
+    answer:
+      "Yes. Bring contacts from a CSV, Mailchimp, Klaviyo, or your POS system. We'll automatically suppress addresses that aren't deliverable so your sender reputation stays healthy.",
+  },
+  {
+    question: "Do you offer a money-back guarantee?",
+    answer:
+      "We offer a 14-day free trial with no credit card required. If BloomSuite isn't a fit during your first 30 paid days, we'll refund your money — no questions asked.",
+  },
 ];

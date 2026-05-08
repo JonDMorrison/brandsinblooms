@@ -2,9 +2,74 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
 import { Badge } from "@/components/ui-legacy/badge";
 import { Button } from "@/components/ui-legacy/button";
-import { Check, Mail, MessageSquare, Globe, ArrowRight } from "lucide-react";
+import { Check, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { pricingTiers } from "./pricingConfig";
 import { cn } from "@/lib/utils";
+
+// Per-tier display copy that's specific to the redesigned grid —
+// volume translation, included list, overages summary, and CTA
+// label. Keyed off the canonical id from pricingConfig.ts so plan
+// IDs (consumed by Stripe webhooks, billing edge functions, and the
+// SubscriptionContext PAID_PLANS list) stay the single source of
+// truth. Seed is intentionally absent from this map so it gets
+// filtered out of the rendered grid below; its config record stays
+// in pricingTiers for billing consumers that still reference it.
+interface DisplayCopy {
+  volumeTranslation: string;
+  bestFor: string;
+  included: string[];
+  overages: string;
+  ctaLabel: string;
+}
+
+const displayCopy: Record<string, DisplayCopy> = {
+  sprout: {
+    bestFor: "Single-location garden centres with up to 5,000 customers.",
+    volumeTranslation:
+      "Run weekly newsletters and seasonal SMS to your full list.",
+    included: [
+      "20,000 emails/month",
+      "2,000 SMS/month",
+      "Website + Ecommerce storefront",
+      "Garden centre CRM with prebuilt personas",
+      "All campaigns, automations, and reporting",
+    ],
+    overages: "Email $0.002 each · SMS $0.05 each",
+    ctaLabel: "Start with Sprout",
+  },
+  bloom: {
+    bestFor: "Established garden centres with 5,000–25,000 customers.",
+    volumeTranslation:
+      "Run weekly campaigns plus automated seasonal flows to a growing list.",
+    included: [
+      "100,000 emails/month",
+      "5,000 SMS/month",
+      "Website + Ecommerce storefront",
+      "Garden centre CRM with prebuilt personas",
+      "All campaigns, automations, and reporting",
+    ],
+    overages: "Email $0.002 each · SMS $0.05 each",
+    ctaLabel: "Start with Bloom",
+  },
+  thrive: {
+    bestFor: "Multi-location chains and high-volume retailers.",
+    volumeTranslation:
+      "Unlimited campaigns across locations with priority support.",
+    included: [
+      "Unlimited emails (fair use)",
+      "50,000 SMS/month (fair use)",
+      "Website + Ecommerce storefront",
+      "Garden centre CRM with prebuilt personas",
+      "All campaigns, automations, and reporting",
+      "Priority support + dedicated onboarding",
+    ],
+    overages: "Email included · SMS only for extraordinary overuse",
+    ctaLabel: "Start with Thrive",
+  },
+};
+
+const ROLE_LINE = "Website + Ecommerce + BloomSuite";
 
 export const PricingCardsGrid = () => {
   const navigate = useNavigate();
@@ -13,114 +78,132 @@ export const PricingCardsGrid = () => {
     navigate(`/auth?tier=${tierId}`);
   };
 
+  // Filter out tiers that aren't part of the new public grid (Seed
+  // is excluded from display per the redesign). The underlying
+  // pricingConfig record stays so any Stripe/billing consumer that
+  // looks up a tier by id continues to work.
+  const visibleTiers = pricingTiers.filter((tier) => tier.id in displayCopy);
+
   return (
-    <section className="py-16 px-6 bg-white">
-      <div className="max-w-7xl mx-auto">
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {pricingTiers.map((tier) => {
+    <section className="py-12 md:py-16 px-6 bg-white">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {visibleTiers.map((tier) => {
             const IconComponent = tier.icon;
-            
+            const copy = displayCopy[tier.id];
+
             return (
-              <Card 
+              <Card
                 key={tier.id}
                 className={cn(
-                  "relative flex flex-col transition-all duration-300 hover:shadow-xl",
-                  tier.recommended 
-                    ? "border-2 border-[#2F7A4F] shadow-lg shadow-[#2F7A4F]/10 scale-[1.02]" 
-                    : "border border-gray-200 hover:border-[#2F7A4F]/30"
+                  "relative flex flex-col transition-all duration-300 hover:shadow-xl pt-2",
+                  tier.recommended
+                    ? "pricing-card--popular border-2 border-[#3E7C77]"
+                    : "border border-gray-200 hover:border-[#3E7C77]/30",
                 )}
               >
-                {/* Recommended badge */}
                 {tier.recommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-[#2F7A4F] hover:bg-[#2F7A4F] text-white px-4 py-1 text-xs font-semibold">
+                    <Badge className="bg-[#3E7C77] hover:bg-[#3E7C77] text-white px-4 py-1 text-xs font-semibold shadow-md">
                       Most Popular
                     </Badge>
                   </div>
                 )}
 
                 <CardHeader className="pb-4">
-                  {/* Tier icon and name */}
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={cn(
-                      "w-10 h-10 rounded-lg flex items-center justify-center",
-                      tier.recommended 
-                        ? "bg-[#2F7A4F] text-white" 
-                        : "bg-[#2F7A4F]/10 text-[#2F7A4F]"
-                    )}>
+                    <div
+                      className={cn(
+                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        tier.recommended
+                          ? "bg-[#3E7C77] text-white"
+                          : "bg-[#E1FFFE] text-[#1F4341]",
+                      )}
+                    >
                       <IconComponent className="w-5 h-5" />
                     </div>
-                    <span className="text-lg font-semibold text-gray-900">{tier.name}</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {tier.name}
+                    </span>
                   </div>
 
-                  {/* Price */}
                   <div className="mb-3">
-                    <span className="text-4xl font-bold text-gray-900">${tier.price}</span>
-                    <span className="text-gray-500 ml-1">/month</span>
+                    <span className="text-5xl font-bold text-gray-900 leading-none">
+                      ${tier.price}
+                    </span>
+                    <span className="text-gray-500 ml-1 text-base">
+                      /month
+                    </span>
                   </div>
 
-                  {/* Description */}
-                  <p className="text-sm text-gray-600">{tier.description}</p>
+                  <p className="text-sm text-gray-600 font-medium">
+                    {ROLE_LINE}
+                  </p>
                 </CardHeader>
 
                 <CardContent className="flex-1 flex flex-col pt-0">
-                  {/* Best for */}
-                  <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium text-gray-900">Best for: </span>
-                      {tier.bestFor}
+                  <div className="mb-5 p-3 bg-[#F8F9FB] rounded-lg border border-gray-100">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold text-gray-900">
+                        Best for:{" "}
+                      </span>
+                      {copy.bestFor}
                     </p>
                   </div>
 
-                  {/* Includes */}
+                  <p className="text-sm italic text-[#1F4341] mb-5 leading-relaxed">
+                    {copy.volumeTranslation}
+                  </p>
+
                   <div className="space-y-3 mb-6">
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
                       Included
                     </p>
                     <ul className="space-y-2">
-                      <li className="flex items-center gap-2 text-sm text-gray-700">
-                        <Mail className="w-4 h-4 text-[#2F7A4F]" />
-                        {tier.includes.emails}
-                      </li>
-                      <li className="flex items-center gap-2 text-sm text-gray-700">
-                        <MessageSquare className="w-4 h-4 text-[#2F7A4F]" />
-                        {tier.includes.sms}
-                      </li>
-                      {tier.includes.website && (
-                        <li className="flex items-center gap-2 text-sm text-gray-700">
-                          <Globe className="w-4 h-4 text-[#2F7A4F]" />
-                          Website + Ecommerce
+                      {copy.included.map((line) => (
+                        <li
+                          key={line}
+                          className="flex items-start gap-2 text-sm text-gray-700"
+                        >
+                          <Check className="w-4 h-4 text-[#3E7C77] flex-shrink-0 mt-[3px]" />
+                          <span>{line}</span>
                         </li>
-                      )}
+                      ))}
                     </ul>
                   </div>
 
-                  {/* Overages */}
-                  <div className="space-y-2 mb-6 pb-6 border-b border-gray-100">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  <div className="mb-6 pb-6 border-b border-gray-100">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
                       Overages
                     </p>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>Email: {tier.overages.emails}</p>
-                      <p>SMS: {tier.overages.sms}</p>
-                    </div>
+                    <p className="text-xs text-gray-500">{copy.overages}</p>
                   </div>
 
-                  {/* CTA Button */}
                   <div className="mt-auto">
                     <Button
                       onClick={() => handleGetStarted(tier.id)}
                       className={cn(
                         "w-full group",
                         tier.recommended
-                          ? "bg-[#2F7A4F] hover:bg-[#256B42] text-white"
-                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                          ? "bg-[#3E7C77] hover:bg-[#2E605C] text-white"
+                          : "bg-gray-900 hover:bg-gray-800 text-white",
                       )}
                     >
-                      Get Started
+                      {copy.ctaLabel}
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
+
+                    {tier.id === "thrive" && (
+                      <p className="text-xs text-gray-500 mt-3 text-center">
+                        Larger operation?{" "}
+                        <Link
+                          to="/contact"
+                          className="text-[#3E7C77] font-semibold hover:underline"
+                        >
+                          Talk to sales →
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

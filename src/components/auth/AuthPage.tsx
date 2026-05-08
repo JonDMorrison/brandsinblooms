@@ -22,61 +22,13 @@ import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
 // with the rest of the marketing surface.
 import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
-// Botanical decoration anchored to the bottom-right of the brand
-// panel. The leaf path matches the bezier teardrop drawn by
-// AuthNanoLeafParticles (control points 0.72/-0.42 and 0.66/0.48
-// from authParticles.ts) so the static decoration is visually
-// continuous with the canvas particles drifting above it. Opacities
-// stagger to give the cluster a hand-arranged feel rather than a
-// uniform grid.
-const BrandFoliage = () => (
-  <svg
-    viewBox="0 0 320 240"
-    fill="none"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <g transform="translate(220 130) rotate(-22)" opacity="0.55">
-      <path
-        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="currentColor"
-      />
-    </g>
-    <g
-      transform="translate(160 110) rotate(18) scale(1.1)"
-      opacity="0.42"
-    >
-      <path
-        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="var(--auth-green-300)"
-      />
-    </g>
-    <g transform="translate(110 150) rotate(-58)" opacity="0.5">
-      <path
-        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="currentColor"
-      />
-    </g>
-    <g
-      transform="translate(60 90) rotate(34) scale(0.74)"
-      opacity="0.36"
-    >
-      <path
-        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="var(--auth-green-500)"
-      />
-    </g>
-    <g
-      transform="translate(245 60) rotate(72) scale(0.68)"
-      opacity="0.32"
-    >
-      <path
-        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
-        fill="var(--auth-green-300)"
-      />
-    </g>
-  </svg>
-);
+// Shared botanical decoration. Extracted to src/components/brand/
+// so the pricing page (and future marketing surfaces) can reuse the
+// same leaf cluster. Comment in the original auth-only inline
+// version explained the bezier control-point match against the
+// AuthNanoLeafParticles canvas; that note now lives in the
+// BrandFoliage source file.
+import { BrandFoliage } from "@/components/brand";
 
 type AuthMode = "signin" | "signup";
 type SignInField = "email" | "password";

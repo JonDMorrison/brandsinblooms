@@ -1,93 +1,71 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { PricingHeroNew } from "@/components/pricing/PricingHeroNew";
+import { CostComparison } from "@/components/pricing/CostComparison";
+import { EveryPlanBanner } from "@/components/pricing/EveryPlanBanner";
 import { PricingCardsGrid } from "@/components/pricing/PricingCardsGrid";
-import { AllPlansInclude } from "@/components/pricing/AllPlansInclude";
-import { WhyThisWorks } from "@/components/pricing/WhyThisWorks";
+import { CustomerProof } from "@/components/pricing/CustomerProof";
+import { RoiPayback } from "@/components/pricing/RoiPayback";
 import { FuturePricingSection } from "@/components/pricing/FuturePricingSection";
 import { PricingFAQ } from "@/components/pricing/PricingFAQ";
 import { FinalCTANew } from "@/components/pricing/FinalCTANew";
+// Token scope import — without this the .hp-token-scope wrapper
+// below has no token definitions to resolve. (The same file is
+// imported by HomepagePresentation; ESM dedupes so this is free.)
+import "@/components/homepage-three/homepageTokens.css";
+// Pricing-specific bespoke styling (radial overlays, foliage
+// positioning, comparison cards, ROI panel, final CTA backdrop).
+import "@/components/pricing/pricingPage.css";
 
 const PricingPage = () => {
   const navigate = useNavigate();
-  const { refreshSubscription, subscription } = useSubscription();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { refreshSubscription } = useSubscription();
 
-  const handleStartTrial = () => {
-    navigate('/auth');
-  };
-
-  const handleSelectPlan = async () => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          plan: 'bloomsuite',
-          billingInterval: 'year'
-        }
-      });
-
-      if (error) {
-        console.error('Checkout error:', error);
-        return;
-      }
-
-      if (data?.url) {
-        try {
-          if (window.top) {
-            window.top.location.href = data.url;
-          } else {
-            window.location.href = data.url;
-          }
-        } catch {
-          window.open(data.url, '_blank', 'noopener,noreferrer');
-        }
-      } else {
-        console.error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Unexpected error during checkout:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check for checkout success/cancel in URL params
+  // Stripe checkout completion / cancel handler. Preserved verbatim
+  // from the prior version — billing constraint says "Do NOT change
+  // Stripe checkout integration." The new plan cards navigate to
+  // /auth?tier=... and the actual checkout call lives in the
+  // post-auth flow, so this page only needs the URL-param cleanup.
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const checkout = urlParams.get('checkout');
-    
-    if (checkout === 'success') {
+    const checkout = urlParams.get("checkout");
+
+    if (checkout === "success") {
       refreshSubscription();
       window.history.replaceState({}, document.title, window.location.pathname);
-      navigate('/');
-    } else if (checkout === 'cancelled') {
+      navigate("/");
+    } else if (checkout === "cancelled") {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate, refreshSubscription]);
 
   return (
     <div className="min-h-screen bg-white">
-      <LandingPageHeader onLogin={() => navigate('/auth')} showUserMenu={true} />
-      <PricingHeroNew />
-      <PricingCardsGrid />
-      <AllPlansInclude />
-      <WhyThisWorks />
-      <FuturePricingSection />
-      <PricingFAQ />
-      <FinalCTANew />
+      <LandingPageHeader
+        onLogin={() => navigate("/auth")}
+        showUserMenu={true}
+      />
+      {/*
+        .hp-token-scope mounts the canonical --hp-* token table so
+        every section below resolves to the same teal/cream/text
+        values used across the homepage marketing surface. Per the
+        constraint "Do NOT introduce new design tokens" the wrapper
+        REUSES the existing scope rather than redeclaring values.
+      */}
+      <div className="hp-token-scope">
+        <PricingHeroNew />
+        <CostComparison />
+        <EveryPlanBanner />
+        <PricingCardsGrid />
+        <CustomerProof />
+        <RoiPayback />
+        <FuturePricingSection />
+        <PricingFAQ />
+        <FinalCTANew />
+      </div>
     </div>
   );
 };
