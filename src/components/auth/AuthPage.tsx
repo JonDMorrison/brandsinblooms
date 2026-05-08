@@ -15,37 +15,66 @@ import { useDeviceTier } from "@/components/homepage-three/performance/useDevice
 import { HERO_CONTENT } from "@/components/homepage-three/content/heroContent";
 import { Building2, Leaf, Lock, Mail, User } from "lucide-react";
 import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
+// Canonical BloomSuite brand mark — same PNG asset rendered by the
+// homepage navigation header (LandingPageHeader.tsx) and footer
+// (HomepagePricingCtaFooterSection.tsx). Importing the asset
+// instead of inlining a different SVG keeps the auth page aligned
+// with the rest of the marketing surface.
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 
-// Inline BloomSuite mark — same SVG previously rendered inside
-// AuthLayout. The split-screen layout doesn't use AuthLayout so the
-// mark moves here. Color stops match --auth-green-500 / --auth-green-300.
-const BloomSuiteMark = () => (
+// Botanical decoration anchored to the bottom-right of the brand
+// panel. The leaf path matches the bezier teardrop drawn by
+// AuthNanoLeafParticles (control points 0.72/-0.42 and 0.66/0.48
+// from authParticles.ts) so the static decoration is visually
+// continuous with the canvas particles drifting above it. Opacities
+// stagger to give the cluster a hand-arranged feel rather than a
+// uniform grid.
+const BrandFoliage = () => (
   <svg
-    className="auth-layout__logo"
-    viewBox="0 0 40 40"
-    role="img"
-    aria-labelledby="auth-logo-title"
+    viewBox="0 0 320 240"
+    fill="none"
+    aria-hidden="true"
     focusable="false"
   >
-    <title id="auth-logo-title">BloomSuite</title>
-    <defs>
-      <linearGradient id="auth-logo-gradient" x1="8" y1="32" x2="32" y2="8">
-        <stop stopColor="#3E7C77" />
-        <stop offset="1" stopColor="#87DFD8" />
-      </linearGradient>
-    </defs>
-    <rect width="40" height="40" rx="12" fill="#E1FFFE" />
-    <path
-      d="M20 31c-5.7-4.28-8.55-8.8-8.55-13.56 0-4.05 2.34-7.12 5.53-7.12 1.72 0 3.02.78 3.89 2.34.86-1.56 2.16-2.34 3.89-2.34 3.19 0 5.53 3.07 5.53 7.12C30.29 22.2 26.86 26.72 20 31Z"
-      fill="url(#auth-logo-gradient)"
-    />
-    <path
-      d="M20.12 28.7c.28-4.26 1.58-8.38 3.92-12.36"
-      fill="none"
-      stroke="rgba(255,255,255,0.74)"
-      strokeLinecap="round"
-      strokeWidth="1.6"
-    />
+    <g transform="translate(220 130) rotate(-22)" opacity="0.55">
+      <path
+        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
+        fill="currentColor"
+      />
+    </g>
+    <g
+      transform="translate(160 110) rotate(18) scale(1.1)"
+      opacity="0.42"
+    >
+      <path
+        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
+        fill="var(--auth-green-300)"
+      />
+    </g>
+    <g transform="translate(110 150) rotate(-58)" opacity="0.5">
+      <path
+        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
+        fill="currentColor"
+      />
+    </g>
+    <g
+      transform="translate(60 90) rotate(34) scale(0.74)"
+      opacity="0.36"
+    >
+      <path
+        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
+        fill="var(--auth-green-500)"
+      />
+    </g>
+    <g
+      transform="translate(245 60) rotate(72) scale(0.68)"
+      opacity="0.32"
+    >
+      <path
+        d="M50 0 C 86 29 83 74 50 100 C 17 74 14 29 50 0 Z"
+        fill="var(--auth-green-300)"
+      />
+    </g>
   </svg>
 );
 
@@ -664,8 +693,11 @@ export const AuthPage = () => {
         >
           {/*
            * Existing canvas-based leaf scatter, scoped to the brand
-           * panel via this absolute-positioned wrapper at 28%
-           * opacity (vs ~3-5% on the legacy centered layout).
+           * panel via this absolute-positioned wrapper at 16%
+           * opacity. The panel is now on a light off-white surface,
+           * so the wrapper opacity is lower than the previous dark-
+           * gradient version and the static <BrandFoliage> SVG below
+           * provides the heavier botanical anchor.
            */}
           <div
             className="auth-split-shell__brand-particles"
@@ -674,13 +706,25 @@ export const AuthPage = () => {
             <AuthNanoLeafParticles tier={tier} />
           </div>
 
+          {/*
+           * Static botanical decoration anchored bottom-right.
+           * Same leaf shape as the canvas particles for visual
+           * continuity. Sits below content via z-index in CSS.
+           */}
+          <div
+            className="auth-split-shell__brand-foliage"
+            aria-hidden="true"
+          >
+            <BrandFoliage />
+          </div>
+
           <div className="auth-split-shell__brand-content">
             <Link
               to="/"
               className="auth-split-shell__brand-mark"
               aria-label="BloomSuite home"
             >
-              <BloomSuiteMark />
+              <img src={bloomsuiteLogo} alt="" />
               <span className="auth-split-shell__brand-wordmark">
                 BloomSuite
               </span>
