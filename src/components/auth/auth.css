@@ -2544,3 +2544,293 @@
         stroke-dashoffset: 0 !important;
     }
 }
+
+/* ───────────────────────────────────────────────────────────────────
+   Split-screen brand layout for /auth
+   ───────────────────────────────────────────────────────────────────
+   Two-column desktop (>=1024px): left brand panel, right form panel.
+   Tablet (768-1023px): brand panel collapses to a top band ~25vh.
+   Mobile (<768px): brand panel becomes a slim ~140px header band so
+   the form stays above the fold.
+
+   All colors come from the existing --auth-* token namespace defined
+   at the top of this file. No new tokens. */
+
+.auth-split-shell {
+    /* Override the legacy AuthLayout's centered single-column behavior
+       — this scope sits inside the same .auth-shell.auth-token-scope
+       wrapper but takes over the content area with a CSS grid. */
+    position: relative;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    width: 100%;
+    min-height: 100dvh;
+}
+
+.auth-split-shell__brand {
+    position: relative;
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: 24px;
+    width: 100%;
+    min-height: 140px;
+    padding: 84px clamp(24px, 5vw, 56px) 28px;
+    overflow: hidden;
+    color: var(--auth-text-light);
+    /* Brand teal gradient pulled directly from the existing token
+       ramp — same teal that appears on the homepage hero accent and
+       the auth primary CTA button. */
+    background:
+        radial-gradient(ellipse at top left,
+            rgba(135, 223, 216, 0.32) 0%,
+            rgba(62, 124, 119, 0) 60%),
+        linear-gradient(160deg,
+            var(--auth-green-700) 0%,
+            var(--auth-green-900) 100%);
+}
+
+.auth-split-shell__brand-particles {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* Scope the existing AuthNanoLeafParticles canvas to this panel
+       only and lift its visibility from the ~3-5% it has on the
+       legacy centered layout to ~28% via this overlay opacity. */
+    opacity: 0.28;
+}
+
+.auth-split-shell__brand-particles .auth-particle-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.auth-split-shell__brand-content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 20px;
+    width: 100%;
+    max-width: 520px;
+}
+
+.auth-split-shell__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--auth-text-light);
+    text-decoration: none;
+}
+
+.auth-split-shell__brand-mark .auth-layout__logo {
+    width: 48px;
+    height: 48px;
+}
+
+.auth-split-shell__brand-wordmark {
+    font-family: var(--auth-font-display);
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--auth-text-light);
+}
+
+.auth-split-shell__brand-headline {
+    margin: 0;
+    color: var(--auth-text-light);
+    font-family: var(--auth-font-display);
+    /* Match the homepage hero headline scale shipped this evening. */
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+}
+
+.auth-split-shell__brand-tagline {
+    margin: 0;
+    color: rgba(225, 255, 254, 0.88);
+    font-size: 15px;
+    line-height: 1.55;
+    max-width: 420px;
+}
+
+.auth-split-shell__brand-tagline strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--auth-text-light);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+}
+
+.auth-split-shell__brand-trust {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(225, 255, 254, 0.86);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.auth-split-shell__brand-trust svg {
+    width: 16px;
+    height: 16px;
+    color: var(--auth-green-300);
+}
+
+.auth-split-shell__form {
+    position: relative;
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    width: 100%;
+    /* Slightly warmer off-white than --auth-bg so the form panel
+       reads as a distinct surface against the teal brand panel. The
+       existing --auth-bg-subtle token (#f8faf8) is already a warm
+       off-white — reusing it instead of inventing a new value. */
+    background: var(--auth-bg-subtle);
+    padding: 24px clamp(20px, 4vw, 56px) 80px;
+}
+
+.auth-split-shell__form-inner {
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    gap: 18px;
+}
+
+.auth-split-shell__home-link {
+    justify-self: end;
+    width: max-content;
+}
+
+.auth-split-shell__footer {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 10px;
+    padding: 16px 20px 20px;
+    background: var(--auth-bg-subtle);
+    color: var(--auth-text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.auth-split-shell__footer a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--auth-hover-duration) var(--auth-ease-hover);
+}
+
+.auth-split-shell__footer a:hover {
+    color: var(--auth-green-700);
+}
+
+/* Mobile-first defaults set above stack brand band on top, form
+   below. At >=768px the brand band grows; at >=1024px the layout
+   flips to side-by-side. */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .auth-split-shell__brand {
+        min-height: 25vh;
+        padding: 72px clamp(32px, 6vw, 64px) 36px;
+        gap: 28px;
+    }
+
+    .auth-split-shell__brand-headline {
+        font-size: clamp(2rem, 3.5vw, 2.5rem);
+    }
+}
+
+@media (min-width: 1024px) {
+    .auth-split-shell {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .auth-split-shell__brand {
+        min-height: 100dvh;
+        padding: 80px clamp(48px, 5vw, 80px) 56px;
+        gap: 32px;
+        align-content: center;
+        justify-items: start;
+    }
+
+    .auth-split-shell__brand-content {
+        gap: 24px;
+        max-width: 480px;
+    }
+
+    .auth-split-shell__form {
+        min-height: 100dvh;
+        padding: 80px clamp(48px, 5vw, 80px) 56px;
+        align-content: center;
+    }
+
+    .auth-split-shell__footer {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 767px) {
+    .auth-split-shell__brand {
+        min-height: 140px;
+        padding: 64px 20px 20px;
+        gap: 14px;
+        text-align: left;
+    }
+
+    .auth-split-shell__brand-mark .auth-layout__logo {
+        width: 36px;
+        height: 36px;
+    }
+
+    .auth-split-shell__brand-wordmark {
+        font-size: 18px;
+    }
+
+    .auth-split-shell__brand-headline {
+        font-size: 1.5rem;
+        line-height: 1.15;
+    }
+
+    .auth-split-shell__brand-tagline {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .auth-split-shell__brand-tagline strong {
+        font-size: 14px;
+    }
+
+    .auth-split-shell__brand-trust {
+        font-size: 12px;
+    }
+
+    .auth-split-shell__form {
+        padding: 24px 16px 32px;
+    }
+
+    .auth-split-shell__footer {
+        padding: 14px 16px 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-split-shell__brand-particles {
+        /* The particle canvas is already gated by AuthNanoLeafParticles
+           respecting prefers-reduced-motion — this rule only ensures
+           the wrapper doesn't fade in if we ever add a transition. */
+        opacity: 0;
+    }
+}
