@@ -329,12 +329,25 @@ export const BloomSuiteDashboard = () => {
         setShowSetupWizard(true);
         break;
       case "newsletter":
-        navigate("/crm/campaigns/new?type=newsletter");
+        // Route to the newsletter picker page (NewsletterNewPage)
+        // where users choose how to build — Start from Scratch /
+        // Pick an Idea / template — instead of dropping them into
+        // a blank CRMCampaignEditorPage with no decisions made.
+        navigate("/newsletters/new");
         break;
       case "social-post":
         setShowPostComposer(true);
         break;
       case "campaign":
+        // /crm/automations/new mounts AutomationWizardLandingPage
+        // (the picker with Guided Setup / From Template / From
+        // Scratch options) — already a picker, not a blank editor.
+        // ?mode=quick is the convention used by QuickStartTour,
+        // DashboardCard, and the dashboard quickActions row; the
+        // landing page itself ignores the param (only "guided"
+        // mode is consumed downstream in CRMAutomationGuidePage),
+        // so it's effectively a no-op marker preserved for
+        // consistency.
         navigate("/crm/automations/new?mode=quick");
         break;
       case "content-calendar":

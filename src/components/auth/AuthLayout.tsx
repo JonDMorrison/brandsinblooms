@@ -24,11 +24,11 @@ const BloomSuiteMark = () => (
     <title id="auth-logo-title">BloomSuite</title>
     <defs>
       <linearGradient id="auth-logo-gradient" x1="8" y1="32" x2="32" y2="8">
-        <stop stopColor="#16A34A" />
-        <stop offset="1" stopColor="#86EFAC" />
+        <stop stopColor="#3E7C77" />
+        <stop offset="1" stopColor="#87DFD8" />
       </linearGradient>
     </defs>
-    <rect width="40" height="40" rx="12" fill="#F0FDF4" />
+    <rect width="40" height="40" rx="12" fill="#E1FFFE" />
     <path
       d="M20 31c-5.7-4.28-8.55-8.8-8.55-13.56 0-4.05 2.34-7.12 5.53-7.12 1.72 0 3.02.78 3.89 2.34.86-1.56 2.16-2.34 3.89-2.34 3.19 0 5.53 3.07 5.53 7.12C30.29 22.2 26.86 26.72 20 31Z"
       fill="url(#auth-logo-gradient)"

@@ -18,104 +18,8 @@
     touch-action: pan-y;
 }
 
-.hp-feature-trust {
-    display: grid;
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-    align-items: center;
-    gap: 32px;
-    width: calc(100% + var(--hp-features-inline-start) + var(--hp-features-inline-end));
-    margin-left: calc(var(--hp-features-inline-start) * -1);
-    margin-right: calc(var(--hp-features-inline-end) * -1);
-    padding: 24px var(--hp-features-inline-end) 24px var(--hp-features-inline-start);
-    border-bottom: 1px solid rgba(48, 80, 110, 0.06);
-    background: inherit;
-    opacity: 0;
-}
-
-.hp-feature-trust[data-active="true"] {
-    animation: hp-feature-trust-enter 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hp-feature-trust__caption {
-    margin: 0;
-    color: #64748B;
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1.45;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-}
-
-.hp-feature-trust__logos {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    width: min(100%, 840px);
-    min-width: 0;
-    margin: 0;
-    margin-inline: auto;
-    padding: 0;
-    list-style: none;
-}
-
-.hp-feature-trust__logo-item {
-    position: relative;
-    display: grid;
-    place-items: center;
-    align-items: center;
-    width: clamp(78px, 9vw, 112px);
-    min-height: 52px;
-    padding: 10px 14px;
-    color: #0F172A;
-    background: rgba(255, 255, 255, 0.78);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-    white-space: nowrap;
-    transition: border-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hp-feature-trust__logo-item:hover {
-    border-color: rgba(48, 80, 110, 0.18);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(48, 80, 110, 0.08) inset;
-    transform: translateY(-1px);
-}
-
-.hp-feature-trust__logo-mark {
-    display: block;
-    width: 100%;
-    max-width: 84px;
-    max-height: 30px;
-    object-fit: contain;
-}
-
-.hp-feature-trust__icon-mark {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    color: #30506E;
-    background: #F0F4F7;
-    border: 1px solid rgba(48, 80, 110, 0.10);
-    border-radius: 8px;
-}
-
-.hp-feature-trust__icon-mark svg {
-    width: 19px;
-    height: 19px;
-    stroke-width: 2;
-}
-
-.hp-feature-trust__logo-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
+/* The trust strip (.hp-feature-trust*) was removed — the full Integrations
+   section further down covers the same ground with more detail. */
 
 .hp-features__main {
     display: grid;
@@ -203,7 +107,10 @@
 
 .hp-feature-card {
     display: grid;
-    grid-template-rows: 180px auto;
+    /* Preview row sizes itself via the .hp-feature-card__preview
+       aspect-ratio: 1/1 rule so 1024×1024 illustrations display
+       fully without cropping. */
+    grid-template-rows: auto auto;
     min-width: 0;
     padding: 0;
     overflow: hidden;
@@ -222,15 +129,34 @@
     animation: hp-feature-card-enter 500ms cubic-bezier(0.16, 1, 0.3, 1) var(--hp-feature-card-delay) backwards;
 }
 
-.hp-feature-card:hover {
-    border-color: rgba(48, 80, 110, 0.20);
+.hp-feature-card:hover,
+.hp-feature-card:focus-within {
+    border-color: rgba(62, 124, 119, 0.30);
     box-shadow: 0 4px 16px rgba(48, 80, 110, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
     transform: translateY(-2px);
+}
+
+/* The clickable area is the whole card. Inherit display + flow from
+   the article so the inner preview/body layout is unchanged. */
+.hp-feature-card__link {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 1 / -1;
+    color: inherit;
+    text-decoration: none;
+    outline: none;
+}
+
+.hp-feature-card__link:focus-visible {
+    outline: 2px solid #3E7C77;
+    outline-offset: 4px;
+    border-radius: inherit;
 }
 
 .hp-feature-card__preview {
     position: relative;
     display: grid;
+    aspect-ratio: 1 / 1;
     min-height: 0;
     overflow: hidden;
     background: linear-gradient(145deg, #F0F4F7 0%, #F8F9FB 50%, #E1E9EF 100%);
@@ -241,39 +167,8 @@
     width: 100%;
     height: 100%;
     min-height: 0;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
-}
-
-.hp-feature-card__placeholder {
-    position: relative;
-    display: grid;
-    width: 100%;
-    height: 100%;
-    padding: 20px;
-    overflow: hidden;
-    background: linear-gradient(145deg, #F0F4F7 0%, #F8F9FB 50%, #E1E9EF 100%);
-}
-
-.hp-feature-card__placeholder-label {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    z-index: 2;
-    padding: 4px 10px;
-    color: #30506E;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1.35;
-    transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.hp-feature-card:hover .hp-feature-card__placeholder-label {
-    background: #F0F4F7;
 }
 
 .hp-feature-card__body {
@@ -304,209 +199,9 @@
     -webkit-line-clamp: 2;
 }
 
-.hp-feature-skeleton {
-    position: relative;
-    display: grid;
-    width: 100%;
-    height: 100%;
-    gap: 8px;
-}
-
-.hp-feature-skeleton span,
-.hp-feature-skeleton__chart {
-    display: block;
-    border-radius: 6px;
-}
-
-.hp-feature-skeleton__toolbar {
-    width: 100%;
-    height: 8px;
-    background: rgba(48, 80, 110, 0.08);
-    border-radius: 4px;
-}
-
-.hp-feature-skeleton__metric,
-.hp-feature-skeleton__cell,
-.hp-feature-skeleton__store {
-    background: rgba(48, 80, 110, 0.06);
-}
-
-.hp-feature-skeleton__line,
-.hp-feature-skeleton__wide,
-.hp-feature-skeleton__stack {
-    background: rgba(48, 80, 110, 0.05);
-}
-
-.hp-feature-skeleton__canvas,
-.hp-feature-skeleton__sidebar {
-    background: rgba(48, 80, 110, 0.07);
-}
-
-.hp-feature-skeleton--crm {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 8px 28px 6px 6px 1fr;
-}
-
-.hp-feature-skeleton--crm .hp-feature-skeleton__toolbar {
-    grid-column: 1 / -1;
-    margin-bottom: 4px;
-}
-
-.hp-feature-skeleton--crm .hp-feature-skeleton__line:nth-of-type(5) {
-    grid-column: 1 / 3;
-    width: 80%;
-    height: 6px;
-    margin-top: 8px;
-}
-
-.hp-feature-skeleton--crm .hp-feature-skeleton__line:nth-of-type(6) {
-    grid-column: 1 / 3;
-    width: 65%;
-    height: 6px;
-}
-
-.hp-feature-skeleton--campaign {
-    grid-template-columns: minmax(0, 1fr) minmax(52px, 24%);
-    grid-template-rows: 8px minmax(0, 1fr);
-}
-
-.hp-feature-skeleton--campaign .hp-feature-skeleton__toolbar {
-    grid-column: 1 / -1;
-    margin-bottom: 4px;
-}
-
-.hp-feature-skeleton--campaign .hp-feature-skeleton__canvas {
-    min-height: 64px;
-    border-radius: 8px;
-    background: rgba(48, 80, 110, 0.06);
-}
-
-.hp-feature-skeleton--campaign .hp-feature-skeleton__sidebar {
-    min-height: 64px;
-    border-radius: 8px;
-    background: rgba(48, 80, 110, 0.08);
-}
-
-.hp-feature-skeleton--inventory {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: 8px repeat(2, 28px) 8px 1fr;
-}
-
-.hp-feature-skeleton--inventory .hp-feature-skeleton__toolbar,
-.hp-feature-skeleton--inventory .hp-feature-skeleton__wide {
-    grid-column: 1 / -1;
-}
-
-.hp-feature-skeleton--inventory .hp-feature-skeleton__toolbar {
-    margin-bottom: 4px;
-}
-
-.hp-feature-skeleton--inventory .hp-feature-skeleton__wide {
-    width: 72%;
-    height: 8px;
-    margin-top: 8px;
-    background: rgba(48, 80, 110, 0.05);
-}
-
-.hp-feature-skeleton--editor {
-    grid-template-columns: 30% minmax(0, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-}
-
-.hp-feature-skeleton--editor .hp-feature-skeleton__sidebar {
-    grid-row: 1 / -1;
-    min-height: 100%;
-    border-radius: 8px;
-    background: rgba(48, 80, 110, 0.07);
-}
-
-.hp-feature-skeleton--editor .hp-feature-skeleton__stack {
-    background: rgba(48, 80, 110, 0.05);
-}
-
-.hp-feature-skeleton--editor .hp-feature-skeleton__stack:nth-of-type(2) {
-    width: 100%;
-}
-
-.hp-feature-skeleton--editor .hp-feature-skeleton__stack:nth-of-type(3) {
-    width: 74%;
-}
-
-.hp-feature-skeleton--editor .hp-feature-skeleton__stack:nth-of-type(4) {
-    width: 86%;
-}
-
-.hp-feature-skeleton--analytics {
-    grid-template-rows: 8px minmax(0, 1fr);
-}
-
-.hp-feature-skeleton--analytics .hp-feature-skeleton__toolbar {
-    margin-bottom: 4px;
-}
-
-.hp-feature-skeleton__chart {
-    width: 100%;
-    height: 92px;
-    overflow: visible;
-    border-radius: 8px;
-    background: rgba(48, 80, 110, 0.04);
-}
-
-.hp-feature-skeleton__chart path {
-    fill: none;
-    stroke: rgba(48, 80, 110, 0.10);
-    stroke-width: 7;
-    stroke-linecap: round;
-}
-
-.hp-feature-skeleton--multistore {
-    grid-template-columns: 1fr 14px 1fr 14px 1fr;
-    align-items: center;
-    gap: 10px;
-}
-
-.hp-feature-skeleton--multistore .hp-feature-skeleton__store {
-    height: 64px;
-    border-radius: 8px;
-    background: rgba(48, 80, 110, 0.06);
-}
-
-.hp-feature-skeleton__connector {
-    position: relative;
-    width: 14px;
-    height: 6px;
-    background: none;
-}
-
-.hp-feature-skeleton__connector::before,
-.hp-feature-skeleton__connector::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(48, 80, 110, 0.10);
-    transform: translateY(-50%);
-}
-
-.hp-feature-skeleton__connector::before {
-    left: 0;
-}
-
-.hp-feature-skeleton__connector::after {
-    right: 0;
-}
-
-@keyframes hp-feature-trust-enter {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-}
+/* The .hp-feature-skeleton* gray-wireframe placeholder rules were
+   removed when every feature card got a guaranteed illustration src.
+   The fallback FeatureSkeleton component is gone too. */
 
 @keyframes hp-feature-eyebrow-enter {
     from {
@@ -583,36 +278,6 @@
         padding-bottom: 40px;
     }
 
-    .hp-feature-trust {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        gap: 18px;
-    }
-
-    .hp-feature-trust__caption {
-        text-align: center;
-        white-space: normal;
-    }
-
-    .hp-feature-trust__logos {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(76px, 1fr));
-        justify-content: center;
-        gap: 10px;
-        width: min(100%, 340px);
-    }
-
-    .hp-feature-trust__logo-item {
-        width: 100%;
-        min-height: 48px;
-        padding-inline: 12px;
-    }
-
-    .hp-feature-trust__logo-mark {
-        max-width: 72px;
-        max-height: 26px;
-    }
-
     .hp-features__main {
         align-content: start;
         padding-top: 40px;
@@ -628,25 +293,12 @@
     }
 
     .hp-feature-card {
-        grid-template-rows: 140px auto;
-    }
-
-    .hp-feature-card__placeholder {
-        padding: 16px;
-    }
-
-    .hp-feature-skeleton__chart {
-        height: 70px;
-    }
-
-    .hp-feature-skeleton--multistore .hp-feature-skeleton__store {
-        height: 48px;
+        grid-template-rows: auto auto;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
 
-    .hp-feature-trust[data-active="true"],
     .hp-features__header[data-active="true"] .hp-features__eyebrow,
     .hp-features__header[data-active="true"] .hp-features__eyebrow-line,
     .hp-features__header[data-active="true"] .hp-features__headline,
@@ -655,7 +307,6 @@
         animation: none;
     }
 
-    .hp-feature-trust,
     .hp-features__eyebrow,
     .hp-features__headline,
     .hp-features__subtext,
@@ -664,9 +315,7 @@
     }
 
     .hp-feature-card,
-    .hp-feature-card:hover,
-    .hp-feature-trust__logo-item,
-    .hp-feature-card__placeholder-label {
+    .hp-feature-card:hover {
         transition: none;
         transform: none;
     }

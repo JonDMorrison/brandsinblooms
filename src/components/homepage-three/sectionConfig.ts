@@ -1,7 +1,5 @@
 import type { ParticleTint } from "./particles/atmosphere";
-import type { TransitionPairConfig } from "./sectionEngine";
 import { PRICING_SECTION_HEADER } from "./content/pricingCtaFooterContent";
-import { TESTIMONIALS_SECTION_HEADER } from "./content/testimonialsSocialProofContent";
 
 export type HomepageNavCategory =
   | "features"
@@ -26,9 +24,28 @@ export interface HomepageSectionConfig {
 export interface HomepageNavItemConfig {
   label: string;
   category: HomepageNavCategory;
+  // In-page section to scroll to when this nav item is clicked.
   targetSlug: string;
+  // Optional react-router route. When set, clicking the nav item navigates
+  // to this route instead of scrolling to the in-page section. Used for
+  // pages that live outside the scroll-locked homepage (e.g. /pricing).
+  // Falls back to in-page scroll when omitted.
+  targetHref?: string;
 }
 
+// Vertical-scroll section order. The new "problem", "guide", and
+// "differentiators" sections were added between hero and pricing. The
+// previous "customer-growth", "automation", and "testimonials" sections
+// are no longer rendered; their components remain on disk for now.
+//
+// Final-CTA + footer live inside HomepagePricingCtaFooterSection (rendered
+// at the "start" section), not as standalone sections — this preserves
+// the existing component contract and its unit tests.
+//
+// particleDensity / particleTint / accent / surface are kept as metadata
+// for downstream consumers but are no longer used by HomepagePresentation
+// since the scrolling rebuild dropped the scroll-engine + particle
+// rotation logic.
 export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
   {
     id: "hero",
@@ -41,36 +58,49 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
       "A calmer operating layer for campaigns, customer insight, and local commerce.",
     accent: "leaf",
     surface: "light",
-    particleDensity: 0.75,
+    particleDensity: 0,
     particleTint: "bright",
+  },
+  {
+    id: "problem",
+    slug: "problem",
+    name: "Problem",
+    navCategory: "features",
+    eyebrow: "The reality",
+    title: "Marketing for garden centres usually looks like this.",
+    summary:
+      "Most garden centres are running customer marketing on tools built for someone else's business.",
+    accent: "coral",
+    surface: "subtle",
+    particleDensity: 0,
+    particleTint: "muted",
+  },
+  {
+    id: "guide",
+    slug: "guide",
+    name: "Built for garden retail",
+    navCategory: "features",
+    eyebrow: "Built for garden retail",
+    title: "We understand garden centres.",
+    summary: "BloomSuite was built around how plant retail actually works.",
+    accent: "leaf",
+    surface: "light",
+    particleDensity: 0,
+    particleTint: "sage",
   },
   {
     id: "features",
     slug: "features",
     name: "Features",
     navCategory: "features",
-    eyebrow: "Features",
-    title: "Everyday marketing work in one steady flow",
+    eyebrow: "Platform",
+    title: "What you get with BloomSuite",
     summary:
-      "Plan seasonal moments, prepare content, and keep the next customer touch ready.",
+      "Six tools in one workspace. No spreadsheets, no patchwork systems.",
     accent: "teal",
     surface: "subtle",
-    particleDensity: 0.4,
+    particleDensity: 0,
     particleTint: "sage",
-  },
-  {
-    id: "customer-growth",
-    slug: "customer-growth",
-    name: "Customer Growth",
-    navCategory: "features",
-    eyebrow: "Customer Growth",
-    title: "Customer context that travels with every campaign",
-    summary:
-      "Segments, preferences, and history stay close to the work your team is doing.",
-    accent: "coral",
-    surface: "subtle",
-    particleDensity: 0.35,
-    particleTint: "muted",
   },
   {
     id: "ai",
@@ -78,27 +108,13 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     name: "AI",
     navCategory: "ai",
     eyebrow: "AI",
-    title: "Creative assistance tuned for horticulture retail",
+    title: "AI that knows your customers.",
     summary:
-      "Draft timely messages, refine offers, and turn local ideas into polished outreach.",
+      "Trained on your sales history and brand voice. It drafts, segments, and suggests. You approve.",
     accent: "indigo",
     surface: "dark",
     particleDensity: 0,
     particleTint: "none",
-  },
-  {
-    id: "automation",
-    slug: "automation",
-    name: "Impact",
-    navCategory: "ai",
-    eyebrow: "Real Impact",
-    title: "Why Teams Choose BloomSuite",
-    summary:
-      "Trusted by garden centres and florists to drive measurable growth.",
-    accent: "leaf",
-    surface: "light",
-    particleDensity: 0.5,
-    particleTint: "sage",
   },
   {
     id: "integrations",
@@ -106,25 +122,25 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     name: "Integrations",
     navCategory: "integrations",
     eyebrow: "Integrations",
-    title: "Connect point of sale, email, and commerce systems",
-    summary:
-      "Keep the tools you already trust while BloomSuite coordinates the customer layer.",
+    title: "Connects to what you already use.",
+    summary: "Two-way sync with the tools your store already runs on.",
     accent: "teal",
     surface: "subtle",
-    particleDensity: 0.35,
+    particleDensity: 0,
     particleTint: "sage",
   },
   {
-    id: "testimonials",
-    slug: "testimonials",
-    name: TESTIMONIALS_SECTION_HEADER.eyebrow,
+    id: "differentiators",
+    slug: "differentiators",
+    name: "More than software",
     navCategory: "integrations",
-    eyebrow: TESTIMONIALS_SECTION_HEADER.eyebrow,
-    title: TESTIMONIALS_SECTION_HEADER.headline,
-    summary: TESTIMONIALS_SECTION_HEADER.subtext,
+    eyebrow: "More than software",
+    title: "A partner for your garden centre.",
+    summary:
+      "BloomSuite isn't just a platform. You also get the people, the training, and the community that come with it.",
     accent: "leaf",
     surface: "light",
-    particleDensity: 0.4,
+    particleDensity: 0,
     particleTint: "sage",
   },
   {
@@ -137,7 +153,7 @@ export const HOMEPAGE_SECTIONS: HomepageSectionConfig[] = [
     summary: PRICING_SECTION_HEADER.subtext,
     accent: "teal",
     surface: "light",
-    particleDensity: 0.45,
+    particleDensity: 0,
     particleTint: "sage",
   },
 ];
@@ -150,17 +166,12 @@ export const HOMEPAGE_NAV_ITEMS: HomepageNavItemConfig[] = [
     category: "integrations",
     targetSlug: "integrations",
   },
-  { label: "Pricing", category: "pricing", targetSlug: "start" },
-];
-
-export const HOMEPAGE_TRANSITIONS: TransitionPairConfig[] = [
-  { from: 0, to: 1, type: "slide-up", durationMs: 700 },
-  { from: 1, to: 2, type: "slide-up", durationMs: 700 },
-  { from: 2, to: 3, type: "dissolve", durationMs: 800 },
-  { from: 3, to: 4, type: "dissolve", durationMs: 800 },
-  { from: 4, to: 5, type: "crossfade-hold", durationMs: 600 },
-  { from: 5, to: 6, type: "crossfade-hold", durationMs: 600 },
-  { from: 6, to: 7, type: "scale-fade", durationMs: 700 },
+  {
+    label: "Pricing",
+    category: "pricing",
+    targetSlug: "start",
+    targetHref: "/pricing",
+  },
 ];
 
 export const getHomepageSectionIndexBySlug = (slug: string) =>

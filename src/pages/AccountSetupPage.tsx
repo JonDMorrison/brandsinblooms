@@ -331,7 +331,7 @@ const AccountSetupPage: React.FC = () => {
           skipped={skippedSteps.includes('first-email')}
           expanded={expandedStep === 'first-email'}
           onToggle={() => toggleStep('first-email')}
-          onAction={() => navigate('/crm/campaigns/new')}
+          onAction={() => navigate('/newsletters/new')}
           onSkip={() => skipStep('first-email')}
           onUnskip={() => unskipStep('first-email')}
           actionLabel="Create Campaign"

@@ -22,6 +22,7 @@ import {
 } from "../_shared/emailRenderer.ts";
 import { resolveCampaignEmailSource } from "../_shared/campaignEmailContent.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { resolveCampaignSenderDisplayName } from "../_shared/campaignFromHeader.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1533,7 +1534,15 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const senderDisplayName = quotaCheck.sender?.from_name || companyName;
+    // From-header display name resolution lives in _shared/campaignFromHeader
+    // so the test-send path and the live-send path produce identical From
+    // headers from identical inputs.
+    const senderDisplayName = resolveCampaignSenderDisplayName({
+      campaignSenderName: campaign.sender_name,
+      domainFromName: quotaCheck.sender?.from_name,
+      companyProfileName: companyProfile?.company_name,
+      finalFallback: companyName,
+    });
     const deliveryMethod = "custom_domain";
     const usesVerifiedDomain = true;
     activeDomainId = quotaCheck.domain?.id || null;
@@ -2227,7 +2236,10 @@ serve(async (req: Request) => {
       },
     );
   } catch (error: any) {
+    // Stack is logged to function logs (server-side) but not returned to
+    // the API caller, to avoid leaking internal paths in error responses.
     console.error("❌ CRITICAL ERROR:", error);
+    console.error("❌ STACK:", error?.stack);
 
     let userMessage = "Internal server error";
     let statusCode = 500;

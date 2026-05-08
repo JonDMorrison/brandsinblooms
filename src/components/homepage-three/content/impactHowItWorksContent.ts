@@ -15,47 +15,27 @@ export interface HowItWorksStepConfig {
   delayMs: number;
 }
 
+// IMPACT_SECTION_HEADER now drives the "Getting Started" header above the
+// 3-step onboarding block. The original "Real Impact" stats block was hidden
+// (see HomepageImpactHowItWorksSection.tsx) until verified numbers are
+// available.
 export const IMPACT_SECTION_HEADER = {
-  eyebrow: "Real Impact",
-  headline: "Why Teams Choose BloomSuite",
-  subtext: "Trusted by garden centres and florists to drive measurable growth.",
+  eyebrow: "Getting Started",
+  headline: "Up and running in a week.",
+  subtext:
+    "We migrate your customer data, connect your POS, and walk you through your first campaign.",
 };
 
-export const IMPACT_STATS: ImpactStatConfig[] = [
-  {
-    value: 40,
-    suffix: "%",
-    label: "Faster Campaign Delivery",
-    delayMs: 0,
-    screenReaderValue: "40% Faster Campaign Delivery",
-  },
-  {
-    value: 3,
-    suffix: "×",
-    label: "Higher Customer Retention",
-    delayMs: 150,
-    screenReaderValue: "3x Higher Customer Retention",
-  },
-  {
-    value: 10,
-    suffix: "K+",
-    label: "Active Users",
-    delayMs: 300,
-    screenReaderValue: "10K+ Active Users",
-  },
-  {
-    value: 99.9,
-    suffix: "%",
-    label: "Platform Uptime",
-    decimals: 1,
-    delayMs: 450,
-    screenReaderValue: "99.9% Platform Uptime",
-  },
-];
+// Kept as an empty export for any lingering imports — the consumer was
+// removed when the stats block was hidden.
+export const IMPACT_STATS: ImpactStatConfig[] = [];
 
+// HOW_IT_WORKS_HEADER is no longer rendered (IMPACT_SECTION_HEADER above
+// drives the section heading now). Kept as null-ish strings so any stale
+// consumer doesn't crash.
 export const HOW_IT_WORKS_HEADER = {
-  headline: "Get Started in 3 Easy Steps",
-  subtext: "A guided onboarding experience designed for speed and simplicity.",
+  headline: "",
+  subtext: "",
 };
 
 export const HOW_IT_WORKS_SCREENSHOT = {
@@ -68,25 +48,25 @@ export const HOW_IT_WORKS_STEPS: HowItWorksStepConfig[] = [
   {
     step: 1,
     stepLabel: "01",
-    title: "Quick Setup",
+    title: "Connect your stack",
     description:
-      "Connect your store, import customers, and configure your dashboard in under 2 minutes.",
+      "We pull customer data from your POS, your existing email tool, and your Shopify store. Nothing manual, nothing rekeyed.",
     delayMs: 0,
   },
   {
     step: 2,
     stepLabel: "02",
-    title: "Start Selling Smarter",
+    title: "Send your first campaign",
     description:
-      "Launch AI-powered campaigns, set up automated workflows, and let the platform learn your business.",
+      "Pick a template, segment your audience, let AI draft the copy. Send when ready.",
     delayMs: 150,
   },
   {
     step: 3,
     stepLabel: "03",
-    title: "Watch Growth Happen",
+    title: "See what works",
     description:
-      "Track results in real-time. Your AI assistant surfaces insights and actions daily.",
+      "Daily AI summary tells you what to do next. Ten minutes a day, not an afternoon.",
     delayMs: 300,
   },
 ];

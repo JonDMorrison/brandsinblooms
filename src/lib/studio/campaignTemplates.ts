@@ -399,7 +399,12 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
       "Concise weekend send for light programming, events, or reminders.",
     season: "summer",
     tags: ["weekend", "event"],
-    accentColor: "#ef8b4e",
+    // Unified summer hue. Previously #ef8b4e (warm peach) but the
+    // companion "Summer Launch Window" template uses cool blue #2d8aa9.
+    // Neither hue is dominant in the rest of the codebase (each appears
+    // only in this file), so per design spec defaulting both summer
+    // cards to the cool blue for consistency.
+    accentColor: "#2d8aa9",
     subjectLine: "Your weekend note is ready",
     previewText:
       "A compact layout for short seasonal sends and event reminders.",
@@ -422,9 +427,9 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
         ctaLabel: "Open the weekend brief",
         ctaBody:
           "Replace this section with your event timing, RSVP details, or visit window.",
-        accentColor: "#ef8b4e",
-        surfaceColor: "#fff4ec",
-        heroColor: "#8a4f27",
+        accentColor: "#2d8aa9",
+        surfaceColor: "#eef8fb",
+        heroColor: "#1f4d63",
         fallbackUrl: "#summer-note",
       }),
   },

@@ -31,10 +31,8 @@ if [[ -n "${SUPABASE_PROJECT_REF:-}" ]]; then
 fi
 
 ids=(
-20260425133708
-20260425141719
-20260425222845
-20260425230725
+20260508023734
+20260508042931
 )
 
 echo "Running ${#ids[@]} migration repair commands (reverted)..."

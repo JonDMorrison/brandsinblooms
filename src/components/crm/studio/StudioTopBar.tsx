@@ -15,9 +15,11 @@ import {
   ArrowLeft,
   Check,
   Eye,
+  Info,
   LogOut,
   Monitor,
   Redo2,
+  RefreshCw,
   Settings,
   Smartphone,
   Sparkles,
@@ -29,6 +31,7 @@ import {
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
 import type { StudioDeviceMode } from "@/components/crm/studio/studioCanvasTypes";
 import type { StudioBlock } from "@/types/studioBlocks";
+import type { CampaignChangeClassification } from "@/lib/crm/campaignChangeClassifier";
 
 type StudioTopBarProps = {
   campaignId: string;
@@ -50,8 +53,9 @@ type StudioTopBarProps = {
   saveStatus: StudioSaveStatus;
   saveMessage: string | null;
   hasUnsavedChanges: boolean;
-  externalUpdateMessage: string | null;
+  externalUpdateNotice: CampaignChangeClassification | null;
   onDismissExternalUpdate: () => void;
+  onReloadCampaign: () => void;
   onSave: () => void;
   onExit: () => void;
   lastSavedAt: string | null;
@@ -122,8 +126,9 @@ export default function StudioTopBar({
   saveStatus,
   saveMessage,
   hasUnsavedChanges,
-  externalUpdateMessage,
+  externalUpdateNotice,
   onDismissExternalUpdate,
+  onReloadCampaign,
   onSave,
   onExit,
   lastSavedAt,
@@ -525,44 +530,107 @@ export default function StudioTopBar({
           spacing={1}
           justifyContent="flex-end"
         >
-          {externalUpdateMessage ? (
-            <Sheet
-              variant="soft"
-              color="warning"
-              sx={{
-                px: 1,
-                py: 0.5,
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                gap: 0.75,
-                maxWidth: 260,
-              }}
-            >
-              <AlertTriangle size={14} />
-              <Typography
-                level="body-xs"
+          {externalUpdateNotice ? (() => {
+            const isInfo = externalUpdateNotice.severity === "info";
+            const color = isInfo ? "primary" : "warning";
+            const textColor = isInfo ? "primary.700" : "warning.700";
+            const Icon = isInfo ? Info : AlertTriangle;
+            const reloadLabel = externalUpdateNotice.localChangesAtRisk
+              ? "Reload anyway"
+              : "Reload";
+            return (
+              <Sheet
+                variant="soft"
+                color={color}
                 sx={{
-                  color: "warning.700",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  px: 1.25,
+                  py: 0.75,
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  maxWidth: 480,
                 }}
+                role={isInfo ? "status" : "alert"}
               >
-                {externalUpdateMessage}
-              </Typography>
-              <IconButton
-                variant="plain"
-                color="warning"
-                size="sm"
-                aria-label="Dismiss studio warning"
-                onClick={onDismissExternalUpdate}
-                sx={{ minWidth: 20, minHeight: 20, borderRadius: "6px" }}
-              >
-                <X size={12} />
-              </IconButton>
-            </Sheet>
-          ) : null}
+                <Icon size={14} />
+                <Stack
+                  spacing={0.25}
+                  sx={{
+                    minWidth: 0,
+                    flex: "1 1 auto",
+                  }}
+                >
+                  <Typography
+                    level="body-xs"
+                    sx={{
+                      color: textColor,
+                      fontWeight: 600,
+                      whiteSpace: "normal",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {externalUpdateNotice.message}
+                  </Typography>
+                  <Typography
+                    level="body-xs"
+                    sx={{
+                      color: textColor,
+                      opacity: 0.8,
+                      whiteSpace: "normal",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {externalUpdateNotice.detail}
+                  </Typography>
+                </Stack>
+                <Button
+                  variant="soft"
+                  color={color}
+                  size="sm"
+                  startDecorator={<RefreshCw size={12} />}
+                  onClick={onReloadCampaign}
+                  sx={{
+                    height: 26,
+                    minHeight: 26,
+                    fontSize: "12px",
+                    px: 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {reloadLabel}
+                </Button>
+                {externalUpdateNotice.localChangesAtRisk ? (
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    onClick={onDismissExternalUpdate}
+                    sx={{
+                      height: 26,
+                      minHeight: 26,
+                      fontSize: "12px",
+                      px: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Keep my version
+                  </Button>
+                ) : (
+                  <IconButton
+                    variant="plain"
+                    color={color}
+                    size="sm"
+                    aria-label="Dismiss notification"
+                    onClick={onDismissExternalUpdate}
+                    sx={{ minWidth: 20, minHeight: 20, borderRadius: "6px" }}
+                  >
+                    <X size={12} />
+                  </IconButton>
+                )}
+              </Sheet>
+            );
+          })() : null}
 
           <Button
             variant="outlined"

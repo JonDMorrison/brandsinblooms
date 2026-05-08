@@ -7,9 +7,11 @@ import {
   PRICING_MOBILE_INITIAL_PLAN_ID,
   PRICING_PLANS,
   PRICING_SECTION_HEADER,
+  SEED_FOOTNOTE,
   type FooterLinkConfig,
   type PricingPlanConfig,
 } from "./content/pricingCtaFooterContent";
+import bloomsuiteLogo from "@/assets/bloomsuite-logo-correct.png";
 import "./homepagePricingCta.css";
 
 interface HomepagePricingCtaFooterSectionProps {
@@ -20,27 +22,14 @@ interface HomepagePricingCtaFooterSectionProps {
 }
 
 const BloomSuiteFooterMark = () => (
-  <svg
-    aria-hidden="true"
+  // alt="" because the parent <a> already has aria-label "Go to
+  // BloomSuite homepage" — labelling the image would make screen
+  // readers announce the brand twice for one link.
+  <img
+    src={bloomsuiteLogo}
+    alt=""
     className="hp-pricing-footer__mark"
-    viewBox="0 0 44 44"
-    role="img"
-  >
-    <path
-      d="M22 36V17"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeWidth="3.5"
-    />
-    <path d="M22 20C12 20 8 14 9 7c7-1 13 3 13 13Z" fill="currentColor" />
-    <path
-      d="M22 23c10 0 14-6 13-13-7-1-13 3-13 13Z"
-      fill="currentColor"
-      opacity="0.74"
-    />
-    <circle cx="22" cy="37" r="3.25" fill="currentColor" opacity="0.92" />
-  </svg>
+  />
 );
 
 const renderCaption = (caption: string) => {
@@ -219,6 +208,16 @@ export const HomepagePricingCtaFooterSection = ({
               ))}
             </div>
           </div>
+
+          <p className="hp-pricing-cta__seed-footnote">
+            {SEED_FOOTNOTE.text}{" "}
+            <a
+              className="hp-pricing-cta__seed-footnote-link"
+              href={SEED_FOOTNOTE.linkHref}
+            >
+              {SEED_FOOTNOTE.linkLabel}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -230,6 +229,11 @@ export const HomepagePricingCtaFooterSection = ({
           <h3 className="hp-pricing-cta__final-headline">
             {FINAL_CTA_CONTENT.headline}
           </h3>
+          {FINAL_CTA_CONTENT.subhead ? (
+            <p className="hp-pricing-cta__final-subhead">
+              {FINAL_CTA_CONTENT.subhead}
+            </p>
+          ) : null}
           <div className="hp-pricing-cta__final-actions">
             <FinalCtaButton
               href={FINAL_CTA_CONTENT.primaryHref}
@@ -267,27 +271,29 @@ export const HomepagePricingCtaFooterSection = ({
             <p className="hp-pricing-footer__tagline">
               {FOOTER_CONTENT.tagline}
             </p>
-            <div
-              className="hp-pricing-footer__socials"
-              aria-label={FOOTER_CONTENT.socialLabel}
-            >
-              {FOOTER_CONTENT.socials.map((social) => {
-                const Icon = social.icon;
+            {FOOTER_CONTENT.socials.length > 0 && (
+              <div
+                className="hp-pricing-footer__socials"
+                aria-label={FOOTER_CONTENT.socialLabel}
+              >
+                {FOOTER_CONTENT.socials.map((social) => {
+                  const Icon = social.icon;
 
-                return (
-                  <a
-                    key={social.label}
-                    className="hp-pricing-footer__social-link"
-                    href={social.href}
-                    aria-label={social.label}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Icon aria-hidden="true" />
-                  </a>
-                );
-              })}
-            </div>
+                  return (
+                    <a
+                      key={social.label}
+                      className="hp-pricing-footer__social-link"
+                      href={social.href}
+                      aria-label={social.label}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Icon aria-hidden="true" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <nav

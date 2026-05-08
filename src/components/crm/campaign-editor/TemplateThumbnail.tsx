@@ -1,20 +1,6 @@
 import Box from "@mui/joy/Box";
 import type { CampaignTemplateThumbnailBlock } from "@/lib/studio/campaignTemplates";
 
-function toRgba(hexColor: string, alpha: number) {
-  const normalized = hexColor.replace("#", "").trim();
-
-  if (normalized.length !== 6) {
-    return `rgba(23, 23, 23, ${alpha})`;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
 function TemplateLine({
   width = "100%",
   height = 8,
@@ -42,15 +28,22 @@ function TemplateLine({
 
 export function TemplateThumbnail({
   blocks,
-  accentColor,
+  accentColor: _accentColor,
 }: {
   blocks: CampaignTemplateThumbnailBlock[];
+  // accentColor still accepted for API compatibility but no longer
+  // applied — the wireframe is intentionally neutral so the only
+  // colored signal on the card is the 4px top-bar in the parent.
   accentColor: string;
 }) {
-  const solidTone = toRgba(accentColor, 0.18);
-  const outlineTone = toRgba(accentColor, 0.28);
-  const softTone = toRgba(accentColor, 0.1);
-  const accentTone = toRgba(accentColor, 0.42);
+  // Neutral gray ramp matching the rest of the Joy neutral palette
+  // already in use elsewhere in this file (border at neutral.200,
+  // quote/social-follow surfaces at neutral.200, etc.). Hex values
+  // mirror Tailwind gray-100 / gray-200 / gray-300 / gray-400.
+  const solidTone = "#e5e7eb"; // light fill (was rgba(accent, 0.18))
+  const outlineTone = "#d1d5db"; // medium edge (was rgba(accent, 0.28))
+  const softTone = "#f3f4f6"; // very light fill (was rgba(accent, 0.10))
+  const accentTone = "#9ca3af"; // dark accent (was rgba(accent, 0.42))
 
   return (
     <Box
@@ -62,7 +55,7 @@ export function TemplateThumbnail({
         py: 1,
         border: "1px solid",
         borderColor: "neutral.200",
-        background: `linear-gradient(180deg, ${toRgba(accentColor, 0.14)} 0%, rgba(255,255,255,0.96) 34%, rgba(244,244,245,0.98) 100%)`,
+        backgroundColor: "#fafafa", // flat near-white wireframe surface
         display: "flex",
         flexDirection: "column",
         gap: 0.75,
@@ -298,7 +291,7 @@ export function TemplateThumbnail({
               <TemplateLine
                 width={block.width || "44%"}
                 height={block.height || 16}
-                color={toRgba(accentColor, 0.34)}
+                color={accentTone}
               />
             </Box>
           );

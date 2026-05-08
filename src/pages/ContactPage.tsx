@@ -94,8 +94,8 @@ const ContactPage = () => {
           <div className="max-w-2xl mx-auto">
             <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
               <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
+                <div className="w-16 h-16 mx-auto mb-6 bg-[#E1FFFE] rounded-full flex items-center justify-center">
+                  <CheckCircle className="w-8 h-8 text-[#3E7C77]" />
                 </div>
                 <h1 className="text-3xl font-bold text-accent mb-4">Message Sent!</h1>
                 <p className="text-lg text-muted-foreground mb-8">
@@ -239,11 +239,11 @@ const ContactPage = () => {
                   <p className="mb-2">Need immediate assistance?</p>
                   <div className="flex items-center justify-center gap-4">
                     <a 
-                      href="mailto:support@bloomsuite.app" 
+                      href="mailto:support@brandsinblooms.com" 
                       className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
                     >
                       <Mail className="w-4 h-4" />
-                      support@bloomsuite.app
+                      support@brandsinblooms.com
                     </a>
                   </div>
                 </div>

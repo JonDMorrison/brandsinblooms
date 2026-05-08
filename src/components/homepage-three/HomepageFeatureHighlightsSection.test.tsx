@@ -1,28 +1,19 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { HomepageFeatureHighlightsSection } from "./HomepageFeatureHighlightsSection";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
-  TRUST_LOGOS,
-  TRUST_STRIP_CAPTION,
 } from "./content/featureHighlightsContent";
 
+const renderInRouter = (ui: React.ReactNode) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe("HomepageFeatureHighlightsSection", () => {
-  it("renders the trust strip and standard feature section header", () => {
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
-
-    const trustStrip = screen.getByLabelText(TRUST_STRIP_CAPTION);
-    const primaryLogoList = within(trustStrip).getByRole("list");
-
-    expect(screen.getByText(TRUST_STRIP_CAPTION)).toBeInTheDocument();
-    expect(within(primaryLogoList).getAllByRole("listitem")).toHaveLength(
-      TRUST_LOGOS.length,
-    );
-    for (const logo of TRUST_LOGOS) {
-      expect(within(primaryLogoList).getByText(logo.label)).toBeInTheDocument();
-    }
+  it("renders the standard feature section header", () => {
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
 
     expect(
       screen.getByText(FEATURE_SECTION_HEADER.eyebrow),
@@ -35,15 +26,10 @@ describe("HomepageFeatureHighlightsSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders accessible feature cards with available screenshots and fallback placeholders", () => {
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled />);
+  it("renders accessible feature cards with bundled illustrations for every id", () => {
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
 
     const cards = screen.getAllByRole("article");
-    const defaultScreenshotSrcs = {
-      "smart-crm": "/homepage/smart-customer-crm.png",
-      "campaign-builder": "/homepage/ai-campaign-builder.png",
-      "analytics-dashboard": "/homepage/growth-and-analytics.png",
-    } as const;
 
     expect(cards).toHaveLength(FEATURE_HIGHLIGHTS.length);
     for (const [index, feature] of FEATURE_HIGHLIGHTS.entries()) {
@@ -52,22 +38,9 @@ describe("HomepageFeatureHighlightsSection", () => {
       ).toBeInTheDocument();
       expect(screen.getByText(feature.description)).toBeInTheDocument();
 
-      if (feature.id in defaultScreenshotSrcs) {
-        expect(
-          screen.getByAltText(`${feature.placeholderLabel} preview`),
-        ).toHaveAttribute(
-          "src",
-          defaultScreenshotSrcs[
-            feature.id as keyof typeof defaultScreenshotSrcs
-          ],
-        );
-      } else {
-        expect(
-          screen.getByRole("img", {
-            name: `${feature.placeholderLabel} screenshot placeholder`,
-          }),
-        ).toBeInTheDocument();
-      }
+      expect(
+        screen.getByAltText(`${feature.placeholderLabel} illustration`),
+      ).toBeInTheDocument();
 
       expect(cards[index]).toHaveStyle(
         `--hp-feature-card-delay: ${index * 80}ms`,
@@ -75,8 +48,30 @@ describe("HomepageFeatureHighlightsSection", () => {
     }
   });
 
-  it("accepts real screenshot sources through a single screenshot map prop", () => {
-    render(
+  it("wires each card to its /features/<slug> route", () => {
+    renderInRouter(<HomepageFeatureHighlightsSection isActive motionEnabled />);
+    // Smart CRM card → /features/customer-crm (the live Stage 1 route).
+    // The other 5 slugs are wired even though only customer-crm has a
+    // resolved content config in Stage 1.
+    const expectedSlugs: Record<string, string> = {
+      "smart-crm": "customer-crm",
+      "campaign-builder": "campaigns",
+      "inventory-orders": "inventory-orders",
+      "page-editor": "storefront",
+      "analytics-dashboard": "analytics",
+      "multi-store": "unified-platform",
+    };
+    for (const feature of FEATURE_HIGHLIGHTS) {
+      const link = screen.getByRole("link", { name: feature.title });
+      expect(link).toHaveAttribute(
+        "href",
+        `/features/${expectedSlugs[feature.id]}`,
+      );
+    }
+  });
+
+  it("accepts override screenshot sources through the screenshot map prop", () => {
+    renderInRouter(
       <HomepageFeatureHighlightsSection
         isActive
         motionEnabled
@@ -84,19 +79,15 @@ describe("HomepageFeatureHighlightsSection", () => {
       />,
     );
 
-    expect(screen.getByAltText("Customer Dashboard preview")).toHaveAttribute(
-      "src",
-      "/customer-dashboard.png",
-    );
     expect(
-      screen.queryByRole("img", {
-        name: "Customer Dashboard screenshot placeholder",
-      }),
-    ).toBeNull();
+      screen.getByAltText("Remember Every Customer illustration"),
+    ).toHaveAttribute("src", "/customer-dashboard.png");
   });
 
   it("marks fallback mode for static card rendering", () => {
-    render(<HomepageFeatureHighlightsSection isActive motionEnabled={false} />);
+    renderInRouter(
+      <HomepageFeatureHighlightsSection isActive motionEnabled={false} />,
+    );
 
     expect(screen.getByTestId("homepage-feature-highlights")).toHaveAttribute(
       "data-motion-enabled",

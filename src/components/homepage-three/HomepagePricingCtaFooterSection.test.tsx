@@ -25,8 +25,15 @@ describe("HomepagePricingCtaFooterSection", () => {
   it("renders the centered pricing header and three config-backed plan cards", () => {
     const { container } = renderSection();
 
+    // PRICING_SECTION_HEADER.eyebrow ("Pricing") also appears as a link
+    // label in the footer Product column. Scope the eyebrow assertion to
+    // the pricing section header to avoid an ambiguous getByText match.
+    const pricingHeader = container.querySelector(".hp-pricing-cta__header");
+    expect(pricingHeader).not.toBeNull();
     expect(
-      screen.getByText(PRICING_SECTION_HEADER.eyebrow),
+      within(pricingHeader as HTMLElement).getByText(
+        PRICING_SECTION_HEADER.eyebrow,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: PRICING_SECTION_HEADER.headline }),
@@ -72,16 +79,22 @@ describe("HomepagePricingCtaFooterSection", () => {
       ).toHaveAttribute("href", plan.ctaHref);
     }
 
-    const growthCard = screen
-      .getByRole("heading", { name: "Growth" })
+    // The featured tier is now Bloom (was Growth) and its CTA label was
+    // renamed to "See plan details" routing to /pricing.
+    const featuredPlan = PRICING_PLANS.find((plan) => plan.featured);
+    expect(featuredPlan).toBeDefined();
+    const featuredCard = screen
+      .getByRole("heading", { name: featuredPlan!.name })
       .closest<HTMLElement>(".hp-pricing-card");
 
-    expect(growthCard).toHaveAttribute("data-featured", "true");
+    expect(featuredCard).toHaveAttribute("data-featured", "true");
     expect(screen.getByText("Most Popular")).toHaveClass(
       "hp-pricing-card__badge",
     );
     expect(
-      within(growthCard!).getByRole("link", { name: "Start Free Trial" }),
+      within(featuredCard!).getByRole("link", {
+        name: featuredPlan!.ctaLabel,
+      }),
     ).toHaveClass(
       "hp-pricing-card__button",
       "hp-pricing-card__button--primary",
@@ -137,11 +150,18 @@ describe("HomepagePricingCtaFooterSection", () => {
       within(footer).getByText(FOOTER_CONTENT.copyright),
     ).toBeInTheDocument();
 
-    for (const social of FOOTER_CONTENT.socials) {
-      expect(
-        within(footer).getByRole("link", { name: social.label }),
-      ).toHaveAttribute("href", social.href);
-    }
+    // Socials are omitted entirely until BloomSuite has real brand
+    // profiles (the placeholder LinkedIn/X/Instagram links pointed at
+    // platform homepages, not BloomSuite). The wrapping container
+    // should not render while FOOTER_CONTENT.socials is empty so we
+    // don't ship leftover spacing or an empty aria-labelled region.
+    expect(FOOTER_CONTENT.socials).toHaveLength(0);
+    expect(
+      footer.querySelector(".hp-pricing-footer__socials"),
+    ).toBeNull();
+    expect(
+      within(footer).queryByLabelText(FOOTER_CONTENT.socialLabel),
+    ).toBeNull();
 
     for (const column of FOOTER_CONTENT.columns) {
       expect(

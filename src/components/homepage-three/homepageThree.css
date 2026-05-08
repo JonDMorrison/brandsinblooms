@@ -18,6 +18,58 @@
     transition: color 500ms var(--hp-ease-entry), background-color 500ms var(--hp-ease-entry);
 }
 
+/* Scroll-mode override (homepage rebuild). Restores normal document flow,
+   browser-controlled scroll, and natural touch handling so the page can
+   be scrolled vertically. The scroll-locked variant is preserved above
+   for any legacy preview surfaces that still use it. */
+.homepage-three.homepage-three--scrolling {
+    width: 100%;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    overscroll-behavior: auto;
+    touch-action: auto;
+    padding-top: 80px; /* clear the fixed nav so the hero sits below it */
+}
+
+.hp-scroll-section {
+    position: relative;
+    width: 100%;
+    /* Anchor jumps tuck under the fixed nav rather than under the page edge. */
+    scroll-margin-top: 80px;
+}
+
+/* Section internals were sized for full-viewport scroll-lock rendering
+   (min-height: 100dvh + overflow-y: auto). In scroll mode we want
+   natural-height blocks that flow into one another, so neutralize those
+   constraints inside the new scrolling shell. The nested overflow rules
+   would otherwise create double-scrolling. */
+/* Integrations was previously listed as `.hp-integrations` here, but the
+   actual root class on HomepageIntegrationsEcosystemSection is
+   `.hp-integrations-ecosystem`. The stale selector silently matched
+   nothing, so the integrations section retained min-height: 100dvh +
+   overflow-y: auto + touch-action: pan-y from homepageIntegrations.css
+   and trapped the page scroll. The new section roots
+   (hp-problem / hp-guide / hp-differentiators) are added defensively
+   so any future min-height/overflow added to those CSS files cannot
+   reintroduce the same bug. */
+.homepage-three--scrolling .hp-pricing-cta,
+.homepage-three--scrolling .hp-impact-section,
+.homepage-three--scrolling .hp-crm-showcase,
+.homepage-three--scrolling .hp-hero,
+.homepage-three--scrolling .hp-features,
+.homepage-three--scrolling .hp-ai-showcase,
+.homepage-three--scrolling .hp-integrations-ecosystem,
+.homepage-three--scrolling .hp-problem,
+.homepage-three--scrolling .hp-guide,
+.homepage-three--scrolling .hp-differentiators {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    touch-action: auto;
+}
+
 @supports not (height: 100dvh) {
     .homepage-three {
         height: 100vh;
@@ -147,20 +199,11 @@
 }
 
 .hp-logo-mark {
-    width: 34px;
-    height: 34px;
-    color: var(--hp-green-500);
-    filter: drop-shadow(0 10px 18px rgba(34, 197, 94, 0.18));
-}
-
-.hp-logo-mark__leaf--right {
-    color: var(--hp-green-400);
-    opacity: 0.82;
-}
-
-.hp-logo-mark__stem,
-.hp-logo-mark__seed {
-    color: var(--hp-ink);
+    height: 28px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 18px rgba(62, 124, 119, 0.18));
 }
 
 .hp-nav__links {
@@ -239,9 +282,9 @@
 .hp-trial-button {
     padding: 11px 18px;
     color: white;
-    background: #22C55E;
+    background: var(--hp-green-500);
     border-radius: 999px;
-    box-shadow: 0 12px 24px rgba(34, 197, 94, 0.25);
+    box-shadow: 0 12px 24px rgba(62, 124, 119, 0.25);
     font-size: 0.92rem;
     font-weight: 800;
     cursor: pointer;
@@ -826,5 +869,30 @@ html[data-darkreader-scheme] .homepage-three :is(.hp-brand, .hp-nav__link, .hp-d
     .hp-section[data-surface="subtle"] {
         color: CanvasText;
         background: Canvas;
+    }
+}
+/* Scroll-driven fade-up for sections below the hero. The class is
+   added at runtime by HomepagePresentation's IntersectionObserver
+   effect — sections get .hp-fade-up on mount and .is-visible the
+   first time they enter the viewport (one-shot reveal). */
+.hp-fade-up {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 500ms ease-out, transform 500ms ease-out;
+    will-change: opacity, transform;
+}
+
+.hp-fade-up.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .hp-fade-up,
+    .hp-fade-up.is-visible {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
     }
 }

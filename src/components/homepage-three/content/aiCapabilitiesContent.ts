@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { Lightbulb, PenTool, TrendingUp, Zap } from "lucide-react";
+import { Calendar, PenTool, TrendingUp, Zap } from "lucide-react";
 
 export interface AiCapabilityCardConfig {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -25,17 +25,18 @@ export interface AiChatTurnConfig {
 }
 
 export const AI_CAPABILITIES_HEADER = {
-  chip: "AI Powered",
-  headline: "Intelligence Built In",
+  chip: "Your marketing assistant",
+  headline:
+    "Now you have a marketing team that thinks, plans, and works through the weekend.",
   subtext:
-    "Every feature is powered by AI that learns, adapts, and works alongside you.",
+    "Ask for what you need. Customer lists, a Mother's Day campaign, social posts for the week, a re-engagement sequence for slow weeks. Your assistant does the work and brings it back for you to review.",
 };
 
 export const AI_CHAT_DEMO = {
-  assistantLabel: "AI Assistant",
+  assistantLabel: "Marketing Assistant",
   statusLabel: "Online",
-  chatDemoLabel: "Scripted AI assistant chat demo",
-  typingLabel: "AI is typing",
+  chatDemoLabel: "Scripted marketing assistant chat demo",
+  typingLabel: "Assistant is typing",
   initialDelayMs: 1900,
   typingSpeedMs: 35,
   aiTypingDelayMs: 800,
@@ -85,31 +86,31 @@ export const AI_CAPABILITY_CARDS_LABEL = "AI capability cards";
 
 export const AI_CAPABILITY_CARDS: AiCapabilityCardConfig[] = [
   {
-    icon: TrendingUp,
-    title: "Predict & Prevent",
+    icon: Calendar,
+    title: "Plans the work",
     description:
-      "Forecast demand, identify churn risk, and get actionable suggestions before issues surface.",
+      "Tell it what's coming up. Mother's Day, end of season, a slow Tuesday. Get a campaign brief, target audience, and ready-to-schedule copy back.",
     delayMs: 1400,
   },
   {
     icon: PenTool,
-    title: "AI Copywriter",
+    title: "Drafts anything",
     description:
-      "Email copy, product descriptions, and social posts — written in your brand voice automatically.",
+      "Email subjects, product descriptions, social posts, blog articles. Pick the channel and the angle. Get a draft in your store's voice.",
     delayMs: 1500,
   },
   {
     icon: Zap,
-    title: "24/7 Workflows",
+    title: "Handles the small stuff",
     description:
-      "Tag customers, send follow-ups, restock alerts, reply to reviews — all running autonomously.",
+      "Tags new customers, sends follow-ups, posts restock alerts, replies to common reviews. The repetitive work that eats your week.",
     delayMs: 1600,
   },
   {
-    icon: Lightbulb,
-    title: "Explained Analytics",
+    icon: TrendingUp,
+    title: "Watches the data",
     description:
-      "Revenue dipped? Your AI tells you why and recommends the next move.",
+      "Surfaces customers worth a phone call, campaigns worth repeating, and a daily summary of what changed. The reading you'd do if you had time.",
     delayMs: 1700,
   },
 ];

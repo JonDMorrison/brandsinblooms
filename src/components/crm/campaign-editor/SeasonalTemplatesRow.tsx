@@ -59,20 +59,6 @@ function LoadingTemplateCard() {
   );
 }
 
-function toRgba(hexColor: string, alpha: number) {
-  const normalized = hexColor.replace("#", "").trim();
-
-  if (normalized.length !== 6) {
-    return `rgba(23, 23, 23, ${alpha})`;
-  }
-
-  const red = Number.parseInt(normalized.slice(0, 2), 16);
-  const green = Number.parseInt(normalized.slice(2, 4), 16);
-  const blue = Number.parseInt(normalized.slice(4, 6), 16);
-
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
 export function SeasonalTemplatesRow({
   selectedSeason,
   onSeasonChange,
@@ -309,21 +295,36 @@ export function SeasonalTemplatesRow({
                   key={template.id}
                   variant="outlined"
                   sx={{
+                    // Visual refresh: white body + 4px colored top-bar
+                    // (rendered as ::before below). Season is now
+                    // communicated by the bar alone — card body, chips,
+                    // and the inner thumbnail wireframe are all neutral.
                     position: "relative",
                     minWidth: TEMPLATE_CARD_WIDTH,
                     width: TEMPLATE_CARD_WIDTH,
                     borderRadius: "xl",
-                    p: 1.5,
+                    pt: "calc(0.25rem + 4px)", // 4px top-bar + the existing 12px (1.5) padding
+                    pb: 1.5,
+                    pl: 1.5,
+                    pr: 1.5,
                     gap: 1.1,
                     scrollSnapAlign: "start",
-                    borderColor: toRgba(template.accentColor, 0.16),
-                    background: `linear-gradient(180deg, ${toRgba(template.accentColor, 0.08)} 0%, rgba(255,255,255,0.98) 44%)`,
-                    transition:
-                      "transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease",
+                    backgroundColor: "#ffffff",
+                    overflow: "hidden", // clip the colored bar to the card's border-radius
+                    transition: "transform 160ms ease, box-shadow 160ms ease",
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 4,
+                      backgroundColor: template.accentColor,
+                      zIndex: 1,
+                    },
                     "&:hover": {
                       transform: "translateY(-2px)",
                       boxShadow: "md",
-                      borderColor: toRgba(template.accentColor, 0.28),
                     },
                     "&:hover .template-overlay, &:focus-within .template-overlay":
                       {
@@ -335,16 +336,14 @@ export function SeasonalTemplatesRow({
                   <Chip
                     size="sm"
                     variant="soft"
+                    color="neutral"
                     sx={{
                       position: "absolute",
-                      top: 12,
+                      top: 16,
                       right: 12,
-                      zIndex: 1,
+                      zIndex: 2,
                       textTransform: "capitalize",
                       fontWeight: 600,
-                      color: template.accentColor,
-                      bgcolor: toRgba(template.accentColor, 0.12),
-                      backdropFilter: "blur(8px)",
                     }}
                   >
                     {template.season}
@@ -384,10 +383,7 @@ export function SeasonalTemplatesRow({
                         key={`${template.id}-${tag}`}
                         size="sm"
                         variant="soft"
-                        sx={{
-                          bgcolor: toRgba(template.accentColor, 0.1),
-                          color: "neutral.700",
-                        }}
+                        color="neutral"
                       >
                         {tag}
                       </Chip>

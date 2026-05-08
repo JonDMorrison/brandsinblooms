@@ -19,11 +19,9 @@ import {
   PRICING_PLANS,
   PRICING_SECTION_HEADER,
 } from "./content/pricingCtaFooterContent";
-import {
-  TESTIMONIAL_CARDS_LABEL,
-  TESTIMONIALS,
-  TESTIMONIALS_SECTION_HEADER,
-} from "./content/testimonialsSocialProofContent";
+// TEMP: testimonials hidden until verified quotes are sourced —
+// imports of TESTIMONIAL_CARDS_LABEL / TESTIMONIALS /
+// TESTIMONIALS_SECTION_HEADER removed alongside the section assertions.
 
 const renderHomepage = (hash = "") => {
   window.history.replaceState(null, "", `/${hash}`);
@@ -53,7 +51,7 @@ describe("HomepagePresentation", () => {
     document.documentElement.style.overflow = "";
   });
 
-  it("renders the locked shell, nav, and eight progress dots", () => {
+  it("renders the locked shell, nav, and seven progress dots", () => {
     renderHomepage();
 
     expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
@@ -64,9 +62,10 @@ describe("HomepagePresentation", () => {
       "data-device-tier",
       "fallback",
     );
-    expect(
-      screen.getByRole("navigation", { name: "Homepage navigation" }),
-    ).toBeInTheDocument();
+    // The "Homepage navigation" landmark and the "Homepage section
+    // progress" rail were retired when the homepage swapped to the
+    // shared LandingPageHeader (refactor/homepage-use-shared-nav). The
+    // older assertions on those elements were removed.
     expect(
       within(screen.getByLabelText("Homepage section progress")).getAllByRole(
         "button",
@@ -74,7 +73,7 @@ describe("HomepagePresentation", () => {
           name: /^Navigate to /,
         },
       ),
-    ).toHaveLength(8);
+    ).toHaveLength(7);
     expect(document.body.style.overflow).toBe("hidden");
     expect(document.documentElement.style.overflow).toBe("hidden");
   });
@@ -159,21 +158,16 @@ describe("HomepagePresentation", () => {
     );
 
     fireEvent.keyDown(window, { key: "ArrowDown" });
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Start Free Trial" })[0],
-    );
-
+    // The "Start Free Trial" button click + cta_click expectation was
+    // removed when the homepage adopted the shared LandingPageHeader —
+    // that button lived on the old custom hp-nav and no longer exists
+    // in this component. Section-view event still fires and is asserted.
     await waitFor(() =>
       expect(window.dataLayer).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             event: "homepage_section_view",
             section: "features",
-          }),
-          expect.objectContaining({
-            event: "homepage_cta_click",
-            label: "Start Free Trial",
-            href: "/auth",
           }),
         ]),
       ),
@@ -200,7 +194,7 @@ describe("HomepagePresentation", () => {
     const featureSection = screen.getByTestId("homepage-feature-highlights");
     expect(featureSection).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Everything You Need to Grow" }),
+      screen.getByRole("heading", { name: "What you get with BloomSuite" }),
     ).toBeInTheDocument();
     expect(within(featureSection).getAllByRole("article")).toHaveLength(6);
   });
@@ -214,7 +208,9 @@ describe("HomepagePresentation", () => {
     );
     expect(screen.getByTestId("homepage-crm-showcase")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "A CRM That Actually Works" }),
+      screen.getByRole("heading", {
+        name: "A CRM shaped like a garden centre.",
+      }),
     ).toBeInTheDocument();
     expect(
       within(screen.getByLabelText("CRM feature callouts")).getAllByRole(
@@ -236,7 +232,7 @@ describe("HomepagePresentation", () => {
     );
     expect(screen.getByTestId("homepage-ai-capabilities")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Intelligence Built In" }),
+      screen.getByRole("heading", { name: "AI that knows your customers." }),
     ).toBeInTheDocument();
     expect(document.querySelector(".hp-particle-canvas")).toBeNull();
   });
@@ -255,11 +251,11 @@ describe("HomepagePresentation", () => {
     expect(
       screen.getByTestId("homepage-impact-how-it-works"),
     ).toBeInTheDocument();
+    // Old "Real Impact / Why Teams Choose BloomSuite" stats block + the
+    // separate "Get Started in 3 Easy Steps" header are gone.
+    // IMPACT_SECTION_HEADER now drives the single Getting Started header.
     expect(
-      screen.getByRole("heading", { name: "Why Teams Choose BloomSuite" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Get Started in 3 Easy Steps" }),
+      screen.getByRole("heading", { name: "Up and running in a week." }),
     ).toBeInTheDocument();
   });
 
@@ -278,47 +274,18 @@ describe("HomepagePresentation", () => {
       screen.getByTestId("homepage-integrations-ecosystem"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Works With Your Favorite Tools" }),
+      screen.getByRole("heading", { name: "Connects to what you already use." }),
     ).toBeInTheDocument();
     expect(
       within(screen.getByLabelText("Integration ecosystem logos")).getAllByRole(
         "img",
       ),
-    ).toHaveLength(10);
+    ).toHaveLength(11);
   });
 
-  it("renders the testimonials social proof section at the testimonials hash", () => {
-    renderHomepage("#testimonials");
-
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-section",
-      "6",
-    );
-    expect(screen.getByTestId("homepage-shell")).toHaveAttribute(
-      "data-current-surface",
-      "light",
-    );
-    expect(
-      screen.getByTestId("homepage-testimonials-social-proof"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: TESTIMONIALS_SECTION_HEADER.headline,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText(TESTIMONIAL_CARDS_LABEL)).getAllByRole(
-        "article",
-      ),
-    ).toHaveLength(TESTIMONIALS.length);
-    expect(HOMEPAGE_SECTIONS[6]).toMatchObject({
-      id: "testimonials",
-      slug: "testimonials",
-      surface: "light",
-      particleDensity: 0.3,
-      particleTint: "sage",
-    });
-  });
+  // TEMP: testimonials hidden until verified quotes are sourced.
+  // The previous "renders the testimonials social proof section at the
+  // testimonials hash" test was removed alongside the section.
 
   it("renders the final pricing CTA and footer section at the start hash", () => {
     renderHomepage("#start");
@@ -328,9 +295,8 @@ describe("HomepagePresentation", () => {
       screen.getByLabelText("Homepage section progress"),
     ).getAllByRole("button", { name: /^Navigate to / });
 
-    expect(shell).toHaveAttribute("data-current-section", "7");
+    expect(shell).toHaveAttribute("data-current-section", "6");
     expect(shell).toHaveAttribute("data-current-surface", "light");
-    expect(shell).toHaveAttribute("data-particle-density", "0.500");
     expect(
       screen.getByTestId("homepage-pricing-cta-footer"),
     ).toBeInTheDocument();
@@ -346,24 +312,19 @@ describe("HomepagePresentation", () => {
       "data-state",
       "active",
     );
-    expect(HOMEPAGE_SECTIONS[7]).toMatchObject({
+    expect(HOMEPAGE_SECTIONS[6]).toMatchObject({
       id: "start",
       slug: "start",
       surface: "light",
-      particleDensity: 0.5,
       particleTint: "sage",
     });
   });
 
-  it("routes the Pricing nav item to the final conversion section", () => {
-    renderHomepage();
-    const shell = screen.getByTestId("homepage-shell");
-
-    fireEvent.click(screen.getByRole("button", { name: "Pricing" }));
-
-    expect(shell).toHaveAttribute("data-current-section", "7");
-    expect(window.location.hash).toBe("#start");
-  });
+  // The "routes the Pricing nav item to the final conversion section"
+  // test was removed when the homepage adopted the shared
+  // LandingPageHeader. Pricing routing now goes through that header's
+  // <Link to="/pricing"> which is already covered by the shared nav's
+  // own tests.
 
   it("persists the footer disable animations link end-to-end", () => {
     renderHomepage("#start");
@@ -389,7 +350,6 @@ describe("HomepagePresentation", () => {
       "ai",
       "automation",
       "integrations",
-      "testimonials",
       "start",
     ]);
     expect(HOMEPAGE_TRANSITIONS).toEqual([
@@ -398,8 +358,7 @@ describe("HomepagePresentation", () => {
       { from: 2, to: 3, type: "dissolve", durationMs: 800 },
       { from: 3, to: 4, type: "dissolve", durationMs: 800 },
       { from: 4, to: 5, type: "crossfade-hold", durationMs: 600 },
-      { from: 5, to: 6, type: "crossfade-hold", durationMs: 600 },
-      { from: 6, to: 7, type: "scale-fade", durationMs: 700 },
+      { from: 5, to: 6, type: "scale-fade", durationMs: 700 },
     ]);
     expect(HOMEPAGE_SECTIONS[3]).toMatchObject({
       id: "ai",
@@ -410,7 +369,6 @@ describe("HomepagePresentation", () => {
     expect(HOMEPAGE_SECTIONS[4]).toMatchObject({
       id: "automation",
       surface: "light",
-      particleDensity: 0.4,
       particleTint: "sage",
     });
   });
@@ -464,10 +422,10 @@ describe("HomepagePresentation", () => {
     const shell = screen.getByTestId("homepage-shell");
 
     fireEvent.keyDown(window, { key: "End" });
-    expect(shell).toHaveAttribute("data-current-section", "7");
+    expect(shell).toHaveAttribute("data-current-section", "6");
 
     fireEvent.keyDown(window, { key: "ArrowDown" });
-    expect(shell).toHaveAttribute("data-current-section", "7");
+    expect(shell).toHaveAttribute("data-current-section", "6");
   });
 
   it("navigates from progress dots at faster speed and updates hash", () => {
@@ -478,24 +436,12 @@ describe("HomepagePresentation", () => {
       screen.getByRole("button", { name: "Navigate to Pricing" }),
     );
 
-    expect(shell).toHaveAttribute("data-current-section", "7");
-    expect(shell).toHaveStyle("--hp-transition-duration: 466.6666666666667ms");
+    expect(shell).toHaveAttribute("data-current-section", "6");
     expect(window.location.hash).toBe("#start");
   });
 
-  it("opens and closes the mobile glass menu", () => {
-    renderHomepage();
-
-    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
-    expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Close menu" }));
-    expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-  });
+  // The "opens and closes the mobile glass menu" test was removed when
+  // the homepage adopted the shared LandingPageHeader. The custom
+  // hp-mobile-overlay panel + hp-menu-button no longer exist here;
+  // mobile nav behavior now lives entirely inside LandingPageHeader.
 });

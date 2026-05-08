@@ -71,7 +71,7 @@ const StatCard = ({ title, value, subtitle, icon, to, color = 'text-primary', lo
 
 export const CRMStatsCards = () => {
   const { counts: segmentCounts, loading: segmentsLoading } = useSegmentCounts();
-  const { counts: personaCounts, loading: personasLoading } = usePersonaCustomerCounts();
+  const { counts: personaCounts, loading: personasLoading } = usePersonaCustomerCounts({ includeDetails: false });
   const { stats, loading: statsLoading } = useCRMRealStats();
 
   // Calculate totals
@@ -81,7 +81,7 @@ export const CRMStatsCards = () => {
   const totalPersonas = Object.keys(personaCounts).length;
 
   // Use real customer count from stats
-  const totalCustomers = stats.totalCustomers || Math.max(totalSegmentCustomers, totalPersonaCustomers);
+  const totalCustomers = stats.totalCustomers;
 
   // Get top segment and persona
   const topSegment = Object.entries(segmentCounts).reduce((max, [key, count]) => 
@@ -108,7 +108,7 @@ export const CRMStatsCards = () => {
         subtitle="Active customer base"
         icon={<Users className="w-5 h-5" />}
         to="/crm/customers"
-        loading={segmentsLoading && personasLoading && statsLoading}
+        loading={statsLoading}
       />
 
       <StatCard

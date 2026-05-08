@@ -2,13 +2,23 @@
     position: relative;
     z-index: 2;
     display: grid;
-    grid-template-rows: minmax(300px, 45dvh) minmax(280px, 1fr);
+    /* Grid rows shrink to natural content height in scroll mode so the
+       banner sits cleanly below the copy. */
+    grid-template-rows: auto auto;
+    /* Tightened from 40-72px so the banner illustration sits closer
+       to the CTAs after the headline shrunk to single-line size. */
+    row-gap: clamp(28px, 3.5vw, 52px);
     align-items: start;
     justify-items: center;
     width: 100%;
     height: 100%;
     min-height: 100dvh;
-    padding: 96px clamp(20px, 4vw, 64px) 34px;
+    /* Reduced top padding from 96px → 64px to lift the whole hero
+       composition (eyebrow → headline → CTAs → banner image) closer
+       to the viewport top. The banner illustration becomes more
+       visually prominent without growing its own dimensions because
+       more of it sits above the fold. */
+    padding: 64px clamp(20px, 4vw, 64px) 56px;
 }
 
 .hp-hero__copy {
@@ -16,8 +26,10 @@
     justify-items: center;
     align-content: center;
     gap: 16px;
-    width: min(860px, 100%);
-    min-height: 100%;
+    /* Wider than the original 860px cap so the headline ("The most
+       powerful marketing tool") fits on one line at 64px display size
+       on >=1280px viewports. */
+    width: min(1120px, 100%);
     text-align: center;
 }
 
@@ -33,12 +45,21 @@
 
 .hp-hero__headline {
     display: grid;
-    gap: 4px;
+    /* Tight gap so the rotating line and the static "Built For
+       Garden Centres." line read as visually adjacent. */
+    gap: 8px;
     margin: 0;
     font-family: var(--hp-font-display);
-    font-size: clamp(36px, 6vw, 64px);
+    /* Sized so the longest rotating phrase (now 34 chars,
+       "Email and SMS that send themselves") fits on a single line
+       at 1024px viewport: at the 3.25rem (52px) cap with
+       Quicksand-900 char-width ≈ 0.52em, the phrase renders ~919px
+       wide inside a ~942px container. Combined with white-space:
+       nowrap on the rotating line below, this guarantees one line
+       at every desktop breakpoint (>=768px). */
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1.1;
     letter-spacing: var(--hp-tracking-display);
 }
 
@@ -53,6 +74,54 @@
 
 .hp-hero__headline-line--green {
     color: #30506E;
+}
+
+.hp-hero__headline-line--rotating {
+    /* display: block (default for spans inside a grid h1) keeps the
+       typed text + cursor in normal inline flow so the cursor sits
+       at the end of the typed text. (Earlier inline-flex caused the
+       cursor to flex-wrap to its own row when the text wrapped.) */
+    display: block;
+    /* Single line of vertical space — exactly enough for the line
+       itself, no animation reservation. Combined with white-space:
+       nowrap below this guarantees the rotating phrase never adds
+       vertical space mid-animation, so the static line and the rest
+       of the hero never shift. */
+    min-height: 1.1em;
+    /* Force single-line rendering on every desktop breakpoint
+       (>=768px). The headline font-size is tuned so the longest
+       phrase fits in the container at 1024px; nowrap is the safety
+       belt that prevents any mid-word wrap if our font math is off
+       at an unusual viewport. Mobile rule below restores wrapping. */
+    white-space: nowrap;
+    /* Override the parent .hp-hero__headline-line { overflow: hidden }
+       on the rotating line ONLY. With nowrap forcing single-line
+       layout, any momentary overflow during typing (e.g. while a
+       phrase is animating to its full width) used to get clipped
+       mid-word by overflow:hidden. The entrance clip-path reveal
+       still lives on its own animation and doesn't need overflow
+       hidden to do its job — it animates clip-path: inset(100% 0 0 0)
+       → inset(0 0 0 0) which clips its own content while running.
+       The static line below keeps overflow:hidden for safety. */
+    overflow: visible;
+}
+
+.hp-hero__cursor {
+    display: inline-block;
+    margin-left: 2px;
+    color: #3E7C77;
+    font-weight: 400;
+    animation: hp-hero-cursor-blink 900ms steps(2) infinite;
+}
+
+@keyframes hp-hero-cursor-blink {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
 }
 
 .hp-hero__subtext {
@@ -76,81 +145,40 @@
     display: grid;
     justify-items: center;
     align-self: start;
-    width: min(75vw, 1120px);
+    /* Full-bleed: 100vw plus the classic margin-left:
+       calc(50% - 50vw) trick so the banner illustration breaks out
+       of the .hp-hero parent's horizontal padding and touches both
+       viewport edges at every breakpoint. The text content
+       (eyebrow, headline, subhead, CTAs) keeps its existing centered
+       padded layout — only the banner goes edge-to-edge. */
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
 }
 
-.hp-hero-dashboard {
-    align-self: start;
+.hp-hero__banner {
     width: 100%;
-    max-height: min(40dvh, 380px);
-    transform-origin: center top;
-}
-
-.hp-hero-dashboard .hp-screenshot-frame__placeholder {
-    min-height: clamp(230px, 34dvh, 330px);
-}
-
-.hp-hero-badges {
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    pointer-events: none;
-}
-
-.hp-hero-badge {
-    position: absolute;
-    opacity: 0;
-    transform: translateY(10px);
-}
-
-.hp-hero-badge__chip {
-    gap: 7px;
-    min-height: 32px;
-    padding-inline: 14px;
-    color: var(--hp-text);
-    font-size: clamp(0.72rem, 1vw, 0.82rem);
-    box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
-}
-
-.hp-hero-badge__dot {
-    width: 7px;
-    height: 7px;
-    flex: 0 0 auto;
-    border-radius: var(--radius-full);
-    background: #68BEB9;
-    box-shadow: 0 0 0 4px rgba(104, 190, 185, 0.12);
-}
-
-.hp-hero-badge[data-position="top-left"] {
-    top: -46px;
-    left: 7%;
-}
-
-.hp-hero-badge[data-position="top-right"] {
-    top: -46px;
-    right: 7%;
-}
-
-.hp-hero-badge[data-position="bottom-left"] {
-    bottom: -34px;
-    left: 7%;
-}
-
-.hp-hero-badge[data-position="bottom-right"] {
-    right: 7%;
-    bottom: -34px;
-}
-
-.hp-hero-badge[data-position="mid-left"] {
-    top: 42%;
-    left: clamp(-160px, -11vw, -124px);
-}
-
-.hp-hero-badge[data-position="mid-right"] {
-    top: 45%;
-    right: clamp(-150px, -10vw, -118px);
+    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+    /* Fade the top 12% and bottom 8% of the illustration into the
+       white hero background so the banner edges blend in instead of
+       showing a sharp horizontal cut against adjacent sections. */
+    mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 92%,
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        transparent 0%,
+        black 12%,
+        black 92%,
+        transparent 100%
+    );
 }
 
 .hp-hero[data-active="true"] .hp-hero__eyebrow {
@@ -173,38 +201,20 @@
     animation: hp-hero-slide-up var(--hp-entry-duration) var(--hp-ease-entry) 340ms both;
 }
 
-.hp-hero[data-active="true"] .hp-hero-dashboard {
-    animation: hp-hero-dashboard-enter var(--hp-entry-duration) var(--hp-ease-entry) 420ms both,
-        hp-hero-dashboard-drift 6s var(--hp-ease-drift) 820ms infinite alternate;
-}
-
-.hp-hero[data-active="true"] .hp-hero-badge {
-    animation: hp-hero-badge-enter 360ms var(--hp-ease-entry) var(--hp-badge-delay) both;
-}
-
-.hp-hero[data-active="true"] .hp-hero-badge__chip {
-    animation: hp-hero-badge-float var(--hp-badge-float-duration) var(--hp-ease-drift) var(--hp-badge-float-phase) infinite alternate;
+.hp-hero[data-active="true"] .hp-hero__banner {
+    animation: hp-hero-banner-enter var(--hp-entry-duration) var(--hp-ease-entry) 420ms both;
 }
 
 .hp-hero[data-active="false"] .hp-hero__eyebrow,
 .hp-hero[data-active="false"] .hp-hero__headline-line,
 .hp-hero[data-active="false"] .hp-hero__subtext,
 .hp-hero[data-active="false"] .hp-hero__ctas,
-.hp-hero[data-active="false"] .hp-hero-dashboard,
-.hp-hero[data-active="false"] .hp-hero-badge {
+.hp-hero[data-active="false"] .hp-hero__banner {
     opacity: 0;
 }
 
-.hp-hero[data-motion-enabled="false"] .hp-hero-dashboard {
+.hp-hero[data-motion-enabled="false"] .hp-hero__banner {
     animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
-}
-
-.hp-hero[data-motion-enabled="false"] .hp-hero-badge {
-    animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
-}
-
-.hp-hero[data-motion-enabled="false"] .hp-hero-badge__chip {
-    animation: none;
 }
 
 @keyframes hp-hero-fade {
@@ -241,10 +251,10 @@
     }
 }
 
-@keyframes hp-hero-dashboard-enter {
+@keyframes hp-hero-banner-enter {
     from {
         opacity: 0;
-        transform: translateY(60px);
+        transform: translateY(40px);
     }
 
     to {
@@ -253,60 +263,32 @@
     }
 }
 
-@keyframes hp-hero-dashboard-drift {
-    from {
-        transform: translateY(0);
-    }
-
-    to {
-        transform: translateY(-8px);
-    }
-}
-
-@keyframes hp-hero-badge-enter {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes hp-hero-badge-float {
-    from {
-        transform: translateY(-3px);
-    }
-
-    to {
-        transform: translateY(3px);
-    }
-}
-
-@media (max-width: 1100px) {
-    .hp-hero__visual {
-        width: min(85vw, 920px);
-    }
-
-    .hp-hero-badge[data-optional="true"] {
-        display: none;
-    }
-}
+/* No tablet-specific .hp-hero__visual width override — the base
+   rule's 100vw + margin-left bleed trick already gives full-bleed at
+   every breakpoint. */
 
 @media (max-width: 767px) {
     .hp-hero {
-        grid-template-rows: minmax(400px, 52.5dvh) minmax(220px, 1fr);
-        padding: 84px 16px 52px;
+        grid-template-rows: auto auto;
+        padding: 56px 16px 40px;
     }
 
     .hp-hero__copy {
         gap: 14px;
     }
 
-    .hp-hero__headline {
-        font-size: clamp(36px, 12vw, 48px);
+    .hp-hero__headline-line--rotating {
+        /* Mobile tradeoff: at the 28px floor (1.75rem) and ~340px
+           container width on iPhone SE, even the shortest phrases
+           barely fit on one line and the 38/43-char phrases must
+           wrap. Allow natural wrap on mobile so the phrase renders
+           in full instead of overflowing the viewport. The static
+           "Built For Garden Centres." line below shifts down by ~36px
+           when a wrapping phrase is animating; that's an acceptable
+           mobile tradeoff (the user is already scrolling) and far
+           better than truncation or a forced-tiny font. */
+        white-space: normal;
+        min-height: 1.1em;
     }
 
     .hp-hero__ctas {
@@ -322,43 +304,13 @@
         font-size: 0.88rem;
     }
 
-    .hp-hero__visual {
-        width: 95vw;
-    }
-
-    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
-        min-height: clamp(190px, 28dvh, 260px);
-    }
-
-    .hp-hero-badge[data-position="top-left"] {
-        top: -31px;
-        left: 3%;
-    }
-
-    .hp-hero-badge[data-position="top-right"] {
-        top: -31px;
-        right: 3%;
-    }
-
-    .hp-hero-badge[data-position="bottom-left"] {
-        bottom: -36px;
-        left: 2%;
-    }
-
-    .hp-hero-badge[data-position="bottom-right"] {
-        right: 2%;
-        bottom: -36px;
-    }
+    /* Mobile-specific .hp-hero__visual rule removed — the base
+       full-bleed rule already covers mobile. */
 }
 
 @media (max-height: 760px) and (min-width: 768px) {
     .hp-hero {
-        grid-template-rows: minmax(270px, 43dvh) minmax(240px, 1fr);
-        padding-top: 82px;
-    }
-
-    .hp-hero-dashboard .hp-screenshot-frame__placeholder {
-        min-height: clamp(210px, 30dvh, 300px);
+        padding-top: 48px;
     }
 }
 
@@ -368,8 +320,12 @@
     .hp-hero[data-active="true"] .hp-hero__headline-line,
     .hp-hero[data-active="true"] .hp-hero__subtext,
     .hp-hero[data-active="true"] .hp-hero__ctas,
-    .hp-hero[data-active="true"] .hp-hero-dashboard,
-    .hp-hero[data-active="true"] .hp-hero-badge {
+    .hp-hero[data-active="true"] .hp-hero__banner {
         animation: hp-hero-fade 1ms var(--hp-ease-entry) both;
+    }
+
+    .hp-hero__cursor {
+        animation: none;
+        opacity: 0;
     }
 }

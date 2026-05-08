@@ -1,20 +1,47 @@
 import type { CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import {
   FEATURE_HIGHLIGHTS,
   FEATURE_SECTION_HEADER,
-  TRUST_LOGOS,
-  TRUST_STRIP_CAPTION,
   type FeatureHighlightConfig,
   type FeatureHighlightId,
 } from "./content/featureHighlightsContent";
+import smartCrmIllustration from "@/assets/features/smart-crm.png";
+import campaignBuilderIllustration from "@/assets/features/campaign-builder.png";
+import inventoryOrdersIllustration from "@/assets/features/inventory-orders.png";
+import pageEditorIllustration from "@/assets/features/page-editor.png";
+import analyticsDashboardIllustration from "@/assets/features/analytics-dashboard.png";
+import multiStoreIllustration from "@/assets/features/multi-store.png";
 import "./homepageFeatures.css";
 
 export type FeatureScreenshotMap = Partial<Record<FeatureHighlightId, string>>;
 
-const DEFAULT_FEATURE_SCREENSHOTS: FeatureScreenshotMap = {
-  "smart-crm": "/homepage/smart-customer-crm.png",
-  "campaign-builder": "/homepage/ai-campaign-builder.png",
-  "analytics-dashboard": "/homepage/growth-and-analytics.png",
+// Defaults now cover every FeatureHighlightId — there are no longer any
+// cards relying on the old gray-skeleton placeholder fallback. The
+// explicit Record<...> annotation enforces full coverage at compile
+// time so a future id addition forces a matching illustration.
+const DEFAULT_FEATURE_SCREENSHOTS: Record<FeatureHighlightId, string> = {
+  "smart-crm": smartCrmIllustration,
+  "campaign-builder": campaignBuilderIllustration,
+  "inventory-orders": inventoryOrdersIllustration,
+  "page-editor": pageEditorIllustration,
+  "analytics-dashboard": analyticsDashboardIllustration,
+  "multi-store": multiStoreIllustration,
+};
+
+// Maps each card's FeatureHighlightId to the slug used by the SEO
+// landing pages under /features/<slug>. Stage 1 only ships the
+// customer-crm page; the other five are documented routes that will
+// resolve once Stage 2 lands their content configs (the
+// FeatureDetailPage redirects unregistered slugs back to /features so
+// they fail soft, not hard).
+const FEATURE_DETAIL_SLUGS: Record<FeatureHighlightId, string> = {
+  "smart-crm": "customer-crm",
+  "campaign-builder": "campaigns",
+  "inventory-orders": "inventory-orders",
+  "page-editor": "storefront",
+  "analytics-dashboard": "analytics",
+  "multi-store": "unified-platform",
 };
 
 interface HomepageFeatureHighlightsSectionProps {
@@ -26,133 +53,8 @@ interface HomepageFeatureHighlightsSectionProps {
 interface FeaturePreviewCardProps {
   feature: FeatureHighlightConfig;
   index: number;
-  src?: string;
+  src: string;
 }
-
-const TrustLogoList = () => (
-  <ul className="hp-feature-trust__logos">
-    {TRUST_LOGOS.map((logo) => {
-      const Icon = logo.icon;
-
-      return (
-        <li
-          key={logo.label}
-          className="hp-feature-trust__logo-item"
-          aria-label={logo.label}
-        >
-          {logo.src ? (
-            <img
-              className="hp-feature-trust__logo-mark"
-              src={logo.src}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              aria-hidden="true"
-            />
-          ) : Icon ? (
-            <span className="hp-feature-trust__icon-mark" aria-hidden="true">
-              <Icon />
-            </span>
-          ) : null}
-          <span className="hp-feature-trust__logo-name">{logo.label}</span>
-        </li>
-      );
-    })}
-  </ul>
-);
-
-const FeatureSkeleton = ({ id }: { id: FeatureHighlightId }) => {
-  if (id === "smart-crm") {
-    return (
-      <div
-        className="hp-feature-skeleton hp-feature-skeleton--crm"
-        aria-hidden="true"
-      >
-        <span className="hp-feature-skeleton__toolbar" />
-        <span className="hp-feature-skeleton__metric" />
-        <span className="hp-feature-skeleton__metric" />
-        <span className="hp-feature-skeleton__metric" />
-        <span className="hp-feature-skeleton__line" />
-        <span className="hp-feature-skeleton__line" />
-      </div>
-    );
-  }
-
-  if (id === "campaign-builder") {
-    return (
-      <div
-        className="hp-feature-skeleton hp-feature-skeleton--campaign"
-        aria-hidden="true"
-      >
-        <span className="hp-feature-skeleton__toolbar" />
-        <span className="hp-feature-skeleton__canvas" />
-        <span className="hp-feature-skeleton__sidebar" />
-      </div>
-    );
-  }
-
-  if (id === "inventory-orders") {
-    return (
-      <div
-        className="hp-feature-skeleton hp-feature-skeleton--inventory"
-        aria-hidden="true"
-      >
-        <span className="hp-feature-skeleton__toolbar" />
-        <span className="hp-feature-skeleton__cell" />
-        <span className="hp-feature-skeleton__cell" />
-        <span className="hp-feature-skeleton__cell" />
-        <span className="hp-feature-skeleton__cell" />
-        <span className="hp-feature-skeleton__wide" />
-      </div>
-    );
-  }
-
-  if (id === "page-editor") {
-    return (
-      <div
-        className="hp-feature-skeleton hp-feature-skeleton--editor"
-        aria-hidden="true"
-      >
-        <span className="hp-feature-skeleton__sidebar" />
-        <span className="hp-feature-skeleton__stack" />
-        <span className="hp-feature-skeleton__stack" />
-        <span className="hp-feature-skeleton__stack" />
-      </div>
-    );
-  }
-
-  if (id === "analytics-dashboard") {
-    return (
-      <div
-        className="hp-feature-skeleton hp-feature-skeleton--analytics"
-        aria-hidden="true"
-      >
-        <span className="hp-feature-skeleton__toolbar" />
-        <svg
-          className="hp-feature-skeleton__chart"
-          viewBox="0 0 260 88"
-          focusable="false"
-          aria-hidden="true"
-        >
-          <path d="M8 72 C62 66 84 54 122 50 C166 45 186 30 252 18" />
-        </svg>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="hp-feature-skeleton hp-feature-skeleton--multistore"
-      aria-hidden="true"
-    >
-      <span className="hp-feature-skeleton__store" />
-      <span className="hp-feature-skeleton__connector" />
-      <span className="hp-feature-skeleton__store" />
-      <span className="hp-feature-skeleton__connector" />
-      <span className="hp-feature-skeleton__store" />
-    </div>
-  );
-};
 
 const FeaturePreviewCard = ({
   feature,
@@ -161,6 +63,7 @@ const FeaturePreviewCard = ({
 }: FeaturePreviewCardProps) => {
   const titleId = `hp-feature-title-${feature.id}`;
   const descriptionId = `hp-feature-description-${feature.id}`;
+  const slug = FEATURE_DETAIL_SLUGS[feature.id];
 
   return (
     <article
@@ -170,36 +73,29 @@ const FeaturePreviewCard = ({
       className="hp-feature-card"
       style={{ "--hp-feature-card-delay": `${index * 80}ms` } as CSSProperties}
     >
-      <div className="hp-feature-card__preview">
-        {src ? (
+      <Link
+        to={`/features/${slug}`}
+        className="hp-feature-card__link"
+        aria-labelledby={titleId}
+      >
+        <div className="hp-feature-card__preview">
           <img
             className="hp-feature-card__image"
             src={src}
-            alt={`${feature.placeholderLabel} preview`}
+            alt={`${feature.placeholderLabel} illustration`}
             loading="lazy"
             decoding="async"
           />
-        ) : (
-          <div
-            className="hp-feature-card__placeholder"
-            role="img"
-            aria-label={`${feature.placeholderLabel} screenshot placeholder`}
-          >
-            <FeatureSkeleton id={feature.id} />
-            <span className="hp-feature-card__placeholder-label">
-              {feature.placeholderLabel}
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="hp-feature-card__body">
-        <h3 id={titleId} className="hp-feature-card__title">
-          {feature.title}
-        </h3>
-        <p id={descriptionId} className="hp-feature-card__description">
-          {feature.description}
-        </p>
-      </div>
+        </div>
+        <div className="hp-feature-card__body">
+          <h3 id={titleId} className="hp-feature-card__title">
+            {feature.title}
+          </h3>
+          <p id={descriptionId} className="hp-feature-card__description">
+            {feature.description}
+          </p>
+        </div>
+      </Link>
     </article>
   );
 };
@@ -209,7 +105,7 @@ export const HomepageFeatureHighlightsSection = ({
   motionEnabled,
   screenshotSrcs,
 }: HomepageFeatureHighlightsSectionProps) => {
-  const resolvedScreenshotSrcs = {
+  const resolvedScreenshotSrcs: Record<FeatureHighlightId, string> = {
     ...DEFAULT_FEATURE_SCREENSHOTS,
     ...screenshotSrcs,
   };
@@ -222,15 +118,6 @@ export const HomepageFeatureHighlightsSection = ({
       data-homepage-gesture-lock="true"
       data-testid="homepage-feature-highlights"
     >
-      <div
-        className="hp-feature-trust"
-        data-active={isActive}
-        aria-label={TRUST_STRIP_CAPTION}
-      >
-        <p className="hp-feature-trust__caption">{TRUST_STRIP_CAPTION}</p>
-        <TrustLogoList />
-      </div>
-
       <div className="hp-features__main">
         <header className="hp-features__header" data-active={isActive}>
           <p className="hp-features__eyebrow">

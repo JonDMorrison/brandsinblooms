@@ -73,11 +73,15 @@ const handler = async (req: Request): Promise<Response> => {
       </p>
     `;
 
-    // Send email to both recipients
-    const recipients = ["jon@brandsinblooms.com", "jeff@brandsinblooms.com"];
-    
+    // Send email to founders and the public support inbox
+    const recipients = [
+      "jon@brandsinblooms.com",
+      "jeff@brandsinblooms.com",
+      "support@brandsinblooms.com",
+    ];
+
     const emailResponse = await resend.emails.send({
-      from: "BloomSuite Contact Form <contact@resend.dev>",
+      from: "BloomSuite Contact <support@brandsinblooms.com>",
       to: recipients,
       reply_to: email, // Reply goes to the person who submitted the contact form
       subject: emailSubject,

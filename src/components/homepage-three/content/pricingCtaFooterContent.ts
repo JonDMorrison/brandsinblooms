@@ -1,6 +1,9 @@
 import type { ComponentType, SVGProps } from "react";
-import { Instagram, Linkedin, Twitter } from "lucide-react";
 
+// Plan IDs are kept as starter/growth/enterprise to avoid breaking the
+// PRICING_MOBILE_INITIAL_PLAN_ID reference and any consumer that branches
+// on id. The user-facing names are Sprout / Bloom / Thrive per the
+// product subscription enum.
 export type PricingPlanId = "starter" | "growth" | "enterprise";
 export type PricingPlanCtaVariant = "primary" | "secondary";
 export type PricingPlanEntryDirection = "left" | "center" | "right";
@@ -36,44 +39,54 @@ export interface FooterSocialLinkConfig extends FooterLinkConfig {
 }
 
 export const PRICING_SECTION_HEADER = {
-  eyebrow: "SIMPLE PRICING",
-  headline: "Plans That Grow With You",
-  subtext: "Start free. Upgrade when you're ready. No surprises.",
+  eyebrow: "Pricing",
+  headline: "Plans that match your store.",
+  subtext:
+    "All plans include a 14-day free trial. Need CRM only without a website? See our Seed plan at $199/month on the pricing page.",
 };
 
 export const PRICING_CARDS_LABEL = "Pricing plan cards";
 export const PRICING_MOBILE_INITIAL_PLAN_ID: PricingPlanId = "growth";
 
+// Card prices and feature lists mirror the canonical intro pricing in
+// src/components/pricing/pricingConfig.ts (Sprout $349 / Bloom $699 /
+// Thrive $1,199). All three cards route to /pricing for the full plan
+// detail page rather than triggering an in-page section anchor.
 export const PRICING_PLANS: PricingPlanConfig[] = [
   {
     id: "starter",
-    name: "Starter",
-    price: "Free",
-    priceDetail: "Forever",
-    featureListLabel: "Starter plan features",
-    features: ["Up to 100 customers", "Basic CRM", "1 store", "Email support"],
-    ctaLabel: "Get Started",
-    ctaHref: "#start",
+    name: "Sprout",
+    price: "$349",
+    priceDetail: "/month",
+    featureListLabel: "Sprout plan features",
+    features: [
+      "Website + Ecommerce + BloomSuite",
+      "Up to 10,000 contacts",
+      "20,000 emails per month",
+      "2,000 SMS per month",
+      "Email support",
+    ],
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "secondary",
     delayMs: 150,
     entryDirection: "left",
   },
   {
     id: "growth",
-    name: "Growth",
-    price: "$49",
+    name: "Bloom",
+    price: "$699",
     priceDetail: "/month",
-    featureListLabel: "Growth plan features",
+    featureListLabel: "Bloom plan features",
     features: [
-      "Unlimited customers",
-      "AI Assistant",
-      "Campaign Builder",
-      "Visual Editor",
-      "Up to 3 stores",
+      "Website + Ecommerce + BloomSuite",
+      "Up to 25,000 contacts",
+      "100,000 emails per month",
+      "5,000 SMS per month",
       "Priority support",
     ],
-    ctaLabel: "Start Free Trial",
-    ctaHref: "#start",
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "primary",
     featured: true,
     featuredChip: "Most Popular",
@@ -82,32 +95,47 @@ export const PRICING_PLANS: PricingPlanConfig[] = [
   },
   {
     id: "enterprise",
-    name: "Enterprise",
-    price: "Custom",
-    priceDetail: "Tailored to you",
-    featureListLabel: "Enterprise plan features",
+    name: "Thrive",
+    price: "$1,199",
+    priceDetail: "/month",
+    featureListLabel: "Thrive plan features",
     features: [
-      "Everything in Growth",
-      "Unlimited stores",
+      "Multi-location ready",
+      "Unlimited emails",
+      "50,000 SMS per month",
       "Dedicated success manager",
-      "Custom integrations",
       "SLA guarantee",
     ],
-    ctaLabel: "Contact Sales",
-    ctaHref: "#contact-sales",
+    ctaLabel: "See plan details",
+    ctaHref: "/pricing",
     ctaVariant: "secondary",
     delayMs: 150,
     entryDirection: "right",
   },
 ];
 
+// Small line below the three pricing cards pointing users at the
+// pricing page when they want the website-less "Seed" tier ($199/month
+// CRM-only) — it doesn't appear on the homepage cards.
+export const SEED_FOOTNOTE = {
+  text: "Have a website already? Start with Seed at $199/month for CRM, messaging, automations, and insights without a new site.",
+  linkLabel: "See all plans",
+  linkHref: "/pricing",
+};
+
 export const FINAL_CTA_CONTENT = {
   ariaLabel: "Final homepage call to action",
-  headline: "Ready to Grow Your Green Business?",
-  primaryCta: "Start Free Trial",
-  primaryHref: "#start",
-  secondaryCta: "Book a Demo",
-  secondaryHref: "#demo",
+  headline: "Ready to grow your garden centre?",
+  subhead:
+    "Start your trial today. No credit card. Ready to use in under an hour.",
+  primaryCta: "Start free trial",
+  // /auth matches the trial sign-up handler used by the top-nav
+  // "Start Free Trial" button (NavigationShell.navigateToAuth).
+  primaryHref: "/auth",
+  secondaryCta: "Talk to our team",
+  // /contact matches the top-nav "Book a Demo" handler
+  // (NavigationShell.navigateToDemo).
+  secondaryHref: "/contact",
   caption: "No credit card required · 14-day free trial · Cancel anytime",
 };
 
@@ -120,52 +148,23 @@ export const FOOTER_CONTENT = {
   socialLabel: "BloomSuite social links",
   disableAnimationsLabel: "Disable animations",
   copyright: "© 2026 BloomSuite. All rights reserved.",
-  socials: [
-    {
-      label: "LinkedIn",
-      href: "https://www.linkedin.com/",
-      icon: Linkedin,
-    },
-    {
-      label: "Twitter/X",
-      href: "https://x.com/",
-      icon: Twitter,
-    },
-    {
-      label: "Instagram",
-      href: "https://www.instagram.com/",
-      icon: Instagram,
-    },
-  ] satisfies FooterSocialLinkConfig[],
+  // TODO: add social entries when BloomSuite Facebook/Instagram/LinkedIn profiles are created
+  socials: [] satisfies FooterSocialLinkConfig[],
   columns: [
     {
       title: "PRODUCT",
       links: [
-        { label: "CRM", href: "#customer-growth" },
-        { label: "AI Assistant", href: "#ai" },
-        { label: "Visual Editor", href: "#features" },
-        { label: "Campaign Builder", href: "#features" },
+        { label: "Features", href: "/features" },
+        { label: "Pricing", href: "/pricing" },
         { label: "Integrations", href: "#integrations" },
-        { label: "Pricing", href: "#start" },
+        { label: "FAQ", href: "/faq" },
       ],
     },
     {
       title: "COMPANY",
       links: [
         { label: "About", href: "/about" },
-        { label: "Blog", href: "/blog" },
-        { label: "Careers", href: "/careers" },
         { label: "Contact", href: "/contact" },
-        { label: "Press Kit", href: "/press-kit" },
-      ],
-    },
-    {
-      title: "RESOURCES",
-      links: [
-        { label: "Documentation", href: "/docs" },
-        { label: "API Reference", href: "/api" },
-        { label: "Status Page", href: "/status" },
-        { label: "Changelog", href: "/changelog" },
       ],
     },
     {
@@ -173,7 +172,8 @@ export const FOOTER_CONTENT = {
       links: [
         { label: "Privacy Policy", href: "/privacy" },
         { label: "Terms of Service", href: "/terms" },
-        { label: "Cookie Policy", href: "/cookies" },
+        { label: "Platform Agreement", href: "/platform-agreement" },
+        { label: "SMS Program", href: "/sms-program" },
       ],
     },
   ] satisfies FooterColumnConfig[],

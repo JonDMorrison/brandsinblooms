@@ -125,19 +125,17 @@ async function publishToInstagram(accountId: string, accessToken: string, captio
 }
 
 async function handler(req: Request): Promise<Response> {
-  // FIX: [SC4] - Add service-role-or-JWT authentication
-  const authHeader = req.headers.get('Authorization');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401 });
-  }
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const token = authHeader.replace('Bearer ', '');
-    const { error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-    }
-  }
+  // Auth gating is handled at the Supabase platform level via the
+  // function's verify_jwt setting — the platform rejects requests
+  // without a valid Authorization header (anon/user JWT or
+  // service-role/sb_secret_) before they ever reach this handler.
+  // The previous in-handler service-role check broke when the project
+  // migrated to the sb_secret_ key format on 2026-05-07: cron sends
+  // the new key shape, but the check string-compared against the
+  // legacy SUPABASE_SERVICE_ROLE_KEY env (still the legacy JWT) and
+  // 401'd everything. process-email-send-queue and vmx-sync-all
+  // already use this no-in-handler-check pattern and authenticate
+  // correctly across both key formats; queue-worker is now aligned.
 
   try {
     console.log('Queue worker starting...')

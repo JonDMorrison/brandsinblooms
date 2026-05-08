@@ -137,25 +137,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // FIX: [issue #20] - Add auth check to prevent unauthenticated access
-    const authHeader = req.headers.get('Authorization');
+    // Auth gating handled at the platform level via verify_jwt — see
+    // queue-worker / process-email-send-queue for the same pattern.
+    // The previous in-handler check string-compared against the
+    // legacy SUPABASE_SERVICE_ROLE_KEY env, which broke after the
+    // 2026-05-07 sb_secret_ key migration (cron now sends the new
+    // key shape).
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    if (!authHeader || (authHeader !== `Bearer ${serviceRoleKey}` && !authHeader.startsWith('Bearer '))) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       serviceRoleKey
     );
-
-    if (authHeader !== `Bearer ${serviceRoleKey}`) {
-      const token = authHeader.replace('Bearer ', '');
-      const { error: authErr } = await supabase.auth.getUser(token);
-      if (authErr) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-    }
 
     console.log('🤖 Automation Executor starting...');
 

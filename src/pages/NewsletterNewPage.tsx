@@ -8,11 +8,18 @@ import ModalDialog from "@mui/joy/ModalDialog";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { ArrowRight, PenTool, Sparkles, type LucideIcon } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  PenTool,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { NewsletterLayoutPicker } from "@/components/NewsletterLayoutPicker";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { NewsletterPicker } from "@/components/newsletter/NewsletterPicker";
+import { BrandFoliage } from "@/components/brand";
 import { useNewsletterIdeas } from "@/hooks/useNewsletterIdeas";
 import {
   buildNewsletterIdeaEditorSearchParams,
@@ -20,59 +27,85 @@ import {
 } from "@/lib/studio/newsletterIdeaSeed";
 import { NewsletterIdea } from "@/types/newsletter";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+// Token scope side-effect import — without this, the
+// .hp-token-scope wrapper added below has no token definitions to
+// resolve. Same pattern as PricingPage.tsx.
+import "@/components/homepage-three/homepageTokens.css";
 
 type LayoutKey = "block-builder" | "simple-email";
 
+type CreationPathVariant = "scratch" | "ai";
+
 type CreationPathCardProps = {
+  variant: CreationPathVariant;
   title: string;
   description: string;
   buttonLabel: string;
-  buttonVariant: "solid" | "outlined";
-  buttonColor: "neutral" | "primary";
-  cardVariant: "outlined" | "soft";
-  cardColor?: "neutral" | "primary";
   chipLabel?: string;
   icon: LucideIcon;
   onClick: () => void;
 };
 
 function CreationPathCard({
+  variant,
   title,
   description,
   buttonLabel,
-  buttonVariant,
-  buttonColor,
-  cardVariant,
-  cardColor,
   chipLabel,
   icon: Icon,
   onClick,
 }: CreationPathCardProps) {
+  const isAi = variant === "ai";
+
   return (
     <Card
-      variant={cardVariant}
-      color={cardColor}
+      variant="outlined"
       sx={{
-        p: 3,
+        position: "relative",
+        p: { xs: 3, md: 4 },
         height: "100%",
         borderRadius: "lg",
-        bgcolor: cardVariant === "outlined" ? "background.surface" : undefined,
+        // (1) Cream-tinted scratch card vs (2) teal AI card.
+        // Cream uses --hp-green-50 at low alpha so it reads warm
+        // against the page surface without going green-loud.
+        bgcolor: isAi
+          ? "var(--hp-green-50, #E1FFFE)"
+          : "rgba(225, 255, 254, 0.18)",
+        borderColor: isAi
+          ? "var(--hp-green-300, #87DFD8)"
+          : "rgba(48, 80, 110, 0.14)",
+        // (2) Visual punch on the AI card: 1.02 scale + soft teal
+        // glow so it reads as the recommended path.
+        transform: { xs: "none", md: isAi ? "scale(1.02)" : "none" },
+        boxShadow: isAi
+          ? "0 0 36px rgba(135, 223, 216, 0.35), 0 4px 14px rgba(62, 124, 119, 0.08)"
+          : "none",
         display: "flex",
         flexDirection: "column",
+        transition: "transform 200ms ease, box-shadow 200ms ease",
       }}
     >
-      <Stack spacing={2} sx={{ flex: 1 }}>
+      <Stack spacing={2.5} sx={{ flex: 1 }}>
+        {/* (3) 96px tinted icon circle. */}
         <Box
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: "md",
+            width: 96,
+            height: 96,
+            borderRadius: "50%",
             display: "grid",
             placeItems: "center",
-            bgcolor: "background.level1",
+            bgcolor: isAi
+              ? "var(--hp-green-700, #1F4341)"
+              : "var(--hp-green-50, #E1FFFE)",
+            color: isAi
+              ? "var(--hp-text-light, #FAFAFA)"
+              : "var(--hp-green-700, #1F4341)",
+            boxShadow: isAi
+              ? "0 6px 22px rgba(31, 67, 65, 0.32)"
+              : "inset 0 0 0 1px rgba(62, 124, 119, 0.15)",
           }}
         >
-          <Icon size={24} />
+          <Icon size={44} strokeWidth={1.7} />
         </Box>
 
         <Stack spacing={1.25} sx={{ flex: 1 }}>
@@ -83,11 +116,28 @@ function CreationPathCard({
             useFlexGap
             flexWrap="wrap"
           >
-            <Typography level="title-md" sx={{ fontWeight: 600 }}>
+            <Typography
+              level="title-md"
+              sx={{ fontWeight: 700, color: "var(--hp-green-900, #11302E)" }}
+            >
               {title}
             </Typography>
             {chipLabel ? (
-              <Chip size="sm" variant="soft" color="primary">
+              // (2) Solid-teal AI-Powered badge: white text, more
+              // weight than the prior soft pill.
+              <Chip
+                size="sm"
+                variant="solid"
+                sx={{
+                  bgcolor: "var(--hp-green-600, #2E605C)",
+                  color: "var(--hp-text-light, #FAFAFA)",
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                  px: 1.25,
+                  py: 0.5,
+                  fontSize: "12px",
+                }}
+              >
                 {chipLabel}
               </Chip>
             ) : null}
@@ -99,14 +149,24 @@ function CreationPathCard({
         </Stack>
       </Stack>
 
-      <Box sx={{ mt: "auto", pt: 2 }}>
+      <Box sx={{ mt: "auto", pt: 2.5 }}>
         <Button
           size="md"
-          variant={buttonVariant}
-          color={buttonColor}
+          variant={isAi ? "solid" : "outlined"}
+          color={isAi ? "primary" : "neutral"}
           endDecorator={<ArrowRight size={16} />}
           onClick={onClick}
-          sx={{ width: "100%" }}
+          sx={{
+            width: "100%",
+            ...(isAi
+              ? {
+                  bgcolor: "var(--hp-green-700, #1F4341)",
+                  "&:hover": {
+                    bgcolor: "var(--hp-green-900, #11302E)",
+                  },
+                }
+              : {}),
+          }}
         >
           {buttonLabel}
         </Button>
@@ -170,32 +230,67 @@ function IdeaQuickAccessCardSkeleton() {
   );
 }
 
+// (4) Seasonal accent stripe colors — NOT brand tokens, decorative
+// only. Each weekly idea card gets a 4px left-edge stripe colored
+// by the season of its weekNumber. Mapping uses ISO weeks 1-52
+// with a roughly Northern-hemisphere calendar.
+function getSeasonalAccentColor(weekNumber: number): string {
+  if (weekNumber >= 10 && weekNumber <= 22) {
+    // seasonal accent stripe — not a brand token, decorative only
+    return "var(--hp-green-500, #3E7C77)"; // spring → brand teal
+  }
+  if (weekNumber >= 23 && weekNumber <= 35) {
+    // seasonal accent stripe — not a brand token, decorative only
+    return "#D4A437"; // summer → warm gold
+  }
+  if (weekNumber >= 36 && weekNumber <= 48) {
+    // seasonal accent stripe — not a brand token, decorative only
+    return "#B86B3F"; // fall → copper
+  }
+  // seasonal accent stripe — not a brand token, decorative only
+  return "#5A7A8C"; // winter → cool gray-blue
+}
+
 function IdeaQuickAccessCard({
-  chipColor,
-  chipLabel,
+  isCurrentWeek,
   idea,
   onUseIdea,
 }: {
-  chipColor: "neutral" | "success";
-  chipLabel: string;
+  isCurrentWeek: boolean;
   idea: NewsletterIdea;
   onUseIdea: (idea: NewsletterIdea) => void;
 }) {
-  const weekLabel =
-    idea.badge ?? (idea.weekNumber ? `Week ${idea.weekNumber}` : "Weekly");
+  const weekNumber = idea.weekNumber ?? 0;
+  const accentColor = getSeasonalAccentColor(weekNumber);
 
   return (
     <Card
       variant="outlined"
       sx={{
+        position: "relative",
         p: 3,
+        pl: 3.5, // extra left padding so content doesn't sit directly on the stripe
         height: "100%",
         borderRadius: "lg",
         bgcolor: "background.surface",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}
     >
+      {/* (4) 4px seasonal accent stripe on the left edge. */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          width: 4,
+          bgcolor: accentColor,
+        }}
+        aria-hidden="true"
+      />
+
       <Stack spacing={1.5} sx={{ height: "100%" }}>
         <Stack
           direction="row"
@@ -203,21 +298,79 @@ function IdeaQuickAccessCard({
           alignItems="flex-start"
           spacing={1.5}
         >
-          <Typography
-            level="body-xs"
-            sx={{
-              color: "text.tertiary",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              fontWeight: 600,
-            }}
-          >
-            {`Weekly · ${weekLabel}`}
-          </Typography>
-
-          <Chip size="sm" variant="soft" color={chipColor}>
-            {chipLabel}
-          </Chip>
+          {/*
+            (5) Friendlier eyebrow. Current-week idea gets a bold
+            "This week's spotlight" label with a green check pill
+            holding the week number; other weeks get a softer
+            "Up next: Week N" treatment with a muted gray pill.
+          */}
+          {isCurrentWeek ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ minWidth: 0 }}
+            >
+              <Typography
+                level="body-sm"
+                sx={{
+                  fontWeight: 700,
+                  color: "var(--hp-green-700, #1F4341)",
+                }}
+              >
+                This week&apos;s spotlight
+              </Typography>
+              <Chip
+                size="sm"
+                variant="solid"
+                startDecorator={<Check size={12} strokeWidth={3} />}
+                sx={{
+                  bgcolor: "var(--hp-green-700, #1F4341)",
+                  color: "var(--hp-text-light, #FAFAFA)",
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  letterSpacing: "0.04em",
+                  px: 1,
+                }}
+              >
+                Week {weekNumber || "—"}
+              </Chip>
+            </Stack>
+          ) : (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ minWidth: 0 }}
+            >
+              <Typography
+                level="body-sm"
+                sx={{
+                  fontWeight: 600,
+                  color: "text.secondary",
+                }}
+              >
+                Up next:
+              </Typography>
+              <Chip
+                size="sm"
+                variant="soft"
+                color="neutral"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: "11px",
+                  letterSpacing: "0.04em",
+                  px: 1,
+                }}
+              >
+                Week {weekNumber || "—"}
+              </Chip>
+            </Stack>
+          )}
         </Stack>
 
         <Stack spacing={1} sx={{ flex: 1 }}>
@@ -355,115 +508,168 @@ export const NewsletterNewPage = () => {
 
   return (
     <>
-      <PageContainer sx={{ px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
-        <Stack spacing={{ xs: 4, md: 5 }}>
-          <Stack spacing={1} sx={{ mb: 0.5 }}>
-            <Typography level="h3" sx={{ fontWeight: 700 }}>
-              Create a Newsletter
-            </Typography>
-            <Typography level="body-md" sx={{ color: "text.secondary" }}>
-              Start from scratch, explore weekly ideas, or let AI craft
-              something new.
-            </Typography>
-          </Stack>
+      {/*
+        (1) .hp-token-scope wrapper so --hp-* variables resolve, plus
+        a soft cream off-white background and a single BrandFoliage
+        decoration anchored bottom-right at low opacity.
+      */}
+      <Box
+        className="hp-token-scope"
+        sx={{
+          position: "relative",
+          minHeight: "100%",
+          bgcolor: "var(--hp-bg-subtle, #F8F9FB)",
+          // The DashboardShell main content area handles its own
+          // padding; we only need the page's own surface to read as
+          // a continuous warm cream.
+        }}
+      >
+        <BrandFoliage
+          aria-hidden="true"
+          color="var(--hp-green-400, #68BEB9)"
+          style={{
+            position: "absolute",
+            right: "-3%",
+            bottom: "-6%",
+            width: "clamp(220px, 26vw, 360px)",
+            height: "auto",
+            opacity: 0.45,
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
 
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-              gap: 2,
-              mb: 0.5,
-            }}
-          >
-            <CreationPathCard
-              title="Start from Scratch"
-              description="Open a blank editor and build your newsletter block by block."
-              buttonLabel="Open blank editor"
-              buttonVariant="outlined"
-              buttonColor="neutral"
-              cardVariant="outlined"
-              icon={PenTool}
-              onClick={() => navigate("/crm/campaigns/new?type=newsletter")}
-            />
+        <PageContainer
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            px: { xs: 2, md: 3 },
+            py: { xs: 3, md: 4 },
+          }}
+        >
+          {/*
+            (6) Bigger gap between the "Create a Newsletter" section
+            and "Ideas for You" so they read as distinct chapters
+            rather than one flat list. Mobile: 48-64px (xs:6); desktop:
+            80-96px (md:11). Joy spacing units are 8px each, so
+            md:11 = 88px, xs:6 = 48px.
+          */}
+          <Stack spacing={{ xs: 6, md: 11 }}>
+            <Stack spacing={{ xs: 4, md: 5 }}>
+              <Stack spacing={1.25}>
+                <Typography
+                  level="h3"
+                  sx={{
+                    fontWeight: 700,
+                    color: "var(--hp-green-900, #11302E)",
+                  }}
+                >
+                  Create a Newsletter
+                </Typography>
+                <Typography level="body-md" sx={{ color: "text.secondary" }}>
+                  Start from scratch, explore weekly ideas, or let AI craft
+                  something new.
+                </Typography>
+              </Stack>
 
-            <CreationPathCard
-              title="Pick an Idea"
-              description="Get AI-generated newsletter concepts tailored to your business."
-              buttonLabel="Explore AI ideas"
-              buttonVariant="solid"
-              buttonColor="primary"
-              cardVariant="soft"
-              cardColor="primary"
-              chipLabel="AI-Powered"
-              icon={Sparkles}
-              onClick={() => setShowPicker(true)}
-            />
-          </Box>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: { xs: 2.5, md: 3 },
+                  alignItems: "stretch",
+                }}
+              >
+                <CreationPathCard
+                  variant="scratch"
+                  title="Start from Scratch"
+                  description="Open a blank editor and build your newsletter block by block."
+                  buttonLabel="Open blank editor"
+                  icon={PenTool}
+                  onClick={() => navigate("/crm/campaigns/new?type=newsletter")}
+                />
 
-          <Stack spacing={3}>
-            <Stack spacing={0.75}>
-              <Typography level="title-lg" sx={{ fontWeight: 600 }}>
-                Ideas for You
-              </Typography>
-              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                Timely newsletter ideas based on the gardening calendar.
-              </Typography>
+                <CreationPathCard
+                  variant="ai"
+                  title="Pick an Idea"
+                  description="Get AI-generated newsletter concepts tailored to your business."
+                  buttonLabel="Explore AI ideas"
+                  chipLabel="AI-Powered"
+                  icon={Sparkles}
+                  onClick={() => setShowPicker(true)}
+                />
+              </Box>
             </Stack>
 
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-                gap: 2,
-              }}
-            >
-              {showIdeaSkeletons ? (
-                <>
-                  <IdeaQuickAccessCardSkeleton />
-                  <IdeaQuickAccessCardSkeleton />
-                </>
-              ) : (
-                <>
-                  {currentWeekIdea ? (
-                    <IdeaQuickAccessCard
-                      chipColor="success"
-                      chipLabel="This Week"
-                      idea={currentWeekIdea}
-                      onUseIdea={handleOpenQuickAccessLayout}
-                    />
-                  ) : null}
+            <Stack spacing={{ xs: 3, md: 4 }}>
+              <Stack spacing={1.25}>
+                <Typography
+                  level="title-lg"
+                  sx={{
+                    fontWeight: 700,
+                    color: "var(--hp-green-900, #11302E)",
+                  }}
+                >
+                  Ideas for You
+                </Typography>
+                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                  Timely newsletter ideas based on the gardening calendar.
+                </Typography>
+              </Stack>
 
-                  {nextWeekIdea ? (
-                    <IdeaQuickAccessCard
-                      chipColor="neutral"
-                      chipLabel="Next Week"
-                      idea={nextWeekIdea}
-                      onUseIdea={handleOpenQuickAccessLayout}
-                    />
-                  ) : null}
-                </>
-              )}
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "center", mb: 0.5 }}>
-              <Button
-                size="md"
-                variant="outlined"
-                color="neutral"
-                endDecorator={<ArrowRight size={16} />}
-                onClick={() => setShowPicker(true)}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
+                }}
               >
-                Browse all 52 weekly ideas
-              </Button>
-            </Box>
-          </Stack>
-        </Stack>
+                {showIdeaSkeletons ? (
+                  <>
+                    <IdeaQuickAccessCardSkeleton />
+                    <IdeaQuickAccessCardSkeleton />
+                  </>
+                ) : (
+                  <>
+                    {currentWeekIdea ? (
+                      <IdeaQuickAccessCard
+                        isCurrentWeek
+                        idea={currentWeekIdea}
+                        onUseIdea={handleOpenQuickAccessLayout}
+                      />
+                    ) : null}
 
-        <NewsletterPicker
-          isOpen={showPicker}
-          onClose={() => setShowPicker(false)}
-        />
-      </PageContainer>
+                    {nextWeekIdea ? (
+                      <IdeaQuickAccessCard
+                        isCurrentWeek={false}
+                        idea={nextWeekIdea}
+                        onUseIdea={handleOpenQuickAccessLayout}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </Box>
+
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <Button
+                  size="md"
+                  variant="outlined"
+                  color="neutral"
+                  endDecorator={<ArrowRight size={16} />}
+                  onClick={() => setShowPicker(true)}
+                >
+                  Browse all 52 weekly ideas
+                </Button>
+              </Box>
+            </Stack>
+          </Stack>
+
+          <NewsletterPicker
+            isOpen={showPicker}
+            onClose={() => setShowPicker(false)}
+          />
+        </PageContainer>
+      </Box>
 
       <Modal
         open={Boolean(quickAccessIdea)}

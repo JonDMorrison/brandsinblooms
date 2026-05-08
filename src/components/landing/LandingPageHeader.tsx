@@ -87,7 +87,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           onClick={onLogin}
           variant="outline"
           size="sm"
-          className="border-[#2c9da3] text-[#2c9da3] hover:bg-[#2c9da3]/10"
+          className="border-[#3E7C77] text-[#3E7C77] hover:bg-[#3E7C77]/10"
         >
           Log In
         </Button>
@@ -95,7 +95,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           variant="ghost"
           onClick={onLogin}
           size="sm"
-          className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
+          className="bg-[#3E7C77] hover:bg-[#2E605C] text-white"
         >
           Sign Up
         </Button>
@@ -150,7 +150,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   setMobileMenuOpen(false);
                 }}
                 variant="outline"
-                className="justify-start border-[#2c9da3] text-[#2c9da3] hover:bg-[#2c9da3]/10"
+                className="justify-start border-[#3E7C77] text-[#3E7C77] hover:bg-[#3E7C77]/10"
               >
                 Log In
               </Button>
@@ -160,7 +160,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
                   onLogin();
                   setMobileMenuOpen(false);
                 }}
-                className="bg-[#2c9da3] hover:bg-[#2c9da3]/90 text-white"
+                className="bg-[#3E7C77] hover:bg-[#2E605C] text-white"
               >
                 Sign Up
               </Button>

@@ -1,65 +1,48 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it } from "vitest";
 import { HomepageHeroSection } from "./HomepageHeroSection";
-import { HERO_ROLE_BADGES } from "./content/heroContent";
+import { HERO_CONTENT } from "./content/heroContent";
 
 describe("HomepageHeroSection", () => {
-  it("renders the two-tone hero copy, CTA anchors, and dashboard screenshot", () => {
-    render(<HomepageHeroSection isActive motionEnabled />);
+  it("renders the rotating headline scaffold, static tagline, CTA anchors, and the illustrated banner", () => {
+    const { container } = render(
+      <HomepageHeroSection isActive motionEnabled />,
+    );
 
-    expect(
-      screen.getByText("AI-Powered Business Platform"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Grow Your Green Business")).toHaveClass(
+    expect(screen.getByText(HERO_CONTENT.eyebrow)).toBeInTheDocument();
+    // Rotating typewriter line is present (the text inside ticks over
+    // time; we just assert the live region exists with the dark tone).
+    const rotatingText = container.querySelector(".hp-hero__rotating-text");
+    expect(rotatingText).toBeInTheDocument();
+    expect(rotatingText).toHaveAttribute("aria-live", "polite");
+    expect(rotatingText).toHaveAttribute("aria-atomic", "true");
+    expect(rotatingText?.parentElement).toHaveClass(
       "hp-hero__headline-line--dark",
     );
-    expect(screen.getByText("With Intelligent CRM")).toHaveClass(
+    // Static tagline keeps the brand-teal accent.
+    expect(screen.getByText(HERO_CONTENT.staticTagline)).toHaveClass(
       "hp-hero__headline-line--green",
     );
+    // Cursor sits beside the rotating text.
+    expect(container.querySelector(".hp-hero__cursor")).toBeInTheDocument();
+    expect(screen.getByText(HERO_CONTENT.subtext)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "The all-in-one CRM, AI assistant, and commerce platform for garden centres, florists, and eco-conscious retailers.",
-      ),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: HERO_CONTENT.primaryCta }),
+    ).toHaveAttribute("href", HERO_CONTENT.primaryHref);
     expect(
-      screen.getByRole("link", { name: "Start Free Trial" }),
-    ).toHaveAttribute("href", "#start");
-    expect(screen.getByRole("link", { name: "Book a Demo" })).toHaveAttribute(
-      "href",
-      "#demo",
-    );
+      screen.getByRole("link", { name: HERO_CONTENT.secondaryCta }),
+    ).toHaveAttribute("href", HERO_CONTENT.secondaryHref);
+    // The retired role badges + GlassScreenshotFrame chrome are gone;
+    // the visual is now a single illustrated banner.
     expect(
       screen.getByRole("img", {
-        name: "BloomSuite CRM Dashboard — customer management, campaigns, analytics, and AI assistant",
+        name: /garden centre owner using BloomSuite on a tablet/i,
       }),
-    ).toHaveAttribute("src", "/homepage/section-1.png");
-    expect(screen.getByText("app.bloomsuite.com")).toBeInTheDocument();
+    ).toHaveClass("hp-hero__banner");
   });
 
-  it("renders six role badges with distinct float timing metadata", () => {
-    render(<HomepageHeroSection isActive motionEnabled />);
-
-    const badgeList = screen.getByRole("list", {
-      name: "BloomSuite customer roles",
-    });
-    const badges = within(badgeList).getAllByRole("listitem");
-
-    expect(badges).toHaveLength(6);
-    for (const badge of HERO_ROLE_BADGES) {
-      expect(screen.getByText(badge.label)).toBeInTheDocument();
-    }
-
-    const durations = badges.map((badge) =>
-      badge.style.getPropertyValue("--hp-badge-float-duration"),
-    );
-    expect(new Set(durations).size).toBe(HERO_ROLE_BADGES.length);
-    expect(
-      badges.filter((badge) => badge.getAttribute("data-optional") === "true"),
-    ).toHaveLength(2);
-  });
-
-  it("marks fallback mode so CSS can keep badges and dashboard static", () => {
+  it("marks fallback mode so CSS can keep the banner static", () => {
     render(<HomepageHeroSection isActive motionEnabled={false} />);
 
     expect(screen.getByTestId("homepage-hero")).toHaveAttribute(

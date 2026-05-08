@@ -152,17 +152,29 @@ function resolveFontFamily(
   return font?.fontFamilyCss || fallback;
 }
 
+// Defense against malformed company_profiles rows where the email
+// address ended up in the postal_code (or city / state) column. We saw
+// this on a tenant whose website-extraction tool scraped the contact
+// email into postal_code; the assembled footer line read
+// "Chilliwack, BC, info@flowerhousemarket.ca". Suppress any field that
+// matches an email shape so the address line stays clean even when the
+// underlying data is wrong.
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function suppressEmail(value: string) {
+  return EMAIL_SHAPE.test(value) ? "" : value;
+}
+
 function getAddressLines(companyInfo: CompanyInfo) {
   const addressLines = [
-    stringValue(companyInfo.streetAddress),
+    suppressEmail(stringValue(companyInfo.streetAddress)),
     [
-      stringValue(companyInfo.city),
-      stringValue(companyInfo.stateProvince),
-      stringValue(companyInfo.postalCode),
+      suppressEmail(stringValue(companyInfo.city)),
+      suppressEmail(stringValue(companyInfo.stateProvince)),
+      suppressEmail(stringValue(companyInfo.postalCode)),
     ]
       .filter(Boolean)
       .join(", "),
-    stringValue(companyInfo.country),
+    suppressEmail(stringValue(companyInfo.country)),
   ].filter(Boolean);
 
   return addressLines.join("\n") || stringValue(companyInfo.address);

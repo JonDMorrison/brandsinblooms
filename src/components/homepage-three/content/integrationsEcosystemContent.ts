@@ -1,7 +1,7 @@
 import { providerLogoAssets } from "@/components/integrations/providerLogoAssets";
 import { socialIconUrls } from "@/utils/socialIcons";
 
-export type IntegrationCardSize = "standard" | "wide";
+export type IntegrationCardSize = "standard";
 
 export interface IntegrationLogoConfig {
   src: string;
@@ -29,45 +29,24 @@ const getProviderLogo = (integrationId: string) => {
 };
 
 export const INTEGRATIONS_SECTION_HEADER = {
-  eyebrow: "INTEGRATIONS",
-  headline: "Works With Your Favorite Tools",
-  subtext:
-    "Connect BloomSuite with the platforms you already rely on, set up in minutes, not days.",
+  eyebrow: "Integrations",
+  headline: "Connects to what you already use.",
+  subtext: "Two-way sync with the tools your store already runs on.",
 };
 
 export const INTEGRATION_COUNT_COPY = {
-  headline: "12+ integrations and growing",
+  headline: "10+ integrations and growing",
   cta: "Don't see yours? We'll build it.",
   ctaHref: "#contact",
 };
 
+// Ordered by category for scannability: POS first (the most-asked-
+// about integration for garden centres), then ecommerce, email,
+// social, analytics. Stripe (payments-only) and Cloudflare
+// (infrastructure-only) were dropped — neither speaks to the garden
+// centre operator's day-to-day. VMX POS added to round out the POS
+// row alongside Lightspeed, Square, and Clover.
 export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
-  {
-    id: "stripe",
-    name: "Stripe",
-    logo: {
-      src: getProviderLogo("stripe"),
-      alt: "Stripe logo",
-    },
-    category: "PAYMENTS",
-    description:
-      "Accept payments, manage subscriptions, and handle invoicing, all synced with your CRM in real-time.",
-    size: "wide",
-    delayMs: 0,
-  },
-  {
-    id: "shopify",
-    name: "Shopify",
-    logo: {
-      src: getProviderLogo("shopify"),
-      alt: "Shopify logo",
-    },
-    category: "E-COMMERCE",
-    description:
-      "Sync products, orders, and customers between your Shopify store and BloomSuite.",
-    size: "standard",
-    delayMs: 80,
-  },
   {
     id: "lightspeed",
     name: "Lightspeed",
@@ -76,10 +55,9 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
       alt: "Lightspeed logo",
     },
     category: "POS",
-    description:
-      "Connect your Lightspeed POS for real-time inventory and sales sync.",
+    description: "Live inventory and sales sync, location by location.",
     size: "standard",
-    delayMs: 160,
+    delayMs: 0,
   },
   {
     id: "square",
@@ -90,9 +68,47 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "POS",
     description:
-      "Process payments and sync Square transactions directly into your dashboard.",
+      "Transactions and customer data flow into BloomSuite automatically.",
+    size: "standard",
+    delayMs: 80,
+  },
+  {
+    id: "clover",
+    name: "Clover",
+    logo: {
+      src: getProviderLogo("clover"),
+      alt: "Clover logo",
+    },
+    category: "POS",
+    description:
+      "Transactions, inventory, and customer data, synced to your dashboard.",
+    size: "standard",
+    delayMs: 160,
+  },
+  {
+    id: "vmx-pos",
+    name: "VMX POS",
+    logo: {
+      src: getProviderLogo("vmx-pos"),
+      alt: "VMX POS logo",
+    },
+    category: "POS",
+    description:
+      "Transactions, customer data, and receipt-level history syncing into BloomSuite live.",
     size: "standard",
     delayMs: 240,
+  },
+  {
+    id: "shopify",
+    name: "Shopify",
+    logo: {
+      src: getProviderLogo("shopify"),
+      alt: "Shopify logo",
+    },
+    category: "E-COMMERCE",
+    description: "Two-way sync of products, orders, and customers.",
+    size: "standard",
+    delayMs: 320,
   },
   {
     id: "mailchimp",
@@ -103,9 +119,9 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "EMAIL",
     description:
-      "Import audiences, sync segments, and trigger campaigns across both platforms.",
+      "Audiences and segments stay in lockstep across both platforms.",
     size: "standard",
-    delayMs: 320,
+    delayMs: 400,
   },
   {
     id: "klaviyo",
@@ -116,9 +132,22 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "EMAIL",
     description:
-      "Advanced email automation with deep customer data sync, lifecycle flows, predictive analytics, and segmentation.",
-    size: "wide",
-    delayMs: 400,
+      "Lifecycle flows, predictive analytics, and shared customer data.",
+    size: "standard",
+    delayMs: 480,
+  },
+  {
+    id: "constant-contact",
+    name: "Constant Contact",
+    logo: {
+      src: getProviderLogo("constant-contact"),
+      alt: "Constant Contact logo",
+    },
+    category: "EMAIL",
+    description:
+      "Sync lists, automate campaigns, and keep contact preferences in one place.",
+    size: "standard",
+    delayMs: 560,
   },
   {
     id: "meta",
@@ -129,32 +158,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "SOCIAL",
     description:
-      "Connect Facebook and Instagram for social publishing and analytics.",
-    size: "standard",
-    delayMs: 480,
-  },
-  {
-    id: "cloudflare",
-    name: "Cloudflare",
-    logo: {
-      src: getProviderLogo("cloudflare"),
-      alt: "Cloudflare logo",
-    },
-    category: "INFRASTRUCTURE",
-    description:
-      "CDN, security, and performance optimization for your storefront.",
-    size: "standard",
-    delayMs: 560,
-  },
-  {
-    id: "clover",
-    name: "Clover",
-    logo: {
-      src: getProviderLogo("clover"),
-      alt: "Clover logo",
-    },
-    category: "POS",
-    description: "Sync Clover POS transactions, inventory, and customer data.",
+      "Publish to Facebook and Instagram from your campaign builder.",
     size: "standard",
     delayMs: 640,
   },
@@ -167,7 +171,7 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
     },
     category: "ANALYTICS",
     description:
-      "Track storefront traffic, conversions, and customer journeys.",
+      "Storefront traffic, conversions, and customer journeys mapped to your CRM.",
     size: "standard",
     delayMs: 720,
   },

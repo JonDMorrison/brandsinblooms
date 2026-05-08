@@ -1,0 +1,304 @@
+/* Pricing page bespoke styling. The page wraps in .hp-token-scope
+   so all --hp-* tokens (defined in homepageTokens.css) resolve here.
+   No new tokens declared — this file uses existing variables only. */
+
+/* Soft brand-tinted radial overlays — same pattern shipped on the
+   auth page brand panel earlier today (auth.css :: .auth-split-shell__brand::before).
+   Used on the hero, the ROI panel, and the final-CTA section to add
+   garden-fresh atmosphere without going dark. */
+.pricing-soft-tint {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse at top left,
+            rgba(135, 223, 216, 0.16) 0%,
+            rgba(135, 223, 216, 0) 55%),
+        radial-gradient(ellipse at bottom right,
+            rgba(225, 255, 254, 0.5) 0%,
+            rgba(225, 255, 254, 0) 60%);
+}
+
+/* BrandFoliage corner decoration. Used on hero, ROI, final CTA. */
+.pricing-foliage {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    color: var(--hp-green-400, #68BEB9);
+    width: clamp(220px, 28vw, 380px);
+    height: auto;
+}
+
+.pricing-foliage--bottom-right {
+    right: -3%;
+    bottom: -6%;
+}
+
+.pricing-foliage--top-left {
+    top: -8%;
+    left: -4%;
+    transform: rotate(180deg);
+    opacity: 0.55;
+}
+
+@media (max-width: 767px) {
+    .pricing-foliage {
+        width: 180px;
+    }
+    .pricing-foliage--bottom-right {
+        right: -8%;
+        bottom: -8%;
+    }
+    .pricing-foliage--top-left {
+        top: -10%;
+        left: -10%;
+    }
+}
+
+/* Hero headline matches the homepage hero clamp shipped this evening
+   so /pricing reads as part of the same marketing voice. */
+.pricing-hero-headline {
+    font-family: var(--hp-font-display);
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+    color: var(--hp-green-900, #11302E);
+}
+
+.pricing-hero-subhead {
+    font-size: clamp(1rem, 1.4vw, 1.14rem);
+    line-height: 1.62;
+    color: var(--hp-text-muted, #64748B);
+}
+
+.pricing-hero-eyebrow {
+    color: #30506E;
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+/* Cost comparison cards — Section 2. */
+.pricing-comparison-card {
+    position: relative;
+    border-radius: 16px;
+    padding: 28px 28px 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.pricing-comparison-card--negative {
+    background: #FAF7F5;
+    border: 1px solid rgba(180, 83, 9, 0.18);
+    color: var(--hp-text, #0F172A);
+}
+
+.pricing-comparison-card--positive {
+    background: var(--hp-green-50, #E1FFFE);
+    border: 2px solid var(--hp-green-400, #68BEB9);
+    box-shadow: 0 8px 28px rgba(62, 124, 119, 0.10);
+    color: var(--hp-green-900, #11302E);
+}
+
+.pricing-comparison-card__heading {
+    font-family: var(--hp-font-display);
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+    color: inherit;
+}
+
+.pricing-comparison-card--negative .pricing-comparison-card__heading {
+    color: #92400e;
+}
+
+.pricing-comparison-card__big {
+    font-family: var(--hp-font-display);
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--hp-green-700, #1F4341);
+}
+
+.pricing-comparison-card__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--hp-text, #0F172A);
+}
+
+.pricing-comparison-card--negative .pricing-comparison-card__list {
+    color: #4b3c2a;
+}
+
+.pricing-comparison-card__list li::before {
+    content: "•";
+    margin-right: 8px;
+    color: currentColor;
+    opacity: 0.6;
+}
+
+.pricing-comparison-card__footer {
+    margin-top: auto;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: inherit;
+    opacity: 0.85;
+}
+
+/* "Every plan, every feature" banner — Section 3. */
+.pricing-every-plan-banner {
+    background: var(--hp-green-50, #E1FFFE);
+    border-block: 1px solid rgba(104, 190, 185, 0.28);
+    padding: 22px 24px;
+    text-align: center;
+    color: var(--hp-green-900, #11302E);
+}
+
+.pricing-every-plan-banner__text {
+    font-family: var(--hp-font-display);
+    font-size: clamp(1rem, 1.6vw, 1.25rem);
+    font-weight: 800;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* "Most Popular" pill highlight on the Bloom card. */
+.pricing-card--popular {
+    transform: scale(1.02);
+    box-shadow: 0 12px 36px rgba(62, 124, 119, 0.18),
+                0 0 0 2px var(--hp-green-500, #3E7C77);
+}
+
+@media (max-width: 768px) {
+    .pricing-card--popular {
+        transform: none;
+    }
+}
+
+/* ROI panel — Section 6. */
+.pricing-roi-panel {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 2px solid var(--hp-green-300, #87DFD8);
+    background: var(--hp-bg-subtle, #F8F9FB);
+    padding: clamp(28px, 4vw, 48px);
+}
+
+.pricing-roi-panel__heading {
+    font-family: var(--hp-font-display);
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--hp-green-900, #11302E);
+    margin: 0 0 20px;
+    max-width: 720px;
+    position: relative;
+    z-index: 1;
+}
+
+.pricing-roi-panel__body {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 16px;
+    color: var(--hp-text, #0F172A);
+    font-size: clamp(1rem, 1.3vw, 1.125rem);
+    line-height: 1.65;
+    max-width: 760px;
+}
+
+.pricing-roi-panel__body strong {
+    color: var(--hp-green-700, #1F4341);
+    font-weight: 800;
+}
+
+/* Testimonial cards — Section 5 fallback when no real logos exist. */
+.pricing-testimonial-card {
+    background: white;
+    border: 1px solid rgba(48, 80, 110, 0.12);
+    border-radius: 16px;
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.pricing-testimonial-card__quote {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--hp-text, #0F172A);
+    margin: 0;
+}
+
+.pricing-testimonial-card__attribution {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--hp-text-muted, #64748B);
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Final CTA backdrop. */
+.pricing-final-cta {
+    position: relative;
+    overflow: hidden;
+    border-radius: 24px;
+    background:
+        linear-gradient(135deg,
+            var(--hp-green-700, #1F4341) 0%,
+            var(--hp-green-900, #11302E) 100%);
+    padding: clamp(48px, 6vw, 84px) clamp(28px, 4vw, 64px);
+    color: var(--hp-text-light, #FAFAFA);
+    text-align: center;
+}
+
+.pricing-final-cta__headline {
+    font-family: var(--hp-font-display);
+    font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.15;
+    margin: 0 0 16px;
+    color: var(--hp-text-light, #FAFAFA);
+    position: relative;
+    z-index: 1;
+}
+
+.pricing-final-cta__subhead {
+    font-size: clamp(1rem, 1.4vw, 1.125rem);
+    line-height: 1.55;
+    margin: 0 0 32px;
+    color: rgba(225, 255, 254, 0.88);
+    max-width: 620px;
+    margin-inline: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.pricing-final-cta__support {
+    margin: 16px 0 0;
+    font-size: 13px;
+    color: rgba(225, 255, 254, 0.7);
+    position: relative;
+    z-index: 1;
+}
+
+.pricing-final-cta__support a {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 700;
+}

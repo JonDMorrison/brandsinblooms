@@ -1,49 +1,61 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui-legacy/button";
-import { ArrowRight, Leaf } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { BrandFoliage } from "@/components/brand";
 
 export const FinalCTANew = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="py-20 px-6 bg-white">
-      <div className="max-w-3xl mx-auto">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#2F7A4F] to-[#256B42] p-10 md:p-14 text-center">
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative">
-            {/* Icon */}
-            <div className="inline-flex w-14 h-14 rounded-2xl bg-white/10 items-center justify-center mb-6">
-              <Leaf className="w-7 h-7 text-white" />
-            </div>
+    <section className="py-16 md:py-20 px-6 bg-white">
+      <div className="max-w-5xl mx-auto">
+        <div className="pricing-final-cta">
+          <BrandFoliage
+            className="pricing-foliage pricing-foliage--bottom-right"
+            color="rgba(225, 255, 254, 0.55)"
+            aria-hidden="true"
+          />
+          <BrandFoliage
+            className="pricing-foliage pricing-foliage--top-left"
+            color="rgba(225, 255, 254, 0.4)"
+            aria-hidden="true"
+          />
 
-            {/* Heading */}
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Ready to grow with BloomSuite?
-            </h2>
+          <h2 className="pricing-final-cta__headline">
+            Spend more time on the floor, less on the laptop.
+          </h2>
 
-            {/* Subtext */}
-            <p className="text-lg text-white/80 mb-8 max-w-md mx-auto">
-              Join the Launch Program and lock in your pricing for life.
-            </p>
+          <p className="pricing-final-cta__subhead">
+            Start your 14-day free trial. No credit card required. Lock in
+            Early Adopter pricing for life.
+          </p>
 
-            {/* CTA Button */}
+          <div className="relative z-[1] flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Button
-              onClick={() => navigate('/auth')}
+              onClick={() => navigate("/auth")}
               size="lg"
-              className="bg-white text-[#2F7A4F] hover:bg-gray-100 font-semibold px-8 py-6 text-base group"
+              className="bg-[#E1FFFE] text-[#1F4341] hover:bg-white font-semibold px-8 py-6 text-base group min-w-[200px]"
             >
-              Get Started
+              Start free trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
 
-            {/* Supporting text */}
-            <p className="text-sm text-white/60 mt-4">
-              14-day free trial • No credit card required
-            </p>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="border-2 border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white hover:border-white/60 font-semibold px-8 py-6 text-base min-w-[200px]"
+            >
+              <Link to="/contact">Talk to sales</Link>
+            </Button>
           </div>
+
+          <p className="pricing-final-cta__support">
+            Questions? Email{" "}
+            <a href="mailto:support@bloomsuite.app">
+              support@bloomsuite.app
+            </a>
+          </p>
         </div>
       </div>
     </section>

@@ -51,8 +51,17 @@ function getDefaultDateLabel() {
   }).format(new Date());
 }
 
-function getDefaultCopyrightText(companyName = "Your Business") {
-  return `© ${new Date().getFullYear()} ${companyName}`;
+// Returns an empty string when the only company name we have is one of
+// the design-system placeholders. The send-time footer renderer falls
+// through to the actual tenant business name in that case, so leaving
+// the field blank avoids baking "© <year> Your Company" / "Your Business"
+// into the campaign metadata where a backfill is needed to repair it.
+function getDefaultCopyrightText(companyName?: string) {
+  const trimmed = (companyName || "").trim();
+  if (!trimmed || trimmed === "Your Business" || trimmed === "Your Company") {
+    return "";
+  }
+  return `© ${new Date().getFullYear()} ${trimmed}`;
 }
 
 function getFooterAddress(designSystem: StudioDesignSystem | null | undefined) {

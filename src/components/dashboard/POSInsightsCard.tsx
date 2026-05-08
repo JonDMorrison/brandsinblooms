@@ -64,7 +64,7 @@ export const POSInsightsCard: React.FC = () => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate("/crm/campaigns/new?type=newsletter")}
+            onClick={() => navigate("/newsletters/new")}
           >
             Create a campaign
           </Button>

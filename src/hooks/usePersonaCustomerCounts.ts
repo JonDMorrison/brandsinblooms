@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/hooks/useTenant";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
 import { supabase } from "@/integrations/supabase/client";
+import { useCrmDashboardSnapshot } from "@/hooks/useCrmDashboardSnapshot";
 import {
   buildPersonaNameIndex,
   getCustomerPersonaMetrics,
@@ -32,13 +33,29 @@ export interface PersonaCoverageSummary {
   totalCustomerValue: number;
 }
 
-export const usePersonaCustomerCounts = () => {
+export interface UsePersonaCustomerCountsOptions {
+  includeDetails?: boolean;
+}
+
+export const usePersonaCustomerCounts = (
+  options?: UsePersonaCustomerCountsOptions,
+) => {
+  const includeDetails = options?.includeDetails ?? true;
   const { tenant } = useTenant();
   const { personas, loading: personasLoading } = useAllPersonas();
 
+  const snapshotQuery = useCrmDashboardSnapshot(
+    {
+      tenantId: tenant?.id,
+    },
+    {
+      enabled: Boolean(tenant?.id) && !includeDetails,
+    },
+  );
+
   const customerSourceQuery = useQuery({
     queryKey: ["persona-customer-counts-source", tenant?.id],
-    enabled: Boolean(tenant?.id),
+    enabled: includeDetails && Boolean(tenant?.id),
     queryFn: async () => {
       if (!tenant?.id) {
         return [] as PersonaCustomerLike[];
@@ -86,6 +103,51 @@ export const usePersonaCustomerCounts = () => {
   );
 
   const derived = useMemo(() => {
+    if (!includeDetails) {
+      const snapshotCounts = snapshotQuery.data?.personaCounts ?? {};
+      const counts = personas.reduce<PersonaCounts>((result, persona) => {
+        result[persona.id] = snapshotCounts[persona.id] ?? 0;
+        return result;
+      }, {});
+
+      const statsByPersona = personas.reduce<Record<string, PersonaRollup>>(
+        (result, persona) => {
+          const customerCount = counts[persona.id] ?? 0;
+
+          result[persona.id] = {
+            customerCount,
+            customerIds: [],
+            averageEngagement: 0,
+            averageValue: 0,
+            totalValue: 0,
+            topChannel: null,
+            channelDistribution: [],
+          };
+
+          return result;
+        },
+        {},
+      );
+
+      const totalCustomers = snapshotQuery.data?.totalCustomers ?? 0;
+
+      const summary: PersonaCoverageSummary = {
+        totalCustomers,
+        assignedCustomers: 0,
+        unassignedCustomers: totalCustomers,
+        coverageRate: 0,
+        totalCustomerValue: Math.round(
+          snapshotQuery.data?.totalCustomerRevenue ?? 0,
+        ),
+      };
+
+      return {
+        counts,
+        statsByPersona,
+        summary,
+      };
+    }
+
     const sourceCustomers = customerSourceQuery.data ?? [];
     const counts: PersonaCounts = {};
     const assignedCustomers = new Set<string>();
@@ -196,17 +258,31 @@ export const usePersonaCustomerCounts = () => {
       statsByPersona,
       summary,
     };
-  }, [customerSourceQuery.data, personaNameIndex, personas]);
+  }, [
+    customerSourceQuery.data,
+    includeDetails,
+    personaNameIndex,
+    personas,
+    snapshotQuery.data,
+  ]);
 
   const refreshCounts = useCallback(async () => {
-    await customerSourceQuery.refetch();
-  }, [customerSourceQuery]);
+    if (includeDetails) {
+      await customerSourceQuery.refetch();
+      return;
+    }
+
+    await snapshotQuery.refetch();
+  }, [customerSourceQuery, includeDetails, snapshotQuery]);
 
   return {
     counts: derived.counts,
     statsByPersona: derived.statsByPersona,
     summary: derived.summary,
-    loading: customerSourceQuery.isLoading || personasLoading,
+    loading:
+      (includeDetails ? customerSourceQuery.isLoading : snapshotQuery.isLoading) ||
+      personasLoading,
+    error: includeDetails ? customerSourceQuery.error : snapshotQuery.error,
     refreshCounts,
   };
 };
