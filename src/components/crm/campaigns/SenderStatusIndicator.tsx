@@ -96,7 +96,7 @@ export const SenderStatusIndicator: React.FC<SenderStatusIndicatorProps> = ({
               variant="outline"
               className="ml-4 flex-shrink-0 border-orange-300 text-orange-700 hover:bg-orange-100"
             >
-              <Link to="/crm/settings/email-auth">
+              <Link to="/crm/settings/email-sending">
                 <Settings className="h-4 w-4 mr-2" />
                 Setup Domain
               </Link>

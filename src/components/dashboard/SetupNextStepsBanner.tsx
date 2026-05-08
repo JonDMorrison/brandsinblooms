@@ -70,7 +70,7 @@ export function SetupNextStepsBanner() {
       title: "Connect your sending domain",
       description:
         "Required to send emails to your customers. Takes about 5 minutes.",
-      href: "/settings/domain",
+      href: "/crm/settings/email-sending",
       cta: "Set up domain",
     });
   }
