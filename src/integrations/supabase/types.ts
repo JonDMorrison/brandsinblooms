@@ -2676,6 +2676,7 @@ export type Database = {
       crm_campaigns: {
         Row: {
           actual_sender_email: string | null;
+          additional_customer_ids: string[];
           auto_send_enabled: boolean | null;
           claim_token: string | null;
           click_rate: number | null;
@@ -2685,6 +2686,7 @@ export type Database = {
           failure_reason: string | null;
           from_email_domain_id: string | null;
           id: string;
+          include_all_customers: boolean;
           metadata: Json | null;
           metrics: Json | null;
           metrics_parity_snapshot: Json | null;
@@ -2734,6 +2736,7 @@ export type Database = {
         };
         Insert: {
           actual_sender_email?: string | null;
+          additional_customer_ids?: string[];
           auto_send_enabled?: boolean | null;
           claim_token?: string | null;
           click_rate?: number | null;
@@ -2743,6 +2746,7 @@ export type Database = {
           failure_reason?: string | null;
           from_email_domain_id?: string | null;
           id?: string;
+          include_all_customers?: boolean;
           metadata?: Json | null;
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
@@ -2792,6 +2796,7 @@ export type Database = {
         };
         Update: {
           actual_sender_email?: string | null;
+          additional_customer_ids?: string[];
           auto_send_enabled?: boolean | null;
           claim_token?: string | null;
           click_rate?: number | null;
@@ -2801,6 +2806,7 @@ export type Database = {
           failure_reason?: string | null;
           from_email_domain_id?: string | null;
           id?: string;
+          include_all_customers?: boolean;
           metadata?: Json | null;
           metrics?: Json | null;
           metrics_parity_snapshot?: Json | null;
@@ -3617,6 +3623,7 @@ export type Database = {
           deleted_at: string | null;
           description: string | null;
           id: string;
+          include_all_customers: boolean;
           is_system_segment: boolean;
           name: string;
           persona_id: string | null;
@@ -3635,6 +3642,7 @@ export type Database = {
           deleted_at?: string | null;
           description?: string | null;
           id?: string;
+          include_all_customers?: boolean;
           is_system_segment?: boolean;
           name: string;
           persona_id?: string | null;
@@ -3653,6 +3661,7 @@ export type Database = {
           deleted_at?: string | null;
           description?: string | null;
           id?: string;
+          include_all_customers?: boolean;
           is_system_segment?: boolean;
           name?: string;
           persona_id?: string | null;
@@ -11876,6 +11885,39 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      scheduling_preferences: {
+        Row: {
+          created_at: string;
+          enabled: boolean;
+          frequency: string;
+          id: string;
+          optimal_times: string[];
+          platform: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          enabled?: boolean;
+          frequency?: string;
+          id?: string;
+          optimal_times?: string[];
+          platform: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          enabled?: boolean;
+          frequency?: string;
+          id?: string;
+          optimal_times?: string[];
+          platform?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       segments: {
         Row: {

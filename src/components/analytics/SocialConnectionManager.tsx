@@ -1,54 +1,54 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import CardContent from "@mui/joy/CardContent";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
 import DialogActions from "@mui/joy/DialogActions";
 import DialogContent from "@mui/joy/DialogContent";
 import DialogTitle from "@mui/joy/DialogTitle";
+import Divider from "@mui/joy/Divider";
 import Modal from "@mui/joy/Modal";
 import ModalDialog from "@mui/joy/ModalDialog";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { BarChart3, Check, Link2, RefreshCw } from "lucide-react";
+import type { SxProps } from "@mui/joy/styles/types";
+import {
+  differenceInCalendarDays,
+  format,
+  formatDistanceToNowStrict,
+} from "date-fns";
+import {
+  ArrowRight,
+  Facebook,
+  Instagram,
+  Plus,
+  RefreshCw,
+  Share2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
-import MetaConnectionSuccess from "@/components/social/MetaConnectionSuccess";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
-import { formatRelativeTime } from "@/components/analytics/analyticsUtils";
-import { JoyButton } from "@/components/joy/JoyButton";
-import { JoyChip } from "@/components/joy/JoyChip";
-import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
-import {
-  PLATFORM_CONFIG,
-  PLATFORM_ORDER,
-  resolvePlatformKey,
-  resolvePlatformIcon,
-  type PlatformKey,
-} from "@/utils/platformConfig";
+import { resolvePlatformKey } from "@/utils/platformConfig";
 
-export interface SocialConnection {
-  id: string;
-  platform: string;
-  platform_account_id: string;
-  platform_account_name: string;
-  access_token: string;
-  refresh_token?: string;
-  expires_at: string;
-  is_active: boolean;
-  permissions: string[];
-  created_at: string;
-}
+export type SocialConnection =
+  Database["public"]["Tables"]["social_connections"]["Row"];
 
 interface SocialConnectionManagerProps {
   onConnectionsChange?: (
     connections: SocialConnection[],
     loading: boolean,
   ) => void;
-  onOpenAnalyticsTab?: () => void;
-  onOpenSchedulingTab?: () => void;
-  onOpenPublishingSurface?: () => void;
 }
 
 type DisconnectTarget = {
@@ -57,133 +57,267 @@ type DisconnectTarget = {
   accountName?: string | null;
 };
 
-const PLATFORM_BEHAVIOR: Record<
-  PlatformKey,
-  { comingSoon: boolean; policyRequired: boolean }
-> = {
-  facebook: { comingSoon: false, policyRequired: true },
-  instagram: { comingSoon: false, policyRequired: true },
-  google_my_business: { comingSoon: true, policyRequired: false },
+type SupportedPlatformKey = "facebook" | "instagram";
+
+type SupportedPlatformDefinition = {
+  key: SupportedPlatformKey;
+  label: string;
+  icon: LucideIcon;
+  avatarSx: SxProps;
+  connectLabel: string;
+  description: string;
 };
 
-const PLATFORM_DEFINITIONS = PLATFORM_ORDER.map((platformKey) => ({
-  key: platformKey,
-  ...PLATFORM_CONFIG[platformKey],
-  icon: resolvePlatformIcon(PLATFORM_CONFIG[platformKey].icon),
-  ...PLATFORM_BEHAVIOR[platformKey],
-}));
+type ConnectionStatus = {
+  color: "danger" | "neutral" | "success" | "warning";
+  dotColor: string;
+  label: string;
+};
 
-const SkeletonBlock = ({
-  width,
-  height,
-  radius = "sm",
-}: {
-  width: number | string;
-  height: number;
-  radius?: string;
-}) => {
+const SUPPORTED_PLATFORMS: SupportedPlatformDefinition[] = [
+  {
+    key: "facebook",
+    label: "Facebook",
+    icon: Facebook,
+    connectLabel: "Connect Facebook",
+    description:
+      "Link your Facebook Page to publish content and sync performance data.",
+    avatarSx: {
+      bgcolor: "#4267B2",
+      color: "#FFFFFF",
+      boxShadow: "sm",
+    },
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    icon: Instagram,
+    connectLabel: "Connect Instagram",
+    description:
+      "Link your Instagram Business account to manage publishing and engagement visibility.",
+    avatarSx: {
+      background:
+        "linear-gradient(135deg, #F58529 0%, #DD2A7B 52%, #515BD4 100%)",
+      color: "#FFFFFF",
+      boxShadow: "sm",
+    },
+  },
+];
+
+const getSupportedPlatform = (
+  platform: string,
+): SupportedPlatformDefinition | null => {
+  const resolvedKey = resolvePlatformKey(platform);
+
+  if (resolvedKey !== "facebook" && resolvedKey !== "instagram") {
+    return null;
+  }
+
+  return SUPPORTED_PLATFORMS.find((entry) => entry.key === resolvedKey) ?? null;
+};
+
+const formatConnectionDate = (value: string) => {
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Not available";
+  }
+
+  return format(parsedDate, "MMM d, yyyy");
+};
+
+const formatExpiryText = (expiresAt: string | null) => {
+  if (!expiresAt) {
+    return "Token expiry: No expiry provided";
+  }
+
+  const expiryDate = new Date(expiresAt);
+
+  if (Number.isNaN(expiryDate.getTime())) {
+    return "Token expiry: Not available";
+  }
+
+  const formattedDate = format(expiryDate, "MMM d, yyyy");
+  const daysRemaining = differenceInCalendarDays(expiryDate, new Date());
+
+  if (daysRemaining < 0) {
+    return `Token expired: ${formattedDate} (${formatDistanceToNowStrict(
+      expiryDate,
+      {
+        addSuffix: true,
+      },
+    )})`;
+  }
+
+  if (daysRemaining === 0) {
+    return `Token expires: ${formattedDate} (today)`;
+  }
+
+  return `Token expires: ${formattedDate} (${formatDistanceToNowStrict(expiryDate)})`;
+};
+
+const resolveConnectionStatus = (
+  connection: SocialConnection,
+  disconnectingId: string | null,
+): ConnectionStatus => {
+  if (disconnectingId === connection.id) {
+    return {
+      label: "Disconnecting...",
+      color: "neutral",
+      dotColor: "neutral.500",
+    };
+  }
+
+  if (!connection.is_active) {
+    return {
+      label: "Disconnected",
+      color: "neutral",
+      dotColor: "neutral.500",
+    };
+  }
+
+  if (connection.expires_at) {
+    const expiryDate = new Date(connection.expires_at);
+
+    if (!Number.isNaN(expiryDate.getTime())) {
+      const daysRemaining = differenceInCalendarDays(expiryDate, new Date());
+
+      if (daysRemaining < 0) {
+        return {
+          label: "Expired",
+          color: "danger",
+          dotColor: "danger.500",
+        };
+      }
+
+      if (daysRemaining <= 7) {
+        return {
+          label: "Expiring Soon",
+          color: "warning",
+          dotColor: "warning.500",
+        };
+      }
+    }
+  }
+
+  return {
+    label: "Connected",
+    color: "success",
+    dotColor: "success.500",
+  };
+};
+
+const StatusDot = ({ color }: { color: string }) => {
   return (
     <Box
       sx={{
-        width,
-        height,
-        borderRadius: radius,
-        position: "relative",
-        overflow: "hidden",
-        bgcolor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.08)",
-        "&::after": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          transform: "translateX(-100%)",
-          background:
-            "linear-gradient(90deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 0%, rgba(var(--joy-palette-neutral-mainChannel) / 0.14) 50%, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 100%)",
-          animation: "social-connection-shimmer 1.4s ease-in-out infinite",
-        },
-        "@keyframes social-connection-shimmer": {
-          to: { transform: "translateX(100%)" },
-        },
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        bgcolor: color,
       }}
     />
   );
 };
 
-const LoadingActions = () => {
+const ConnectionCardSkeleton = () => {
   return (
-    <Stack direction="row" spacing={1} useFlexGap>
-      <SkeletonBlock width={96} height={32} radius="md" />
-      <SkeletonBlock width={118} height={32} radius="md" />
-    </Stack>
+    <Skeleton
+      variant="rectangular"
+      sx={{
+        height: 180,
+        borderRadius: "lg",
+      }}
+    />
   );
 };
 
-const LoadingCard = () => {
+const ConnectPlatformCard = ({
+  connected,
+  loading,
+  onClick,
+  platform,
+}: {
+  connected: boolean;
+  loading: boolean;
+  onClick: () => void;
+  platform: SupportedPlatformDefinition;
+}) => {
+  const Icon = platform.icon;
+
   return (
-    <Sheet
-      variant="outlined"
+    <Card
+      component="button"
+      type="button"
+      variant="soft"
+      color="neutral"
+      onClick={() => {
+        if (!loading) {
+          onClick();
+        }
+      }}
       sx={{
-        borderRadius: "md",
-        p: 2,
-        bgcolor: "background.surface",
-        boxShadow: "none",
+        width: "100%",
+        p: 2.5,
+        textAlign: "left",
+        borderRadius: "lg",
+        cursor: loading ? "progress" : "pointer",
+        transition: "all 0.2s ease",
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.level1",
+        "&:hover": {
+          bgcolor: "background.level2",
+          boxShadow: "sm",
+        },
+        "&:focus-visible": {
+          outline:
+            "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.35)",
+          outlineOffset: 2,
+        },
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        <SkeletonBlock width={20} height={20} radius="999px" />
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Avatar size="md" sx={platform.avatarSx}>
+          <Icon size={18} />
+        </Avatar>
 
-        <Stack spacing={0.6} sx={{ flex: 1, minWidth: 220 }}>
-          <Stack
-            direction="row"
-            spacing={0.75}
-            useFlexGap
-            flexWrap="wrap"
-            alignItems="center"
-          >
-            <SkeletonBlock width={124} height={16} radius="sm" />
-            <SkeletonBlock width={92} height={22} radius="999px" />
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={0.75}
-            useFlexGap
-            flexWrap="wrap"
-            alignItems="center"
-          >
-            <SkeletonBlock width={88} height={22} radius="999px" />
-            <SkeletonBlock width={164} height={12} radius="999px" />
-          </Stack>
+        <Stack spacing={0.35} sx={{ flex: 1, minWidth: 0 }}>
+          <Typography level="title-sm">{platform.label}</Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            {connected ? "Connect another account" : platform.description}
+          </Typography>
         </Stack>
 
-        <Stack direction="row" spacing={1} useFlexGap sx={{ ml: "auto" }}>
-          <SkeletonBlock width={104} height={32} radius="md" />
-        </Stack>
-      </Box>
-    </Sheet>
+        {loading ? (
+          <CircularProgress size="sm" />
+        ) : (
+          <ArrowRight
+            size={16}
+            style={{ color: "var(--joy-palette-text-tertiary)" }}
+          />
+        )}
+      </Stack>
+    </Card>
   );
 };
 
 const SocialConnectionManager = ({
   onConnectionsChange,
-  onOpenAnalyticsTab,
-  onOpenSchedulingTab,
-  onOpenPublishingSurface,
 }: SocialConnectionManagerProps) => {
   const { user } = useAuth();
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState<SupportedPlatformKey | null>(
+    null,
+  );
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncingConnectionId, setSyncingConnectionId] = useState<string | null>(
+    null,
+  );
   const [disconnectTarget, setDisconnectTarget] =
     useState<DisconnectTarget | null>(null);
-  const [showSuccessView, setShowSuccessView] = useState(true);
   const redirectUri = getOAuthRedirectUri();
 
   const fetchConnections = useCallback(async () => {
@@ -206,7 +340,7 @@ const SocialConnectionManager = ({
         throw error;
       }
 
-      setConnections((data as SocialConnection[]) ?? []);
+      setConnections(data ?? []);
     } catch (error) {
       console.error("Error fetching connections:", error);
       toast.error("Unable to load your social connections right now.");
@@ -219,9 +353,22 @@ const SocialConnectionManager = ({
     void fetchConnections();
   }, [fetchConnections]);
 
+  const supportedConnections = useMemo(() => {
+    return connections
+      .filter(
+        (connection) => getSupportedPlatform(connection.platform) !== null,
+      )
+      .sort((left, right) => {
+        const leftTime = new Date(left.created_at).getTime();
+        const rightTime = new Date(right.created_at).getTime();
+
+        return rightTime - leftTime;
+      });
+  }, [connections]);
+
   useEffect(() => {
-    onConnectionsChange?.(connections, loading);
-  }, [connections, loading, onConnectionsChange]);
+    onConnectionsChange?.(supportedConnections, loading);
+  }, [loading, onConnectionsChange, supportedConnections]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -277,8 +424,11 @@ const SocialConnectionManager = ({
   }, [fetchConnections]);
 
   const connectMeta = useCallback(
-    async (platformId: string) => {
-      setConnecting(platformId);
+    async (platformKey: SupportedPlatformKey) => {
+      const platformLabel =
+        platformKey === "instagram" ? "Instagram" : "Facebook";
+
+      setConnecting(platformKey);
 
       try {
         sessionStorage.removeItem("oauth_state");
@@ -294,58 +444,32 @@ const SocialConnectionManager = ({
 
         const configData = await fetchOAuthConfig();
         const clientId = configData.clientId;
-
-        console.log(
-          "🔗 [SocialConnectionManager] Redirect URI Configuration:",
-          {
-            redirectUri,
-            origin: window.location.origin,
-            hostname: window.location.hostname,
-            environment: window.location.hostname.includes("localhost")
-              ? "development"
-              : "production",
-            timestamp: new Date().toISOString(),
-          },
-        );
-
         const scope =
           "pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights";
         const authUrl = new URL("https://www.facebook.com/v19.0/dialog/oauth");
+
         authUrl.searchParams.set("client_id", clientId);
         authUrl.searchParams.set("redirect_uri", redirectUri);
         authUrl.searchParams.set("scope", scope);
         authUrl.searchParams.set("response_type", "code");
         authUrl.searchParams.set("state", combinedState);
 
-        const oauthUrlStr = authUrl.toString();
-        const oauthTab = window.open(oauthUrlStr, "_blank");
+        const oauthTab = window.open(authUrl.toString(), "_blank");
 
         if (!oauthTab) {
           toast.error(
-            "Please allow new tabs to connect Facebook. Click the button again after allowing.",
+            `Please allow new tabs to connect ${platformLabel}. Click the button again after allowing.`,
           );
+          setConnecting(null);
         }
       } catch (error) {
-        console.error(`Failed to connect ${platformId}:`, error);
-        toast.error(`Failed to connect ${platformId}. Please try again.`);
+        console.error(`Failed to connect ${platformKey}:`, error);
+        toast.error(`Failed to connect ${platformLabel}. Please try again.`);
         setConnecting(null);
       }
     },
     [redirectUri],
   );
-
-  const connectGoogleBusiness = useCallback(async () => {
-    setConnecting("google_my_business");
-
-    const clientId = "YOUR_GOOGLE_CLIENT_ID";
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
-    const scope = "https://www.googleapis.com/auth/business.manage";
-
-    const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&access_type=offline`;
-
-    void authUrl;
-    setConnecting(null);
-  }, []);
 
   const disconnectPlatform = useCallback(
     async (connectionId: string, platform: string) => {
@@ -399,365 +523,423 @@ const SocialConnectionManager = ({
     }
   }, []);
 
-  const handleConnectPlatform = useCallback(
-    async (platformId: string) => {
-      if (platformId === "google_my_business") {
-        await connectGoogleBusiness();
-        return;
-      }
+  const handleSyncConnection = useCallback(
+    async (connectionId: string) => {
+      setSyncingConnectionId(connectionId);
 
-      await connectMeta(platformId);
+      try {
+        await syncAnalytics();
+      } finally {
+        setSyncingConnectionId(null);
+      }
     },
-    [connectGoogleBusiness, connectMeta],
+    [syncAnalytics],
   );
 
-  const platforms = useMemo(() => {
-    return PLATFORM_DEFINITIONS.map((platform) => {
-      const connection = connections.find(
-        (entry) =>
-          (resolvePlatformKey(entry.platform) ?? entry.platform) ===
-          platform.key,
-      );
-
-      return {
-        ...platform,
-        connection,
-        isConnected: Boolean(connection),
-        isExpired: connection
-          ? new Date(connection.expires_at).getTime() < Date.now()
-          : false,
-      };
-    }).sort((left, right) => {
-      if (left.isConnected !== right.isConnected) {
-        return left.isConnected ? -1 : 1;
-      }
-
-      return left.label.localeCompare(right.label);
-    });
-  }, [connections]);
-
-  const facebookConnection = connections.find(
-    (connection) =>
-      (resolvePlatformKey(connection.platform) ?? connection.platform) ===
-        "facebook" && connection.is_active,
-  );
-  const instagramConnection = connections.find(
-    (connection) =>
-      (resolvePlatformKey(connection.platform) ?? connection.platform) ===
-        "instagram" && connection.is_active,
-  );
-  const bothMetaConnected = Boolean(facebookConnection && instagramConnection);
-
-  if (bothMetaConnected && showSuccessView) {
-    return (
-      <MetaConnectionSuccess
-        facebookConnection={facebookConnection}
-        instagramConnection={instagramConnection}
-        onSyncAnalytics={syncAnalytics}
-        onOpenAnalytics={onOpenAnalyticsTab}
-        onOpenScheduling={onOpenSchedulingTab}
-        onOpenPublishing={onOpenPublishingSurface}
-        onManageConnections={() => {
-          setShowSuccessView(false);
-        }}
-      />
+  const connectedPlatformKeys = useMemo(() => {
+    return new Set(
+      supportedConnections
+        .filter((connection) => connection.is_active)
+        .map((connection) => resolvePlatformKey(connection.platform))
+        .filter(
+          (platformKey): platformKey is SupportedPlatformKey =>
+            platformKey === "facebook" || platformKey === "instagram",
+        ),
     );
-  }
+  }, [supportedConnections]);
 
   return (
     <Stack spacing={3}>
-      <Stack
-        direction={{ xs: "column", lg: "row" }}
-        spacing={2}
-        alignItems={{ xs: "flex-start", lg: "center" }}
-        justifyContent="space-between"
-      >
-        <Stack spacing={0.5}>
-          <Typography level="title-lg">Social Connections</Typography>
-          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-            Connect your social accounts to unlock analytics, scheduling, and
-            publishing readiness.
-          </Typography>
-        </Stack>
+      {loading && supportedConnections.length === 0 ? (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
+            gap: 2,
+          }}
+        >
+          <ConnectionCardSkeleton />
+          <ConnectionCardSkeleton />
+        </Box>
+      ) : null}
 
-        {loading && connections.length === 0 ? (
-          <LoadingActions />
-        ) : (
-          <Stack direction="row" spacing={1} useFlexGap>
-            <JoyButton
+      {!loading && supportedConnections.length === 0 ? (
+        <Sheet
+          variant="plain"
+          sx={{
+            minHeight: 400,
+            borderRadius: "xl",
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.surface",
+            boxShadow: "sm",
+            px: { xs: 3, md: 6 },
+            py: { xs: 5, md: 7 },
+          }}
+        >
+          <Stack
+            spacing={2.5}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ minHeight: 1, textAlign: "center" }}
+          >
+            <Sheet
+              variant="soft"
               color="neutral"
-              disabled={loading}
-              loading={loading}
-              loadingPosition="start"
-              size="sm"
-              startDecorator={<RefreshCw size={14} />}
               sx={{
-                bgcolor: "background.surface",
-                "&:hover": {
-                  bgcolor: "background.surface",
-                },
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-              variant="outlined"
+            >
+              <Share2
+                size={48}
+                style={{ color: "var(--joy-palette-text-tertiary)" }}
+              />
+            </Sheet>
+
+            <Stack spacing={1} alignItems="center">
+              <Typography level="h4" textAlign="center">
+                Connect Your Social Accounts
+              </Typography>
+              <Typography
+                level="body-md"
+                textAlign="center"
+                sx={{ color: "text.secondary", maxWidth: 420 }}
+              >
+                Link your Facebook and Instagram accounts to publish content
+                directly from BloomSuite.
+              </Typography>
+            </Stack>
+
+            <Stack spacing={1.25} sx={{ width: "100%", maxWidth: 320 }}>
+              {SUPPORTED_PLATFORMS.map((platform) => {
+                const Icon = platform.icon;
+
+                return (
+                  <Button
+                    key={platform.key}
+                    size="lg"
+                    variant="solid"
+                    color="neutral"
+                    loading={connecting === platform.key}
+                    onClick={() => {
+                      void connectMeta(platform.key);
+                    }}
+                    startDecorator={<Icon size={18} />}
+                  >
+                    {platform.connectLabel}
+                  </Button>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </Sheet>
+      ) : null}
+
+      {supportedConnections.length > 0 ? (
+        <Sheet
+          variant="outlined"
+          sx={{
+            borderRadius: "xl",
+            borderColor: "divider",
+            bgcolor: "background.surface",
+            boxShadow: "sm",
+            overflow: "hidden",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            sx={{
+              px: { xs: 2.5, md: 3 },
+              py: { xs: 2.5, md: 3 },
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-lg">Connected Accounts</Typography>
+              <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                Review account health, sync analytics, and manage connected
+                Facebook and Instagram profiles.
+              </Typography>
+            </Stack>
+
+            <Button
+              color="neutral"
+              size="sm"
+              variant="soft"
+              startDecorator={
+                loading ? (
+                  <CircularProgress size="sm" />
+                ) : (
+                  <RefreshCw size={14} />
+                )
+              }
               onClick={() => {
                 void fetchConnections();
               }}
             >
               Refresh
-            </JoyButton>
-            <JoyButton
-              color="primary"
-              disabled={connections.length === 0 || syncing}
-              loading={syncing}
-              loadingPosition="start"
-              size="sm"
-              startDecorator={<BarChart3 size={14} />}
-              variant="solid"
-              onClick={() => {
-                void syncAnalytics();
+            </Button>
+          </Stack>
+
+          <Stack spacing={2.5} sx={{ p: { xs: 2.5, md: 3 } }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 380px), 1fr))",
+                gap: 2,
               }}
             >
-              Sync Analytics
-            </JoyButton>
-          </Stack>
-        )}
-      </Stack>
+              {supportedConnections.map((connection) => {
+                const platform = getSupportedPlatform(connection.platform);
 
-      {loading && connections.length === 0 ? (
-        <Stack spacing={1.5}>
-          <LoadingCard />
-          <LoadingCard />
-          <LoadingCard />
-        </Stack>
-      ) : null}
+                if (!platform) {
+                  return null;
+                }
 
-      {!loading && connections.length === 0 ? (
-        <Sheet
-          variant="outlined"
-          sx={{
-            borderRadius: "md",
-            p: { xs: 2.5, md: 3 },
-            bgcolor: "background.surface",
-            boxShadow: "none",
-          }}
-        >
-          <JoyEmptyState
-            icon={
-              <Box
-                sx={{
-                  color: "text.tertiary",
-                  display: "inline-flex",
-                  "& > .lucide": {
-                    width: 32,
-                    height: 32,
-                  },
-                }}
-              >
-                <Link2 />
-              </Box>
-            }
-            title="No social accounts connected"
-            description="Connect your first account to start tracking performance and preparing content for scheduling."
-            primaryAction={{
-              label: "Connect Account",
-              color: "primary",
-              loading: connecting === "facebook",
-              onClick: () => {
-                void handleConnectPlatform("facebook");
-              },
-              size: "sm",
-              variant: "solid",
-            }}
-          />
-        </Sheet>
-      ) : null}
+                const Icon = platform.icon;
+                const connectionStatus = resolveConnectionStatus(
+                  connection,
+                  disconnectingId,
+                );
+                const displayHandle = connection.username
+                  ? `@${connection.username.replace(/^@/, "")}`
+                  : connection.page_id
+                    ? null
+                    : connection.platform_account_name;
+                const pageLabel =
+                  connection.page_id && connection.platform_account_name
+                    ? `Page: ${connection.platform_account_name}`
+                    : null;
 
-      {connections.length > 0 ? (
-        <Stack spacing={1.5}>
-          {platforms.map((platform) => {
-            const Icon = platform.icon;
-
-            return (
-              <Sheet
-                key={platform.key}
-                variant="outlined"
-                sx={{
-                  borderRadius: "md",
-                  p: 2,
-                  bgcolor: "background.surface",
-                  boxShadow: "none",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <Box
+                return (
+                  <Card
+                    key={connection.id}
+                    variant="outlined"
                     sx={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: platform.color,
-                      flexShrink: 0,
+                      borderRadius: "lg",
+                      boxShadow: "sm",
+                      transition: "all 0.2s ease",
+                      borderColor: "divider",
+                      bgcolor: "background.surface",
+                      "&:hover": {
+                        boxShadow: "md",
+                        transform: "translateY(-2px)",
+                      },
                     }}
                   >
-                    <Icon size={20} strokeWidth={1.9} />
-                  </Box>
-
-                  <Stack spacing={0.45} sx={{ flex: 1, minWidth: 220 }}>
-                    <Stack
-                      direction="row"
-                      spacing={0.75}
-                      useFlexGap
-                      flexWrap="wrap"
-                      alignItems="center"
-                    >
-                      <Typography level="title-sm">{platform.label}</Typography>
-                      {platform.comingSoon ? (
-                        <JoyChip color="neutral" size="sm" variant="outlined">
-                          Coming Soon
-                        </JoyChip>
-                      ) : null}
-                    </Stack>
-
-                    {platform.isConnected && platform.connection ? (
-                      <Stack
-                        direction="row"
-                        spacing={0.75}
-                        useFlexGap
-                        flexWrap="wrap"
-                        alignItems="center"
-                      >
-                        <JoyChip
-                          color="success"
-                          size="sm"
-                          startDecorator={<Check size={12} />}
-                          variant="soft"
+                    <CardContent sx={{ p: 3 }}>
+                      <Stack spacing={2.5}>
+                        <Stack
+                          direction="row"
+                          spacing={2}
+                          justifyContent="space-between"
+                          alignItems="flex-start"
                         >
-                          Connected
-                        </JoyChip>
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "text.tertiary" }}
-                        >
-                          as {platform.connection.platform_account_name}{" "}
-                          {"\u00b7"}{" "}
-                          {formatRelativeTime(platform.connection.created_at)}
-                        </Typography>
-                      </Stack>
-                    ) : (
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: "text.tertiary" }}
-                      >
-                        {platform.comingSoon
-                          ? "Google Business Profile support is reserved for a later milestone."
-                          : "Connect this channel to unlock analytics and scheduling."}
-                      </Typography>
-                    )}
-                  </Stack>
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            sx={{ flex: 1, minWidth: 0 }}
+                          >
+                            <Avatar size="lg" sx={platform.avatarSx}>
+                              <Icon size={20} />
+                            </Avatar>
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    useFlexGap
-                    sx={{ ml: "auto" }}
-                  >
-                    {platform.isConnected && platform.connection ? (
-                      <>
-                        {platform.isExpired ? (
-                          <JoyButton
-                            color="neutral"
-                            loading={connecting === platform.key}
-                            loadingPosition="start"
+                            <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                level="title-md"
+                                sx={{ fontWeight: "lg" }}
+                              >
+                                {platform.label}
+                              </Typography>
+                              {displayHandle ? (
+                                <Typography
+                                  level="body-sm"
+                                  sx={{
+                                    color: "text.secondary",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {displayHandle}
+                                </Typography>
+                              ) : null}
+                              {pageLabel ? (
+                                <Typography
+                                  level="body-sm"
+                                  sx={{
+                                    color: "text.tertiary",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {pageLabel}
+                                </Typography>
+                              ) : null}
+                            </Stack>
+                          </Stack>
+
+                          <Chip
+                            color={connectionStatus.color}
                             size="sm"
-                            variant="plain"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              void handleConnectPlatform(platform.key);
+                            variant="soft"
+                            startDecorator={
+                              <StatusDot color={connectionStatus.dotColor} />
+                            }
+                            sx={{ flexShrink: 0 }}
+                          >
+                            {connectionStatus.label}
+                          </Chip>
+                        </Stack>
+
+                        <Stack spacing={0.5}>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "text.tertiary" }}
+                          >
+                            Connected since:{" "}
+                            {formatConnectionDate(connection.created_at)}
+                          </Typography>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "text.tertiary" }}
+                          >
+                            {formatExpiryText(connection.expires_at)}
+                          </Typography>
+                        </Stack>
+
+                        <Divider />
+
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          flexWrap="wrap"
+                        >
+                          <Button
+                            color="neutral"
+                            size="sm"
+                            variant="soft"
+                            startDecorator={
+                              syncingConnectionId === connection.id ? (
+                                <CircularProgress size="sm" thickness={2.5} />
+                              ) : (
+                                <RefreshCw size={14} />
+                              )
+                            }
+                            disabled={
+                              syncing && syncingConnectionId !== connection.id
+                            }
+                            onClick={() => {
+                              void handleSyncConnection(connection.id);
                             }}
                           >
-                            Reconnect
-                          </JoyButton>
-                        ) : null}
-                        <JoyButton
-                          color="neutral"
-                          disabled={disconnectingId === platform.connection.id}
-                          size="sm"
-                          variant="outlined"
-                          onClick={() =>
-                            setDisconnectTarget({
-                              id: platform.connection.id,
-                              platformName: platform.label,
-                              accountName:
-                                platform.connection.platform_account_name,
-                            })
-                          }
-                        >
-                          Disconnect
-                        </JoyButton>
-                      </>
-                    ) : platform.comingSoon ? (
-                      <JoyButton
-                        color="neutral"
-                        disabled
-                        size="sm"
-                        variant="outlined"
-                      >
-                        Coming Soon
-                      </JoyButton>
-                    ) : (
-                      <JoyButton
-                        color="primary"
-                        loading={connecting === platform.key}
-                        loadingPosition="start"
-                        size="sm"
-                        variant="solid"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          void handleConnectPlatform(platform.key);
-                        }}
-                      >
-                        Connect
-                      </JoyButton>
-                    )}
-                  </Stack>
-                </Box>
-              </Sheet>
-            );
-          })}
-        </Stack>
-      ) : null}
+                            {syncingConnectionId === connection.id
+                              ? "Syncing..."
+                              : "Sync Now"}
+                          </Button>
 
-      {connections.length > 0 && !loading ? (
-        <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
-          By connecting you agree to our{" "}
-          <Box
-            component="a"
-            href="https://brandsinblooms.com/pages/bloomsuite-privacy"
-            rel="noopener noreferrer"
-            sx={{ color: "text.primary", textDecoration: "underline" }}
-            target="_blank"
-          >
-            Privacy Policy
-          </Box>{" "}
-          and{" "}
-          <Box
-            component="a"
-            href="https://brandsinblooms.com/pages/terms-of-service"
-            rel="noopener noreferrer"
-            sx={{ color: "text.primary", textDecoration: "underline" }}
-            target="_blank"
-          >
-            Terms
-          </Box>
-          .
-        </Typography>
+                          <Button
+                            color="danger"
+                            size="sm"
+                            variant="soft"
+                            startDecorator={<X size={14} />}
+                            disabled={Boolean(disconnectingId)}
+                            onClick={() => {
+                              setDisconnectTarget({
+                                id: connection.id,
+                                platformName: platform.label,
+                                accountName: connection.platform_account_name,
+                              });
+                            }}
+                          >
+                            Disconnect
+                          </Button>
+                        </Stack>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Box>
+
+            <Sheet
+              variant="outlined"
+              sx={{
+                borderRadius: "xl",
+                p: { xs: 2.5, md: 3 },
+                bgcolor: "background.surface",
+                boxShadow: "sm",
+                borderColor: "divider",
+              }}
+            >
+              <Stack spacing={2}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Plus
+                    size={16}
+                    style={{ color: "var(--joy-palette-text-secondary)" }}
+                  />
+                  <Typography level="title-sm">
+                    Connect a new account
+                  </Typography>
+                </Stack>
+
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
+                    gap: 1.5,
+                  }}
+                >
+                  {SUPPORTED_PLATFORMS.map((platform) => (
+                    <ConnectPlatformCard
+                      key={platform.key}
+                      connected={connectedPlatformKeys.has(platform.key)}
+                      loading={connecting === platform.key}
+                      platform={platform}
+                      onClick={() => {
+                        void connectMeta(platform.key);
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Stack>
+            </Sheet>
+
+            <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+              By connecting you agree to our{" "}
+              <Box
+                component="a"
+                href="https://brandsinblooms.com/pages/bloomsuite-privacy"
+                rel="noopener noreferrer"
+                sx={{ color: "text.primary", textDecoration: "underline" }}
+                target="_blank"
+              >
+                Privacy Policy
+              </Box>{" "}
+              and{" "}
+              <Box
+                component="a"
+                href="https://brandsinblooms.com/pages/terms-of-service"
+                rel="noopener noreferrer"
+                sx={{ color: "text.primary", textDecoration: "underline" }}
+                target="_blank"
+              >
+                Terms
+              </Box>
+              .
+            </Typography>
+          </Stack>
+        </Sheet>
       ) : null}
 
       <Modal
@@ -769,37 +951,45 @@ const SocialConnectionManager = ({
         }}
       >
         <ModalDialog
+          role="alertdialog"
+          variant="outlined"
           sx={{
-            minWidth: { xs: "calc(100vw - 32px)", sm: 420 },
-            bgcolor: "background.surface",
-            borderRadius: "md",
+            minWidth: { xs: "calc(100vw - 32px)", sm: 440 },
+            borderRadius: "lg",
             boxShadow: "lg",
+            bgcolor: "background.surface",
           }}
         >
-          <DialogTitle>{`Disconnect ${disconnectTarget?.platformName ?? "account"}?`}</DialogTitle>
+          <DialogTitle>
+            {`Disconnect ${disconnectTarget?.platformName ?? "account"}?`}
+          </DialogTitle>
           <DialogContent>
             <Typography level="body-sm" sx={{ color: "text.secondary" }}>
               {disconnectTarget
-                ? `This will remove access to ${disconnectTarget.platformName} analytics and publishing. You can reconnect at any time.`
-                : "This will remove access to the selected platform analytics and publishing. You can reconnect at any time."}
+                ? `This will remove your ${disconnectTarget.platformName} connection${disconnectTarget.accountName ? ` for ${disconnectTarget.accountName}` : ""}. Scheduled posts for this account will not be published. You can reconnect at any time.`
+                : "This will remove the selected connection. Scheduled posts for this account will not be published. You can reconnect at any time."}
             </Typography>
           </DialogContent>
           <DialogActions sx={{ pt: 1.5 }}>
-            <JoyButton
+            <Button
               color="neutral"
               disabled={Boolean(disconnectingId)}
-              size="sm"
-              variant="outlined"
+              variant="plain"
               onClick={() => setDisconnectTarget(null)}
             >
               Cancel
-            </JoyButton>
-            <JoyButton
+            </Button>
+            <Button
               color="danger"
-              loading={disconnectingId === disconnectTarget?.id}
-              loadingPosition="start"
-              size="sm"
+              disabled={disconnectingId === disconnectTarget?.id}
               variant="solid"
+              startDecorator={
+                disconnectingId === disconnectTarget?.id ? (
+                  <CircularProgress size="sm" thickness={2.5} />
+                ) : (
+                  <X size={14} />
+                )
+              }
               onClick={() => {
                 if (!disconnectTarget) {
                   return;
@@ -811,8 +1001,10 @@ const SocialConnectionManager = ({
                 );
               }}
             >
-              Disconnect
-            </JoyButton>
+              {disconnectingId === disconnectTarget?.id
+                ? "Disconnecting..."
+                : "Disconnect"}
+            </Button>
           </DialogActions>
         </ModalDialog>
       </Modal>

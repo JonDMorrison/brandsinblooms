@@ -12,21 +12,27 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Input from "@mui/joy/Input";
+import Sheet from "@mui/joy/Sheet";
+import Snackbar from "@mui/joy/Snackbar";
+import Stack from "@mui/joy/Stack";
+import Tab from "@mui/joy/Tab";
+import TabList from "@mui/joy/TabList";
+import Tabs from "@mui/joy/Tabs";
+import Typography from "@mui/joy/Typography";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui-legacy/tabs";
-import { Search, Send, Filter, Plus } from "lucide-react";
+  ChevronDown,
+  Inbox,
+  Plus,
+  Search,
+  Send,
+  Undo2,
+  type LucideIcon,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useTenant } from "@/hooks/useTenant";
@@ -36,12 +42,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
+import { PageContainer } from "@/components/joy/PageContainer";
 import PostCard from "@/components/publish/PostCard";
 import ComposerDrawer, {
   ComposerMode,
 } from "@/components/publish/ComposerDrawer";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { cn } from "@/lib/utils";
 import type {
   Platform,
   PublishItem,
@@ -139,6 +146,29 @@ function normalizePlatform(value: string | null | undefined): Platform | null {
   }
 
   return null;
+}
+
+function normalizePostStatus(
+  value: string | null | undefined,
+): PublishItem["status"] {
+  switch (value?.toLowerCase()) {
+    case "draft":
+    case "generated":
+    case "review":
+    case "approved":
+    case "ready":
+    case "scheduled":
+    case "publishing":
+    case "published":
+    case "failed":
+      return value.toLowerCase() as PublishItem["status"];
+    case "posted":
+      return "published";
+    case "planned":
+      return "draft";
+    default:
+      return "draft";
+  }
 }
 
 function parseApprovedChannelsParam(value: string | null): Platform[] {
@@ -268,8 +298,83 @@ function extractApprovedBundleDrafts(
   return Array.from(draftsByChannel.values());
 }
 
+function formatPlatformLabel(platform: Platform) {
+  return platform === "instagram" ? "Instagram" : "Facebook";
+}
+
+function PublishMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{
+        minWidth: 116,
+        borderRadius: "lg",
+        border: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.surface",
+        px: 2,
+        py: 1.25,
+      }}
+    >
+      <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
+        {label}
+      </Typography>
+      <Typography level="title-sm" sx={{ fontWeight: "lg" }}>
+        {value}
+      </Typography>
+    </Sheet>
+  );
+}
+function PublishEmptyState({
+  actionLabel,
+  description,
+  icon: Icon,
+  onAction,
+  title,
+}: {
+  actionLabel?: string;
+  description: string;
+  icon: LucideIcon;
+  onAction?: () => void;
+  title: string;
+}) {
+  return (
+    <Box sx={{ py: 8 }}>
+      <Stack spacing={2} alignItems="center" textAlign="center">
+        <Box sx={{ color: "neutral.300", display: "inline-flex" }}>
+          <Icon size={40} />
+        </Box>
+
+        <Stack spacing={0.75} sx={{ maxWidth: 480 }}>
+          <Typography
+            level="title-md"
+            sx={{ color: "text.secondary", fontWeight: "md" }}
+          >
+            {title}
+          </Typography>
+          <Typography level="body-sm" sx={{ color: "text.tertiary" }}>
+            {description}
+          </Typography>
+        </Stack>
+
+        {actionLabel && onAction ? (
+          <Button
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            onClick={onAction}
+          >
+            {actionLabel}
+          </Button>
+        ) : null}
+      </Stack>
+    </Box>
+  );
+}
+
 const PublishPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
@@ -278,6 +383,8 @@ const PublishPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const requestedBundleId = searchParams.get("bundleId");
+  const requestedTemplateId = searchParams.get("template");
+  const requestedComposeMode = searchParams.get("compose");
   const requestedChannel = normalizePlatform(searchParams.get("channel"));
   const requestedApprovedChannels = useMemo(
     () => parseApprovedChannelsParam(searchParams.get("approved")),
@@ -297,6 +404,11 @@ const PublishPage = () => {
   const [activeHighlightTaskId, setActiveHighlightTaskId] = useState<
     string | null
   >(highlightedTaskId);
+  const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
+  const [archiveNotice, setArchiveNotice] = useState<{
+    message: string;
+    taskId: string;
+  } | null>(null);
   const [bundleFilter, setBundleFilter] = useState<BundleFilterState | null>(
     requestedBundleId
       ? {
@@ -311,6 +423,25 @@ const PublishPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<ComposerMode>("edit");
   const [selectedItem, setSelectedItem] = useState<PublishItem | null>(null);
+
+  const replaceUrlWithoutParams = useCallback(
+    (keys: string[]) => {
+      const nextParams = new URLSearchParams(searchParams);
+      let changed = false;
+
+      keys.forEach((key) => {
+        if (nextParams.has(key)) {
+          nextParams.delete(key);
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
 
   // Track task IDs that were just inserted by a template or blank-compose
   // prefill but haven't been touched by the user. If the user clicks Cancel
@@ -328,7 +459,7 @@ const PublishPage = () => {
       .filter(
         (task) =>
           ["facebook", "instagram"].includes(task.post_type) &&
-          task.status.toLowerCase() !== "published",
+          normalizePostStatus(task.status) !== "published",
       )
       .map((task) => {
         const connection = socialConnections.find(
@@ -351,7 +482,7 @@ const PublishPage = () => {
           mediaUrl:
             task.image_url || getAttachmentImageUrl(task.attachments) || null,
           scheduledFor: scheduledPost?.publish_at || null,
-          status: task.status.toLowerCase() as PublishItem["status"],
+          status: normalizePostStatus(task.status),
           createdAt: task.created_at ?? null,
           attachments: task.attachments,
           sourceBundle: parseSourceBundle(task.image_metadata),
@@ -452,6 +583,9 @@ const PublishPage = () => {
           conn.platform_account_name ||
           conn.username ||
           `${conn.platform} account`,
+        pageId: conn.page_id,
+        platformAccountName: conn.platform_account_name,
+        username: conn.username,
       }));
   }, [dashboardData]);
 
@@ -580,14 +714,8 @@ const PublishPage = () => {
 
     let cancelled = false;
 
-    const cleanUrl = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("bundleId");
-      url.searchParams.delete("channel");
-      url.searchParams.delete("approved");
-      const qs = url.searchParams.toString();
-      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
-    };
+    const cleanUrl = () =>
+      replaceUrlWithoutParams(["bundleId", "channel", "approved"]);
 
     (async () => {
       try {
@@ -673,7 +801,7 @@ const PublishPage = () => {
         for (const task of existingTasks || []) {
           const sourceBundle = parseSourceBundle(task.image_metadata);
           const platform = normalizePlatform(task.post_type);
-          const status = task.status.toLowerCase();
+          const status = normalizePostStatus(task.status);
 
           if (
             !sourceBundle ||
@@ -752,7 +880,7 @@ const PublishPage = () => {
             const sourceBundle = parseSourceBundle(task.image_metadata);
             const channel =
               sourceBundle?.channel || normalizePlatform(task.post_type);
-            const status = task.status.toLowerCase();
+            const status = normalizePostStatus(task.status);
 
             return (
               sourceBundle?.bundleId === requestedBundleId &&
@@ -803,6 +931,7 @@ const PublishPage = () => {
     prefillDone,
     queryClient,
     refetch,
+    replaceUrlWithoutParams,
     requestedApprovedChannels,
     requestedBundleId,
     requestedChannel,
@@ -824,42 +953,15 @@ const PublishPage = () => {
   // row with the template content, and auto-open the composer drawer pointed
   // at it. Marks "done" in localStorage so a refresh doesn't double-insert,
   // and strips ?template= from the URL after processing.
-  const [templatePrefillDone, setTemplatePrefillDone] = useState(false);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const templateId = params.get("template");
-    if (
-      !templateId ||
-      templatePrefillDone ||
-      !user ||
-      !tenant ||
-      tenantLoading
-    ) {
+    if (!requestedTemplateId || !user || !tenant || tenantLoading) {
       return;
     }
 
-    const template = findPostTemplate(templateId);
+    const template = findPostTemplate(requestedTemplateId);
+    replaceUrlWithoutParams(["template"]);
+
     if (!template) {
-      // Unknown template id — clean the URL and do nothing.
-      const url = new URL(window.location.href);
-      url.searchParams.delete("template");
-      const qs = url.searchParams.toString();
-      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
-      setTemplatePrefillDone(true);
-      return;
-    }
-
-    const prefillKey = `publish-prefill:template:${templateId}:${tenant.id}`;
-    const cleanUrl = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("template");
-      const qs = url.searchParams.toString();
-      window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
-    };
-
-    if (localStorage.getItem(prefillKey) === "done") {
-      cleanUrl();
-      setTemplatePrefillDone(true);
       return;
     }
 
@@ -886,14 +988,8 @@ const PublishPage = () => {
             "Template prefill: content_tasks insert failed",
             insertError,
           );
-          cleanUrl();
-          setTemplatePrefillDone(true);
           return;
         }
-
-        localStorage.setItem(prefillKey, "done");
-        cleanUrl();
-        setTemplatePrefillDone(true);
 
         // Refresh the dashboard data so the new task appears in the list.
         queryClient.invalidateQueries({ queryKey: ["dashboard-data"] });
@@ -921,11 +1017,17 @@ const PublishPage = () => {
         setDrawerOpen(true);
       } catch (e) {
         console.error("Template prefill error:", e);
-        cleanUrl();
-        setTemplatePrefillDone(true);
       }
     })();
-  }, [templatePrefillDone, user, tenant, tenantLoading, queryClient, refetch]);
+  }, [
+    queryClient,
+    refetch,
+    replaceUrlWithoutParams,
+    requestedTemplateId,
+    tenant,
+    tenantLoading,
+    user,
+  ]);
 
   // Blank-composer entry: inserts an empty content_tasks row and opens the
   // composer drawer pointed at it. Called from (a) the ?compose=blank URL
@@ -985,18 +1087,21 @@ const PublishPage = () => {
   // ?compose=blank URL handler — opens an empty composer when the user clicks
   // "Start blank" on PostComposerModal. Strips the param after consuming so a
   // refresh doesn't reopen the dialog.
-  const [blankComposeDone, setBlankComposeDone] = useState(false);
   useEffect(() => {
-    if (blankComposeDone || !user || !tenant || tenantLoading) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("compose") !== "blank") return;
-    setBlankComposeDone(true);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("compose");
-    const qs = url.searchParams.toString();
-    window.history.replaceState({}, "", url.pathname + (qs ? `?${qs}` : ""));
+    if (requestedComposeMode !== "blank" || !user || !tenant || tenantLoading) {
+      return;
+    }
+
+    replaceUrlWithoutParams(["compose"]);
     void openBlankComposer();
-  }, [blankComposeDone, user, tenant, tenantLoading, openBlankComposer]);
+  }, [
+    openBlankComposer,
+    replaceUrlWithoutParams,
+    requestedComposeMode,
+    tenant,
+    tenantLoading,
+    user,
+  ]);
 
   // Drawer handlers
   const handleOpenDrawer = (item: PublishItem, mode: ComposerMode) => {
@@ -1145,6 +1250,17 @@ const PublishPage = () => {
   const archivedItemsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+
+  useEffect(
+    () => () => {
+      archivedItemsRef.current.forEach((timeoutId) => {
+        window.clearTimeout(timeoutId);
+      });
+      archivedItemsRef.current.clear();
+    },
+    [],
+  );
+
   const handleArchive = useCallback(
     async (item: PublishItem) => {
       const taskId = item.taskId;
@@ -1161,56 +1277,24 @@ const PublishPage = () => {
         // Refresh data to remove the archived item from the list
         await refetch?.();
 
-        toast({
-          title: "Item archived",
-          description: "Click Undo to restore.",
-          action: (
-            <button
-              type="button"
-              onClick={async () => {
-                const pending = archivedItemsRef.current.get(taskId);
-                if (pending) {
-                  clearTimeout(pending);
-                  archivedItemsRef.current.delete(taskId);
-                }
+        const existingTimeout = archivedItemsRef.current.get(taskId);
+        if (existingTimeout) {
+          window.clearTimeout(existingTimeout);
+        }
 
-                try {
-                  const { error: undoError } = await supabase
-                    .from("content_tasks")
-                    .update({ deleted_at: null })
-                    .eq("id", taskId);
-
-                  if (undoError) throw undoError;
-
-                  await refetch?.();
-                  toast({
-                    title: "Item restored",
-                  });
-                } catch (undoError) {
-                  console.error("Archive undo error:", undoError);
-                  toast({
-                    title: "Couldn't restore item",
-                    description: getErrorMessage(
-                      undoError,
-                      "Please refresh and try again.",
-                    ),
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="text-sm font-semibold underline-offset-2 hover:underline"
-            >
-              Undo
-            </button>
-          ),
-          duration: 5000,
+        setArchiveNotice({
+          message: `${formatPlatformLabel(item.platform)} post archived.`,
+          taskId,
         });
 
         // Track the timeout so a second click on Undo can cancel it. The
         // archive itself is already persisted; this timer just clears the
         // tracking map entry once the undo window closes.
-        const timeout = setTimeout(() => {
+        const timeout = window.setTimeout(() => {
           archivedItemsRef.current.delete(taskId);
+          setArchiveNotice((currentValue) =>
+            currentValue?.taskId === taskId ? null : currentValue,
+          );
         }, 5000);
         archivedItemsRef.current.set(taskId, timeout);
       } catch (error) {
@@ -1225,233 +1309,495 @@ const PublishPage = () => {
     [toast, refetch],
   );
 
+  const handleUndoArchive = useCallback(async () => {
+    if (!archiveNotice) {
+      return;
+    }
+
+    const taskId = archiveNotice.taskId;
+    const pendingTimeout = archivedItemsRef.current.get(taskId);
+
+    if (pendingTimeout) {
+      window.clearTimeout(pendingTimeout);
+      archivedItemsRef.current.delete(taskId);
+    }
+
+    try {
+      const { error } = await supabase
+        .from("content_tasks")
+        .update({ deleted_at: null })
+        .eq("id", taskId);
+
+      if (error) {
+        throw error;
+      }
+
+      setArchiveNotice(null);
+      await refetch?.();
+    } catch (error) {
+      console.error("Archive undo error:", error);
+      toast({
+        title: "Couldn't restore item",
+        description: getErrorMessage(error, "Please refresh and try again."),
+        variant: "destructive",
+      });
+    }
+  }, [archiveNotice, refetch, toast]);
+
+  const readyTabCount = bundleScopedReadyItems.length;
+  const publishedTabCount = bundleScopedPublishedItems.length;
+  const isSearchActive = searchTerm.trim().length > 0;
+
   if (loading || isLoading || tenantLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading publish portal...</p>
-        </div>
-      </div>
+      <PageContainer fullWidth sx={{ py: 6 }}>
+        <Stack
+          spacing={2}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ minHeight: "50vh" }}
+        >
+          <CircularProgress size="lg" />
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Loading publish portal...
+          </Typography>
+        </Stack>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
-            <Send className="w-10 h-10 text-primary" />
+    <PageContainer fullWidth sx={{ py: 3 }}>
+      <Stack spacing={3}>
+        <Box sx={{ mb: 0.5 }}>
+          <Typography level="h3" sx={{ fontWeight: "lg" }}>
             Publish Portal
-          </h1>
-          <p className="text-lg text-gray-600 font-medium">
-            Direct social publishing with smart scheduling and analytics
-          </p>
-        </div>
+          </Typography>
+          <Typography level="body-sm" sx={{ mt: 0.5, color: "text.secondary" }}>
+            Manage drafts, scheduled posts, and published history.
+          </Typography>
+        </Box>
 
-        {/* Search Bar */}
-        <div className="flex flex-wrap gap-3 sm:gap-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search posts by caption, platform, or account..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Filter publish items"
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", md: "center" }}
+          sx={{
+            mb: -0.5,
+          }}
+        >
+          <Input
+            placeholder="Search posts..."
+            startDecorator={<Search size={16} />}
+            size="sm"
+            variant="outlined"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            sx={{
+              width: "100%",
+              maxWidth: { md: 380 },
+              borderRadius: "md",
+              bgcolor: "background.surface",
+            }}
+          />
+
+          <Stack
+            direction="row"
+            spacing={1}
+            justifyContent="flex-end"
+            sx={{ width: { xs: "100%", md: "auto" } }}
           >
-            <Filter className="w-4 h-4" />
-          </Button>
-          <Button onClick={() => void openBlankComposer()}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            New Post
-          </Button>
-        </div>
-      </div>
-
-      {bundleFilter ? (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="flex flex-col gap-4 py-5 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <CardTitle>Approved bundle handoff</CardTitle>
-              <CardDescription>
-                {bundleFilter.previewTitle
-                  ? `Showing the approved social items from ${bundleFilter.previewTitle}.`
-                  : "Showing only the approved social items from this content bundle."}
-              </CardDescription>
-            </div>
-            <Button variant="outline" onClick={() => setBundleFilter(null)}>
-              View all publish content
+            {isSearchActive ? (
+              <Button
+                variant="plain"
+                color="neutral"
+                size="sm"
+                onClick={() => setSearchTerm("")}
+              >
+                Clear
+              </Button>
+            ) : null}
+            <Button
+              variant="outlined"
+              color="neutral"
+              size="sm"
+              startDecorator={<Plus size={16} />}
+              onClick={() => setIsComposerModalOpen(true)}
+            >
+              New Post
             </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+          </Stack>
+        </Stack>
 
-      {/* Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as "ready" | "published")}
-        className="w-full"
-      >
-        <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100 p-1 rounded-lg">
-          <TabsTrigger
-            value="ready"
-            className="h-10 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 transition-all duration-200"
+        {bundleFilter ? (
+          <Sheet
+            variant="soft"
+            color="primary"
+            sx={{
+              borderRadius: "xl",
+              border: "1px solid",
+              borderColor: "primary.200",
+              boxShadow: "sm",
+              px: { xs: 2.5, md: 3 },
+              py: { xs: 2.5, md: 3 },
+            }}
           >
-            Ready to Post
-          </TabsTrigger>
-          <TabsTrigger
-            value="published"
-            className="h-10 data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:font-semibold data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-gray-900 transition-all duration-200"
-          >
-            Published
-          </TabsTrigger>
-        </TabsList>
+            <Stack
+              direction={{ xs: "column", lg: "row" }}
+              spacing={2}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", lg: "center" }}
+            >
+              <Stack spacing={1} sx={{ minWidth: 0 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  useFlexGap
+                  flexWrap="wrap"
+                >
+                  <Chip size="sm" variant="solid" color="primary">
+                    Approved bundle handoff
+                  </Chip>
+                  {bundleFilter.previewTitle ? (
+                    <Chip size="sm" variant="soft" color="neutral">
+                      {bundleFilter.previewTitle}
+                    </Chip>
+                  ) : null}
+                </Stack>
+                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+                  {bundleFilter.previewTitle
+                    ? `Showing the approved social items from ${bundleFilter.previewTitle}.`
+                    : "Showing only the approved social items from this content bundle."}
+                </Typography>
+              </Stack>
 
-        <TabsContent value="ready" className="space-y-6">
-          {/* Ready to Post Content List */}
-          <div className="space-y-4">
+              <Button
+                variant="soft"
+                color="neutral"
+                onClick={() => setBundleFilter(null)}
+              >
+                View all publish content
+              </Button>
+            </Stack>
+          </Sheet>
+        ) : null}
+
+        <Tabs
+          value={activeTab}
+          onChange={(_, val) => {
+            if (val === "ready" || val === "published") {
+              setActiveTab(val);
+            }
+          }}
+          sx={{
+            bgcolor: "transparent",
+            mb: "24px",
+          }}
+        >
+          <TabList
+            sx={{
+              bgcolor: "transparent",
+              borderBottom: "1px solid",
+              borderColor: "var(--joy-palette-neutral-200, #e4e4e7)",
+              gap: "24px",
+              "& .MuiTab-root": {
+                py: "10px",
+                px: "4px",
+                bgcolor: "transparent",
+                fontWeight: 500,
+                fontSize: "0.875rem",
+                color: "var(--joy-palette-text-tertiary)",
+                borderBottom: "2px solid transparent",
+                borderRadius: 0,
+                minHeight: "auto",
+                transition: "color 0.15s ease, border-color 0.15s ease",
+                "&:hover": {
+                  bgcolor: "transparent",
+                  color: "var(--joy-palette-text-primary)",
+                },
+                "&.Mui-selected": {
+                  bgcolor: "transparent",
+                  color: "var(--joy-palette-text-primary)",
+                  fontWeight: 700,
+                  borderBottomColor: "var(--joy-palette-primary-500, #3b82f6)",
+                },
+              },
+            }}
+          >
+            <Tab value="ready">
+              Ready
+              <Chip
+                variant="soft"
+                size="sm"
+                sx={{
+                  ml: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.7rem",
+                  height: "20px",
+                  minHeight: "20px",
+                }}
+              >
+                {readyTabCount}
+              </Chip>
+            </Tab>
+            <Tab value="published">
+              Published
+              <Chip
+                variant="soft"
+                size="sm"
+                sx={{
+                  ml: "8px",
+                  fontWeight: 600,
+                  fontSize: "0.7rem",
+                  height: "20px",
+                  minHeight: "20px",
+                }}
+              >
+                {publishedTabCount}
+              </Chip>
+            </Tab>
+          </TabList>
+        </Tabs>
+
+        {activeTab === "ready" ? (
+          <Stack spacing={2.5}>
             {filteredReadyItems.length === 0 ? (
-              // Three distinct empty states:
-              //   1. searchTerm active → "No matching content"
-              //   2. all items are >30 days old → "No recent content" + the
-              //      olderReadyItems toggle (rendered outside this branch
-              //      below). This is Maple Park's case — without the toggle
-              //      surfacing, their 12 stale rows were unreachable.
-              //   3. tenant truly has no content → first-touch empty state
-              <Card className="col-span-full">
-                <CardContent className="text-center py-12">
-                  <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <CardTitle className="mb-2">
-                    {searchTerm
-                      ? "No matching content"
-                      : olderReadyItems.length > 0
-                        ? "No recent content"
-                        : "No content ready to publish"}
-                  </CardTitle>
-                  <CardDescription>
-                    {searchTerm
-                      ? "Try adjusting your search terms to find content."
-                      : olderReadyItems.length > 0
-                        ? `All your content is more than 30 days old. Show older items below to review or archive.`
-                        : "Approved content from the Create Flow will appear here ready for publishing."}
-                  </CardDescription>
-                </CardContent>
-              </Card>
+              <PublishEmptyState
+                icon={
+                  isSearchActive ? Search : readyTabCount === 0 ? Inbox : Inbox
+                }
+                title={
+                  isSearchActive
+                    ? "No matching posts"
+                    : olderReadyItems.length > 0
+                      ? "No recent posts"
+                      : "No posts yet"
+                }
+                description={
+                  isSearchActive
+                    ? "Try a different search term."
+                    : olderReadyItems.length > 0
+                      ? "Older posts are hidden by default. Use the toggle below to review them."
+                      : "Create your first social post to get started."
+                }
+                actionLabel={
+                  isSearchActive
+                    ? undefined
+                    : readyTabCount === 0
+                      ? "New Post"
+                      : undefined
+                }
+                onAction={
+                  readyTabCount === 0
+                    ? () => setIsComposerModalOpen(true)
+                    : undefined
+                }
+              />
             ) : (
-              <>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(3, 1fr)",
+                  },
+                  gap: "20px",
+                }}
+              >
                 {filteredReadyItems.map((item) => (
-                  <div
-                    key={`ready-${item.taskId}-${filteredReadyItems.length}`}
-                    ref={(element) => {
+                  <Box
+                    key={`ready-${item.taskId}`}
+                    ref={(element: HTMLDivElement | null) => {
                       cardRefs.current[item.taskId] = element;
                     }}
-                    className={cn(
-                      "transition-all duration-300 rounded-[28px]",
-                      activeHighlightTaskId === item.taskId &&
-                        "ring-2 ring-primary ring-offset-2 shadow-lg",
-                    )}
+                    sx={{
+                      borderRadius: "xl",
+                      scrollMarginTop: 112,
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      boxShadow:
+                        activeHighlightTaskId === item.taskId
+                          ? "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.35), var(--joy-shadow-lg)"
+                          : undefined,
+                      transform:
+                        activeHighlightTaskId === item.taskId
+                          ? "translateY(-2px)"
+                          : "translateY(0)",
+                    }}
                   >
                     <PostCard
                       item={item}
-                      onEdit={(item) => handleOpenDrawer(item, "edit")}
-                      onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                      onSchedule={(item) => handleOpenDrawer(item, "schedule")}
+                      onEdit={(currentItem) =>
+                        handleOpenDrawer(currentItem, "edit")
+                      }
+                      onPublishNow={(currentItem) =>
+                        handleOpenDrawer(currentItem, "publish")
+                      }
+                      onSchedule={(currentItem) =>
+                        handleOpenDrawer(currentItem, "schedule")
+                      }
                       onDelete={handleArchive}
                     />
-                  </div>
+                  </Box>
                 ))}
-              </>
+              </Box>
             )}
-            {/* Older-items toggle is rendered OUTSIDE the empty/non-empty
-                ternary so it stays accessible even when recentReadyItems is
-                empty (the Maple Park case). Hidden when there are zero older
-                items or a search term is active (search applies to all items
-                already). */}
-            {olderReadyItems.length > 0 && !searchTerm ? (
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowOlderReady((current) => !current)}
-                >
-                  {showOlderReady
-                    ? `Hide older items (${olderReadyItems.length})`
-                    : `Show older items (${olderReadyItems.length})`}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="published" className="space-y-6">
-          {/* Published Content List */}
-          <div className="space-y-4">
-            {filteredPublishedItems.length === 0 ? (
-              <Card className="col-span-full">
-                <CardContent className="text-center py-12">
-                  <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <CardTitle className="mb-2">
-                    {publishedItems.length === 0
-                      ? "No published posts"
-                      : "No matching published posts"}
-                  </CardTitle>
-                  <CardDescription>
-                    {publishedItems.length === 0
-                      ? "Published posts will appear here with their publication dates."
-                      : "Try adjusting your search terms to find published posts."}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredPublishedItems.map((item) => (
-                <div
-                  key={`published-${item.taskId}-${filteredPublishedItems.length}`}
-                  ref={(element) => {
-                    cardRefs.current[item.taskId] = element;
-                  }}
-                  className={cn(
-                    "transition-all duration-300 rounded-[28px]",
-                    activeHighlightTaskId === item.taskId &&
-                      "ring-2 ring-primary ring-offset-2 shadow-lg",
-                  )}
-                >
-                  <PostCard
-                    item={item}
-                    publishedAt={item.publishedAt}
-                    onEdit={(item) => handleOpenDrawer(item, "edit")}
-                    onPublishNow={(item) => handleOpenDrawer(item, "edit")}
-                    onSchedule={(item) => handleOpenDrawer(item, "schedule")}
-                    onDelete={handleArchive}
+            {olderReadyItems.length > 0 && !isSearchActive ? (
+              <Button
+                variant="plain"
+                color="neutral"
+                size="sm"
+                endDecorator={
+                  <ChevronDown
+                    size={14}
+                    style={{
+                      transform: showOlderReady
+                        ? "rotate(180deg)"
+                        : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                    }}
                   />
-                </div>
-              ))
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+                }
+                onClick={() => setShowOlderReady((current) => !current)}
+                sx={{
+                  mx: "auto",
+                  display: "flex",
+                  mt: filteredReadyItems.length > 0 ? 0 : -1,
+                }}
+              >
+                {showOlderReady
+                  ? "Hide older"
+                  : `Show older (${olderReadyItems.length})`}
+              </Button>
+            ) : null}
+          </Stack>
+        ) : null}
 
-      {/* Composer Drawer */}
-      <ComposerDrawer
-        open={drawerOpen}
-        mode={drawerMode}
-        item={selectedItem}
-        accounts={availableAccounts}
-        onClose={handleCloseDrawer}
-        validate={validatePostForPlatform}
-        onSaveDraft={handleSaveDraft}
-        onPublishNow={handlePublishNow}
-        onSchedule={handleSchedule}
-        onCancelUntouched={handleCancelUntouched}
-      />
-    </div>
+        {activeTab === "published" ? (
+          <Stack spacing={2.5}>
+            {filteredPublishedItems.length === 0 ? (
+              <PublishEmptyState
+                icon={publishedItems.length === 0 ? Send : Search}
+                title={
+                  publishedItems.length === 0
+                    ? "No published posts yet"
+                    : "No matching posts"
+                }
+                description={
+                  publishedItems.length === 0
+                    ? "Published posts will appear here."
+                    : "Try a different search term."
+                }
+                actionLabel={
+                  publishedItems.length > 0 && isSearchActive
+                    ? "Clear"
+                    : undefined
+                }
+                onAction={
+                  publishedItems.length > 0 && isSearchActive
+                    ? () => setSearchTerm("")
+                    : undefined
+                }
+              />
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(3, 1fr)",
+                  },
+                  gap: "20px",
+                }}
+              >
+                {filteredPublishedItems.map((item) => (
+                  <Box
+                    key={`published-${item.taskId}`}
+                    ref={(element: HTMLDivElement | null) => {
+                      cardRefs.current[item.taskId] = element;
+                    }}
+                    sx={{
+                      borderRadius: "xl",
+                      scrollMarginTop: 112,
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      boxShadow:
+                        activeHighlightTaskId === item.taskId
+                          ? "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.35), var(--joy-shadow-lg)"
+                          : undefined,
+                      transform:
+                        activeHighlightTaskId === item.taskId
+                          ? "translateY(-2px)"
+                          : "translateY(0)",
+                    }}
+                  >
+                    <PostCard
+                      item={item}
+                      publishedAt={item.publishedAt}
+                      onEdit={(currentItem) =>
+                        handleOpenDrawer(currentItem, "edit")
+                      }
+                      onPublishNow={(currentItem) =>
+                        handleOpenDrawer(currentItem, "publish")
+                      }
+                      onSchedule={(currentItem) =>
+                        handleOpenDrawer(currentItem, "schedule")
+                      }
+                      onDelete={handleArchive}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Stack>
+        ) : null}
+
+        <ComposerDrawer
+          open={drawerOpen}
+          mode={drawerMode}
+          item={selectedItem}
+          accounts={availableAccounts}
+          onClose={handleCloseDrawer}
+          validate={validatePostForPlatform}
+          onSaveDraft={handleSaveDraft}
+          onPublishNow={handlePublishNow}
+          onSchedule={handleSchedule}
+          onCancelUntouched={handleCancelUntouched}
+        />
+
+        <PostComposerModal
+          isOpen={isComposerModalOpen}
+          onClose={() => setIsComposerModalOpen(false)}
+        />
+
+        <Snackbar
+          anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
+          autoHideDuration={5000}
+          color="neutral"
+          open={Boolean(archiveNotice)}
+          onClose={() => setArchiveNotice(null)}
+          variant="soft"
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography level="body-sm">{archiveNotice?.message}</Typography>
+            <Button
+              size="sm"
+              variant="plain"
+              color="primary"
+              startDecorator={<Undo2 size={14} />}
+              onClick={() => {
+                void handleUndoArchive();
+              }}
+            >
+              Undo
+            </Button>
+          </Stack>
+        </Snackbar>
+      </Stack>
+    </PageContainer>
   );
 };
 

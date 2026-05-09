@@ -6,6 +6,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { X } from "lucide-react";
 import { AIImageStudioImageActionButtons } from "./AIImageStudioImageResultCard";
+import { Z } from "@/lib/zIndex";
 import type { AIImageStudioImageResult, AIImageStudioMessage } from "./types";
 
 interface AIImageStudioPreviewLightboxProps {
@@ -38,6 +39,7 @@ export function AIImageStudioPreviewLightbox({
       slotProps={{
         backdrop: {
           sx: {
+            zIndex: Z.studioPreview - 1,
             backgroundColor: "rgba(0,0,0,0.75)",
             backdropFilter: "blur(24px)",
             WebkitBackdropFilter: "blur(24px)",
@@ -45,7 +47,7 @@ export function AIImageStudioPreviewLightbox({
         },
       }}
       sx={{
-        zIndex: (theme) => (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 10,
+        zIndex: Z.studioPreview,
       }}
     >
       <Box
@@ -53,6 +55,8 @@ export function AIImageStudioPreviewLightbox({
           minHeight: "100vh",
           px: 4,
           py: 4,
+          position: "relative",
+          zIndex: Z.studioPreview,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

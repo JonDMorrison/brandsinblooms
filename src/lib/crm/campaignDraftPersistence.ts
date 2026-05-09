@@ -34,6 +34,8 @@ export interface PersistCampaignRecordInput {
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;
+  includeAllCustomers?: boolean;
+  additionalCustomerIds?: string[];
   sourceContentTaskId?: string | null;
   sourceSegmentId?: string | null;
   sourcePersonaId?: string | null;
@@ -52,6 +54,78 @@ export class CampaignDraftConflictError extends Error {
     this.name = "CampaignDraftConflictError";
     this.currentUpdatedAt = currentUpdatedAt;
   }
+}
+
+type PostgrestLikeError =
+  | {
+      code?: string;
+      message?: string;
+      details?: string;
+      hint?: string;
+    }
+  | null
+  | undefined;
+
+function isMissingCampaignAudienceColumnError(error: PostgrestLikeError) {
+  const code = String(error?.code ?? "").toLowerCase();
+  const message = [error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    code === "42703" ||
+    code === "pgrst204" ||
+    ((message.includes("schema cache") ||
+      message.includes("could not find the") ||
+      message.includes("does not exist")) &&
+      (message.includes("additional_customer_ids") ||
+        message.includes("include_all_customers")))
+  );
+}
+
+function omitCampaignAudienceColumns<T extends Record<string, unknown>>(
+  payload: T,
+) {
+  const {
+    include_all_customers: _includeAllCustomers,
+    additional_customer_ids: _additionalCustomerIds,
+    ...legacyPayload
+  } = payload as T & {
+    include_all_customers?: unknown;
+    additional_customer_ids?: unknown;
+  };
+
+  return legacyPayload;
+}
+
+let campaignAudienceColumnsSupported: boolean | null = null;
+
+function rowHasCampaignAudienceColumns(row: unknown) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    return false;
+  }
+
+  return (
+    Object.prototype.hasOwnProperty.call(row, "include_all_customers") &&
+    Object.prototype.hasOwnProperty.call(row, "additional_customer_ids")
+  );
+}
+
+function rememberCampaignAudienceColumnSupport(row: unknown) {
+  campaignAudienceColumnsSupported = rowHasCampaignAudienceColumns(row);
+}
+
+function markCampaignAudienceColumnsUnsupported() {
+  campaignAudienceColumnsSupported = false;
+}
+
+function getCompatibleCampaignPayload<T extends Record<string, unknown>>(
+  payload: T,
+) {
+  return campaignAudienceColumnsSupported === false
+    ? omitCampaignAudienceColumns(payload)
+    : payload;
 }
 
 export type DraftSnapshotTrigger = "review" | "pre-send" | "manual";
@@ -425,6 +499,8 @@ function buildCampaignMetadata(
     campaignType: input.campaignType,
     replyTo: input.replyTo,
     smsMessage: input.smsMessage,
+    includeAllCustomers: input.includeAllCustomers ?? false,
+    additionalCustomerIds: input.additionalCustomerIds ?? [],
     sourceSegmentId: input.sourceSegmentId,
     sourcePersonaId: input.sourcePersonaId,
     contentBlocks: input.contentBlocks,
@@ -598,6 +674,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       input.sendImmediately === false ? (input.sendAt ?? null) : null,
     send_blocked_reason: null,
     source_content_task_id: input.sourceContentTaskId ?? null,
+    include_all_customers: input.includeAllCustomers ?? false,
+    additional_customer_ids: input.additionalCustomerIds ?? [],
     segment_id: input.segmentIds?.[0] ?? null,
     persona_ids: input.personaIds ?? [],
     updated_at: nowIso,
@@ -621,6 +699,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       throw new Error("Campaign not found or you do not have access");
     }
 
+    rememberCampaignAudienceColumnSupport(existingRow);
+
     if (
       input.expectedUpdatedAt &&
       existingRow.updated_at &&
@@ -639,20 +719,48 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         }),
       };
 
-    let updateQuery = supabase
-      .from("crm_campaigns")
-      .update(updatePayload)
-      .eq("id", input.campaignId);
+    const runUpdate = async (
+      payload: Database["public"]["Tables"]["crm_campaigns"]["Update"],
+    ) => {
+      let updateQuery = supabase
+        .from("crm_campaigns")
+        .update(payload)
+        .eq("id", input.campaignId);
 
-    if (existingRow.updated_at) {
-      updateQuery = updateQuery.eq("updated_at", existingRow.updated_at);
+      if (existingRow.updated_at) {
+        updateQuery = updateQuery.eq("updated_at", existingRow.updated_at);
+      }
+
+      return await updateQuery.select("*");
+    };
+
+    const usesLegacyAudiencePayload =
+      campaignAudienceColumnsSupported === false;
+    let { data: updatedRows, error: updateError } = await runUpdate(
+      getCompatibleCampaignPayload(
+        updatePayload,
+      ) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
+    );
+
+    if (
+      updateError &&
+      isMissingCampaignAudienceColumnError(updateError) &&
+      !usesLegacyAudiencePayload
+    ) {
+      markCampaignAudienceColumnsUnsupported();
+      ({ data: updatedRows, error: updateError } = await runUpdate(
+        omitCampaignAudienceColumns(
+          updatePayload,
+        ) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
+      ));
     }
-
-    const { data: updatedRows, error: updateError } =
-      await updateQuery.select("*");
 
     if (updateError) {
       throw updateError;
+    }
+
+    if (!usesLegacyAudiencePayload) {
+      campaignAudienceColumnsSupported = true;
     }
 
     campaignRow = Array.isArray(updatedRows)
@@ -687,6 +795,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         scheduled_at: basePayload.scheduled_at,
         send_blocked_reason: basePayload.send_blocked_reason,
         source_content_task_id: basePayload.source_content_task_id,
+        include_all_customers: basePayload.include_all_customers,
+        additional_customer_ids: basePayload.additional_customer_ids,
         segment_id: basePayload.segment_id,
         persona_ids: basePayload.persona_ids,
         metadata: buildCampaignMetadata({}, { ...input, contentBlocks }),
@@ -702,14 +812,43 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         updated_at: nowIso,
       };
 
-    const { data: insertedRow, error: insertError } = await supabase
-      .from("crm_campaigns")
-      .insert(insertPayload)
-      .select("*")
-      .single();
+    const usesLegacyAudiencePayload =
+      campaignAudienceColumnsSupported === false;
+    const runInsert = async (
+      payload: Database["public"]["Tables"]["crm_campaigns"]["Insert"],
+    ) => {
+      return await supabase
+        .from("crm_campaigns")
+        .insert(payload)
+        .select("*")
+        .single();
+    };
+
+    let { data: insertedRow, error: insertError } = await runInsert(
+      getCompatibleCampaignPayload(
+        insertPayload,
+      ) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
+    );
+
+    if (
+      insertError &&
+      isMissingCampaignAudienceColumnError(insertError) &&
+      !usesLegacyAudiencePayload
+    ) {
+      markCampaignAudienceColumnsUnsupported();
+      ({ data: insertedRow, error: insertError } = await runInsert(
+        omitCampaignAudienceColumns(
+          insertPayload,
+        ) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
+      ));
+    }
 
     if (insertError) {
       throw insertError;
+    }
+
+    if (!usesLegacyAudiencePayload) {
+      campaignAudienceColumnsSupported = true;
     }
 
     campaignRow = insertedRow as CampaignRow;
@@ -734,12 +873,21 @@ export async function writeCampaignDraftSnapshot(params: {
   smsMessage: string;
   contentBlocks: ContentBlock[];
   contentBlocks: StudioBlock[];
+  includeAllCustomers?: boolean;
+  additionalCustomerIds?: string[];
   segmentIds: string[];
   personaIds: string[];
 }) {
   const { tenantId, userId } = await getAuthenticatedWriterContext();
   const recipientIds = await resolveAudienceRecipientIds({
     tenantId,
+    includeAllCustomers: params.includeAllCustomers,
+    additionalCustomerIds: params.additionalCustomerIds,
+    fallbackToAllCustomers:
+      !params.includeAllCustomers &&
+      (params.additionalCustomerIds?.length ?? 0) === 0 &&
+      params.segmentIds.length === 0 &&
+      params.personaIds.length === 0,
     segmentIds: params.segmentIds,
     personaIds: params.personaIds,
   });
@@ -768,6 +916,8 @@ export async function writeCampaignDraftSnapshot(params: {
     preheaderText: params.preheaderText,
     smsMessage: params.smsMessage,
     contentBlocks: params.contentBlocks,
+    includeAllCustomers: params.includeAllCustomers ?? false,
+    additionalCustomerIds: params.additionalCustomerIds ?? [],
     segmentIds: params.segmentIds,
     personaIds: params.personaIds,
     recipientIds,

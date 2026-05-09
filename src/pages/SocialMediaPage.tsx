@@ -4,27 +4,38 @@ import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
-import Tab, { tabClasses } from "@mui/joy/Tab";
-import TabList from "@mui/joy/TabList";
-import TabPanel from "@mui/joy/TabPanel";
-import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
-import { X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import PostPerformanceTracker from "@/components/analytics/PostPerformanceTracker";
 import SocialConnectionManager, {
   type SocialConnection,
 } from "@/components/analytics/SocialConnectionManager";
+import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { PageContainer } from "@/components/joy/PageContainer";
+import {
+  JoyTabs,
+  JoyTabsContent,
+  JoyTabsList,
+  JoyTabsTrigger,
+} from "@/components/joy/JoyTabs";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import AutoScheduler from "@/components/scheduling/AutoScheduler";
 import { resolvePlatformKey } from "@/utils/platformConfig";
 
-const AVAILABLE_PLATFORM_COUNT = 3;
+const IMPLEMENTED_PLATFORM_COUNT = 2;
+const SUCCESS_ALERT_AUTO_DISMISS_MS = 5000;
+const SUCCESS_ALERT_FADE_MS = 240;
 
 type ConnectionSnapshot = {
   connections: SocialConnection[];
   loading: boolean;
+};
+
+type SuccessAlertState = {
+  message: string;
+  returnTo: string | null;
 };
 
 const HeaderStat = ({
@@ -40,12 +51,13 @@ const HeaderStat = ({
     <Sheet
       variant="outlined"
       sx={{
-        minWidth: 108,
-        borderRadius: "sm",
-        px: 1.5,
-        py: 1,
+        minWidth: 112,
+        borderRadius: "lg",
+        px: 2,
+        py: 1.25,
         bgcolor: "background.surface",
-        boxShadow: "none",
+        boxShadow: "sm",
+        borderColor: "divider",
       }}
     >
       <Typography level="body-xs" sx={{ color: "text.tertiary" }}>
@@ -58,11 +70,34 @@ const HeaderStat = ({
   );
 };
 
+const parseConnectionSuccessMessage = (rawValue: string | null) => {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as { message?: string };
+
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
+    }
+  } catch {
+    if (rawValue.trim()) {
+      return rawValue.trim();
+    }
+  }
+
+  return "Social account connected successfully.";
+};
+
 const SocialMediaPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [activeTab, setActiveTab] = useState("connections");
+  const [successAlert, setSuccessAlert] = useState<SuccessAlertState | null>(
+    null,
+  );
+  const [isSuccessAlertClosing, setIsSuccessAlertClosing] = useState(false);
   const [connectionSnapshot, setConnectionSnapshot] =
     useState<ConnectionSnapshot>({
       connections: [],
@@ -70,6 +105,7 @@ const SocialMediaPage = () => {
     });
 
   const justConnected = searchParams.get("connected");
+  const alertMessage = searchParams.get("message");
   const returnTo = searchParams.get("returnTo");
 
   useEffect(() => {
@@ -77,21 +113,72 @@ const SocialMediaPage = () => {
       return;
     }
 
-    setShowSuccessMessage(true);
+    setSuccessAlert({
+      message:
+        typeof alertMessage === "string" && alertMessage.trim()
+          ? alertMessage.trim()
+          : "Social account connected successfully.",
+      returnTo,
+    });
     setSearchParams({}, { replace: true });
+  }, [alertMessage, justConnected, returnTo, setSearchParams]);
 
-    const timer = window.setTimeout(() => {
-      setShowSuccessMessage(false);
+  useEffect(() => {
+    if (justConnected) {
+      return;
+    }
 
-      if (returnTo) {
-        navigate(returnTo);
+    const pendingSuccess = sessionStorage.getItem("social_connection_success");
+
+    if (!pendingSuccess) {
+      return;
+    }
+
+    sessionStorage.removeItem("social_connection_success");
+
+    const message = parseConnectionSuccessMessage(pendingSuccess);
+
+    if (message) {
+      setSuccessAlert({ message, returnTo: null });
+    }
+  }, [justConnected]);
+
+  useEffect(() => {
+    if (!successAlert) {
+      return;
+    }
+
+    setIsSuccessAlertClosing(false);
+
+    const fadeTimer = window.setTimeout(() => {
+      setIsSuccessAlertClosing(true);
+    }, SUCCESS_ALERT_AUTO_DISMISS_MS - SUCCESS_ALERT_FADE_MS);
+
+    const dismissTimer = window.setTimeout(() => {
+      const redirectTarget = successAlert.returnTo;
+
+      setSuccessAlert(null);
+      setIsSuccessAlertClosing(false);
+
+      if (redirectTarget) {
+        navigate(redirectTarget);
       }
-    }, 3000);
+    }, SUCCESS_ALERT_AUTO_DISMISS_MS);
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(dismissTimer);
     };
-  }, [justConnected, navigate, returnTo, setSearchParams]);
+  }, [navigate, successAlert]);
+
+  const handleDismissSuccessAlert = useCallback(() => {
+    setIsSuccessAlertClosing(true);
+
+    window.setTimeout(() => {
+      setSuccessAlert(null);
+      setIsSuccessAlertClosing(false);
+    }, SUCCESS_ALERT_FADE_MS);
+  }, []);
 
   const handleConnectionsChange = useCallback(
     (connections: SocialConnection[], loading: boolean) => {
@@ -103,71 +190,58 @@ const SocialMediaPage = () => {
   const connectionStats = useMemo(() => {
     const activePlatforms = new Set(
       connectionSnapshot.connections
-        .filter((connection) => connection.is_active)
-        .map(
-          (connection) =>
-            resolvePlatformKey(connection.platform) ?? connection.platform,
-        ),
+        .filter((connection) => {
+          const platformKey = resolvePlatformKey(connection.platform);
+
+          return (
+            connection.is_active &&
+            (platformKey === "facebook" || platformKey === "instagram")
+          );
+        })
+        .map((connection) => resolvePlatformKey(connection.platform)),
     );
 
-    if (connectionSnapshot.loading) {
+    if (
+      connectionSnapshot.loading &&
+      connectionSnapshot.connections.length === 0
+    ) {
       return {
         connectedCount: "-",
-        platformCount: String(AVAILABLE_PLATFORM_COUNT),
+        platformCount: String(IMPLEMENTED_PLATFORM_COUNT),
         healthLabel: "-",
         healthColor: "text.primary",
       };
     }
 
     const connectedCount = activePlatforms.size;
-    const healthLabel =
-      connectedCount === AVAILABLE_PLATFORM_COUNT
-        ? "Healthy"
-        : "Needs attention";
+    let healthLabel = "Needs attention";
+    let healthColor = "warning.700";
+
+    if (connectedCount === IMPLEMENTED_PLATFORM_COUNT) {
+      healthLabel = "Healthy";
+      healthColor = "success.700";
+    } else if (connectedCount === 0) {
+      healthLabel = "Not connected";
+      healthColor = "neutral.700";
+    }
 
     return {
       connectedCount: String(connectedCount),
-      platformCount: String(AVAILABLE_PLATFORM_COUNT),
+      platformCount: String(IMPLEMENTED_PLATFORM_COUNT),
       healthLabel,
-      healthColor:
-        connectedCount === AVAILABLE_PLATFORM_COUNT
-          ? "success.plainColor"
-          : "warning.plainColor",
+      healthColor,
     };
   }, [connectionSnapshot.connections, connectionSnapshot.loading]);
 
   return (
     <ProtectedPageWrapper>
-      <Box sx={{ py: 3 }}>
+      <PageContainer sx={{ py: 3 }}>
         <Stack spacing={3}>
-          <Box>
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", lg: "row" },
-                justifyContent: "space-between",
-                alignItems: { xs: "flex-start", lg: "flex-start" },
-                gap: 2,
-              }}
-            >
-              <Stack spacing={0.5} sx={{ maxWidth: 720 }}>
-                <Typography level="h3" sx={{ fontWeight: "lg" }}>
-                  Social Media
-                </Typography>
-                <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                  Connect, monitor, and automate your social presence.
-                </Typography>
-              </Stack>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1,
-                  justifyContent: { xs: "flex-start", lg: "flex-end" },
-                  width: { xs: "100%", lg: "auto" },
-                }}
-              >
+          <JoyPageHeaderBand
+            title="Social Media"
+            description="Manage your social accounts and content"
+            metadata={
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 <HeaderStat
                   label="Connected"
                   value={connectionStats.connectedCount}
@@ -181,110 +255,114 @@ const SocialMediaPage = () => {
                   value={connectionStats.healthLabel}
                   valueColor={connectionStats.healthColor}
                 />
-              </Box>
+              </Stack>
+            }
+            sx={{
+              background: "none",
+              bgcolor: "background.surface",
+              border: "1px solid",
+              borderColor: "divider",
+              boxShadow: "sm",
+            }}
+          />
+
+          {successAlert ? (
+            <Box
+              sx={{
+                opacity: isSuccessAlertClosing ? 0 : 1,
+                transform: isSuccessAlertClosing
+                  ? "translateY(-6px)"
+                  : "translateY(0)",
+                transition: `opacity ${SUCCESS_ALERT_FADE_MS}ms ease, transform ${SUCCESS_ALERT_FADE_MS}ms ease`,
+              }}
+            >
+              <Alert
+                color="success"
+                variant="soft"
+                startDecorator={<CheckCircle2 size={16} />}
+                endDecorator={
+                  <IconButton
+                    color="neutral"
+                    size="sm"
+                    variant="plain"
+                    onClick={handleDismissSuccessAlert}
+                  >
+                    <X size={14} />
+                  </IconButton>
+                }
+                sx={{
+                  alignItems: "center",
+                  borderRadius: "lg",
+                  boxShadow: "sm",
+                }}
+              >
+                {successAlert.message}
+              </Alert>
             </Box>
-
-            <Typography
-              level="body-xs"
-              sx={{ mt: 1.5, color: "text.tertiary" }}
-            >
-              Keep connections current, monitor real performance, and manage
-              scheduling from this workspace.
-            </Typography>
-          </Box>
-
-          {showSuccessMessage ? (
-            <Alert
-              color="success"
-              size="sm"
-              variant="soft"
-              endDecorator={
-                <IconButton
-                  color="neutral"
-                  size="sm"
-                  variant="plain"
-                  onClick={() => setShowSuccessMessage(false)}
-                >
-                  <X size={14} />
-                </IconButton>
-              }
-              sx={{ alignItems: "center" }}
-            >
-              Social account connected successfully.
-            </Alert>
           ) : null}
 
-          <Tabs
-            aria-label="Social account tabs"
+          <JoyTabs
+            aria-label="Social media workspace tabs"
             value={activeTab}
-            onChange={(_event, value) => {
+            onValueChange={(value) => {
               if (typeof value === "string") {
                 setActiveTab(value);
               }
             }}
-            sx={{ bgcolor: "transparent" }}
           >
-            <Box
+            <JoyTabsList
               sx={{
-                mb: 3,
-                p: 0.75,
-                borderRadius: "xl",
-                bgcolor: "neutral.100",
+                alignSelf: "flex-start",
                 width: "fit-content",
+                maxWidth: "100%",
+                flexWrap: "wrap",
+                gap: 1,
+                p: 0,
+                border: "none",
+                borderRadius: 0,
+                bgcolor: "transparent",
+                boxShadow: "none",
+                [`& .MuiTab-root`]: {
+                  minHeight: 40,
+                  px: 2.5,
+                  borderRadius: "lg",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.surface",
+                  boxShadow: "xs",
+                  whiteSpace: "nowrap",
+                  flex: "0 0 auto",
+                },
+                [`& .Mui-selected`]: {
+                  bgcolor: "background.level1",
+                  color: "text.primary",
+                  borderColor: "primary.200",
+                },
               }}
             >
-              <TabList
-                disableUnderline
-                sx={{
-                  p: 0.5,
-                  gap: 0.5,
-                  borderRadius: "lg",
-                  bgcolor: "transparent",
-                  width: "fit-content",
-                  [`& .${tabClasses.root}`]: {
-                    borderRadius: "lg",
-                    minHeight: 36,
-                    px: 2,
-                    color: "neutral.600",
-                  },
-                  [`& .${tabClasses.root}[aria-selected="true"]`]: {
-                    boxShadow: "sm",
-                    bgcolor: "common.white",
-                    color: "neutral.800",
-                  },
-                }}
-              >
-                <Tab disableIndicator value="connections">
-                  Connections
-                </Tab>
-                <Tab disableIndicator value="analytics">
-                  Analytics
-                </Tab>
-                <Tab disableIndicator value="scheduling">
-                  Auto-Scheduling
-                </Tab>
-              </TabList>
-            </Box>
+              <JoyTabsTrigger value="connections">Connections</JoyTabsTrigger>
+              <JoyTabsTrigger value="analytics">Analytics</JoyTabsTrigger>
+              <JoyTabsTrigger value="scheduling">
+                Auto-Scheduling
+              </JoyTabsTrigger>
+            </JoyTabsList>
 
-            <TabPanel value="connections" sx={{ px: 0 }}>
+            <JoyTabsContent value="connections">
               <SocialConnectionManager
                 onConnectionsChange={handleConnectionsChange}
-                onOpenAnalyticsTab={() => setActiveTab("analytics")}
-                onOpenSchedulingTab={() => setActiveTab("scheduling")}
-                onOpenPublishingSurface={() => navigate("/crm/campaigns")}
               />
-            </TabPanel>
+            </JoyTabsContent>
 
-            <TabPanel value="analytics" sx={{ px: 0 }}>
+            <JoyTabsContent value="analytics">
               <PostPerformanceTracker />
-            </TabPanel>
+            </JoyTabsContent>
 
-            <TabPanel value="scheduling" sx={{ px: 0 }}>
+            <JoyTabsContent value="scheduling">
               <AutoScheduler />
-            </TabPanel>
-          </Tabs>
+            </JoyTabsContent>
+          </JoyTabs>
         </Stack>
-      </Box>
+      </PageContainer>
     </ProtectedPageWrapper>
   );
 };

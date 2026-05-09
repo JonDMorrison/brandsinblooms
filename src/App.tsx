@@ -347,6 +347,9 @@ const SMSRoutes = lazyRetry(() =>
   import("@/routes/SMSRoutes").then((mod) => ({ default: mod.default })),
 );
 
+const LEGACY_SOCIAL_ROUTE = ["/", "social"].join("");
+const LEGACY_SOCIAL_MEDIA_ROUTE = ["/", ["social", "media"].join("-")].join("");
+
 function IntegrationsRouteLayout() {
   return <TenantRouteLayout />;
 }
@@ -1062,6 +1065,14 @@ function App() {
               </Route>
             </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
+            <Route
+              path={LEGACY_SOCIAL_ROUTE}
+              element={<RedirectWithQuery to="/social-accounts" />}
+            />
+            <Route
+              path={LEGACY_SOCIAL_MEDIA_ROUTE}
+              element={<RedirectWithQuery to="/social-accounts" />}
+            />
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />

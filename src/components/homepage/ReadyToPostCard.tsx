@@ -25,6 +25,15 @@ interface ReadyToPostCardProps {
   onTaskUpdate?: () => void;
 }
 
+interface PublishTaskResponse {
+  success?: boolean;
+  message?: string;
+  result?: {
+    status?: string;
+    platform?: string;
+  };
+}
+
 export const ReadyToPostCard = ({
   tasks,
   onTaskUpdate,
@@ -191,32 +200,17 @@ export const ReadyToPostCard = ({
         return;
       }
 
-      if (data?.success) {
-        const successCount =
-          data.results?.filter((r: any) => r.success).length || 0;
-        const totalCount = data.results?.length || 0;
+      const response = (data || {}) as PublishTaskResponse;
 
-        if (successCount === totalCount) {
+      if (response.success && response.result?.status === "published") {
           toast({
             title: "Success",
             description: `✅ Successfully published to ${task.post_type}!`,
           });
-        } else if (successCount > 0) {
-          toast({
-            title: "Partial Success",
-            description: `Published to ${successCount}/${totalCount} platforms`,
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "Publishing failed",
-            variant: "destructive",
-          });
-        }
       } else {
         toast({
           title: "Error",
-          description: data?.message || "Publishing failed",
+          description: response.message || "Publishing failed",
           variant: "destructive",
         });
       }

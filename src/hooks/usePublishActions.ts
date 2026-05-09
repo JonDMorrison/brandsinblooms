@@ -1,14 +1,32 @@
 // src/hooks/usePublishActions.ts
 import { supabase } from "@/integrations/supabase/client";
 import type { PublishNowInput, ScheduleInput } from "@/types/publish";
-import { reportSoftFail } from '@/lib/softFail';
+import { validatePostForPlatform } from "@/utils/validatePost";
+import { reportSoftFail } from "@/lib/softFail";
+
+function assertPublishInputIsValid(
+  action: "publishing" | "scheduling",
+  input: PublishNowInput,
+) {
+  const validation = validatePostForPlatform(input.platform, input);
+
+  if (!validation.ok) {
+    const message =
+      validation.errors.join(". ") || `Post validation failed before ${action}`;
+    throw new Error(message);
+  }
+}
 
 export function usePublishActions() {
   async function publishNow(taskId: string, input: PublishNowInput) {
+    // Reuse the shared validation contract so the drawer and mutation layer
+    // reject the same missing-account and missing-content states.
+    assertPublishInputIsValid("publishing", input);
+
     // First, auto-approve and persist the content to database
     const updateData: any = {
-      status: 'approved',
-      ai_output: input.caption ?? '',
+      status: "approved",
+      ai_output: input.caption ?? "",
       image_url: input.mediaUrl ?? null,
     };
 
@@ -17,48 +35,42 @@ export function usePublishActions() {
       updateData.attachments = {
         image: {
           url: input.mediaUrl,
-          alt: 'Content image',
-          thumb: input.mediaUrl
-        }
+          alt: "Content image",
+          thumb: input.mediaUrl,
+        },
       };
     }
 
     const { error: updateError } = await supabase
-      .from('content_tasks')
+      .from("content_tasks")
       .update(updateData)
-      .eq('id', taskId);
+      .eq("id", taskId);
 
     if (updateError) {
       throw new Error(`Failed to prepare content: ${updateError.message}`);
     }
 
-    // Validate required fields before publishing. The throw is caught by
-    // ComposerDrawer's handlePublishNow, which surfaces a toast already —
-    // so we don't also call reportSoftFail here (that path was producing
-    // a duplicate Warning + Error toast for the same condition).
-    if (!input.caption?.trim() || !input.mediaUrl) {
-      throw new Error('Both caption and media are required for publishing');
-    }
-
     // Create generated_content record first
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) {
-      throw new Error('User not authenticated');
+      throw new Error("User not authenticated");
     }
 
     const { data: generatedContent, error: contentError } = await supabase
-      .from('generated_content')
+      .from("generated_content")
       .insert({
         user_id: user.user.id,
-        caption: input.caption ?? '',
+        caption: input.caption ?? "",
         media_url: input.mediaUrl ?? null,
-        status: 'DRAFT'
+        status: "DRAFT",
       })
       .select()
       .single();
 
     if (contentError) {
-      throw new Error(`Failed to create content record: ${contentError.message}`);
+      throw new Error(
+        `Failed to create content record: ${contentError.message}`,
+      );
     }
 
     // Now call the publish-task function with contentId
@@ -73,28 +85,32 @@ export function usePublishActions() {
         firstComment: input.firstComment ?? undefined,
       },
     });
-    
+
     if (error) {
       throw new Error(`Publishing failed: ${error.message}`);
     }
 
     if (!data?.success) {
-      reportSoftFail('edge_function_returned_not_ok', { 
-        fn: 'publish-task',
+      reportSoftFail("edge_function_returned_not_ok", {
+        fn: "publish-task",
         taskId,
-        error: data?.message
+        error: data?.message,
       });
-      throw new Error(`Publishing failed: ${data?.message || 'Unknown error'}`);
+      throw new Error(`Publishing failed: ${data?.message || "Unknown error"}`);
     }
-    
+
     return data as { providerPostId?: string; publishedAt?: string };
   }
 
   async function schedule(taskId: string, input: ScheduleInput) {
+    // Reuse the shared validation contract so publish and schedule accept the
+    // same content rules before mutating task state.
+    assertPublishInputIsValid("scheduling", input);
+
     // First, auto-approve and persist the content to database
     const updateData: any = {
-      status: 'approved',
-      ai_output: input.caption ?? '',
+      status: "approved",
+      ai_output: input.caption ?? "",
       image_url: input.mediaUrl ?? null,
     };
 
@@ -103,47 +119,42 @@ export function usePublishActions() {
       updateData.attachments = {
         image: {
           url: input.mediaUrl,
-          alt: 'Content image',
-          thumb: input.mediaUrl
-        }
+          alt: "Content image",
+          thumb: input.mediaUrl,
+        },
       };
     }
 
     const { error: updateError } = await supabase
-      .from('content_tasks')
+      .from("content_tasks")
       .update(updateData)
-      .eq('id', taskId);
+      .eq("id", taskId);
 
     if (updateError) {
       throw new Error(`Failed to prepare content: ${updateError.message}`);
     }
 
-    // Validate required fields before scheduling. As with publish (above),
-    // the throw is caught and toasted by ComposerDrawer's handleSchedule —
-    // no need to also reportSoftFail and produce a redundant toast.
-    if (!input.caption?.trim() || !input.mediaUrl) {
-      throw new Error('Both caption and media are required for scheduling');
-    }
-
     // Create generated_content record first
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) {
-      throw new Error('User not authenticated');
+      throw new Error("User not authenticated");
     }
 
     const { data: generatedContent, error: contentError } = await supabase
-      .from('generated_content')
+      .from("generated_content")
       .insert({
         user_id: user.user.id,
-        caption: input.caption ?? '',
+        caption: input.caption ?? "",
         media_url: input.mediaUrl ?? null,
-        status: 'DRAFT'
+        status: "DRAFT",
       })
       .select()
       .single();
 
     if (contentError) {
-      throw new Error(`Failed to create content record: ${contentError.message}`);
+      throw new Error(
+        `Failed to create content record: ${contentError.message}`,
+      );
     }
 
     // Now call the publish-task function with contentId
@@ -157,24 +168,24 @@ export function usePublishActions() {
         imageUrl: input.mediaUrl ?? undefined,
         firstComment: input.firstComment ?? undefined,
         publishAt: input.publishAt, // UTC ISO string
-        timezone: input.timezone,   // optional
+        timezone: input.timezone, // optional
       },
     });
-    
+
     if (error) {
       throw new Error(`Scheduling failed: ${error.message}`);
     }
 
     if (!data?.success) {
-      reportSoftFail('edge_function_returned_not_ok', { 
-        fn: 'publish-task',
+      reportSoftFail("edge_function_returned_not_ok", {
+        fn: "publish-task",
         taskId,
-        mode: 'schedule',
-        error: data?.message
+        mode: "schedule",
+        error: data?.message,
       });
-      throw new Error(`Scheduling failed: ${data?.message || 'Unknown error'}`);
+      throw new Error(`Scheduling failed: ${data?.message || "Unknown error"}`);
     }
-    
+
     return data as { scheduledFor: string };
   }
 

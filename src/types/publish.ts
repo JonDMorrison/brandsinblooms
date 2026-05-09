@@ -22,6 +22,7 @@ export type PublishSourceBundle = {
 
 export type PostStatus =
   | "draft"
+  | "generated"
   | "review"
   | "approved"
   | "ready"

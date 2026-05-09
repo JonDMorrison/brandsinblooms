@@ -1,23 +1,48 @@
-// src/components/publish/PostCard.tsx
-import React from 'react';
-import { Card } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { ActionGroup } from '@/components/ui-legacy/action-group';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Facebook, Instagram, Clock, Send, Edit3, Archive, Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
-import type { PublishItem } from '@/types/publish';
+import * as React from "react";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip, { type ChipProps } from "@mui/joy/Chip";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  Clock,
+  Facebook,
+  ImageIcon,
+  Instagram,
+  Pencil,
+  Send,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import type { PublishItem } from "@/types/publish";
 
-// "Generated 6 months ago" / "Generated 3 days ago". Falls back silently
-// if the timestamp is missing or unparseable so a render never crashes
-// over a malformed createdAt. Used only for non-published items —
-// published rows already show their own publish-date line.
-function formatGeneratedRelative(createdAt: string | null | undefined): string | null {
-  if (!createdAt) return null;
-  const t = new Date(createdAt).getTime();
-  if (Number.isNaN(t)) return null;
-  return `Generated ${formatDistanceToNow(t, { addSuffix: true })}`;
+function normalizeLegacyStatus(status: string) {
+  switch (status) {
+    case "planned":
+      return "draft";
+    case "posted":
+      return "published";
+    default:
+      return status;
+  }
+}
+
+function formatGeneratedRelative(
+  createdAt: string | null | undefined,
+): string | null {
+  if (!createdAt) {
+    return null;
+  }
+
+  const timestamp = new Date(createdAt).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return formatDistanceToNow(timestamp, { addSuffix: true });
 }
 
 export type PostCardProps = {
@@ -30,441 +55,359 @@ export type PostCardProps = {
   disabled?: boolean;
 };
 
-const getStatusColor = (status: PublishItem['status']) => {
-  switch (status) {
-    case 'draft':
-    case 'review':
-      return 'bg-gray-100 text-gray-700';
-    case 'approved':
-    case 'ready':
-      return 'bg-teal-100 text-teal-700';
-    case 'scheduled':
-      return 'bg-blue-100 text-blue-700';
-    case 'published':
-      return 'bg-green-100 text-green-700';
-    case 'failed':
-      return 'bg-red-100 text-red-700';
-    case 'publishing':
-      return 'bg-yellow-100 text-yellow-700';
+const formatStatus = (status: string) => {
+  switch (normalizeLegacyStatus(status)) {
+    case "draft":
+      return "Draft";
+    case "generated":
+      return "Generated";
+    case "review":
+      return "In Review";
+    case "approved":
+      return "Approved";
+    case "ready":
+      return "Ready";
+    case "scheduled":
+      return "Scheduled";
+    case "publishing":
+      return "Publishing";
+    case "published":
+      return "Published";
+    case "failed":
+      return "Failed";
     default:
-      return 'bg-gray-100 text-gray-700';
+      return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };
 
-const formatStatus = (status: PublishItem['status'], scheduledFor?: string | null) => {
-  if (status === 'scheduled' && scheduledFor) {
-    try {
-      const date = new Date(scheduledFor);
-      return `Scheduled (${format(date, 'MMM d, h:mm a')})`;
-    } catch {
-      return 'Scheduled';
-    }
+const getStatusColor = (status: string): ChipProps["color"] => {
+  switch (normalizeLegacyStatus(status)) {
+    case "draft":
+    case "generated":
+      return "neutral";
+    case "review":
+      return "warning";
+    case "approved":
+    case "ready":
+      return "primary";
+    case "scheduled":
+      return "success";
+    case "publishing":
+      return "warning";
+    case "published":
+      return "success";
+    case "failed":
+      return "danger";
+    default:
+      return "neutral";
   }
-  return status.charAt(0).toUpperCase() + status.slice(1);
 };
 
-export default function PostCard({ item, publishedAt, onEdit, onPublishNow, onSchedule, onDelete, disabled }: PostCardProps) {
-  const [isDeleting, setIsDeleting] = React.useState(false);
-  const PlatformIcon = item.platform === 'facebook' ? Facebook : Instagram;
-  const platformColor = item.platform === 'facebook' ? 'text-blue-600' : 'text-pink-500';
-  
-  const canPublish = !disabled && ['approved', 'ready', 'draft', 'review', 'planned'].includes(item.status);
-  const canSchedule = !disabled && ['approved', 'ready', 'draft', 'review', 'planned'].includes(item.status);
+const resolvePlatformMeta = (platform: PublishItem["platform"]) => {
+  if (platform === "facebook") {
+    return {
+      label: "Facebook",
+      icon: Facebook,
+      avatarSx: {
+        bgcolor: "#1877F2",
+        color: "#FFFFFF",
+      },
+      badgeSx: {
+        bgcolor: "rgba(24, 119, 242, 0.14)",
+        color: "#1B4ED8",
+      },
+    };
+  }
 
-  const handleDelete = () => {
-    setIsDeleting(true);
-    // Delay the actual deletion to allow animation to complete
-    setTimeout(() => {
-      onDelete(item);
-    }, 300);
+  return {
+    label: "Instagram",
+    icon: Instagram,
+    avatarSx: {
+      bgcolor: "#E4405F",
+      color: "#FFFFFF",
+    },
   };
+};
 
-  // Instagram native layout
-  if (item.platform === 'instagram') {
-    return (
-      <Card className={cn(
-        "relative hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto overflow-hidden",
-        "min-h-[600px]",
-        isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
-      )}>
-        {/* Instagram Header */}
-        <div className="flex items-center justify-between p-3 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
-              <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                <Instagram className="w-4 h-4 text-pink-500" />
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold">{item.accountName || 'Your Account'}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={disabled || isDeleting}
-              className="w-8 h-8 p-0 text-gray-400 hover:text-amber-600"
-              title="Archive item"
-              aria-label="Archive item"
-            >
-              <Archive className="w-4 h-4" />
-            </Button>
-            <MoreHorizontal className="w-5 h-5 text-gray-700" />
-          </div>
-        </div>
-
-        {/* Instagram Image - Square aspect ratio */}
-        {item.mediaUrl && (
-          <div className="w-full aspect-square bg-gray-100">
-            <img 
-              src={item.mediaUrl} 
-              alt="Instagram post"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Instagram Actions */}
-        <div className="px-3 pt-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-4">
-              <Heart className="w-6 h-6" />
-              <MessageCircle className="w-6 h-6" />
-              <Send className="w-6 h-6" />
-            </div>
-            <Bookmark className="w-6 h-6" />
-          </div>
-
-          {/* Status Badge */}
-          <Badge className={cn("mb-2", getStatusColor(item.status))}>
-            {formatStatus(item.status, item.scheduledFor)}
-          </Badge>
-
-          {/* Caption */}
-          <div className="mb-2">
-            <span className="font-semibold text-sm mr-2">{item.accountName || 'Your Account'}</span>
-            <span className="text-sm">{item.caption || "No caption"}</span>
-          </div>
-
-          {/* First Comment */}
-          {item.firstComment && (
-            <div className="text-sm text-gray-500 mb-2">
-              <span className="font-semibold text-gray-700 mr-2">{item.accountName || 'Your Account'}</span>
-              {item.firstComment}
-            </div>
-          )}
-
-          {/* Published Date */}
-          {item.status === 'published' && publishedAt && (
-            <div className="text-xs text-gray-500 mb-3">
-              {format(new Date(publishedAt), 'MMMM d, yyyy')}
-            </div>
-          )}
-
-          {/* Generated date — shown for non-published items so users see when a draft was authored */}
-          {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
-            <div className="text-xs text-gray-500 mb-3" data-testid="post-generated-date">
-              {formatGeneratedRelative(item.createdAt)}
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="px-3 pb-3 pt-2 border-t">
-          <div className="flex items-center justify-between w-full gap-2">
-            <button
-              onClick={() => onEdit(item)}
-              disabled={disabled}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-              title="Edit"
-            >
-              <Edit3 className="w-6 h-6" />
-              <span className="text-xs font-medium">Edit</span>
-            </button>
-            
-            {canPublish && (
-              <button
-                onClick={() => onPublishNow(item)}
-                disabled={!canPublish}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Publish Now"
-              >
-                <Send className="w-6 h-6" />
-                <span className="text-xs font-medium">Publish</span>
-              </button>
-            )}
-            
-            {canSchedule && (
-              <button
-                onClick={() => onSchedule(item)}
-                disabled={!canSchedule}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Schedule"
-              >
-                <Clock className="w-6 h-6" />
-                <span className="text-xs font-medium">Schedule</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </Card>
-    );
+const resolvePreviewImage = (item: PublishItem) => {
+  if (Array.isArray(item.mediaUrls) && item.mediaUrls.length > 0) {
+    return item.mediaUrls[0] ?? null;
   }
 
-  // Facebook native layout
-  if (item.platform === 'facebook') {
-    return (
-      <Card className={cn(
-        "relative hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto overflow-hidden",
-        "min-h-[600px] bg-white",
-        isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
-      )}>
-        {/* Facebook Header */}
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-              <Facebook className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold text-gray-900">{item.accountName || 'Your Page'}</span>
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                {item.status === 'scheduled' && item.scheduledFor ? (
-                  <>
-                    <span>{format(new Date(item.scheduledFor), 'MMMM d')} at {format(new Date(item.scheduledFor), 'h:mm a')}</span>
-                    <span>• 🌍</span>
-                  </>
-                ) : item.status === 'published' && publishedAt ? (
-                  <>
-                    <span>{format(new Date(publishedAt), 'MMMM d')} at {format(new Date(publishedAt), 'h:mm a')}</span>
-                    <span>• 🌍</span>
-                  </>
-                ) : (
-                  <span>Just now • 🌍</span>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={disabled || isDeleting}
-              className="w-8 h-8 p-0 text-gray-400 hover:text-amber-600"
-              title="Archive item"
-              aria-label="Archive item"
-            >
-              <Archive className="w-4 h-4" />
-            </Button>
-            <MoreHorizontal className="w-5 h-5 text-gray-600" />
-          </div>
-        </div>
+  return item.mediaUrl ?? null;
+};
 
-        {/* Status Badge */}
-        <div className="px-4 pb-2">
-          <Badge className={cn("text-xs pointer-events-none", getStatusColor(item.status))}>
-            {formatStatus(item.status, item.scheduledFor)}
-          </Badge>
-        </div>
+const formatAgeLabel = (item: PublishItem, publishedAt?: string) => {
+  const timestamp =
+    normalizeLegacyStatus(item.status) === "published"
+      ? publishedAt
+      : item.scheduledFor || item.createdAt;
 
-        {/* Caption */}
-        {item.caption && (
-          <div className="px-4 pb-3">
-            <p className="text-sm text-gray-900 whitespace-pre-wrap">{item.caption}</p>
-          </div>
-        )}
+  return formatGeneratedRelative(timestamp) ?? "Just now";
+};
 
-        {/* Facebook Image - Full width, no padding */}
-        {item.mediaUrl && (
-          <div className="w-full bg-gray-100">
-            <img 
-              src={item.mediaUrl} 
-              alt="Facebook post"
-              className="w-full h-auto object-cover"
-            />
-          </div>
-        )}
-
-        {/* Engagement Bar */}
-        <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 border-b">
-          <div className="flex items-center gap-1">
-            <div className="flex -space-x-1">
-              <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                <Heart className="w-2.5 h-2.5 text-white fill-white" />
-              </div>
-            </div>
-            <span>0</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span>0 comments</span>
-            <span>0 shares</span>
-          </div>
-        </div>
-
-        {/* Published Date */}
-        {item.status === 'published' && publishedAt && (
-          <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50">
-            Published {format(new Date(publishedAt), 'MMMM d, yyyy')}
-          </div>
-        )}
-
-        {/* Generated date — shown for non-published items */}
-        {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
-          <div
-            className="px-4 py-2 text-xs text-gray-500 bg-gray-50"
-            data-testid="post-generated-date"
-          >
-            {formatGeneratedRelative(item.createdAt)}
-          </div>
-        )}
-
-        {/* Action Buttons - Facebook style */}
-        <div className="px-4 py-2 border-t">
-          <div className="flex items-center justify-between w-full gap-2">
-            <button
-              onClick={() => onEdit(item)}
-              disabled={disabled}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-              title="Edit"
-            >
-              <Edit3 className="w-6 h-6" />
-              <span className="text-xs font-medium">Edit</span>
-            </button>
-            
-            {canPublish && (
-              <button
-                onClick={() => onPublishNow(item)}
-                disabled={!canPublish}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Publish Now"
-              >
-                <Send className="w-6 h-6" />
-                <span className="text-xs font-medium">Publish</span>
-              </button>
-            )}
-            
-            {canSchedule && (
-              <button
-                onClick={() => onSchedule(item)}
-                disabled={!canSchedule}
-                className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                title="Schedule"
-              >
-                <Clock className="w-6 h-6" />
-                <span className="text-xs font-medium">Schedule</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </Card>
+export default function PostCard({
+  item,
+  publishedAt,
+  onEdit,
+  onPublishNow,
+  onSchedule,
+  disabled = false,
+}: PostCardProps) {
+  const normalizedStatus = normalizeLegacyStatus(item.status);
+  const previewImage = resolvePreviewImage(item);
+  const caption = item.caption?.trim() ?? "";
+  const statusLabel = formatStatus(normalizedStatus);
+  const statusChipColor = getStatusColor(normalizedStatus);
+  const relativeAge = formatAgeLabel(item, publishedAt);
+  const canPublish =
+    !disabled &&
+    ["approved", "ready", "draft", "generated", "review"].includes(
+      normalizedStatus,
     );
-  }
+  const canSchedule =
+    !disabled &&
+    ["approved", "ready", "draft", "generated", "review"].includes(
+      normalizedStatus,
+    );
 
-  // Default fallback layout
   return (
-    <Card className={cn(
-      "relative p-4 hover:shadow-md transition-all duration-300 transform-gpu w-full max-w-[80%] mx-auto",
-      "min-h-[500px]",
-      isDeleting && "animate-fade-out opacity-0 scale-95 pointer-events-none"
-    )}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDelete}
-        disabled={disabled || isDeleting}
-        className="absolute top-2 right-2 w-8 h-8 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+    <Card
+      variant="outlined"
+      sx={{
+        borderRadius: "16px",
+        overflow: "hidden",
+        border: "1px solid",
+        borderColor: "var(--joy-palette-neutral-200, #d4d4d8)",
+        bgcolor: "var(--joy-palette-background-surface, #ffffff)",
+        boxShadow: "0 1px 3px 0 rgba(0,0,0,0.04)",
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        "&:hover": {
+          borderColor: "var(--joy-palette-neutral-400, #a1a1aa)",
+          boxShadow:
+            "0 8px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -6px rgba(0,0,0,0.06)",
+          transform: "translateY(-3px)",
+        },
+      }}
+    >
+      <Box
+        sx={{
+          m: "calc(-1 * var(--Card-padding))",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100%",
+        }}
       >
-        <Trash2 className="w-4 h-4" />
-      </Button>
-      
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <PlatformIcon className={cn("w-5 h-5", platformColor)} />
-            <span className="font-medium capitalize">{item.platform}</span>
-            {item.accountName && (
-              <span className="text-sm text-gray-500">• {item.accountName}</span>
-            )}
-          </div>
-          <Badge className={getStatusColor(item.status)}>
-            {formatStatus(item.status, item.scheduledFor)}
-          </Badge>
-        </div>
-
-        <div className="space-y-3">
-          {item.mediaUrl && (
-            <div className="w-full h-64 rounded-lg overflow-hidden bg-gray-100">
-              <img 
-                src={item.mediaUrl} 
-                alt="Content preview"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-
-          <div>
-            <p className="text-sm text-gray-600 line-clamp-4">
-              {item.caption || "No caption"}
-            </p>
-          </div>
-
-          {item.status === 'published' && publishedAt && (
-            <div className="flex items-center gap-2 text-sm text-gray-500 bg-green-50 px-2 py-1 rounded">
-              <Clock className="w-4 h-4" />
-              <span>Published {format(new Date(publishedAt), 'MMM d, h:mm a')}</span>
-            </div>
-          )}
-
-          {/* Generated date — shown for non-published items */}
-          {item.status !== 'published' && formatGeneratedRelative(item.createdAt) && (
-            <div
-              className="flex items-center gap-2 text-xs text-gray-500"
-              data-testid="post-generated-date"
+        {previewImage ? (
+          <AspectRatio
+            ratio="4/3"
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "var(--joy-palette-neutral-100, #f4f4f5)",
+            }}
+          >
+            <Box
+              component="img"
+              src={previewImage}
+              alt={`${item.platform === "facebook" ? "Facebook" : "Instagram"} post preview`}
+              sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </AspectRatio>
+        ) : (
+          <AspectRatio
+            ratio="4/3"
+            sx={{
+              bgcolor: "var(--joy-palette-neutral-50, #fafafa)",
+              borderBottom: "1px solid",
+              borderColor: "var(--joy-palette-neutral-100, #f4f4f5)",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+              }}
             >
-              <Clock className="w-3.5 h-3.5" />
-              <span>{formatGeneratedRelative(item.createdAt)}</span>
-            </div>
-          )}
-        </div>
+              <Box
+                component="span"
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "12px",
+                  bgcolor: "var(--joy-palette-neutral-100, #f4f4f5)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ImageIcon
+                  size={22}
+                  color="var(--joy-palette-neutral-400, #a1a1aa)"
+                />
+              </Box>
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: "var(--joy-palette-neutral-400, #a1a1aa)",
+                  fontWeight: 500,
+                  letterSpacing: "0.01em",
+                }}
+              >
+                No media
+              </Typography>
+            </Box>
+          </AspectRatio>
+        )}
 
-        <div className="flex items-center justify-between w-full gap-2 pt-2 border-t">
-          <button
+        <Box sx={{ px: "20px", pt: "16px", pb: "4px" }}>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Avatar
+              sx={{
+                width: 24,
+                height: 24,
+                bgcolor: item.platform === "facebook" ? "#1877F2" : "#E4405F",
+                fontSize: "0.6rem",
+              }}
+            >
+              {item.platform === "facebook" ? (
+                <Facebook size={13} color="#fff" />
+              ) : (
+                <Instagram size={13} color="#fff" />
+              )}
+            </Avatar>
+
+            <Typography
+              level="body-xs"
+              sx={{
+                fontWeight: 600,
+                color: "var(--joy-palette-text-secondary)",
+              }}
+            >
+              {item.platform === "facebook" ? "Facebook" : "Instagram"}
+            </Typography>
+
+            <Box sx={{ flex: 1 }} />
+
+            <Chip
+              variant="soft"
+              size="sm"
+              color={statusChipColor}
+              sx={{
+                fontWeight: 600,
+                fontSize: "0.675rem",
+                height: "22px",
+                borderRadius: "6px",
+              }}
+            >
+              {statusLabel}
+            </Chip>
+
+            <Typography
+              level="body-xs"
+              sx={{
+                color: "var(--joy-palette-text-tertiary)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {relativeAge}
+            </Typography>
+          </Stack>
+        </Box>
+
+        <Box sx={{ px: "20px", pb: "8px" }}>
+          <Typography
+            level="body-sm"
+            sx={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              lineHeight: 1.6,
+              color: "var(--joy-palette-text-primary)",
+            }}
+          >
+            {caption || "No caption"}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            px: "16px",
+            py: "12px",
+            borderTop: "1px solid",
+            borderColor: "var(--joy-palette-neutral-100, #f4f4f5)",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <Button
+            variant="plain"
+            color="neutral"
+            size="sm"
+            startDecorator={<Pencil size={13} />}
             onClick={() => onEdit(item)}
             disabled={disabled}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-            title="Edit"
+            sx={{
+              fontWeight: 500,
+              fontSize: "0.75rem",
+              color: "var(--joy-palette-text-secondary)",
+              borderRadius: "8px",
+              px: 1.5,
+              "&:hover": { bgcolor: "var(--joy-palette-neutral-100, #f4f4f5)" },
+            }}
           >
-            <Edit3 className="w-6 h-6" />
-            <span className="text-xs font-medium">Edit</span>
-          </button>
-          
-          {canPublish && (
-            <button
-              onClick={() => onPublishNow(item)}
-              disabled={!canPublish}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
-              title="Publish Now"
-            >
-              <Send className="w-6 h-6" />
-              <span className="text-xs font-medium">Publish</span>
-            </button>
-          )}
-          
-          {canSchedule && (
-            <button
+            Edit
+          </Button>
+          {canSchedule ? (
+            <Button
+              variant="plain"
+              color="neutral"
+              size="sm"
+              startDecorator={<Clock size={13} />}
               onClick={() => onSchedule(item)}
               disabled={!canSchedule}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-              title="Schedule"
+              sx={{
+                fontWeight: 500,
+                fontSize: "0.75rem",
+                color: "var(--joy-palette-text-secondary)",
+                borderRadius: "8px",
+                px: 1.5,
+                "&:hover": {
+                  bgcolor: "var(--joy-palette-neutral-100, #f4f4f5)",
+                },
+              }}
             >
-              <Clock className="w-6 h-6" />
-              <span className="text-xs font-medium">Schedule</span>
-            </button>
-          )}
-        </div>
-      </div>
+              Schedule
+            </Button>
+          ) : null}
+
+          <Box sx={{ flex: 1 }} />
+
+          {canPublish ? (
+            <Button
+              variant="solid"
+              color="primary"
+              size="sm"
+              startDecorator={<Send size={13} />}
+              onClick={() => onPublishNow(item)}
+              disabled={!canPublish}
+              sx={{
+                fontWeight: 600,
+                fontSize: "0.75rem",
+                borderRadius: "8px",
+                px: 2,
+                boxShadow: "0 1px 2px 0 rgba(0,0,0,0.05)",
+              }}
+            >
+              Publish
+            </Button>
+          ) : null}
+        </Box>
+      </Box>
     </Card>
   );
 }

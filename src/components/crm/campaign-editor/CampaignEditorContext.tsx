@@ -65,6 +65,8 @@ export interface CampaignEditorState {
   replyTo: string;
   selectedSegments: Segment[];
   selectedPersonas: Persona[];
+  includeAllCustomers: boolean;
+  additionalCustomerIds: string[];
   audienceCount: number | null;
   isAudienceLoading: boolean;
   contentBlocks: StudioBlock[];
@@ -127,6 +129,8 @@ interface CampaignEditorContextValue extends CampaignEditorState {
   updateAudience: (next: {
     selectedSegments?: Segment[];
     selectedPersonas?: Persona[];
+    includeAllCustomers?: boolean;
+    additionalCustomerIds?: string[];
   }) => void;
   updateContent: (
     next: Partial<Pick<CampaignEditorState, "contentBlocks" | "smsMessage">>,
@@ -176,6 +180,19 @@ function areIdListsEqual(
   return true;
 }
 
+function areStringListsEqual(left: string[], right: string[]) {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function areDatesEqual(left: Date | null, right: Date | null) {
   if (left === right) return true;
   if (!left || !right) return left === right;
@@ -204,6 +221,8 @@ function buildDraftFingerprint(input: {
   sendImmediately: boolean;
   segments: Segment[];
   personas: Persona[];
+  includeAllCustomers: boolean;
+  additionalCustomerIds: string[];
   sourceContentTaskId: string | null;
   sourceSegmentId: string | null;
   sourcePersonaId: string | null;
@@ -223,6 +242,8 @@ function buildDraftFingerprint(input: {
     smsMessage: input.smsMessage,
     sendAt: input.sendAt?.toISOString() ?? null,
     sendImmediately: input.sendImmediately,
+    includeAllCustomers: input.includeAllCustomers,
+    additionalCustomerIds: input.additionalCustomerIds,
     segments: input.segments.map((segment) => segment.id),
     personas: input.personas.map((persona) => persona.id),
     sourceContentTaskId: input.sourceContentTaskId,
@@ -257,6 +278,8 @@ function createInitialState(
     replyTo: "",
     selectedSegments: [],
     selectedPersonas: [],
+    includeAllCustomers: false,
+    additionalCustomerIds: [],
     audienceCount: null,
     isAudienceLoading: false,
     contentBlocks: newsletterSeed?.contentBlocks ?? [],
@@ -369,6 +392,8 @@ export function CampaignEditorProvider({
         sendImmediately: !record.scheduledAt,
         segments: record.segments,
         personas: record.personas,
+        includeAllCustomers: record.includeAllCustomers,
+        additionalCustomerIds: record.additionalCustomerIds,
         sourceContentTaskId: record.sourceContentTaskId,
         sourceSegmentId: null,
         sourcePersonaId: null,
@@ -394,6 +419,8 @@ export function CampaignEditorProvider({
         replyTo: nextState.replyTo,
         selectedSegments: nextState.segments,
         selectedPersonas: nextState.personas,
+        includeAllCustomers: nextState.includeAllCustomers,
+        additionalCustomerIds: nextState.additionalCustomerIds,
         contentBlocks: nextState.contentBlocks,
         smsMessage: nextState.smsMessage,
         sendAt: nextState.sendAt,
@@ -527,6 +554,8 @@ export function CampaignEditorProvider({
             sendImmediately: nextState.sendImmediately,
             segments: nextState.selectedSegments,
             personas: nextState.selectedPersonas,
+            includeAllCustomers: nextState.includeAllCustomers,
+            additionalCustomerIds: nextState.additionalCustomerIds,
             sourceContentTaskId: nextState.sourceContentTaskId,
             sourceSegmentId: nextState.sourceSegmentId,
             sourcePersonaId: nextState.sourcePersonaId,
@@ -579,6 +608,8 @@ export function CampaignEditorProvider({
           sendImmediately: nextState.sendImmediately,
           segments: nextState.selectedSegments,
           personas: nextState.selectedPersonas,
+          includeAllCustomers: nextState.includeAllCustomers,
+          additionalCustomerIds: nextState.additionalCustomerIds,
           sourceContentTaskId: nextState.sourceContentTaskId,
           sourceSegmentId: nextState.sourceSegmentId,
           sourcePersonaId: nextState.sourcePersonaId,
@@ -731,11 +762,13 @@ export function CampaignEditorProvider({
       setState((current) => ({ ...current, isAudienceLoading: true }));
       try {
         let count: number;
-
-        if (
+        const hasLegacyAllContactsFallback =
+          !state.includeAllCustomers &&
+          state.additionalCustomerIds.length === 0 &&
           state.selectedSegments.length === 0 &&
-          state.selectedPersonas.length === 0
-        ) {
+          state.selectedPersonas.length === 0;
+
+        if (hasLegacyAllContactsFallback) {
           // "All Contacts" mode — count all emailable customers for this tenant
           const { count: total } = await supabase
             .from("crm_customers")
@@ -747,6 +780,8 @@ export function CampaignEditorProvider({
         } else {
           count = await computeAudienceRecipientCount({
             tenantId: tenant.id,
+            includeAllCustomers: state.includeAllCustomers,
+            additionalCustomerIds: state.additionalCustomerIds,
             segmentIds: state.selectedSegments.map((segment) => segment.id),
             personaIds: state.selectedPersonas.map((persona) => persona.id),
           });
@@ -781,7 +816,13 @@ export function CampaignEditorProvider({
         clearTimeout(timer);
       }
     };
-  }, [state.selectedPersonas, state.selectedSegments, tenant?.id]);
+  }, [
+    state.additionalCustomerIds,
+    state.includeAllCustomers,
+    state.selectedPersonas,
+    state.selectedSegments,
+    tenant?.id,
+  ]);
 
   const draftPayload = React.useMemo(
     () => ({
@@ -799,6 +840,8 @@ export function CampaignEditorProvider({
       smsMessage: state.smsMessage,
       sendAt: state.sendAt,
       sendImmediately: state.sendImmediately,
+      includeAllCustomers: state.includeAllCustomers,
+      additionalCustomerIds: state.additionalCustomerIds,
       segments: state.selectedSegments,
       personas: state.selectedPersonas,
       sourceContentTaskId: state.sourceContentTaskId,
@@ -807,9 +850,11 @@ export function CampaignEditorProvider({
     }),
     [
       senderConfig?.fromEmailDomainId,
+      state.additionalCustomerIds,
       state.campaignId,
       state.campaignType,
       state.contentBlocks,
+      state.includeAllCustomers,
       state.name,
       state.preheaderText,
       state.replyTo,
@@ -1047,6 +1092,8 @@ export function CampaignEditorProvider({
           preheaderText: state.preheaderText,
           smsMessage: state.smsMessage,
           contentBlocks: state.contentBlocks,
+          includeAllCustomers: state.includeAllCustomers,
+          additionalCustomerIds: state.additionalCustomerIds,
           segmentIds: state.selectedSegments.map((segment) => segment.id),
           personaIds: state.selectedPersonas.map((persona) => persona.id),
         });
@@ -1056,8 +1103,10 @@ export function CampaignEditorProvider({
     },
     [
       saveDraft,
+      state.additionalCustomerIds,
       state.campaignType,
       state.contentBlocks,
+      state.includeAllCustomers,
       state.preheaderText,
       state.selectedPersonas,
       state.selectedSegments,
@@ -1181,10 +1230,19 @@ export function CampaignEditorProvider({
     setState((current) => {
       const nextSegments = next.selectedSegments ?? current.selectedSegments;
       const nextPersonas = next.selectedPersonas ?? current.selectedPersonas;
+      const nextIncludeAllCustomers =
+        next.includeAllCustomers ?? current.includeAllCustomers;
+      const nextAdditionalCustomerIds =
+        next.additionalCustomerIds ?? current.additionalCustomerIds;
 
       if (
         areIdListsEqual(current.selectedSegments, nextSegments) &&
-        areIdListsEqual(current.selectedPersonas, nextPersonas)
+        areIdListsEqual(current.selectedPersonas, nextPersonas) &&
+        current.includeAllCustomers === nextIncludeAllCustomers &&
+        areStringListsEqual(
+          current.additionalCustomerIds,
+          nextAdditionalCustomerIds,
+        )
       ) {
         return current;
       }
@@ -1193,6 +1251,8 @@ export function CampaignEditorProvider({
         ...current,
         selectedSegments: nextSegments,
         selectedPersonas: nextPersonas,
+        includeAllCustomers: nextIncludeAllCustomers,
+        additionalCustomerIds: nextAdditionalCustomerIds,
         isDirty: true,
         autoSaveStatus:
           current.autoSaveStatus === "conflict" ? "conflict" : "idle",

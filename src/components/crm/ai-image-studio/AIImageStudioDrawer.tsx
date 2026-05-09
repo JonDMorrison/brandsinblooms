@@ -8,6 +8,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { STUDIO_BLOCK_LOOKUP } from "@/components/crm/studio/blockLibraryData";
 import { supabase } from "@/integrations/supabase/client";
 import { useAIImageGeneration } from "@/hooks/useAIImageGeneration";
+import { Z } from "@/lib/zIndex";
 import { AIChatPersistenceService } from "@/services/aiChatPersistence";
 import type { MessageWithSession } from "@/services/aiChatPersistence";
 import { toast } from "sonner";
@@ -1290,8 +1291,8 @@ export function AIImageStudioDrawer({
         )
       : 0;
   const mobileBackdropOpacity = isMobile
-    ? Math.max(0, 0.6 * (1 - mobileSwipeProgress))
-    : 0.6;
+    ? Math.max(0, 0.3 * (1 - mobileSwipeProgress))
+    : 0.3;
   const mobileBackdropBlur = isMobile
     ? Math.max(0, 20 * (1 - mobileSwipeProgress))
     : 20;
@@ -1930,8 +1931,14 @@ export function AIImageStudioDrawer({
         onClose={() => onClose()}
         open={open}
         slotProps={{
+          root: {
+            sx: {
+              zIndex: Z.studio,
+            },
+          },
           backdrop: {
             sx: {
+              zIndex: Z.studioBackdrop,
               backgroundColor: `rgba(0, 0, 0, ${mobileBackdropOpacity})`,
               backdropFilter: `blur(${mobileBackdropBlur}px)`,
               WebkitBackdropFilter: `blur(${mobileBackdropBlur}px)`,
@@ -1944,6 +1951,7 @@ export function AIImageStudioDrawer({
             "aria-labelledby": titleId,
             "aria-modal": true,
             sx: {
+              zIndex: Z.studio,
               backgroundColor: "background.surface",
               boxShadow: "var(--joy-shadow-xl)",
               borderRadius: 0,
@@ -1975,8 +1983,6 @@ export function AIImageStudioDrawer({
           },
         }}
         sx={{
-          zIndex: (theme) =>
-            (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 120,
           "--Drawer-transitionDuration": prefersReducedMotion ? "0ms" : "300ms",
           "--Drawer-transitionFunction": "cubic-bezier(0.22, 1, 0.36, 1)",
           "--Drawer-horizontalSize": "620px",

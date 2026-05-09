@@ -36,6 +36,7 @@ export interface SegmentListItem {
   type: SegmentKind;
   status: SegmentStatus;
   rules: SegmentRuleGroup;
+  includeAllCustomers: boolean;
   memberCount: number;
   createdAt: string | null;
   updatedAt: string | null;
@@ -74,6 +75,7 @@ function mapSegment(row: SegmentRow): SegmentListItem {
     type: row.auto_update ? "dynamic" : "static",
     status: normalizeStatus(row.status),
     rules: normalizeSegmentRuleGroup(row.conditions),
+    includeAllCustomers: row.include_all_customers,
     memberCount: row.customer_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

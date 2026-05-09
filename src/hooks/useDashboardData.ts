@@ -55,6 +55,7 @@ export type DashboardScheduledTask = DashboardContentTask & {
 export type DashboardSocialConnection = Pick<
   SocialConnectionRow,
   | "id"
+  | "page_id"
   | "platform"
   | "platform_account_id"
   | "platform_account_name"
@@ -180,7 +181,7 @@ export const useDashboardData = () => {
         const { data: connections } = await supabase
           .from("social_connections")
           .select(
-            "id, platform, platform_account_id, platform_account_name, username, is_active",
+            "id, page_id, platform, platform_account_id, platform_account_name, username, is_active",
           )
           .eq("user_id", user.id)
           .eq("is_active", true);

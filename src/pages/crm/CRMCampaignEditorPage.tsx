@@ -3,6 +3,7 @@ import AspectRatio from "@mui/joy/AspectRatio";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
+import Checkbox from "@mui/joy/Checkbox";
 import Chip from "@mui/joy/Chip";
 import Divider from "@mui/joy/Divider";
 import DialogActions from "@mui/joy/DialogActions";
@@ -51,6 +52,15 @@ import { PageContainer } from "@/components/joy/PageContainer";
 import { JoySelect } from "@/components/joy/JoySelect";
 import { JoyTextarea } from "@/components/joy/JoyTextarea";
 import {
+  JoyTable,
+  JoyTableBody,
+  JoyTableCell,
+  JoyTableHead,
+  JoyTableHeaderCell,
+  JoyTablePagination,
+  JoyTableRow,
+} from "@/components/joy/JoyTable";
+import {
   CAMPAIGN_STATUS,
   isLockedCampaignStatus,
   isQueuedCampaignStatus,
@@ -61,6 +71,7 @@ import {
   useDesignSystem,
 } from "@/contexts/DesignSystemContext";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
+import { useCustomers } from "@/hooks/useCustomers";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
@@ -76,6 +87,25 @@ import type {
 } from "@/lib/crm/campaignEditor";
 
 const EDITOR_MAX_WIDTH = 1200;
+const AUDIENCE_CUSTOMER_PAGE_SIZE = 8;
+
+type AudienceExpansionMode = "all-customers" | "add-customers";
+
+type AudienceCustomerRecord = {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  customer_segments?: Array<{ segment_id: string }> | null;
+};
+
+type AudienceCustomerSummary = {
+  id: string;
+  name: string;
+  email: string;
+  segmentNames: string[];
+  hasEmail: boolean;
+};
 
 type PreflightStatus = "ready" | "warning" | "blocked";
 
@@ -137,6 +167,68 @@ function computeSmsSegments(message: string) {
   return message.length <= singleSegmentLimit
     ? 1
     : Math.ceil(message.length / multipartLimit);
+}
+
+function formatAudienceCustomerName(customer: {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+}) {
+  const fullName = [customer.first_name?.trim(), customer.last_name?.trim()]
+    .filter(Boolean)
+    .join(" ");
+
+  return fullName || customer.email?.trim() || "Unnamed customer";
+}
+
+function toAudienceCustomerSummary(
+  customer: AudienceCustomerRecord,
+  segmentNameById: Map<string, string>,
+): AudienceCustomerSummary {
+  const email = customer.email?.trim() ?? "";
+
+  return {
+    id: customer.id,
+    name: formatAudienceCustomerName(customer),
+    email,
+    segmentNames: (customer.customer_segments ?? [])
+      .map((assignment) => segmentNameById.get(assignment.segment_id) ?? null)
+      .filter((segmentName): segmentName is string => Boolean(segmentName)),
+    hasEmail: email.length > 0,
+  };
+}
+
+function formatAudienceDetail(params: {
+  selectedSegmentCount: number;
+  selectedPersonaCount: number;
+  includeAllCustomers: boolean;
+  additionalCustomerCount: number;
+}) {
+  const parts: string[] = [];
+
+  if (params.includeAllCustomers) {
+    parts.push("All customers");
+  }
+
+  if (params.selectedSegmentCount > 0) {
+    parts.push(
+      `${params.selectedSegmentCount} segment${params.selectedSegmentCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  if (params.selectedPersonaCount > 0) {
+    parts.push(
+      `${params.selectedPersonaCount} persona${params.selectedPersonaCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  if (params.additionalCustomerCount > 0) {
+    parts.push(
+      `${params.additionalCustomerCount} direct customer${params.additionalCustomerCount === 1 ? "" : "s"}`,
+    );
+  }
+
+  return parts.join(" · ") || "All eligible contacts";
 }
 
 function SectionCard({
@@ -717,6 +809,8 @@ function CampaignEditorScreen() {
     replyTo,
     selectedSegments,
     selectedPersonas,
+    includeAllCustomers,
+    additionalCustomerIds,
     audienceCount,
     isAudienceLoading,
     contentBlocks,
@@ -739,6 +833,17 @@ function CampaignEditorScreen() {
   const [verificationOpen, setVerificationOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
     React.useState(false);
+  const [audienceExpansionOpen, setAudienceExpansionOpen] =
+    React.useState(false);
+  const [audienceExpansionMode, setAudienceExpansionMode] =
+    React.useState<AudienceExpansionMode>("all-customers");
+  const [audienceCustomerSearch, setAudienceCustomerSearch] =
+    React.useState("");
+  const [audienceCustomerPage, setAudienceCustomerPage] = React.useState(1);
+  const [draftIncludeAllCustomers, setDraftIncludeAllCustomers] =
+    React.useState(false);
+  const [draftAdditionalCustomerIds, setDraftAdditionalCustomerIds] =
+    React.useState<string[]>([]);
   const [selectedTemplateSeason, setSelectedTemplateSeason] =
     React.useState<CampaignTemplateFilter>("all");
   const [templateToConfirm, setTemplateToConfirm] =
@@ -875,6 +980,145 @@ function CampaignEditorScreen() {
     },
   });
 
+  const customerSegmentNameById = React.useMemo(
+    () =>
+      new Map(
+        (segmentsQuery.data ?? []).map((segment) => [segment.id, segment.name]),
+      ),
+    [segmentsQuery.data],
+  );
+
+  const {
+    data: audienceCustomers = [],
+    totalCount: audienceCustomerTotalCount = 0,
+    isLoading: audienceCustomersLoading,
+  } = useCustomers({
+    search: audienceCustomerSearch,
+    page: audienceCustomerPage,
+    pageSize: AUDIENCE_CUSTOMER_PAGE_SIZE,
+    enabled:
+      campaignType === "email" &&
+      audienceExpansionOpen &&
+      audienceExpansionMode === "add-customers",
+  });
+
+  const audienceCustomerOptions = React.useMemo(
+    () =>
+      audienceCustomers.map((customer) =>
+        toAudienceCustomerSummary(customer, customerSegmentNameById),
+      ),
+    [audienceCustomers, customerSegmentNameById],
+  );
+
+  const selectedAdditionalCustomersQuery = useQuery({
+    queryKey: [
+      "crm-campaign-editor-additional-customers",
+      tenant?.id,
+      additionalCustomerIds,
+    ],
+    enabled:
+      campaignType === "email" &&
+      Boolean(tenant?.id) &&
+      additionalCustomerIds.length > 0,
+    queryFn: async (): Promise<AudienceCustomerRecord[]> => {
+      const { data, error } = await supabase
+        .from("crm_customers")
+        .select(
+          "id, email, first_name, last_name, customer_segments(segment_id)",
+        )
+        .eq("tenant_id", tenant?.id)
+        .in("id", additionalCustomerIds);
+
+      if (error) {
+        throw error;
+      }
+
+      return (data ?? []) as AudienceCustomerRecord[];
+    },
+  });
+
+  const selectedAdditionalCustomers = React.useMemo(() => {
+    const customerById = new Map(
+      (selectedAdditionalCustomersQuery.data ?? []).map((customer) => [
+        customer.id,
+        toAudienceCustomerSummary(customer, customerSegmentNameById),
+      ]),
+    );
+
+    return additionalCustomerIds.flatMap((customerId) => {
+      const customer = customerById.get(customerId);
+      return customer ? [customer] : [];
+    });
+  }, [
+    additionalCustomerIds,
+    customerSegmentNameById,
+    selectedAdditionalCustomersQuery.data,
+  ]);
+
+  const audienceDetail = React.useMemo(
+    () =>
+      formatAudienceDetail({
+        selectedSegmentCount: selectedSegments.length,
+        selectedPersonaCount: selectedPersonas.length,
+        includeAllCustomers,
+        additionalCustomerCount: additionalCustomerIds.length,
+      }),
+    [
+      additionalCustomerIds.length,
+      includeAllCustomers,
+      selectedPersonas.length,
+      selectedSegments.length,
+    ],
+  );
+
+  React.useEffect(() => {
+    if (!audienceExpansionOpen) {
+      return;
+    }
+
+    setDraftIncludeAllCustomers(includeAllCustomers);
+    setDraftAdditionalCustomerIds(additionalCustomerIds);
+    setAudienceExpansionMode(
+      includeAllCustomers
+        ? "all-customers"
+        : additionalCustomerIds.length > 0
+          ? "add-customers"
+          : "all-customers",
+    );
+    setAudienceCustomerSearch("");
+    setAudienceCustomerPage(1);
+  }, [additionalCustomerIds, audienceExpansionOpen, includeAllCustomers]);
+
+  const handleSaveAudienceExpansion = React.useCallback(() => {
+    updateAudience({
+      includeAllCustomers: draftIncludeAllCustomers,
+      additionalCustomerIds: draftAdditionalCustomerIds,
+    });
+    setAudienceExpansionOpen(false);
+  }, [draftAdditionalCustomerIds, draftIncludeAllCustomers, updateAudience]);
+
+  const toggleDraftAdditionalCustomer = React.useCallback(
+    (customerId: string) => {
+      setDraftAdditionalCustomerIds((current) =>
+        current.includes(customerId)
+          ? current.filter((existingId) => existingId !== customerId)
+          : [...current, customerId],
+      );
+    },
+    [],
+  );
+
+  const handleRemoveAdditionalCustomer = React.useCallback(
+    (customerId: string) => {
+      updateAudience({
+        additionalCustomerIds: additionalCustomerIds.filter(
+          (existingId) => existingId !== customerId,
+        ),
+      });
+    },
+    [additionalCustomerIds, updateAudience],
+  );
+
   const focusAudienceSection = React.useCallback(() => {
     document.getElementById("campaign-editor-audience")?.scrollIntoView({
       behavior: "smooth",
@@ -950,10 +1194,7 @@ function CampaignEditorScreen() {
     // the Review & Send list shows. Without this, paused / failed
     // domains used to slip through to "Send Campaign" and bounce
     // at the email provider.
-    if (
-      campaignType === "email" &&
-      senderClassification.status === "blocked"
-    ) {
+    if (campaignType === "email" && senderClassification.status === "blocked") {
       blockers.push(senderClassification.message);
     } else if (!senderEmail.trim()) {
       blockers.push("Sender email is required.");
@@ -1057,10 +1298,7 @@ function CampaignEditorScreen() {
         value: isAudienceLoading
           ? "Calculating audience"
           : asCountLabel(audienceCount),
-        detail:
-          selectedSegments.length > 0 || selectedPersonas.length > 0
-            ? `${selectedSegments.length} segment${selectedSegments.length === 1 ? "" : "s"}, ${selectedPersonas.length} persona${selectedPersonas.length === 1 ? "" : "s"}`
-            : "All eligible contacts",
+        detail: audienceDetail,
         status: (audienceCount ?? 0) > 0 ? "ready" : "blocked",
         action:
           (audienceCount ?? 0) > 0
@@ -1198,6 +1436,7 @@ function CampaignEditorScreen() {
     audienceCount,
     autoSaveMessage,
     autoSaveStatus,
+    audienceDetail,
     campaignType,
     emailDomainsLoading,
     focusAudienceSection,
@@ -1216,8 +1455,6 @@ function CampaignEditorScreen() {
     campaignId,
     senderClassification,
     senderEmail,
-    selectedPersonas.length,
-    selectedSegments.length,
     smsMessage,
     subjectLine,
   ]);
@@ -1228,12 +1465,14 @@ function CampaignEditorScreen() {
   // logical flow (name → audience → sender → content → footer …)
   // still reads correctly when nothing is blocked.
   const orderedPreflightItems = React.useMemo(() => {
-    const severityRank: Record<typeof preflightItems[number]["status"], number> =
-      {
-        blocked: 0,
-        warning: 1,
-        ready: 2,
-      };
+    const severityRank: Record<
+      (typeof preflightItems)[number]["status"],
+      number
+    > = {
+      blocked: 0,
+      warning: 1,
+      ready: 2,
+    };
     return [...preflightItems].sort(
       (a, b) => severityRank[a.status] - severityRank[b.status],
     );
@@ -1540,7 +1779,24 @@ function CampaignEditorScreen() {
       <SectionCard
         id="campaign-editor-audience"
         title="Audience"
-        description="Leave both selectors empty to target all eligible contacts."
+        description={
+          campaignType === "email"
+            ? "Combine segments and personas, or use Expand Your Reach for an explicit all-customers overlay and one-off contact additions."
+            : "Leave both selectors empty to target all eligible contacts."
+        }
+        endDecorator={
+          campaignType === "email" ? (
+            <JoyButton
+              variant="plain"
+              color="primary"
+              size="sm"
+              disabled={isLocked}
+              onClick={() => setAudienceExpansionOpen(true)}
+            >
+              Expand Your Reach
+            </JoyButton>
+          ) : null
+        }
       >
         <Stack spacing={2}>
           <JoyAutocomplete<CampaignSegmentSummary, true, false, false>
@@ -1575,6 +1831,217 @@ function CampaignEditorScreen() {
               })
             }
           />
+          {campaignType === "email" ? (
+            <Card
+              variant="soft"
+              color="primary"
+              sx={{
+                borderRadius: "lg",
+                p: 2.25,
+                border: "1px solid",
+                borderColor: "primary.100",
+                bgcolor: "primary.50",
+              }}
+            >
+              <Stack spacing={1.5}>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={1.5}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "flex-start", md: "center" }}
+                >
+                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                    <Typography level="title-sm" fontWeight="lg">
+                      Expand Your Reach
+                    </Typography>
+                    <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                      Layer in every eligible tenant customer or hand-pick a few
+                      direct contacts without disturbing your segment and
+                      persona filters.
+                    </Typography>
+                  </Stack>
+                  <JoyButton
+                    variant="soft"
+                    color="primary"
+                    size="sm"
+                    disabled={isLocked}
+                    onClick={() => setAudienceExpansionOpen(true)}
+                  >
+                    Configure audience expansion
+                  </JoyButton>
+                </Stack>
+
+                {includeAllCustomers || additionalCustomerIds.length > 0 ? (
+                  <Stack spacing={1.25}>
+                    {includeAllCustomers ? (
+                      <Sheet
+                        variant="outlined"
+                        sx={{
+                          borderRadius: "md",
+                          p: 1.5,
+                          bgcolor: "background.surface",
+                          borderColor: "primary.200",
+                        }}
+                      >
+                        <Stack
+                          direction={{ xs: "column", sm: "row" }}
+                          spacing={1}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                        >
+                          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                            <Typography level="body-sm" fontWeight="lg">
+                              All customers included
+                            </Typography>
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "neutral.600" }}
+                            >
+                              Every eligible customer in this tenant will be
+                              unioned into the send audience at delivery time.
+                            </Typography>
+                          </Stack>
+                          <Button
+                            size="sm"
+                            variant="plain"
+                            color="neutral"
+                            disabled={isLocked}
+                            onClick={() =>
+                              updateAudience({ includeAllCustomers: false })
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </Stack>
+                      </Sheet>
+                    ) : null}
+
+                    {additionalCustomerIds.length > 0 ? (
+                      <Sheet
+                        variant="outlined"
+                        sx={{
+                          borderRadius: "md",
+                          p: 1.5,
+                          bgcolor: "background.surface",
+                          borderColor: "primary.200",
+                        }}
+                      >
+                        <Stack spacing={1.25}>
+                          <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={1}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                          >
+                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                              <Typography level="body-sm" fontWeight="lg">
+                                Direct additions
+                              </Typography>
+                              <Typography
+                                level="body-xs"
+                                sx={{ color: "neutral.600" }}
+                              >
+                                {additionalCustomerIds.length} customer
+                                {additionalCustomerIds.length === 1 ? "" : "s"}{" "}
+                                have been attached directly to this campaign.
+                              </Typography>
+                            </Stack>
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              color="neutral"
+                              disabled={isLocked}
+                              onClick={() =>
+                                updateAudience({ additionalCustomerIds: [] })
+                              }
+                            >
+                              Clear all
+                            </Button>
+                          </Stack>
+
+                          {selectedAdditionalCustomersQuery.isLoading ? (
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              useFlexGap
+                              flexWrap="wrap"
+                            >
+                              <Skeleton
+                                variant="rounded"
+                                width={176}
+                                height={28}
+                              />
+                              <Skeleton
+                                variant="rounded"
+                                width={188}
+                                height={28}
+                              />
+                              <Skeleton
+                                variant="rounded"
+                                width={164}
+                                height={28}
+                              />
+                            </Stack>
+                          ) : selectedAdditionalCustomers.length > 0 ? (
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              useFlexGap
+                              flexWrap="wrap"
+                            >
+                              {selectedAdditionalCustomers.map((customer) => (
+                                <Chip
+                                  key={customer.id}
+                                  variant="soft"
+                                  color="neutral"
+                                  onDelete={
+                                    isLocked
+                                      ? undefined
+                                      : () =>
+                                          handleRemoveAdditionalCustomer(
+                                            customer.id,
+                                          )
+                                  }
+                                  sx={{ maxWidth: "100%" }}
+                                >
+                                  {customer.email
+                                    ? `${customer.name} · ${customer.email}`
+                                    : customer.name}
+                                </Chip>
+                              ))}
+                            </Stack>
+                          ) : (
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "neutral.600" }}
+                            >
+                              Direct additions are saved, but the customer
+                              details are not available right now.
+                            </Typography>
+                          )}
+
+                          {selectedAdditionalCustomers.length !==
+                          additionalCustomerIds.length ? (
+                            <Typography
+                              level="body-xs"
+                              sx={{ color: "neutral.500" }}
+                            >
+                              Some saved customer IDs are no longer available in
+                              this tenant.
+                            </Typography>
+                          ) : null}
+                        </Stack>
+                      </Sheet>
+                    ) : null}
+                  </Stack>
+                ) : (
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    No explicit audience expansion is active yet.
+                  </Typography>
+                )}
+              </Stack>
+            </Card>
+          ) : null}
           <Sheet
             variant="soft"
             color="neutral"
@@ -1832,6 +2299,279 @@ function CampaignEditorScreen() {
           ) : null}
         </Box>
       </Card>
+
+      <Modal
+        open={audienceExpansionOpen}
+        onClose={() => setAudienceExpansionOpen(false)}
+      >
+        <ModalDialog sx={{ width: "min(960px, 96vw)", maxWidth: "96vw" }}>
+          <DialogTitle>Expand Your Reach</DialogTitle>
+          <DialogContent>
+            Extend this campaign with an explicit all-customers overlay or a
+            short list of one-off direct additions.
+          </DialogContent>
+
+          <Stack spacing={2.5}>
+            <Stack
+              direction={{ xs: "column", md: "row" }}
+              spacing={1.5}
+              sx={{ width: "100%" }}
+            >
+              <Card
+                variant="outlined"
+                onClick={() => setAudienceExpansionMode("all-customers")}
+                sx={{
+                  flex: 1,
+                  cursor: "pointer",
+                  borderRadius: "lg",
+                  borderColor:
+                    audienceExpansionMode === "all-customers"
+                      ? "primary.400"
+                      : "neutral.200",
+                  boxShadow:
+                    audienceExpansionMode === "all-customers" ? "sm" : "none",
+                }}
+              >
+                <Stack spacing={0.75}>
+                  <Typography level="title-sm" fontWeight="lg">
+                    Send to All Customers
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    Union every eligible customer in this tenant into the send
+                    audience while keeping your current segment and persona
+                    filters intact.
+                  </Typography>
+                </Stack>
+              </Card>
+
+              <Card
+                variant="outlined"
+                onClick={() => setAudienceExpansionMode("add-customers")}
+                sx={{
+                  flex: 1,
+                  cursor: "pointer",
+                  borderRadius: "lg",
+                  borderColor:
+                    audienceExpansionMode === "add-customers"
+                      ? "primary.400"
+                      : "neutral.200",
+                  boxShadow:
+                    audienceExpansionMode === "add-customers" ? "sm" : "none",
+                }}
+              >
+                <Stack spacing={0.75}>
+                  <Typography level="title-sm" fontWeight="lg">
+                    Add Customers to This Campaign
+                  </Typography>
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    Hand-pick specific contacts for this send without changing
+                    the saved segments that normally define the audience.
+                  </Typography>
+                </Stack>
+              </Card>
+            </Stack>
+
+            {audienceExpansionMode === "all-customers" ? (
+              <Card
+                variant="soft"
+                color="primary"
+                sx={{ borderRadius: "lg", p: 2.25 }}
+              >
+                <Stack spacing={1.25}>
+                  <Checkbox
+                    checked={draftIncludeAllCustomers}
+                    disabled={isLocked}
+                    label="Include all eligible customers in this email send"
+                    onChange={(event) =>
+                      setDraftIncludeAllCustomers(event.target.checked)
+                    }
+                  />
+                  <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                    This setting is additive. Your segments, personas, and any
+                    direct customer additions remain attached to the campaign,
+                    and the send worker unions them at delivery time.
+                  </Typography>
+                  {draftAdditionalCustomerIds.length > 0 ? (
+                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                      {draftAdditionalCustomerIds.length} direct customer
+                      {draftAdditionalCustomerIds.length === 1
+                        ? " is"
+                        : "s are"}{" "}
+                      also attached to this campaign.
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Card>
+            ) : (
+              <Stack spacing={1.5}>
+                <JoyInput
+                  label="Search customers"
+                  value={audienceCustomerSearch}
+                  placeholder="Search name, email, or phone"
+                  onValueChange={(value) => {
+                    setAudienceCustomerSearch(value);
+                    setAudienceCustomerPage(1);
+                  }}
+                />
+
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ borderRadius: "lg", p: 1.5 }}
+                >
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    justifyContent="space-between"
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                  >
+                    <Typography level="body-sm" fontWeight="lg">
+                      {draftAdditionalCustomerIds.length} direct customer
+                      {draftAdditionalCustomerIds.length === 1 ? "" : "s"}{" "}
+                      selected
+                    </Typography>
+                    {draftAdditionalCustomerIds.length > 0 ? (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        color="neutral"
+                        disabled={isLocked}
+                        onClick={() => setDraftAdditionalCustomerIds([])}
+                      >
+                        Clear selection
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </Sheet>
+
+                <Sheet
+                  variant="outlined"
+                  sx={{ borderRadius: "lg", overflow: "hidden" }}
+                >
+                  {audienceCustomersLoading ? (
+                    <Stack spacing={1.25} sx={{ p: 2 }}>
+                      <Skeleton variant="rounded" height={42} />
+                      <Skeleton variant="rounded" height={42} />
+                      <Skeleton variant="rounded" height={42} />
+                    </Stack>
+                  ) : audienceCustomerOptions.length > 0 ? (
+                    <>
+                      <JoyTable>
+                        <JoyTableHead>
+                          <JoyTableRow>
+                            <JoyTableHeaderCell sx={{ width: 56 }}>
+                              Select
+                            </JoyTableHeaderCell>
+                            <JoyTableHeaderCell>Customer</JoyTableHeaderCell>
+                            <JoyTableHeaderCell>Email</JoyTableHeaderCell>
+                            <JoyTableHeaderCell>Segments</JoyTableHeaderCell>
+                          </JoyTableRow>
+                        </JoyTableHead>
+                        <JoyTableBody>
+                          {audienceCustomerOptions.map((customer) => {
+                            const selected =
+                              draftAdditionalCustomerIds.includes(customer.id);
+
+                            return (
+                              <JoyTableRow
+                                key={customer.id}
+                                clickable={customer.hasEmail && !isLocked}
+                                onClick={() => {
+                                  if (customer.hasEmail && !isLocked) {
+                                    toggleDraftAdditionalCustomer(customer.id);
+                                  }
+                                }}
+                              >
+                                <JoyTableCell>
+                                  <Checkbox
+                                    checked={selected}
+                                    disabled={!customer.hasEmail || isLocked}
+                                    onClick={(event) => event.stopPropagation()}
+                                    onChange={() =>
+                                      toggleDraftAdditionalCustomer(customer.id)
+                                    }
+                                  />
+                                </JoyTableCell>
+                                <JoyTableCell>
+                                  <Stack spacing={0.25}>
+                                    <Typography level="body-sm" fontWeight="lg">
+                                      {customer.name}
+                                    </Typography>
+                                    {!customer.hasEmail ? (
+                                      <Typography
+                                        level="body-xs"
+                                        sx={{ color: "warning.700" }}
+                                      >
+                                        Cannot add this customer until an email
+                                        address is present.
+                                      </Typography>
+                                    ) : null}
+                                  </Stack>
+                                </JoyTableCell>
+                                <JoyTableCell>
+                                  <Typography
+                                    level="body-sm"
+                                    sx={{
+                                      color: customer.email
+                                        ? "neutral.700"
+                                        : "neutral.400",
+                                    }}
+                                  >
+                                    {customer.email || "No email"}
+                                  </Typography>
+                                </JoyTableCell>
+                                <JoyTableCell>
+                                  <Typography
+                                    level="body-sm"
+                                    sx={{ color: "neutral.600" }}
+                                  >
+                                    {customer.segmentNames.length > 0
+                                      ? customer.segmentNames.join(", ")
+                                      : "No segments yet"}
+                                  </Typography>
+                                </JoyTableCell>
+                              </JoyTableRow>
+                            );
+                          })}
+                        </JoyTableBody>
+                      </JoyTable>
+
+                      <JoyTablePagination
+                        page={audienceCustomerPage}
+                        pageSize={AUDIENCE_CUSTOMER_PAGE_SIZE}
+                        totalCount={audienceCustomerTotalCount}
+                        onPageChange={setAudienceCustomerPage}
+                      />
+                    </>
+                  ) : (
+                    <Box sx={{ p: 2.5 }}>
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        No customers matched this search.
+                      </Typography>
+                    </Box>
+                  )}
+                </Sheet>
+              </Stack>
+            )}
+          </Stack>
+
+          <DialogActions>
+            <Button
+              variant="plain"
+              color="neutral"
+              onClick={() => setAudienceExpansionOpen(false)}
+            >
+              Cancel
+            </Button>
+            <JoyButton
+              onClick={handleSaveAudienceExpansion}
+              disabled={isLocked}
+            >
+              Save audience expansion
+            </JoyButton>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
 
       <Modal
         open={Boolean(templateToConfirm)}

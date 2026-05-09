@@ -56,6 +56,32 @@ type CampaignInterventionState = {
   autopause_override_final: boolean;
 };
 
+function toRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function toStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function extractCampaignAudienceExpansion(campaign: Record<string, unknown>) {
+  const metadata = toRecord(campaign.metadata);
+
+  return {
+    includeAllCustomers:
+      typeof metadata.includeAllCustomers === "boolean"
+        ? metadata.includeAllCustomers
+        : Boolean(campaign.include_all_customers),
+    additionalCustomerIds: Array.isArray(metadata.additionalCustomerIds)
+      ? toStringArray(metadata.additionalCustomerIds).filter(isUuidLike)
+      : toStringArray(campaign.additional_customer_ids).filter(isUuidLike),
+  };
+}
+
 async function getTenantSuppressionBypassState(
   supabase: any,
   tenantId: string,
@@ -764,15 +790,26 @@ serve(async (req: Request) => {
     const personaIdList = Array.from(personaIds);
     const personaUuidIds = personaIdList.filter(isUuidLike);
     const personaPredefinedIds = personaIdList.filter((x) => !isUuidLike(x));
+    const audienceExpansion = extractCampaignAudienceExpansion(campaign);
+    const includeAllCustomers = audienceExpansion.includeAllCustomers;
+    const additionalCustomerIds = Array.from(
+      new Set(audienceExpansion.additionalCustomerIds),
+    );
 
     console.log(
-      `📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}`,
+      `📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}, includeAllCustomers=${includeAllCustomers}, directCustomers=${additionalCustomerIds.length}`,
     );
 
     // 3) Resolve customer IDs
     let allowedCustomerIds: string[] | null = null;
 
-    if (segmentIds.length > 0) {
+    if (includeAllCustomers) {
+      console.log(
+        "📧 Explicit all-customers audience enabled; worker will resolve the full tenant audience.",
+      );
+    }
+
+    if (!includeAllCustomers && segmentIds.length > 0) {
       const PAGE_SIZE = 1000;
       const segmentCustomerIds = new Set<string>();
       for (let from = 0; ; from += PAGE_SIZE) {
@@ -808,7 +845,7 @@ serve(async (req: Request) => {
       allowedCustomerIds = ids;
     }
 
-    if (personaIdList.length > 0) {
+    if (!includeAllCustomers && personaIdList.length > 0) {
       const personaCustomerIds = new Set<string>();
 
       if (personaUuidIds.length > 0) {
@@ -931,6 +968,19 @@ serve(async (req: Request) => {
         const segSet = new Set(allowedCustomerIds);
         allowedCustomerIds = ids.filter((id) => segSet.has(id));
       }
+    }
+
+    if (!includeAllCustomers && additionalCustomerIds.length > 0) {
+      if (allowedCustomerIds === null) {
+        allowedCustomerIds = additionalCustomerIds;
+      } else {
+        allowedCustomerIds = Array.from(
+          new Set([...allowedCustomerIds, ...additionalCustomerIds]),
+        );
+      }
+      console.log(
+        `📧 Added direct campaign customers: ${additionalCustomerIds.length}`,
+      );
     }
 
     // FIX: [issue #6] - Filter out customers who have not opted in to email (CAN-SPAM/CASL compliance)

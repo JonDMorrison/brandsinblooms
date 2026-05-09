@@ -45,10 +45,16 @@ export function SegmentLivePreview({
   preview: SegmentPreviewResult;
   loading?: boolean;
 }) {
+  const isAllCustomersMode = preview.audienceMode === "all-customers";
+
   return (
     <JoyCard>
       <JoyCardHeader
-        description="Debounced against live tenant customer data for fast audience validation."
+        description={
+          isAllCustomersMode
+            ? "Debounced against live tenant customer data using email-eligibility rules so this preview stays aligned with send-time audience hygiene."
+            : "Debounced against live tenant customer data for fast audience validation."
+        }
         title="Live preview"
       />
       <JoyCardContent
@@ -67,7 +73,8 @@ export function SegmentLivePreview({
             startDecorator={<Users size={14} />}
             variant="soft"
           >
-            {preview.countLabel} customers
+            {preview.countLabel}{" "}
+            {isAllCustomersMode ? "eligible customers" : "customers"}
           </Chip>
           <Chip color="neutral" size="sm" variant="outlined">
             {preview.percentage}% of tenant audience
@@ -128,7 +135,9 @@ export function SegmentLivePreview({
             ))
           ) : (
             <Typography level="body-sm" color="neutral">
-              No matching customers yet.
+              {isAllCustomersMode
+                ? "No email-eligible customers are available yet."
+                : "No matching customers yet."}
             </Typography>
           )}
         </Stack>
@@ -171,7 +180,9 @@ export function SegmentLivePreview({
             ) : (
               <ListItem sx={{ px: 0 }}>
                 <Typography level="body-sm" color="neutral">
-                  Add valid rules to preview the first matching customers.
+                  {isAllCustomersMode
+                    ? "Customers need a deliverable email address, email consent, and no active suppression to appear here."
+                    : "Add valid rules to preview the first matching customers."}
                 </Typography>
               </ListItem>
             )}

@@ -445,7 +445,7 @@ export const DashboardContent = ({
     switch (section) {
       case "social":
         // Navigate to social page or scroll to social section
-        window.location.href = "/social";
+        window.location.href = "/social-accounts";
         break;
       case "weekly-content":
         const weeklyElement = document.querySelector(

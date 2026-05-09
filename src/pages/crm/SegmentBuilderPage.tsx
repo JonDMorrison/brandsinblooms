@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Box from "@mui/joy/Box";
+import Checkbox from "@mui/joy/Checkbox";
 import Chip from "@mui/joy/Chip";
 import IconButton from "@mui/joy/IconButton";
 import LinearProgress from "@mui/joy/LinearProgress";
@@ -90,6 +91,7 @@ function serializeSegmentState({
   type,
   status,
   rules,
+  includeAllCustomers,
   memberIds,
 }: {
   name: string;
@@ -97,6 +99,7 @@ function serializeSegmentState({
   type: SegmentKind;
   status: SegmentStatus;
   rules: SegmentRuleGroup;
+  includeAllCustomers: boolean;
   memberIds: string[];
 }) {
   return JSON.stringify({
@@ -105,6 +108,7 @@ function serializeSegmentState({
     type,
     status,
     rules,
+    includeAllCustomers,
     memberIds: [...memberIds].sort(),
   });
 }
@@ -307,6 +311,7 @@ export default function SegmentBuilderPage() {
   const [type, setType] = useState<SegmentKind>("dynamic");
   const [status, setStatus] = useState<SegmentStatus>("active");
   const [rules, setRules] = useState<SegmentRuleGroup>(createEmptyGroup());
+  const [includeAllCustomers, setIncludeAllCustomers] = useState(false);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [initialSnapshot, setInitialSnapshot] = useState("");
@@ -389,6 +394,7 @@ export default function SegmentBuilderPage() {
           type: "dynamic",
           status: "active",
           rules: baseGroup,
+          includeAllCustomers: false,
           memberIds: [],
         }),
       );
@@ -414,6 +420,7 @@ export default function SegmentBuilderPage() {
     setType(segmentQuery.data.type);
     setStatus(segmentQuery.data.status);
     setRules(segmentQuery.data.rules);
+    setIncludeAllCustomers(segmentQuery.data.includeAllCustomers);
     setMemberIds(nextMemberIds);
     setInitialSnapshot(
       serializeSegmentState({
@@ -422,6 +429,7 @@ export default function SegmentBuilderPage() {
         type: segmentQuery.data.type,
         status: segmentQuery.data.status,
         rules: segmentQuery.data.rules,
+        includeAllCustomers: segmentQuery.data.includeAllCustomers,
         memberIds: nextMemberIds,
       }),
     );
@@ -438,6 +446,7 @@ export default function SegmentBuilderPage() {
   const previewQuery = useSegmentPreview({
     enabled: initialized || !isEditing,
     group: rules,
+    includeAllCustomers,
     segmentId: segmentId ?? null,
     segmentType: type,
     staticMemberIds: memberIds,
@@ -461,12 +470,14 @@ export default function SegmentBuilderPage() {
         type,
         status,
         rules,
+        includeAllCustomers,
         memberIds,
       }),
-    [description, memberIds, name, rules, status, type],
+    [description, includeAllCustomers, memberIds, name, rules, status, type],
   );
   const isDirty = initialized && currentSnapshot !== initialSnapshot;
-  const hasValidRules = !hasIncompleteRules(rules, fields);
+  const hasValidRules =
+    includeAllCustomers || !hasIncompleteRules(rules, fields);
   const contextBlocker = tenantLoading
     ? "Organization context is still loading."
     : requiresTenantSelection
@@ -489,7 +500,7 @@ export default function SegmentBuilderPage() {
     ? `Edit ${segmentQuery.data?.name ?? "segment"}`
     : "New segment";
   const memberCount = previewQuery.preview.count;
-  const metadataLabel = `${type === "dynamic" ? "Dynamic" : "Static"} · ${formatSegmentStatusLabel(status)} · ${memberCount.toLocaleString()} members`;
+  const metadataLabel = `${type === "dynamic" ? (includeAllCustomers ? "Dynamic · All customers" : "Dynamic") : "Static"} · ${formatSegmentStatusLabel(status)} · ${memberCount.toLocaleString()} members`;
   const headerStats = useMemo(
     () => [
       {
@@ -514,7 +525,9 @@ export default function SegmentBuilderPage() {
       },
       {
         label: "LTV Delta",
-        value: formatDeltaCurrency(previewQuery.preview.averageLifetimeValueDelta),
+        value: formatDeltaCurrency(
+          previewQuery.preview.averageLifetimeValueDelta,
+        ),
         icon:
           previewQuery.preview.averageLifetimeValueDelta >= 0 ? (
             <TrendingUp size={18} />
@@ -552,6 +565,7 @@ export default function SegmentBuilderPage() {
       const savedId = isEditing
         ? await updateSegment.mutateAsync({
             description,
+            includeAllCustomers,
             memberIds,
             name,
             rules,
@@ -562,6 +576,7 @@ export default function SegmentBuilderPage() {
         : (
             await createSegment.mutateAsync({
               description,
+              includeAllCustomers,
               memberIds,
               name,
               rules,
@@ -832,29 +847,128 @@ export default function SegmentBuilderPage() {
             </JoyCard>
 
             {type === "dynamic" ? (
-              <>
-                <SegmentTemplateGallery
-                  fields={fields}
-                  onApplyTemplate={(template) => {
-                    setType("dynamic");
-                    setRules(template.group);
+              <JoyCard>
+                <JoyCardHeader
+                  description="Choose between a living all-customer audience or your custom rule set."
+                  title="Rules"
+                />
+                <JoyCardContent
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                    pt: 3,
                   }}
-                  templates={SEGMENT_TEMPLATES}
-                />
-                <SegmentRuleBuilder
-                  currentSegmentId={segmentId}
-                  dependencySource={allSegments.map((segment) => ({
-                    id: segment.id,
-                    conditions: segment.rules,
-                  }))}
-                  fields={fields}
-                  onChange={setRules}
-                  personaOptions={personasQuery.data ?? []}
-                  segmentOptions={segmentOptions}
-                  tagOptions={tagsQuery.data ?? []}
-                  value={rules}
-                />
-              </>
+                >
+                  <Box
+                    sx={{
+                      border: "1px solid",
+                      borderColor: includeAllCustomers
+                        ? "primary.outlinedBorder"
+                        : "neutral.outlinedBorder",
+                      borderRadius: "lg",
+                      p: 2,
+                      transition:
+                        "border-color 0.2s ease, box-shadow 0.2s ease",
+                      boxShadow: includeAllCustomers ? "sm" : "none",
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="flex-start"
+                    >
+                      <Checkbox
+                        checked={includeAllCustomers}
+                        onChange={(event) =>
+                          setIncludeAllCustomers(event.target.checked)
+                        }
+                        slotProps={{
+                          input: {
+                            "aria-label":
+                              "Include all customers in this segment",
+                          },
+                        }}
+                      />
+                      <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                        <Typography level="title-sm">
+                          Include All Customers
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "neutral.600" }}
+                        >
+                          Every customer in your store is included in this
+                          segment. New customers are added automatically.
+                        </Typography>
+                        {includeAllCustomers ? (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            Custom rules are paused while All Customers is
+                            active.
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                    </Stack>
+                  </Box>
+
+                  <Typography
+                    level="body-xs"
+                    sx={{
+                      color: "neutral.500",
+                      textAlign: "center",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    or
+                  </Typography>
+
+                  <Box
+                    aria-disabled={includeAllCustomers}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                      opacity: includeAllCustomers ? 0.45 : 1,
+                      pointerEvents: includeAllCustomers ? "none" : "auto",
+                      transition: "opacity 0.2s ease",
+                    }}
+                  >
+                    <Stack spacing={0.5}>
+                      <Typography level="title-sm">Custom Rules</Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                        Build targeted logic with fields, operators, and grouped
+                        conditions.
+                      </Typography>
+                    </Stack>
+
+                    <SegmentTemplateGallery
+                      fields={fields}
+                      onApplyTemplate={(template) => {
+                        setType("dynamic");
+                        setRules(template.group);
+                      }}
+                      templates={SEGMENT_TEMPLATES}
+                    />
+                    <SegmentRuleBuilder
+                      currentSegmentId={segmentId}
+                      dependencySource={allSegments.map((segment) => ({
+                        id: segment.id,
+                        conditions: segment.rules,
+                      }))}
+                      fields={fields}
+                      onChange={setRules}
+                      personaOptions={personasQuery.data ?? []}
+                      segmentOptions={segmentOptions}
+                      tagOptions={tagsQuery.data ?? []}
+                      value={rules}
+                    />
+                  </Box>
+                </JoyCardContent>
+              </JoyCard>
             ) : (
               <StaticSegmentMemberManager
                 onChange={setMemberIds}

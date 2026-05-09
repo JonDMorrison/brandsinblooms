@@ -1,20 +1,29 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Table from "@mui/joy/Table";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, BarChart3 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { JoyButton } from "@/components/joy/JoyButton";
-import { JoyChip } from "@/components/joy/JoyChip";
-import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import {
   formatCompactNumber,
-  formatPercentage,
   formatRelativeTime,
   getTrendInfo,
   normalizePlatformLabel,
@@ -46,49 +55,72 @@ type SummaryMetric = {
   trend: ReturnType<typeof getTrendInfo> | null;
 };
 
-const shimmerSx = {
-  position: "relative",
-  overflow: "hidden",
-  bgcolor: "background.surface",
-  "&::after": {
-    content: '""',
-    position: "absolute",
-    inset: 0,
-    transform: "translateX(-100%)",
-    background:
-      "linear-gradient(90deg, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 0%, rgba(var(--joy-palette-neutral-mainChannel) / 0.12) 50%, rgba(var(--joy-palette-neutral-mainChannel) / 0.04) 100%)",
-    animation: "postPerformanceShimmer 1.35s ease-in-out infinite",
-  },
-  "@keyframes postPerformanceShimmer": {
-    to: {
-      transform: "translateX(100%)",
-    },
-  },
+type SortableMetric =
+  | "likes_count"
+  | "comments_count"
+  | "shares_count"
+  | "reach"
+  | "engagement_rate";
+
+type SortState = {
+  column: SortableMetric | null;
+  direction: "asc" | "desc";
+};
+
+const SYNC_SUCCESS_RESET_MS = 2000;
+
+const integerFormatter = new Intl.NumberFormat("en-US");
+
+const formatAverageInteger = (value: number) =>
+  integerFormatter.format(Math.round(value));
+
+const formatAveragePercentage = (value: number) =>
+  Number.isFinite(value) ? `${value.toFixed(1)}%` : "—";
+
+const formatMetricValue = (value: number) =>
+  Number.isFinite(value) ? integerFormatter.format(value) : "—";
+
+const renderPlaceholderValue = () => "—";
+
+const METRIC_CARD_SX = {
+  flex: "1 1 180px",
+  borderRadius: "lg",
+  p: 2.5,
 } as const;
 
-const blockSx = {
-  borderRadius: "sm",
-  bgcolor: "rgba(var(--joy-palette-neutral-mainChannel) / 0.08)",
-} as const;
+const getPlatformAvatarSx = (platform: string) => {
+  const normalized = platform.trim().toLowerCase();
 
-const SummarySkeleton = () => {
+  if (normalized === "facebook") {
+    return {
+      bgcolor: "#1877F2",
+      color: "#FFFFFF",
+    };
+  }
+
+  if (normalized === "instagram") {
+    return {
+      background:
+        "linear-gradient(135deg, #F58529 0%, #DD2A7B 55%, #515BD4 100%)",
+      color: "#FFFFFF",
+    };
+  }
+
+  return {
+    bgcolor: "neutral.300",
+    color: "neutral.800",
+  };
+};
+
+const SummarySkeletonCard = () => {
   return (
-    <Sheet
-      variant="outlined"
-      sx={{
-        ...shimmerSx,
-        flex: "1 1 220px",
-        minWidth: { xs: "100%", sm: 220 },
-        borderRadius: "sm",
-        p: 2,
-      }}
-    >
+    <Card variant="soft" color="neutral" sx={METRIC_CARD_SX}>
       <Stack spacing={1.1}>
-        <Box sx={{ ...blockSx, width: "44%", height: 12 }} />
-        <Box sx={{ ...blockSx, width: "58%", height: 28 }} />
-        <Box sx={{ ...blockSx, width: "32%", height: 24, borderRadius: 999 }} />
+        <Skeleton variant="text" level="body-xs" width="44%" />
+        <Skeleton variant="text" level="h3" width="52%" />
+        <Skeleton variant="rectangular" width={76} height={24} />
       </Stack>
-    </Sheet>
+    </Card>
   );
 };
 
@@ -97,21 +129,46 @@ const TableSkeleton = () => {
     <Sheet
       variant="outlined"
       sx={{
-        ...shimmerSx,
-        borderRadius: "md",
-        minHeight: 300,
-        p: 2,
+        borderRadius: "lg",
+        overflow: "hidden",
+        bgcolor: "background.surface",
       }}
     >
-      <Stack spacing={1.25}>
-        <Box sx={{ ...blockSx, width: "18%", height: 12 }} />
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Box
-            key={index}
-            sx={{ ...blockSx, width: "100%", height: 36, borderRadius: "md" }}
-          />
-        ))}
-      </Stack>
+      <Box sx={{ overflowX: "auto" }}>
+        <Table
+          stripe="odd"
+          sx={{
+            minWidth: 880,
+            "& thead th": {
+              bgcolor: "background.level1",
+            },
+          }}
+        >
+          <thead>
+            <tr>
+              {Array.from({ length: 8 }).map((_, index) => (
+                <th key={index}>
+                  <Skeleton variant="text" width="70%" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }).map((_, rowIndex) => (
+              <tr key={rowIndex}>
+                {Array.from({ length: 8 }).map((__, cellIndex) => (
+                  <td key={cellIndex}>
+                    <Skeleton
+                      variant="text"
+                      width={cellIndex === 0 ? "90%" : "60%"}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Box>
     </Sheet>
   );
 };
@@ -142,44 +199,208 @@ const formatPreview = (value?: string | null) => {
   return `${trimmed.slice(0, 60).trimEnd()}...`;
 };
 
-const SummaryMetricSheet = ({ metric }: { metric: SummaryMetric }) => {
-  const TrendIcon = metric.trend?.icon;
+const getSortedArrow = (direction: "asc" | "desc") => {
+  return direction === "asc" ? ArrowUp : ArrowDown;
+};
 
+const EmptyState = ({
+  onSync,
+  syncing,
+}: {
+  onSync: () => void;
+  syncing: boolean;
+}) => {
   return (
     <Sheet
       variant="outlined"
       sx={{
-        flex: "1 1 220px",
-        minWidth: { xs: "100%", sm: 220 },
-        borderRadius: "sm",
-        p: 2,
+        minHeight: 300,
+        borderRadius: "xl",
+        borderColor: "divider",
         bgcolor: "background.surface",
-        boxShadow: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 3,
+        py: 4,
       }}
     >
+      <Stack
+        spacing={2}
+        alignItems="center"
+        textAlign="center"
+        sx={{ maxWidth: 420 }}
+      >
+        <Sheet
+          variant="soft"
+          color="neutral"
+          sx={{
+            width: 72,
+            height: 72,
+            borderRadius: "50%",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <BarChart3 size={48} />
+        </Sheet>
+        <Stack spacing={0.75}>
+          <Typography level="title-lg">No performance data yet</Typography>
+          <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+            Publish some posts and sync analytics to see how they&apos;re
+            performing.
+          </Typography>
+        </Stack>
+        <Button
+          variant="soft"
+          color="neutral"
+          size="sm"
+          startDecorator={<RefreshCw size={14} />}
+          loading={syncing}
+          onClick={onSync}
+        >
+          Sync Analytics
+        </Button>
+      </Stack>
+    </Sheet>
+  );
+};
+
+const FilteredEmptyState = () => {
+  return (
+    <Sheet
+      variant="soft"
+      color="neutral"
+      sx={{
+        minHeight: 220,
+        borderRadius: "xl",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        px: 3,
+        py: 4,
+      }}
+    >
+      <Stack
+        spacing={1}
+        alignItems="center"
+        textAlign="center"
+        sx={{ maxWidth: 360 }}
+      >
+        <Typography level="title-md">No posts match this search</Typography>
+        <Typography level="body-sm" sx={{ color: "text.secondary" }}>
+          Try a different caption keyword to find the post you want.
+        </Typography>
+      </Stack>
+    </Sheet>
+  );
+};
+
+const SortableHeader = ({
+  active,
+  align,
+  direction,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  align?: "left" | "center" | "right";
+  direction: "asc" | "desc";
+  label: string;
+  onClick: () => void;
+}) => {
+  const SortIcon = getSortedArrow(direction);
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        p: 0,
+        m: 0,
+        width: "100%",
+        border: 0,
+        bgcolor: "transparent",
+        display: "flex",
+        alignItems: "center",
+        justifyContent:
+          align === "right"
+            ? "flex-end"
+            : align === "center"
+              ? "center"
+              : "flex-start",
+        gap: 0.5,
+        cursor: "pointer",
+        font: "inherit",
+        color: "inherit",
+      }}
+    >
+      <span>{label}</span>
+      {active ? <SortIcon size={12} /> : null}
+    </Box>
+  );
+};
+
+const SummaryMetricSheet = ({ metric }: { metric: SummaryMetric }) => {
+  const TrendIcon = metric.trend?.icon;
+
+  return (
+    <Card variant="soft" color="neutral" sx={METRIC_CARD_SX}>
       <Stack spacing={1}>
-        <Typography level="body-xs" sx={{ color: "text.secondary" }}>
+        <Typography
+          level="body-xs"
+          sx={{
+            color: "text.secondary",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            fontWeight: "md",
+          }}
+        >
           {metric.label}
         </Typography>
-        <Typography level="title-lg">{metric.value}</Typography>
+        <Typography level="h3" sx={{ fontWeight: "lg" }}>
+          {metric.value}
+        </Typography>
         {metric.trend && TrendIcon ? (
-          <JoyChip
+          <Chip
             color={metric.trend.tone}
             size="sm"
             startDecorator={<TrendIcon size={12} />}
             variant="soft"
           >
             {metric.trend.label}
-          </JoyChip>
+          </Chip>
         ) : null}
       </Stack>
-    </Sheet>
+    </Card>
   );
 };
 
 export const PostPerformanceTracker: React.FC = () => {
   const { user } = useAuth();
   const [syncing, setSyncing] = useState(false);
+  const [syncSucceeded, setSyncSucceeded] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [sortState, setSortState] = useState<SortState>({
+    column: null,
+    direction: "desc",
+  });
+
+  useEffect(() => {
+    if (!syncSucceeded) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSyncSucceeded(false);
+    }, SYNC_SUCCESS_RESET_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [syncSucceeded]);
 
   const { data, isError, isLoading, refetch } = useQuery<PostPerformance[]>({
     queryKey: ["analytics-post-performance", user?.id],
@@ -228,6 +449,58 @@ export const PostPerformanceTracker: React.FC = () => {
 
   const performances = useMemo(() => data ?? [], [data]);
 
+  const filteredPerformances = useMemo(() => {
+    const normalizedSearch = searchText.trim().toLowerCase();
+
+    const baseRows = normalizedSearch
+      ? performances.filter((performance) =>
+          (performance.content_tasks.ai_output ?? "")
+            .toLowerCase()
+            .includes(normalizedSearch),
+        )
+      : performances;
+
+    if (!sortState.column) {
+      return [...baseRows].sort(
+        (left, right) =>
+          new Date(right.collected_at).getTime() -
+          new Date(left.collected_at).getTime(),
+      );
+    }
+
+    return [...baseRows].sort((left, right) => {
+      const leftValue = left[sortState.column] ?? 0;
+      const rightValue = right[sortState.column] ?? 0;
+
+      if (leftValue === rightValue) {
+        return (
+          new Date(right.collected_at).getTime() -
+          new Date(left.collected_at).getTime()
+        );
+      }
+
+      return sortState.direction === "asc"
+        ? leftValue - rightValue
+        : rightValue - leftValue;
+    });
+  }, [performances, searchText, sortState]);
+
+  const handleSort = useCallback((column: SortableMetric) => {
+    setSortState((currentValue) => {
+      if (currentValue.column === column) {
+        return {
+          column,
+          direction: currentValue.direction === "asc" ? "desc" : "asc",
+        };
+      }
+
+      return {
+        column,
+        direction: "desc",
+      };
+    });
+  }, []);
+
   const syncAnalytics = useCallback(async () => {
     if (!user?.id) {
       return;
@@ -244,6 +517,7 @@ export const PostPerformanceTracker: React.FC = () => {
         throw error;
       }
 
+      setSyncSucceeded(true);
       toast.success("Analytics sync started.");
     } catch (error) {
       console.error("Error syncing analytics:", error);
@@ -254,18 +528,17 @@ export const PostPerformanceTracker: React.FC = () => {
   }, [user]);
 
   const summaryMetrics = useMemo<SummaryMetric[]>(() => {
-    const totalEngagement = performances.reduce(
-      (sum, performance) =>
-        sum +
-        performance.likes_count +
-        performance.comments_count +
-        performance.shares_count,
-      0,
-    );
-    const averageReach =
+    const averageLikes =
       performances.length > 0
         ? performances.reduce(
-            (sum, performance) => sum + performance.reach,
+            (sum, performance) => sum + performance.likes_count,
+            0,
+          ) / performances.length
+        : 0;
+    const averageComments =
+      performances.length > 0
+        ? performances.reduce(
+            (sum, performance) => sum + performance.comments_count,
             0,
           ) / performances.length
         : 0;
@@ -276,48 +549,48 @@ export const PostPerformanceTracker: React.FC = () => {
             0,
           ) / performances.length
         : 0;
-    const totalImpressions = performances.reduce(
-      (sum, performance) => sum + performance.impressions,
-      0,
-    );
 
     const latest = performances[0];
     const previous = performances[1];
-    const latestEngagement = latest
-      ? latest.likes_count + latest.comments_count + latest.shares_count
-      : undefined;
-    const previousEngagement = previous
-      ? previous.likes_count + previous.comments_count + previous.shares_count
-      : undefined;
     const canShowTrend = performances.length >= 2;
 
     return [
       {
-        label: "Total Engagement",
-        value: formatCompactNumber(totalEngagement),
+        label: "Total Posts",
+        value:
+          performances.length > 0
+            ? integerFormatter.format(performances.length)
+            : renderPlaceholderValue(),
+        trend: null,
+      },
+      {
+        label: "Avg Likes",
+        value:
+          performances.length > 0
+            ? formatAverageInteger(averageLikes)
+            : renderPlaceholderValue(),
         trend: canShowTrend
-          ? getTrendInfo(latestEngagement, previousEngagement)
+          ? getTrendInfo(latest?.likes_count, previous?.likes_count)
           : null,
       },
       {
-        label: "Avg. Reach",
-        value: formatCompactNumber(Math.round(averageReach)),
+        label: "Avg Comments",
+        value:
+          performances.length > 0
+            ? formatAverageInteger(averageComments)
+            : renderPlaceholderValue(),
         trend: canShowTrend
-          ? getTrendInfo(latest?.reach, previous?.reach)
+          ? getTrendInfo(latest?.comments_count, previous?.comments_count)
           : null,
       },
       {
-        label: "Avg. Engagement Rate",
-        value: formatPercentage(averageEngagementRate),
+        label: "Avg Engagement Rate",
+        value:
+          performances.length > 0
+            ? formatAveragePercentage(averageEngagementRate)
+            : renderPlaceholderValue(),
         trend: canShowTrend
           ? getTrendInfo(latest?.engagement_rate, previous?.engagement_rate)
-          : null,
-      },
-      {
-        label: "Impressions",
-        value: formatCompactNumber(totalImpressions),
-        trend: canShowTrend
-          ? getTrendInfo(latest?.impressions, previous?.impressions)
           : null,
       },
     ];
@@ -326,44 +599,42 @@ export const PostPerformanceTracker: React.FC = () => {
   return (
     <Stack spacing={3}>
       <Stack
-        direction={{ xs: "column", lg: "row" }}
+        direction={{ xs: "column", sm: "row" }}
         spacing={2}
-        alignItems={{ xs: "flex-start", lg: "center" }}
+        alignItems={{ xs: "flex-start", sm: "center" }}
         justifyContent="space-between"
       >
         <Stack spacing={0.5}>
-          <Typography level="title-md">Post Performance</Typography>
+          <Typography level="title-lg" sx={{ fontWeight: "lg" }}>
+            Post Performance
+          </Typography>
           <Typography level="body-sm" sx={{ color: "text.secondary" }}>
             Engagement and reach metrics from your connected accounts.
           </Typography>
         </Stack>
-
-        <JoyButton
-          color="neutral"
-          loading={syncing}
-          loadingPosition="start"
-          size="sm"
-          startDecorator={<BarChart3 size={14} />}
-          variant="outlined"
-          onClick={() => {
-            void syncAnalytics();
-          }}
-        >
-          Sync Analytics
-        </JoyButton>
       </Stack>
 
       {isLoading ? (
         <>
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
             {Array.from({ length: 4 }).map((_, index) => (
-              <SummarySkeleton key={index} />
+              <SummarySkeletonCard key={index} />
             ))}
-          </Box>
+          </Stack>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", sm: "center" }}
+            gap={2}
+            sx={{ my: 2 }}
+          >
+            <Skeleton variant="rectangular" width={320} height={36} />
+            <Skeleton variant="rectangular" width={132} height={36} />
+          </Stack>
           <TableSkeleton />
         </>
       ) : isError ? (
-        <Sheet color="warning" variant="soft" sx={{ borderRadius: "md", p: 3 }}>
+        <Sheet color="warning" variant="soft" sx={{ borderRadius: "lg", p: 3 }}>
           <Stack spacing={2}>
             <Stack direction="row" spacing={1.25} alignItems="flex-start">
               <Box
@@ -387,183 +658,270 @@ export const PostPerformanceTracker: React.FC = () => {
                 </Typography>
               </Stack>
             </Stack>
-            <JoyButton
+            <Button
               color="neutral"
               size="sm"
-              startDecorator={<BarChart3 size={14} />}
-              variant="outlined"
+              startDecorator={<RefreshCw size={14} />}
+              variant="soft"
               onClick={() => {
                 void refetch();
               }}
             >
               Retry
-            </JoyButton>
+            </Button>
           </Stack>
         </Sheet>
       ) : performances.length === 0 ? (
-        <Sheet
-          variant="outlined"
-          sx={{ borderRadius: "md", bgcolor: "background.surface" }}
-        >
-          <JoyEmptyState
-            icon={
-              <Box
-                sx={{
-                  color: "text.tertiary",
-                  display: "inline-flex",
-                  "& > .lucide": {
-                    width: 32,
-                    height: 32,
-                  },
-                }}
-              >
-                <BarChart3 />
-              </Box>
-            }
-            title="No performance data yet"
-            description="Metrics will appear here after your connected accounts publish content."
-          />
-        </Sheet>
-      ) : (
         <>
-          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
             {summaryMetrics.map((metric) => (
               <SummaryMetricSheet key={metric.label} metric={metric} />
             ))}
-          </Box>
+          </Stack>
 
-          <Sheet
-            variant="outlined"
-            sx={{
-              borderRadius: "md",
-              overflow: "auto",
-              bgcolor: "background.surface",
-            }}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", sm: "center" }}
+            gap={2}
+            sx={{ my: 2 }}
           >
-            <Table
-              hoverRow
-              stripe="odd"
-              sx={{
-                minWidth: 760,
-                "--TableCell-paddingX": "12px",
-                "--TableCell-paddingY": "12px",
-                "& thead th": {
-                  bgcolor: "transparent",
-                  fontWeight: "md",
-                  fontSize: "xs",
-                  color: "text.secondary",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                },
-                "& tbody td": {
-                  verticalAlign: "middle",
-                },
+            <Input
+              variant="outlined"
+              size="sm"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search posts..."
+              startDecorator={<Search size={14} />}
+              sx={{ maxWidth: 320, width: "100%" }}
+            />
+            <Button
+              variant="soft"
+              color="neutral"
+              size="sm"
+              startDecorator={<RefreshCw size={14} />}
+              loading={syncing}
+              onClick={() => {
+                void syncAnalytics();
               }}
             >
-              <thead>
-                <tr>
-                  <th>Post</th>
-                  <th>Likes</th>
-                  <th>Comments</th>
-                  <th>Shares</th>
-                  <th>Reach</th>
-                  <th>Engagement</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {performances.map((performance) => {
-                  const platformConfig = getPlatformConfig(
-                    performance.platform,
-                  );
-                  const platformLabel = normalizePlatformLabel(
-                    performance.platform,
-                  );
-                  const PlatformIcon = platformConfig.icon;
+              {syncSucceeded ? "Synced ✓" : "Sync Analytics"}
+            </Button>
+          </Stack>
 
-                  return (
-                    <tr key={performance.id}>
-                      <td>
-                        <Stack
-                          direction="row"
-                          spacing={1.25}
-                          alignItems="center"
-                        >
-                          <Box
-                            sx={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: platformConfig.color,
-                              flexShrink: 0,
-                            }}
-                          >
-                            <PlatformIcon size={16} strokeWidth={1.9} />
-                          </Box>
-                          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-                            <Typography
-                              level="body-sm"
-                              noWrap
-                              sx={{ maxWidth: 240 }}
-                            >
+          <EmptyState
+            syncing={syncing}
+            onSync={() => {
+              void syncAnalytics();
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap">
+            {summaryMetrics.map((metric) => (
+              <SummaryMetricSheet key={metric.label} metric={metric} />
+            ))}
+          </Stack>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "stretch", sm: "center" }}
+            gap={2}
+            sx={{ my: 2 }}
+          >
+            <Input
+              variant="outlined"
+              size="sm"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search posts..."
+              startDecorator={<Search size={14} />}
+              sx={{ maxWidth: 320, width: "100%" }}
+            />
+            <Button
+              variant="soft"
+              color="neutral"
+              size="sm"
+              startDecorator={<RefreshCw size={14} />}
+              loading={syncing}
+              onClick={() => {
+                void syncAnalytics();
+              }}
+            >
+              {syncSucceeded ? "Synced ✓" : "Sync Analytics"}
+            </Button>
+          </Stack>
+
+          {filteredPerformances.length === 0 ? (
+            <FilteredEmptyState />
+          ) : (
+            <Sheet
+              variant="plain"
+              sx={{
+                borderRadius: "lg",
+                overflow: "hidden",
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.surface",
+              }}
+            >
+              <Box sx={{ overflowX: "auto" }}>
+                <Table
+                  variant="plain"
+                  stripe="odd"
+                  hoverRow
+                  sx={{
+                    minWidth: 980,
+                    "--TableCell-paddingX": "14px",
+                    "--TableCell-paddingY": "14px",
+                    "& th": {
+                      bgcolor: "background.level1",
+                      fontWeight: "md",
+                      fontSize: "xs",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                    },
+                    "& td": {
+                      verticalAlign: "middle",
+                    },
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th>Post</th>
+                      <th style={{ width: 60, textAlign: "center" }}>
+                        Platform
+                      </th>
+                      <th style={{ width: 80, textAlign: "right" }}>
+                        <SortableHeader
+                          active={sortState.column === "likes_count"}
+                          align="right"
+                          direction={sortState.direction}
+                          label="Likes"
+                          onClick={() => handleSort("likes_count")}
+                        />
+                      </th>
+                      <th style={{ width: 100, textAlign: "right" }}>
+                        <SortableHeader
+                          active={sortState.column === "comments_count"}
+                          align="right"
+                          direction={sortState.direction}
+                          label="Comments"
+                          onClick={() => handleSort("comments_count")}
+                        />
+                      </th>
+                      <th style={{ width: 80, textAlign: "right" }}>
+                        <SortableHeader
+                          active={sortState.column === "shares_count"}
+                          align="right"
+                          direction={sortState.direction}
+                          label="Shares"
+                          onClick={() => handleSort("shares_count")}
+                        />
+                      </th>
+                      <th style={{ width: 80, textAlign: "right" }}>
+                        <SortableHeader
+                          active={sortState.column === "reach"}
+                          align="right"
+                          direction={sortState.direction}
+                          label="Reach"
+                          onClick={() => handleSort("reach")}
+                        />
+                      </th>
+                      <th style={{ width: 100, textAlign: "right" }}>
+                        <SortableHeader
+                          active={sortState.column === "engagement_rate"}
+                          align="right"
+                          direction={sortState.direction}
+                          label="Eng. Rate"
+                          onClick={() => handleSort("engagement_rate")}
+                        />
+                      </th>
+                      <th style={{ width: 120, textAlign: "right" }}>
+                        Collected
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPerformances.map((performance) => {
+                      const platformConfig = getPlatformConfig(
+                        performance.platform,
+                      );
+                      const platformLabel = normalizePlatformLabel(
+                        performance.platform,
+                      );
+                      const PlatformIcon = platformConfig.icon;
+
+                      return (
+                        <tr key={performance.id}>
+                          <td>
+                            <Typography level="body-sm" sx={{ maxWidth: 320 }}>
                               {formatPreview(
                                 performance.content_tasks.ai_output,
                               )}
                             </Typography>
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <Avatar
+                              size="sm"
+                              title={platformLabel}
+                              sx={getPlatformAvatarSx(performance.platform)}
+                            >
+                              <PlatformIcon size={14} strokeWidth={2} />
+                            </Avatar>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Typography level="body-sm">
+                              {formatMetricValue(performance.likes_count)}
+                            </Typography>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Typography level="body-sm">
+                              {formatMetricValue(performance.comments_count)}
+                            </Typography>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Typography level="body-sm">
+                              {formatMetricValue(performance.shares_count)}
+                            </Typography>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Typography level="body-sm">
+                              {formatCompactNumber(performance.reach)}
+                            </Typography>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Chip
+                              color={getEngagementColor(
+                                performance.engagement_rate,
+                              )}
+                              size="sm"
+                              variant="soft"
+                            >
+                              {formatAveragePercentage(
+                                performance.engagement_rate,
+                              )}
+                            </Chip>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
                             <Typography
                               level="body-xs"
                               sx={{ color: "text.tertiary" }}
                             >
-                              {platformLabel}
+                              {formatRelativeTime(performance.collected_at)}
                             </Typography>
-                          </Stack>
-                        </Stack>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {formatCompactNumber(performance.likes_count)}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {formatCompactNumber(performance.comments_count)}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {formatCompactNumber(performance.shares_count)}
-                        </Typography>
-                      </td>
-                      <td>
-                        <Typography level="body-sm">
-                          {formatCompactNumber(performance.reach)}
-                        </Typography>
-                      </td>
-                      <td>
-                        <JoyChip
-                          color={getEngagementColor(
-                            performance.engagement_rate,
-                          )}
-                          size="sm"
-                          variant="soft"
-                        >
-                          {formatPercentage(performance.engagement_rate)}
-                        </JoyChip>
-                      </td>
-                      <td>
-                        <Typography
-                          level="body-xs"
-                          sx={{ color: "text.tertiary" }}
-                        >
-                          {formatRelativeTime(performance.collected_at)}
-                        </Typography>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </Sheet>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </Box>
+            </Sheet>
+          )}
         </>
       )}
     </Stack>

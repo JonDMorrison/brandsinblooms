@@ -13,6 +13,7 @@ export interface CreateSegmentInput {
   type: SegmentKind;
   status?: SegmentStatus;
   rules: SegmentRuleGroup;
+  includeAllCustomers?: boolean;
   memberIds?: string[];
 }
 
@@ -62,6 +63,7 @@ export function useCreateSegment() {
           description: input.description?.trim() || null,
           auto_update: input.type === "dynamic",
           conditions: input.rules,
+          include_all_customers: input.includeAllCustomers ?? false,
           status: input.status ?? "active",
           customer_count:
             input.type === "static" ? (input.memberIds?.length ?? 0) : 0,
