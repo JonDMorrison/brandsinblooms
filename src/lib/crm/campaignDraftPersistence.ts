@@ -56,12 +56,15 @@ export class CampaignDraftConflictError extends Error {
   }
 }
 
-type PostgrestLikeError = {
-  code?: string;
-  message?: string;
-  details?: string;
-  hint?: string;
-} | null | undefined;
+type PostgrestLikeError =
+  | {
+      code?: string;
+      message?: string;
+      details?: string;
+      hint?: string;
+    }
+  | null
+  | undefined;
 
 function isMissingCampaignAudienceColumnError(error: PostgrestLikeError) {
   const code = String(error?.code ?? "").toLowerCase();
@@ -731,9 +734,12 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       return await updateQuery.select("*");
     };
 
-    const usesLegacyAudiencePayload = campaignAudienceColumnsSupported === false;
+    const usesLegacyAudiencePayload =
+      campaignAudienceColumnsSupported === false;
     let { data: updatedRows, error: updateError } = await runUpdate(
-      getCompatibleCampaignPayload(updatePayload) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
+      getCompatibleCampaignPayload(
+        updatePayload,
+      ) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
     );
 
     if (
@@ -743,7 +749,9 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     ) {
       markCampaignAudienceColumnsUnsupported();
       ({ data: updatedRows, error: updateError } = await runUpdate(
-        omitCampaignAudienceColumns(updatePayload) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
+        omitCampaignAudienceColumns(
+          updatePayload,
+        ) as Database["public"]["Tables"]["crm_campaigns"]["Update"],
       ));
     }
 
@@ -804,7 +812,8 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
         updated_at: nowIso,
       };
 
-    const usesLegacyAudiencePayload = campaignAudienceColumnsSupported === false;
+    const usesLegacyAudiencePayload =
+      campaignAudienceColumnsSupported === false;
     const runInsert = async (
       payload: Database["public"]["Tables"]["crm_campaigns"]["Insert"],
     ) => {
@@ -816,7 +825,9 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     };
 
     let { data: insertedRow, error: insertError } = await runInsert(
-      getCompatibleCampaignPayload(insertPayload) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
+      getCompatibleCampaignPayload(
+        insertPayload,
+      ) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
     );
 
     if (
@@ -826,7 +837,9 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
     ) {
       markCampaignAudienceColumnsUnsupported();
       ({ data: insertedRow, error: insertError } = await runInsert(
-        omitCampaignAudienceColumns(insertPayload) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
+        omitCampaignAudienceColumns(
+          insertPayload,
+        ) as Database["public"]["Tables"]["crm_campaigns"]["Insert"],
       ));
     }
 
