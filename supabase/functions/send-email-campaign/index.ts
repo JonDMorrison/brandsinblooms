@@ -1863,6 +1863,7 @@ serve(async (req: Request) => {
     );
 
     let queuedRecipientCount = 0;
+    let attemptedQueuedRecipientCount = 0;
     let dbChunkSize = getInitialMessageInsertChunkSize(recipientCount);
     for (
       let batchStart = 0;
@@ -1898,13 +1899,19 @@ serve(async (req: Request) => {
 
       if (batchMessageUpserts.length === 0) continue;
 
+      attemptedQueuedRecipientCount += batchMessageUpserts.length;
+      let actualInsertedThisBatch = 0;
+
       for (let offset = 0; offset < batchMessageUpserts.length; ) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
-          const resp = await supabase.from("email_messages").upsert(chunk, {
-            onConflict: "campaign_id,customer_id,retry_sequence",
-            ignoreDuplicates: true,
-          });
+          const resp = await supabase
+            .from("email_messages")
+            .upsert(chunk, {
+              onConflict: "campaign_id,customer_id,retry_sequence",
+              ignoreDuplicates: true,
+            })
+            .select("id");
 
           if (resp.error) {
             const code = (resp.error as any)?.code;
@@ -1943,6 +1950,9 @@ serve(async (req: Request) => {
           }
 
           offset += chunk.length;
+          const insertedCount = resp.data?.length ?? 0;
+          queuedRecipientCount += insertedCount;
+          actualInsertedThisBatch += insertedCount;
         } catch (e: any) {
           const msg = String(e?.message || e);
           if (
@@ -1973,10 +1983,17 @@ serve(async (req: Request) => {
         }
       }
 
-      queuedRecipientCount += batchMessageUpserts.length;
+      console.log(
+        `📧 Queue write: batch ${
+          batchIndex + 1
+        }/${totalBatches} — attempted ${batchMessageUpserts.length}, inserted ${actualInsertedThisBatch} (resume: ${isResumeRun})`,
+      );
+
       if ((batchIndex + 1) % 10 === 0 || batchIndex + 1 === totalBatches) {
         console.log(
-          `📧 Queued batch ${batchIndex + 1}/${totalBatches} (queued so far: ${queuedRecipientCount})`,
+          `📧 Queued batch ${
+            batchIndex + 1
+          }/${totalBatches} (queued so far: ${queuedRecipientCount})`,
         );
       }
     }
@@ -2045,8 +2062,13 @@ serve(async (req: Request) => {
 
     const finalSkippedRecipientCount =
       skippedRecipientCount +
-      Math.max(recipientCount - queuedRecipientCount, 0);
+      Math.max(recipientCount - attemptedQueuedRecipientCount, 0);
     const actualTotalBatches = Math.max(Number(totalJobCount || 0), 0);
+    const campaignRecipientCount = recipientCount;
+    let queueResultMessage =
+      queuedRecipientCount > 0
+        ? `Campaign queued for sending to ${queuedRecipientCount} recipients`
+        : "No new recipients were queued for sending";
 
     if (queuedRecipientCount > 0 && actualTotalBatches === 0) {
       console.error(
@@ -2067,6 +2089,32 @@ serve(async (req: Request) => {
       );
     }
 
+    if (queuedRecipientCount === 0) {
+      if (isResumeRun) {
+        console.info(
+          "ℹ️ Resume run: all recipients already queued and jobbed, nothing new to schedule",
+          {
+            campaignId,
+            existingMessageCount: Number(existingMessageCount || 0),
+            actualTotalBatches,
+          },
+        );
+        queueResultMessage =
+          actualTotalBatches > 0
+            ? `Campaign already queued with ${actualTotalBatches} batch jobs; nothing new to schedule`
+            : "Resume run found no new recipients to schedule";
+      } else {
+        console.warn(
+          "⚠️ Queue build produced no new queued recipients for a non-resume run; returning success with no work scheduled",
+          {
+            campaignId,
+            recipientCount,
+            actualTotalBatches,
+          },
+        );
+      }
+    }
+
     // Queue acceptance is distinct from final delivery completion.
     const campaignStatus = "queued";
     const queueCompletedAt = new Date().toISOString();
@@ -2076,7 +2124,7 @@ serve(async (req: Request) => {
         status: campaignStatus,
         queued_at: queuedAt,
         queue_completed_at: queueCompletedAt,
-        total_recipients: queuedRecipientCount,
+        total_recipients: campaignRecipientCount,
         total_batches: actualTotalBatches,
         messages_sent: 0,
         messages_failed: 0,
@@ -2089,7 +2137,7 @@ serve(async (req: Request) => {
         send_blocked_reason: null,
         metrics: {
           ...queueProgressMetrics,
-          queued: queuedRecipientCount,
+          queued: campaignRecipientCount,
           skipped_suppressed: suppressedCount,
           links_tracked: urlsToTrack.length,
           pii_warnings: piiWarningSet.size,
@@ -2191,9 +2239,9 @@ serve(async (req: Request) => {
         queued_at: queuedAt,
         queue_completed_at: queueCompletedAt,
         resumed: isResumeRun,
-        total_recipients: queuedRecipientCount,
+        total_recipients: campaignRecipientCount,
         total_batches: actualTotalBatches,
-        message: `Campaign queued for sending to ${queuedRecipientCount} recipients`,
+        message: queueResultMessage,
         reputation: {
           score: reputationPolicy.score,
           tier: reputationPolicy.tier,
