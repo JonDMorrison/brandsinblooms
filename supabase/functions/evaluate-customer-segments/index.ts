@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
+import { isCustomerEligibleForEmailAudience } from "../_shared/eligibleEmailAudience.ts";
 import {
   evaluateSegmentRule,
   normalizeSegmentRuleGroup,
@@ -18,6 +19,7 @@ interface Segment {
   auto_update: boolean;
   conditions: unknown;
   customer_count: number;
+  include_all_customers: boolean;
   status?: string | null;
   deleted_at?: string | null;
 }
@@ -166,7 +168,7 @@ Deno.serve(async (req) => {
     const { data: segments, error: segmentsError } = await supabase
       .from("crm_segments")
       .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, status, deleted_at",
+        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
       )
       .eq("tenant_id", tenant_id)
       .eq("auto_update", true)
@@ -206,6 +208,13 @@ Deno.serve(async (req) => {
     const membershipMap = new Map<string, Set<string>>([
       [customer_id, new Set(currentSegmentIds)],
     ]);
+    const eligibleForAllCustomers = await isCustomerEligibleForEmailAudience(
+      supabase,
+      {
+        tenantId: tenant_id,
+        customer,
+      },
+    );
 
     const segmentsJoined: string[] = [];
     const segmentsLeft: string[] = [];
@@ -213,13 +222,15 @@ Deno.serve(async (req) => {
     const segmentsLeftNames: string[] = [];
 
     for (const segment of sortSegmentsByDependencies(segments as Segment[])) {
-      const matches = evaluateSegmentRule(
-        normalizeSegmentRuleGroup(segment.conditions),
-        customer as Customer,
-        {
-          customerSegmentsByCustomerId: membershipMap,
-        },
-      );
+      const matches = segment.include_all_customers
+        ? eligibleForAllCustomers
+        : evaluateSegmentRule(
+            normalizeSegmentRuleGroup(segment.conditions),
+            customer as Customer,
+            {
+              customerSegmentsByCustomerId: membershipMap,
+            },
+          );
       const isMember = currentSegmentIds.has(segment.id);
 
       if (matches && !isMember) {

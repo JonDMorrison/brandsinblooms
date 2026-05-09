@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 /**
@@ -13,84 +14,115 @@ const corsHeaders = {
  */
 function mapPlatformToEnum(platform: string): "FB" | "IG_FEED" | "IG_REEL" {
   const map: Record<string, "FB" | "IG_FEED" | "IG_REEL"> = {
-    'facebook': 'FB',
-    'instagram': 'IG_FEED',
-    'fb': 'FB',
-    'ig_feed': 'IG_FEED',
-    'ig_reel': 'IG_REEL'
+    facebook: "FB",
+    instagram: "IG_FEED",
+    fb: "FB",
+    ig_feed: "IG_FEED",
+    ig_reel: "IG_REEL",
   };
-  return map[platform.toLowerCase()] || 'FB';
+  return map[platform.toLowerCase()] || "FB";
 }
 
 async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('[PUBLISH-TASK] Function invoked');
+  console.log("[PUBLISH-TASK] Function invoked");
 
   // FIX: [SC2] - Add JWT authentication to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: "Authorization required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace("Bearer ", "");
 
   try {
     const requestBody = await req.json();
-    const { taskId, contentId, platforms, accountId, caption, imageUrl, mediaUrls, isCarousel, firstComment, publishAt } = requestBody;
+    const {
+      taskId,
+      contentId,
+      platforms,
+      accountId,
+      caption,
+      imageUrl,
+      mediaUrls,
+      isCarousel,
+      firstComment,
+      publishAt,
+    } = requestBody;
 
-    console.log('[PUBLISH-TASK] Request:', { 
-      taskId, 
-      contentId, 
-      platforms, 
-      accountId, 
-      hasCaption: !!caption, 
+    console.log("[PUBLISH-TASK] Request:", {
+      taskId,
+      contentId,
+      platforms,
+      accountId,
+      hasCaption: !!caption,
       hasImage: !!imageUrl,
       isCarousel,
       carouselImageCount: mediaUrls?.length || 0,
-      publishAt 
+      publishAt,
     });
 
     if (!taskId) {
-      return new Response(
-        JSON.stringify({ error: 'Task ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      return new Response(JSON.stringify({ error: "Task ID is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Determine action based on request data
-    const action = publishAt ? 'schedule' : 'publish';
-    console.log(`[PUBLISH-TASK] Processing task ${taskId} with action: ${action}`);
+    const action = publishAt ? "schedule" : "publish";
+    console.log(
+      `[PUBLISH-TASK] Processing task ${taskId} with action: ${action}`,
+    );
 
     // Initialize Supabase client
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     // FIX: [SC2] - Verify JWT token against Supabase auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get task details to retrieve user_id and tenant_id
     const { data: taskData, error: taskError } = await supabase
-      .from('content_tasks')
-      .select('user_id, tenant_id')
-      .eq('id', taskId)
+      .from("content_tasks")
+      .select("user_id, tenant_id")
+      .eq("id", taskId)
       .single();
 
     if (taskError || !taskData) {
-      console.error('[PUBLISH-TASK] Failed to fetch task:', taskError);
-      return new Response(
-        JSON.stringify({ error: 'Task not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error("[PUBLISH-TASK] Failed to fetch task:", taskError);
+      return new Response(JSON.stringify({ error: "Task not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (taskData.user_id !== user.id) {
+      console.warn("[PUBLISH-TASK] Forbidden task access attempt", {
+        taskId,
+        taskOwnerId: taskData.user_id,
+        requesterId: user.id,
+      });
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Declare result outside the retry loop
@@ -105,27 +137,44 @@ async function handler(req: Request): Promise<Response> {
       try {
         // Process task based on action
         switch (action) {
-          case 'publish':
-            console.log(`[PUBLISH-TASK] Publishing task ${taskId} (attempt ${attempt + 1})`);
-            
+          case "publish":
+            console.log(
+              `[PUBLISH-TASK] Publishing task ${taskId} (attempt ${attempt + 1})`,
+            );
+
             // Validate required fields - carousel or single image
-            const hasContent = caption || imageUrl || (isCarousel && mediaUrls && mediaUrls.length > 0);
-            
+            const hasContent =
+              caption ||
+              imageUrl ||
+              (isCarousel && mediaUrls && mediaUrls.length > 0);
+
             if (!hasContent) {
-              console.warn('No content to publish', { 
-                taskId, 
-                platform: platforms?.[0] || "unknown", 
-                attempt: attempt + 1 
+              console.warn("No content to publish", {
+                taskId,
+                platform: platforms?.[0] || "unknown",
+                attempt: attempt + 1,
               });
-              
+
               if (attempt < maxRetries) {
                 attempt++;
-                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                await new Promise((resolve) =>
+                  setTimeout(resolve, Math.pow(2, attempt) * 1000),
+                );
                 continue;
               } else {
                 return new Response(
-                  JSON.stringify({ ok: false, code: "NO_CONTENT", message: "No content to publish" }),
-                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  JSON.stringify({
+                    ok: false,
+                    code: "NO_CONTENT",
+                    message: "No content to publish",
+                  }),
+                  {
+                    status: 400,
+                    headers: {
+                      ...corsHeaders,
+                      "Content-Type": "application/json",
+                    },
+                  },
                 );
               }
             }
@@ -134,70 +183,103 @@ async function handler(req: Request): Promise<Response> {
             if (isCarousel) {
               if (!mediaUrls || mediaUrls.length < 2) {
                 return new Response(
-                  JSON.stringify({ ok: false, code: "INVALID_CAROUSEL", message: "Carousel requires at least 2 images" }),
-                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  JSON.stringify({
+                    ok: false,
+                    code: "INVALID_CAROUSEL",
+                    message: "Carousel requires at least 2 images",
+                  }),
+                  {
+                    status: 400,
+                    headers: {
+                      ...corsHeaders,
+                      "Content-Type": "application/json",
+                    },
+                  },
                 );
               }
               if (mediaUrls.length > 10) {
                 return new Response(
-                  JSON.stringify({ ok: false, code: "INVALID_CAROUSEL", message: "Carousel cannot exceed 10 images" }),
-                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  JSON.stringify({
+                    ok: false,
+                    code: "INVALID_CAROUSEL",
+                    message: "Carousel cannot exceed 10 images",
+                  }),
+                  {
+                    status: 400,
+                    headers: {
+                      ...corsHeaders,
+                      "Content-Type": "application/json",
+                    },
+                  },
                 );
               }
             }
-            
+
             // FIX: [SC1] - Actually invoke Facebook/Instagram API instead of just updating DB status
             // Store carousel metadata if applicable
             if (isCarousel && mediaUrls) {
               const { error: attachError } = await supabase
-                .from('content_tasks')
+                .from("content_tasks")
                 .update({
                   attachments: {
                     carousel: {
                       isCarousel: true,
                       mediaUrls: mediaUrls,
-                      imageCount: mediaUrls.length
-                    }
-                  }
+                      imageCount: mediaUrls.length,
+                    },
+                  },
                 })
-                .eq('id', taskId);
+                .eq("id", taskId);
               if (attachError) throw attachError;
             }
 
             // Determine platform from request or look up from content_tasks record
-            const platform = platforms?.[0] || 'facebook';
-            const edgeFunctionName = platform.toLowerCase().includes('instagram')
-              ? 'post-to-instagram'
-              : 'post-to-facebook';
+            const platform = platforms?.[0] || "facebook";
+            const edgeFunctionName = platform
+              .toLowerCase()
+              .includes("instagram")
+              ? "post-to-instagram"
+              : "post-to-facebook";
 
-            console.log(`[PUBLISH-TASK] Invoking ${edgeFunctionName} for task ${taskId}`);
+            console.log(
+              `[PUBLISH-TASK] Invoking ${edgeFunctionName} for task ${taskId}`,
+            );
 
             // Invoke the appropriate platform edge function
-            const { data: apiResponse, error: apiError } = await supabase.functions.invoke(edgeFunctionName, {
-              body: { content_task_id: taskId }
-            });
+            const { data: apiResponse, error: apiError } =
+              await supabase.functions.invoke(edgeFunctionName, {
+                body: { content_task_id: taskId },
+              });
 
             if (apiError) {
-              console.error(`[PUBLISH-TASK] API call to ${edgeFunctionName} failed:`, apiError);
+              console.error(
+                `[PUBLISH-TASK] API call to ${edgeFunctionName} failed:`,
+                apiError,
+              );
               // Set status to 'failed' with error message
               await supabase
-                .from('content_tasks')
-                .update({ status: 'failed', last_posting_error: apiError.message || 'API call failed' })
-                .eq('id', taskId);
-              throw new Error(`${edgeFunctionName} failed: ${apiError.message}`);
+                .from("content_tasks")
+                .update({
+                  status: "failed",
+                  last_posting_error: apiError.message || "API call failed",
+                })
+                .eq("id", taskId);
+              throw new Error(
+                `${edgeFunctionName} failed: ${apiError.message}`,
+              );
             }
 
             // Only mark as published AFTER successful API response
             const { error: publishError } = await supabase
-              .from('content_tasks')
-              .update({ status: 'published' })
-              .eq('id', taskId);
+              .from("content_tasks")
+              .update({ status: "published" })
+              .eq("id", taskId);
 
             if (publishError) throw publishError;
 
             // Create scheduled post record with correct schema
             const { error: scheduleError } = await supabase
-              .from('scheduled_posts')
+              .from("scheduled_posts")
               .insert({
                 content_id: contentId,
                 task_id: taskId,
@@ -205,113 +287,124 @@ async function handler(req: Request): Promise<Response> {
                 tenant_id: taskData.tenant_id,
                 platform: mapPlatformToEnum(platform),
                 publish_at: new Date().toISOString(),
-                status: 'PUBLISHED',
-                mode: 'MANUAL'
+                status: "PUBLISHED",
+                mode: "MANUAL",
               });
 
             if (scheduleError) throw scheduleError;
 
             result = {
-              status: 'published',
+              status: "published",
               taskId,
               timestamp: new Date().toISOString(),
               platform: platform,
-              apiResponse: apiResponse
+              apiResponse: apiResponse,
             };
             break;
 
-          case 'schedule':
-            console.log(`[PUBLISH-TASK] Scheduling task ${taskId} for ${publishAt}`);
-            
+          case "schedule":
+            console.log(
+              `[PUBLISH-TASK] Scheduling task ${taskId} for ${publishAt}`,
+            );
+
             // Validate required fields
             if (!publishAt) {
               return new Response(
-                JSON.stringify({ error: 'publishAt is required for scheduling' }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                JSON.stringify({
+                  error: "publishAt is required for scheduling",
+                }),
+                {
+                  status: 400,
+                  headers: {
+                    ...corsHeaders,
+                    "Content-Type": "application/json",
+                  },
+                },
               );
             }
-            
+
             // Update task status to scheduled
             const { error: scheduleUpdateError } = await supabase
-              .from('content_tasks')
-              .update({ status: 'scheduled' })
-              .eq('id', taskId);
+              .from("content_tasks")
+              .update({ status: "scheduled" })
+              .eq("id", taskId);
 
             if (scheduleUpdateError) throw scheduleUpdateError;
 
             // Create scheduled post record with correct schema
             const { error: createScheduleError } = await supabase
-              .from('scheduled_posts')
+              .from("scheduled_posts")
               .insert({
                 content_id: contentId,
-                task_id: taskId,  // NEW: Direct link to content_tasks
+                task_id: taskId, // NEW: Direct link to content_tasks
                 user_id: taskData.user_id,
                 tenant_id: taskData.tenant_id,
-                platform: mapPlatformToEnum(platforms?.[0] || 'facebook'),
+                platform: mapPlatformToEnum(platforms?.[0] || "facebook"),
                 publish_at: publishAt,
-                status: 'QUEUED',
-                mode: 'MANUAL'
+                status: "QUEUED",
+                mode: "MANUAL",
               });
 
             if (createScheduleError) throw createScheduleError;
-            
-            result = { 
-              status: 'scheduled', 
-              taskId, 
+
+            result = {
+              status: "scheduled",
+              taskId,
               scheduledFor: publishAt,
-              platform: platforms?.[0] || 'facebook'
+              platform: platforms?.[0] || "facebook",
             };
             break;
 
           default:
             console.log(`[PUBLISH-TASK] Unknown action: ${action}`);
-            result = { status: 'unknown', taskId, action };
+            result = { status: "unknown", taskId, action };
         }
-        
+
         break; // Success, exit retry loop
       } catch (error) {
         lastError = error as Error;
         console.error(`[PUBLISH-TASK] Attempt ${attempt + 1} failed:`, error);
-        
+
         if (attempt < maxRetries) {
           attempt++;
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, attempt) * 1000),
+          );
         } else {
-          console.error('Publish retry exhausted', { 
-            taskId, 
+          console.error("Publish retry exhausted", {
+            taskId,
             lastError: lastError.message,
-            totalAttempts: attempt + 1
+            totalAttempts: attempt + 1,
           });
           throw lastError;
         }
       }
     }
 
-    console.log('[PUBLISH-TASK] Task processed successfully:', result);
+    console.log("[PUBLISH-TASK] Task processed successfully:", result);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         result,
-        message: `Task ${taskId} processed successfully`
+        message: `Task ${taskId} processed successfully`,
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
-
   } catch (error) {
-    console.error('[PUBLISH-TASK] Error processing task:', error);
+    console.error("[PUBLISH-TASK] Error processing task:", error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        details: error.message 
+      JSON.stringify({
+        error: "Internal server error",
+        details: error.message,
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 }

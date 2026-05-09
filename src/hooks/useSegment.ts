@@ -85,6 +85,7 @@ export function useSegment(segmentId?: string) {
         type: segmentRow.auto_update ? "dynamic" : "static",
         status: normalizeStatus(segmentRow.status),
         rules: normalizeSegmentRuleGroup(segmentRow.conditions),
+        includeAllCustomers: segmentRow.include_all_customers,
         memberCount: segmentRow.customer_count ?? 0,
         createdAt: segmentRow.created_at,
         updatedAt: segmentRow.updated_at,

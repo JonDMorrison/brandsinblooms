@@ -35,6 +35,7 @@ export interface SegmentPreviewDistributionItem {
 }
 
 export interface SegmentPreviewResult {
+  audienceMode: "empty" | "static" | "rules" | "all-customers";
   count: number;
   countLabel: string;
   percentage: number;
@@ -52,17 +53,23 @@ export interface UseSegmentPreviewOptions {
   group: SegmentRuleGroup;
   segmentType: SegmentKind;
   segmentId?: string | null;
+  includeAllCustomers?: boolean;
   staticMemberIds?: string[];
   enabled?: boolean;
   segments?: SegmentDependencySource[];
 }
 
 function formatCountLabel(count: number) {
-  if (count > 1000) {
-    return "1,000+";
-  }
-
   return count.toLocaleString();
+}
+
+function isEligibleAllCustomersMatch(customer: SegmentPreviewCustomer) {
+  return (
+    Boolean(customer.email?.trim()) &&
+    customer.email_opt_in !== false &&
+    customer.suppressed !== true &&
+    customer.opt_out !== true
+  );
 }
 
 function buildBreakdown(values: string[]) {
@@ -86,6 +93,7 @@ export function useSegmentPreview({
   group,
   segmentType,
   segmentId,
+  includeAllCustomers = false,
   staticMemberIds = [],
   enabled = true,
 }: UseSegmentPreviewOptions) {
@@ -203,15 +211,21 @@ export function useSegmentPreview({
     const customFields = baseQuery.data?.customFields ?? [];
 
     let matchedCustomers: SegmentPreviewCustomer[] = [];
+    let audienceMode: SegmentPreviewResult["audienceMode"] = "empty";
 
     if (segmentType === "static") {
+      audienceMode = "static";
       const selectedIds = new Set(staticMemberIds);
       matchedCustomers = customers.filter((customer) =>
         selectedIds.has(customer.id),
       );
+    } else if (includeAllCustomers) {
+      audienceMode = "all-customers";
+      matchedCustomers = customers.filter(isEligibleAllCustomersMatch);
     } else {
       const normalizedGroup = normalizeSegmentRuleGroup(debouncedGroup);
       const hasRules = normalizedGroup.children.length > 0;
+      audienceMode = hasRules ? "rules" : "empty";
       matchedCustomers = hasRules
         ? customers.filter((customer) =>
             evaluateSegmentRule(normalizedGroup, customer, {
@@ -268,6 +282,7 @@ export function useSegmentPreview({
       : 0;
 
     return {
+      audienceMode,
       count,
       countLabel: formatCountLabel(count),
       percentage,
@@ -286,6 +301,7 @@ export function useSegmentPreview({
     baseQuery.data?.membershipsByCustomerId,
     baseQuery.isFetching,
     debouncedGroup,
+    includeAllCustomers,
     segmentId,
     segmentType,
     staticMemberIds,

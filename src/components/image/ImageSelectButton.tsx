@@ -2,7 +2,12 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui-legacy/button";
 import { Dialog, DialogContent } from "@/components/ui-legacy/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui-legacy/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui-legacy/tabs";
 import { Input } from "@/components/ui-legacy/input";
 import { Badge } from "@/components/ui-legacy/badge";
 import {
@@ -30,6 +35,10 @@ interface ImageSelectButtonProps {
   buttonText?: string;
   mode?: "modal" | "inline";
   compact?: boolean;
+  renderTrigger?: (props: {
+    openPicker: () => void;
+    selectedImageUrl?: string;
+  }) => React.ReactNode;
 }
 
 export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
@@ -40,6 +49,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   buttonText = "Select an Image",
   mode = "modal",
   compact = false,
+  renderTrigger,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
@@ -134,6 +144,10 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
     }
   };
 
+  const openPicker = () => {
+    setIsOpen(true);
+  };
+
   // Inline mode - render MediaSelector directly
   if (mode === "inline") {
     return (
@@ -177,11 +191,10 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   return (
     <>
       <div className={className} onClick={(e) => e.stopPropagation()}>
-        {selectedImageUrl ? (
-          <div
-            className="relative group cursor-pointer"
-            onClick={() => setIsOpen(true)}
-          >
+        {renderTrigger ? (
+          renderTrigger({ openPicker, selectedImageUrl })
+        ) : selectedImageUrl ? (
+          <div className="relative group cursor-pointer" onClick={openPicker}>
             <img
               src={selectedImageUrl}
               alt="Selected"
@@ -202,7 +215,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setIsOpen(true)}
+            onClick={openPicker}
             className="w-full h-32 border-2 border-dashed border-gray-300 hover:border-primary/50 hover:bg-primary/5 transition-colors rounded-xl"
           >
             <div className="text-center">

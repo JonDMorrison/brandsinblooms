@@ -3,6 +3,8 @@
 These instructions are authoritative for this repository. Follow them exactly.
 Do not import habits from other BloomSuite apps when the live code here says otherwise.
 
+## Never Open the Interactive Browser, Nor Write any of the Playwrite scripts. THIS IS IMPORTANT.
+
 ## 0. Investigation-First Protocol
 
 NEVER guess. NEVER assume. ALWAYS investigate before editing.

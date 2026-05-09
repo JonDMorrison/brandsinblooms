@@ -70,18 +70,56 @@ async function fetchIdsPaged<Row>(
 interface ComputeAudienceRecipientCountParams {
   tenantId?: string | null;
   totalCustomerCount?: number;
+  includeAllCustomers?: boolean;
+  additionalCustomerIds?: string[];
+  fallbackToAllCustomers?: boolean;
   segmentIds: string[];
   personaIds: string[];
 }
 
 interface ResolveAudienceRecipientIdsParams {
   tenantId?: string | null;
+  includeAllCustomers?: boolean;
+  additionalCustomerIds?: string[];
+  fallbackToAllCustomers?: boolean;
   segmentIds: string[];
   personaIds: string[];
 }
 
+async function fetchValidatedAdditionalCustomerIds(
+  tenantId: string,
+  customerIds: string[],
+) {
+  const validatedCustomerIds = new Set<string>();
+
+  for (const customerIdChunk of chunkIds(customerIds)) {
+    const { data, error } = await supabase
+      .from("crm_customers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .in("id", customerIdChunk);
+
+    if (error) {
+      throw error;
+    }
+
+    (data ?? []).forEach((row) => {
+      const customerId = String(row?.id || "");
+      if (isUuidLike(customerId)) {
+        validatedCustomerIds.add(customerId);
+      }
+    });
+  }
+
+  return validatedCustomerIds;
+}
+
 export async function resolveAudienceRecipientIds({
   tenantId,
+  includeAllCustomers = false,
+  additionalCustomerIds = [],
+  fallbackToAllCustomers = false,
   segmentIds,
   personaIds,
 }: ResolveAudienceRecipientIdsParams) {
@@ -95,12 +133,20 @@ export async function resolveAudienceRecipientIds({
     (segmentId) => !isUuidLike(segmentId) && SYSTEM_SEGMENT_IDS.has(segmentId),
   );
   const safePersonaIds = personaIds.filter(Boolean);
+  const safeAdditionalCustomerIds = Array.from(
+    new Set(additionalCustomerIds.filter(isUuidLike)),
+  );
+  const shouldResolveAllCustomers =
+    includeAllCustomers ||
+    (fallbackToAllCustomers &&
+      customSegmentIds.length === 0 &&
+      systemSegmentIds.length === 0 &&
+      safePersonaIds.length === 0 &&
+      safeAdditionalCustomerIds.length === 0);
 
-  if (
-    customSegmentIds.length === 0 &&
-    systemSegmentIds.length === 0 &&
-    safePersonaIds.length === 0
-  ) {
+  let resolvedCustomerIds: Set<string> | null = null;
+
+  if (shouldResolveAllCustomers) {
     const allCustomerIds = await fetchIdsPaged(
       (from, to) =>
         supabase
@@ -115,11 +161,11 @@ export async function resolveAudienceRecipientIds({
       },
     );
 
-    return Array.from(allCustomerIds);
+    resolvedCustomerIds = allCustomerIds;
   }
 
   let segmentCustomerIds: Set<string> | null = null;
-  if (customSegmentIds.length > 0) {
+  if (!resolvedCustomerIds && customSegmentIds.length > 0) {
     segmentCustomerIds = await fetchIdsPaged(
       (from, to) =>
         supabase
@@ -134,7 +180,7 @@ export async function resolveAudienceRecipientIds({
     );
   }
 
-  if (systemSegmentIds.length > 0) {
+  if (!resolvedCustomerIds && systemSegmentIds.length > 0) {
     const { data: customers, error: customersError } = await supabase
       .from("crm_customers")
       .select(
@@ -316,7 +362,7 @@ export async function resolveAudienceRecipientIds({
   }
 
   let personaCustomerIds: Set<string> | null = null;
-  if (safePersonaIds.length > 0) {
+  if (!resolvedCustomerIds && safePersonaIds.length > 0) {
     const uuidPersonas = safePersonaIds.filter(isUuidLike);
     const predefinedPersonas = safePersonaIds.filter(
       (personaId) => !isUuidLike(personaId),
@@ -388,29 +434,49 @@ export async function resolveAudienceRecipientIds({
     personaCustomerIds = combined;
   }
 
-  if (segmentCustomerIds && personaCustomerIds) {
+  if (!resolvedCustomerIds && segmentCustomerIds && personaCustomerIds) {
     const [small, large] =
       segmentCustomerIds.size <= personaCustomerIds.size
         ? [segmentCustomerIds, personaCustomerIds]
         : [personaCustomerIds, segmentCustomerIds];
 
-    return Array.from(small).filter((id) => large.has(id));
+    resolvedCustomerIds = new Set(
+      Array.from(small).filter((id) => large.has(id)),
+    );
   }
 
-  if (segmentCustomerIds) {
-    return Array.from(segmentCustomerIds);
+  if (!resolvedCustomerIds && segmentCustomerIds) {
+    resolvedCustomerIds = new Set(segmentCustomerIds);
   }
 
-  if (personaCustomerIds) {
-    return Array.from(personaCustomerIds);
+  if (!resolvedCustomerIds && personaCustomerIds) {
+    resolvedCustomerIds = new Set(personaCustomerIds);
   }
 
-  return [] as string[];
+  if (!resolvedCustomerIds) {
+    resolvedCustomerIds = new Set<string>();
+  }
+
+  if (safeAdditionalCustomerIds.length > 0) {
+    const validatedAdditionalCustomerIds =
+      await fetchValidatedAdditionalCustomerIds(
+        tenantId,
+        safeAdditionalCustomerIds,
+      );
+    validatedAdditionalCustomerIds.forEach((customerId) => {
+      resolvedCustomerIds?.add(customerId);
+    });
+  }
+
+  return Array.from(resolvedCustomerIds);
 }
 
 export async function computeAudienceRecipientCount({
   tenantId,
   totalCustomerCount = 0,
+  includeAllCustomers = false,
+  additionalCustomerIds = [],
+  fallbackToAllCustomers = false,
   segmentIds,
   personaIds,
 }: ComputeAudienceRecipientCountParams) {
@@ -419,6 +485,9 @@ export async function computeAudienceRecipientCount({
   }
 
   if (
+    !includeAllCustomers &&
+    additionalCustomerIds.filter(isUuidLike).length === 0 &&
+    fallbackToAllCustomers &&
     segmentIds.filter(Boolean).length === 0 &&
     personaIds.filter(Boolean).length === 0
   ) {
@@ -427,6 +496,9 @@ export async function computeAudienceRecipientCount({
 
   const recipientIds = await resolveAudienceRecipientIds({
     tenantId,
+    includeAllCustomers,
+    additionalCustomerIds,
+    fallbackToAllCustomers,
     segmentIds,
     personaIds,
   });

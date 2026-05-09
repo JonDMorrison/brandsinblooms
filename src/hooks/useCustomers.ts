@@ -1,6 +1,6 @@
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Customer {
   id: string;
@@ -29,6 +29,7 @@ interface UseCustomersOptions {
   search?: string;
   page?: number;
   pageSize?: number;
+  enabled?: boolean;
 }
 
 export const useCustomers = (options: UseCustomersOptions = {}) => {
@@ -37,25 +38,30 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
   const { page = 1, pageSize = 50 } = options;
 
   const query = useQuery({
-    queryKey: ['customers', options.search, page, pageSize],
+    queryKey: ["customers", options.search, page, pageSize],
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('User not authenticated');
+      if (!user.user) throw new Error("User not authenticated");
 
       const { data: userRecord } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.user.id)
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.user.id)
         .single();
 
-      if (!userRecord?.tenant_id) throw new Error('You are not assigned to a tenant. Please contact support or create an organization to continue.');
+      if (!userRecord?.tenant_id)
+        throw new Error(
+          "You are not assigned to a tenant. Please contact support or create an organization to continue.",
+        );
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
       let query = supabase
-        .from('crm_customers')
-        .select(`
+        .from("crm_customers")
+        .select(
+          `
           *,
           customer_personas (
             persona_id,
@@ -64,9 +70,11 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
           customer_segments (
             segment_id
           )
-        `, { count: 'exact' })
-        .eq('tenant_id', userRecord.tenant_id)
-        .order('created_at', { ascending: false })
+        `,
+          { count: "exact" },
+        )
+        .eq("tenant_id", userRecord.tenant_id)
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       const rawSearch = options.search?.trim();
@@ -74,11 +82,11 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         // PostgREST `or()` filter doesn't support full-text search; this makes name searches like
         // "Christine Theisen" work by searching tokens and common first+last combinations.
         const sanitized = rawSearch
-          .replace(/[(),]/g, ' ')
-          .replace(/\s+/g, ' ')
+          .replace(/[(),]/g, " ")
+          .replace(/\s+/g, " ")
           .trim();
 
-        const tokens = sanitized.split(' ').filter(Boolean);
+        const tokens = sanitized.split(" ").filter(Boolean);
         const orParts: string[] = [
           `email.ilike.%${sanitized}%`,
           `first_name.ilike.%${sanitized}%`,
@@ -89,8 +97,12 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         if (tokens.length > 1) {
           const first = tokens[0];
           const last = tokens[tokens.length - 1];
-          orParts.push(`and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`);
-          orParts.push(`and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`);
+          orParts.push(
+            `and(first_name.ilike.%${first}%,last_name.ilike.%${last}%)`,
+          );
+          orParts.push(
+            `and(first_name.ilike.%${last}%,last_name.ilike.%${first}%)`,
+          );
 
           // Also match any individual token against name/email
           for (const token of tokens) {
@@ -100,21 +112,21 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
           }
         }
 
-        query = query.or(orParts.join(','));
+        query = query.or(orParts.join(","));
       }
 
       const { data, error, count } = await query;
 
       if (error) throw error;
-      return { 
-        customers: data as Customer[], 
-        totalCount: count || 0 
+      return {
+        customers: data as Customer[],
+        totalCount: count || 0,
       };
     },
   });
 
   const invalidateCustomers = () => {
-    queryClient.invalidateQueries({ queryKey: ['customers'] });
+    queryClient.invalidateQueries({ queryKey: ["customers"] });
   };
 
   return {

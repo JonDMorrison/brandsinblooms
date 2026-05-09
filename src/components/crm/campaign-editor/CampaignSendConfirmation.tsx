@@ -20,7 +20,10 @@ import { useEmailDomains } from "@/hooks/useEmailDomains";
 import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashboard";
 import { useSuppressionStats } from "@/hooks/useSuppressionList";
 import { useTenant } from "@/hooks/useTenant";
-import { isUuidLike } from "@/lib/computeAudienceRecipientCount";
+import {
+  isUuidLike,
+  resolveAudienceRecipientIds,
+} from "@/lib/computeAudienceRecipientCount";
 import { supabase } from "@/integrations/supabase/client";
 
 const PAGE_SIZE = 1000;
@@ -35,100 +38,18 @@ function chunkIds(ids: string[], size = 100) {
 
 async function fetchAudienceConsentGap(params: {
   tenantId: string;
+  includeAllCustomers: boolean;
+  additionalCustomerIds: string[];
   segmentIds: string[];
   personaIds: string[];
 }) {
-  const { tenantId, segmentIds, personaIds } = params;
-  let allowedCustomerIds: string[] | null = null;
-
-  if (segmentIds.length > 0) {
-    const ids = new Set<string>();
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const to = from + PAGE_SIZE - 1;
-      const { data, error } = await supabase
-        .from("customer_segments")
-        .select("customer_id")
-        .in("segment_id", segmentIds)
-        .range(from, to);
-
-      if (error) throw error;
-      (data ?? []).forEach((row) => {
-        const customerId = String(row.customer_id || "");
-        if (isUuidLike(customerId)) ids.add(customerId);
-      });
-      if (!data || data.length < PAGE_SIZE) break;
-    }
-    allowedCustomerIds = Array.from(ids);
-  }
-
-  if (personaIds.length > 0) {
-    const ids = new Set<string>();
-    const uuidPersonas = personaIds.filter(isUuidLike);
-    const predefinedPersonas = personaIds.filter((id) => !isUuidLike(id));
-
-    if (uuidPersonas.length > 0) {
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data, error } = await supabase
-          .from("customer_personas")
-          .select("customer_id")
-          .in("persona_id", uuidPersonas)
-          .range(from, to);
-
-        if (error) throw error;
-        (data ?? []).forEach((row) => {
-          const customerId = String(row.customer_id || "");
-          if (isUuidLike(customerId)) ids.add(customerId);
-        });
-        if (!data || data.length < PAGE_SIZE) break;
-      }
-
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data, error } = await supabase
-          .from("crm_customers")
-          .select("id")
-          .eq("tenant_id", tenantId)
-          .in("persona_id", uuidPersonas)
-          .range(from, to);
-
-        if (error) throw error;
-        (data ?? []).forEach((row) => {
-          const customerId = String(row.id || "");
-          if (isUuidLike(customerId)) ids.add(customerId);
-        });
-        if (!data || data.length < PAGE_SIZE) break;
-      }
-    }
-
-    if (predefinedPersonas.length > 0) {
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data, error } = await supabase
-          .from("customer_personas")
-          .select("customer_id")
-          .in("predefined_persona_id", predefinedPersonas)
-          .range(from, to);
-
-        if (error) throw error;
-        (data ?? []).forEach((row) => {
-          const customerId = String(row.customer_id || "");
-          if (isUuidLike(customerId)) ids.add(customerId);
-        });
-        if (!data || data.length < PAGE_SIZE) break;
-      }
-    }
-
-    const personaCustomerIds = Array.from(ids);
-    if (allowedCustomerIds === null) {
-      allowedCustomerIds = personaCustomerIds;
-    } else {
-      const personaSet = new Set(personaCustomerIds);
-      allowedCustomerIds = allowedCustomerIds.filter((id) =>
-        personaSet.has(id),
-      );
-    }
-  }
+  const {
+    tenantId,
+    includeAllCustomers,
+    additionalCustomerIds,
+    segmentIds,
+    personaIds,
+  } = params;
 
   const countUnconsented = async (ids?: string[]) => {
     let query = supabase
@@ -147,9 +68,24 @@ async function fetchAudienceConsentGap(params: {
     return count ?? 0;
   };
 
-  if (allowedCustomerIds === null) {
+  const usesFullTenantAudience =
+    includeAllCustomers ||
+    (segmentIds.length === 0 &&
+      personaIds.length === 0 &&
+      additionalCustomerIds.filter(isUuidLike).length === 0);
+
+  if (usesFullTenantAudience) {
     return countUnconsented();
   }
+
+  const allowedCustomerIds = await resolveAudienceRecipientIds({
+    tenantId,
+    includeAllCustomers,
+    additionalCustomerIds,
+    fallbackToAllCustomers: false,
+    segmentIds,
+    personaIds,
+  });
 
   if (allowedCustomerIds.length === 0) {
     return 0;
@@ -165,6 +101,8 @@ async function fetchAudienceConsentGap(params: {
 function useAudienceConsentGap(options: {
   enabled: boolean;
   tenantId?: string | null;
+  includeAllCustomers: boolean;
+  additionalCustomerIds: string[];
   segmentIds: string[];
   personaIds: string[];
 }) {
@@ -172,6 +110,8 @@ function useAudienceConsentGap(options: {
     queryKey: [
       "campaign-send-consent-gap",
       options.tenantId,
+      options.includeAllCustomers,
+      options.additionalCustomerIds,
       options.segmentIds,
       options.personaIds,
     ],
@@ -180,6 +120,8 @@ function useAudienceConsentGap(options: {
     queryFn: () =>
       fetchAudienceConsentGap({
         tenantId: options.tenantId as string,
+        includeAllCustomers: options.includeAllCustomers,
+        additionalCustomerIds: options.additionalCustomerIds,
         segmentIds: options.segmentIds,
         personaIds: options.personaIds,
       }),
@@ -266,6 +208,8 @@ export function CampaignSendConfirmation({
     subjectLine,
     selectedSegments,
     selectedPersonas,
+    includeAllCustomers,
+    additionalCustomerIds,
   } = useCampaignEditor();
   const { emailDomains, loading: domainsLoading } = useEmailDomains();
   const healthQuery = useTenantEmailHealthDashboard(tenant?.id, {
@@ -275,6 +219,8 @@ export function CampaignSendConfirmation({
   const consentGapQuery = useAudienceConsentGap({
     enabled: open,
     tenantId: tenant?.id,
+    includeAllCustomers,
+    additionalCustomerIds,
     segmentIds: selectedSegments.map((segment) => segment.id),
     personaIds: selectedPersonas.map((persona) => persona.id),
   });

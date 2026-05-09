@@ -68,7 +68,14 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     route: "/social-accounts",
     icon: "pages",
     metadata: "Page",
-    keywords: ["social", "facebook", "instagram", "accounts"],
+    keywords: [
+      "social media",
+      "accounts",
+      "connections",
+      "facebook",
+      "instagram",
+      "meta",
+    ],
     group: "pages",
   }),
   createStaticItem({
@@ -239,12 +246,12 @@ const PAGE_ENTRIES: SearchResultItem[] = [
   createStaticItem({
     id: "static:page:publish",
     type: "page",
-    title: "Publish",
+    title: "Publish Portal",
     subtitle: "Schedule and manage social publishing from one workspace.",
     route: "/publish",
     icon: "campaigns",
     metadata: "Page",
-    keywords: ["publish", "social posts", "schedule", "composer"],
+    keywords: ["publish", "post", "compose", "schedule", "social post"],
     group: "pages",
   }),
   createStaticItem({
@@ -772,7 +779,8 @@ const FORM_TEMPLATE_ENTRIES: SearchResultItem[] = [
     id: "static:form-template:newsletter-signup",
     type: "form",
     title: "Newsletter Signup Template",
-    subtitle: "Create a lightweight email signup form from the starter template.",
+    subtitle:
+      "Create a lightweight email signup form from the starter template.",
     route: "/crm/forms?template=newsletter-signup",
     icon: "forms",
     metadata: "Template",
@@ -1005,7 +1013,12 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     route: "/settings",
     icon: "settings",
     metadata: "Onboarding step",
-    keywords: ["setup company profile", "company profile", "onboarding", "business"],
+    keywords: [
+      "setup company profile",
+      "company profile",
+      "onboarding",
+      "business",
+    ],
     group: "setup",
   }),
   createStaticItem({
@@ -1027,7 +1040,12 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     route: "/integrations/crm",
     icon: "customers",
     metadata: "Onboarding step",
-    keywords: ["setup import customers", "import customers", "crm", "onboarding"],
+    keywords: [
+      "setup import customers",
+      "import customers",
+      "crm",
+      "onboarding",
+    ],
     group: "setup",
   }),
   createStaticItem({
@@ -1082,7 +1100,12 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     route: "/crm/campaigns/new",
     icon: "campaigns",
     metadata: "Onboarding step",
-    keywords: ["setup first email campaign", "email campaign", "onboarding", "send"],
+    keywords: [
+      "setup first email campaign",
+      "email campaign",
+      "onboarding",
+      "send",
+    ],
     group: "setup",
   }),
   createStaticItem({
@@ -1093,7 +1116,12 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     route: "/publish",
     icon: "campaigns",
     metadata: "Onboarding step",
-    keywords: ["setup first social post", "social post", "publish", "onboarding"],
+    keywords: [
+      "setup first social post",
+      "social post",
+      "publish",
+      "onboarding",
+    ],
     group: "setup",
   }),
   createStaticItem({
@@ -1104,7 +1132,12 @@ const SETUP_ENTRIES: SearchResultItem[] = [
     route: "/crm/automations/new",
     icon: "automations",
     metadata: "Onboarding step",
-    keywords: ["setup first automation", "automation", "workflow", "onboarding"],
+    keywords: [
+      "setup first automation",
+      "automation",
+      "workflow",
+      "onboarding",
+    ],
     group: "setup",
   }),
   createStaticItem({
@@ -1354,7 +1387,11 @@ const COMMERCE_JUMP_TO_IDS = [
 ] as const;
 
 function normalizeSearchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 const tokenizeValue = (value: string) =>
@@ -1413,14 +1450,18 @@ function getLevenshteinDistance(left: string, right: string) {
     return left.length;
   }
 
-  const previousRow = Array.from({ length: right.length + 1 }, (_, index) => index);
+  const previousRow = Array.from(
+    { length: right.length + 1 },
+    (_, index) => index,
+  );
   const currentRow = new Array<number>(right.length + 1).fill(0);
 
   for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
     currentRow[0] = leftIndex;
 
     for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
-      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      const substitutionCost =
+        left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
 
       currentRow[rightIndex] = Math.min(
         currentRow[rightIndex - 1] + 1,
@@ -1453,7 +1494,11 @@ const STATIC_SEARCH_INDEX = new Map<string, StaticSearchIndexEntry>(
     const normalizedSubtitle = normalizeSearchText(item.subtitle ?? "");
     const titleTokens = tokenizeValue(item.title);
     const keywords = Array.from(
-      new Set((item.keywords ?? []).map((keyword) => normalizeSearchText(keyword)).filter(Boolean)),
+      new Set(
+        (item.keywords ?? [])
+          .map((keyword) => normalizeSearchText(keyword))
+          .filter(Boolean),
+      ),
     );
     const fuzzyCandidates = Array.from(
       new Set([normalizedTitle, ...titleTokens, ...keywords].filter(Boolean)),
@@ -1467,7 +1512,9 @@ const STATIC_SEARCH_INDEX = new Map<string, StaticSearchIndexEntry>(
         titleTokens,
         keywords,
         fuzzyCandidates,
-        fuzzyCandidateTrigrams: fuzzyCandidates.map((candidate) => buildTrigramSet(candidate)),
+        fuzzyCandidateTrigrams: fuzzyCandidates.map((candidate) =>
+          buildTrigramSet(candidate),
+        ),
       },
     ] as const;
   }),
@@ -1483,16 +1530,21 @@ export function getStaticSearchItemById(id: string) {
 
 export function getStaticSearchItemForPathname(pathname: string) {
   const matchedItems = STATIC_SEARCH_REGISTRY.filter(
-    (item) => item.group !== "actions" && isCurrentRouteMatch(pathname, item.route),
+    (item) =>
+      item.group !== "actions" && isCurrentRouteMatch(pathname, item.route),
   );
 
   if (matchedItems.length === 0) {
     return null;
   }
 
-  return matchedItems.sort(
-    (left, right) => right.route.length - left.route.length || left.title.localeCompare(right.title),
-  )[0] ?? null;
+  return (
+    matchedItems.sort(
+      (left, right) =>
+        right.route.length - left.route.length ||
+        left.title.localeCompare(right.title),
+    )[0] ?? null
+  );
 }
 
 function resolveItemsById(ids: readonly string[], limit: number) {
@@ -1506,7 +1558,9 @@ export function getQuickActionEntries(limit: number = 6) {
   return resolveItemsById(STATIC_QUICK_ACTION_IDS, limit);
 }
 
-function prepareSearchQuery(queryOrTokens: string | string[]): PreparedSearchQuery {
+function prepareSearchQuery(
+  queryOrTokens: string | string[],
+): PreparedSearchQuery {
   const normalizedQuery = normalizeSearchText(
     typeof queryOrTokens === "string" ? queryOrTokens : queryOrTokens.join(" "),
   );
@@ -1515,7 +1569,9 @@ function prepareSearchQuery(queryOrTokens: string | string[]): PreparedSearchQue
       ? tokenizeSearchQuery(queryOrTokens)
       : Array.from(
           new Set(
-            queryOrTokens.map((token) => normalizeSearchText(token)).filter(Boolean),
+            queryOrTokens
+              .map((token) => normalizeSearchText(token))
+              .filter(Boolean),
           ),
         );
 
@@ -1536,7 +1592,9 @@ function getJumpToPriorityIds(pathname: string) {
     pathname.startsWith("/domains") ||
     pathname.startsWith("/settings")
   ) {
-    return pathname.startsWith("/settings") ? SETTINGS_JUMP_TO_IDS : INTEGRATIONS_JUMP_TO_IDS;
+    return pathname.startsWith("/settings")
+      ? SETTINGS_JUMP_TO_IDS
+      : INTEGRATIONS_JUMP_TO_IDS;
   }
 
   if (
@@ -1555,7 +1613,10 @@ function getJumpToPriorityIds(pathname: string) {
   return DEFAULT_JUMP_TO_IDS;
 }
 
-export function getContextualJumpToEntries(pathname: string, limit: number = 6) {
+export function getContextualJumpToEntries(
+  pathname: string,
+  limit: number = 6,
+) {
   const ids: string[] = [];
   const seenIds = new Set<string>();
   const currentPage = PAGE_ENTRIES.find((item) =>
@@ -1602,14 +1663,18 @@ function scorePreparedStaticSearchItem(
 
   if (indexedItem.normalizedTitle === preparedQuery.normalizedQuery) {
     score += 6;
-  } else if (indexedItem.normalizedTitle.startsWith(preparedQuery.normalizedQuery)) {
+  } else if (
+    indexedItem.normalizedTitle.startsWith(preparedQuery.normalizedQuery)
+  ) {
     score += 3.5;
   }
 
   if (indexedItem.titleTokens.includes(preparedQuery.normalizedQuery)) {
     score += 3;
   } else if (
-    indexedItem.titleTokens.some((word) => word.startsWith(preparedQuery.normalizedQuery))
+    indexedItem.titleTokens.some((word) =>
+      word.startsWith(preparedQuery.normalizedQuery),
+    )
   ) {
     score += 2.4;
   }
@@ -1617,7 +1682,9 @@ function scorePreparedStaticSearchItem(
   if (indexedItem.keywords.includes(preparedQuery.normalizedQuery)) {
     score += 2.6;
   } else if (
-    indexedItem.keywords.some((keyword) => keyword.includes(preparedQuery.normalizedQuery))
+    indexedItem.keywords.some((keyword) =>
+      keyword.includes(preparedQuery.normalizedQuery),
+    )
   ) {
     score += 1.4;
   }
@@ -1645,7 +1712,10 @@ function scorePreparedStaticSearchItem(
 
   const trigramSimilarity = indexedItem.fuzzyCandidateTrigrams.reduce(
     (bestScore, candidateTrigrams) =>
-      Math.max(bestScore, getTrigramSimilarity(preparedQuery.trigrams, candidateTrigrams)),
+      Math.max(
+        bestScore,
+        getTrigramSimilarity(preparedQuery.trigrams, candidateTrigrams),
+      ),
     0,
   );
 
@@ -1659,7 +1729,10 @@ function scorePreparedStaticSearchItem(
       (bestScore, candidate) =>
         Math.max(
           bestScore,
-          getNormalizedLevenshteinSimilarity(preparedQuery.normalizedQuery, candidate),
+          getNormalizedLevenshteinSimilarity(
+            preparedQuery.normalizedQuery,
+            candidate,
+          ),
         ),
       0,
     );
@@ -1725,7 +1798,9 @@ export function searchStaticRegistry(query: string) {
     return [];
   }
 
-  const cachedGroups = staticSearchQueryCache.get(preparedQuery.normalizedQuery);
+  const cachedGroups = staticSearchQueryCache.get(
+    preparedQuery.normalizedQuery,
+  );
 
   if (cachedGroups) {
     return cloneSearchGroups(cachedGroups);
@@ -1738,13 +1813,17 @@ export function searchStaticRegistry(query: string) {
     .filter(({ score }) => score > 0)
     .sort(
       (left, right) =>
-        right.score - left.score || left.item.title.localeCompare(right.item.title),
+        right.score - left.score ||
+        left.item.title.localeCompare(right.item.title),
     )
     .map(({ item }) => item);
 
   const groups = buildGroups(rankedItems);
 
-  staticSearchQueryCache.set(preparedQuery.normalizedQuery, cloneSearchGroups(groups));
+  staticSearchQueryCache.set(
+    preparedQuery.normalizedQuery,
+    cloneSearchGroups(groups),
+  );
 
   if (staticSearchQueryCache.size > STATIC_SEARCH_QUERY_CACHE_LIMIT) {
     const oldestKey = staticSearchQueryCache.keys().next().value;

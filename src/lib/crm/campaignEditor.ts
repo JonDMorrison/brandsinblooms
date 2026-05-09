@@ -78,6 +78,8 @@ export interface CampaignEditorRecord extends CampaignCatalogItem {
   replyTo: string;
   contentBlocks: StudioBlock[];
   smsMessage: string;
+  includeAllCustomers: boolean;
+  additionalCustomerIds: string[];
   segments: CampaignSegmentSummary[];
   personas: CampaignPersonaSummary[];
   metadata: Record<string, unknown>;
@@ -99,6 +101,8 @@ export interface PersistCampaignDraftInput {
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
+  includeAllCustomers?: boolean;
+  additionalCustomerIds?: string[];
   segments: CampaignSegmentSummary[];
   personas: CampaignPersonaSummary[];
   sourceContentTaskId?: string | null;
@@ -110,6 +114,27 @@ function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function toStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function extractAudienceExpansion(
+  campaignRow: CampaignRow,
+  metadata: Record<string, unknown>,
+) {
+  return {
+    includeAllCustomers:
+      typeof metadata.includeAllCustomers === "boolean"
+        ? metadata.includeAllCustomers
+        : Boolean(campaignRow.include_all_customers),
+    additionalCustomerIds: Array.isArray(metadata.additionalCustomerIds)
+      ? toStringArray(metadata.additionalCustomerIds)
+      : toStringArray(campaignRow.additional_customer_ids),
+  };
 }
 
 function toStatus(value: string | null | undefined): CampaignStatus {
@@ -375,6 +400,7 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
 
   const mapped = mapCampaignCatalogItem(campaignRow);
   const metadata = toRecord(campaignRow.metadata);
+  const audienceExpansion = extractAudienceExpansion(campaignRow, metadata);
   const metadataContentBlocks = toContentBlocks(metadata.contentBlocks);
   const contentBlocks =
     metadataContentBlocks.length > 0
@@ -389,6 +415,8 @@ export async function fetchCampaignEditorRecord(campaignId: string) {
     replyTo: extractReplyTo(campaignRow),
     contentBlocks,
     smsMessage: extractSmsMessage(campaignRow),
+    includeAllCustomers: audienceExpansion.includeAllCustomers,
+    additionalCustomerIds: audienceExpansion.additionalCustomerIds,
     segments: (segments ?? []).map(mapSegmentSummary),
     personas: (personas ?? []).map(mapPersonaSummary),
     metadata,
@@ -454,6 +482,8 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     smsMessage,
     sendAt,
     sendImmediately,
+    includeAllCustomers = false,
+    additionalCustomerIds = [],
     segments,
     personas,
     sourceContentTaskId = null,
@@ -477,6 +507,8 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     smsMessage,
     sendAt: sendImmediately ? null : (sendAt?.toISOString() ?? null),
     sendImmediately,
+    includeAllCustomers,
+    additionalCustomerIds,
     sourceContentTaskId,
     sourceSegmentId,
     sourcePersonaId,

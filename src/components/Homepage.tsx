@@ -43,7 +43,7 @@ const HomepageContent = () => {
   const handleNavigateToSection = (section: string) => {
     switch (section) {
       case "social":
-        window.location.href = "/social";
+        window.location.href = "/social-accounts";
         break;
       case "weekly-content":
         const weeklyElement = document.querySelector(

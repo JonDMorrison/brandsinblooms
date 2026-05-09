@@ -43,10 +43,10 @@ interface SmartPostTask {
 interface PublishTaskResponse {
   success?: boolean;
   message?: string;
-  results?: Array<{
-    success?: boolean;
-    error?: string;
-  }>;
+  result?: {
+    status?: string;
+    platform?: string;
+  };
 }
 
 interface SmartPostComposerProps {
@@ -171,15 +171,13 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         );
       }
 
-      if (typedResponse.success) {
-        const result = typedResponse.results?.[0];
-        if (result?.success) {
-          toast.success(`Successfully posted to ${platformName}!`);
-          onSuccess();
-          onClose();
-        } else {
-          throw new Error(result?.error || `Failed to post to ${platform}`);
-        }
+      if (
+        typedResponse.success &&
+        typedResponse.result?.status === "published"
+      ) {
+        toast.success(`Successfully posted to ${platformName}!`);
+        onSuccess();
+        onClose();
       } else {
         throw new Error(
           typedResponse.message || `Failed to post to ${platform}`,

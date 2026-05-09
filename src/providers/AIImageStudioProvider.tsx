@@ -7,6 +7,7 @@ import type {
   AIImageStudioOpenOptions,
   AIImageStudioSelectHandler,
 } from "@/components/crm/ai-image-studio/types";
+import { Z } from "@/lib/zIndex";
 
 export interface AIImageStudioContextValue {
   close: () => void;
@@ -37,8 +38,8 @@ function AIImageStudioFallback() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: (theme) => (theme.vars.zIndex.modal ?? theme.zIndex.modal) + 1,
-        backgroundColor: "rgba(10, 17, 12, 0.5)",
+        zIndex: Z.studio,
+        backgroundColor: "rgba(10, 17, 12, 0.3)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
       }}

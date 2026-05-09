@@ -153,9 +153,7 @@ const FeaturesPage = lazyNamed(
   "FeaturesPage",
 );
 const FeatureDetailPage = lazyRetry(() => import("@/pages/FeatureDetailPage"));
-const KnowledgeBasePage = lazyRetry(
-  () => import("@/pages/KnowledgeBasePage"),
-);
+const KnowledgeBasePage = lazyRetry(() => import("@/pages/KnowledgeBasePage"));
 const Home1Page = lazyNamed(() => import("@/pages/Home1Page"), "Home1Page");
 const EmailPreferences = lazyRetry(() => import("@/pages/EmailPreferences"));
 const PublicFormPage = lazyRetry(() => import("@/pages/PublicFormPage"));
@@ -343,6 +341,9 @@ const CommunityPage = lazyNamed(
 const SMSRoutes = lazyRetry(() =>
   import("@/routes/SMSRoutes").then((mod) => ({ default: mod.default })),
 );
+
+const LEGACY_SOCIAL_ROUTE = ["/", "social"].join("");
+const LEGACY_SOCIAL_MEDIA_ROUTE = ["/", ["social", "media"].join("-")].join("");
 
 function IntegrationsRouteLayout() {
   return <TenantRouteLayout />;
@@ -551,14 +552,8 @@ function App() {
               />
               <Route path="/ecomm" element={<EcommPage />} />
               <Route path="/features" element={<FeaturesPage />} />
-              <Route
-                path="/features/:slug"
-                element={<FeatureDetailPage />}
-              />
-              <Route
-                path="/knowledge-base"
-                element={<KnowledgeBasePage />}
-              />
+              <Route path="/features/:slug" element={<FeatureDetailPage />} />
+              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/home1" element={<Home1Page />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
@@ -1059,6 +1054,14 @@ function App() {
               </Route>
             </Route>
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
+            <Route
+              path={LEGACY_SOCIAL_ROUTE}
+              element={<RedirectWithQuery to="/social-accounts" />}
+            />
+            <Route
+              path={LEGACY_SOCIAL_MEDIA_ROUTE}
+              element={<RedirectWithQuery to="/social-accounts" />}
+            />
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />

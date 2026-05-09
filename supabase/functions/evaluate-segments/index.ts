@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudience.ts";
 import {
   collectReferencedSegmentIds,
   evaluateSegmentRule,
@@ -18,6 +19,7 @@ interface Segment {
   auto_update: boolean;
   conditions: unknown;
   customer_count: number;
+  include_all_customers: boolean;
   status?: string | null;
   deleted_at?: string | null;
 }
@@ -25,6 +27,8 @@ interface Segment {
 interface Customer {
   id: string;
   tenant_id: string;
+  email?: string | null;
+  email_opt_in?: boolean | null;
   [key: string]: unknown;
 }
 
@@ -172,7 +176,7 @@ Deno.serve(async (req) => {
     let segmentsQuery = supabase
       .from("crm_segments")
       .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, status, deleted_at",
+        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
       )
       .eq("auto_update", true)
       .eq("status", "active")
@@ -208,7 +212,7 @@ Deno.serve(async (req) => {
     const { data: tenantSegments, error: tenantSegmentsError } = await supabase
       .from("crm_segments")
       .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, status, deleted_at",
+        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
       )
       .in("tenant_id", tenantIds)
       .is("deleted_at", null);
@@ -254,6 +258,13 @@ Deno.serve(async (req) => {
 
     for (const currentTenantId of tenantIds) {
       const tenantCustomers = customersByTenant.get(currentTenantId) ?? [];
+      const eligibleAllCustomerIds = await resolveEligibleEmailCustomerIds(
+        supabase,
+        {
+          tenantId: currentTenantId,
+          customers: tenantCustomers,
+        },
+      );
       const tenantSegmentsToEvaluate = sortSegmentsByDependencies(
         (segments as Segment[]).filter(
           (segment) => segment.tenant_id === currentTenantId,
@@ -262,16 +273,26 @@ Deno.serve(async (req) => {
 
       for (const segment of tenantSegmentsToEvaluate) {
         const segmentStartTime = Date.now();
-        const normalizedRules = normalizeSegmentRuleGroup(segment.conditions);
         const matchingCustomerIds = new Set<string>();
 
-        for (const customer of tenantCustomers) {
-          const matches = evaluateSegmentRule(normalizedRules, customer, {
-            customerSegmentsByCustomerId: membershipsByCustomerId,
-          });
+        if (segment.include_all_customers) {
+          // Materialize implied all-customer memberships via the normal diff path
+          // so downstream campaign and segment resolution can keep relying on
+          // customer_segments without a parallel audience source.
+          for (const customerId of eligibleAllCustomerIds) {
+            matchingCustomerIds.add(customerId);
+          }
+        } else {
+          const normalizedRules = normalizeSegmentRuleGroup(segment.conditions);
 
-          if (matches) {
-            matchingCustomerIds.add(customer.id);
+          for (const customer of tenantCustomers) {
+            const matches = evaluateSegmentRule(normalizedRules, customer, {
+              customerSegmentsByCustomerId: membershipsByCustomerId,
+            });
+
+            if (matches) {
+              matchingCustomerIds.add(customer.id);
+            }
           }
         }
 
