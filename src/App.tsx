@@ -3,6 +3,7 @@ import { Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "sonner";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import ChunkErrorBoundary from "@/components/loading/ChunkErrorBoundary";
@@ -20,6 +21,7 @@ import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { DataProviderWrapper } from "@/components/DataProviderWrapper";
 import { RedirectWithQuery } from "@/components/RedirectWithQuery";
 import { NavigationTracker } from "@/components/NavigationTracker";
+import { useImpersonation } from "@/hooks/useImpersonation";
 import { lazyNamed } from "@/utils/lazyNamed";
 import { lazyRetry } from "@/utils/lazyRetry";
 
@@ -28,6 +30,9 @@ import { lazyRetry } from "@/utils/lazyRetry";
 // ============================================================
 const AdminHub = lazyRetry(() => import("@/pages/admin/AdminHub"));
 const AdminTenants = lazyRetry(() => import("@/pages/admin/AdminTenants"));
+const ImpersonateCallbackPage = lazyRetry(
+  () => import("@/pages/admin/ImpersonateCallbackPage"),
+);
 const AdminDashboard = lazyRetry(() => import("@/pages/admin/AdminDashboard"));
 const AdminManage = lazyRetry(() => import("@/pages/AdminManage"));
 const AdminGovernanceConfig = lazyRetry(
@@ -153,9 +158,7 @@ const FeaturesPage = lazyNamed(
   "FeaturesPage",
 );
 const FeatureDetailPage = lazyRetry(() => import("@/pages/FeatureDetailPage"));
-const KnowledgeBasePage = lazyRetry(
-  () => import("@/pages/KnowledgeBasePage"),
-);
+const KnowledgeBasePage = lazyRetry(() => import("@/pages/KnowledgeBasePage"));
 const Home1Page = lazyNamed(() => import("@/pages/Home1Page"), "Home1Page");
 const EmailPreferences = lazyRetry(() => import("@/pages/EmailPreferences"));
 const PublicFormPage = lazyRetry(() => import("@/pages/PublicFormPage"));
@@ -360,6 +363,11 @@ function TenantRouteLayout() {
 
 function AdminRouteLayout() {
   const location = useLocation();
+  const { isImpersonating } = useImpersonation();
+
+  if (isImpersonating) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <ProtectedRoute>
@@ -483,6 +491,7 @@ function App() {
   return (
     <HelmetProvider>
       <div className="min-h-screen bg-background text-foreground">
+        <ImpersonationBanner />
         <ErrorBoundary>
           <NavigationTracker />
           <Routes>
@@ -551,14 +560,8 @@ function App() {
               />
               <Route path="/ecomm" element={<EcommPage />} />
               <Route path="/features" element={<FeaturesPage />} />
-              <Route
-                path="/features/:slug"
-                element={<FeatureDetailPage />}
-              />
-              <Route
-                path="/knowledge-base"
-                element={<KnowledgeBasePage />}
-              />
+              <Route path="/features/:slug" element={<FeatureDetailPage />} />
+              <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
               <Route path="/home1" element={<Home1Page />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
@@ -1062,6 +1065,10 @@ function App() {
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/admin/impersonate/callback"
+                element={<ImpersonateCallbackPage />}
+              />
               <Route
                 path="/integrations/lightspeed/callback"
                 element={<CallbackPage />}
