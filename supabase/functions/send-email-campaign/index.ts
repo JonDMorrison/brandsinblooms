@@ -31,6 +31,7 @@ const corsHeaders = {
 };
 
 const DEFAULT_BATCH_SIZE_PER_JOB = 50;
+const FORCE_SEND_SOFT_SUPPRESSION_TYPES = ["bounced", "inactive"] as const;
 
 type CampaignReputationPolicy = {
   score: number;
@@ -70,16 +71,122 @@ function toStringArray(value: unknown) {
 
 function extractCampaignAudienceExpansion(campaign: Record<string, unknown>) {
   const metadata = toRecord(campaign.metadata);
+  const metadataIncludeAllCustomers =
+    typeof metadata.includeAllCustomers === "boolean"
+      ? metadata.includeAllCustomers
+      : typeof metadata.include_all_customers === "boolean"
+        ? metadata.include_all_customers
+        : null;
+  const metadataAdditionalCustomerIds = Array.isArray(
+    metadata.additionalCustomerIds,
+  )
+    ? toStringArray(metadata.additionalCustomerIds).filter(isUuidLike)
+    : Array.isArray(metadata.additional_customer_ids)
+      ? toStringArray(metadata.additional_customer_ids).filter(isUuidLike)
+      : null;
 
   return {
     includeAllCustomers:
-      typeof metadata.includeAllCustomers === "boolean"
-        ? metadata.includeAllCustomers
-        : Boolean(campaign.include_all_customers),
-    additionalCustomerIds: Array.isArray(metadata.additionalCustomerIds)
-      ? toStringArray(metadata.additionalCustomerIds).filter(isUuidLike)
-      : toStringArray(campaign.additional_customer_ids).filter(isUuidLike),
+      metadataIncludeAllCustomers ?? Boolean(campaign.include_all_customers),
+    additionalCustomerIds:
+      metadataAdditionalCustomerIds ??
+      toStringArray(campaign.additional_customer_ids).filter(isUuidLike),
   };
+}
+
+async function resolveCampaignTenantId(
+  supabase: any,
+  campaign: Record<string, unknown>,
+): Promise<string | null> {
+  const directTenantId =
+    typeof campaign.tenant_id === "string" &&
+    campaign.tenant_id.trim().length > 0
+      ? campaign.tenant_id.trim()
+      : null;
+
+  if (directTenantId) {
+    return directTenantId;
+  }
+
+  const campaignUserId =
+    typeof campaign.user_id === "string" && campaign.user_id.trim().length > 0
+      ? campaign.user_id.trim()
+      : null;
+
+  if (!campaignUserId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("tenant_id")
+    .eq("id", campaignUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return typeof data?.tenant_id === "string" && data.tenant_id.trim().length > 0
+    ? data.tenant_id.trim()
+    : null;
+}
+
+function normalizeAcknowledgedWarnings(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as Array<{
+      id: string;
+      label: string;
+      detail: string | null;
+      warning: string | null;
+    }>;
+  }
+
+  return value
+    .map((entry, index) => {
+      if (typeof entry === "string" && entry.trim()) {
+        return {
+          id: `warning-${index + 1}`,
+          label: entry.trim(),
+          detail: null,
+          warning: null,
+        };
+      }
+
+      const record = toRecord(entry);
+      const label =
+        typeof record.label === "string" ? record.label.trim() : "";
+
+      if (!label) {
+        return null;
+      }
+
+      return {
+        id:
+          typeof record.id === "string" && record.id.trim()
+            ? record.id.trim()
+            : `warning-${index + 1}`,
+        label,
+        detail:
+          typeof record.detail === "string" && record.detail.trim()
+            ? record.detail.trim()
+            : null,
+        warning:
+          typeof record.warning === "string" && record.warning.trim()
+            ? record.warning.trim()
+            : null,
+      };
+    })
+    .filter(
+      (
+        entry,
+      ): entry is {
+        id: string;
+        label: string;
+        detail: string | null;
+        warning: string | null;
+      } => Boolean(entry),
+    );
 }
 
 async function getTenantSuppressionBypassState(
@@ -375,7 +482,18 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { campaignId, includeSuppressed = false } = await req.json();
+    const requestBody = toRecord(await req.json());
+    const campaignId =
+      typeof requestBody.campaignId === "string"
+        ? requestBody.campaignId
+        : "";
+    const includeSuppressed = requestBody.includeSuppressed === true;
+    const forceBypassConsent = requestBody.forceBypassConsent === true;
+    const forceBypassSoftSuppression =
+      requestBody.forceBypassSoftSuppression === true;
+    const acknowledgedWarnings = normalizeAcknowledgedWarnings(
+      requestBody.acknowledgedWarnings,
+    );
 
     if (!campaignId) {
       return new Response(
@@ -388,8 +506,14 @@ serve(async (req: Request) => {
     }
 
     console.log(
-      `📧 Send campaign request: campaignId=${campaignId}, includeSuppressed=${includeSuppressed}`,
+      `📧 Send campaign request: campaignId=${campaignId}, includeSuppressed=${includeSuppressed}, forceBypassConsent=${forceBypassConsent}, forceBypassSoftSuppression=${forceBypassSoftSuppression}`,
     );
+
+    if (forceBypassConsent || forceBypassSoftSuppression) {
+      console.log(
+        `⚠️ Force send override active: bypassConsent=${forceBypassConsent}, bypassSoftSuppression=${forceBypassSoftSuppression}`,
+      );
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -569,6 +693,56 @@ serve(async (req: Request) => {
       });
     }
 
+    const campaignTenantId = await resolveCampaignTenantId(supabase, campaign);
+
+    if (!campaignTenantId) {
+      console.error("❌ Campaign tenant could not be resolved", {
+        campaignId,
+        campaign_tenant_id: campaign.tenant_id ?? null,
+        campaign_user_id:
+          typeof campaign.user_id === "string" ? campaign.user_id : null,
+      });
+      return new Response(
+        JSON.stringify({ error: "Campaign tenant could not be resolved" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (campaign.tenant_id !== campaignTenantId) {
+      console.log(
+        "🔍 Resolved campaign tenant from fallback:",
+        JSON.stringify({
+          campaign_id: campaignId,
+          campaign_tenant_id: campaign.tenant_id ?? null,
+          resolved_tenant_id: campaignTenantId,
+          campaign_user_id:
+            typeof campaign.user_id === "string" ? campaign.user_id : null,
+        }),
+      );
+
+      const { error: persistTenantError } = await supabase
+        .from("crm_campaigns")
+        .update({
+          tenant_id: campaignTenantId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId)
+        .is("tenant_id", null);
+
+      if (persistTenantError) {
+        console.warn("⚠️ Failed to persist resolved tenant_id onto campaign:", {
+          campaignId,
+          resolved_tenant_id: campaignTenantId,
+          err: serializeSupabaseError(persistTenantError),
+        });
+      } else {
+        campaign.tenant_id = campaignTenantId;
+      }
+    }
+
     const requesterUserId = await getRequesterUserId();
 
     const logCampaignGovernanceDecision = async (params: {
@@ -582,7 +756,7 @@ serve(async (req: Request) => {
     }) => {
       try {
         await supabase.from("email_governance_audit_logs").insert({
-          tenant_id: campaign.tenant_id,
+          tenant_id: campaignTenantId,
           actor_type: requesterUserId ? "user" : "system",
           actor_id: requesterUserId,
           action_type: params.actionType,
@@ -608,7 +782,7 @@ serve(async (req: Request) => {
 
     const governanceConfig = await getEmailGovernanceRuntimeConfig(
       supabase,
-      campaign.tenant_id,
+      campaignTenantId,
     );
     const campaignIntervention = await getCampaignInterventionState(
       supabase,
@@ -795,21 +969,98 @@ serve(async (req: Request) => {
     const additionalCustomerIds = Array.from(
       new Set(audienceExpansion.additionalCustomerIds),
     );
+    const usesLegacyAllCustomersFallback =
+      !includeAllCustomers &&
+      segmentIds.length === 0 &&
+      personaIdList.length === 0 &&
+      additionalCustomerIds.length === 0;
+    const resolveAllCustomersAudience =
+      includeAllCustomers || usesLegacyAllCustomersFallback;
+
+    const audienceMetadata = toRecord(campaign.metadata);
+    const rawIncludeAllCustomers =
+      audienceMetadata.includeAllCustomers ??
+      audienceMetadata.include_all_customers ??
+      campaign.include_all_customers ??
+      null;
 
     console.log(
-      `📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}, includeAllCustomers=${includeAllCustomers}, directCustomers=${additionalCustomerIds.length}`,
+      "🔍 Audience config:",
+      JSON.stringify({
+        include_all_customers: includeAllCustomers,
+        raw_include_all_customers: rawIncludeAllCustomers,
+        raw_include_all_customers_type:
+          rawIncludeAllCustomers === null
+            ? "null"
+            : typeof rawIncludeAllCustomers,
+        additional_customer_ids_count: additionalCustomerIds.length,
+        segment_count: segmentIds.length,
+        persona_count: personaIdList.length,
+        campaign_tenant_id: campaign.tenant_id ?? null,
+        resolved_tenant_id: campaignTenantId,
+        campaign_user_id:
+          typeof campaign.user_id === "string" ? campaign.user_id : null,
+      }),
+    );
+
+    console.log(
+      `📧 Audience targeting: segments=${segmentIds.length}, personas=${personaIdList.length}, includeAllCustomers=${includeAllCustomers}, directCustomers=${additionalCustomerIds.length}, legacyAllCustomers=${usesLegacyAllCustomersFallback}`,
     );
 
     // 3) Resolve customer IDs
     let allowedCustomerIds: string[] | null = null;
+    let allTenantCustomers: any[] | null = null;
 
-    if (includeAllCustomers) {
+    const buildCustomersQuery = () => {
+      let query = supabase
+        .from("crm_customers")
+        .select(
+          "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at",
+        )
+        .eq("tenant_id", campaignTenantId)
+        .not("email", "is", null);
+
+      if (!forceBypassConsent) {
+        query = query.not("email_opt_in", "is", false);
+      }
+
+      return query;
+    };
+
+    if (resolveAllCustomersAudience) {
       console.log(
-        "📧 Explicit all-customers audience enabled; worker will resolve the full tenant audience.",
+        includeAllCustomers
+          ? "📧 Explicit all-customers audience enabled; worker will resolve the full tenant audience."
+          : "📧 No explicit audience persisted; falling back to the legacy full-tenant audience.",
+      );
+
+      const PAGE_SIZE = 1000;
+      const fetched: any[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const to = from + PAGE_SIZE - 1;
+        const { data, error } = await buildCustomersQuery().range(from, to);
+        if (error) {
+          console.error("Error fetching all crm_customers:", error);
+          return new Response(
+            JSON.stringify({ error: "Failed to fetch customers" }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        fetched.push(...(data || []));
+        if (!data || data.length < PAGE_SIZE) break;
+      }
+
+      allTenantCustomers = fetched;
+      console.log(
+        "🔍 All-customers query result count:",
+        allTenantCustomers.length,
       );
     }
 
-    if (!includeAllCustomers && segmentIds.length > 0) {
+    if (!resolveAllCustomersAudience && segmentIds.length > 0) {
       const PAGE_SIZE = 1000;
       const segmentCustomerIds = new Set<string>();
       for (let from = 0; ; from += PAGE_SIZE) {
@@ -845,7 +1096,7 @@ serve(async (req: Request) => {
       allowedCustomerIds = ids;
     }
 
-    if (!includeAllCustomers && personaIdList.length > 0) {
+    if (!resolveAllCustomersAudience && personaIdList.length > 0) {
       const personaCustomerIds = new Set<string>();
 
       if (personaUuidIds.length > 0) {
@@ -891,7 +1142,7 @@ serve(async (req: Request) => {
             await supabase
               .from("crm_customers")
               .select("id")
-              .eq("tenant_id", campaign.tenant_id)
+              .eq("tenant_id", campaignTenantId)
               .in("persona_id", personaUuidIds)
               .range(from, to);
 
@@ -970,7 +1221,7 @@ serve(async (req: Request) => {
       }
     }
 
-    if (!includeAllCustomers && additionalCustomerIds.length > 0) {
+    if (!resolveAllCustomersAudience && additionalCustomerIds.length > 0) {
       if (allowedCustomerIds === null) {
         allowedCustomerIds = additionalCustomerIds;
       } else {
@@ -983,18 +1234,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // FIX: [issue #6] - Filter out customers who have not opted in to email (CAN-SPAM/CASL compliance)
-    const buildCustomersQuery = () =>
-      supabase
-        .from("crm_customers")
-        .select(
-          "id, first_name, last_name, email, email_opt_in, suppressed, suppressed_reason, created_at, last_open_at, last_email_clicked_at",
-        )
-        .eq("tenant_id", campaign.tenant_id)
-        .not("email", "is", null)
-        .not("email_opt_in", "is", false);
-
-    if (allowedCustomerIds) {
+    if (allTenantCustomers) {
+      customers = allTenantCustomers;
+    } else if (allowedCustomerIds) {
       console.log(
         `📧 Final audience after targeting: ${allowedCustomerIds.length} customers`,
       );
@@ -1024,29 +1266,21 @@ serve(async (req: Request) => {
         customers = fetched;
       }
     } else {
-      const PAGE_SIZE = 1000;
-      const fetched: any[] = [];
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const { data, error } = await buildCustomersQuery().range(from, to);
-        if (error) {
-          console.error("Error fetching all crm_customers:", error);
-          return new Response(
-            JSON.stringify({ error: "Failed to fetch customers" }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-        fetched.push(...(data || []));
-        if (!data || data.length < PAGE_SIZE) break;
-      }
-      customers = fetched;
+      console.warn(
+        "⚠️ Audience resolution produced no customer ID set before customer fetch",
+        {
+          campaignId,
+          includeAllCustomers,
+          segmentCount: segmentIds.length,
+          personaCount: personaIdList.length,
+          additionalCustomerCount: additionalCustomerIds.length,
+        },
+      );
+      customers = [];
     }
 
     const hygieneAnalysis = await analyzeCampaignListHygiene(supabase, {
-      tenantId: campaign.tenant_id,
+      tenantId: campaignTenantId,
       domainId: campaign.from_email_domain_id || null,
       recipients: (customers || []).map((c: any) => ({
         customerId: c?.id,
@@ -1058,7 +1292,7 @@ serve(async (req: Request) => {
     });
 
     await persistCampaignHygieneReport(supabase, {
-      tenantId: campaign.tenant_id,
+      tenantId: campaignTenantId,
       campaignId,
       analysis: hygieneAnalysis,
     });
@@ -1120,7 +1354,7 @@ serve(async (req: Request) => {
       const { data: sendCountData, error: sendCountErr } = await supabase
         .from("email_governance_email_events")
         .select("id", { count: "exact", head: true })
-        .eq("tenant_id", campaign.tenant_id)
+        .eq("tenant_id", campaignTenantId)
         .eq("event_type", "sent");
       if (
         !sendCountErr && typeof sendCountData === "number"
@@ -1213,30 +1447,61 @@ serve(async (req: Request) => {
     // includeSuppressed bypass is intentionally ignored.
     const totalBeforeSuppression = customers.length;
     let suppressedCount = 0;
+    let originalFilteredRecipientCount = 0;
+    let consentBypassCount = 0;
+    let suppressionBypassCount = 0;
 
     if (customers.length > 0) {
       const suppressionBypassState = await getTenantSuppressionBypassState(
         supabase,
-        campaign.tenant_id,
+        campaignTenantId,
       );
 
-      const bypassSuppressionTypes =
+      const baselineBypassSuppressionTypes =
         suppressionBypassState.suppression_bypass_active
           ? ["bounced", "hard_bounce", "complaint", "complained"]
           : [];
 
-      const eligibility = await canSendEmailBatch(
+      const effectiveBypassSuppressionTypes = Array.from(
+        new Set([
+          ...baselineBypassSuppressionTypes,
+          ...(forceBypassSoftSuppression
+            ? [...FORCE_SEND_SOFT_SUPPRESSION_TYPES]
+            : []),
+        ]),
+      );
+
+      const recipientsForEligibility = customers
+        .filter((c: any) => typeof c?.email === "string" && c.email.trim())
+        .map((c: any) => ({ customerId: c.id, email: c.email }));
+
+      const baselineEligibility = await canSendEmailBatch(
         supabase,
         {
-          tenantId: campaign.tenant_id,
-          recipients: customers
-            .filter((c: any) => typeof c?.email === "string" && c.email.trim())
-            .map((c: any) => ({ customerId: c.id, email: c.email })),
+          tenantId: campaignTenantId,
+          recipients: recipientsForEligibility,
         },
         {
-          bypassSuppressionTypes,
+          bypassSuppressionTypes: baselineBypassSuppressionTypes,
+          forceBypassConsent,
         },
       );
+
+      const effectiveEligibility =
+        forceBypassSoftSuppression || forceBypassConsent
+          ? await canSendEmailBatch(
+              supabase,
+              {
+                tenantId: campaignTenantId,
+                recipients: recipientsForEligibility,
+              },
+              {
+                bypassSuppressionTypes: effectiveBypassSuppressionTypes,
+                forceBypassConsent,
+                forceBypassSoftSuppression,
+              },
+            )
+          : baselineEligibility;
 
       const skips: Array<{
         tenantId: string;
@@ -1246,22 +1511,48 @@ serve(async (req: Request) => {
         reason: any;
       }> = [];
 
-      customers = customers.filter((c: any) => {
+      const effectiveCustomers: any[] = [];
+
+      for (const c of customers) {
         const email = String(c?.email || "")
           .toLowerCase()
           .trim();
-        const result = eligibility.get(email);
-        if (!result || result.allowed) return true;
+        const baselineResult = baselineEligibility.get(email);
+        const effectiveResult = effectiveEligibility.get(email);
+        const baselineAllowedBySuppression =
+          !baselineResult || baselineResult.allowed !== false;
+        const effectiveAllowedBySuppression =
+          !effectiveResult || effectiveResult.allowed !== false;
+        const isConsentExcludedNormally =
+          forceBypassConsent && c?.email_opt_in === false;
+        const baselineWouldSend =
+          !isConsentExcludedNormally && baselineAllowedBySuppression;
+
+        if (baselineWouldSend) {
+          originalFilteredRecipientCount += 1;
+        }
+
+        if (effectiveAllowedBySuppression) {
+          effectiveCustomers.push(c);
+          if (isConsentExcludedNormally) {
+            consentBypassCount += 1;
+          } else if (!baselineAllowedBySuppression) {
+            suppressionBypassCount += 1;
+          }
+          continue;
+        }
+
         suppressedCount++;
         skips.push({
-          tenantId: campaign.tenant_id,
+          tenantId: campaignTenantId,
           campaignId,
           customerId: c?.id,
           email: String(c.email),
-          reason: result.reason || "unsubscribed",
+          reason: effectiveResult?.reason || "unsubscribed",
         });
-        return false;
-      });
+      }
+
+      customers = effectiveCustomers;
 
       if (suppressedCount > 0) {
         console.log(
@@ -1269,6 +1560,27 @@ serve(async (req: Request) => {
         );
         await logSkippedSends(supabase, skips as any);
       }
+    }
+
+    console.log("🔍 Final deduplicated recipient count:", customers.length);
+
+    if (forceBypassConsent || forceBypassSoftSuppression) {
+      await logCampaignGovernanceDecision({
+        decision: "allow",
+        actionType: "campaign_send_force_override",
+        reason: "user_acknowledged_warnings",
+        policyName: "consent_suppression_override",
+        metadata: {
+          force_bypass_consent: forceBypassConsent,
+          force_bypass_soft_suppression: forceBypassSoftSuppression,
+          requester_user_id: requesterUserId,
+          original_filtered_count: originalFilteredRecipientCount,
+          override_total_count: customers.length,
+          consent_excluded_count: consentBypassCount,
+          suppression_excluded_count: suppressionBypassCount,
+          acknowledged_warnings: acknowledgedWarnings,
+        },
+      });
     }
 
     let recipientCount = customers.length;
@@ -1307,7 +1619,7 @@ serve(async (req: Request) => {
       const { data: tenantRow, error: tenantRowError } = await supabase
         .from("tenants")
         .select("default_from_email_domain_id")
-        .eq("id", campaign.tenant_id)
+        .eq("id", campaignTenantId)
         .maybeSingle();
 
       if (tenantRowError) {
@@ -1325,7 +1637,7 @@ serve(async (req: Request) => {
             .from("email_domains")
             .select("id, domain, status")
             .eq("id", tenantDefaultDomainId)
-            .eq("tenant_id", campaign.tenant_id)
+            .eq("tenant_id", campaignTenantId)
             .in("status", ["active", "warming_up"])
             .maybeSingle();
 
@@ -1368,7 +1680,7 @@ serve(async (req: Request) => {
           await supabase
             .from("email_domains")
             .select("id, domain, status")
-            .eq("tenant_id", campaign.tenant_id)
+            .eq("tenant_id", campaignTenantId)
             .in("status", ["active", "warming_up"])
             .order("created_at", { ascending: false })
             .limit(2);
@@ -1467,7 +1779,7 @@ serve(async (req: Request) => {
     const { data: quotaCheck, error: quotaError } = await supabase.rpc(
       "check_send_quota",
       {
-        p_tenant_id: campaign.tenant_id,
+        p_tenant_id: campaignTenantId,
         p_domain_id: domainIdToUse,
         p_recipient_count: recipientCount,
       },
@@ -1618,7 +1930,7 @@ serve(async (req: Request) => {
       }) || null;
 
     const preflightRender = renderEmailForRecipient({
-      tenantId: campaign.tenant_id,
+      tenantId: campaignTenantId,
       campaignId,
       subject: campaign.subject_line || campaign.subject || "",
       previewText: campaign.preheader_text || campaign.preheader || "",
@@ -1743,7 +2055,7 @@ serve(async (req: Request) => {
     const urlsToTrack = uniqueUrls.filter((url) => !hasPII(url));
     if (urlsToTrack.length > 0) {
       const trackedLinkInserts = urlsToTrack.map((url) => ({
-        tenant_id: campaign.tenant_id,
+        tenant_id: campaignTenantId,
         campaign_id: campaignId,
         url,
       }));
@@ -1931,7 +2243,7 @@ serve(async (req: Request) => {
         if (!customer?.id || !customer?.email) continue;
 
         batchMessageUpserts.push({
-          tenant_id: campaign.tenant_id,
+          tenant_id: campaignTenantId,
           campaign_id: campaignId,
           customer_id: customer.id,
           domain_id: activeDomainId,

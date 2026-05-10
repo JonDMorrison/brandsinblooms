@@ -22,6 +22,8 @@ export interface CanSendResult {
 
 export interface SuppressionBypassOptions {
   bypassSuppressionTypes?: string[];
+  forceBypassConsent?: boolean;
+  forceBypassSoftSuppression?: boolean;
 }
 
 // Basic email validation regex
@@ -37,6 +39,8 @@ const EMAIL_SUPPRESSION_TYPES = [
   'complained',
   'hard_bounce',
 ] as const;
+
+const FORCE_SEND_SOFT_SUPPRESSION_TYPES = ['bounced', 'inactive'] as const;
 
 const DEFAULT_ROLE_BASED_LOCALPARTS = [
   'admin',
@@ -100,7 +104,14 @@ function normalizeSuppressionType(value: string): string {
 }
 
 function buildBypassTypeSet(options?: SuppressionBypassOptions): Set<string> {
-  return new Set((options?.bypassSuppressionTypes || []).map(normalizeSuppressionType).filter(Boolean));
+  const bypassTypes = [
+    ...(options?.bypassSuppressionTypes || []),
+    ...(options?.forceBypassSoftSuppression
+      ? [...FORCE_SEND_SOFT_SUPPRESSION_TYPES]
+      : []),
+  ];
+
+  return new Set(bypassTypes.map(normalizeSuppressionType).filter(Boolean));
 }
 
 function pickMostSevereReason(reasons: Array<SkipReason | null | undefined>): SkipReason | undefined {

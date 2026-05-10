@@ -55,6 +55,7 @@ export interface CampaignCatalogItem {
   createdAt: string | null;
   sendBlockedReason: string | null;
   totalRecipients: number;
+  projectedRecipientCount: number | null;
   totalBatches: number;
   messagesSent: number;
   messagesFailed: number;
@@ -101,6 +102,7 @@ export interface PersistCampaignDraftInput {
   smsMessage: string;
   sendAt: Date | null;
   sendImmediately: boolean;
+  projectedRecipientCount?: number | null;
   includeAllCustomers?: boolean;
   additionalCustomerIds?: string[];
   segments: CampaignSegmentSummary[];
@@ -199,6 +201,10 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
       row.total_recipients ??
       row.total_sent ??
       coerceNumber(toRecord(row.metrics).sent),
+    projectedRecipientCount:
+      row.projected_recipient_count === null
+        ? null
+        : coerceNumber(row.projected_recipient_count),
     totalBatches: row.total_batches ?? 0,
     messagesSent: row.messages_sent ?? 0,
     messagesFailed:
@@ -220,6 +226,31 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
     sourceContentTaskId: row.source_content_task_id,
     syncedFrom: row.synced_from,
   };
+}
+
+export function getCampaignDisplayRecipientCount(
+  campaign: Pick<
+    CampaignCatalogItem,
+    "status" | "totalRecipients" | "projectedRecipientCount"
+  >,
+) {
+  if (
+    campaign.status === CAMPAIGN_STATUS.DRAFT ||
+    campaign.status === CAMPAIGN_STATUS.SCHEDULED
+  ) {
+    return campaign.projectedRecipientCount ?? campaign.totalRecipients;
+  }
+
+  if (
+    (campaign.status === CAMPAIGN_STATUS.QUEUED ||
+      campaign.status === CAMPAIGN_STATUS.PARTIALLY_QUEUED) &&
+    campaign.totalRecipients <= 0 &&
+    campaign.projectedRecipientCount !== null
+  ) {
+    return campaign.projectedRecipientCount;
+  }
+
+  return campaign.totalRecipients;
 }
 
 function mapSegmentSummary(row: SegmentRow): CampaignSegmentSummary {
@@ -482,6 +513,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     smsMessage,
     sendAt,
     sendImmediately,
+    projectedRecipientCount = null,
     includeAllCustomers = false,
     additionalCustomerIds = [],
     segments,
@@ -507,6 +539,7 @@ export async function persistCampaignDraft(input: PersistCampaignDraftInput) {
     smsMessage,
     sendAt: sendImmediately ? null : (sendAt?.toISOString() ?? null),
     sendImmediately,
+    projectedRecipientCount,
     includeAllCustomers,
     additionalCustomerIds,
     sourceContentTaskId,

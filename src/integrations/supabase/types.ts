@@ -2699,6 +2699,7 @@ export type Database = {
           predicted_segment_ids: string[] | null;
           preheader: string | null;
           preheader_text: string | null;
+          projected_recipient_count: number | null;
           queue_completed_at: string | null;
           queue_started_at: string | null;
           queued_at: string | null;
@@ -2759,6 +2760,7 @@ export type Database = {
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          projected_recipient_count?: number | null;
           queue_completed_at?: string | null;
           queue_started_at?: string | null;
           queued_at?: string | null;
@@ -2819,6 +2821,7 @@ export type Database = {
           predicted_segment_ids?: string[] | null;
           preheader?: string | null;
           preheader_text?: string | null;
+          projected_recipient_count?: number | null;
           queue_completed_at?: string | null;
           queue_started_at?: string | null;
           queued_at?: string | null;

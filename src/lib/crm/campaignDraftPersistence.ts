@@ -34,6 +34,7 @@ export interface PersistCampaignRecordInput {
   smsMessage: string;
   sendAt?: string | null;
   sendImmediately?: boolean;
+  projectedRecipientCount?: number | null;
   includeAllCustomers?: boolean;
   additionalCustomerIds?: string[];
   sourceContentTaskId?: string | null;
@@ -80,7 +81,8 @@ function isMissingCampaignAudienceColumnError(error: PostgrestLikeError) {
       message.includes("could not find the") ||
       message.includes("does not exist")) &&
       (message.includes("additional_customer_ids") ||
-        message.includes("include_all_customers")))
+        message.includes("include_all_customers") ||
+        message.includes("projected_recipient_count")))
   );
 }
 
@@ -90,10 +92,12 @@ function omitCampaignAudienceColumns<T extends Record<string, unknown>>(
   const {
     include_all_customers: _includeAllCustomers,
     additional_customer_ids: _additionalCustomerIds,
+    projected_recipient_count: _projectedRecipientCount,
     ...legacyPayload
   } = payload as T & {
     include_all_customers?: unknown;
     additional_customer_ids?: unknown;
+    projected_recipient_count?: unknown;
   };
 
   return legacyPayload;
@@ -108,7 +112,8 @@ function rowHasCampaignAudienceColumns(row: unknown) {
 
   return (
     Object.prototype.hasOwnProperty.call(row, "include_all_customers") &&
-    Object.prototype.hasOwnProperty.call(row, "additional_customer_ids")
+    Object.prototype.hasOwnProperty.call(row, "additional_customer_ids") &&
+    Object.prototype.hasOwnProperty.call(row, "projected_recipient_count")
   );
 }
 
@@ -674,6 +679,11 @@ export async function persistCampaignRecord(input: PersistCampaignRecordInput) {
       input.sendImmediately === false ? (input.sendAt ?? null) : null,
     send_blocked_reason: null,
     source_content_task_id: input.sourceContentTaskId ?? null,
+    projected_recipient_count:
+      typeof input.projectedRecipientCount === "number" &&
+      Number.isFinite(input.projectedRecipientCount)
+        ? input.projectedRecipientCount
+        : null,
     include_all_customers: input.includeAllCustomers ?? false,
     additional_customer_ids: input.additionalCustomerIds ?? [],
     segment_id: input.segmentIds?.[0] ?? null,

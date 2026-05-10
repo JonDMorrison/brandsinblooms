@@ -29,6 +29,7 @@ import {
 } from "./autoSaveRetryPolicy";
 import {
   useCampaignSending,
+  type CampaignSendInvocationOptions,
   type CampaignSendResult,
 } from "@/hooks/useCampaignSending";
 import { useDesignSystem } from "@/contexts/DesignSystemContext";
@@ -99,7 +100,7 @@ export type CampaignActivationResult =
       campaignId?: string;
     };
 
-interface CampaignActivationOptions {
+interface CampaignActivationOptions extends CampaignSendInvocationOptions {
   suppressToasts?: boolean;
   sendImmediately?: boolean;
   sendAt?: Date | null;
@@ -840,6 +841,7 @@ export function CampaignEditorProvider({
       smsMessage: state.smsMessage,
       sendAt: state.sendAt,
       sendImmediately: state.sendImmediately,
+      projectedRecipientCount: state.audienceCount,
       includeAllCustomers: state.includeAllCustomers,
       additionalCustomerIds: state.additionalCustomerIds,
       segments: state.selectedSegments,
@@ -856,6 +858,7 @@ export function CampaignEditorProvider({
       state.contentBlocks,
       state.includeAllCustomers,
       state.name,
+      state.audienceCount,
       state.preheaderText,
       state.replyTo,
       state.selectedPersonas,
@@ -1446,6 +1449,9 @@ export function CampaignEditorProvider({
           content: "",
           blocks: state.contentBlocks,
           segments: state.selectedSegments,
+          forceBypassConsent: options?.forceBypassConsent,
+          forceBypassSoftSuppression: options?.forceBypassSoftSuppression,
+          acknowledgedWarnings: options?.acknowledgedWarnings,
         });
       } catch (error) {
         const sendError = toSendError(

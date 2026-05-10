@@ -39,6 +39,19 @@ export type CampaignSendResult =
       campaignId?: string;
     };
 
+export interface CampaignSendAcknowledgedWarning {
+  id: string;
+  label: string;
+  detail?: string | null;
+  warning?: string | null;
+}
+
+export interface CampaignSendInvocationOptions {
+  forceBypassConsent?: boolean;
+  forceBypassSoftSuppression?: boolean;
+  acknowledgedWarnings?: CampaignSendAcknowledgedWarning[];
+}
+
 export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
   const {
     navigateOnSuccess = true,
@@ -65,6 +78,9 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
       content: string;
       blocks: any[];
       segments: Array<{ id: string; name: string; customer_count: number }>;
+      forceBypassConsent?: boolean;
+      forceBypassSoftSuppression?: boolean;
+      acknowledgedWarnings?: CampaignSendAcknowledgedWarning[];
     }): Promise<CampaignSendResult> => {
       const {
         campaignId: existingCampaignId,
@@ -76,6 +92,9 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         content,
         blocks,
         segments,
+        forceBypassConsent = false,
+        forceBypassSoftSuppression = false,
+        acknowledgedWarnings = [],
       } = params;
 
       // Step 1: Pre-send validation
@@ -154,7 +173,12 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
       try {
         const { data: sendResult, error: sendError } =
           await supabase.functions.invoke("send-email-campaign", {
-            body: { campaignId: campaign.id },
+            body: {
+              campaignId: campaign.id,
+              forceBypassConsent,
+              forceBypassSoftSuppression,
+              acknowledgedWarnings,
+            },
           });
 
         if (sendError) {

@@ -69,6 +69,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   deleteCampaignById,
   fetchCampaignCatalog,
+  getCampaignDisplayRecipientCount,
   mapCampaignCatalogItem,
   updateCampaignStatus,
   type CampaignCatalogItem,
@@ -119,6 +120,10 @@ function getSendProgress(campaign: CampaignCatalogItem) {
   const total = Math.max(0, Number(campaign.totalRecipients || 0));
   if (total <= 0) return 0;
   return clampPercent((Number(campaign.messagesSent || 0) / total) * 100);
+}
+
+function getRecipientCountForList(campaign: CampaignCatalogItem) {
+  return Math.max(0, Number(getCampaignDisplayRecipientCount(campaign) || 0));
 }
 
 function getProcessedCount(campaign: CampaignCatalogItem) {
@@ -641,7 +646,8 @@ export function CRMCampaignsPage() {
           result = left.status.localeCompare(right.status);
           break;
         case "recipients":
-          result = left.totalRecipients - right.totalRecipients;
+          result =
+            getRecipientCountForList(left) - getRecipientCountForList(right);
           break;
         case "open-rate":
           result = left.openRate - right.openRate;
@@ -1293,8 +1299,8 @@ export function CRMCampaignsPage() {
                                 level="body-sm"
                                 sx={{ fontWeight: "md" }}
                               >
-                                {Number(
-                                  campaign.totalRecipients || 0,
+                                {getRecipientCountForList(
+                                  campaign,
                                 ).toLocaleString()}
                               </Typography>
                               {campaign.status === CAMPAIGN_STATUS.SENDING ? (
