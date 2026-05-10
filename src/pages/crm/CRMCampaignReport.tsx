@@ -1,11 +1,12 @@
 import * as React from "react";
+import ButtonGroup from "@mui/joy/ButtonGroup";
 import Box from "@mui/joy/Box";
 import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
   Area,
@@ -22,6 +23,7 @@ import {
   FileDown,
   Mail,
   MoreHorizontal,
+  RefreshCw,
   Users,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -78,6 +80,24 @@ type ReportTimelinePoint = {
   clicks: number;
 };
 
+type PreviewViewport = "desktop" | "mobile";
+
+type PreviewSnapshot = {
+  html: string;
+  subject: string | null;
+  preheader: string | null;
+  sourceMessageId: string | null;
+  recipientEmail: string | null;
+};
+
+type EmailMessagePreviewRow = {
+  id: string;
+  customer_id: string | null;
+  email: string;
+  payload: Record<string, unknown> | null;
+  sent_at: string | null;
+};
+
 type ReportSummary = {
   campaign: CampaignCatalogItem;
   tenantId: string | null;
@@ -86,6 +106,7 @@ type ReportSummary = {
   preheaderText: string;
   rawContent: string;
   contentBlocks: CampaignEditorRecord["contentBlocks"];
+  previewSnapshot: PreviewSnapshot | null;
   previewRecipient: {
     customerId: string | null;
     sampleCustomer: {
@@ -109,12 +130,18 @@ type ReportSummary = {
 type RenderedEmailPreview = {
   renderedHtml: string;
   renderedSubject: string;
+  source?: "snapshot" | "rebuilt";
   diagnostics?: {
     usedTags?: string[];
     missingTags?: string[];
     emptyResolvedTags?: string[];
     legacyTagsConverted?: number;
   };
+};
+
+const PREVIEW_MAX_WIDTH: Record<PreviewViewport, number> = {
+  desktop: 600,
+  mobile: 375,
 };
 
 function StatsStripSkeleton({ cells }: { cells: number }) {
@@ -284,6 +311,84 @@ function normalizeCampaignNameForDisplay(name: string) {
 
 function sanitizeEmailAddress(email: string | null | undefined) {
   return (email || "").trim().toLowerCase();
+}
+
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function readPayloadString(
+  payload: Record<string, unknown> | null | undefined,
+  keys: string[],
+) {
+  if (!payload) return null;
+
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function buildPreviewSnapshot(
+  row: EmailMessagePreviewRow | null | undefined,
+): PreviewSnapshot | null {
+  if (!row) return null;
+
+  const payload = toRecord(row.payload);
+  const html = readPayloadString(payload, [
+    "html",
+    "rendered_html",
+    "email_html",
+    "body_html",
+  ]);
+
+  if (!html) {
+    return null;
+  }
+
+  return {
+    html,
+    subject: readPayloadString(payload, ["subject", "rendered_subject"]),
+    preheader: readPayloadString(payload, [
+      "preheader",
+      "preview_text",
+      "previewText",
+    ]),
+    sourceMessageId: row.id,
+    recipientEmail: row.email,
+  };
+}
+
+function hasRenderableEmailSource(
+  report: Pick<ReportSummary, "rawContent" | "contentBlocks">,
+) {
+  return report.contentBlocks.length > 0 || report.rawContent.trim().length > 0;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 function buildTimeline(
@@ -480,55 +585,166 @@ function ChartCard({
 function EmailPreviewFrame({
   html,
   title,
-  height,
+  viewport,
+  minHeight,
 }: {
   html: string;
   title: string;
-  height: number;
+  viewport: PreviewViewport;
+  minHeight: number;
 }) {
+  const iframeRef = React.useRef<HTMLIFrameElement | null>(null);
+  const [height, setHeight] = React.useState(minHeight);
+
+  const updateHeight = React.useCallback(() => {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+
+    if (!iframe || !doc) {
+      return;
+    }
+
+    const nextHeight = Math.max(
+      doc.body?.scrollHeight ?? 0,
+      doc.body?.offsetHeight ?? 0,
+      doc.documentElement?.scrollHeight ?? 0,
+      doc.documentElement?.offsetHeight ?? 0,
+      minHeight,
+    );
+
+    setHeight((current) =>
+      current === nextHeight ? current : Math.min(nextHeight + 8, 4000),
+    );
+  }, [minHeight]);
+
+  React.useEffect(() => {
+    const iframe = iframeRef.current;
+
+    if (!iframe) {
+      return undefined;
+    }
+
+    let isRegistered = false;
+    let resizeObserver: ResizeObserver | null = null;
+    const cleanupCallbacks: Array<() => void> = [];
+
+    const register = () => {
+      if (isRegistered) {
+        updateHeight();
+        return;
+      }
+
+      isRegistered = true;
+      updateHeight();
+
+      const doc = iframe.contentDocument;
+      if (!doc) {
+        return;
+      }
+
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => {
+          updateHeight();
+        });
+
+        if (doc.body) {
+          resizeObserver.observe(doc.body);
+        }
+        if (doc.documentElement) {
+          resizeObserver.observe(doc.documentElement);
+        }
+      }
+
+      Array.from(doc.images ?? []).forEach((image) => {
+        image.addEventListener("load", updateHeight);
+        image.addEventListener("error", updateHeight);
+        cleanupCallbacks.push(() => {
+          image.removeEventListener("load", updateHeight);
+          image.removeEventListener("error", updateHeight);
+        });
+      });
+
+      const delayedMeasureA = window.setTimeout(updateHeight, 120);
+      const delayedMeasureB = window.setTimeout(updateHeight, 480);
+      cleanupCallbacks.push(() => {
+        window.clearTimeout(delayedMeasureA);
+        window.clearTimeout(delayedMeasureB);
+      });
+    };
+
+    const handleLoad = () => {
+      register();
+    };
+
+    iframe.addEventListener("load", handleLoad);
+    if (iframe.contentDocument?.readyState === "complete") {
+      register();
+    } else {
+      updateHeight();
+    }
+
+    return () => {
+      iframe.removeEventListener("load", handleLoad);
+      resizeObserver?.disconnect();
+      cleanupCallbacks.forEach((callback) => callback());
+    };
+  }, [html, updateHeight, viewport]);
+
   return (
-    <Box
-      sx={{
-        overflow: "hidden",
-        border: "1px solid",
-        borderColor: "neutral.200",
-        borderRadius: "md",
-        backgroundColor: "background.surface",
-      }}
-    >
-      <iframe
-        title={title}
-        srcDoc={html}
-        sandbox="allow-same-origin allow-scripts"
-        style={{
+    <Box sx={{ display: "flex", justifyContent: "center" }}>
+      <Box
+        sx={{
           width: "100%",
-          height,
-          border: 0,
-          display: "block",
-          backgroundColor: "#ffffff",
+          maxWidth: PREVIEW_MAX_WIDTH[viewport],
+          transition: "max-width 180ms ease",
         }}
-      />
+      >
+        <Box
+          sx={{
+            overflow: "hidden",
+            border: "1px solid",
+            borderColor: "neutral.200",
+            borderRadius: "md",
+            backgroundColor: "common.white",
+            boxShadow: "sm",
+          }}
+        >
+          <iframe
+            ref={iframeRef}
+            title={title}
+            srcDoc={html}
+            sandbox="allow-same-origin"
+            style={{
+              width: "100%",
+              height,
+              border: 0,
+              display: "block",
+              backgroundColor: "#ffffff",
+            }}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }
 
 function renderEmailPreviewContent({
-  rawHtml,
+  hasRenderableContent,
   renderedHtml,
   isLoading,
   isError,
   errorMessage,
   onRetry,
-  allowLegacyFallback,
+  viewport,
   fullSize = false,
 }: {
-  rawHtml: string;
+  hasRenderableContent: boolean;
   renderedHtml: string;
   isLoading: boolean;
   isError: boolean;
   errorMessage: string | null;
   onRetry: () => void;
-  allowLegacyFallback: boolean;
+  viewport: PreviewViewport;
   fullSize?: boolean;
 }) {
   if (isLoading) {
@@ -540,41 +756,9 @@ function renderEmailPreviewContent({
       <EmailPreviewFrame
         html={renderedHtml}
         title="Campaign email preview"
-        height={fullSize ? 720 : 480}
+        viewport={viewport}
+        minHeight={fullSize ? 720 : 480}
       />
-    );
-  }
-
-  if (isError && allowLegacyFallback && rawHtml) {
-    return (
-      <Stack spacing={1.5}>
-        <Sheet variant="soft" color="warning" sx={{ borderRadius: "lg", p: 2 }}>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            justifyContent="space-between"
-            alignItems={{ xs: "flex-start", sm: "center" }}
-          >
-            <Typography level="body-sm">
-              Showing raw content because the rendered preview is unavailable
-              for this legacy campaign.
-            </Typography>
-            <JoyButton
-              size="sm"
-              variant="soft"
-              color="warning"
-              onClick={onRetry}
-            >
-              Retry rendered preview
-            </JoyButton>
-          </Stack>
-        </Sheet>
-        <EmailPreviewFrame
-          html={rawHtml}
-          title="Legacy campaign HTML preview"
-          height={fullSize ? 720 : 480}
-        />
-      </Stack>
     );
   }
 
@@ -582,9 +766,7 @@ function renderEmailPreviewContent({
     return (
       <Sheet variant="soft" color="danger" sx={{ borderRadius: "lg", p: 2.5 }}>
         <Stack spacing={1.25}>
-          <Typography level="body-sm">
-            Rendered email preview is temporarily unavailable.
-          </Typography>
+          <Typography level="body-sm">Unable to load email preview.</Typography>
           {errorMessage ? (
             <Typography level="body-xs" sx={{ color: "danger.700" }}>
               {errorMessage}
@@ -597,7 +779,7 @@ function renderEmailPreviewContent({
               color="danger"
               onClick={onRetry}
             >
-              Retry preview
+              Try Again
             </JoyButton>
           </Box>
         </Stack>
@@ -605,12 +787,24 @@ function renderEmailPreviewContent({
     );
   }
 
-  if (!rawHtml) {
+  if (!hasRenderableContent) {
     return (
       <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
-        <Typography level="body-sm" color="neutral">
-          No email content is available for this campaign.
-        </Typography>
+        <Stack spacing={1.25}>
+          <Typography level="body-sm" color="neutral">
+            No email content available for this campaign.
+          </Typography>
+          <Box>
+            <JoyButton
+              size="sm"
+              variant="soft"
+              color="neutral"
+              onClick={onRetry}
+            >
+              Rebuild Preview
+            </JoyButton>
+          </Box>
+        </Stack>
       </Sheet>
     );
   }
@@ -619,11 +813,11 @@ function renderEmailPreviewContent({
     <Sheet variant="soft" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
       <Stack spacing={1.25}>
         <Typography level="body-sm" color="neutral">
-          Rendered email preview is unavailable for this campaign.
+          Email preview is unavailable right now.
         </Typography>
         <Box>
           <JoyButton size="sm" variant="soft" color="neutral" onClick={onRetry}>
-            Retry preview
+            Rebuild Preview
           </JoyButton>
         </Box>
       </Stack>
@@ -639,7 +833,6 @@ function ReportFullPreviewDialog({
   previewLoading,
   previewError,
   previewErrorMessage,
-  allowLegacyFallback,
   onRetryPreview,
 }: {
   open: boolean;
@@ -649,7 +842,6 @@ function ReportFullPreviewDialog({
   previewLoading: boolean;
   previewError: boolean;
   previewErrorMessage: string | null;
-  allowLegacyFallback: boolean;
   onRetryPreview: () => void;
 }) {
   return (
@@ -688,13 +880,13 @@ function ReportFullPreviewDialog({
               </Sheet>
             ) : (
               renderEmailPreviewContent({
-                rawHtml: report.rawContent,
+                hasRenderableContent: hasRenderableEmailSource(report),
                 renderedHtml: preview?.renderedHtml || "",
                 isLoading: previewLoading,
                 isError: previewError,
                 errorMessage: previewErrorMessage,
                 onRetry: onRetryPreview,
-                allowLegacyFallback,
+                viewport: "desktop",
                 fullSize: true,
               })
             )}
@@ -718,6 +910,12 @@ export default function CRMCampaignReport() {
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
   const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
   const lastStatusRef = React.useRef<string | null>(null);
+  const [previewViewport, setPreviewViewport] =
+    React.useState<PreviewViewport>("desktop");
+  const [manualPreview, setManualPreview] =
+    React.useState<RenderedEmailPreview | null>(null);
+  const [previewInlineErrorMessage, setPreviewInlineErrorMessage] =
+    React.useState<string | null>(null);
 
   const reportQuery = useQuery({
     queryKey: ["crm-campaign-report-dashboard", campaignId],
@@ -728,6 +926,7 @@ export default function CRMCampaignReport() {
         { data: trackingEvents, error: eventsError },
         editorRecord,
         { data: firstSendRow, error: firstSendError },
+        { data: firstMessageRow, error: firstMessageError },
       ] = await Promise.all([
         supabase
           .from("crm_campaigns")
@@ -756,11 +955,20 @@ export default function CRMCampaignReport() {
           .order("sent_at", { ascending: true })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("email_messages")
+          .select("id, customer_id, email, payload, sent_at")
+          .eq("campaign_id", campaignId)
+          .not("sent_at", "is", null)
+          .order("sent_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (campaignError) throw campaignError;
       if (eventsError) throw eventsError;
       if (firstSendError) throw firstSendError;
+      if (firstMessageError) throw firstMessageError;
 
       const campaign = mapCampaignCatalogItem(campaignRow);
       const timeline = buildTimeline(
@@ -768,36 +976,44 @@ export default function CRMCampaignReport() {
         campaignRow.sent_at,
       );
       const rawContent = editorRecord.content || campaignRow.content || "";
+      const previewSnapshot = buildPreviewSnapshot(
+        (firstMessageRow ?? null) as EmailMessagePreviewRow | null,
+      );
+      const previewCustomerId =
+        typeof firstSendRow?.customer_id === "string" &&
+        firstSendRow.customer_id
+          ? firstSendRow.customer_id
+          : typeof firstMessageRow?.customer_id === "string" &&
+              firstMessageRow.customer_id
+            ? firstMessageRow.customer_id
+            : null;
+      const previewEmail =
+        typeof firstSendRow?.email === "string" && firstSendRow.email.trim()
+          ? firstSendRow.email.trim()
+          : typeof firstMessageRow?.email === "string" &&
+              firstMessageRow.email.trim()
+            ? firstMessageRow.email.trim()
+            : "recipient@preview.invalid";
       let previewRecipient: ReportSummary["previewRecipient"] = {
         customerId: null,
         sampleCustomer: {
           first_name: "Sample",
           last_name: "Recipient",
-          email:
-            typeof firstSendRow?.email === "string" && firstSendRow.email.trim()
-              ? firstSendRow.email.trim()
-              : "customer@example.com",
+          email: previewEmail,
         },
       };
 
-      if (
-        typeof firstSendRow?.customer_id === "string" &&
-        firstSendRow.customer_id
-      ) {
+      if (previewCustomerId) {
         previewRecipient = {
-          customerId: firstSendRow.customer_id,
+          customerId: previewCustomerId,
           sampleCustomer: null,
         };
-      } else if (
-        typeof firstSendRow?.email === "string" &&
-        firstSendRow.email.trim() &&
-        campaignRow.tenant_id
-      ) {
+      } else if (previewEmail && campaignRow.tenant_id) {
         const { data: matchedCustomer } = await supabase
           .from("crm_customers")
           .select("id, first_name, last_name, email, phone")
           .eq("tenant_id", campaignRow.tenant_id)
-          .eq("email", firstSendRow.email.trim())
+          .eq("email", previewEmail)
           .limit(1)
           .maybeSingle();
 
@@ -812,7 +1028,7 @@ export default function CRMCampaignReport() {
             sampleCustomer: {
               first_name: undefined,
               last_name: undefined,
-              email: firstSendRow.email.trim(),
+              email: previewEmail,
               phone: undefined,
             },
           };
@@ -827,6 +1043,7 @@ export default function CRMCampaignReport() {
         preheaderText: campaign.preheaderText,
         rawContent,
         contentBlocks: editorRecord.contentBlocks,
+        previewSnapshot,
         previewRecipient,
         smsMessage: editorRecord.smsMessage || campaignRow.content || "",
         metrics: normalizeDerivedMetrics(campaignRow.metrics),
@@ -837,11 +1054,181 @@ export default function CRMCampaignReport() {
 
   const report = reportQuery.data;
   const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
-  const renderedSubjectLine = report?.subjectLine || "";
+  const previewQueryKey = React.useMemo(
+    () =>
+      [
+        "crm-campaign-report-preview",
+        campaignId,
+        report?.previewSnapshot?.sourceMessageId ?? null,
+        report?.campaign.updatedAt ?? null,
+        report?.previewRecipient.customerId ?? null,
+        report?.previewRecipient.sampleCustomer?.email ?? null,
+      ] as const,
+    [
+      campaignId,
+      report?.campaign.updatedAt,
+      report?.previewRecipient.customerId,
+      report?.previewRecipient.sampleCustomer?.email,
+      report?.previewSnapshot?.sourceMessageId,
+    ],
+  );
+
+  const renderCampaignPreview = React.useCallback(
+    async (summary: ReportSummary): Promise<RenderedEmailPreview> => {
+      const { data, error } = await supabase.functions.invoke(
+        "render-email-preview",
+        {
+          body: {
+            tenantId: summary.tenantId ?? undefined,
+            campaignId: summary.campaign.id,
+            html: summary.rawContent,
+            contentBlocks: summary.contentBlocks,
+            subject: summary.subjectLine,
+            previewText: summary.preheaderText,
+            customerId: summary.previewRecipient.customerId ?? undefined,
+            sampleCustomer:
+              summary.previewRecipient.sampleCustomer ?? undefined,
+            exactSendPreview: true,
+            enableLinkTracking: false,
+            includeFooter: true,
+          },
+        },
+      );
+
+      if (error) {
+        throw new Error(
+          error.message ||
+            "Unable to render the email preview for this campaign.",
+        );
+      }
+
+      const renderedHtml =
+        data && typeof data.renderedHtml === "string"
+          ? data.renderedHtml.trim()
+          : "";
+
+      if (!renderedHtml) {
+        throw new Error(
+          "Failed to rebuild preview. Check that the campaign has email content configured.",
+        );
+      }
+
+      return {
+        renderedHtml,
+        renderedSubject:
+          data && typeof data.renderedSubject === "string"
+            ? data.renderedSubject
+            : summary.subjectLine,
+        diagnostics:
+          data && typeof data.diagnostics === "object"
+            ? data.diagnostics
+            : undefined,
+        source: "rebuilt",
+      };
+    },
+    [],
+  );
+
+  const previewQuery = useQuery({
+    queryKey: previewQueryKey,
+    enabled: Boolean(report && report.campaign.channel !== "sms"),
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<RenderedEmailPreview | null> => {
+      if (!report) {
+        return null;
+      }
+
+      const snapshotHtml = report.previewSnapshot?.html?.trim() ?? "";
+      if (snapshotHtml) {
+        return {
+          renderedHtml: snapshotHtml,
+          renderedSubject:
+            report.previewSnapshot?.subject || report.subjectLine || "",
+          source: "snapshot",
+        };
+      }
+
+      if (!hasRenderableEmailSource(report)) {
+        return null;
+      }
+
+      return renderCampaignPreview(report);
+    },
+  });
+
+  const rebuildPreviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!report) {
+        throw new Error("Campaign preview data is unavailable.");
+      }
+
+      if (!hasRenderableEmailSource(report)) {
+        throw new Error(
+          "Failed to rebuild preview. Check that the campaign has email content configured.",
+        );
+      }
+
+      return renderCampaignPreview(report);
+    },
+    onMutate: async () => {
+      setPreviewInlineErrorMessage(null);
+      await queryClient.cancelQueries({ queryKey: previewQueryKey });
+    },
+    onSuccess: (data) => {
+      setManualPreview(data);
+      queryClient.setQueryData(previewQueryKey, data);
+      toast.success("Preview rebuilt successfully");
+    },
+    onError: (error) => {
+      const message = getErrorMessage(
+        error,
+        "Failed to rebuild preview. Check that the campaign has email content configured.",
+      );
+      setPreviewInlineErrorMessage(message);
+      toast.error("Failed to rebuild preview", {
+        description: message,
+      });
+    },
+  });
+
+  const hasEmailPreviewSource = report
+    ? hasRenderableEmailSource(report)
+    : false;
+  const preview = manualPreview ?? previewQuery.data;
+  const previewLoading = previewQuery.isLoading && !preview;
+  const previewError = previewQuery.isError && !preview;
+  const previewErrorMessage = previewQuery.isError
+    ? getErrorMessage(previewQuery.error, "Unable to load email preview.")
+    : null;
+  const renderedSubjectLine =
+    preview?.renderedSubject ||
+    report?.previewSnapshot?.subject ||
+    report?.subjectLine ||
+    "";
+  const renderedPreheaderText =
+    report?.previewSnapshot?.preheader || report?.preheaderText || "";
+
+  const handleRebuildPreview = React.useCallback(() => {
+    void rebuildPreviewMutation.mutateAsync();
+  }, [rebuildPreviewMutation]);
 
   React.useEffect(() => {
     lastStatusRef.current = report?.campaign.status ?? null;
   }, [report?.campaign.status]);
+
+  React.useEffect(() => {
+    setManualPreview(null);
+  }, [
+    campaignId,
+    report?.campaign.updatedAt,
+    report?.previewSnapshot?.sourceMessageId,
+  ]);
+
+  React.useEffect(() => {
+    if (preview?.renderedHtml) {
+      setPreviewInlineErrorMessage(null);
+    }
+  }, [preview?.renderedHtml]);
 
   React.useEffect(() => {
     if (!campaignId) return;
@@ -894,6 +1281,9 @@ export default function CRMCampaignReport() {
 
           void queryClient.invalidateQueries({
             queryKey: ["crm-campaign-report-dashboard", campaignId],
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ["crm-campaign-report-preview", campaignId],
           });
         },
       )
@@ -1199,9 +1589,71 @@ export default function CRMCampaignReport() {
               useFlexGap
               sx={{ mb: 2 }}
             >
-              <Typography level="title-sm" fontWeight="lg">
-                What was sent
-              </Typography>
+              <Stack spacing={0.35}>
+                <Typography level="title-sm" fontWeight="lg">
+                  {report?.campaign.channel === "sms"
+                    ? "What was sent"
+                    : "Email Preview"}
+                </Typography>
+                {report?.campaign.channel !== "sms" ? (
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    Review the sent snapshot or rebuild the preview using the
+                    live email renderer.
+                  </Typography>
+                ) : null}
+              </Stack>
+
+              {report?.campaign.channel !== "sms" ? (
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                  justifyContent={{ xs: "stretch", sm: "flex-end" }}
+                >
+                  <ButtonGroup
+                    variant="soft"
+                    color="neutral"
+                    sx={{ borderRadius: "lg" }}
+                  >
+                    <JoyButton
+                      variant={previewViewport === "desktop" ? "solid" : "soft"}
+                      color={
+                        previewViewport === "desktop" ? "primary" : "neutral"
+                      }
+                      onClick={() => setPreviewViewport("desktop")}
+                    >
+                      Desktop
+                    </JoyButton>
+                    <JoyButton
+                      variant={previewViewport === "mobile" ? "solid" : "soft"}
+                      color={
+                        previewViewport === "mobile" ? "primary" : "neutral"
+                      }
+                      onClick={() => setPreviewViewport("mobile")}
+                    >
+                      Mobile
+                    </JoyButton>
+                  </ButtonGroup>
+
+                  <JoyButton
+                    variant="outlined"
+                    color="neutral"
+                    size="sm"
+                    loading={rebuildPreviewMutation.isPending}
+                    loadingPosition="start"
+                    startDecorator={
+                      rebuildPreviewMutation.isPending ? undefined : (
+                        <RefreshCw size={16} />
+                      )
+                    }
+                    onClick={handleRebuildPreview}
+                  >
+                    {rebuildPreviewMutation.isPending
+                      ? "Rebuilding..."
+                      : "Rebuild Preview"}
+                  </JoyButton>
+                </Stack>
+              ) : null}
             </Stack>
 
             {reportQuery.isLoading ? (
@@ -1213,7 +1665,7 @@ export default function CRMCampaignReport() {
                     Subject: {renderedSubjectLine || "No subject line"}
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    {report?.preheaderText || "No preheader text"}
+                    {renderedPreheaderText || "No preheader text"}
                   </Typography>
                 </Stack>
                 {report?.campaign.channel === "sms" ? (
@@ -1227,25 +1679,28 @@ export default function CRMCampaignReport() {
                     </Typography>
                   </Sheet>
                 ) : report ? (
-                  <Sheet
-                    variant="soft"
-                    color="warning"
-                    sx={{ borderRadius: "lg", p: 2.5 }}
-                  >
-                    <Stack spacing={1}>
-                      <Typography level="body-sm" fontWeight="lg">
-                        Email preview removed during rebuild
-                      </Typography>
-                      <Typography level="body-sm" sx={{ color: "warning.700" }}>
-                        This report no longer renders live email previews or
-                        replays current block content.
-                      </Typography>
-                      <Typography level="body-xs" sx={{ color: "warning.700" }}>
-                        Subject and delivery analytics remain available while
-                        the campaign builder is rebuilt.
-                      </Typography>
-                    </Stack>
-                  </Sheet>
+                  <Stack spacing={1.5}>
+                    {previewInlineErrorMessage && preview ? (
+                      <Sheet
+                        variant="soft"
+                        color="danger"
+                        sx={{ borderRadius: "lg", p: 2 }}
+                      >
+                        <Typography level="body-sm">
+                          {previewInlineErrorMessage}
+                        </Typography>
+                      </Sheet>
+                    ) : null}
+                    {renderEmailPreviewContent({
+                      hasRenderableContent: hasEmailPreviewSource,
+                      renderedHtml: preview?.renderedHtml || "",
+                      isLoading: previewLoading,
+                      isError: previewError,
+                      errorMessage: previewErrorMessage,
+                      onRetry: handleRebuildPreview,
+                      viewport: previewViewport,
+                    })}
+                  </Stack>
                 ) : null}
                 {report?.campaign.channel === "sms" ? (
                   <Typography
