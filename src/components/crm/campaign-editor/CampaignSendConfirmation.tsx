@@ -591,8 +591,8 @@ export function CampaignSendConfirmation({
   const hasWarning = preflightItems.some((item) => Boolean(item.warning));
   const hasBuilderWarnings = builderWarnings.length > 0;
   const hasBuilderBlockers = builderBlockers.length > 0;
-  const requiresAcknowledgement = hasWarning || hasBuilderWarnings;
-  const canForceOverride = sendImmediately && requiresAcknowledgement;
+  const hasWarnings = hasWarning || hasBuilderWarnings;
+  const canForceOverride = sendImmediately && hasWarnings;
 
   const acknowledgedWarnings = React.useMemo<AcknowledgedWarning[]>(
     () => [
@@ -614,30 +614,22 @@ export function CampaignSendConfirmation({
     [builderWarnings, preflightItems],
   );
 
-  const formatRecipientActionLabel = React.useCallback(
-    (count: number, descriptor?: string) => {
-      const prefix = descriptor ? `${descriptor} ` : "";
-      return `${count.toLocaleString()} ${prefix}recipient${count === 1 ? "" : "s"}`;
-    },
-    [],
-  );
-
-  const normalActionLabel = sendImmediately
-    ? requiresAcknowledgement
-      ? `Send to ${formatRecipientActionLabel(filteredRecipientCount, "filtered")}`
-      : `Send to ${formatRecipientActionLabel(filteredRecipientCount)}`
-    : requiresAcknowledgement
-      ? `Schedule ${formatRecipientActionLabel(filteredRecipientCount, "filtered")}`
-      : `Schedule ${formatRecipientActionLabel(filteredRecipientCount)}`;
-  const overrideActionLabel = `Send Anyway to ${formatRecipientActionLabel(overrideRecipientCount)}`;
   const isBusy = isSaving || isSubmitting;
-  const isNormalDisabled =
-    isBusy || hasBuilderBlockers || filteredRecipientCount === 0;
-  const isOverrideDisabled =
+  const useForceOverride = canForceOverride && warningsAcknowledged;
+  const primaryActionLabel = useForceOverride
+    ? "Send Anyway"
+    : sendImmediately
+      ? "Send Now"
+      : "Schedule";
+  const primaryActionColor = useForceOverride ? "warning" : "primary";
+  const primaryActionMode = useForceOverride ? "override" : "normal";
+  const primaryActionDisabled =
     isBusy ||
     hasBuilderBlockers ||
-    !warningsAcknowledged ||
-    overrideRecipientCount === 0;
+    (canForceOverride && !warningsAcknowledged) ||
+    (useForceOverride
+      ? overrideRecipientCount === 0
+      : filteredRecipientCount === 0);
 
   const handleClose = React.useCallback(() => {
     if (!isBusy) {
@@ -645,44 +637,58 @@ export function CampaignSendConfirmation({
     }
   }, [isBusy, onClose]);
 
-  const handleSubmit = React.useCallback(async (mode: "normal" | "override") => {
-    const useForceOverride = mode === "override" && canForceOverride;
+  const handleSubmit = React.useCallback(
+    async (mode: "normal" | "override") => {
+      const shouldForceOverride = mode === "override" && canForceOverride;
+      const isDisabled =
+        isBusy ||
+        hasBuilderBlockers ||
+        (shouldForceOverride
+          ? overrideRecipientCount === 0
+          : filteredRecipientCount === 0) ||
+        (canForceOverride && !shouldForceOverride);
 
-    if (useForceOverride ? isOverrideDisabled : isNormalDisabled) {
-      return;
-    }
-
-    setInlineError(null);
-    setIsSubmitting(true);
-    try {
-      const result = await activate({
-        suppressToasts: true,
-        forceBypassConsent: useForceOverride,
-        forceBypassSoftSuppression: useForceOverride,
-        acknowledgedWarnings: useForceOverride ? acknowledgedWarnings : undefined,
-      });
-      if (result.success) {
-        onClose();
+      if (isDisabled) {
         return;
       }
-      setInlineError(result.error.description || result.error.title);
-    } catch (error) {
-      setInlineError(
-        error instanceof Error
-          ? error.message
-          : "The send request could not be accepted into the queue.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [
-    acknowledgedWarnings,
-    activate,
-    canForceOverride,
-    isNormalDisabled,
-    isOverrideDisabled,
-    onClose,
-  ]);
+
+      setInlineError(null);
+      setIsSubmitting(true);
+      try {
+        const result = await activate({
+          suppressToasts: true,
+          forceBypassConsent: shouldForceOverride,
+          forceBypassSoftSuppression: shouldForceOverride,
+          acknowledgedWarnings: shouldForceOverride
+            ? acknowledgedWarnings
+            : undefined,
+        });
+        if (result.success) {
+          onClose();
+          return;
+        }
+        setInlineError(result.error.description || result.error.title);
+      } catch (error) {
+        setInlineError(
+          error instanceof Error
+            ? error.message
+            : "The send request could not be accepted into the queue.",
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [
+      acknowledgedWarnings,
+      activate,
+      canForceOverride,
+      filteredRecipientCount,
+      hasBuilderBlockers,
+      isBusy,
+      onClose,
+      overrideRecipientCount,
+    ],
+  );
 
   return (
     <Modal open={open} onClose={handleClose}>
@@ -845,44 +851,40 @@ export function CampaignSendConfirmation({
         </DialogContent>
 
         <Divider />
-        <DialogActions
-          sx={{
-            px: 3,
-            py: 2,
-            alignItems: { xs: "stretch", sm: "center" },
-            flexDirection: { xs: "column", sm: "row" },
-            gap: 1,
-          }}
-        >
-          <JoyButton
-            bloomVariant="ghost"
-            color="neutral"
-            onClick={handleClose}
-            disabled={isBusy}
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              width: "100%",
+              gap: 1.5,
+            }}
           >
-            Back
-          </JoyButton>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
             <JoyButton
-              loading={isBusy}
-              disabled={isNormalDisabled}
-              onClick={() => void handleSubmit("normal")}
-              startDecorator={<Send size={16} />}
+              variant="plain"
+              color="neutral"
+              onClick={handleClose}
+              disabled={isBusy}
             >
-              {normalActionLabel}
+              Back
             </JoyButton>
-            {canForceOverride ? (
-              <JoyButton
-                color="warning"
-                loading={isBusy}
-                disabled={isOverrideDisabled}
-                onClick={() => void handleSubmit("override")}
-                startDecorator={<AlertTriangle size={16} />}
-              >
-                {overrideActionLabel}
-              </JoyButton>
-            ) : null}
-          </Stack>
+            <JoyButton
+              variant="solid"
+              color={primaryActionColor}
+              loading={isBusy}
+              disabled={primaryActionDisabled}
+              onClick={() => void handleSubmit(primaryActionMode)}
+              startDecorator={<Send size={16} />}
+              sx={{
+                ml: "auto",
+                transition:
+                  "background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease",
+              }}
+            >
+              {primaryActionLabel}
+            </JoyButton>
+          </Box>
         </DialogActions>
       </ModalDialog>
     </Modal>
