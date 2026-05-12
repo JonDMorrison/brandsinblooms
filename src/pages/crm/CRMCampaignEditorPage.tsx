@@ -21,7 +21,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  Check,
   CheckCircle2,
+  Pencil,
   Send,
   TimerReset,
   XCircle,
@@ -46,6 +48,7 @@ import { SegmentsAudienceSelect } from "@/components/crm/campaign-editor/Segment
 import { SenderConfigModal } from "@/components/crm/campaign-editor/SenderConfigModal";
 import { SenderConfigSummary } from "@/components/crm/campaign-editor/SenderConfigSummary";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
+import { StudioCtaCard } from "@/components/crm/campaign-editor/StudioCtaCard";
 import {
   useSavedTemplates,
   type SavedTemplate,
@@ -1047,8 +1050,23 @@ function CampaignEditorScreen() {
 
   const audienceInitiallyExpanded = true;
   const contentInitiallyExpanded = true;
-  const previewInitiallyExpanded = false;
   const scheduleInitiallyExpanded = false;
+
+  // Preview section starts collapsed but auto-opens once the user
+  // applies a template (or otherwise gains meaningful blocks). After
+  // the user manually toggles it themselves, we stop auto-opening
+  // for the rest of the session.
+  const [previewExpanded, setPreviewExpanded] = React.useState(false);
+  const previewManuallyToggledRef = React.useRef(false);
+  React.useEffect(() => {
+    if (hasMeaningfulEmailContent && !previewManuallyToggledRef.current) {
+      setPreviewExpanded(true);
+    }
+  }, [hasMeaningfulEmailContent]);
+  const handlePreviewExpandedChange = React.useCallback((next: boolean) => {
+    previewManuallyToggledRef.current = true;
+    setPreviewExpanded(next);
+  }, []);
 
   // Persona disclosure auto-expands when the campaign already has
   // personas saved on load (#2 of the spec), but the toggle state is
@@ -1655,6 +1673,30 @@ function CampaignEditorScreen() {
               : "Message not written yet"
         }
         defaultExpanded={contentInitiallyExpanded}
+        badge={
+          campaignType === "email" && hasMeaningfulEmailContent ? (
+            <Box
+              component="span"
+              data-testid="content-section-applied-badge"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.125,
+                py: "3px",
+                borderRadius: "999px",
+                backgroundColor: "var(--joy-palette-success-50)",
+                color: "var(--joy-palette-success-700)",
+                fontSize: "11px",
+                fontWeight: 500,
+                lineHeight: 1,
+              }}
+            >
+              <Check size={11} strokeWidth={2.5} />
+              Template applied
+            </Box>
+          ) : null
+        }
       >
         {campaignType === "email" ? (
           <Stack spacing={3}>
@@ -1711,34 +1753,73 @@ function CampaignEditorScreen() {
               onOpenManage={() => setManageTemplatesOpen(true)}
             />
 
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              sx={{ alignItems: { xs: "stretch", sm: "center" } }}
-            >
-              <JoyButton
-                variant="soft"
-                color="neutral"
-                onClick={handleOpenStudio}
-                disabled={isLocked}
-              >
-                Edit design in studio
-              </JoyButton>
-              <JoyButton
-                variant="outlined"
-                color="neutral"
-                onClick={() => setSaveTemplateOpen(true)}
-                disabled={!canSaveAsTemplate}
-                title={
-                  !canSaveAsTemplate && !isLocked
-                    ? "Add some content first"
+            <StudioCtaCard
+              onOpen={handleOpenStudio}
+              disabled={isLocked || !hasMeaningfulEmailContent}
+              disabledReason={
+                isLocked
+                  ? "This campaign has already been sent"
+                  : !hasMeaningfulEmailContent
+                    ? "Pick a template first to start designing"
                     : undefined
-                }
-                data-testid="content-save-as-template"
+              }
+              title={isLocked ? "View in Studio" : undefined}
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                pt: 0.5,
+              }}
+            >
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "13px",
+                  color: "var(--joy-palette-neutral-500)",
+                }}
               >
-                Save as template
-              </JoyButton>
-            </Stack>
+                or{" "}
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => {
+                    if (!canSaveAsTemplate) return;
+                    setSaveTemplateOpen(true);
+                  }}
+                  disabled={!canSaveAsTemplate}
+                  data-testid="content-save-as-template-link"
+                  title={
+                    !canSaveAsTemplate
+                      ? isLocked
+                        ? "This campaign has already been sent"
+                        : "Add some content first"
+                      : undefined
+                  }
+                  sx={{
+                    background: "none",
+                    border: 0,
+                    padding: 0,
+                    margin: 0,
+                    font: "inherit",
+                    color: canSaveAsTemplate
+                      ? "var(--joy-palette-primary-600)"
+                      : "var(--joy-palette-neutral-400)",
+                    textDecoration: "underline",
+                    cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
+                    "&:focus-visible": {
+                      outline:
+                        "2px solid var(--joy-palette-primary-400)",
+                      outlineOffset: "2px",
+                      borderRadius: "2px",
+                    },
+                  }}
+                >
+                  save this design as a template
+                </Box>
+              </Typography>
+            </Box>
           </Stack>
         ) : (
           <Stack spacing={1.5}>
@@ -1775,16 +1856,105 @@ function CampaignEditorScreen() {
           id="campaign-editor-preview"
           title="Preview"
           summary={previewSummary}
-          defaultExpanded={previewInitiallyExpanded}
+          expanded={previewExpanded}
+          onExpandedChange={handlePreviewExpandedChange}
         >
-          <ContentPreviewCard
-            blocks={contentBlocks}
-            subjectLine={subjectLine}
-            previewText={preheaderText}
-            designSystem={designSystem}
-            loading={isDesignSystemLoading}
-            onOpenStudio={handleOpenStudio}
-          />
+          <Box
+            role="button"
+            tabIndex={0}
+            aria-label={
+              isLocked
+                ? "Open the Design Studio to view this email"
+                : "Open the Design Studio to edit this email"
+            }
+            onClick={handleOpenStudio}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleOpenStudio();
+              }
+            }}
+            sx={{
+              position: "relative",
+              borderRadius: "var(--joy-radius-lg)",
+              overflow: "hidden",
+              cursor: "pointer",
+              "&:focus-visible": {
+                outline: "2px solid var(--joy-palette-primary-400)",
+                outlineOffset: "2px",
+              },
+              "& [data-preview-overlay]": {
+                opacity: 0,
+                pointerEvents: "none",
+                transition: "opacity 150ms ease",
+              },
+              "@media (hover: hover)": {
+                "&:hover [data-preview-overlay], &:focus-visible [data-preview-overlay]":
+                  {
+                    opacity: 1,
+                  },
+              },
+              "& [data-preview-touch-pill]": {
+                display: "none",
+              },
+              "@media (hover: none)": {
+                "& [data-preview-touch-pill]": {
+                  display: "inline-flex",
+                },
+              },
+            }}
+          >
+            <ContentPreviewCard
+              blocks={contentBlocks}
+              subjectLine={subjectLine}
+              previewText={preheaderText}
+              designSystem={designSystem}
+              loading={isDesignSystemLoading}
+              onOpenStudio={handleOpenStudio}
+            />
+            <Box
+              data-preview-overlay
+              aria-hidden
+              sx={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+                color: "#ffffff",
+                backgroundColor: "rgba(20, 20, 20, 0.72)",
+                fontSize: "15px",
+                fontWeight: 500,
+                zIndex: 2,
+              }}
+            >
+              <Pencil size={18} />
+              {isLocked ? "View in Studio" : "Click to edit in Studio"}
+            </Box>
+            <Box
+              data-preview-touch-pill
+              aria-hidden
+              sx={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                alignItems: "center",
+                gap: 0.5,
+                px: 1.25,
+                py: 0.5,
+                borderRadius: "999px",
+                backgroundColor: "rgba(20, 20, 20, 0.78)",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 500,
+                zIndex: 2,
+              }}
+            >
+              <Pencil size={12} />
+              {isLocked ? "View in Studio" : "Edit in Studio"}
+            </Box>
+          </Box>
         </CollapsibleSection>
       ) : null}
 

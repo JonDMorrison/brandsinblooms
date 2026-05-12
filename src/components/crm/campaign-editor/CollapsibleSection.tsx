@@ -12,6 +12,13 @@ export interface CollapsibleSectionProps {
   badge?: React.ReactNode;
   endDecorator?: React.ReactNode;
   defaultExpanded?: boolean;
+  /**
+   * Controlled-mode expanded state. When provided, the section
+   * becomes fully controlled and internal state is ignored. Pair
+   * with `onExpandedChange` to receive toggle events.
+   */
+  expanded?: boolean;
+  onExpandedChange?: (next: boolean) => void;
   children: React.ReactNode;
 }
 
@@ -22,15 +29,24 @@ export function CollapsibleSection({
   badge,
   endDecorator,
   defaultExpanded = true,
+  expanded: expandedProp,
+  onExpandedChange,
   children,
 }: CollapsibleSectionProps) {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [internalExpanded, setInternalExpanded] =
+    React.useState(defaultExpanded);
+  const isControlled = expandedProp !== undefined;
+  const expanded = isControlled ? expandedProp : internalExpanded;
   const reactId = React.useId();
   const bodyId = `${id ?? reactId}-body`;
 
   const toggle = React.useCallback(() => {
-    setExpanded((previous) => !previous);
-  }, []);
+    const next = !expanded;
+    if (!isControlled) {
+      setInternalExpanded(next);
+    }
+    onExpandedChange?.(next);
+  }, [expanded, isControlled, onExpandedChange]);
 
   const onHeaderKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
