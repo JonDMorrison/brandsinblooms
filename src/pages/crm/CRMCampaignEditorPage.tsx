@@ -41,6 +41,8 @@ import { CampaignBlockerRow } from "@/components/crm/campaign-editor/CampaignBlo
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
 import { SegmentsAudienceSelect } from "@/components/crm/campaign-editor/SegmentsAudienceSelect";
+import { SenderConfigModal } from "@/components/crm/campaign-editor/SenderConfigModal";
+import { SenderConfigSummary } from "@/components/crm/campaign-editor/SenderConfigSummary";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -91,6 +93,10 @@ import type {
 
 const EDITOR_MAX_WIDTH = 1200;
 const AUDIENCE_CUSTOMER_PAGE_SIZE = 8;
+// Soft limit for the preview-text counter. Inboxes typically clip
+// preview text around 90-150 characters; we surface the warning
+// above 150 but still allow typing — some clients show more.
+const PREVIEW_TEXT_SOFT_LIMIT = 150;
 
 type AudienceExpansionMode = "all-customers" | "add-customers";
 
@@ -536,6 +542,7 @@ function CampaignEditorScreen() {
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
   const [verificationOpen, setVerificationOpen] = React.useState(false);
+  const [senderConfigOpen, setSenderConfigOpen] = React.useState(false);
   const [previewUnavailableOpen, setPreviewUnavailableOpen] =
     React.useState(false);
   const [audienceExpansionOpen, setAudienceExpansionOpen] =
@@ -1267,61 +1274,45 @@ function CampaignEditorScreen() {
         title="Setup"
         summary={setupSummary}
         defaultExpanded={setupInitiallyExpanded}
-        endDecorator={
-          campaignType === "email" ? (
-            <JoyButton
-              variant="plain"
-              color="neutral"
-              size="sm"
-              onClick={(event) => {
-                event.stopPropagation();
-                setVerificationOpen(true);
-              }}
-            >
-              Verify sender
-            </JoyButton>
-          ) : null
-        }
       >
         <Stack spacing={2}>
-          <JoyInput
-            label="Campaign name"
-            value={name}
-            disabled={isLocked}
-            onValueChange={(value) => updateSetup({ name: value })}
-          />
-          <JoySelect
-            label="Campaign type"
-            value={campaignType}
-            disabled={isLocked}
-            options={[
-              { value: "email", label: "Email" },
-              { value: "sms", label: "SMS" },
-            ]}
-            onValueChange={(value) =>
-              updateSetup({ campaignType: value === "sms" ? "sms" : "email" })
-            }
-          />
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 2,
+            }}
+          >
             <JoyInput
-              label="Sender name"
-              value={senderName}
+              label="Campaign name"
+              value={name}
               disabled={isLocked}
-              onValueChange={(value) => updateSetup({ senderName: value })}
+              onValueChange={(value) => updateSetup({ name: value })}
             />
-            <JoyInput
-              label="Sender email"
-              value={senderEmail}
+            <JoySelect
+              label="Campaign type"
+              value={campaignType}
               disabled={isLocked}
-              onValueChange={(value) => updateSetup({ senderEmail: value })}
+              options={[
+                { value: "email", label: "Email" },
+                { value: "sms", label: "SMS" },
+              ]}
+              onValueChange={(value) =>
+                updateSetup({
+                  campaignType: value === "sms" ? "sms" : "email",
+                })
+              }
             />
-          </Stack>
-          <JoyInput
-            label="Reply-to email"
-            value={replyTo}
-            disabled={isLocked}
-            onValueChange={(value) => updateSetup({ replyTo: value })}
-          />
+          </Box>
+          {campaignType === "email" ? (
+            <SenderConfigSummary
+              senderDisplayName={senderName}
+              senderEmail={senderEmail}
+              isVerified={senderClassification.status === "ready"}
+              isLocked={isLocked}
+              onEdit={() => setSenderConfigOpen(true)}
+            />
+          ) : null}
         </Stack>
       </CollapsibleSection>
 
@@ -1391,51 +1382,15 @@ function CampaignEditorScreen() {
                 Add specific people
               </JoyButton>
 
-              {includeAllCustomers || additionalCustomerIds.length > 0 ? (
+              {/* The "All Contacts" pseudo-pill inside
+                  SegmentsAudienceSelect already communicates the
+                  include_all_customers=true state, so we no longer
+                  render a separate "All customers included" card
+                  here. Only the direct-addition card below stays —
+                  it shows specific user-added customer IDs that the
+                  pseudo-pill does not describe. */}
+              {additionalCustomerIds.length > 0 ? (
                 <Stack spacing={1}>
-                  {includeAllCustomers ? (
-                    <Sheet
-                      variant="outlined"
-                      sx={{
-                        borderRadius: "md",
-                        p: 1.5,
-                        bgcolor: "background.surface",
-                        borderColor: "primary.200",
-                      }}
-                    >
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "flex-start", sm: "center" }}
-                      >
-                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                          <Typography level="body-sm" fontWeight="md">
-                            All customers included
-                          </Typography>
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.600" }}
-                          >
-                            Every eligible customer in this tenant is unioned
-                            into the send audience at delivery time.
-                          </Typography>
-                        </Stack>
-                        <Button
-                          size="sm"
-                          variant="plain"
-                          color="neutral"
-                          disabled={isLocked}
-                          onClick={() =>
-                            updateAudience({ includeAllCustomers: false })
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </Stack>
-                    </Sheet>
-                  ) : null}
-
                   {additionalCustomerIds.length > 0 ? (
                     <Sheet
                       variant="outlined"
@@ -1571,20 +1526,43 @@ function CampaignEditorScreen() {
       >
         {campaignType === "email" ? (
           <Stack spacing={3}>
-            <JoyInput
-              id="campaign-editor-subject"
-              label="Subject line"
-              value={subjectLine}
-              disabled={isLocked}
-              onValueChange={(value) => updateSetup({ subjectLine: value })}
-            />
-            <JoyTextarea
-              label="Preview text"
-              minRows={3}
-              value={preheaderText}
-              disabled={isLocked}
-              onValueChange={(value) => updateSetup({ preheaderText: value })}
-            />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                gap: 2,
+              }}
+            >
+              <JoyInput
+                id="campaign-editor-subject"
+                label="Subject line"
+                value={subjectLine}
+                disabled={isLocked}
+                onValueChange={(value) => updateSetup({ subjectLine: value })}
+              />
+              <JoyInput
+                label="Preview text"
+                value={preheaderText}
+                disabled={isLocked}
+                placeholder="Shows next to the subject in their inbox"
+                onValueChange={(value) =>
+                  updateSetup({ preheaderText: value })
+                }
+                helperText={
+                  <Box
+                    component="span"
+                    sx={{
+                      color:
+                        preheaderText.length > PREVIEW_TEXT_SOFT_LIMIT
+                          ? "var(--joy-palette-warning-600)"
+                          : "var(--joy-palette-neutral-500)",
+                    }}
+                  >
+                    {`${preheaderText.length} / ${PREVIEW_TEXT_SOFT_LIMIT}`}
+                  </Box>
+                }
+              />
+            </Box>
 
             <Divider />
 
@@ -2056,6 +2034,21 @@ function CampaignEditorScreen() {
       <SenderVerificationDialog
         open={verificationOpen}
         onClose={() => setVerificationOpen(false)}
+      />
+      <SenderConfigModal
+        open={senderConfigOpen}
+        onClose={() => setSenderConfigOpen(false)}
+        senderName={senderName}
+        senderEmail={senderEmail}
+        replyTo={replyTo}
+        isLocked={isLocked}
+        onSave={(next) =>
+          updateSetup({
+            senderName: next.senderName,
+            senderEmail: next.senderEmail,
+            replyTo: next.replyTo,
+          })
+        }
       />
     </Stack>
   );
