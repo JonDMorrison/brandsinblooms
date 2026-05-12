@@ -24,6 +24,8 @@ import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
+import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
+import { useTenant } from "@/hooks/useTenant";
 import {
   ArrowRight,
   BarChart3,
@@ -280,6 +282,12 @@ export const BloomSuiteDashboard = () => {
     useCRMDashboardMetrics();
   const { data: posAnalytics, isLoading: loadingPOSAnalytics } =
     usePOSAnalytics();
+  const { tenant } = useTenant();
+  const {
+    data: tenantSummary,
+    isLoading: loadingTenantSummary,
+    error: tenantSummaryError,
+  } = useTenantCustomerSummary(tenant?.id);
 
   const displayName = useMemo(() => {
     const fullName =
@@ -441,10 +449,28 @@ export const BloomSuiteDashboard = () => {
     },
   ];
 
+  const tenantSummaryUnavailable = Boolean(tenantSummaryError) || !tenantSummary;
+  const customersValue = tenantSummary
+    ? tenantSummary.total_customers.toLocaleString()
+    : tenantSummaryUnavailable && !loadingTenantSummary
+      ? "—"
+      : "0";
+  const revenueFormatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const revenueValue = tenantSummary
+    ? revenueFormatter.format(tenantSummary.total_revenue)
+    : tenantSummaryUnavailable && !loadingTenantSummary
+      ? "—"
+      : revenueFormatter.format(0);
+
   const overviewStats = [
     {
       label: "Customers",
-      value: (crmMetrics?.totalCustomers ?? 0).toLocaleString(),
+      value: customersValue,
       icon: <Mail />,
       change:
         crmMetrics && Number.isFinite(crmMetrics.totalCustomersGrowth)
@@ -457,6 +483,7 @@ export const BloomSuiteDashboard = () => {
             }
           : undefined,
       onClick: () => navigate("/crm/customers"),
+      loading: loadingTenantSummary,
     },
     {
       label: "Orders",
@@ -488,11 +515,7 @@ export const BloomSuiteDashboard = () => {
     },
     {
       label: "Revenue",
-      value: new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0,
-      }).format(crmMetrics?.totalRevenue ?? 0),
+      value: revenueValue,
       icon: <BarChart3 />,
       change:
         crmMetrics && Number.isFinite(crmMetrics.totalRevenueGrowth)
@@ -505,6 +528,7 @@ export const BloomSuiteDashboard = () => {
             }
           : undefined,
       onClick: () => navigate("/analytics"),
+      loading: loadingTenantSummary,
     },
   ];
 
@@ -732,7 +756,7 @@ export const BloomSuiteDashboard = () => {
             label={stat.label}
             value={stat.value}
             change={stat.change}
-            loading={cardsLoading}
+            loading={stat.loading ?? cardsLoading}
             onClick={stat.onClick}
           />
         ))}
