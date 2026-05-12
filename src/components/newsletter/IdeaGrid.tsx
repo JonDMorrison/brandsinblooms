@@ -297,34 +297,35 @@ export const IdeaGrid: React.FC<IdeaGridProps> = ({
   }, [weeklyIdeas]);
 
   const displayWeeklyIdeas = React.useMemo(() => {
-    const baseEntries = orderedWeeklyIdeas.map((idea) => ({
+    if (orderedWeeklyIdeas.length === 0) {
+      return [];
+    }
+
+    // Rotate the chronologically-sorted weeks so the current week
+    // appears first, followed by current+1, current+2, ... wrapping
+    // around at the end of the calendar. Without this, the second
+    // card after the current-week feature jumped back to week 1
+    // because we were rendering the raw Jan→Dec array.
+    const startIndex = currentWeekIdeaId
+      ? orderedWeeklyIdeas.findIndex((idea) => idea.id === currentWeekIdeaId)
+      : -1;
+
+    const rotated =
+      startIndex > 0
+        ? [
+            ...orderedWeeklyIdeas.slice(startIndex),
+            ...orderedWeeklyIdeas.slice(0, startIndex),
+          ]
+        : orderedWeeklyIdeas;
+
+    return rotated.map((idea) => ({
       displayKey: idea.id,
       displayVariant:
         idea.id === currentWeekIdeaId
-          ? ("natural-current" as const)
+          ? ("promoted-current" as const)
           : ("standard" as const),
       idea,
     }));
-
-    const currentWeekIdea = currentWeekIdeaId
-      ? (orderedWeeklyIdeas.find((idea) => idea.id === currentWeekIdeaId) ??
-        null)
-      : null;
-
-    if (!currentWeekIdea) {
-      return baseEntries;
-    }
-
-    // Duplicate the current week at the top as a promoted shortcut while
-    // preserving its natural chronological slot further down the grid.
-    return [
-      {
-        displayKey: `promoted-${currentWeekIdea.id}`,
-        displayVariant: "promoted-current" as const,
-        idea: currentWeekIdea,
-      },
-      ...baseEntries,
-    ];
   }, [currentWeekIdeaId, orderedWeeklyIdeas]);
 
   const showGeneratedSection =
