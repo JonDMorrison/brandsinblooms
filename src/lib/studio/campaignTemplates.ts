@@ -771,3 +771,86 @@ export function applyCampaignTemplate(
 ) {
   return template.buildBlocks(designSystem);
 }
+
+export type CampaignIntentKey =
+  | "newsletter"
+  | "sale"
+  | "new-arrivals"
+  | "event"
+  | "thank-you"
+  | "blank";
+
+// Tag keywords that map an intent to one or more of the existing
+// seasonal templates. Multiple keywords per intent so the picker
+// keeps working even if a template gets re-tagged. Keep these
+// lowercase — matching is case-insensitive.
+const INTENT_TAG_KEYWORDS: Record<
+  Exclude<CampaignIntentKey, "blank">,
+  readonly string[]
+> = {
+  newsletter: ["newsletter", "editorial", "retention", "monthly"],
+  sale: ["sale", "promo", "promotion", "launch", "drop"],
+  "new-arrivals": [
+    "new arrivals",
+    "arrivals",
+    "drop",
+    "capsule",
+    "curated",
+    "merchandising",
+  ],
+  event: ["event", "weekend", "workshop", "invite"],
+  "thank-you": ["thank you", "retention", "vip", "appreciation", "loyalty"],
+};
+
+function templateMatchesIntent(
+  template: { tags: string[] },
+  intent: Exclude<CampaignIntentKey, "blank">,
+) {
+  const keywords = INTENT_TAG_KEYWORDS[intent];
+  return template.tags.some((tag) =>
+    keywords.some((keyword) => tag.toLowerCase().includes(keyword)),
+  );
+}
+
+/**
+ * Returns the best matching seasonal template for a given intent
+ * key. Picks the highest-tag-overlap template; ties broken by
+ * authoring order. Returns null for "blank" (the caller is expected
+ * to build a minimal starter), or when no template matches an
+ * intent (caller should render a disabled "Coming soon" state).
+ */
+export function getTemplateForIntent(
+  intent: CampaignIntentKey,
+  templates: readonly CampaignTemplate[] = CAMPAIGN_TEMPLATES,
+): CampaignTemplate | null {
+  if (intent === "blank") {
+    return null;
+  }
+  const matches = templates.filter((template) =>
+    templateMatchesIntent(template, intent),
+  );
+  if (matches.length === 0) {
+    return null;
+  }
+  // Prefer the template with the most keyword overlap so e.g. a
+  // template tagged ["launch", "editorial"] correctly maps to "sale"
+  // over a template only tagged ["launch"] in a hypothetical tie.
+  const keywords = INTENT_TAG_KEYWORDS[intent];
+  let best = matches[0];
+  let bestScore = -1;
+  for (const candidate of matches) {
+    const score = candidate.tags.reduce(
+      (acc, tag) =>
+        acc +
+        (keywords.some((keyword) => tag.toLowerCase().includes(keyword))
+          ? 1
+          : 0),
+      0,
+    );
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+  return best;
+}

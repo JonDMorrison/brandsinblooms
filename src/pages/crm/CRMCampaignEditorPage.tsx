@@ -36,14 +36,21 @@ import {
 } from "@/components/crm/campaign-editor/CampaignEditorContext";
 import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLockedView";
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
-import { SeasonalTemplatesRow } from "@/components/crm/campaign-editor/SeasonalTemplatesRow";
 import { CampaignBlockerRow } from "@/components/crm/campaign-editor/CampaignBlockerRow";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
+import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
+import { ManageTemplatesModal } from "@/components/crm/campaign-editor/ManageTemplatesModal";
+import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
 import { SegmentsAudienceSelect } from "@/components/crm/campaign-editor/SegmentsAudienceSelect";
 import { SenderConfigModal } from "@/components/crm/campaign-editor/SenderConfigModal";
 import { SenderConfigSummary } from "@/components/crm/campaign-editor/SenderConfigSummary";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
+import {
+  useSavedTemplates,
+  type SavedTemplate,
+} from "@/hooks/useSavedTemplates";
+import { createStudioBlock } from "@/lib/studio/blockFactory";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip, JoyStatusChip } from "@/components/joy/JoyChip";
@@ -83,8 +90,9 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
+  getTemplateForIntent,
+  type CampaignIntentKey,
   type CampaignTemplate,
-  type CampaignTemplateFilter,
 } from "@/lib/studio/campaignTemplates";
 import type {
   CampaignPersonaSummary,
@@ -556,10 +564,15 @@ function CampaignEditorScreen() {
     React.useState(false);
   const [draftAdditionalCustomerIds, setDraftAdditionalCustomerIds] =
     React.useState<string[]>([]);
-  const [selectedTemplateSeason, setSelectedTemplateSeason] =
-    React.useState<CampaignTemplateFilter>("all");
   const [templateToConfirm, setTemplateToConfirm] =
     React.useState<CampaignTemplate | null>(null);
+  const [selectedIntent, setSelectedIntent] =
+    React.useState<CampaignIntentKey | null>(null);
+  const [selectedSavedTemplateId, setSelectedSavedTemplateId] = React.useState<
+    string | null
+  >(null);
+  const [saveTemplateOpen, setSaveTemplateOpen] = React.useState(false);
+  const [manageTemplatesOpen, setManageTemplatesOpen] = React.useState(false);
   const [pendingTemplateSave, setPendingTemplateSave] = React.useState<{
     templateName: string;
     navigateToSavedDraft: boolean;
@@ -1092,6 +1105,125 @@ function CampaignEditorScreen() {
     [applyTemplateToCampaign, hasMeaningfulEmailContent],
   );
 
+  const {
+    savedTemplates,
+    saveTemplate,
+    renameTemplate,
+    archiveTemplate,
+    isSaving: isSavingTemplate,
+  } = useSavedTemplates();
+
+  // Intents whose tag mapping doesn't match any seasonal template
+  // get rendered as "Coming soon". Recomputed when the template
+  // catalog changes (it's a module-level constant today, but keeps
+  // the picker correct if we hot-swap CAMPAIGN_TEMPLATES later).
+  const unavailableIntents = React.useMemo(() => {
+    const intents: CampaignIntentKey[] = [
+      "newsletter",
+      "sale",
+      "new-arrivals",
+      "event",
+      "thank-you",
+    ];
+    const missing = new Set<CampaignIntentKey>();
+    for (const intent of intents) {
+      if (!getTemplateForIntent(intent)) {
+        missing.add(intent);
+      }
+    }
+    return missing;
+  }, []);
+
+  const handleSelectIntent = React.useCallback(
+    (intent: CampaignIntentKey) => {
+      if (intent === "blank") {
+        // Minimal starter: newsletter header + one empty paragraph.
+        // Footer compliance is enforced by updateContent's downstream
+        // ensureFooterBlockCompliance, so the user's blank slate
+        // still meets CAN-SPAM requirements without us hard-coding it
+        // here.
+        const blocks = [
+          createStudioBlock("newsletter-header", designSystem),
+          createStudioBlock("plain-text", designSystem),
+        ];
+        updateContent({ contentBlocks: blocks });
+        setSelectedIntent("blank");
+        setSelectedSavedTemplateId(null);
+        return;
+      }
+      const template = getTemplateForIntent(intent);
+      if (!template) {
+        return;
+      }
+      handleApplyTemplate(template);
+      setSelectedIntent(intent);
+      setSelectedSavedTemplateId(null);
+    },
+    [designSystem, handleApplyTemplate, updateContent],
+  );
+
+  const handleApplySavedTemplate = React.useCallback(
+    (template: SavedTemplate) => {
+      if (hasMeaningfulEmailContent) {
+        // Reuse the same overwrite-confirm dialog the seasonal apply
+        // path uses, by wrapping the saved template in a synthetic
+        // CampaignTemplate-shaped object whose buildBlocks returns
+        // the stored layout. Keeps the confirmation UX consistent.
+        setTemplateToConfirm({
+          id: `saved:${template.id}`,
+          name: template.name,
+          summary: template.description ?? "",
+          season: "evergreen",
+          tags: [],
+          accentColor: "#1F4341",
+          subjectLine: subjectLine,
+          previewText: preheaderText,
+          thumbnailBlocks: [],
+          buildBlocks: () => template.layout_json,
+        });
+        return;
+      }
+      updateContent({ contentBlocks: template.layout_json });
+      setSelectedSavedTemplateId(template.id);
+      setSelectedIntent(null);
+    },
+    [hasMeaningfulEmailContent, preheaderText, subjectLine, updateContent],
+  );
+
+  const handleSaveAsTemplate = React.useCallback(
+    async (input: { name: string; description: string }) => {
+      await saveTemplate({
+        name: input.name,
+        description: input.description || null,
+        contentBlocks,
+      });
+      toast.success("Saved to My templates");
+      setSaveTemplateOpen(false);
+    },
+    [contentBlocks, saveTemplate],
+  );
+
+  const handleRenameSavedTemplate = React.useCallback(
+    async (
+      template: SavedTemplate,
+      name: string,
+      description: string | null,
+    ) => {
+      await renameTemplate(template.id, name, description);
+    },
+    [renameTemplate],
+  );
+
+  const handleArchiveSavedTemplate = React.useCallback(
+    async (template: SavedTemplate) => {
+      await archiveTemplate(template.id);
+    },
+    [archiveTemplate],
+  );
+
+  const canSaveAsTemplate =
+    !isLocked && hasMeaningfulEmailContent && contentBlocks.length > 0;
+
   if (isLoading) {
     return <CampaignEditorLoadingSkeleton />;
   }
@@ -1566,15 +1698,24 @@ function CampaignEditorScreen() {
 
             <Divider />
 
-            <SeasonalTemplatesRow
-              selectedSeason={selectedTemplateSeason}
-              onSeasonChange={setSelectedTemplateSeason}
-              onApply={handleApplyTemplate}
-              loading={isDesignSystemLoading}
-              disabled={Boolean(pendingTemplateSave)}
+            <IntentPicker
+              savedTemplates={savedTemplates}
+              selectedIntent={selectedIntent}
+              selectedSavedTemplateId={selectedSavedTemplateId}
+              disabled={isLocked || Boolean(pendingTemplateSave)}
+              unavailableIntents={unavailableIntents}
+              onSelectIntent={handleSelectIntent}
+              onApplySavedTemplate={handleApplySavedTemplate}
+              onRenameSavedTemplate={() => setManageTemplatesOpen(true)}
+              onArchiveSavedTemplate={() => setManageTemplatesOpen(true)}
+              onOpenManage={() => setManageTemplatesOpen(true)}
             />
 
-            <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ alignItems: { xs: "stretch", sm: "center" } }}
+            >
               <JoyButton
                 variant="soft"
                 color="neutral"
@@ -1583,7 +1724,21 @@ function CampaignEditorScreen() {
               >
                 Edit design in studio
               </JoyButton>
-            </Box>
+              <JoyButton
+                variant="outlined"
+                color="neutral"
+                onClick={() => setSaveTemplateOpen(true)}
+                disabled={!canSaveAsTemplate}
+                title={
+                  !canSaveAsTemplate && !isLocked
+                    ? "Add some content first"
+                    : undefined
+                }
+                data-testid="content-save-as-template"
+              >
+                Save as template
+              </JoyButton>
+            </Stack>
           </Stack>
         ) : (
           <Stack spacing={1.5}>
@@ -2049,6 +2204,19 @@ function CampaignEditorScreen() {
             replyTo: next.replyTo,
           })
         }
+      />
+      <SaveAsTemplateModal
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        onSave={handleSaveAsTemplate}
+        saving={isSavingTemplate}
+      />
+      <ManageTemplatesModal
+        open={manageTemplatesOpen}
+        onClose={() => setManageTemplatesOpen(false)}
+        templates={savedTemplates}
+        onRename={handleRenameSavedTemplate}
+        onArchive={handleArchiveSavedTemplate}
       />
     </Stack>
   );
