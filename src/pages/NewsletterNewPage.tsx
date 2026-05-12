@@ -537,8 +537,7 @@ export const NewsletterNewPage = () => {
                   Create a Newsletter
                 </Typography>
                 <Typography level="body-md" sx={{ color: "text.secondary" }}>
-                  Start from scratch, explore weekly ideas, or let AI craft
-                  something new.
+                  Start from scratch or explore weekly ideas.
                 </Typography>
               </Stack>
 
