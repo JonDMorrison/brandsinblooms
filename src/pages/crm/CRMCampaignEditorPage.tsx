@@ -38,6 +38,7 @@ import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLoc
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
 import { SeasonalTemplatesRow } from "@/components/crm/campaign-editor/SeasonalTemplatesRow";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
+import { SegmentsAudienceSelect } from "@/components/crm/campaign-editor/SegmentsAudienceSelect";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -1799,21 +1800,13 @@ function CampaignEditorScreen() {
         }
       >
         <Stack spacing={2}>
-          <JoyAutocomplete<CampaignSegmentSummary, true, false, false>
-            multiple
-            label="Segments"
+          <SegmentsAudienceSelect
+            segments={segmentsQuery.data ?? []}
+            selectedSegments={selectedSegments}
+            includeAllCustomers={includeAllCustomers}
             disabled={isLocked}
             loading={segmentsQuery.isLoading}
-            options={segmentsQuery.data ?? []}
-            value={selectedSegments}
-            placeholder="All contacts"
-            getOptionLabel={(option) => option.name}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            onValueChange={(value) =>
-              updateAudience({
-                selectedSegments: (value ?? []) as CampaignSegmentSummary[],
-              })
-            }
+            onChange={(next) => updateAudience(next)}
           />
           <JoyAutocomplete<CampaignPersonaSummary, true, false, false>
             multiple
