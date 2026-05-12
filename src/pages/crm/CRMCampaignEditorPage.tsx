@@ -1018,15 +1018,12 @@ function CampaignEditorScreen() {
   // Default-collapse heuristic for the Setup section: collapse once
   // the user has named the campaign AND configured a sender. Both are
   // required before send, so them being non-empty is a reliable proxy
-  // for "this campaign has moved past initial setup". Recomputed only
-  // on initial render — manual expand/collapse always wins after that.
-  const setupInitiallyExpanded = React.useMemo(
-    () => !(name.trim() && senderEmail.trim()),
-    // Initial-mount snapshot only; subsequent edits don't auto-collapse
-    // (matches the "respect user choice for the session" requirement).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // for "this campaign has moved past initial setup". Computed each
+  // render but only consumed by CollapsibleSection at its mount time,
+  // which is after the isLoading early return — so the very first
+  // mount sees the hydrated values. Manual expand/collapse afterwards
+  // always wins because CollapsibleSection owns its own toggle state.
+  const setupInitiallyExpanded = !(name.trim() && senderEmail.trim());
 
   const audienceInitiallyExpanded = true;
   const contentInitiallyExpanded = true;

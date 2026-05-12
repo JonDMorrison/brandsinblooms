@@ -52,7 +52,10 @@ export function CollapsibleSection({
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        aria-controls={bodyId}
+        // Only target a real id when the body is in the DOM. Setting
+        // aria-controls to a non-existent id trips automated WCAG
+        // checks even though the relationship is logically inferable.
+        aria-controls={expanded ? bodyId : undefined}
         onClick={toggle}
         onKeyDown={onHeaderKeyDown}
         sx={{
@@ -89,7 +92,10 @@ export function CollapsibleSection({
                 alignItems="center"
                 sx={{ minWidth: 0 }}
               >
+                {/* Render the title as an inline <span> so the surrounding
+                    role="button" doesn't contain a block-level <p>. */}
                 <Typography
+                  component="span"
                   level="title-sm"
                   fontWeight="md"
                   sx={{ color: "neutral.800" }}
@@ -100,8 +106,10 @@ export function CollapsibleSection({
               </Stack>
               {!expanded && summary ? (
                 <Typography
+                  component="span"
                   level="body-sm"
                   sx={{
+                    display: "block",
                     color: "neutral.600",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -129,6 +137,9 @@ export function CollapsibleSection({
           </Stack>
         </Stack>
       </Box>
+      {/* Only render children when expanded so heavy subtrees
+          (Live Preview iframe, etc.) don't mount until the user
+          actually expands the section. */}
       {expanded ? (
         <Box id={bodyId} sx={{ p: 3 }}>
           {children}
