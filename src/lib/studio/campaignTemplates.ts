@@ -9,7 +9,45 @@ export type CampaignTemplateSeason =
   | "winter"
   | "evergreen";
 
-export type CampaignTemplateFilter = CampaignTemplateSeason | "all";
+export type CampaignTemplateCategory = "newsletter" | "promo";
+
+export type CampaignTemplateFilter = "all" | CampaignTemplateCategory;
+
+const NEWSLETTER_TAG_KEYWORDS = [
+  "editorial",
+  "newsletter",
+  "retention",
+  "announcement",
+];
+
+const PROMO_TAG_KEYWORDS = ["sale", "launch", "drop", "event"];
+
+function matchesAnyKeyword(tags: string[], keywords: readonly string[]) {
+  return tags.some((tag) =>
+    keywords.some((keyword) => tag.toLowerCase().includes(keyword)),
+  );
+}
+
+export function isNewsletterTemplate(template: { tags: string[] }) {
+  return matchesAnyKeyword(template.tags, NEWSLETTER_TAG_KEYWORDS);
+}
+
+export function isPromoTemplate(template: { tags: string[] }) {
+  return matchesAnyKeyword(template.tags, PROMO_TAG_KEYWORDS);
+}
+
+export function templateMatchesFilter(
+  template: { tags: string[] },
+  filter: CampaignTemplateFilter,
+) {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "newsletter") {
+    return isNewsletterTemplate(template);
+  }
+  return isPromoTemplate(template);
+}
 
 export type CampaignTemplateThumbnailBlock = {
   kind:

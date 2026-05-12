@@ -11,6 +11,7 @@ import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
 import {
   CAMPAIGN_TEMPLATES,
+  templateMatchesFilter,
   type CampaignTemplate,
   type CampaignTemplateFilter,
 } from "@/lib/studio/campaignTemplates";
@@ -20,16 +21,13 @@ const TEMPLATE_CARD_WIDTH = { xs: 152, sm: 168 } as const;
 const THUMBNAIL_HEIGHT = 120;
 const FADE_WIDTH = 44;
 
-const TEMPLATE_SEASONS: Array<{
+const TEMPLATE_CATEGORIES: Array<{
   value: CampaignTemplateFilter;
   label: string;
 }> = [
   { value: "all", label: "All" },
-  { value: "spring", label: "Spring" },
-  { value: "summer", label: "Summer" },
-  { value: "autumn", label: "Autumn" },
-  { value: "winter", label: "Winter" },
-  { value: "evergreen", label: "Evergreen" },
+  { value: "newsletter", label: "Newsletter" },
+  { value: "promo", label: "Promo" },
 ];
 
 function LoadingTemplateCard() {
@@ -81,12 +79,9 @@ export function SeasonalTemplatesRow({
   const [showLeftFade, setShowLeftFade] = React.useState(false);
   const [showRightFade, setShowRightFade] = React.useState(false);
   const [isDraggingRail, setIsDraggingRail] = React.useState(false);
-  const visibleTemplates =
-    selectedSeason === "all"
-      ? CAMPAIGN_TEMPLATES
-      : CAMPAIGN_TEMPLATES.filter(
-          (template) => template.season === selectedSeason,
-        );
+  const visibleTemplates = CAMPAIGN_TEMPLATES.filter((template) =>
+    templateMatchesFilter(template, selectedSeason),
+  );
 
   const updateRailState = React.useCallback(() => {
     const rail = railRef.current;
@@ -191,7 +186,7 @@ export function SeasonalTemplatesRow({
   return (
     <Stack spacing={2.25}>
       <Stack spacing={0.5}>
-        <Typography level="title-md">Seasonal templates</Typography>
+        <Typography level="title-md">Templates</Typography>
         <Typography
           level="body-sm"
           sx={{ color: "neutral.600", maxWidth: 720 }}
@@ -222,9 +217,9 @@ export function SeasonalTemplatesRow({
             "&::-webkit-scrollbar": { display: "none" },
           }}
         >
-          {TEMPLATE_SEASONS.map((season) => (
-            <Tab key={season.value} value={season.value} disableIndicator>
-              {season.label}
+          {TEMPLATE_CATEGORIES.map((category) => (
+            <Tab key={category.value} value={category.value} disableIndicator>
+              {category.label}
             </Tab>
           ))}
         </TabList>

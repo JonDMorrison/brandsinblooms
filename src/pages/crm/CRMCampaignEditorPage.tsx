@@ -37,7 +37,9 @@ import {
 import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLockedView";
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
 import { SeasonalTemplatesRow } from "@/components/crm/campaign-editor/SeasonalTemplatesRow";
+import { CampaignBlockerRow } from "@/components/crm/campaign-editor/CampaignBlockerRow";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
+import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
 import { SegmentsAudienceSelect } from "@/components/crm/campaign-editor/SegmentsAudienceSelect";
 import { SenderVerificationDialog } from "@/components/crm/campaign-editor/SenderVerificationDialog";
 import { JoyAutocomplete } from "@/components/joy/JoyAutocomplete";
@@ -106,48 +108,6 @@ type AudienceCustomerSummary = {
   email: string;
   segmentNames: string[];
   hasEmail: boolean;
-};
-
-type PreflightStatus = "ready" | "warning" | "blocked";
-
-type PreflightAction = {
-  label: string;
-  onClick: () => void;
-};
-
-type PreflightItem = {
-  id: string;
-  label: string;
-  value: string;
-  detail?: string;
-  status: PreflightStatus;
-  action?: PreflightAction;
-  loading?: boolean;
-};
-
-const PREFLIGHT_STATUS_META: Record<
-  PreflightStatus,
-  {
-    label: string;
-    color: "success" | "warning" | "danger";
-    dotColor: string;
-  }
-> = {
-  ready: {
-    label: "Ready",
-    color: "success",
-    dotColor: "success.400",
-  },
-  warning: {
-    label: "Action needed",
-    color: "warning",
-    dotColor: "warning.400",
-  },
-  blocked: {
-    label: "Cannot send",
-    color: "danger",
-    dotColor: "danger.400",
-  },
 };
 
 function asCountLabel(value: number | null) {
@@ -232,266 +192,10 @@ function formatAudienceDetail(params: {
   return parts.join(" · ") || "All eligible contacts";
 }
 
-function SectionCard({
-  id,
-  title,
-  description,
-  children,
-  endDecorator,
-}: {
-  id?: string;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-  endDecorator?: React.ReactNode;
-}) {
-  return (
-    <Card
-      id={id}
-      variant="outlined"
-      sx={{ borderRadius: "xl", p: 0, overflow: "hidden" }}
-    >
-      <Box
-        sx={{
-          px: 3,
-          py: 2,
-          borderBottom: "1px solid",
-          borderColor: "neutral.200",
-          backgroundColor: "neutral.50",
-        }}
-      >
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1.5}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-        >
-          <Stack spacing={0.5}>
-            <Typography level="title-sm" fontWeight="lg">
-              {title}
-            </Typography>
-            {description ? (
-              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                {description}
-              </Typography>
-            ) : null}
-          </Stack>
-          {endDecorator}
-        </Stack>
-      </Box>
-      <Box sx={{ p: 3 }}>{children}</Box>
-    </Card>
-  );
-}
-
 function formatStatusLabel(value: string) {
   return value
     .replace(/_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function ChecklistItemRow({ item }: { item: PreflightItem }) {
-  const statusMeta = PREFLIGHT_STATUS_META[item.status];
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        py: 2,
-        gap: 2,
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          gap: 1.5,
-          alignItems: "flex-start",
-          flex: 1,
-          minWidth: 0,
-        }}
-      >
-        <Box
-          sx={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            bgcolor: statusMeta.dotColor,
-            flexShrink: 0,
-            mt: "6px",
-          }}
-        />
-
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontSize: "14px",
-              fontWeight: 600,
-              color: "text.primary",
-              lineHeight: 1.4,
-            }}
-          >
-            {item.label}
-          </Typography>
-
-          {item.loading ? (
-            <Stack spacing={0.35} sx={{ mt: 0.25, maxWidth: 320 }}>
-              <Skeleton variant="text" width="76%" />
-              <Skeleton variant="text" width="56%" />
-            </Stack>
-          ) : (
-            <>
-              <Typography
-                sx={{
-                  fontSize: "13px",
-                  color: "neutral.600",
-                  lineHeight: 1.4,
-                  mt: 0.25,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {item.value}
-              </Typography>
-              {item.detail ? (
-                <Typography
-                  sx={{
-                    fontSize: "12px",
-                    color: "neutral.400",
-                    lineHeight: 1.4,
-                    mt: 0.25,
-                  }}
-                >
-                  {item.detail}
-                </Typography>
-              ) : null}
-              {item.action ? (
-                <Button
-                  size="sm"
-                  variant="plain"
-                  color="primary"
-                  endDecorator={<ArrowRight size={13} />}
-                  onClick={item.action.onClick}
-                  sx={{
-                    mt: 0.75,
-                    px: 0,
-                    fontSize: "12.5px",
-                    fontWeight: 600,
-                    minHeight: "auto",
-                    "&:hover": {
-                      bgcolor: "transparent",
-                      textDecoration: "underline",
-                    },
-                  }}
-                >
-                  {item.action.label}
-                </Button>
-              ) : null}
-            </>
-          )}
-        </Box>
-      </Box>
-
-      <Chip
-        size="sm"
-        variant="soft"
-        color={statusMeta.color}
-        sx={{
-          fontSize: "11px",
-          fontWeight: 600,
-          height: 22,
-          borderRadius: "6px",
-          flexShrink: 0,
-          mt: "2px",
-        }}
-      >
-        {statusMeta.label}
-      </Chip>
-    </Box>
-  );
-}
-
-function ReadinessSummary({
-  readyCount,
-  totalCount,
-  blockedCount,
-  warningCount,
-}: {
-  readyCount: number;
-  totalCount: number;
-  blockedCount: number;
-  warningCount: number;
-}) {
-  const allReady = blockedCount === 0 && warningCount === 0;
-  const hasBlockers = blockedCount > 0;
-  const Icon = allReady ? CheckCircle2 : hasBlockers ? XCircle : AlertTriangle;
-  const color = allReady ? "success" : hasBlockers ? "danger" : "warning";
-  // Differentiate blocking from recommended in the headline message.
-  // When some items are blocked AND others are warnings, surface
-  // both counts so the user understands the difference between "must
-  // fix" and "should fix" before sending.
-  const message = allReady
-    ? "All checks passed - ready to send"
-    : hasBlockers
-      ? warningCount > 0
-        ? `${blockedCount} ${blockedCount === 1 ? "item is" : "items are"} blocking send · ${warningCount} recommended`
-        : `${blockedCount} ${blockedCount === 1 ? "item is" : "items are"} blocking send`
-      : `${warningCount} ${warningCount === 1 ? "item needs" : "items need"} attention`;
-
-  // Build a parallel count breakdown shown on the right. When mixed,
-  // we show "blocking · recommended · ready" so all three numbers
-  // are visible at once without needing to scroll the list.
-  const countLabel = hasBlockers
-    ? warningCount > 0
-      ? `${blockedCount} blocking · ${warningCount} recommended · ${readyCount} ready`
-      : `${blockedCount} blocking · ${readyCount} of ${totalCount} ready`
-    : warningCount > 0
-      ? `${warningCount} recommended · ${readyCount} of ${totalCount} ready`
-      : `${readyCount} of ${totalCount} ready`;
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 2,
-        mt: 2,
-        px: 2,
-        py: 1.5,
-        borderRadius: "10px",
-        bgcolor: `${color}.50`,
-        border: "1px solid",
-        borderColor: `${color}.200`,
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Icon size={16} style={{ color: `var(--joy-palette-${color}-600)` }} />
-        <Typography
-          sx={{
-            fontSize: "13px",
-            fontWeight: 600,
-            color: `${color}.700`,
-          }}
-        >
-          {message}
-        </Typography>
-      </Box>
-
-      <Typography
-        sx={{
-          fontSize: "12px",
-          fontWeight: 500,
-          color: `${color}.500`,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {countLabel}
-      </Typography>
-    </Box>
-  );
 }
 
 function LoadingSectionCard({
@@ -1134,6 +838,26 @@ function CampaignEditorScreen() {
     });
   }, []);
 
+  const focusContentSection = React.useCallback(() => {
+    document.getElementById("campaign-editor-content")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, []);
+
+  const focusSubjectInput = React.useCallback(() => {
+    const section = document.getElementById("campaign-editor-content");
+    section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const input = document.getElementById(
+      "campaign-editor-subject",
+    ) as HTMLInputElement | null;
+    input?.focus();
+  }, []);
+
+  const handleReloadDraft = React.useCallback(() => {
+    window.location.reload();
+  }, []);
+
   const handleOpenStudio = React.useCallback(async () => {
     if (campaignType !== "email") {
       return;
@@ -1255,244 +979,81 @@ function CampaignEditorScreen() {
     return warnings;
   }, [autoSaveStatus, campaignType, senderClassification, senderEmail]);
 
-  const preflightItems = React.useMemo<PreflightItem[]>(() => {
-    return [
-      {
-        id: "name",
-        label: "Campaign identity",
-        value: name.trim() || "Required before sending",
-        detail: name.trim()
-          ? "This name is used internally across reports and recipient activity."
-          : "Choose a recognizable internal name for this send.",
-        status: name.trim() ? "ready" : "blocked",
-        action: name.trim()
-          ? undefined
-          : { label: "Complete setup", onClick: focusSetupSection },
-      },
-      {
-        id: "subject",
-        label:
-          campaignType === "sms" ? "Message details" : "Subject and preheader",
-        value:
-          campaignType === "sms"
-            ? "Not required for SMS"
-            : subjectLine.trim() || "Required before sending",
-        detail:
-          campaignType === "sms"
-            ? "Shorten the copy until the segment count feels intentional."
-            : preheaderText.trim() ||
-              "Add preview text to shape the inbox snippet.",
-        status:
-          campaignType === "sms"
-            ? "ready"
-            : subjectLine.trim()
-              ? "ready"
-              : "blocked",
-        action:
-          campaignType === "email" && !subjectLine.trim()
-            ? { label: "Complete setup", onClick: focusSetupSection }
-            : undefined,
-      },
-      {
-        id: "audience",
-        label: "Audience",
-        value: isAudienceLoading
-          ? "Calculating audience"
-          : asCountLabel(audienceCount),
-        detail: audienceDetail,
-        status: (audienceCount ?? 0) > 0 ? "ready" : "blocked",
-        action:
-          (audienceCount ?? 0) > 0
-            ? undefined
-            : { label: "Select audience", onClick: focusAudienceSection },
-        loading: isAudienceLoading,
-      },
-      {
-        id: "sender",
-        label: "Sender configuration",
-        value: senderEmail || "No sender email configured",
-        detail:
-          campaignType === "email"
-            ? emailDomainsLoading && Boolean(senderEmail)
-              ? "Checking sender verification status."
-              : senderClassification.status === "ready"
-                ? "The active sender domain is verified."
-                : senderClassification.status === "warning"
-                  ? senderClassification.message
-                  : senderClassification.message
-            : "SMS campaigns still use your saved sender settings.",
-        status: senderClassification.status,
-        // Send users to the right place to fix it. NO_SENDER stays in-
-        // page (Setup section already has the email input). Every
-        // other blocked/warning reason needs the actual domain
-        // settings page where they can re-verify DNS, contact support
-        // about a paused reputation, etc.
-        action:
-          senderClassification.status === "blocked" &&
-          senderClassification.reason === "NO_SENDER"
-            ? { label: "Configure sender", onClick: focusSetupSection }
-            : senderClassification.status === "blocked"
-              ? {
-                  label: "Fix this",
-                  onClick: () => navigate("/crm/settings/email-sending"),
-                }
-              : senderClassification.status === "warning"
-                ? {
-                    label: "Open sender settings",
-                    onClick: () => navigate("/crm/settings/email-sending"),
-                  }
-                : undefined,
-        loading:
-          campaignType === "email" &&
-          emailDomainsLoading &&
-          Boolean(senderEmail),
-      },
-      {
-        id: "content",
-        label: campaignType === "email" ? "Email content" : "SMS message",
-        value:
-          campaignType === "email"
-            ? hasMeaningfulEmailContent
-              ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"} designed`
-              : "Apply a template or open Studio to add content"
-            : smsMessage.trim()
-              ? `${smsMessage.length} characters across ${computeSmsSegments(smsMessage)} segment(s)`
-              : "Message required before sending",
-        detail:
-          campaignType === "email"
-            ? preheaderText.trim()
-              ? `Preview text: ${preheaderText}`
-              : "Preview text can be added in Setup for inbox context."
-            : "Include STOP instructions where required.",
-        status:
-          campaignType === "email"
-            ? hasMeaningfulEmailContent
-              ? "ready"
-              : "blocked"
-            : smsMessage.trim()
-              ? "ready"
-              : "blocked",
-        action:
-          campaignType === "email" && !hasMeaningfulEmailContent
-            ? { label: "Open Campaign Studio", onClick: handleOpenStudio }
-            : campaignType === "sms" && !smsMessage.trim()
-              ? { label: "Write message", onClick: focusSetupSection }
-              : undefined,
-      },
-      {
-        id: "footer",
-        label: "Compliance footer",
-        value:
-          campaignType === "email"
-            ? hasComplianceFooter
-              ? "Footer block is present and locked into the send"
-              : "Footer block required before sending"
-            : "Not required for SMS",
-        detail:
-          campaignType === "email"
-            ? hasComplianceFooter
-              ? "Legal address, unsubscribe language, and brand details will render with the email."
-              : "Every email campaign must include CAN-SPAM and GDPR footer details."
-            : "SMS campaigns use channel-specific compliance controls.",
-        status:
-          campaignType === "email"
-            ? hasComplianceFooter
-              ? "ready"
-              : "blocked"
-            : "ready",
-        action:
-          campaignType === "email" && !hasComplianceFooter
-            ? { label: "Open Campaign Studio", onClick: handleOpenStudio }
-            : undefined,
-      },
-      {
-        id: "sync",
-        label: "Draft sync",
-        value:
-          pendingTemplateSave || isSaving || autoSaveStatus === "saving"
-            ? "Saving the latest draft changes"
-            : autoSaveMessage ||
-              (lastSavedAt
-                ? `Last saved ${lastSavedAt.toLocaleTimeString()}`
-                : campaignId
-                  ? "Draft saved"
-                  : "Draft will be created on first save"),
-        detail:
-          autoSaveStatus === "error"
-            ? "Autosave is retrying in the background."
-            : autoSaveStatus === "conflict"
-              ? "Reload the editor to resolve competing changes."
-              : autoSaveStatus === "failed"
-                ? "Saving failed after multiple retries."
-                : "Stored HTML and live preview stay aligned when the draft saves.",
-        status:
-          autoSaveStatus === "conflict" || autoSaveStatus === "failed"
-            ? "blocked"
-            : autoSaveStatus === "error"
-              ? "warning"
-              : "ready",
-      },
-    ];
-  }, [
-    audienceCount,
-    autoSaveMessage,
-    autoSaveStatus,
-    audienceDetail,
-    campaignType,
-    emailDomainsLoading,
-    focusAudienceSection,
-    focusSetupSection,
-    handleOpenStudio,
-    hasComplianceFooter,
-    hasMeaningfulEmailContent,
-    isAudienceLoading,
-    isSaving,
-    lastSavedAt,
-    meaningfulEmailBlockCount,
-    name,
-    navigate,
-    pendingTemplateSave,
-    preheaderText,
-    campaignId,
-    senderClassification,
-    senderEmail,
-    smsMessage,
-    subjectLine,
-  ]);
-
-  // Sort blocked items to the top of the list so red issues never
-  // hide below the scroll fold. Stable within bucket — we keep the
-  // original authoring order for items in the same severity so the
-  // logical flow (name → audience → sender → content → footer …)
-  // still reads correctly when nothing is blocked.
-  const orderedPreflightItems = React.useMemo(() => {
-    const severityRank: Record<
-      (typeof preflightItems)[number]["status"],
-      number
-    > = {
-      blocked: 0,
-      warning: 1,
-      ready: 2,
-    };
-    return [...preflightItems].sort(
-      (a, b) => severityRank[a.status] - severityRank[b.status],
-    );
-  }, [preflightItems]);
-
-  const readyCount = preflightItems.filter(
-    (item) => item.status === "ready",
-  ).length;
-  const warningCount = preflightItems.filter(
-    (item) => item.status === "warning",
-  ).length;
-  const blockedCount = preflightItems.filter(
-    (item) => item.status === "blocked",
-  ).length;
   const sendButtonDisabled =
     sendBlockerLines.length > 0 ||
     isLocked ||
     isAudienceLoading ||
     Boolean(pendingTemplateSave);
+
+  // Maps the existing 7-item preflight signals into the new single-
+  // blocker model (#4 of the campaign editor simplification spec).
+  // Order here is the priority order the spec mandates — first true
+  // wins inside resolveCampaignBlocker.
+  const blockerSignals = React.useMemo(
+    () => ({
+      senderUnverified:
+        campaignType === "email" &&
+        (senderClassification.status === "blocked" || !senderEmail.trim()),
+      audienceEmpty: (audienceCount ?? 0) <= 0 && !isAudienceLoading,
+      contentEmpty:
+        campaignType === "email"
+          ? !hasMeaningfulEmailContent
+          : !smsMessage.trim(),
+      subjectEmpty: campaignType === "email" && !subjectLine.trim(),
+      draftConflict: autoSaveStatus === "conflict",
+    }),
+    [
+      audienceCount,
+      autoSaveStatus,
+      campaignType,
+      hasMeaningfulEmailContent,
+      isAudienceLoading,
+      senderClassification.status,
+      senderEmail,
+      smsMessage,
+      subjectLine,
+    ],
+  );
+
+  // Default-collapse heuristic for the Setup section: collapse once
+  // the user has named the campaign AND configured a sender. Both are
+  // required before send, so them being non-empty is a reliable proxy
+  // for "this campaign has moved past initial setup". Recomputed only
+  // on initial render — manual expand/collapse always wins after that.
+  const setupInitiallyExpanded = React.useMemo(
+    () => !(name.trim() && senderEmail.trim()),
+    // Initial-mount snapshot only; subsequent edits don't auto-collapse
+    // (matches the "respect user choice for the session" requirement).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const audienceInitiallyExpanded = true;
+  const contentInitiallyExpanded = true;
+  const previewInitiallyExpanded = false;
+  const scheduleInitiallyExpanded = false;
+
+  // Persona disclosure auto-expands when the campaign already has
+  // personas saved on load (#2 of the spec), but the toggle state is
+  // user-controlled afterwards.
+  const [personaDisclosureOpen, setPersonaDisclosureOpen] = React.useState(
+    selectedPersonas.length > 0,
+  );
+
+  const setupSummary = React.useMemo(() => {
+    const parts: string[] = [];
+    if (name.trim()) parts.push(name.trim());
+    parts.push(campaignType === "email" ? "Email" : "SMS");
+    const sender = senderName.trim() || senderEmail.trim();
+    if (sender) parts.push(`From ${sender}`);
+    return parts.join(" · ");
+  }, [campaignType, name, senderEmail, senderName]);
+
+  const previewSummary = React.useMemo(
+    () => subjectLine.trim() || "Subject line not set",
+    [subjectLine],
+  );
+
   const showActiveSendView =
     isQueuedCampaignStatus(status) || status === CAMPAIGN_STATUS.SENDING;
   const showLockedView =
@@ -1640,11 +1201,16 @@ function CampaignEditorScreen() {
                   Applying template
                 </Chip>
               ) : null}
-              {autoSaveStatus !== "idle" && autoSaveStatus !== "saved" ? (
+              {autoSaveStatus !== "idle" &&
+              autoSaveStatus !== "saved" &&
+              // The "conflict" state is now surfaced via the inline
+              // CampaignBlockerRow above the Send button instead of as
+              // a header chip (campaign editor simplification #5).
+              autoSaveStatus !== "conflict" ? (
                 <Chip
                   variant="soft"
                   color={
-                    autoSaveStatus === "conflict" || autoSaveStatus === "failed"
+                    autoSaveStatus === "failed"
                       ? "danger"
                       : autoSaveStatus === "error"
                         ? "warning"
@@ -1656,11 +1222,9 @@ function CampaignEditorScreen() {
                     ? "Autosaving"
                     : autoSaveStatus === "error"
                       ? "Retrying save"
-                      : autoSaveStatus === "conflict"
-                        ? "Reload required"
-                        : autoSaveStatus === "failed"
-                          ? "Save failed"
-                          : autoSaveStatus}
+                      : autoSaveStatus === "failed"
+                        ? "Save failed"
+                        : autoSaveStatus}
                 </Chip>
               ) : null}
               {sendBlockedReason ? (
@@ -1701,19 +1265,23 @@ function CampaignEditorScreen() {
         </Stack>
       </Stack>
 
-      <SectionCard
+      <CollapsibleSection
         id="campaign-editor-setup"
         title="Setup"
-        description="Campaign identity, channel, and sender configuration."
+        summary={setupSummary}
+        defaultExpanded={setupInitiallyExpanded}
         endDecorator={
           campaignType === "email" ? (
             <JoyButton
               variant="plain"
               color="neutral"
               size="sm"
-              onClick={() => setVerificationOpen(true)}
+              onClick={(event) => {
+                event.stopPropagation();
+                setVerificationOpen(true);
+              }}
             >
-              Verify Sender
+              Verify sender
             </JoyButton>
           ) : null
         }
@@ -1737,23 +1305,6 @@ function CampaignEditorScreen() {
               updateSetup({ campaignType: value === "sms" ? "sms" : "email" })
             }
           />
-          {campaignType === "email" ? (
-            <>
-              <JoyInput
-                label="Subject line"
-                value={subjectLine}
-                disabled={isLocked}
-                onValueChange={(value) => updateSetup({ subjectLine: value })}
-              />
-              <JoyTextarea
-                label="Preheader text"
-                minRows={3}
-                value={preheaderText}
-                disabled={isLocked}
-                onValueChange={(value) => updateSetup({ preheaderText: value })}
-              />
-            </>
-          ) : null}
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <JoyInput
               label="Sender name"
@@ -1775,28 +1326,19 @@ function CampaignEditorScreen() {
             onValueChange={(value) => updateSetup({ replyTo: value })}
           />
         </Stack>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
         id="campaign-editor-audience"
-        title="Audience"
-        description={
-          campaignType === "email"
-            ? "Combine segments and personas, or use Expand Your Reach for an explicit all-customers overlay and one-off contact additions."
-            : "Leave both selectors empty to target all eligible contacts."
-        }
-        endDecorator={
-          campaignType === "email" ? (
-            <JoyButton
-              variant="plain"
-              color="primary"
-              size="sm"
-              disabled={isLocked}
-              onClick={() => setAudienceExpansionOpen(true)}
-            >
-              Expand Your Reach
-            </JoyButton>
-          ) : null
+        title="Who's this for?"
+        summary={audienceDetail}
+        defaultExpanded={audienceInitiallyExpanded}
+        badge={
+          <Chip variant="soft" color="neutral" size="sm">
+            {isAudienceLoading
+              ? "Calculating audience"
+              : asCountLabel(audienceCount)}
+          </Chip>
         }
       >
         <Stack spacing={2}>
@@ -1808,74 +1350,106 @@ function CampaignEditorScreen() {
             loading={segmentsQuery.isLoading}
             onChange={(next) => updateAudience(next)}
           />
-          <JoyAutocomplete<CampaignPersonaSummary, true, false, false>
-            multiple
-            label="Personas"
-            disabled={isLocked}
-            loading={personasQuery.isLoading}
-            options={personasQuery.data ?? []}
-            value={selectedPersonas}
-            placeholder="All personas"
-            getOptionLabel={(option) => option.name}
-            isOptionEqualToValue={(option, value) => option.id === value.id}
-            onValueChange={(value) =>
-              updateAudience({
-                selectedPersonas: (value ?? []) as CampaignPersonaSummary[],
-              })
-            }
-          />
-          {campaignType === "email" ? (
-            <Card
-              variant="soft"
-              color="primary"
-              sx={{
-                borderRadius: "lg",
-                p: 2.25,
-                border: "1px solid",
-                borderColor: "primary.100",
-                bgcolor: "primary.50",
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction={{ xs: "column", md: "row" }}
-                  spacing={1.5}
-                  justifyContent="space-between"
-                  alignItems={{ xs: "flex-start", md: "center" }}
-                >
-                  <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                    <Typography level="title-sm" fontWeight="lg">
-                      Expand Your Reach
-                    </Typography>
-                    <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-                      Layer in every eligible tenant customer or hand-pick a few
-                      direct contacts without disturbing your segment and
-                      persona filters.
-                    </Typography>
-                  </Stack>
-                  <JoyButton
-                    variant="soft"
-                    color="primary"
-                    size="sm"
-                    disabled={isLocked}
-                    onClick={() => setAudienceExpansionOpen(true)}
-                  >
-                    Configure audience expansion
-                  </JoyButton>
-                </Stack>
 
-                {includeAllCustomers || additionalCustomerIds.length > 0 ? (
-                  <Stack spacing={1.25}>
-                    {includeAllCustomers ? (
-                      <Sheet
-                        variant="outlined"
-                        sx={{
-                          borderRadius: "md",
-                          p: 1.5,
-                          bgcolor: "background.surface",
-                          borderColor: "primary.200",
-                        }}
+          {personaDisclosureOpen ? (
+            <JoyAutocomplete<CampaignPersonaSummary, true, false, false>
+              multiple
+              label="Personas"
+              disabled={isLocked}
+              loading={personasQuery.isLoading}
+              options={personasQuery.data ?? []}
+              value={selectedPersonas}
+              placeholder="All personas"
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+              onValueChange={(value) =>
+                updateAudience({
+                  selectedPersonas: (value ?? []) as CampaignPersonaSummary[],
+                })
+              }
+            />
+          ) : (
+            <JoyButton
+              variant="plain"
+              color="neutral"
+              size="sm"
+              onClick={() => setPersonaDisclosureOpen(true)}
+              disabled={isLocked}
+              sx={{ alignSelf: "flex-start", px: 0.5 }}
+            >
+              Also target by persona
+            </JoyButton>
+          )}
+
+          {campaignType === "email" ? (
+            <Stack spacing={1.25}>
+              <JoyButton
+                variant="plain"
+                color="neutral"
+                size="sm"
+                onClick={() => setAudienceExpansionOpen(true)}
+                disabled={isLocked}
+                sx={{ alignSelf: "flex-start", px: 0.5 }}
+              >
+                Add specific people
+              </JoyButton>
+
+              {includeAllCustomers || additionalCustomerIds.length > 0 ? (
+                <Stack spacing={1}>
+                  {includeAllCustomers ? (
+                    <Sheet
+                      variant="outlined"
+                      sx={{
+                        borderRadius: "md",
+                        p: 1.5,
+                        bgcolor: "background.surface",
+                        borderColor: "primary.200",
+                      }}
+                    >
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
                       >
+                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+                          <Typography level="body-sm" fontWeight="md">
+                            All customers included
+                          </Typography>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.600" }}
+                          >
+                            Every eligible customer in this tenant is unioned
+                            into the send audience at delivery time.
+                          </Typography>
+                        </Stack>
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          color="neutral"
+                          disabled={isLocked}
+                          onClick={() =>
+                            updateAudience({ includeAllCustomers: false })
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </Stack>
+                    </Sheet>
+                  ) : null}
+
+                  {additionalCustomerIds.length > 0 ? (
+                    <Sheet
+                      variant="outlined"
+                      sx={{
+                        borderRadius: "md",
+                        p: 1.5,
+                        bgcolor: "background.surface",
+                        borderColor: "primary.200",
+                      }}
+                    >
+                      <Stack spacing={1.25}>
                         <Stack
                           direction={{ xs: "column", sm: "row" }}
                           spacing={1}
@@ -1883,15 +1457,16 @@ function CampaignEditorScreen() {
                           alignItems={{ xs: "flex-start", sm: "center" }}
                         >
                           <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                            <Typography level="body-sm" fontWeight="lg">
-                              All customers included
+                            <Typography level="body-sm" fontWeight="md">
+                              Direct additions
                             </Typography>
                             <Typography
                               level="body-xs"
                               sx={{ color: "neutral.600" }}
                             >
-                              Every eligible customer in this tenant will be
-                              unioned into the send audience at delivery time.
+                              {additionalCustomerIds.length} customer
+                              {additionalCustomerIds.length === 1 ? "" : "s"}{" "}
+                              attached directly to this campaign.
                             </Typography>
                           </Stack>
                           <Button
@@ -1900,181 +1475,122 @@ function CampaignEditorScreen() {
                             color="neutral"
                             disabled={isLocked}
                             onClick={() =>
-                              updateAudience({ includeAllCustomers: false })
+                              updateAudience({ additionalCustomerIds: [] })
                             }
                           >
-                            Remove
+                            Clear all
                           </Button>
                         </Stack>
-                      </Sheet>
-                    ) : null}
 
-                    {additionalCustomerIds.length > 0 ? (
-                      <Sheet
-                        variant="outlined"
-                        sx={{
-                          borderRadius: "md",
-                          p: 1.5,
-                          bgcolor: "background.surface",
-                          borderColor: "primary.200",
-                        }}
-                      >
-                        <Stack spacing={1.25}>
+                        {selectedAdditionalCustomersQuery.isLoading ? (
                           <Stack
-                            direction={{ xs: "column", sm: "row" }}
+                            direction="row"
                             spacing={1}
-                            justifyContent="space-between"
-                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            useFlexGap
+                            flexWrap="wrap"
                           >
-                            <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                              <Typography level="body-sm" fontWeight="lg">
-                                Direct additions
-                              </Typography>
-                              <Typography
-                                level="body-xs"
-                                sx={{ color: "neutral.600" }}
-                              >
-                                {additionalCustomerIds.length} customer
-                                {additionalCustomerIds.length === 1 ? "" : "s"}{" "}
-                                have been attached directly to this campaign.
-                              </Typography>
-                            </Stack>
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              color="neutral"
-                              disabled={isLocked}
-                              onClick={() =>
-                                updateAudience({ additionalCustomerIds: [] })
-                              }
-                            >
-                              Clear all
-                            </Button>
+                            <Skeleton
+                              variant="rounded"
+                              width={176}
+                              height={28}
+                            />
+                            <Skeleton
+                              variant="rounded"
+                              width={188}
+                              height={28}
+                            />
                           </Stack>
+                        ) : selectedAdditionalCustomers.length > 0 ? (
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            useFlexGap
+                            flexWrap="wrap"
+                          >
+                            {selectedAdditionalCustomers.map((customer) => (
+                              <Chip
+                                key={customer.id}
+                                variant="soft"
+                                color="neutral"
+                                onDelete={
+                                  isLocked
+                                    ? undefined
+                                    : () =>
+                                        handleRemoveAdditionalCustomer(
+                                          customer.id,
+                                        )
+                                }
+                                sx={{ maxWidth: "100%" }}
+                              >
+                                {customer.email
+                                  ? `${customer.name} · ${customer.email}`
+                                  : customer.name}
+                              </Chip>
+                            ))}
+                          </Stack>
+                        ) : (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.600" }}
+                          >
+                            Direct additions are saved, but the customer
+                            details are not available right now.
+                          </Typography>
+                        )}
 
-                          {selectedAdditionalCustomersQuery.isLoading ? (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                            >
-                              <Skeleton
-                                variant="rounded"
-                                width={176}
-                                height={28}
-                              />
-                              <Skeleton
-                                variant="rounded"
-                                width={188}
-                                height={28}
-                              />
-                              <Skeleton
-                                variant="rounded"
-                                width={164}
-                                height={28}
-                              />
-                            </Stack>
-                          ) : selectedAdditionalCustomers.length > 0 ? (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                            >
-                              {selectedAdditionalCustomers.map((customer) => (
-                                <Chip
-                                  key={customer.id}
-                                  variant="soft"
-                                  color="neutral"
-                                  onDelete={
-                                    isLocked
-                                      ? undefined
-                                      : () =>
-                                          handleRemoveAdditionalCustomer(
-                                            customer.id,
-                                          )
-                                  }
-                                  sx={{ maxWidth: "100%" }}
-                                >
-                                  {customer.email
-                                    ? `${customer.name} · ${customer.email}`
-                                    : customer.name}
-                                </Chip>
-                              ))}
-                            </Stack>
-                          ) : (
-                            <Typography
-                              level="body-xs"
-                              sx={{ color: "neutral.600" }}
-                            >
-                              Direct additions are saved, but the customer
-                              details are not available right now.
-                            </Typography>
-                          )}
-
-                          {selectedAdditionalCustomers.length !==
-                          additionalCustomerIds.length ? (
-                            <Typography
-                              level="body-xs"
-                              sx={{ color: "neutral.500" }}
-                            >
-                              Some saved customer IDs are no longer available in
-                              this tenant.
-                            </Typography>
-                          ) : null}
-                        </Stack>
-                      </Sheet>
-                    ) : null}
-                  </Stack>
-                ) : (
-                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                    No explicit audience expansion is active yet.
-                  </Typography>
-                )}
-              </Stack>
-            </Card>
-          ) : null}
-          <Sheet
-            variant="soft"
-            color="neutral"
-            sx={{ borderRadius: "lg", p: 2 }}
-          >
-            <Stack spacing={0.5}>
-              <Typography level="body-sm" fontWeight="lg">
-                Estimated audience
-              </Typography>
-              {isAudienceLoading ? (
-                <Skeleton variant="text" width="52%" />
-              ) : (
-                <Typography level="body-sm" sx={{ color: "neutral.700" }}>
-                  {asCountLabel(audienceCount)}
-                </Typography>
-              )}
+                        {selectedAdditionalCustomers.length !==
+                        additionalCustomerIds.length ? (
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: "neutral.500" }}
+                          >
+                            Some saved customer IDs are no longer available
+                            in this tenant.
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                    </Sheet>
+                  ) : null}
+                </Stack>
+              ) : null}
             </Stack>
-          </Sheet>
+          ) : null}
         </Stack>
-      </SectionCard>
+      </CollapsibleSection>
 
-      <SectionCard
+      <CollapsibleSection
+        id="campaign-editor-content"
         title="Content"
-        description={
+        summary={
           campaignType === "email"
-            ? "Choose a seasonal starting point, preview the final HTML live, then refine the campaign in Campaign Studio."
-            : "Compose the SMS body that will be sent to recipients."
+            ? hasMeaningfulEmailContent
+              ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"}`
+              : "No email blocks yet"
+            : smsMessage.trim()
+              ? `${smsMessage.length} characters · ${computeSmsSegments(smsMessage)} segment(s)`
+              : "Message not written yet"
         }
-        endDecorator={
-          campaignType === "email" ? (
-            <Chip variant="soft" color="neutral" size="sm">
-              {hasMeaningfulEmailContent
-                ? `${meaningfulEmailBlockCount} block${meaningfulEmailBlockCount === 1 ? "" : "s"}`
-                : "No email blocks yet"}
-            </Chip>
-          ) : null
-        }
+        defaultExpanded={contentInitiallyExpanded}
       >
         {campaignType === "email" ? (
           <Stack spacing={3}>
+            <JoyInput
+              id="campaign-editor-subject"
+              label="Subject line"
+              value={subjectLine}
+              disabled={isLocked}
+              onValueChange={(value) => updateSetup({ subjectLine: value })}
+            />
+            <JoyTextarea
+              label="Preview text"
+              minRows={3}
+              value={preheaderText}
+              disabled={isLocked}
+              onValueChange={(value) => updateSetup({ preheaderText: value })}
+            />
+
+            <Divider />
+
             <SeasonalTemplatesRow
               selectedSeason={selectedTemplateSeason}
               onSeasonChange={setSelectedTemplateSeason}
@@ -2083,16 +1599,16 @@ function CampaignEditorScreen() {
               disabled={Boolean(pendingTemplateSave)}
             />
 
-            <Divider />
-
-            <ContentPreviewCard
-              blocks={contentBlocks}
-              subjectLine={subjectLine}
-              previewText={preheaderText}
-              designSystem={designSystem}
-              loading={isDesignSystemLoading}
-              onOpenStudio={handleOpenStudio}
-            />
+            <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+              <JoyButton
+                variant="soft"
+                color="neutral"
+                onClick={handleOpenStudio}
+                disabled={isLocked}
+              >
+                Edit design in studio
+              </JoyButton>
+            </Box>
           </Stack>
         ) : (
           <Stack spacing={1.5}>
@@ -2122,176 +1638,92 @@ function CampaignEditorScreen() {
             </Sheet>
           </Stack>
         )}
-      </SectionCard>
+      </CollapsibleSection>
 
-      <Card variant="outlined" sx={{ borderRadius: "xl", p: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            gap: 2,
-            mb: 2.5,
-          }}
+      {campaignType === "email" ? (
+        <CollapsibleSection
+          id="campaign-editor-preview"
+          title="Preview"
+          summary={previewSummary}
+          defaultExpanded={previewInitiallyExpanded}
         >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              sx={{
-                fontSize: "18px",
-                fontWeight: 700,
-                color: "text.primary",
-                lineHeight: 1.3,
-              }}
-            >
-              Review & Send
-            </Typography>
-            <Typography
-              sx={{ fontSize: "13px", color: "neutral.400", mt: 0.5 }}
-            >
-              Verify everything is set before sending.
-            </Typography>
-          </Box>
+          <ContentPreviewCard
+            blocks={contentBlocks}
+            subjectLine={subjectLine}
+            previewText={preheaderText}
+            designSystem={designSystem}
+            loading={isDesignSystemLoading}
+            onOpenStudio={handleOpenStudio}
+          />
+        </CollapsibleSection>
+      ) : null}
+
+      <CollapsibleSection
+        id="campaign-editor-schedule"
+        title="Send or schedule"
+        summary="Review the inline checks above and send or schedule this campaign."
+        defaultExpanded={scheduleInitiallyExpanded}
+      >
+        <Stack spacing={2}>
+          <CampaignBlockerRow
+            senderUnverified={blockerSignals.senderUnverified}
+            audienceEmpty={blockerSignals.audienceEmpty}
+            contentEmpty={blockerSignals.contentEmpty}
+            subjectEmpty={blockerSignals.subjectEmpty}
+            draftConflict={blockerSignals.draftConflict}
+            onVerifySender={() => setVerificationOpen(true)}
+            onScrollToAudience={focusAudienceSection}
+            onScrollToContent={focusContentSection}
+            onScrollToSubject={focusSubjectInput}
+            onReload={handleReloadDraft}
+          />
 
           <Box
             sx={{
               display: "flex",
-              gap: 1,
-              flexShrink: 0,
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: { xs: "stretch", sm: "center" },
+              justifyContent: "space-between",
+              gap: 1.5,
             }}
           >
-            <Chip
-              size="sm"
-              variant="soft"
-              color="success"
-              sx={{ fontSize: "11px", fontWeight: 600, borderRadius: "6px" }}
-            >
-              {readyCount} ready
-            </Chip>
-            {blockedCount > 0 ? (
-              <Chip
-                size="sm"
-                variant="soft"
-                color="danger"
-                sx={{ fontSize: "11px", fontWeight: 600, borderRadius: "6px" }}
+            <Stack spacing={0.25}>
+              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                {isAudienceLoading
+                  ? "Calculating audience…"
+                  : asCountLabel(audienceCount)}
+              </Typography>
+              {lastSavedAt ? (
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  Last saved {lastSavedAt.toLocaleTimeString()}
+                </Typography>
+              ) : null}
+            </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <Button
+                size="md"
+                variant="plain"
+                color="neutral"
+                disabled={sendButtonDisabled}
+                endDecorator={<Calendar size={16} />}
+                onClick={handleScheduleForLater}
               >
-                {blockedCount} blocked
-              </Chip>
-            ) : null}
-            {warningCount > 0 ? (
-              <Chip
-                size="sm"
-                variant="soft"
-                color="warning"
-                sx={{ fontSize: "11px", fontWeight: 600, borderRadius: "6px" }}
+                Schedule for later
+              </Button>
+              <Button
+                size="md"
+                variant="solid"
+                color="primary"
+                disabled={sendButtonDisabled}
+                startDecorator={<Send size={16} />}
+                onClick={openSendConfirmation}
               >
-                {warningCount} needs attention
-              </Chip>
-            ) : null}
+                Send campaign
+              </Button>
+            </Stack>
           </Box>
-        </Box>
-
-        <Sheet
-          variant="outlined"
-          sx={{
-            borderRadius: "12px",
-            border: "1px solid",
-            borderColor: "neutral.100",
-            overflow: "hidden",
-            px: 2.5,
-          }}
-        >
-          {orderedPreflightItems.map((item, index) => (
-            <Box
-              key={item.id}
-              sx={{
-                borderBottom:
-                  index < orderedPreflightItems.length - 1
-                    ? "1px dashed"
-                    : "none",
-                borderColor: "neutral.100",
-              }}
-            >
-              <ChecklistItemRow item={item} />
-            </Box>
-          ))}
-        </Sheet>
-
-        <ReadinessSummary
-          readyCount={readyCount}
-          totalCount={preflightItems.length}
-          blockedCount={blockedCount}
-          warningCount={warningCount}
-        />
-
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 1.5,
-            mt: 3,
-            mb: 1,
-          }}
-        >
-          <Button
-            size="lg"
-            variant="solid"
-            color="primary"
-            disabled={sendButtonDisabled}
-            startDecorator={<Send size={18} />}
-            onClick={openSendConfirmation}
-            sx={{
-              borderRadius: "12px",
-              fontWeight: 700,
-              fontSize: "15px",
-              px: 5,
-              py: 1.5,
-              minWidth: 240,
-              boxShadow: sendButtonDisabled ? "none" : "sm",
-              opacity: sendButtonDisabled ? 0.5 : 1,
-              transition: "all 150ms ease",
-              "&:hover:not(:disabled)": {
-                boxShadow: "md",
-                transform: "translateY(-1px)",
-              },
-            }}
-          >
-            Send Campaign
-          </Button>
-
-          <Button
-            size="sm"
-            variant="plain"
-            color="neutral"
-            disabled={sendButtonDisabled}
-            endDecorator={<Calendar size={14} />}
-            onClick={handleScheduleForLater}
-            sx={{
-              fontSize: "13px",
-              fontWeight: 500,
-              color: "neutral.500",
-              "&:hover": { bgcolor: "transparent", color: "primary.500" },
-            }}
-          >
-            Schedule for later
-          </Button>
-
-          {blockedCount > 0 ? (
-            <Typography
-              sx={{
-                fontSize: "12px",
-                color: "neutral.400",
-                mt: 0.5,
-                textAlign: "center",
-              }}
-            >
-              Resolve blocked items above to enable sending
-            </Typography>
-          ) : null}
-        </Box>
-      </Card>
+        </Stack>
+      </CollapsibleSection>
 
       <Modal
         open={audienceExpansionOpen}
