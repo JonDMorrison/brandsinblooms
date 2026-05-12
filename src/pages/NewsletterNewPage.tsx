@@ -11,8 +11,8 @@ import Typography from "@mui/joy/Typography";
 import {
   ArrowRight,
   Check,
+  Lightbulb,
   PenTool,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -41,7 +41,6 @@ type CreationPathCardProps = {
   title: string;
   description: string;
   buttonLabel: string;
-  chipLabel?: string;
   icon: LucideIcon;
   onClick: () => void;
 };
@@ -51,7 +50,6 @@ function CreationPathCard({
   title,
   description,
   buttonLabel,
-  chipLabel,
   icon: Icon,
   onClick,
 }: CreationPathCardProps) {
@@ -65,28 +63,27 @@ function CreationPathCard({
         p: { xs: 3, md: 4 },
         height: "100%",
         borderRadius: "lg",
-        // (1) Cream-tinted scratch card vs (2) teal AI card.
-        // Cream uses --hp-green-50 at low alpha so it reads warm
-        // against the page surface without going green-loud.
+        // Both creation paths now sit on a neutral surface. The
+        // ideas card uses a slightly cooler grey so it reads as
+        // the recommended path without leaning teal/mint.
         bgcolor: isAi
-          ? "var(--hp-green-50, #E1FFFE)"
+          ? "var(--joy-palette-neutral-50, #f5f5f4)"
           : "rgba(225, 255, 254, 0.18)",
         borderColor: isAi
-          ? "var(--hp-green-300, #87DFD8)"
+          ? "var(--joy-palette-neutral-200, #e7e5e4)"
           : "rgba(48, 80, 110, 0.14)",
-        // (2) Visual punch on the AI card: 1.02 scale + soft teal
-        // glow so it reads as the recommended path.
+        // Slight scale lift kept so the ideas card still reads as
+        // primary; teal glow shadow removed to match the neutral
+        // background.
         transform: { xs: "none", md: isAi ? "scale(1.02)" : "none" },
-        boxShadow: isAi
-          ? "0 0 36px rgba(135, 223, 216, 0.35), 0 4px 14px rgba(62, 124, 119, 0.08)"
-          : "none",
+        boxShadow: "none",
         display: "flex",
         flexDirection: "column",
         transition: "transform 200ms ease, box-shadow 200ms ease",
       }}
     >
       <Stack spacing={2.5} sx={{ flex: 1 }}>
-        {/* (3) 96px tinted icon circle. */}
+        {/* 96px tinted icon circle — kept dark green per spec. */}
         <Box
           sx={{
             width: 96,
@@ -109,39 +106,12 @@ function CreationPathCard({
         </Box>
 
         <Stack spacing={1.25} sx={{ flex: 1 }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            useFlexGap
-            flexWrap="wrap"
+          <Typography
+            level="title-md"
+            sx={{ fontWeight: 700, color: "var(--hp-green-900, #11302E)" }}
           >
-            <Typography
-              level="title-md"
-              sx={{ fontWeight: 700, color: "var(--hp-green-900, #11302E)" }}
-            >
-              {title}
-            </Typography>
-            {chipLabel ? (
-              // (2) Solid-teal AI-Powered badge: white text, more
-              // weight than the prior soft pill.
-              <Chip
-                size="sm"
-                variant="solid"
-                sx={{
-                  bgcolor: "var(--hp-green-600, #2E605C)",
-                  color: "var(--hp-text-light, #FAFAFA)",
-                  fontWeight: 700,
-                  letterSpacing: "0.02em",
-                  px: 1.25,
-                  py: 0.5,
-                  fontSize: "12px",
-                }}
-              >
-                {chipLabel}
-              </Chip>
-            ) : null}
-          </Stack>
+            {title}
+          </Typography>
 
           <Typography level="body-sm" sx={{ color: "text.secondary" }}>
             {description}
@@ -592,10 +562,9 @@ export const NewsletterNewPage = () => {
                 <CreationPathCard
                   variant="ai"
                   title="Pick an Idea"
-                  description="Get AI-generated newsletter concepts tailored to your business."
-                  buttonLabel="Explore AI ideas"
-                  chipLabel="AI-Powered"
-                  icon={Sparkles}
+                  description="Get newsletter concepts tailored to your business."
+                  buttonLabel="Explore ideas"
+                  icon={Lightbulb}
                   onClick={() => setShowPicker(true)}
                 />
               </Box>
