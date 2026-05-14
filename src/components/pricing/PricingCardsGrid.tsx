@@ -81,10 +81,36 @@ const displayCopy: Record<string, DisplayCopy> = {
   },
 };
 
-export const PricingCardsGrid = () => {
+export interface PricingCardsGridProps {
+  /**
+   * Optional handler invoked when a card's CTA is clicked. When
+   * provided (e.g. by PricingPage), it takes precedence over the
+   * default `/auth?tier=` redirect, allowing the caller to drive a
+   * direct create-checkout for authenticated users or to forward
+   * the tier + interval through auth for unauthenticated ones.
+   *
+   * No global monthly/annual toggle exists on this page yet, so
+   * the grid defaults to `monthly`. Adding a toggle is a followup.
+   */
+  onSelectPlan?: (
+    tier: string,
+    billingInterval: "monthly" | "annual",
+    currency: "usd" | "cad",
+  ) => void | Promise<void>;
+  isCheckoutLoading?: boolean;
+}
+
+export const PricingCardsGrid = ({
+  onSelectPlan,
+  isCheckoutLoading = false,
+}: PricingCardsGridProps = {}) => {
   const navigate = useNavigate();
 
   const handleGetStarted = (tierId: string) => {
+    if (onSelectPlan) {
+      void onSelectPlan(tierId, "monthly", "usd");
+      return;
+    }
     navigate(`/auth?tier=${tierId}`);
   };
 
@@ -192,6 +218,7 @@ export const PricingCardsGrid = () => {
                   <div className="mt-auto">
                     <Button
                       onClick={() => handleGetStarted(tier.id)}
+                      disabled={isCheckoutLoading}
                       className={cn(
                         "w-full group",
                         tier.recommended

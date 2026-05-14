@@ -1,6 +1,5 @@
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
-import { AddOnSection } from "./AddOnSection";
 import { BillingHistory } from "./BillingHistory";
 import { PaymentMethods } from "./PaymentMethods";
 import { SubscriptionCard } from "./SubscriptionCard";
@@ -25,10 +24,6 @@ export const BillingDashboard = () => {
         <Box>
           <BillingHistory />
         </Box>
-      </Box>
-
-      <Box>
-      <AddOnSection />
       </Box>
     </Stack>
   );
