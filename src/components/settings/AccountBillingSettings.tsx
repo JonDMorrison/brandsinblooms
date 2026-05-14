@@ -6,6 +6,7 @@ import { CreditCard } from "lucide-react";
 import { DeleteAccountSection } from "@/components/account/DeleteAccountSection";
 import { BillingHistory } from "@/components/billing/BillingHistory";
 import { PaymentMethods } from "@/components/billing/PaymentMethods";
+import { PlanSummaryCard } from "@/components/billing/PlanSummaryCard";
 import { SubscriptionCard } from "@/components/billing/SubscriptionCard";
 import { UsageAnalytics } from "@/components/billing/UsageAnalytics";
 import { useSubscription as useBillingSubscription } from "@/hooks/useSubscription";
@@ -40,6 +41,7 @@ export const AccountBillingSettings = () => {
       ) : (
         <>
           <SubscriptionCard />
+          <PlanSummaryCard />
           <PaymentMethods />
           <BillingHistory />
           <UsageAnalytics />
