@@ -212,7 +212,7 @@ describe("DashboardShell", () => {
     expect(mobileSidebar).toHaveStyle({ transform: "translateX(-100%)" });
   });
 
-  it("opens the notifications menu from the top bar", async () => {
+  it("opens the notifications menu from the top bar and renders the empty state", async () => {
     setViewportWidth(1440);
 
     renderShell();
@@ -220,8 +220,10 @@ describe("DashboardShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open notifications" }));
 
     expect(await screen.findByText("Notifications")).toBeInTheDocument();
-    expect(screen.getByText("Newsletter ready to review")).toBeInTheDocument();
-    expect(screen.getByText("Analytics sync completed")).toBeInTheDocument();
+    expect(screen.getByText("No notifications yet")).toBeInTheDocument();
+    expect(
+      screen.getByText(/We'll let you know when there's something to see/i),
+    ).toBeInTheDocument();
   });
 
   it("opens the user menu, preserves report problem access, and logs out", async () => {

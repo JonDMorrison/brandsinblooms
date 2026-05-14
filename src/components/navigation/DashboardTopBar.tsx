@@ -1,7 +1,6 @@
 import { KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/joy/Avatar";
-import Badge from "@mui/joy/Badge";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
 import Dropdown from "@mui/joy/Dropdown";
@@ -17,14 +16,11 @@ import Typography from "@mui/joy/Typography";
 import {
   Bell,
   Bug,
-  CheckCircle2,
   ChevronDown,
   LogOut,
-  Megaphone,
   Menu as MenuIcon,
   Search,
   Settings,
-  TriangleAlert,
   UserCircle2,
   X,
 } from "lucide-react";
@@ -40,30 +36,6 @@ const LazyReportProblemDialog = lazy(() =>
 );
 
 export const DASHBOARD_TOPBAR_HEIGHT = 56;
-
-const notificationItems = [
-  {
-    id: "newsletter-ready",
-    title: "Newsletter ready to review",
-    description: "Your April campaign draft finished processing.",
-    timestamp: "2m ago",
-    icon: Megaphone,
-  },
-  {
-    id: "analytics-sync",
-    title: "Analytics sync completed",
-    description: "Yesterday's store metrics are now available.",
-    timestamp: "18m ago",
-    icon: CheckCircle2,
-  },
-  {
-    id: "problem-reply",
-    title: "Problem report updated",
-    description: "Support replied to your most recent ticket.",
-    timestamp: "1h ago",
-    icon: TriangleAlert,
-  },
-] as const;
 
 const focusRingSx = {
   outline: 0,
@@ -370,27 +342,7 @@ export function DashboardTopBar({
                     },
                   }}
                 >
-                  <Badge
-                    badgeContent={notificationItems.length}
-                    color="danger"
-                    size="sm"
-                    variant="solid"
-                    slotProps={{
-                      badge: {
-                        sx: {
-                          minWidth: 16,
-                          height: 16,
-                          px: 0.5,
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          boxShadow:
-                            "0 0 0 2px var(--joy-palette-background-surface)",
-                        },
-                      },
-                    }}
-                  >
-                    <Bell size={20} strokeWidth={1.9} />
-                  </Badge>
+                  <Bell size={20} strokeWidth={1.9} />
                 </MenuButton>
                 <Menu
                   placement="bottom-end"
@@ -410,49 +362,25 @@ export function DashboardTopBar({
                   >
                     Notifications
                   </Typography>
-                  {notificationItems.map((item) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <MenuItem
-                        key={item.id}
-                        sx={{ ...menuItemSx, alignItems: "flex-start" }}
-                      >
-                        <ListItemDecorator
-                          sx={{
-                            minInlineSize: 24,
-                            mt: 0.125,
-                            color: "neutral.500",
-                          }}
-                        >
-                          <Icon size={18} strokeWidth={1.9} />
-                        </ListItemDecorator>
-                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                          <Typography
-                            level="body-sm"
-                            sx={{
-                              color: "neutral.800",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {item.title}
-                          </Typography>
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.600" }}
-                          >
-                            {item.description}
-                          </Typography>
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.500" }}
-                          >
-                            {item.timestamp}
-                          </Typography>
-                        </Stack>
-                      </MenuItem>
-                    );
-                  })}
+                  <Stack
+                    spacing={0.5}
+                    sx={{ px: 1.25, py: 1.5 }}
+                    data-testid="notifications-empty-state"
+                  >
+                    <Typography
+                      level="body-sm"
+                      sx={{ color: "neutral.700", fontWeight: 600 }}
+                    >
+                      No notifications yet
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.500" }}
+                    >
+                      We&apos;ll let you know when there&apos;s something to
+                      see.
+                    </Typography>
+                  </Stack>
                 </Menu>
               </Dropdown>
 
