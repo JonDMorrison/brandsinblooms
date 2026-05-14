@@ -214,6 +214,7 @@ export const CalendarPlanningFilters = ({
                 statuses: value && value !== "all" ? [value] : [],
               });
             }}
+            slotProps={{ listbox: { disablePortal: true } }}
           >
             <Option value="all">All statuses</Option>
             {filterOptions.statuses.map((status) => (

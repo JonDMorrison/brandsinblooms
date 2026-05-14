@@ -233,7 +233,22 @@ export const generateCampaignContent = async (
         memoryCache.set(cacheKey, result, 300000);
         return result;
       }
-      const { data, error } = await supabase.functions.invoke(
+      const CONTENT_GEN_TIMEOUT_MS = 60_000;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        const timer = setTimeout(() => {
+          reject(
+            new Error(
+              "Content generation is taking longer than expected. Your event was created — you can regenerate content from the campaign page.",
+            ),
+          );
+        }, CONTENT_GEN_TIMEOUT_MS);
+        // Best-effort cleanup if the surrounding Promise.race resolves first.
+        // (No way to unref a setTimeout from a rejected race, but the timer
+        // is short enough to be harmless if it fires after the winner.)
+        void timer;
+      });
+
+      const invokePromise = supabase.functions.invoke(
         "generate_campaign_content",
         {
           body: {
@@ -246,6 +261,11 @@ export const generateCampaignContent = async (
           },
         },
       );
+
+      const { data, error } = await Promise.race([
+        invokePromise,
+        timeoutPromise,
+      ]);
 
       if (error) {
         console.error("❌ Campaign content generation error:", error);

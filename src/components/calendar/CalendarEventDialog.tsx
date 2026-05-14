@@ -4,7 +4,7 @@ import Input from "@mui/joy/Input";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { format, getISOWeek } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -39,8 +39,6 @@ export function CalendarEventDialog({
   const [instructions, setInstructions] = useState("");
   const [dateValue, setDateValue] = useState("");
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,11 +48,8 @@ export function CalendarEventDialog({
     setDescription("");
     setInstructions("");
     setError(null);
-    setSuccess(false);
     setDateValue(format(defaultDate ?? new Date(), "yyyy-MM-dd"));
   }, [defaultDate, open]);
-
-  const busy = loading || generating;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -62,7 +57,8 @@ export function CalendarEventDialog({
       setError("You must be logged in to create an event.");
       return;
     }
-    if (!title.trim()) {
+    const eventName = title.trim();
+    if (!eventName) {
       setError("Event name is required.");
       return;
     }
@@ -72,14 +68,14 @@ export function CalendarEventDialog({
 
     try {
       const startDate = new Date(`${dateValue}T12:00:00`);
-      const prompt = `Promote the event "${title.trim()}" ${description ? `- ${description}` : ""} scheduled for ${dateValue}${instructions ? `. Important instructions: ${instructions}` : ""}. Create engaging promotional content that encourages attendance and builds excitement.`;
+      const prompt = `Promote the event "${eventName}" ${description ? `- ${description}` : ""} scheduled for ${dateValue}${instructions ? `. Important instructions: ${instructions}` : ""}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
       const { data: insertedCampaign, error: insertError } = await supabase
         .from("campaigns")
         .insert({
-          title: title.trim(),
+          title: eventName,
           description: description.trim() || null,
-          theme: `${title.trim()} Promotion`,
+          theme: `${eventName} Promotion`,
           prompt,
           start_date: dateValue,
           week_number: getISOWeek(startDate),
@@ -93,30 +89,59 @@ export function CalendarEventDialog({
 
       if (insertError) throw insertError;
 
-      setLoading(false);
-      setGenerating(true);
+      // Campaign row exists — close the modal and notify the parent so the
+      // calendar refreshes. Content generation runs in the background; we
+      // can't keep the modal open waiting for it because the edge function
+      // can take a long time (or hang) and we don't want to block the user.
+      toast({
+        title: "Event created",
+        description: "Generating content in the background.",
+      });
+      onEventCreated();
+      onOpenChange(false);
 
-      const result = await generateCampaignContent(
+      // Fire-and-forget content generation. Surface failures via toast so
+      // the user knows to retry from the campaign page, but never block.
+      void generateCampaignContent(
         insertedCampaign.id,
         insertedCampaign.theme || insertedCampaign.title,
         insertedCampaign.description || "",
         user.id,
         insertedCampaign.week_number,
         tenant?.id,
-      );
-
-      setGenerating(false);
-      setSuccess(true);
-      toast({
-        title: "Event created",
-        description: `Generated ${result.tasks?.length || 5} content pieces for this event.`,
-      });
-      onEventCreated();
-      window.setTimeout(() => onOpenChange(false), 1200);
-    } catch (error: any) {
-      console.error("Error creating event:", error);
-      setError(error.message || "Failed to create event");
-      setGenerating(false);
+      )
+        .then((result) => {
+          if (!result.success) {
+            toast({
+              title: "Content generation failed",
+              description: `Content generation failed for "${eventName}". Open the campaign to retry.`,
+              variant: "destructive",
+            });
+            return;
+          }
+          toast({
+            title: "Content ready",
+            description: `Generated ${result.tasks?.length || 5} content pieces for "${eventName}".`,
+          });
+          onEventCreated();
+        })
+        .catch((generationError) => {
+          console.error(
+            "Background content generation failed:",
+            generationError,
+          );
+          toast({
+            title: "Content generation failed",
+            description:
+              generationError instanceof Error
+                ? generationError.message
+                : `Content generation failed for "${eventName}". Open the campaign to retry.`,
+            variant: "destructive",
+          });
+        });
+    } catch (createError: any) {
+      console.error("Error creating event:", createError);
+      setError(createError.message || "Failed to create event");
     } finally {
       setLoading(false);
     }
@@ -126,7 +151,7 @@ export function CalendarEventDialog({
     <JoyDialog
       open={open}
       onClose={() => {
-        if (!busy) onOpenChange(false);
+        if (!loading) onOpenChange(false);
       }}
       title="Create Event"
       description="Create a calendar event and generate a starter content pack"
@@ -136,11 +161,6 @@ export function CalendarEventDialog({
       <JoyDialogContent>
         <Stack component="form" spacing={1.25} onSubmit={handleSubmit}>
           {error ? <Alert color="danger">{error}</Alert> : null}
-          {success ? (
-            <Alert color="success" startDecorator={<CheckCircle2 size={16} />}>
-              Event created successfully.
-            </Alert>
-          ) : null}
 
           <Stack spacing={0.5}>
             <Typography
@@ -154,7 +174,7 @@ export function CalendarEventDialog({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              disabled={busy}
+              disabled={loading}
             />
           </Stack>
 
@@ -171,7 +191,7 @@ export function CalendarEventDialog({
               type="date"
               value={dateValue}
               onChange={(e) => setDateValue(e.target.value)}
-              disabled={busy}
+              disabled={loading}
             />
           </Stack>
 
@@ -188,7 +208,7 @@ export function CalendarEventDialog({
               minRows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              disabled={busy}
+              disabled={loading}
             />
           </Stack>
 
@@ -205,7 +225,7 @@ export function CalendarEventDialog({
               minRows={3}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              disabled={busy}
+              disabled={loading}
             />
           </Stack>
 
@@ -214,19 +234,17 @@ export function CalendarEventDialog({
               color="neutral"
               bloomVariant="ghost"
               onClick={() => onOpenChange(false)}
-              disabled={busy}
+              disabled={loading}
             >
               Cancel
             </JoyButton>
             <JoyButton
               type="submit"
               color="primary"
-              loading={busy}
-              startDecorator={
-                busy ? <Loader2 size={14} /> : <Sparkles size={14} />
-              }
+              loading={loading}
+              startDecorator={<Sparkles size={14} />}
             >
-              {generating ? "Generating Content" : "Create Event"}
+              Create Event
             </JoyButton>
           </JoyDialogActions>
         </Stack>
