@@ -12,9 +12,7 @@ import { cn } from "@/lib/utils";
 // label. Keyed off the canonical id from pricingConfig.ts so plan
 // IDs (consumed by Stripe webhooks, billing edge functions, and the
 // SubscriptionContext PAID_PLANS list) stay the single source of
-// truth. Seed is intentionally absent from this map so it gets
-// filtered out of the rendered grid below; its config record stays
-// in pricingTiers for billing consumers that still reference it.
+// truth.
 interface DisplayCopy {
   volumeTranslation: string;
   bestFor: string;
@@ -24,6 +22,20 @@ interface DisplayCopy {
 }
 
 const displayCopy: Record<string, DisplayCopy> = {
+  seed: {
+    bestFor:
+      "Garden centres with an existing website who want CRM, messaging, and automations.",
+    volumeTranslation:
+      "Send weekly newsletters and seasonal SMS to your existing audience.",
+    included: [
+      "10,000 emails/month",
+      "1,000 SMS/month",
+      "Garden centre CRM with prebuilt personas",
+      "All campaigns, automations, and reporting",
+    ],
+    overages: "Email $0.002 each · SMS $0.05 each",
+    ctaLabel: "Start with Seed",
+  },
   sprout: {
     bestFor: "Single-location garden centres with up to 5,000 customers.",
     volumeTranslation:
@@ -69,8 +81,6 @@ const displayCopy: Record<string, DisplayCopy> = {
   },
 };
 
-const ROLE_LINE = "Website + Ecommerce + BloomSuite";
-
 export const PricingCardsGrid = () => {
   const navigate = useNavigate();
 
@@ -78,16 +88,16 @@ export const PricingCardsGrid = () => {
     navigate(`/auth?tier=${tierId}`);
   };
 
-  // Filter out tiers that aren't part of the new public grid (Seed
-  // is excluded from display per the redesign). The underlying
-  // pricingConfig record stays so any Stripe/billing consumer that
-  // looks up a tier by id continues to work.
+  // Render every tier that has display copy defined. The filter is
+  // kept (rather than mapping pricingTiers directly) so a future
+  // hidden-from-public tier can be excluded by omitting its
+  // displayCopy entry without touching this iteration.
   const visibleTiers = pricingTiers.filter((tier) => tier.id in displayCopy);
 
   return (
     <section className="py-12 md:py-16 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {visibleTiers.map((tier) => {
             const IconComponent = tier.icon;
             const copy = displayCopy[tier.id];
@@ -137,7 +147,7 @@ export const PricingCardsGrid = () => {
                   </div>
 
                   <p className="text-sm text-gray-600 font-medium">
-                    {ROLE_LINE}
+                    {tier.description}
                   </p>
                 </CardHeader>
 

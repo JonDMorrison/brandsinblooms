@@ -4,14 +4,12 @@ import { Lock } from "lucide-react";
 /**
  * Section 7 — Future pricing comparison.
  *
- * Filters the Seed row out of the rendered table (Seed is no longer
- * part of the public grid) but leaves it in the underlying
- * futurePricing config so any consumer that references it
- * continues to compile. Adds an "Annual savings" column derived
- * from (future − intro) × 12.
+ * Renders every tier present in futurePricing config (Seed through
+ * Thrive). Adds an "Annual savings" column derived from
+ * (future − intro) × 12.
  */
 export const FuturePricingSection = () => {
-  const visibleRows = futurePricing.filter((row) => row.tier !== "Seed");
+  const visibleRows = futurePricing;
 
   return (
     <section className="py-16 md:py-20 px-6 bg-white">
