@@ -29,6 +29,39 @@ const getPercent = (used: number, total: number) => {
   return Math.min((used / total) * 100, 100);
 };
 
+const UNGATED_PLANS_REQUIRE_UPGRADE = new Set([
+  "free",
+  "free_trial",
+  "expired",
+]);
+
+type AddOnGate =
+  | { state: "ready" }
+  | { state: "needs_upgrade"; reason: string }
+  | { state: "missing_stripe_link"; reason: string };
+
+const resolveAddOnGate = (
+  plan: string | null | undefined,
+  stripeSubscriptionItemId: string | null | undefined,
+): AddOnGate => {
+  if (!plan || UNGATED_PLANS_REQUIRE_UPGRADE.has(plan)) {
+    return {
+      state: "needs_upgrade",
+      reason:
+        "Add-ons available on paid plans. Upgrade your subscription to enable CRM or SMS marketing.",
+    };
+  }
+
+  if (!stripeSubscriptionItemId) {
+    return {
+      state: "missing_stripe_link",
+      reason: "Add-ons temporarily unavailable. Contact support to set up.",
+    };
+  }
+
+  return { state: "ready" };
+};
+
 export const AddOnSection = () => {
   const { subscription, loading } = useSubscription();
   const [processingCRM, setProcessingCRM] = useState(false);
@@ -51,7 +84,7 @@ export const AddOnSection = () => {
           {
             body: {
               plan: priceId,
-              billing_interval: "monthly",
+              billingInterval: "monthly",
             },
           },
         );
@@ -112,6 +145,13 @@ export const AddOnSection = () => {
   const crmEnabled = subscription?.crm_enabled || false;
   const smsEnabled = subscription?.sms_enabled || false;
 
+  const gate = resolveAddOnGate(
+    subscription?.plan,
+    subscription?.stripe_subscription_item_id,
+  );
+  const isGated = gate.state !== "ready";
+  const gateHelper = gate.state === "ready" ? null : gate.reason;
+
   const emailUsage = subscription?.email_usage || 0;
   const emailQuota = subscription?.email_quota || 1000;
   const emailUsagePercent = getPercent(emailUsage, emailQuota);
@@ -164,12 +204,29 @@ export const AddOnSection = () => {
               <Switch
                 checked={crmEnabled}
                 color="neutral"
-                disabled={processingCRM}
+                disabled={processingCRM || isGated}
                 onChange={(event) =>
                   handleToggleAddOn("crm", event.target.checked)
                 }
+                slotProps={{
+                  input: {
+                    "aria-label": "Enable CRM + Email Marketing add-on",
+                    "aria-disabled": processingCRM || isGated,
+                  },
+                }}
+                data-testid="addon-toggle-crm"
               />
             </Stack>
+
+            {gateHelper ? (
+              <Typography
+                level="body-xs"
+                textColor="text.tertiary"
+                data-testid="addon-gate-helper-crm"
+              >
+                {gateHelper}
+              </Typography>
+            ) : null}
 
             {crmEnabled ? (
               <Stack spacing={1.25}>
@@ -236,12 +293,29 @@ export const AddOnSection = () => {
               <Switch
                 checked={smsEnabled}
                 color="neutral"
-                disabled={processingSMS}
+                disabled={processingSMS || isGated}
                 onChange={(event) =>
                   handleToggleAddOn("sms", event.target.checked)
                 }
+                slotProps={{
+                  input: {
+                    "aria-label": "Enable SMS Marketing add-on",
+                    "aria-disabled": processingSMS || isGated,
+                  },
+                }}
+                data-testid="addon-toggle-sms"
               />
             </Stack>
+
+            {gateHelper ? (
+              <Typography
+                level="body-xs"
+                textColor="text.tertiary"
+                data-testid="addon-gate-helper-sms"
+              >
+                {gateHelper}
+              </Typography>
+            ) : null}
 
             {smsEnabled ? (
               <Stack spacing={1.25}>

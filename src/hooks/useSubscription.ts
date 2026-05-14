@@ -16,6 +16,7 @@ interface Subscription {
   sms_usage?: number;
   email_overage_price?: number;
   sms_overage_price?: number;
+  stripe_subscription_item_id?: string | null;
 }
 
 export const useSubscription = () => {
@@ -34,7 +35,7 @@ export const useSubscription = () => {
         const { data, error } = await supabase
           .from("subscriptions")
           .select(
-            "plan, max_posts_per_month, max_connections, end_date, created_at, crm_enabled, sms_enabled, contacts_limit, email_quota, sms_quota, email_usage, sms_usage, email_overage_price, sms_overage_price",
+            "plan, max_posts_per_month, max_connections, end_date, created_at, crm_enabled, sms_enabled, contacts_limit, email_quota, sms_quota, email_usage, sms_usage, email_overage_price, sms_overage_price, stripe_subscription_item_id",
           )
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
