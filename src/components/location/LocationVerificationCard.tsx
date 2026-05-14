@@ -22,6 +22,7 @@ import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyEmptyState } from "@/components/joy/JoyEmptyState";
 import { JoyInput } from "@/components/joy/JoyInput";
+import { JoySelect } from "@/components/joy/JoySelect";
 
 interface LocationCandidate {
   postal_code: string;
@@ -79,21 +80,34 @@ const CA_POSTAL_PATTERN =
 
 const validatePostalCode = (
   value: string,
-): { valid: boolean; country?: "US" | "CA"; normalized?: string } => {
+  country: "US" | "CA",
+): { valid: boolean; normalized?: string } => {
   const trimmed = value.trim();
 
-  if (US_ZIP_PATTERN.test(trimmed)) {
-    return { valid: true, country: "US", normalized: trimmed };
+  if (country === "US") {
+    if (US_ZIP_PATTERN.test(trimmed)) {
+      return { valid: true, normalized: trimmed };
+    }
+    return { valid: false };
   }
 
+  // CA
   if (CA_POSTAL_PATTERN.test(trimmed)) {
-    // Normalize Canadian postal code to "A1A 1A1" format
     const cleaned = trimmed.replace(/\s/g, "").toUpperCase();
     const normalized = `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-    return { valid: true, country: "CA", normalized };
+    return { valid: true, normalized };
   }
-
   return { valid: false };
+};
+
+const COUNTRY_OPTIONS = [
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" },
+];
+
+const POSTAL_PLACEHOLDER_BY_COUNTRY: Record<"US" | "CA", string> = {
+  US: "97215",
+  CA: "V6B 1A1",
 };
 
 const getConfidenceChip = (
@@ -443,22 +457,44 @@ export const LocationVerificationCard: React.FC<
   };
 
   const handlePostalCodeChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, postalCode: value, country: undefined }));
+    setFormData((prev) => ({ ...prev, postalCode: value }));
     setValidationError(null);
 
+    const activeCountry: "US" | "CA" = formData.country ?? "US";
     if (value.length >= 5) {
-      const validation = validatePostalCode(value);
+      const validation = validatePostalCode(value, activeCountry);
       if (!validation.valid) {
         setValidationError(
-          "Please enter a valid US ZIP (12345) or Canadian postal code (A1A 1A1)",
+          activeCountry === "US"
+            ? "Doesn't look like a US ZIP (12345 or 12345-6789). Confirm the country or fix the format."
+            : "Doesn't look like a Canadian postal code (A1A 1A1). Confirm the country or fix the format.",
+        );
+      }
+    }
+  };
+
+  const handleCountryChange = (nextCountry: "US" | "CA") => {
+    setFormData((prev) => ({ ...prev, country: nextCountry }));
+    // Re-validate any existing postal against the new country and surface
+    // a soft warning if the format no longer matches.
+    if (formData.postalCode.trim().length >= 5) {
+      const validation = validatePostalCode(formData.postalCode, nextCountry);
+      if (!validation.valid) {
+        setValidationError(
+          nextCountry === "US"
+            ? "Doesn't look like a US ZIP (12345 or 12345-6789). Confirm the country or fix the format."
+            : "Doesn't look like a Canadian postal code (A1A 1A1). Confirm the country or fix the format.",
         );
       } else {
+        setValidationError(null);
         setFormData((prev) => ({
           ...prev,
-          postalCode: validation.normalized || value,
-          country: validation.country,
+          postalCode: validation.normalized ?? prev.postalCode,
+          country: nextCountry,
         }));
       }
+    } else {
+      setValidationError(null);
     }
   };
 
@@ -490,17 +526,24 @@ export const LocationVerificationCard: React.FC<
   };
 
   const handleConfirm = async () => {
-    const validation = validatePostalCode(formData.postalCode);
+    const country: "US" | "CA" = formData.country ?? "US";
+    const validation = validatePostalCode(formData.postalCode, country);
+    // Soft warning only — country comes from the picker (user-driven), so
+    // we no longer block submit on a postal format mismatch. We do still
+    // normalize when the format matches the selected country.
     if (!validation.valid) {
-      setValidationError("Please enter a valid US ZIP or Canadian postal code");
-      return;
+      setValidationError(
+        country === "US"
+          ? "Doesn't look like a US ZIP (12345 or 12345-6789). Confirm the country or fix the format."
+          : "Doesn't look like a Canadian postal code (A1A 1A1). Confirm the country or fix the format.",
+      );
     }
 
     await onConfirm({
-      postalCode: validation.normalized || formData.postalCode,
+      postalCode: validation.normalized ?? formData.postalCode,
       city: formData.city || undefined,
       stateProvince: formData.stateProvince || undefined,
-      country: validation.country,
+      country,
     });
   };
 
@@ -931,13 +974,14 @@ export const LocationVerificationCard: React.FC<
                   <JoyInput
                     helperText={validationError ?? "Required"}
                     label="Postal / ZIP Code"
-                    placeholder="97215 or V6B 1A1"
+                    placeholder={
+                      POSTAL_PLACEHOLDER_BY_COUNTRY[formData.country ?? "US"]
+                    }
                     value={formData.postalCode}
                     onValueChange={handlePostalCodeChange}
-                    variant={validationError ? "error" : "outlined"}
                   />
                   {validationError ? (
-                    <FormHelperText sx={{ color: "danger.600" }}>
+                    <FormHelperText sx={{ color: "warning.600" }}>
                       {validationError}
                     </FormHelperText>
                   ) : null}
@@ -961,16 +1005,12 @@ export const LocationVerificationCard: React.FC<
                   }
                 />
 
-                <JoyInput
-                  disabled
+                <JoySelect
                   label="Country"
-                  placeholder="Auto-detected from postal code"
-                  value={
-                    formData.country === "US"
-                      ? "United States"
-                      : formData.country === "CA"
-                        ? "Canada"
-                        : ""
+                  value={formData.country ?? "US"}
+                  options={COUNTRY_OPTIONS}
+                  onValueChange={(value) =>
+                    handleCountryChange(value as "US" | "CA")
                   }
                 />
               </Box>
@@ -979,9 +1019,7 @@ export const LocationVerificationCard: React.FC<
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap>
             <JoyButton
-              disabled={
-                !formData.postalCode || Boolean(validationError) || isSaving
-              }
+              disabled={!formData.postalCode || isSaving}
               loading={isSaving}
               loadingPosition="start"
               onClick={handleConfirm}
