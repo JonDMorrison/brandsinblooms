@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 import { UrlInputStep } from "./UrlInputStep";
 import { DataReviewStep } from "./DataReviewStep";
+import type { ConfirmedLocation } from "./DataReviewStep";
 import { OnboardingSuccessIndicator } from "./OnboardingSuccessIndicator";
 import { WebsiteAnalysisLoader } from "./WebsiteAnalysisLoader";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
@@ -15,7 +16,6 @@ interface SimplifiedOnboardingFlowProps {
   onComplete: (data: unknown) => void;
 }
 
-// FIX: H5 - localStorage key for persisting onboarding progress across page refreshes
 const PROGRESS_KEY_PREFIX = "onboarding-progress:";
 
 export const SimplifiedOnboardingFlow = ({
@@ -24,7 +24,6 @@ export const SimplifiedOnboardingFlow = ({
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // FIX: H5 - Restore progress from localStorage on mount
   const [currentStep, setCurrentStep] = useState(() => {
     if (!user?.id) return 1;
     try {
@@ -52,7 +51,6 @@ export const SimplifiedOnboardingFlow = ({
     return "";
   });
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
-  const [isLocationConfirmed, setIsLocationConfirmed] = useState(true);
 
   const {
     isAnalyzing,
@@ -66,7 +64,6 @@ export const SimplifiedOnboardingFlow = ({
   const { completeOnboarding } = useOnboardingCompletion();
   const { markAsCompleted } = useOnboardingStatus();
 
-  // FIX: H5 - Persist currentStep and websiteUrl to localStorage on change
   useEffect(() => {
     if (!user?.id) return;
     localStorage.setItem(
@@ -79,27 +76,26 @@ export const SimplifiedOnboardingFlow = ({
   }, [currentStep, websiteUrl, user?.id]);
 
   const handleAnalyze = async () => {
-    // Advance to step 2 immediately when analyze is clicked
-    setCurrentStep(2);
-    // Start analysis in the background with userId for location persistence
-    await analyzeWebsite(websiteUrl, user?.id);
+    // Stay on step 1 while analyzing. The hook surfaces analysisError into
+    // UrlInputStep on failure; we only advance to step 2 on a real success.
+    const ok = await analyzeWebsite(websiteUrl, user?.id);
+    if (ok) {
+      setCurrentStep(2);
+    }
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
       resetAnalysis();
       setCurrentStep(1);
-      setIsLocationConfirmed(true); // Reset when going back
     }
   };
 
-  const handleComplete = async () => {
-    // FIX: H4 - Add isCompletingOnboarding to early return guard to prevent double-submit
+  const handleComplete = async (confirmedLocation: ConfirmedLocation) => {
     if (
       !extractedData ||
       !websiteUrl ||
       !user ||
-      !isLocationConfirmed ||
       isCompletingOnboarding
     )
       return;
@@ -112,11 +108,6 @@ export const SimplifiedOnboardingFlow = ({
         localStorage.removeItem(`onboarding-progress-${user.id}`);
       };
 
-      // Call the full completion pipeline:
-      // 1. markAsCompleted() sets localStorage synchronously (prevents guard redirect)
-      // 2. saveOnboardingResponse writes to DB
-      // 3. createCompanyProfileFromOnboarding starts background content generation
-      // 4. onComplete notifies the parent to advance to the "generating" step
       await completeOnboarding(
         extractedData,
         websiteUrl,
@@ -124,6 +115,7 @@ export const SimplifiedOnboardingFlow = ({
         onComplete,
         markAsCompleted,
         clearProgress,
+        confirmedLocation,
       );
     } catch (error) {
       console.error("Failed to complete onboarding:", error);
@@ -133,7 +125,6 @@ export const SimplifiedOnboardingFlow = ({
 
   return (
     <AuthCard className="auth-onboarding-card">
-      {/* Success/Loading Overlay */}
       <OnboardingSuccessIndicator
         isCompleting={isCompletingOnboarding}
         step="saving"
@@ -167,7 +158,6 @@ export const SimplifiedOnboardingFlow = ({
               onComplete={handleComplete}
               isCompleting={isCompletingOnboarding}
               isAnalyzing={isAnalyzing}
-              onLocationConfirmationChange={setIsLocationConfirmed}
             />
           )
         ) : null}

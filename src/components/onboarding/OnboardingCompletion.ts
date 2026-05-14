@@ -3,12 +3,20 @@ import {
   createCompanyProfileFromOnboarding,
   saveOnboardingResponse,
 } from "./CompanyProfileCreator";
+import { confirmLocationSelection } from "@/lib/location/persistLocationExtraction";
 
 interface OnboardingCompletionData {
   aboutBusiness: string;
   toneSamples: string;
   annualEvents: string;
   websiteUrl: string;
+}
+
+export interface ConfirmedLocationInput {
+  postal_code: string;
+  city: string;
+  state_province: string;
+  country: "US" | "CA";
 }
 
 export const useOnboardingCompletion = () => {
@@ -19,6 +27,7 @@ export const useOnboardingCompletion = () => {
     onComplete: (data: any) => void,
     markAsCompleted: () => void,
     clearProgress: () => void,
+    confirmedLocation?: ConfirmedLocationInput,
   ) => {
     try {
       // Prepare final onboarding data
@@ -33,6 +42,25 @@ export const useOnboardingCompletion = () => {
       // signal that prevents the OnboardingGuard from redirecting back.
       // Must happen before any async operation that could fail.
       markAsCompleted();
+
+      // Persist the user-confirmed location with source=manual/confidence=high
+      // before creating the company profile, so subsequent profile updates
+      // see the confirmed values.
+      if (confirmedLocation?.postal_code) {
+        const locationResult = await confirmLocationSelection(
+          userId,
+          confirmedLocation.postal_code,
+          confirmedLocation.city,
+          confirmedLocation.state_province,
+          confirmedLocation.country,
+        );
+        if (!locationResult.success) {
+          console.error(
+            "⚠️ Failed to persist confirmed location (non-fatal):",
+            locationResult.error,
+          );
+        }
+      }
 
       try {
         await saveOnboardingResponse(finalData, userId);

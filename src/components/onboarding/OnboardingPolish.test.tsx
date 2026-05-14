@@ -41,6 +41,15 @@ const extractedData = {
   },
 };
 
+const extractedDataWithoutLocation = {
+  businessName: "Bloom Garden Center",
+  aboutBusiness: "Neighborhood plants and supplies.",
+  brandVoice: "Warm and expert",
+  annualEvents: "Spring sale",
+  location: "",
+  services: "Plants, pots, soil",
+};
+
 describe("onboarding polish", () => {
   afterEach(() => {
     cleanup();
@@ -101,27 +110,105 @@ describe("onboarding polish", () => {
     );
   });
 
-  it("blocks completion with exact location confirmation copy", () => {
+  it("renders the primary location section even when analyzer returned no extraction", () => {
+    render(
+      <DataReviewStep
+        extractedData={extractedDataWithoutLocation}
+        updateExtractedData={vi.fn()}
+        onBack={vi.fn()}
+        onComplete={vi.fn()}
+        isCompleting={false}
+        isAnalyzing={false}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: /primary location/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Postal / ZIP Code")).toBeInTheDocument();
+    expect(screen.getByLabelText("City")).toBeInTheDocument();
+    expect(screen.getByLabelText("State / Province")).toBeInTheDocument();
+    expect(screen.getByLabelText("Country")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete Setup" }),
+    ).toBeDisabled();
+  });
+
+  it("enables Complete Setup once the user fills and confirms the location manually", () => {
     const onComplete = vi.fn();
 
     render(
       <DataReviewStep
-        extractedData={extractedData}
+        extractedData={extractedDataWithoutLocation}
         updateExtractedData={vi.fn()}
         onBack={vi.fn()}
         onComplete={onComplete}
         isCompleting={false}
         isAnalyzing={false}
-        onLocationConfirmationChange={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Complete Setup" }));
+    fireEvent.change(screen.getByLabelText("Postal / ZIP Code"), {
+      target: { value: "97215" },
+    });
+    fireEvent.change(screen.getByLabelText("City"), {
+      target: { value: "Portland" },
+    });
+    fireEvent.change(screen.getByLabelText("State / Province"), {
+      target: { value: "OR" },
+    });
+    fireEvent.change(screen.getByLabelText("Country"), {
+      target: { value: "US" },
+    });
 
-    expect(
-      screen.getByText("Please confirm your location"),
-    ).toBeInTheDocument();
-    expect(onComplete).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: /confirm this location/i }),
+    );
+
+    const completeButton = screen.getByRole("button", {
+      name: "Complete Setup",
+    });
+    expect(completeButton).not.toBeDisabled();
+
+    fireEvent.click(completeButton);
+    expect(onComplete).toHaveBeenCalledWith({
+      postal_code: "97215",
+      city: "Portland",
+      state_province: "OR",
+      country: "US",
+    });
+  });
+
+  it("auto-confirms a high-confidence detected location and lets the user complete setup", () => {
+    const onComplete = vi.fn();
+    const highConfidenceData = {
+      ...extractedData,
+      locationExtraction: {
+        ...extractedData.locationExtraction,
+        confidence: "high" as const,
+        requires_confirmation: false,
+      },
+    };
+
+    render(
+      <DataReviewStep
+        extractedData={highConfidenceData}
+        updateExtractedData={vi.fn()}
+        onBack={vi.fn()}
+        onComplete={onComplete}
+        isCompleting={false}
+        isAnalyzing={false}
+      />,
+    );
+
+    expect(screen.getByText(/location confirmed/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Complete Setup" }));
+    expect(onComplete).toHaveBeenCalledWith({
+      postal_code: "97215",
+      city: "Portland",
+      state_province: "OR",
+      country: "US",
+    });
   });
 
   it("DataReviewStep: country picker renders and defaults to extracted country", () => {
