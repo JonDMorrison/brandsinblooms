@@ -454,7 +454,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
   }) => (
     <FormControl>
       <FormLabel>{label}</FormLabel>
-      <Tooltip title={tooltip || value}>
+      <Tooltip title={tooltip || value} sx={{ zIndex: 1501 }}>
         <Input
           endDecorator={
             <IconButton
@@ -1006,6 +1006,7 @@ export const DomainConnectWizard: React.FC<DomainConnectWizardProps> = ({
       onClose={() => {
         // Dismissal is controlled by explicit buttons only.
       }}
+      sx={{ zIndex: 1500 }}
     >
       <ModalDialog
         variant="outlined"
