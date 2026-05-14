@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
 import { Badge } from "@/components/ui-legacy/badge";
@@ -5,7 +6,19 @@ import { Button } from "@/components/ui-legacy/button";
 import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { pricingTiers } from "./pricingConfig";
+import {
+  PricingControls,
+  type BillingInterval,
+  type Currency,
+} from "./PricingControls";
 import { cn } from "@/lib/utils";
+
+const formatPrice = (amount: number, currency: Currency) => {
+  // Both USD and CAD use the $ glyph; numerical parity is preserved
+  // across currencies per the Stripe currency_options setup.
+  const formatted = new Intl.NumberFormat("en-US").format(amount);
+  return currency === "cad" ? `$${formatted} CAD` : `$${formatted}`;
+};
 
 // Per-tier display copy that's specific to the redesigned grid —
 // volume translation, included list, overages summary, and CTA
@@ -89,29 +102,68 @@ export interface PricingCardsGridProps {
    * direct create-checkout for authenticated users or to forward
    * the tier + interval through auth for unauthenticated ones.
    *
-   * No global monthly/annual toggle exists on this page yet, so
-   * the grid defaults to `monthly`. Adding a toggle is a followup.
+   * Receives the active billingInterval and currency from this
+   * grid's toggle (or from controlled props if PricingPage drives
+   * them via URL params).
    */
   onSelectPlan?: (
     tier: string,
-    billingInterval: "monthly" | "annual",
-    currency: "usd" | "cad",
+    billingInterval: BillingInterval,
+    currency: Currency,
   ) => void | Promise<void>;
   isCheckoutLoading?: boolean;
+  /**
+   * Controlled billing interval. When omitted, the grid manages its
+   * own state and defaults to `monthly`.
+   */
+  billingInterval?: BillingInterval;
+  onBillingIntervalChange?: (next: BillingInterval) => void;
+  /** Controlled currency. When omitted, the grid defaults to `usd`. */
+  currency?: Currency;
+  onCurrencyChange?: (next: Currency) => void;
 }
 
 export const PricingCardsGrid = ({
   onSelectPlan,
   isCheckoutLoading = false,
+  billingInterval: billingIntervalProp,
+  onBillingIntervalChange,
+  currency: currencyProp,
+  onCurrencyChange,
 }: PricingCardsGridProps = {}) => {
   const navigate = useNavigate();
 
+  const [billingIntervalLocal, setBillingIntervalLocal] =
+    useState<BillingInterval>("monthly");
+  const [currencyLocal, setCurrencyLocal] = useState<Currency>("usd");
+
+  const billingInterval = billingIntervalProp ?? billingIntervalLocal;
+  const currency = currencyProp ?? currencyLocal;
+
+  const setBillingInterval = (next: BillingInterval) => {
+    if (onBillingIntervalChange) {
+      onBillingIntervalChange(next);
+    } else {
+      setBillingIntervalLocal(next);
+    }
+  };
+
+  const setCurrency = (next: Currency) => {
+    if (onCurrencyChange) {
+      onCurrencyChange(next);
+    } else {
+      setCurrencyLocal(next);
+    }
+  };
+
   const handleGetStarted = (tierId: string) => {
     if (onSelectPlan) {
-      void onSelectPlan(tierId, "monthly", "usd");
+      void onSelectPlan(tierId, billingInterval, currency);
       return;
     }
-    navigate(`/auth?tier=${tierId}`);
+    navigate(
+      `/auth?tier=${tierId}&interval=${billingInterval}&currency=${currency}`,
+    );
   };
 
   // Render every tier that has display copy defined. The filter is
@@ -123,10 +175,19 @@ export const PricingCardsGrid = ({
   return (
     <section className="py-12 md:py-16 px-6 bg-white">
       <div className="max-w-7xl mx-auto">
+        <PricingControls
+          billingInterval={billingInterval}
+          onBillingIntervalChange={setBillingInterval}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+        />
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {visibleTiers.map((tier) => {
             const IconComponent = tier.icon;
             const copy = displayCopy[tier.id];
+            const isAnnual = billingInterval === "annual";
+            const displayAmount = isAnnual ? tier.annualPrice : tier.price;
+            const periodLabel = isAnnual ? "/yr" : "/month";
 
             return (
               <Card
@@ -163,14 +224,26 @@ export const PricingCardsGrid = ({
                     </span>
                   </div>
 
-                  <div className="mb-3">
-                    <span className="text-5xl font-bold text-gray-900 leading-none">
-                      ${tier.price}
+                  <div className="mb-2">
+                    <span
+                      className="text-5xl font-bold text-gray-900 leading-none"
+                      data-testid={`price-${tier.id}`}
+                    >
+                      {formatPrice(displayAmount, currency)}
                     </span>
                     <span className="text-gray-500 ml-1 text-base">
-                      /month
+                      {periodLabel}
                     </span>
                   </div>
+
+                  {isAnnual ? (
+                    <p
+                      className="text-xs font-semibold text-[#3E7C77] mb-3"
+                      data-testid={`annual-savings-${tier.id}`}
+                    >
+                      2 months free vs {formatPrice(tier.price, currency)}/mo
+                    </p>
+                  ) : null}
 
                   <p className="text-sm text-gray-600 font-medium">
                     {tier.description}

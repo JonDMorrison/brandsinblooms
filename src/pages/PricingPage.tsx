@@ -9,6 +9,10 @@ import { PricingHeroNew } from "@/components/pricing/PricingHeroNew";
 import { CostComparison } from "@/components/pricing/CostComparison";
 import { EveryPlanBanner } from "@/components/pricing/EveryPlanBanner";
 import { PricingCardsGrid } from "@/components/pricing/PricingCardsGrid";
+import type {
+  BillingInterval,
+  Currency,
+} from "@/components/pricing/PricingControls";
 import { CustomerProof } from "@/components/pricing/CustomerProof";
 import { RoiPayback } from "@/components/pricing/RoiPayback";
 import { FuturePricingSection } from "@/components/pricing/FuturePricingSection";
@@ -22,11 +26,29 @@ import "@/components/homepage-three/homepageTokens.css";
 // positioning, comparison cards, ROI panel, final CTA backdrop).
 import "@/components/pricing/pricingPage.css";
 
+const readInitialBillingInterval = (): BillingInterval => {
+  if (typeof window === "undefined") return "monthly";
+  const value = new URLSearchParams(window.location.search).get("interval");
+  return value === "annual" ? "annual" : "monthly";
+};
+
+const readInitialCurrency = (): Currency => {
+  if (typeof window === "undefined") return "usd";
+  const value = new URLSearchParams(window.location.search)
+    .get("currency")
+    ?.toLowerCase();
+  return value === "cad" ? "cad" : "usd";
+};
+
 const PricingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { refreshSubscription } = useSubscription();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>(
+    readInitialBillingInterval,
+  );
+  const [currency, setCurrency] = useState<Currency>(readInitialCurrency);
 
   // Pricing-card CTA. Authenticated users go straight to Stripe
   // Checkout via the create-checkout edge function (which resolves
@@ -37,11 +59,15 @@ const PricingPage = () => {
   const handleSelectPlan = useCallback(
     async (
       tier: string,
-      billingInterval: "monthly" | "annual" = "monthly",
-      currency: "usd" | "cad" = "usd",
+      selectedInterval: BillingInterval = "monthly",
+      selectedCurrency: Currency = "usd",
     ) => {
+      const interval = selectedInterval;
+      const billingCurrency = selectedCurrency;
       if (!user) {
-        navigate(`/auth?tier=${tier}&interval=${billingInterval}`);
+        navigate(
+          `/auth?tier=${tier}&interval=${interval}&currency=${billingCurrency}`,
+        );
         return;
       }
       setCheckoutLoading(true);
@@ -49,7 +75,11 @@ const PricingPage = () => {
         const { data, error } = await supabase.functions.invoke(
           "create-checkout",
           {
-            body: { plan: tier, billingInterval, currency },
+            body: {
+              plan: tier,
+              billingInterval: interval,
+              currency: billingCurrency,
+            },
           },
         );
         if (error) {
@@ -111,6 +141,10 @@ const PricingPage = () => {
         <PricingCardsGrid
           onSelectPlan={handleSelectPlan}
           isCheckoutLoading={checkoutLoading}
+          billingInterval={billingInterval}
+          onBillingIntervalChange={setBillingInterval}
+          currency={currency}
+          onCurrencyChange={setCurrency}
         />
         <CustomerProof />
         <RoiPayback />

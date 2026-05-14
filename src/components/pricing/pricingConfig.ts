@@ -4,6 +4,14 @@ export interface PricingTier {
   id: string;
   name: string;
   price: number;
+  /**
+   * Annual price in the same currency unit as `price`. Set at 10×
+   * monthly across the launch tiers (2 months free for paying
+   * upfront). Mirrors the `price_annual` column on tier_limits and
+   * the `*_annual` entries the create-checkout edge function maps to
+   * Stripe price IDs.
+   */
+  annualPrice: number;
   description: string;
   includes: {
     emails: string;
@@ -24,6 +32,7 @@ export const pricingTiers: PricingTier[] = [
     id: "seed",
     name: "Seed",
     price: 199,
+    annualPrice: 1990,
     description: "CRM, messaging, automations, and insights",
     includes: {
       emails: "10,000 emails/month",
@@ -41,6 +50,7 @@ export const pricingTiers: PricingTier[] = [
     id: "sprout",
     name: "Sprout",
     price: 349,
+    annualPrice: 3490,
     description: "Website + Ecommerce + BloomSuite",
     includes: {
       emails: "20,000 emails/month",
@@ -58,6 +68,7 @@ export const pricingTiers: PricingTier[] = [
     id: "bloom",
     name: "Bloom",
     price: 699,
+    annualPrice: 6990,
     description: "Website + Ecommerce + BloomSuite",
     includes: {
       emails: "100,000 emails/month",
@@ -76,6 +87,7 @@ export const pricingTiers: PricingTier[] = [
     id: "thrive",
     name: "Thrive",
     price: 1199,
+    annualPrice: 11990,
     description: "Website + Ecommerce + BloomSuite",
     includes: {
       emails: "Unlimited emails",
