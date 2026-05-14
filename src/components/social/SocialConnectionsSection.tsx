@@ -380,11 +380,23 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
             )}
             
             {/* Actions */}
-            <div className="relative z-10 flex gap-3">
+            <div className="relative z-10 flex flex-col gap-3">
               {!instagramConnection && !bothConnected && (
-                <ConnectMetaButton onSuccess={handleConnectionSuccess} />
+                <>
+                  <ConnectMetaButton
+                    onSuccess={handleConnectionSuccess}
+                    connectLabel="Connect via Facebook"
+                    iconMode="facebook"
+                    ariaLabel="Connect Instagram via Facebook"
+                  />
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Instagram Business accounts connect through your linked
+                    Facebook Page. We request only the scopes needed to publish
+                    to Instagram.
+                  </p>
+                </>
               )}
-              
+
               {instagramConnection && (
                 <Button
                   variant="outline"
