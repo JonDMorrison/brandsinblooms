@@ -242,7 +242,7 @@ function PersonaFormBody({
         </Stack>
 
         <Stack spacing={1}>
-          <Typography level="body-sm" fontWeight="lg">
+          <Typography level="body-sm" fontWeight="lg" id="accent-color-label">
             Accent color
           </Typography>
           <Controller
@@ -250,6 +250,8 @@ function PersonaFormBody({
             control={control}
             render={({ field }) => (
               <Box
+                role="radiogroup"
+                aria-labelledby="accent-color-label"
                 sx={{
                   display: "grid",
                   gridTemplateColumns: {
@@ -265,32 +267,100 @@ function PersonaFormBody({
                   return (
                     <Sheet
                       key={option.value}
-                      variant="outlined"
+                      data-testid={`persona-accent-${option.value}`}
+                      role="radio"
+                      aria-checked={isActive}
+                      aria-selected={isActive}
+                      aria-label={option.label}
+                      tabIndex={0}
                       onClick={() => field.onChange(option.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          field.onChange(option.value);
+                        }
+                      }}
                       sx={{
+                        position: "relative",
                         borderRadius: "var(--joy-radius-lg)",
-                        borderColor: isActive ? "neutral.400" : "neutral.200",
-                        backgroundColor: "background.surface",
+                        border: isActive ? "2px solid" : "1px solid",
+                        borderColor: isActive
+                          ? styles.strongBg
+                          : "neutral.200",
+                        backgroundColor: isActive
+                          ? styles.softBg
+                          : "background.surface",
                         cursor: "pointer",
                         px: 1.5,
                         py: 1.25,
+                        outline: "none",
                         transition:
-                          "border-color 160ms ease, background-color 160ms ease",
+                          "border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease",
                         "&:hover": {
-                          borderColor: "neutral.300",
+                          borderColor: isActive
+                            ? styles.strongBg
+                            : "neutral.300",
+                        },
+                        "&:focus-visible": {
+                          boxShadow:
+                            "0 0 0 3px rgba(var(--joy-palette-primary-mainChannel) / 0.35)",
                         },
                       }}
                     >
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 14,
-                            height: 14,
-                            borderRadius: "999px",
-                            backgroundColor: styles.strongBg,
-                          }}
-                        />
-                        <Typography level="body-sm">{option.label}</Typography>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                          sx={{ minWidth: 0 }}
+                        >
+                          <Box
+                            sx={{
+                              width: 14,
+                              height: 14,
+                              borderRadius: "999px",
+                              backgroundColor: styles.strongBg,
+                              boxShadow: isActive
+                                ? "0 0 0 2px var(--joy-palette-background-surface)"
+                                : "none",
+                            }}
+                          />
+                          <Typography
+                            level="body-sm"
+                            fontWeight={isActive ? "lg" : "md"}
+                            sx={{
+                              color: isActive
+                                ? styles.strongText
+                                : "neutral.800",
+                            }}
+                          >
+                            {option.label}
+                          </Typography>
+                        </Stack>
+                        {isActive ? (
+                          <Box
+                            aria-hidden
+                            sx={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: "999px",
+                              backgroundColor: styles.strongBg,
+                              color: styles.strongText,
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              lineHeight: 1,
+                            }}
+                          >
+                            ✓
+                          </Box>
+                        ) : null}
                       </Stack>
                     </Sheet>
                   );
