@@ -113,6 +113,12 @@ const baseInputSx: SxProps = {
     borderColor: "neutral.200",
     backgroundColor: "neutral.50",
     color: "neutral.400",
+    cursor: "not-allowed",
+    "& .MuiInput-input": {
+      color: "var(--joy-palette-neutral-400)",
+      WebkitTextFillColor: "var(--joy-palette-neutral-400)",
+      cursor: "not-allowed",
+    },
   },
   "& .MuiInput-input": {
     minWidth: 0,
@@ -135,6 +141,9 @@ const labelSx: SxProps = {
   fontSize: "0.8125rem",
   fontWeight: "var(--joy-fontWeight-medium)",
   lineHeight: 1.4,
+  "&[data-disabled='true'], &.Mui-disabled": {
+    color: "var(--joy-palette-neutral-400)",
+  },
 };
 
 const getStatusDecorator = (isError: boolean, isSuccess: boolean) => {
