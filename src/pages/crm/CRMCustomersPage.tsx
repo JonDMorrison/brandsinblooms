@@ -649,8 +649,8 @@ export const CRMCustomersPage: React.FC = () => {
                           onChange={() => toggleSelection(customer.id)}
                         />
                       </JoyTableCell>
-                      <JoyTableCell>
-                        <Stack spacing={0.35}>
+                      <JoyTableCell sx={{ minWidth: 0 }}>
+                        <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                           <Typography level="title-sm">
                             {customerName}
                           </Typography>
@@ -658,21 +658,33 @@ export const CRMCustomersPage: React.FC = () => {
                             direction="row"
                             spacing={0.75}
                             alignItems="center"
+                            sx={{ minWidth: 0 }}
                           >
                             <Mail
-                              size={12}
-                              strokeWidth={1.9}
-                              color="var(--joy-palette-neutral-400)"
+                              size={14}
+                              strokeWidth={1.8}
+                              color="var(--joy-palette-neutral-500)"
+                              style={{ flexShrink: 0 }}
                             />
-                            <Typography
-                              sx={{
-                                fontSize: "12px",
-                                lineHeight: 1.5,
-                                color: "neutral.500",
-                              }}
+                            <Tooltip
+                              title={customer.email}
+                              placement="top-start"
+                              size="sm"
                             >
-                              {customer.email}
-                            </Typography>
+                              <Typography
+                                sx={{
+                                  fontSize: "13px",
+                                  lineHeight: 1.5,
+                                  color: "neutral.500",
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  minWidth: 0,
+                                }}
+                              >
+                                {customer.email}
+                              </Typography>
+                            </Tooltip>
                           </Stack>
                         </Stack>
                       </JoyTableCell>
@@ -682,17 +694,20 @@ export const CRMCustomersPage: React.FC = () => {
                             direction="row"
                             spacing={0.75}
                             alignItems="center"
+                            sx={{ whiteSpace: "nowrap" }}
                           >
                             <Phone
-                              size={12}
-                              strokeWidth={1.9}
-                              color="var(--joy-palette-neutral-400)"
+                              size={14}
+                              strokeWidth={1.8}
+                              color="var(--joy-palette-neutral-600)"
+                              style={{ flexShrink: 0 }}
                             />
                             <Typography
                               sx={{
                                 fontSize: "13px",
                                 lineHeight: 1.45,
                                 color: "neutral.600",
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {customer.phone}
