@@ -14,7 +14,6 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  Bell,
   Bug,
   ChevronDown,
   LogOut,
@@ -329,61 +328,6 @@ export function DashboardTopBar({
               spacing={0.75}
               sx={{ minWidth: 0, justifySelf: "end" }}
             >
-              <Dropdown>
-                <MenuButton
-                  slots={{ root: IconButton }}
-                  slotProps={{
-                    root: {
-                      "aria-label": "Open notifications",
-                      color: "neutral",
-                      size: "sm",
-                      variant: "plain",
-                      sx: iconButtonSx,
-                    },
-                  }}
-                >
-                  <Bell size={20} strokeWidth={1.9} />
-                </MenuButton>
-                <Menu
-                  placement="bottom-end"
-                  size="sm"
-                  variant="plain"
-                  sx={{ ...menuSx, minWidth: 320 }}
-                >
-                  <Typography
-                    level="title-sm"
-                    sx={{
-                      px: 1.25,
-                      pt: 0.5,
-                      pb: 1,
-                      color: "neutral.800",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Notifications
-                  </Typography>
-                  <Stack
-                    spacing={0.5}
-                    sx={{ px: 1.25, py: 1.5 }}
-                    data-testid="notifications-empty-state"
-                  >
-                    <Typography
-                      level="body-sm"
-                      sx={{ color: "neutral.700", fontWeight: 600 }}
-                    >
-                      No notifications yet
-                    </Typography>
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: "neutral.500" }}
-                    >
-                      We&apos;ll let you know when there&apos;s something to
-                      see.
-                    </Typography>
-                  </Stack>
-                </Menu>
-              </Dropdown>
-
               <Dropdown>
                 <MenuButton
                   aria-label="Open user menu"
