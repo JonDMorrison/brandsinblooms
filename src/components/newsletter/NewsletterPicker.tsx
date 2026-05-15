@@ -48,6 +48,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
   const [selectedLayout, setSelectedLayout] = useState<
     "block-builder" | "simple-email" | null
   >(null);
+  const [visitedLayoutStep, setVisitedLayoutStep] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generatingAI, setGeneratingAI] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -72,6 +73,7 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
     setCurrentStep("ideas");
     setSelectedLayout(null);
     setSelectedIdea(null);
+    setVisitedLayoutStep(false);
     setGenerationError(null);
   }, [isOpen]);
 
@@ -112,6 +114,18 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
     setSelectedIdea(idea);
     setSelectedLayout(null);
     setCurrentStep("layout");
+    setVisitedLayoutStep(true);
+  };
+
+  const handleStepNavigate = (target: PickerStep) => {
+    if (target === currentStep) return;
+    if (target === "ideas") {
+      setCurrentStep("ideas");
+      return;
+    }
+    if (target === "layout" && (selectedIdea || visitedLayoutStep)) {
+      setCurrentStep("layout");
+    }
   };
 
   const handleGenerateAI = async (promptOverride?: string) => {
@@ -237,14 +251,37 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
             spacing={1}
             alignItems="center"
             sx={{ px: 3, py: 1.5 }}
+            role="tablist"
+            aria-label="Newsletter studio steps"
           >
             <Typography
+              component="button"
+              type="button"
               level="body-sm"
+              data-testid="newsletter-step-ideas"
+              onClick={() => handleStepNavigate("ideas")}
+              aria-current={currentStep === "ideas" ? "step" : undefined}
+              role="tab"
+              aria-selected={currentStep === "ideas"}
               sx={{
                 ...stepLabelSx,
+                appearance: "none",
+                background: "transparent",
+                border: "none",
+                p: 0,
+                cursor: "pointer",
                 color:
                   currentStep === "ideas" ? "text.primary" : "text.tertiary",
                 fontWeight: currentStep === "ideas" ? 600 : 400,
+                "&:hover": {
+                  color: "text.primary",
+                },
+                "&:focus-visible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.500",
+                  outlineOffset: 2,
+                  borderRadius: 4,
+                },
               }}
             >
               {currentStep === "layout" ? "✓ Choose an Idea" : "Choose an Idea"}
@@ -255,12 +292,42 @@ export const NewsletterPicker: React.FC<NewsletterPickerProps> = ({
             </Typography>
 
             <Typography
+              component="button"
+              type="button"
               level="body-sm"
+              data-testid="newsletter-step-layout"
+              disabled={!selectedIdea && !visitedLayoutStep}
+              onClick={() => handleStepNavigate("layout")}
+              aria-current={currentStep === "layout" ? "step" : undefined}
+              aria-disabled={!selectedIdea && !visitedLayoutStep}
+              role="tab"
+              aria-selected={currentStep === "layout"}
               sx={{
                 ...stepLabelSx,
+                appearance: "none",
+                background: "transparent",
+                border: "none",
+                p: 0,
+                cursor:
+                  !selectedIdea && !visitedLayoutStep
+                    ? "not-allowed"
+                    : "pointer",
                 color:
                   currentStep === "layout" ? "text.primary" : "text.tertiary",
                 fontWeight: currentStep === "layout" ? 600 : 400,
+                opacity: !selectedIdea && !visitedLayoutStep ? 0.5 : 1,
+                "&:hover": {
+                  color:
+                    !selectedIdea && !visitedLayoutStep
+                      ? "text.tertiary"
+                      : "text.primary",
+                },
+                "&:focus-visible": {
+                  outline: "2px solid",
+                  outlineColor: "primary.500",
+                  outlineOffset: 2,
+                  borderRadius: 4,
+                },
               }}
             >
               Pick a Layout

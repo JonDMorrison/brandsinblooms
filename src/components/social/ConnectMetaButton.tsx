@@ -11,10 +11,16 @@ import { getOAuthRedirectUri } from "@/utils/environmentUtils";
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
+  connectLabel?: string;
+  iconMode?: "both" | "facebook";
+  ariaLabel?: string;
 }
 
 export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
   onSuccess,
+  connectLabel = "Connect Meta",
+  iconMode = "both",
+  ariaLabel,
 }) => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<"preparing" | "redirecting">(
@@ -380,7 +386,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
                 : "bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 hover:scale-105 hover:shadow-blue-500/25"
           } text-white`}
           size="lg"
-          aria-label={isMetaConnected ? "Meta Connected" : "Connect Meta"}
+          aria-label={
+            isMetaConnected ? "Meta Connected" : (ariaLabel ?? connectLabel)
+          }
           aria-describedby={
             isMetaConnected ? "meta-connected-tooltip" : undefined
           }
@@ -393,9 +401,11 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
             <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
               <Facebook className="h-4 w-4 text-white" />
             </div>
-            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
-              <Instagram className="h-4 w-4 text-white" />
-            </div>
+            {iconMode === "both" ? (
+              <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
+                <Instagram className="h-4 w-4 text-white" />
+              </div>
+            ) : null}
             <span className="font-semibold text-white ml-2 transition-all duration-300 group-hover:text-white/90">
               {loading
                 ? "Connecting..."
@@ -403,7 +413,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({
                   ? "Verify Age & Terms"
                   : isMetaConnected
                     ? "Connected"
-                    : "Connect Meta"}
+                    : connectLabel}
             </span>
 
             {/* Connected Checkmark */}

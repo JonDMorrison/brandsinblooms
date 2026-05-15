@@ -212,16 +212,14 @@ describe("DashboardShell", () => {
     expect(mobileSidebar).toHaveStyle({ transform: "translateX(-100%)" });
   });
 
-  it("opens the notifications menu from the top bar", async () => {
+  it("does not render the notification bell until the notifications backend ships", () => {
     setViewportWidth(1440);
 
     renderShell();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open notifications" }));
-
-    expect(await screen.findByText("Notifications")).toBeInTheDocument();
-    expect(screen.getByText("Newsletter ready to review")).toBeInTheDocument();
-    expect(screen.getByText("Analytics sync completed")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open notifications" }),
+    ).toBeNull();
   });
 
   it("opens the user menu, preserves report problem access, and logs out", async () => {

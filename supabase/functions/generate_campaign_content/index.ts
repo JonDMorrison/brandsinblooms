@@ -361,29 +361,56 @@ serve(async (req) => {
         - ${contentType === 'video' ? 'Write ONLY the script dialogue/narration without any scene descriptions, visual cues, or production notes. Just the spoken words.' : ''}`;
 
         console.log(`📡 [${contentType.toUpperCase()}] Calling OpenAI API...`);
-        
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${openAIApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            temperature: 0.7,
-            max_tokens: contentType === 'blog' ? 2000 : 1000,
-            messages: [
-              {
-                role: 'system',
-                content: systemPrompt
-              },
-              {
-                role: 'user',
-                content: contentPrompts[contentType]
-              }
-            ]
-          }),
-        });
+
+        // Bug 7 root cause: parent had no timeout on this fetch. One slow
+        // OpenAI tail latency stalled Promise.allSettled and the Edge
+        // gateway killed the whole function at ~400s before any upserts
+        // ran. Cap each call at 60s so a single slow type fails fast and
+        // the others still complete.
+        const openAiController = new AbortController();
+        const openAiTimeoutId = setTimeout(
+          () => openAiController.abort(),
+          60_000,
+        );
+
+        let response: Response;
+        try {
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openAIApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              temperature: 0.7,
+              max_tokens: contentType === 'blog' ? 2000 : 1000,
+              messages: [
+                {
+                  role: 'system',
+                  content: systemPrompt
+                },
+                {
+                  role: 'user',
+                  content: contentPrompts[contentType]
+                }
+              ]
+            }),
+            signal: openAiController.signal,
+          });
+        } catch (fetchErr) {
+          if (
+            fetchErr instanceof DOMException &&
+            fetchErr.name === 'AbortError'
+          ) {
+            throw new Error(
+              `OpenAI chat completion timed out after 60s for ${contentType}`,
+            );
+          }
+          throw fetchErr;
+        } finally {
+          clearTimeout(openAiTimeoutId);
+        }
 
         console.log(`📊 [${contentType.toUpperCase()}] OpenAI response status:`, response.status);
 
@@ -458,24 +485,54 @@ serve(async (req) => {
         console.log(`🎨 [${contentType.toUpperCase()}] Starting AI image generation...`);
         const imageStartTime = Date.now();
         
+        // Bug 7 root cause: parent had no timeout on the sub-function
+        // fetch either. generate-ai-image enforces its own 120s/60s/25s
+        // internal caps; set the parent at 130s so its error message
+        // reflects the sub-function's real response instead of aborting
+        // pre-emptively.
+        const imageController = new AbortController();
+        const imageTimeoutId = setTimeout(
+          () => imageController.abort(),
+          130_000,
+        );
+
         try {
-          const imageResponse = await fetch(`${supabaseUrl}/functions/v1/generate-ai-image`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              contentContext: content,
-              contentTitle: campaign_title,
-              channel: contentType === 'newsletter' ? 'newsletter' : 
-                       contentType === 'blog' ? 'blog' :
-                       contentType === 'instagram' ? 'instagram' : 'facebook',
-              uploadToStorage: true,
-              storageBucket: 'campaign-images',
-              userId: user_id
-            })
-          });
+          let imageResponse: Response;
+          try {
+            imageResponse = await fetch(
+              `${supabaseUrl}/functions/v1/generate-ai-image`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${supabaseKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  contentContext: content,
+                  contentTitle: campaign_title,
+                  channel: contentType === 'newsletter' ? 'newsletter' :
+                           contentType === 'blog' ? 'blog' :
+                           contentType === 'instagram' ? 'instagram' : 'facebook',
+                  uploadToStorage: true,
+                  storageBucket: 'campaign-images',
+                  userId: user_id
+                }),
+                signal: imageController.signal,
+              },
+            );
+          } catch (fetchErr) {
+            if (
+              fetchErr instanceof DOMException &&
+              fetchErr.name === 'AbortError'
+            ) {
+              throw new Error(
+                `Image generation timed out after 130s for ${contentType}`,
+              );
+            }
+            throw fetchErr;
+          } finally {
+            clearTimeout(imageTimeoutId);
+          }
 
           const imageGenerationTime = Date.now() - imageStartTime;
 
@@ -641,7 +698,7 @@ serve(async (req) => {
 
     return corsJsonResponse({
       success: finalFailedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
-      tasks: generatedTasks,
+      tasks: successfulTasks,
       message: `Generated ${successfulTasks.length}/${REQUIRED_CONTENT_TYPES.length} content pieces${finalFailedTasks.length > 0 ? `. Failed: ${finalFailedTasks.map(t => t.post_type).join(', ')}` : ''}`
     });
 
@@ -651,6 +708,30 @@ serve(async (req) => {
       stack: error.stack,
       name: error.name
     });
+
+    // Bug 7 root cause: previously the outer catch only logged to
+    // console. When the gateway killed the function it never reached
+    // here, but for any error this catch *does* see we want a
+    // persistent breadcrumb in edge_function_errors. Wrapped in its
+    // own try so a logging failure can't mask the original error.
+    try {
+      const errorClient = createClient(supabaseUrl, supabaseKey);
+      await errorClient.from('edge_function_errors').insert({
+        function_name: 'generate_campaign_content',
+        error_message: error.message,
+        payload: {
+          name: error.name,
+          stack: error.stack,
+          request_id: req.headers.get('x-request-id') || null,
+        },
+      });
+    } catch (logErr) {
+      console.error(
+        '❌ [FATAL ERROR] Failed to log error to edge_function_errors:',
+        logErr,
+      );
+    }
+
     return corsJsonResponse({
       success: false,
       error: `Fatal error: ${error.message}`,

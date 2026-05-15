@@ -1,6 +1,7 @@
 import { CheckCircle, ArrowLeft, AlertTriangle, MapPin } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AuthButton, AuthInput } from "@/components/auth";
+import { JoySelect } from "@/components/joy/JoySelect";
 import { WebsiteAnalysisLoader } from "./WebsiteAnalysisLoader";
 
 interface LocationCandidate {
@@ -49,21 +50,40 @@ const CA_POSTAL_PATTERN =
 
 const validatePostalCode = (
   value: string,
-): { valid: boolean; country?: "US" | "CA"; normalized?: string } => {
+  country: "US" | "CA",
+): { valid: boolean; normalized?: string } => {
   const trimmed = value.trim();
 
-  if (US_ZIP_PATTERN.test(trimmed)) {
-    return { valid: true, country: "US", normalized: trimmed };
+  if (country === "US") {
+    if (US_ZIP_PATTERN.test(trimmed)) {
+      return { valid: true, normalized: trimmed };
+    }
+    return { valid: false };
   }
 
+  // CA
   if (CA_POSTAL_PATTERN.test(trimmed)) {
     const cleaned = trimmed.replace(/\s/g, "").toUpperCase();
     const normalized = `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-    return { valid: true, country: "CA", normalized };
+    return { valid: true, normalized };
   }
-
   return { valid: false };
 };
+
+const COUNTRY_OPTIONS = [
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" },
+];
+
+const POSTAL_PLACEHOLDER_BY_COUNTRY: Record<"US" | "CA", string> = {
+  US: "97215",
+  CA: "V6B 1A1",
+};
+
+const postalMismatchMessage = (country: "US" | "CA"): string =>
+  country === "US"
+    ? "Doesn't look like a US ZIP (12345 or 12345-6789). Confirm the country or fix the format."
+    : "Doesn't look like a Canadian postal code (A1A 1A1). Confirm the country or fix the format.";
 
 export const DataReviewStep = ({
   extractedData,
@@ -81,10 +101,16 @@ export const DataReviewStep = ({
     !locationExtraction?.postal_code ||
     (locationExtraction?.candidates?.length || 0) > 1;
 
-  const [locationForm, setLocationForm] = useState({
+  const [locationForm, setLocationForm] = useState<{
+    postalCode: string;
+    city: string;
+    stateProvince: string;
+    country: "US" | "CA";
+  }>({
     postalCode: locationExtraction?.postal_code || "",
     city: locationExtraction?.city || "",
     stateProvince: locationExtraction?.state_province || "",
+    country: locationExtraction?.country ?? "US",
   });
   const [selectedCandidate, setSelectedCandidate] = useState<string>(
     locationExtraction?.postal_code || "manual",
@@ -100,6 +126,7 @@ export const DataReviewStep = ({
         postalCode: locationExtraction.postal_code || "",
         city: locationExtraction.city || "",
         stateProvince: locationExtraction.state_province || "",
+        country: locationExtraction.country ?? "US",
       });
       setSelectedCandidate(locationExtraction.postal_code || "manual");
 
@@ -118,12 +145,35 @@ export const DataReviewStep = ({
     onLocationConfirmationChange?.(false); // Notify parent confirmation is lost
 
     if (value.length >= 5) {
-      const validation = validatePostalCode(value);
+      const validation = validatePostalCode(value, locationForm.country);
       if (!validation.valid) {
-        setValidationError(
-          "Enter a valid US ZIP (12345) or Canadian postal code (A1A 1A1)",
-        );
+        setValidationError(postalMismatchMessage(locationForm.country));
       }
+    }
+  };
+
+  const handleCountryChange = (nextCountry: "US" | "CA") => {
+    setLocationForm((prev) => ({ ...prev, country: nextCountry }));
+    setIsLocationConfirmedLocal(false);
+    onLocationConfirmationChange?.(false);
+
+    if (locationForm.postalCode.trim().length >= 5) {
+      const validation = validatePostalCode(
+        locationForm.postalCode,
+        nextCountry,
+      );
+      if (!validation.valid) {
+        setValidationError(postalMismatchMessage(nextCountry));
+      } else {
+        setValidationError(null);
+        setLocationForm((prev) => ({
+          ...prev,
+          postalCode: validation.normalized ?? prev.postalCode,
+          country: nextCountry,
+        }));
+      }
+    } else {
+      setValidationError(null);
     }
   };
 
@@ -136,28 +186,40 @@ export const DataReviewStep = ({
         (c) => c.postal_code === postalCode,
       );
       if (candidate) {
-        setLocationForm({
+        setLocationForm((prev) => ({
           postalCode: candidate.postal_code,
           city: candidate.city || "",
           stateProvince: candidate.state_province || "",
-        });
+          country: candidate.country ?? prev.country,
+        }));
       }
     } else {
-      setLocationForm({ postalCode: "", city: "", stateProvince: "" });
+      setLocationForm((prev) => ({
+        postalCode: "",
+        city: "",
+        stateProvince: "",
+        country: prev.country,
+      }));
     }
     setValidationError(null);
   };
 
   const handleConfirmLocation = () => {
     if (locationForm.postalCode) {
-      const validation = validatePostalCode(locationForm.postalCode);
+      const validation = validatePostalCode(
+        locationForm.postalCode,
+        locationForm.country,
+      );
       if (validation.valid) {
         setIsLocationConfirmedLocal(true);
         setValidationError(null);
         onLocationConfirmationChange?.(true);
       } else {
-        setValidationError("Please enter a valid postal/ZIP code");
-        onLocationConfirmationChange?.(false);
+        // Soft warning: surface the mismatch but still let the user confirm.
+        // Country comes from the user-driven picker now.
+        setValidationError(postalMismatchMessage(locationForm.country));
+        setIsLocationConfirmedLocal(true);
+        onLocationConfirmationChange?.(true);
       }
     }
   };
@@ -167,16 +229,6 @@ export const DataReviewStep = ({
     if (showLocationPrompt && !isLocationConfirmedLocal) {
       setValidationError("Please confirm your location");
       return;
-    }
-
-    if (showLocationPrompt && locationForm.postalCode) {
-      const validation = validatePostalCode(locationForm.postalCode);
-      if (!validation.valid) {
-        setValidationError(
-          "Please enter a valid postal/ZIP code before continuing",
-        );
-        return;
-      }
     }
     onComplete();
   };
@@ -347,7 +399,7 @@ export const DataReviewStep = ({
               <AuthInput
                 id="postal-code"
                 label="Postal / ZIP Code"
-                placeholder="97215 or V3G 1R4"
+                placeholder={POSTAL_PLACEHOLDER_BY_COUNTRY[locationForm.country]}
                 value={locationForm.postalCode}
                 onChange={(e) => handlePostalCodeChange(e.target.value)}
                 error={validationError ?? undefined}
@@ -380,11 +432,13 @@ export const DataReviewStep = ({
                   onLocationConfirmationChange?.(false);
                 }}
               />
-              <AuthInput
-                id="country"
+              <JoySelect
                 label="Country"
-                value={locationExtraction.country || ""}
-                disabled
+                value={locationForm.country}
+                options={COUNTRY_OPTIONS}
+                onValueChange={(value) =>
+                  handleCountryChange(value as "US" | "CA")
+                }
               />
             </div>
           ) : (

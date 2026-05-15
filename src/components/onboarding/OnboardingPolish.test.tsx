@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -121,6 +122,94 @@ describe("onboarding polish", () => {
       screen.getByText("Please confirm your location"),
     ).toBeInTheDocument();
     expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it("DataReviewStep: country picker renders and defaults to extracted country", () => {
+    render(
+      <DataReviewStep
+        extractedData={extractedData}
+        updateExtractedData={vi.fn()}
+        onBack={vi.fn()}
+        onComplete={vi.fn()}
+        isCompleting={false}
+        isAnalyzing={false}
+        onLocationConfirmationChange={vi.fn()}
+      />,
+    );
+
+    const combo = screen.getByRole("combobox", { name: /country/i });
+    expect(combo).toBeInTheDocument();
+    expect(combo).toHaveTextContent(/united states/i);
+  });
+
+  it("DataReviewStep: typing 75000 with US selected does NOT flip the picker", () => {
+    const lahoreData = {
+      ...extractedData,
+      locationExtraction: {
+        ...extractedData.locationExtraction,
+        postal_code: null,
+        city: null,
+        state_province: null,
+        country: null,
+      },
+    };
+
+    render(
+      <DataReviewStep
+        extractedData={lahoreData}
+        updateExtractedData={vi.fn()}
+        onBack={vi.fn()}
+        onComplete={vi.fn()}
+        isCompleting={false}
+        isAnalyzing={false}
+        onLocationConfirmationChange={vi.fn()}
+      />,
+    );
+
+    const postalInput = screen.getByLabelText("Postal / ZIP Code");
+    fireEvent.change(postalInput, { target: { value: "75000" } });
+
+    // Picker still says United States — country is user-driven now.
+    expect(
+      screen.getByRole("combobox", { name: /country/i }),
+    ).toHaveTextContent(/united states/i);
+  });
+
+  it("DataReviewStep: flipping picker to Canada surfaces a soft warning on a US-shape postal", async () => {
+    const user = userEvent.setup();
+    const lahoreData = {
+      ...extractedData,
+      locationExtraction: {
+        ...extractedData.locationExtraction,
+        postal_code: null,
+        city: null,
+        state_province: null,
+        country: null,
+      },
+    };
+
+    render(
+      <DataReviewStep
+        extractedData={lahoreData}
+        updateExtractedData={vi.fn()}
+        onBack={vi.fn()}
+        onComplete={vi.fn()}
+        isCompleting={false}
+        isAnalyzing={false}
+        onLocationConfirmationChange={vi.fn()}
+      />,
+    );
+
+    const postalInput = screen.getByLabelText("Postal / ZIP Code");
+    fireEvent.change(postalInput, { target: { value: "75000" } });
+
+    await user.click(screen.getByRole("combobox", { name: /country/i }));
+    await user.click(await screen.findByRole("option", { name: /canada/i }));
+
+    const matches = await screen.findAllByText(
+      /Doesn't look like a Canadian postal code/i,
+    );
+    expect(matches.length).toBeGreaterThan(0);
   });
 
   it("blocks manual onboarding navigation with exact location confirmation copy", async () => {

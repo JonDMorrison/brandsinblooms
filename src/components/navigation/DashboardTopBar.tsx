@@ -1,7 +1,6 @@
 import { KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/joy/Avatar";
-import Badge from "@mui/joy/Badge";
 import Box from "@mui/joy/Box";
 import Chip from "@mui/joy/Chip";
 import Dropdown from "@mui/joy/Dropdown";
@@ -15,16 +14,12 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import {
-  Bell,
   Bug,
-  CheckCircle2,
   ChevronDown,
   LogOut,
-  Megaphone,
   Menu as MenuIcon,
   Search,
   Settings,
-  TriangleAlert,
   UserCircle2,
   X,
 } from "lucide-react";
@@ -40,30 +35,6 @@ const LazyReportProblemDialog = lazy(() =>
 );
 
 export const DASHBOARD_TOPBAR_HEIGHT = 56;
-
-const notificationItems = [
-  {
-    id: "newsletter-ready",
-    title: "Newsletter ready to review",
-    description: "Your April campaign draft finished processing.",
-    timestamp: "2m ago",
-    icon: Megaphone,
-  },
-  {
-    id: "analytics-sync",
-    title: "Analytics sync completed",
-    description: "Yesterday's store metrics are now available.",
-    timestamp: "18m ago",
-    icon: CheckCircle2,
-  },
-  {
-    id: "problem-reply",
-    title: "Problem report updated",
-    description: "Support replied to your most recent ticket.",
-    timestamp: "1h ago",
-    icon: TriangleAlert,
-  },
-] as const;
 
 const focusRingSx = {
   outline: 0,
@@ -357,105 +328,6 @@ export function DashboardTopBar({
               spacing={0.75}
               sx={{ minWidth: 0, justifySelf: "end" }}
             >
-              <Dropdown>
-                <MenuButton
-                  slots={{ root: IconButton }}
-                  slotProps={{
-                    root: {
-                      "aria-label": "Open notifications",
-                      color: "neutral",
-                      size: "sm",
-                      variant: "plain",
-                      sx: iconButtonSx,
-                    },
-                  }}
-                >
-                  <Badge
-                    badgeContent={notificationItems.length}
-                    color="danger"
-                    size="sm"
-                    variant="solid"
-                    slotProps={{
-                      badge: {
-                        sx: {
-                          minWidth: 16,
-                          height: 16,
-                          px: 0.5,
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          boxShadow:
-                            "0 0 0 2px var(--joy-palette-background-surface)",
-                        },
-                      },
-                    }}
-                  >
-                    <Bell size={20} strokeWidth={1.9} />
-                  </Badge>
-                </MenuButton>
-                <Menu
-                  placement="bottom-end"
-                  size="sm"
-                  variant="plain"
-                  sx={{ ...menuSx, minWidth: 320 }}
-                >
-                  <Typography
-                    level="title-sm"
-                    sx={{
-                      px: 1.25,
-                      pt: 0.5,
-                      pb: 1,
-                      color: "neutral.800",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Notifications
-                  </Typography>
-                  {notificationItems.map((item) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <MenuItem
-                        key={item.id}
-                        sx={{ ...menuItemSx, alignItems: "flex-start" }}
-                      >
-                        <ListItemDecorator
-                          sx={{
-                            minInlineSize: 24,
-                            mt: 0.125,
-                            color: "neutral.500",
-                          }}
-                        >
-                          <Icon size={18} strokeWidth={1.9} />
-                        </ListItemDecorator>
-                        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                          <Typography
-                            level="body-sm"
-                            sx={{
-                              color: "neutral.800",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {item.title}
-                          </Typography>
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.600" }}
-                          >
-                            {item.description}
-                          </Typography>
-                          <Typography
-                            level="body-xs"
-                            sx={{ color: "neutral.500" }}
-                          >
-                            {item.timestamp}
-                          </Typography>
-                        </Stack>
-                      </MenuItem>
-                    );
-                  })}
-                </Menu>
-              </Dropdown>
-
               <Dropdown>
                 <MenuButton
                   aria-label="Open user menu"
