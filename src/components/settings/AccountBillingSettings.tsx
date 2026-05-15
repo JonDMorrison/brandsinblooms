@@ -4,9 +4,9 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { CreditCard } from "lucide-react";
 import { DeleteAccountSection } from "@/components/account/DeleteAccountSection";
-import { AddOnSection } from "@/components/billing/AddOnSection";
 import { BillingHistory } from "@/components/billing/BillingHistory";
 import { PaymentMethods } from "@/components/billing/PaymentMethods";
+import { PlanSummaryCard } from "@/components/billing/PlanSummaryCard";
 import { SubscriptionCard } from "@/components/billing/SubscriptionCard";
 import { UsageAnalytics } from "@/components/billing/UsageAnalytics";
 import { useSubscription as useBillingSubscription } from "@/hooks/useSubscription";
@@ -22,8 +22,8 @@ export const AccountBillingSettings = () => {
           <Typography level="title-lg">Account & Billing</Typography>
         </Stack>
         <Typography level="body-sm" sx={{ color: "text.secondary", maxWidth: 760 }}>
-          Review plan details, billing history, usage limits, optional add-ons,
-          and account-level actions from one place.
+          Review plan details, billing history, usage limits, and
+          account-level actions from one place.
         </Typography>
       </Stack>
 
@@ -41,9 +41,9 @@ export const AccountBillingSettings = () => {
       ) : (
         <>
           <SubscriptionCard />
+          <PlanSummaryCard />
           <PaymentMethods />
           <BillingHistory />
-          <AddOnSection />
           <UsageAnalytics />
           <DeleteAccountSection />
         </>

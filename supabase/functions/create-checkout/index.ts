@@ -113,7 +113,7 @@ serve(async (req) => {
       );
     }
 
-    const { plan, billingInterval } = requestBody;
+    const { plan, billingInterval, currency: rawCurrency } = requestBody;
     if (!plan || !billingInterval) {
       logStep("ERROR: Missing plan or billing interval", {
         plan,
@@ -130,7 +130,22 @@ serve(async (req) => {
       );
     }
 
-    logStep("Request data received", { plan, billingInterval });
+    // Currency: 'usd' default. Prices are created with USD primary +
+    // CAD currency_options, so passing currency: 'cad' lets Stripe
+    // pick the matching unit_amount automatically.
+    const currency = (rawCurrency ?? "usd").toString().toLowerCase();
+    if (currency !== "usd" && currency !== "cad") {
+      logStep("ERROR: Invalid currency", { currency });
+      return new Response(
+        JSON.stringify({ error: "Currency must be 'usd' or 'cad'." }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        },
+      );
+    }
+
+    logStep("Request data received", { plan, billingInterval, currency });
 
     // Initialize Stripe
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
@@ -155,12 +170,25 @@ serve(async (req) => {
           customerId = customers.data[0].id;
           logStep("Existing customer found via email lookup", { customerId });
 
-          // Persist for future use
-          await supabaseClient
+          // Persist for future use. Upsert so a brand-new user
+          // without a subscriptions row still ends up with the
+          // customer ID saved (the prior update() silently no-op'd
+          // when no row existed).
+          const { error: upsertErr } = await supabaseClient
             .from('subscriptions')
-            .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
-            .eq('user_id', user.id);
-          logStep("Saved stripe_customer_id to subscriptions");
+            .upsert(
+              {
+                user_id: user.id,
+                stripe_customer_id: customerId,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'user_id' },
+            );
+          if (upsertErr) {
+            logStep("WARN: Failed to persist stripe_customer_id", { error: upsertErr.message });
+          } else {
+            logStep("Saved stripe_customer_id to subscriptions");
+          }
         } else {
           logStep("No existing customer found");
         }
@@ -178,47 +206,43 @@ serve(async (req) => {
       );
     }
 
-    // Price mapping - New BloomSuite tiers
-    // TODO: Replace these with actual Stripe Price IDs after creating products in Stripe
-    const priceMapping = {
-      // New tier pricing
-      seed_monthly: "price_SEED_MONTHLY_ID",
-      seed_annual: "price_SEED_ANNUAL_ID",
-      sprout_monthly: "price_SPROUT_MONTHLY_ID",
-      sprout_annual: "price_SPROUT_ANNUAL_ID",
-      bloom_monthly: "price_BLOOM_MONTHLY_ID",
-      bloom_annual: "price_BLOOM_ANNUAL_ID",
-      thrive_monthly: "price_THRIVE_MONTHLY_ID",
-      thrive_annual: "price_THRIVE_ANNUAL_ID",
-      // Legacy pricing (keep for backwards compatibility)
-      bloomsuite_year: "price_1S6VGuDmtxsdhOlWxO4LCYXU",
-    };
-
-    // Tier limits for setting quotas
-    const tierLimits = {
-      seed: { email_quota: 10000, sms_quota: 1000 },
-      sprout: { email_quota: 20000, sms_quota: 2000 },
-      bloom: { email_quota: 100000, sms_quota: 5000 },
-      thrive: { email_quota: -1, sms_quota: 50000 }, // -1 = unlimited
-    };
-
-    const priceKey = `${plan}_${billingInterval}` as keyof typeof priceMapping;
-    const priceId = priceMapping[priceKey];
-
-    if (!priceId) {
-      logStep("ERROR: Invalid plan/billing combination", { priceKey });
-      return new Response(
-        JSON.stringify({
-          error: `Invalid plan selection: ${plan} ${billingInterval}`,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        },
-      );
+    // Price resolution via Stripe lookup_keys. Each canonical tier
+    // price (seed/sprout/bloom/thrive × monthly/annual) is registered
+    // in Stripe with lookup_key='<plan>_<interval>' and USD primary +
+    // CAD currency_options for numerical parity. This means the same
+    // edge function works in test and live mode without env-var price
+    // IDs — Stripe resolves the right price from the active key's
+    // account.
+    //
+    // The legacy 'bloomsuite' (single-plan annual) path is preserved
+    // for grandfathered customers using the hardcoded $2999/yr
+    // bloomsuite_year price.
+    let priceId: string;
+    const isLegacyBloomsuite = plan === "bloomsuite" && billingInterval === "year";
+    if (isLegacyBloomsuite) {
+      priceId = "price_1S6VGuDmtxsdhOlWxO4LCYXU";
+      logStep("Price ID determined (legacy bloomsuite_year)", { priceId });
+    } else {
+      const lookupKey = `${plan}_${billingInterval}`;
+      const prices = await stripe.prices.list({
+        lookup_keys: [lookupKey],
+        limit: 1,
+      });
+      if (prices.data.length === 0) {
+        logStep("ERROR: No Stripe price for lookup_key", { lookupKey });
+        return new Response(
+          JSON.stringify({
+            error: `Invalid plan selection: lookup_key not found (${lookupKey})`,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          },
+        );
+      }
+      priceId = prices.data[0].id;
+      logStep("Price ID determined", { lookupKey, priceId });
     }
-
-    logStep("Price ID determined", { priceKey, priceId });
 
     // Get origin for redirect URLs
     const origin =
@@ -231,6 +255,10 @@ serve(async (req) => {
       const sessionConfig = {
         customer: customerId,
         customer_email: customerId ? undefined : user.email,
+        // Stripe resolves the right unit_amount from the price's
+        // currency_options when currency is set on the session and
+        // matches one of the price's supported currencies.
+        currency,
         line_items: [
           {
             price: priceId,
@@ -244,12 +272,14 @@ serve(async (req) => {
           user_id: user.id,
           plan: plan,
           billing_interval: billingInterval,
+          currency,
         },
         subscription_data: {
           metadata: {
             user_id: user.id,
             plan: plan,
             billing_interval: billingInterval,
+            currency,
           },
         },
       };

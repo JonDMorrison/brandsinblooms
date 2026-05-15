@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui-legacy/card";
 import { Badge } from "@/components/ui-legacy/badge";
@@ -5,16 +6,26 @@ import { Button } from "@/components/ui-legacy/button";
 import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { pricingTiers } from "./pricingConfig";
+import {
+  PricingControls,
+  type BillingInterval,
+  type Currency,
+} from "./PricingControls";
 import { cn } from "@/lib/utils";
+
+const formatPrice = (amount: number, currency: Currency) => {
+  // Both USD and CAD use the $ glyph; numerical parity is preserved
+  // across currencies per the Stripe currency_options setup.
+  const formatted = new Intl.NumberFormat("en-US").format(amount);
+  return currency === "cad" ? `$${formatted} CAD` : `$${formatted}`;
+};
 
 // Per-tier display copy that's specific to the redesigned grid —
 // volume translation, included list, overages summary, and CTA
 // label. Keyed off the canonical id from pricingConfig.ts so plan
 // IDs (consumed by Stripe webhooks, billing edge functions, and the
 // SubscriptionContext PAID_PLANS list) stay the single source of
-// truth. Seed is intentionally absent from this map so it gets
-// filtered out of the rendered grid below; its config record stays
-// in pricingTiers for billing consumers that still reference it.
+// truth.
 interface DisplayCopy {
   volumeTranslation: string;
   bestFor: string;
@@ -24,6 +35,20 @@ interface DisplayCopy {
 }
 
 const displayCopy: Record<string, DisplayCopy> = {
+  seed: {
+    bestFor:
+      "Garden centres with an existing website who want CRM, messaging, and automations.",
+    volumeTranslation:
+      "Send weekly newsletters and seasonal SMS to your existing audience.",
+    included: [
+      "10,000 emails/month",
+      "1,000 SMS/month",
+      "Garden centre CRM with prebuilt personas",
+      "All campaigns, automations, and reporting",
+    ],
+    overages: "Email $0.002 each · SMS $0.05 each",
+    ctaLabel: "Start with Seed",
+  },
   sprout: {
     bestFor: "Single-location garden centres with up to 5,000 customers.",
     volumeTranslation:
@@ -69,28 +94,100 @@ const displayCopy: Record<string, DisplayCopy> = {
   },
 };
 
-const ROLE_LINE = "Website + Ecommerce + BloomSuite";
+export interface PricingCardsGridProps {
+  /**
+   * Optional handler invoked when a card's CTA is clicked. When
+   * provided (e.g. by PricingPage), it takes precedence over the
+   * default `/auth?tier=` redirect, allowing the caller to drive a
+   * direct create-checkout for authenticated users or to forward
+   * the tier + interval through auth for unauthenticated ones.
+   *
+   * Receives the active billingInterval and currency from this
+   * grid's toggle (or from controlled props if PricingPage drives
+   * them via URL params).
+   */
+  onSelectPlan?: (
+    tier: string,
+    billingInterval: BillingInterval,
+    currency: Currency,
+  ) => void | Promise<void>;
+  isCheckoutLoading?: boolean;
+  /**
+   * Controlled billing interval. When omitted, the grid manages its
+   * own state and defaults to `monthly`.
+   */
+  billingInterval?: BillingInterval;
+  onBillingIntervalChange?: (next: BillingInterval) => void;
+  /** Controlled currency. When omitted, the grid defaults to `usd`. */
+  currency?: Currency;
+  onCurrencyChange?: (next: Currency) => void;
+}
 
-export const PricingCardsGrid = () => {
+export const PricingCardsGrid = ({
+  onSelectPlan,
+  isCheckoutLoading = false,
+  billingInterval: billingIntervalProp,
+  onBillingIntervalChange,
+  currency: currencyProp,
+  onCurrencyChange,
+}: PricingCardsGridProps = {}) => {
   const navigate = useNavigate();
 
-  const handleGetStarted = (tierId: string) => {
-    navigate(`/auth?tier=${tierId}`);
+  const [billingIntervalLocal, setBillingIntervalLocal] =
+    useState<BillingInterval>("monthly");
+  const [currencyLocal, setCurrencyLocal] = useState<Currency>("usd");
+
+  const billingInterval = billingIntervalProp ?? billingIntervalLocal;
+  const currency = currencyProp ?? currencyLocal;
+
+  const setBillingInterval = (next: BillingInterval) => {
+    if (onBillingIntervalChange) {
+      onBillingIntervalChange(next);
+    } else {
+      setBillingIntervalLocal(next);
+    }
   };
 
-  // Filter out tiers that aren't part of the new public grid (Seed
-  // is excluded from display per the redesign). The underlying
-  // pricingConfig record stays so any Stripe/billing consumer that
-  // looks up a tier by id continues to work.
+  const setCurrency = (next: Currency) => {
+    if (onCurrencyChange) {
+      onCurrencyChange(next);
+    } else {
+      setCurrencyLocal(next);
+    }
+  };
+
+  const handleGetStarted = (tierId: string) => {
+    if (onSelectPlan) {
+      void onSelectPlan(tierId, billingInterval, currency);
+      return;
+    }
+    navigate(
+      `/auth?tier=${tierId}&interval=${billingInterval}&currency=${currency}`,
+    );
+  };
+
+  // Render every tier that has display copy defined. The filter is
+  // kept (rather than mapping pricingTiers directly) so a future
+  // hidden-from-public tier can be excluded by omitting its
+  // displayCopy entry without touching this iteration.
   const visibleTiers = pricingTiers.filter((tier) => tier.id in displayCopy);
 
   return (
     <section className="py-12 md:py-16 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto">
+        <PricingControls
+          billingInterval={billingInterval}
+          onBillingIntervalChange={setBillingInterval}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {visibleTiers.map((tier) => {
             const IconComponent = tier.icon;
             const copy = displayCopy[tier.id];
+            const isAnnual = billingInterval === "annual";
+            const displayAmount = isAnnual ? tier.annualPrice : tier.price;
+            const periodLabel = isAnnual ? "/yr" : "/month";
 
             return (
               <Card
@@ -127,17 +224,29 @@ export const PricingCardsGrid = () => {
                     </span>
                   </div>
 
-                  <div className="mb-3">
-                    <span className="text-5xl font-bold text-gray-900 leading-none">
-                      ${tier.price}
+                  <div className="mb-2">
+                    <span
+                      className="text-5xl font-bold text-gray-900 leading-none"
+                      data-testid={`price-${tier.id}`}
+                    >
+                      {formatPrice(displayAmount, currency)}
                     </span>
                     <span className="text-gray-500 ml-1 text-base">
-                      /month
+                      {periodLabel}
                     </span>
                   </div>
 
+                  {isAnnual ? (
+                    <p
+                      className="text-xs font-semibold text-[#3E7C77] mb-3"
+                      data-testid={`annual-savings-${tier.id}`}
+                    >
+                      2 months free vs {formatPrice(tier.price, currency)}/mo
+                    </p>
+                  ) : null}
+
                   <p className="text-sm text-gray-600 font-medium">
-                    {ROLE_LINE}
+                    {tier.description}
                   </p>
                 </CardHeader>
 
@@ -182,6 +291,7 @@ export const PricingCardsGrid = () => {
                   <div className="mt-auto">
                     <Button
                       onClick={() => handleGetStarted(tier.id)}
+                      disabled={isCheckoutLoading}
                       className={cn(
                         "w-full group",
                         tier.recommended

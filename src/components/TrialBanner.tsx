@@ -17,12 +17,12 @@ export const TrialBanner = () => {
     return null;
   }
 
-  // Don't show for paid plans or if dismissed
-  if (
-    isDismissed ||
-    subscription.plan === "sprout" ||
-    subscription.plan === "bloom"
-  ) {
+  // Don't show for paid plans or if dismissed. All four canonical
+  // BloomSuite tiers (seed/sprout/bloom/thrive) are paid; the legacy
+  // 'bloomsuite' single-plan id is also a paid plan and remains
+  // valid for grandfathered customers.
+  const paidPlans = ["seed", "sprout", "bloom", "thrive", "bloomsuite"];
+  if (isDismissed || paidPlans.includes(subscription.plan)) {
     return null;
   }
 

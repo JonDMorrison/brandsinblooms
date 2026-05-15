@@ -1,8 +1,8 @@
 import Box from "@mui/joy/Box";
 import Stack from "@mui/joy/Stack";
-import { AddOnSection } from "./AddOnSection";
 import { BillingHistory } from "./BillingHistory";
 import { PaymentMethods } from "./PaymentMethods";
+import { PlanSummaryCard } from "./PlanSummaryCard";
 import { SubscriptionCard } from "./SubscriptionCard";
 
 export const BillingDashboard = () => {
@@ -10,6 +10,10 @@ export const BillingDashboard = () => {
     <Stack spacing={3} sx={{ width: "100%" }}>
       <Box>
           <SubscriptionCard />
+      </Box>
+
+      <Box>
+        <PlanSummaryCard />
       </Box>
 
       <Box
@@ -25,10 +29,6 @@ export const BillingDashboard = () => {
         <Box>
           <BillingHistory />
         </Box>
-      </Box>
-
-      <Box>
-      <AddOnSection />
       </Box>
     </Stack>
   );
