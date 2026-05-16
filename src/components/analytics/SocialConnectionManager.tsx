@@ -92,9 +92,9 @@ const SUPPORTED_PLATFORMS: SupportedPlatformDefinition[] = [
     key: "instagram",
     label: "Instagram",
     icon: Instagram,
-    connectLabel: "Connect Instagram",
+    connectLabel: "Connect via Facebook",
     description:
-      "Link your Instagram Business account to manage publishing and engagement visibility.",
+      "Instagram Business accounts authenticate through your linked Facebook Page. We request only the scopes needed to publish to Instagram.",
     avatarSx: {
       background:
         "linear-gradient(135deg, #F58529 0%, #DD2A7B 52%, #515BD4 100%)",
@@ -461,14 +461,27 @@ const SocialConnectionManager = ({
             `Please allow new tabs to connect ${platformLabel}. Click the button again after allowing.`,
           );
           setConnecting(null);
+          return;
         }
+
+        // Safety net: if the popup completes without postMessage (network
+        // blip, cross-origin restriction, or the user closes the popup),
+        // clear the connecting state on close and refetch so any successful
+        // connection that didn't message back still appears.
+        const pollInterval = window.setInterval(() => {
+          if (oauthTab.closed) {
+            window.clearInterval(pollInterval);
+            setConnecting(null);
+            void fetchConnections();
+          }
+        }, 500);
       } catch (error) {
         console.error(`Failed to connect ${platformKey}:`, error);
         toast.error(`Failed to connect ${platformLabel}. Please try again.`);
         setConnecting(null);
       }
     },
-    [redirectUri],
+    [fetchConnections, redirectUri],
   );
 
   const disconnectPlatform = useCallback(
