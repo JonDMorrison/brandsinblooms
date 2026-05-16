@@ -215,6 +215,28 @@ export const AuthPage = () => {
     setSignUpTouched((current) => ({ ...current, [field]: true }));
   };
 
+  const handleResetSession = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // ignore — we're resetting anyway
+    }
+    try {
+      Object.keys(localStorage)
+        .filter(
+          (k) =>
+            k.startsWith("sb-") ||
+            k.startsWith("supabase") ||
+            k.startsWith("bloomsuite."),
+        )
+        .forEach((k) => localStorage.removeItem(k));
+      sessionStorage.removeItem("bloomsuite.auth.recovery-mode");
+    } catch {
+      // ignore storage errors
+    }
+    window.location.replace("/auth");
+  };
+
   const handleResendConfirmation = async (email: string) => {
     setResendingConfirmation(true);
     try {
@@ -498,6 +520,22 @@ export const AuthPage = () => {
         <div className="auth-stagger" style={getEntryStyle(400)}>
           <AuthButton type="submit" loading={loading}>
             Sign In
+          </AuthButton>
+        </div>
+
+        <div
+          className="auth-signin-reset auth-stagger"
+          style={getEntryStyle(450)}
+        >
+          <AuthButton
+            variant="ghost"
+            size="sm"
+            fullWidth={false}
+            onClick={() => void handleResetSession()}
+            disabled={loading}
+            data-testid="auth-reset-session"
+          >
+            Stuck? Reset session
           </AuthButton>
         </div>
       </form>
