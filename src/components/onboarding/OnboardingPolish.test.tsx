@@ -134,7 +134,8 @@ describe("onboarding polish", () => {
     ).toBeDisabled();
   });
 
-  it("enables Complete Setup once the user fills and confirms the location manually", () => {
+  it("enables Complete Setup once the user fills and confirms the location manually", async () => {
+    const user = userEvent.setup();
     const onComplete = vi.fn();
 
     render(
@@ -157,9 +158,11 @@ describe("onboarding polish", () => {
     fireEvent.change(screen.getByLabelText("State / Province"), {
       target: { value: "OR" },
     });
-    fireEvent.change(screen.getByLabelText("Country"), {
-      target: { value: "US" },
-    });
+    // Country is a JoySelect combobox, not a text input — open and pick.
+    await user.click(screen.getByRole("combobox", { name: /country/i }));
+    await user.click(
+      await screen.findByRole("option", { name: /united states/i }),
+    );
 
     fireEvent.click(
       screen.getByRole("button", { name: /confirm this location/i }),
@@ -230,33 +233,25 @@ describe("onboarding polish", () => {
   });
 
   it("DataReviewStep: typing 75000 with US selected does NOT flip the picker", () => {
-    const lahoreData = {
-      ...extractedData,
-      locationExtraction: {
-        ...extractedData.locationExtraction,
-        postal_code: null,
-        city: null,
-        state_province: null,
-        country: null,
-      },
-    };
-
+    // Use extractedData (country: "US") so the picker starts at US — the
+    // assertion that 'US stays selected' is meaningful only if US was
+    // actually selected to begin with.
     render(
       <DataReviewStep
-        extractedData={lahoreData}
+        extractedData={extractedData}
         updateExtractedData={vi.fn()}
         onBack={vi.fn()}
         onComplete={vi.fn()}
         isCompleting={false}
         isAnalyzing={false}
-        onLocationConfirmationChange={vi.fn()}
       />,
     );
 
     const postalInput = screen.getByLabelText("Postal / ZIP Code");
     fireEvent.change(postalInput, { target: { value: "75000" } });
 
-    // Picker still says United States — country is user-driven now.
+    // Picker still says United States — country is user-driven, never
+    // auto-flipped by postal input.
     expect(
       screen.getByRole("combobox", { name: /country/i }),
     ).toHaveTextContent(/united states/i);
