@@ -18,6 +18,7 @@ import {
 } from "@/hooks/useImpersonation";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 
 export default function ImpersonateCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -52,7 +53,7 @@ export default function ImpersonateCallbackPage() {
       }
 
       if (error) {
-        setErrorMessage(error.message);
+        setErrorMessage(getAuthErrorMessage(error, "verifyOtp").message);
         setIsLoading(false);
         return;
       }
@@ -75,11 +76,7 @@ export default function ImpersonateCallbackPage() {
         return;
       }
 
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to establish impersonation session.",
-      );
+      setErrorMessage(getAuthErrorMessage(error, "verifyOtp").message);
       setIsLoading(false);
     });
 

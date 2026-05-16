@@ -15,6 +15,7 @@ import { useDeviceTier } from "@/components/homepage-three/performance/useDevice
 import { HERO_CONTENT } from "@/components/homepage-three/content/heroContent";
 import { Building2, Leaf, Lock, Mail, User } from "lucide-react";
 import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
+import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 // Canonical BloomSuite brand mark — same PNG asset rendered by the
 // homepage navigation header (LandingPageHeader.tsx) and footer
 // (HomepagePricingCtaFooterSection.tsx). Importing the asset
@@ -56,45 +57,6 @@ const getModeFromHash = (hash: string): AuthMode =>
 
 const getEntryStyle = (delayMs: number) =>
   ({ "--auth-entry-delay": `${delayMs}ms` }) as CSSProperties;
-
-const getErrorText = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? "");
-  }
-
-  return "";
-};
-
-const isConnectionError = (message: string) =>
-  /network|timeout|timed out|failed to fetch|fetch failed|connection/i.test(
-    message,
-  );
-
-const mapSignInError = (error: unknown) => {
-  const message = getErrorText(error);
-
-  if (/invalid login credentials/i.test(message)) {
-    return "The email or password you entered is incorrect.";
-  }
-
-  if (/email not confirmed/i.test(message)) {
-    return "Please check your inbox and confirm your email before signing in.";
-  }
-
-  if (isConnectionError(message)) {
-    return "Unable to connect. Please check your internet connection.";
-  }
-
-  return "Something went wrong. Please try again.";
-};
 
 const validateSignIn = (form: SignInFormState) => ({
   email: form.email.trim() ? undefined : "Email is required",
@@ -157,6 +119,8 @@ export const AuthPage = () => {
   const [signInSubmitted, setSignInSubmitted] = useState(false);
   const [signUpSubmitted, setSignUpSubmitted] = useState(false);
   const [signUpSuccess, setSignUpSuccess] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
+  const [resendConfirmationSent, setResendConfirmationSent] = useState(false);
 
   const signInValidation = validateSignIn(signInForm);
   const signUpValidation = validateSignUp(signUpForm);
@@ -251,10 +215,60 @@ export const AuthPage = () => {
     setSignUpTouched((current) => ({ ...current, [field]: true }));
   };
 
+  const handleResendConfirmation = async (email: string) => {
+    setResendingConfirmation(true);
+    try {
+      await supabase.auth.resend({ type: "signup", email });
+      setResendConfirmationSent(true);
+      setAlert({
+        variant: "success",
+        content:
+          "Confirmation email sent. Check your inbox (and spam folder).",
+      });
+    } catch (error) {
+      const result = getAuthErrorMessage(error, "signUp");
+      setAlert({ variant: "error", content: result.message });
+    } finally {
+      setResendingConfirmation(false);
+    }
+  };
+
+  const renderSignInErrorContent = (
+    code: string,
+    message: string,
+    email: string,
+  ) => {
+    if (code === "email_not_confirmed" && email) {
+      return (
+        <>
+          {message}
+          {!resendConfirmationSent ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="auth-alert-link"
+                onClick={() => void handleResendConfirmation(email)}
+                disabled={resendingConfirmation}
+              >
+                {resendingConfirmation
+                  ? "Sending..."
+                  : "Resend confirmation email"}
+              </button>
+            </>
+          ) : null}
+        </>
+      );
+    }
+
+    return message;
+  };
+
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
     setSignInSubmitted(true);
     setAlert(null);
+    setResendConfirmationSent(false);
 
     const errors = validateSignIn(signInForm);
     if (errors.email || errors.password) {
@@ -272,12 +286,20 @@ export const AuthPage = () => {
       });
 
       if (error) {
-        setAlert({ variant: "error", content: mapSignInError(error) });
+        const result = getAuthErrorMessage(error, "signIn");
+        setAlert({
+          variant: "error",
+          content: renderSignInErrorContent(result.code, result.message, email),
+        });
       } else if (data.user) {
         navigate(returnTo ?? "/dashboard");
       }
     } catch (error) {
-      setAlert({ variant: "error", content: mapSignInError(error) });
+      const result = getAuthErrorMessage(error, "signIn");
+      setAlert({
+        variant: "error",
+        content: renderSignInErrorContent(result.code, result.message, email),
+      });
     } finally {
       setLoading(false);
     }
@@ -318,12 +340,9 @@ export const AuthPage = () => {
       });
 
       if (error) {
-        const message = getErrorText(error);
+        const result = getAuthErrorMessage(error, "signUp");
 
-        if (/password .+ at least 6 characters/i.test(message)) {
-          setSignUpTouched((current) => ({ ...current, password: true }));
-          setSignUpSubmitted(true);
-        } else if (/user already registered/i.test(message)) {
+        if (result.code === "user_already_registered") {
           setAlert({
             variant: "error",
             content: (
@@ -340,16 +359,12 @@ export const AuthPage = () => {
               </>
             ),
           });
-        } else if (isConnectionError(message)) {
-          setAlert({
-            variant: "error",
-            content: "Unable to connect.",
-          });
         } else {
-          setAlert({
-            variant: "error",
-            content: "Something went wrong. Please try again.",
-          });
+          if (result.code === "weak_password") {
+            setSignUpTouched((current) => ({ ...current, password: true }));
+            setSignUpSubmitted(true);
+          }
+          setAlert({ variant: "error", content: result.message });
         }
       } else if (data.user) {
         try {
@@ -378,13 +393,8 @@ export const AuthPage = () => {
         }
       }
     } catch (error) {
-      const message = getErrorText(error);
-      setAlert({
-        variant: "error",
-        content: isConnectionError(message)
-          ? "Unable to connect."
-          : "Something went wrong. Please try again.",
-      });
+      const result = getAuthErrorMessage(error, "signUp");
+      setAlert({ variant: "error", content: result.message });
     } finally {
       setLoading(false);
     }

@@ -18,37 +18,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 
 type ResetField = "password" | "confirmPassword";
 
 const successMessage =
   "Password reset successful. Please sign in with your new password.";
-
-const getErrorText = (error: unknown) => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (error && typeof error === "object" && "message" in error) {
-    return String((error as { message?: unknown }).message ?? "");
-  }
-
-  return "";
-};
-
-const isConnectionError = (message: string) =>
-  /network|timeout|timed out|failed to fetch|fetch failed|connection/i.test(
-    message,
-  );
-
-const getResetErrorMessage = (error: unknown) =>
-  isConnectionError(getErrorText(error))
-    ? "Unable to connect. Please check your internet connection."
-    : "Unable to update your password.";
 
 const validatePassword = (value: string) => {
   if (!value) {
@@ -204,7 +179,7 @@ export const ResetPasswordPage = () => {
       });
 
       if (error) {
-        setAlertMessage(getResetErrorMessage(error));
+        setAlertMessage(getAuthErrorMessage(error, "passwordUpdate").message);
         return;
       }
 
@@ -224,7 +199,7 @@ export const ResetPasswordPage = () => {
         });
       }, 500);
     } catch (error) {
-      setAlertMessage(getResetErrorMessage(error));
+      setAlertMessage(getAuthErrorMessage(error, "passwordUpdate").message);
     } finally {
       setLoading(false);
     }

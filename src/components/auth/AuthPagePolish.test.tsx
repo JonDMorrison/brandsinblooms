@@ -87,7 +87,7 @@ describe("AuthPage polish", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "The email or password you entered is incorrect.",
+      /Email or password is incorrect/i,
     );
   });
 
@@ -107,7 +107,7 @@ describe("AuthPage polish", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign In" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to connect. Please check your internet connection.",
+      /Unable to connect\. Check your internet connection/i,
     );
   });
 
@@ -173,7 +173,7 @@ describe("AuthPage polish", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Account" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Unable to connect.",
+      /Unable to connect/i,
     );
   });
 });
