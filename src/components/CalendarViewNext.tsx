@@ -383,6 +383,14 @@ export const CalendarView = React.memo(function CalendarView({
           });
         }
 
+        toast({
+          title:
+            type === "task"
+              ? "Task created"
+              : type === "event"
+                ? "Event created"
+                : "Newsletter scheduled",
+        });
         setQuickAddOpen(false);
         await refreshCalendar();
       } catch (error) {
@@ -437,12 +445,18 @@ export const CalendarView = React.memo(function CalendarView({
         });
 
         if (error) throw error;
+        toast({ title: "Theme scheduled" });
         await refreshCalendar();
       } catch (error) {
         console.error("Error scheduling theme:", error);
+        toast({
+          title: "Couldn't schedule theme",
+          description: "Try again.",
+          variant: "destructive",
+        });
       }
     },
-    [refreshCalendar, tenant?.id, user],
+    [refreshCalendar, tenant?.id, toast, user],
   );
 
   const handleEventClick = useCallback((event: UnifiedCalendarEvent) => {
