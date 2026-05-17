@@ -11,6 +11,7 @@ import {
 } from "@/components/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getOAuthRedirectUri } from "@/utils/environmentUtils";
+import { getAuthErrorMessage } from "@/utils/authErrorMessages";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,14 +65,16 @@ export const ForgotPasswordPage = () => {
       });
 
       if (error) {
-        const rawMessage = (error.message || "").toLowerCase();
-
         console.error("Password reset error:", error);
 
-        if (error.status === 429 || rawMessage.includes("rate")) {
-          setSubmitError(
-            "Too many requests. Please try again in a few minutes.",
-          );
+        const rawMessage = (error.message || "").toLowerCase();
+        const result = getAuthErrorMessage(error, "passwordReset");
+
+        if (
+          result.code === "over_request_rate_limit" ||
+          result.code === "over_email_send_rate_limit"
+        ) {
+          setSubmitError(result.message);
           return;
         }
 
@@ -79,7 +82,7 @@ export const ForgotPasswordPage = () => {
           rawMessage.includes("redirect") ||
           rawMessage.includes("not allowed")
         ) {
-          setSubmitError("Something went wrong. Please try again later.");
+          setSubmitError(result.message);
           return;
         }
 
@@ -90,7 +93,7 @@ export const ForgotPasswordPage = () => {
       navigate("/forgot-password/sent", { state: { email } });
     } catch (error) {
       console.error("Password reset error:", error);
-      setSubmitError("Network error. Please try again.");
+      setSubmitError(getAuthErrorMessage(error, "passwordReset").message);
     } finally {
       setLoading(false);
     }

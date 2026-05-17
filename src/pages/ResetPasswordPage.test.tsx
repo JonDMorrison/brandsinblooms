@@ -245,7 +245,7 @@ describe("ResetPasswordPage", () => {
 
     expect(screen.getByRole("alert")).toHaveClass("auth-alert--error");
     expect(
-      screen.getByText("Unable to update your password."),
+      screen.getByText(/Something went wrong\. Please try again/i),
     ).toBeInTheDocument();
   });
 
