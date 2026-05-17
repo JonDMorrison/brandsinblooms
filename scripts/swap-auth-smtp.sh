@@ -47,7 +47,7 @@ http_status=$(curl --silent --show-error --output /tmp/swap-auth-smtp.body --wri
   "smtp_admin_email": "${SMTP_ADMIN_EMAIL}",
   "smtp_sender_name": "${SMTP_SENDER_NAME}",
   "smtp_host": "smtp.resend.com",
-  "smtp_port": 465,
+  "smtp_port": "465",
   "smtp_user": "resend",
   "smtp_pass": "${RESEND_API_KEY}",
   "smtp_max_frequency": ${SMTP_MAX_FREQUENCY},
