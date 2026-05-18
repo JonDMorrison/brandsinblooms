@@ -2,6 +2,22 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+const resolveWatchPolling = () => {
+  const envValue = process.env.CHOKIDAR_USEPOLLING;
+
+  if (envValue == null) {
+    return true;
+  }
+
+  return !["0", "false"].includes(envValue.toLowerCase());
+};
+
+const resolveWatchInterval = () => {
+  const interval = Number.parseInt(process.env.CHOKIDAR_INTERVAL ?? "150", 10);
+
+  return Number.isNaN(interval) ? 150 : interval;
+};
+
 const getNodeModulePackageName = (id: string) => {
   const match = id.match(/\/node_modules\/((?:@[^/]+\/)?[^/]+)/);
 
@@ -21,6 +37,20 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    watch: {
+      // Polling avoids ENOSPC failures on large Linux workspaces with low inotify limits.
+      usePolling: resolveWatchPolling(),
+      interval: resolveWatchInterval(),
+      ignored: [
+        "**/.git/**",
+        "**/dist/**",
+        "**/playwright-report/**",
+        "**/test-results/**",
+        "**/e2e/.auth/**",
+        "**/e2e/reports/**",
+        "**/supabase/.temp/**",
+      ],
+    },
   },
   plugins: [react()].filter(Boolean),
   resolve: {

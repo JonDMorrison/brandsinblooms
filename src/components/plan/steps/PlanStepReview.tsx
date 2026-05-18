@@ -1,42 +1,42 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import type { ElementType } from "react";
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
+import Alert from "@mui/joy/Alert";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import Link from "@mui/joy/Link";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Badge } from "@/components/ui-legacy/badge";
-import {
-  CheckCircle,
-  Clock,
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  Facebook,
+  FileText,
+  Instagram,
   Mail,
   MessageSquare,
-  Facebook,
-  Instagram,
-  AlertTriangle,
   Rocket,
-  ChevronDown,
-  ChevronUp,
-  Settings,
-  ExternalLink,
-  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
-import { usePlanWizard } from "../PlanWizardContext";
-import { useTwilioSetup } from "@/components/dashboard/TwilioSetupChecker";
-import { useDashboardData } from "@/hooks/useDashboardData";
-import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { AudienceTargetingSection } from "../AudienceTargetingSection";
 import { BlogContentViewer } from "../BlogContentViewer";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui-legacy/dialog";
+import { PlanItem } from "../constants";
+import { usePlanWizard } from "../PlanWizardContext";
+import { useTwilioSetup } from "@/components/dashboard/TwilioSetupChecker";
+import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 
 interface PlanStepReviewProps {
   onBack: () => void;
@@ -44,12 +44,94 @@ interface PlanStepReviewProps {
   isLaunching?: boolean;
 }
 
-const typeConfig = {
-  email: { icon: Mail, color: "bg-primary", label: "Email" },
-  sms: { icon: MessageSquare, color: "bg-primary", label: "SMS" },
-  facebook: { icon: Facebook, color: "bg-primary", label: "Facebook" },
-  instagram: { icon: Instagram, color: "bg-primary", label: "Instagram" },
-  blog: { icon: FileText, color: "bg-primary", label: "Blog" },
+type ChannelKey = PlanItem["type"];
+
+interface ChannelConfig {
+  label: string;
+  icon: ElementType;
+  requiresImage: boolean;
+}
+
+const CHANNEL_ORDER: ChannelKey[] = [
+  "email",
+  "sms",
+  "facebook",
+  "instagram",
+  "blog",
+];
+
+const CHANNEL_CONFIG: Record<ChannelKey, ChannelConfig> = {
+  email: { label: "Email", icon: Mail, requiresImage: true },
+  sms: { label: "SMS", icon: MessageSquare, requiresImage: false },
+  facebook: { label: "Facebook", icon: Facebook, requiresImage: true },
+  instagram: { label: "Instagram", icon: Instagram, requiresImage: true },
+  blog: { label: "Blog", icon: FileText, requiresImage: true },
+};
+
+const toDate = (date: Date | string) =>
+  date instanceof Date ? date : new Date(date);
+
+const isValidDate = (date: Date) => !Number.isNaN(date.getTime());
+
+const getMonthName = (month: string) => {
+  if (!month) return "your plan";
+  const parsed = new Date(`${month}-01T00:00:00`);
+  return isValidDate(parsed) ? format(parsed, "MMMM yyyy") : month;
+};
+
+const getDateRangeLabel = (items: PlanItem[]) => {
+  const dates = items
+    .map((item) => toDate(item.date))
+    .filter(isValidDate)
+    .sort((first, second) => first.getTime() - second.getTime());
+
+  if (!dates.length) return "No dates selected";
+
+  const firstDate = dates[0];
+  const lastDate = dates[dates.length - 1];
+
+  if (firstDate.getTime() === lastDate.getTime()) {
+    return format(firstDate, "MMM d, yyyy");
+  }
+
+  return `${format(firstDate, "MMM d")} - ${format(lastDate, "MMM d, yyyy")}`;
+};
+
+const sortByDate = (items: PlanItem[]) =>
+  [...items].sort(
+    (first, second) =>
+      toDate(first.date).getTime() - toDate(second.date).getTime(),
+  );
+
+const getImageStatusLabel = (item: PlanItem) => {
+  if (!CHANNEL_CONFIG[item.type].requiresImage) return "No image required";
+  return item.imageUrl ? "Image ready" : "Image missing";
+};
+
+const ImageStatus = ({ item }: { item: PlanItem }) => {
+  const imageReady =
+    !CHANNEL_CONFIG[item.type].requiresImage || Boolean(item.imageUrl);
+
+  return (
+    <Stack direction="row" spacing={0.75} alignItems="center">
+      <Box
+        sx={{
+          color: imageReady ? "success.500" : "warning.500",
+          display: "inline-flex",
+          lineHeight: 0,
+        }}
+      >
+        {imageReady ? (
+          <Check aria-hidden="true" size={14} />
+        ) : (
+          <AlertCircle aria-hidden="true" size={14} />
+        )}
+      </Box>
+      <Typography color="neutral" level="body-xs">
+        {getImageStatusLabel(item)}
+      </Typography>
+    </Stack>
+  );
 };
 
 export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
@@ -58,638 +140,462 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
   isLaunching = false,
 }) => {
   const { state } = usePlanWizard();
-  const { data: twilioData } = useTwilioSetup();
-  const { senderConfig } = useSenderConfiguration();
-  const { data: dashboardData } = useDashboardData();
-  const navigate = useNavigate();
+  const { data: twilioData, isLoading: twilioLoading } = useTwilioSetup();
+  const { senderConfig, loading: senderLoading } = useSenderConfiguration();
+  const [blogViewerItem, setBlogViewerItem] = useState<PlanItem | null>(null);
 
-  const [expandedChannels, setExpandedChannels] = useState<Set<string>>(
-    new Set(),
+  const enabledItems = useMemo(
+    () => sortByDate(state.items.filter((item) => item.enabled)),
+    [state.items],
   );
 
-  const enabledItems = state.items.filter((item) => item.enabled);
-
-  // Group items by type
-  const itemsByType = enabledItems.reduce(
-    (acc, item) => {
-      if (!acc[item.type]) acc[item.type] = [];
-      acc[item.type].push(item);
-      return acc;
-    },
-    {} as Record<string, typeof state.items>,
+  const itemsByType = useMemo(
+    () =>
+      CHANNEL_ORDER.reduce(
+        (channels, channel) => ({
+          ...channels,
+          [channel]: enabledItems.filter((item) => item.type === channel),
+        }),
+        {} as Record<ChannelKey, PlanItem[]>,
+      ),
+    [enabledItems],
   );
 
-  // Check guardrails
-  const isTwilioConnected = twilioData?.isSetup || false;
-  const isDomainVerified = senderConfig.isVerified;
-
-  const emailItems = itemsByType.email || [];
-  const smsItems = itemsByType.sms || [];
-  const socialItems = [
-    ...(itemsByType.facebook || []),
-    ...(itemsByType.instagram || []),
-  ];
-  const blogItems = itemsByType.blog || [];
-  const imageEligibleItems = enabledItems.filter((item) =>
-    ["email", "blog", "facebook", "instagram"].includes(item.type),
+  const activeChannels = CHANNEL_ORDER.filter(
+    (channel) => itemsByType[channel].length > 0,
+  );
+  const emailItems = itemsByType.email;
+  const smsItems = itemsByType.sms;
+  const imageEligibleItems = enabledItems.filter(
+    (item) => CHANNEL_CONFIG[item.type].requiresImage,
   );
   const missingImageCount = imageEligibleItems.filter(
     (item) => !item.imageUrl,
   ).length;
-
-  const hasBlockedEmail = emailItems.length > 0 && !isDomainVerified;
-  const hasBlockedSMS = smsItems.length > 0 && !isTwilioConnected;
+  const isDomainVerified = senderConfig?.isVerified === true;
+  const isTwilioConnected = twilioData?.isSetup === true;
+  const showEmailWarning =
+    emailItems.length > 0 && !senderLoading && !isDomainVerified;
+  const showSmsWarning =
+    smsItems.length > 0 && !twilioLoading && !isTwilioConnected;
   const hasAnyContent = enabledItems.length > 0;
+  const launchDisabled = !hasAnyContent || isLaunching || missingImageCount > 0;
+  const monthName = getMonthName(state.month);
+  const dateRangeLabel = getDateRangeLabel(enabledItems);
 
-  const monthName = state.month
-    ? format(new Date(state.month), "MMMM yyyy")
-    : "";
-
-  const toggleChannelExpansion = (channel: string) => {
-    const newExpanded = new Set(expandedChannels);
-    if (newExpanded.has(channel)) {
-      newExpanded.delete(channel);
-    } else {
-      newExpanded.add(channel);
+  const launchHelper = (() => {
+    if (!hasAnyContent)
+      return "Enable at least one content item before launching.";
+    if (missingImageCount > 0) {
+      return `Resolve ${missingImageCount} missing image${missingImageCount === 1 ? "" : "s"} before launch.`;
     }
-    setExpandedChannels(newExpanded);
-  };
-
-  const formatDateRange = (date: Date) => {
-    const day = date.getDate();
-    if (day <= 10) return `Early ${format(date, "MMM")}`;
-    if (day <= 20) return `Mid ${format(date, "MMM")}`;
-    return `Late ${format(date, "MMM")}`;
-  };
-
-  const truncateTitle = (title: string, maxLength: number = 45) => {
-    if (title.length <= maxLength) return title;
-    return title.substring(0, maxLength).trim() + "...";
-  };
+    if (isLaunching) return "Scheduling your plan on the calendar.";
+    return `${enabledItems.length} item${enabledItems.length === 1 ? "" : "s"} will be scheduled on your calendar.`;
+  })();
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-2">
-          <CheckCircle className="h-8 w-8 text-green-600" />
-          <h2 className="text-3xl font-bold">Review Your Plan</h2>
-        </div>
-        <p className="text-muted-foreground text-lg">
-          Your multi-theme marketing plan for {monthName} is ready to launch.
-        </p>
-      </div>
+    <Stack spacing={{ xs: 3, md: 4 }}>
+      <Stack spacing={1} sx={{ textAlign: "center" }}>
+        <Typography level="h3">Review and Launch</Typography>
+        <Typography
+          color="neutral"
+          level="body-md"
+          sx={{ mx: "auto", maxWidth: 700 }}
+        >
+          Confirm the final channel mix, targeting, and readiness checks for{" "}
+          {monthName}.
+        </Typography>
+      </Stack>
 
-      {/* Plan Overview */}
-      <Card className="bg-gradient-to-br from-accent/5 to-primary/5 border-accent/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Plan Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {state.themes.map((theme, index) => {
-              const themeItems = enabledItems.filter(
-                (item) => item.themeId === theme.id,
-              );
-              const emailCount = themeItems.filter(
-                (item) => item.type === "email",
-              ).length;
-              const smsCount = themeItems.filter(
-                (item) => item.type === "sms",
-              ).length;
-              const socialCount = themeItems.filter((item) =>
-                ["facebook", "instagram"].includes(item.type),
-              ).length;
-              const blogCount = themeItems.filter(
-                (item) => item.type === "blog",
-              ).length;
+      <Card variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+        <Stack spacing={2.5}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            justifyContent="space-between"
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-md">Plan Overview</Typography>
+              <Typography color="neutral" level="body-sm">
+                A compact summary of what will move to the calendar.
+              </Typography>
+            </Stack>
+            <Chip color="neutral" variant="soft">
+              {monthName}
+            </Chip>
+          </Stack>
 
-              const emailReady = !hasBlockedEmail;
-              const smsReady = !hasBlockedSMS;
-
-              return (
-                <div
-                  key={theme.id}
-                  className={`p-4 rounded-lg border ${
-                    index === 0
-                      ? "bg-primary/5 border-primary/30"
-                      : "bg-background/50 border-border"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <h4 className="font-medium">{theme.label}</h4>
-                    {index === 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        Primary
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    {emailCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span>
-                          📧 {emailCount} Email{emailCount > 1 ? "s" : ""}
-                        </span>
-                        <Badge
-                          variant={emailReady ? "outline" : "destructive"}
-                          className="text-xs"
-                        >
-                          {emailReady ? "✅" : "⚠️"}
-                        </Badge>
-                      </div>
-                    )}
-                    {smsCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span>💬 {smsCount} SMS</span>
-                        <Badge
-                          variant={smsReady ? "outline" : "destructive"}
-                          className="text-xs"
-                        >
-                          {smsReady ? "✅" : "⚠️"}
-                        </Badge>
-                      </div>
-                    )}
-                    {socialCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span>📱 {socialCount} Social</span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-primary/10 text-primary border-primary/20"
-                        >
-                          ✅
-                        </Badge>
-                      </div>
-                    )}
-                    {blogCount > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span>📝 {blogCount} Blog</span>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className="text-xs bg-primary/10 text-primary border-primary/20"
-                          >
-                            ✅
-                          </Badge>
-                          {themeItems.some(
-                            (item) =>
-                              item.type === "blog" && item.enhancedContent,
-                          ) && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 px-3 text-xs gap-2"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                  View Full Blog (
-                                  {
-                                    themeItems.find(
-                                      (item) =>
-                                        item.type === "blog" &&
-                                        item.enhancedContent,
-                                    )?.enhancedContent?.readingTime
-                                  }
-                                  )
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>
-                                    Blog Content Preview
-                                  </DialogTitle>
-                                </DialogHeader>
-                                <BlogContentViewer
-                                  blogItem={
-                                    themeItems.find(
-                                      (item) =>
-                                        item.type === "blog" &&
-                                        item.enhancedContent,
-                                    )!
-                                  }
-                                />
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="text-center py-4 bg-background/30 rounded-lg border">
-            <div className="text-lg font-semibold">
-              Total: {enabledItems.length} items scheduled
-            </div>
-          </div>
-        </CardContent>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 1.5,
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: "repeat(4, minmax(0, 1fr))",
+              },
+            }}
+          >
+            <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.5 }}>
+              <Typography color="neutral" level="body-xs">
+                Active Content
+              </Typography>
+              <Typography level="title-lg">{enabledItems.length}</Typography>
+            </Sheet>
+            <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.5 }}>
+              <Typography color="neutral" level="body-xs">
+                Channels
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{ flexWrap: "wrap", mt: 0.75 }}
+                useFlexGap
+              >
+                {activeChannels.length ? (
+                  activeChannels.map((channel) => (
+                    <Chip
+                      color="neutral"
+                      key={channel}
+                      size="sm"
+                      variant="outlined"
+                    >
+                      {CHANNEL_CONFIG[channel].label}{" "}
+                      {itemsByType[channel].length}
+                    </Chip>
+                  ))
+                ) : (
+                  <Typography color="neutral" level="body-sm">
+                    No active channels
+                  </Typography>
+                )}
+              </Stack>
+            </Sheet>
+            <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.5 }}>
+              <Typography color="neutral" level="body-xs">
+                Date Range
+              </Typography>
+              <Typography level="title-sm" sx={{ mt: 0.5 }}>
+                {dateRangeLabel}
+              </Typography>
+            </Sheet>
+            <Sheet variant="outlined" sx={{ borderRadius: "md", p: 1.5 }}>
+              <Typography color="neutral" level="body-xs">
+                Themes
+              </Typography>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{ flexWrap: "wrap", mt: 0.75 }}
+                useFlexGap
+              >
+                {state.themes.length ? (
+                  state.themes.map((theme) => (
+                    <Chip
+                      color="neutral"
+                      key={theme.id}
+                      size="sm"
+                      variant="soft"
+                    >
+                      {theme.label}
+                    </Chip>
+                  ))
+                ) : (
+                  <Typography color="neutral" level="body-sm">
+                    No themes selected
+                  </Typography>
+                )}
+              </Stack>
+            </Sheet>
+          </Box>
+        </Stack>
       </Card>
 
-      {/* Audience Targeting */}
       <AudienceTargetingSection />
 
-      {/* Channel Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Email Channel */}
-        <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <Mail className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Email</CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {emailItems.length} items
-                  </div>
-                </div>
-              </div>
-              {hasBlockedEmail ? (
-                <Badge variant="destructive" className="text-xs">
-                  ⚠️ Setup Required
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="text-xs bg-primary/10 text-primary border-primary/20"
-                >
-                  ✅ Ready
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-3">
-              {emailItems
-                .slice(0, expandedChannels.has("email") ? emailItems.length : 2)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-primary font-medium mb-1">
-                        {formatDateRange(item.date)}
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">
-                      {truncateTitle(item.title)}
-                    </div>
-                  </div>
-                ))}
-              {emailItems.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleChannelExpansion("email")}
-                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
-                >
-                  {expandedChannels.has("email") ? (
-                    <>
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3 mr-1" />+
-                      {emailItems.length - 2} more
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-            {hasBlockedEmail && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/settings/email")}
-                className="w-full text-xs"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                Fix Now
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      <Stack spacing={1.5}>
+        {showEmailWarning && (
+          <Alert
+            color="warning"
+            startDecorator={<AlertCircle aria-hidden="true" size={16} />}
+            variant="soft"
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-sm">
+                Email sender needs verification
+              </Typography>
+              <Typography level="body-sm">
+                Email items are included, but no verified sending domain is
+                active. You can still review the plan, then finish setup in{" "}
+                <Link component={RouterLink} to="/crm/settings/email-sending">
+                  email settings
+                </Link>
+                .
+              </Typography>
+            </Stack>
+          </Alert>
+        )}
 
-        {/* SMS Channel */}
-        <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">SMS</CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {smsItems.length} items
-                  </div>
-                </div>
-              </div>
-              {hasBlockedSMS ? (
-                <Badge variant="destructive" className="text-xs">
-                  ⚠️ Setup Required
-                </Badge>
-              ) : (
-                <Badge
-                  variant="outline"
-                  className="text-xs bg-primary/10 text-primary border-primary/20"
-                >
-                  ✅ Ready
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-3">
-              {smsItems
-                .slice(0, expandedChannels.has("sms") ? smsItems.length : 2)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-primary font-medium mb-1">
-                        {formatDateRange(item.date)}
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">
-                      {truncateTitle(item.title)}
-                    </div>
-                  </div>
-                ))}
-              {smsItems.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleChannelExpansion("sms")}
-                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
-                >
-                  {expandedChannels.has("sms") ? (
-                    <>
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3 mr-1" />+
-                      {smsItems.length - 2} more
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-            {hasBlockedSMS && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/settings/sms")}
-                className="w-full text-xs"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                Fix Now
-              </Button>
-            )}
-            {smsItems.length > 0 && hasBlockedSMS && (
-              <div className="text-xs text-muted-foreground">
-                Items in this channel will be skipped until setup is complete.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {showSmsWarning && (
+          <Alert
+            color="warning"
+            startDecorator={<AlertCircle aria-hidden="true" size={16} />}
+            variant="soft"
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-sm">
+                SMS setup is not complete
+              </Typography>
+              <Typography level="body-sm">
+                SMS items are included, but SMS sending is not configured. Open{" "}
+                <Link component={RouterLink} to="/sms">
+                  SMS settings
+                </Link>{" "}
+                before sending those campaigns.
+              </Typography>
+            </Stack>
+          </Alert>
+        )}
 
-        {/* Social Channel */}
-        <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <Facebook className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Social</CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {socialItems.length} items
-                  </div>
-                </div>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-xs bg-primary/10 text-primary border-primary/20"
-              >
-                ✅ Ready
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-3">
-              {socialItems
-                .slice(
-                  0,
-                  expandedChannels.has("social") ? socialItems.length : 2,
-                )
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs text-primary font-medium mb-1">
-                        {formatDateRange(item.date)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.type === "facebook" ? "📘" : "📷"}
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">
-                      {truncateTitle(item.title)}
-                    </div>
-                  </div>
-                ))}
-              {socialItems.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleChannelExpansion("social")}
-                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
-                >
-                  {expandedChannels.has("social") ? (
-                    <>
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3 mr-1" />+
-                      {socialItems.length - 2} more
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {missingImageCount > 0 && (
+          <Alert
+            color="danger"
+            startDecorator={<AlertCircle aria-hidden="true" size={16} />}
+            variant="soft"
+          >
+            <Stack spacing={0.5}>
+              <Typography level="title-sm">
+                Launch blocked by missing images
+              </Typography>
+              <Typography level="body-sm">
+                {missingImageCount} of {imageEligibleItems.length}{" "}
+                image-required item
+                {imageEligibleItems.length === 1 ? "" : "s"} still need an
+                image. Launch is blocked until every email, blog, Facebook, and
+                Instagram item has an image.
+              </Typography>
+            </Stack>
+          </Alert>
+        )}
+      </Stack>
 
-        {/* Blog Channel */}
-        <Card className="h-fit">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Blog</CardTitle>
-                  <div className="text-sm text-muted-foreground">
-                    {blogItems.length} items
-                  </div>
-                </div>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-xs bg-primary/10 text-primary border-primary/20"
-              >
-                ✅ Ready
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-3">
-              {blogItems
-                .slice(0, expandedChannels.has("blog") ? blogItems.length : 2)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-muted/30 rounded-lg border-l-2 border-primary"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs text-primary font-medium">
-                        {formatDateRange(item.date)}
-                      </div>
-                      {item.enhancedContent && (
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-xs gap-1"
+      <Stack spacing={1.5}>
+        <Stack spacing={0.5}>
+          <Typography level="title-lg">Channel Review</Typography>
+          <Typography color="neutral" level="body-sm">
+            Expand each active channel to inspect the scheduled content rows.
+          </Typography>
+        </Stack>
+
+        {activeChannels.length ? (
+          <AccordionGroup
+            variant="outlined"
+            sx={{
+              borderRadius: "lg",
+              overflow: "hidden",
+              "--AccordionGroup-separator": "1px solid",
+              "--AccordionDetails-paddingInline": "1rem",
+            }}
+          >
+            {activeChannels.map((channel) => {
+              const config = CHANNEL_CONFIG[channel];
+              const Icon = config.icon;
+              const channelItems = itemsByType[channel];
+
+              return (
+                <Accordion
+                  defaultExpanded={channel === activeChannels[0]}
+                  key={channel}
+                >
+                  <AccordionSummary>
+                    <Stack
+                      direction="row"
+                      spacing={1.25}
+                      alignItems="center"
+                      sx={{ minWidth: 0, width: "100%" }}
+                    >
+                      <Icon aria-hidden="true" size={16} />
+                      <Typography level="title-sm" sx={{ flex: 1 }}>
+                        {config.label}
+                      </Typography>
+                      <Chip color="neutral" size="sm" variant="soft">
+                        {channelItems.length}
+                      </Chip>
+                    </Stack>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Stack spacing={1.25} sx={{ py: 1 }}>
+                      {channelItems.map((item) => {
+                        const itemDate = toDate(item.date);
+                        const dateLabel = isValidDate(itemDate)
+                          ? format(itemDate, "MMM d, yyyy")
+                          : "Unscheduled";
+
+                        return (
+                          <Sheet
+                            key={item.id}
+                            variant="outlined"
+                            sx={{
+                              borderRadius: "md",
+                              p: 1.5,
+                            }}
+                          >
+                            <Stack
+                              direction={{ xs: "column", sm: "row" }}
+                              spacing={1.5}
+                              justifyContent="space-between"
+                              alignItems={{ xs: "flex-start", sm: "center" }}
                             >
-                              <FileText className="h-3 w-3" />
-                              Preview
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>Blog Content Preview</DialogTitle>
-                            </DialogHeader>
-                            <BlogContentViewer blogItem={item} />
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                    <div className="text-sm font-medium text-foreground line-clamp-2">
-                      {truncateTitle(item.title)}
-                    </div>
-                  </div>
-                ))}
-              {blogItems.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleChannelExpansion("blog")}
-                  className="w-full h-8 text-xs text-muted-foreground hover:bg-muted/50"
-                >
-                  {expandedChannels.has("blog") ? (
-                    <>
-                      <ChevronUp className="h-3 w-3 mr-1" />
-                      Show Less
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="h-3 w-3 mr-1" />+
-                      {blogItems.length - 2} more
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                              <Stack
+                                direction="row"
+                                spacing={1.25}
+                                sx={{ minWidth: 0 }}
+                              >
+                                <Box
+                                  aria-label="Active item"
+                                  sx={{
+                                    bgcolor: "success.500",
+                                    borderRadius: "50%",
+                                    flex: "0 0 auto",
+                                    height: 8,
+                                    mt: "0.45rem",
+                                    width: 8,
+                                  }}
+                                />
+                                <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                                  <Typography
+                                    level="title-sm"
+                                    sx={{
+                                      display: "-webkit-box",
+                                      overflow: "hidden",
+                                      WebkitBoxOrient: "vertical",
+                                      WebkitLineClamp: 2,
+                                    }}
+                                  >
+                                    {item.title}
+                                  </Typography>
+                                  <Typography color="neutral" level="body-xs">
+                                    {dateLabel}
+                                    {item.themeName
+                                      ? ` · ${item.themeName}`
+                                      : ""}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
 
-      {/* Launch Section */}
-      <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20 mt-8">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${missingImageCount > 0 ? "bg-amber-500" : "bg-primary"}`}
-              >
-                {missingImageCount > 0 ? (
-                  <AlertTriangle className="h-5 w-5 text-white" />
-                ) : (
-                  <CheckCircle className="h-5 w-5 text-white" />
-                )}
-              </div>
-              <div>
-                <div className="font-semibold">
-                  {missingImageCount > 0
-                    ? "Plan Ready to Launch With Warnings"
-                    : "✅ Plan Ready to Launch"}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {enabledItems.length} items will be scheduled. No content is
-                  sent immediately.
-                </div>
-                {missingImageCount > 0 && (
-                  <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    {missingImageCount} of {imageEligibleItems.length} posts
-                    have no image. Launch is blocked until they are resolved.
-                  </div>
-                )}
-              </div>
-            </div>
-            <Button
-              onClick={onLaunch}
-              disabled={!hasAnyContent || isLaunching || missingImageCount > 0}
-              size="lg"
-              className="px-8 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
-            >
-              {isLaunching ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2 animate-spin" />
-                  Launching...
-                </>
+                              <Stack
+                                direction="row"
+                                spacing={1.25}
+                                alignItems="center"
+                                sx={{ flexWrap: "wrap" }}
+                                useFlexGap
+                              >
+                                <ImageStatus item={item} />
+                                {item.type === "blog" &&
+                                item.enhancedContent ? (
+                                  <Button
+                                    color="neutral"
+                                    onClick={() => setBlogViewerItem(item)}
+                                    size="sm"
+                                    startDecorator={
+                                      <FileText aria-hidden="true" size={14} />
+                                    }
+                                    variant="outlined"
+                                  >
+                                    View Blog
+                                  </Button>
+                                ) : null}
+                              </Stack>
+                            </Stack>
+                          </Sheet>
+                        );
+                      })}
+                    </Stack>
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </AccordionGroup>
+        ) : (
+          <Alert color="neutral" variant="soft">
+            No enabled content is available. Go back to the preview step to
+            enable items before launch.
+          </Alert>
+        )}
+      </Stack>
+
+      <Card variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+        <Stack spacing={2}>
+          <Stack spacing={0.5}>
+            <Typography level="title-lg">Launch Plan</Typography>
+            <Typography color="neutral" level="body-sm">
+              This schedules enabled content on your calendar. It does not send
+              messages immediately.
+            </Typography>
+          </Stack>
+          <Button
+            color="primary"
+            disabled={launchDisabled}
+            fullWidth
+            onClick={onLaunch}
+            size="lg"
+            startDecorator={
+              isLaunching ? (
+                <CircularProgress color="neutral" size="sm" />
               ) : (
-                <>
-                  <Rocket className="h-4 w-4 mr-2" />
-                  {missingImageCount > 0
-                    ? "Resolve Images to Launch"
-                    : "Launch My Plan"}
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
+                <Rocket aria-hidden="true" size={16} />
+              )
+            }
+            variant="solid"
+          >
+            Launch Plan
+          </Button>
+          <Typography
+            color={
+              missingImageCount > 0 || !hasAnyContent ? "danger" : "neutral"
+            }
+            level="body-xs"
+          >
+            {launchHelper}
+          </Typography>
+        </Stack>
       </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between pt-8">
+      <Divider />
+
+      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
         <Button
-          variant="outline"
+          color="neutral"
+          disabled={isLaunching}
           onClick={onBack}
           size="lg"
-          className="px-8"
-          disabled={isLaunching}
+          startDecorator={<ArrowLeft aria-hidden="true" size={16} />}
+          variant="outlined"
         >
-          Back
+          Back to Preview
         </Button>
-      </div>
-    </div>
+      </Stack>
+
+      <Modal
+        open={Boolean(blogViewerItem)}
+        onClose={() => setBlogViewerItem(null)}
+      >
+        <ModalDialog sx={{ maxWidth: 980, width: "calc(100% - 32px)" }}>
+          <ModalClose />
+          <Stack
+            spacing={2}
+            sx={{ maxHeight: "80vh", overflow: "auto", pr: { sm: 1 } }}
+          >
+            <Stack spacing={0.5} sx={{ pr: 3 }}>
+              <Typography level="title-lg">Blog Content Preview</Typography>
+              <Typography color="neutral" level="body-sm">
+                Review the complete blog draft before launch.
+              </Typography>
+            </Stack>
+            <BlogContentViewer blogItem={blogViewerItem} />
+          </Stack>
+        </ModalDialog>
+      </Modal>
+    </Stack>
   );
 };
