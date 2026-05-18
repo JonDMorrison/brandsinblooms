@@ -1,10 +1,28 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Facebook, Edit2, RefreshCw, Image as ImageIcon, ThumbsUp, MessageCircle, Share2 } from 'lucide-react';
-import { PlanItem } from '../constants';
-import { format } from 'date-fns';
-import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
+import React from "react";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import CardContent from "@mui/joy/CardContent";
+import CardOverflow from "@mui/joy/CardOverflow";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import {
+  Facebook,
+  Image as ImageIcon,
+  MessageCircle,
+  Pencil,
+  RefreshCw,
+  Share2,
+  ThumbsUp,
+} from "lucide-react";
+import { format } from "date-fns";
+import { PlanItem } from "../constants";
 
 interface FacebookPreviewCardProps {
   item: PlanItem;
@@ -13,119 +31,166 @@ interface FacebookPreviewCardProps {
   onImageSelect: () => void;
 }
 
+const toDate = (date: Date | string) =>
+  date instanceof Date ? date : new Date(date);
+
+const SquareImagePreview = ({ item }: { item: PlanItem }) => {
+  const isGenerating = item.imageGenerationStatus === "generating";
+
+  return (
+    <AspectRatio ratio="1/1">
+      {isGenerating ? (
+        <Box sx={{ height: "100%", position: "relative", width: "100%" }}>
+          <Skeleton sx={{ height: "100%", inset: 0, position: "absolute" }} />
+          <Stack
+            alignItems="center"
+            justifyContent="center"
+            sx={{ height: "100%" }}
+          >
+            <CircularProgress size="sm" />
+          </Stack>
+        </Box>
+      ) : item.imageUrl ? (
+        <Box
+          alt={item.title}
+          component="img"
+          src={item.imageUrl}
+          sx={{ height: "100%", objectFit: "cover", width: "100%" }}
+        />
+      ) : (
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          spacing={1}
+          sx={{ bgcolor: "neutral.softBg", color: "neutral.500" }}
+        >
+          <ImageIcon aria-hidden="true" size={26} />
+          <Typography color="neutral" level="body-xs">
+            Image can be selected
+          </Typography>
+        </Stack>
+      )}
+    </AspectRatio>
+  );
+};
+
 export const FacebookPreviewCard: React.FC<FacebookPreviewCardProps> = ({
   item,
   onEdit,
+  onImageSelect,
   onRegenerate,
-  onImageSelect
-}) => {
-  // Image loading removed - placeholder for new AI implementation
-  const isGenerating = false;
-
-  return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-card border-2 hover:border-primary/40">
-      {/* Facebook Header */}
-      <div className="p-4 border-b">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-            <Facebook className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex-1">
-            <div className="font-semibold text-sm">Your Business Name</div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              {format(item.date, 'MMM d')} · 🌎
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Post Content */}
-      <CardContent className="p-0">
-        {/* Text Content */}
-        <div className="p-4 text-sm text-foreground whitespace-pre-wrap">
-          {item.caption}
-        </div>
-
-        {/* Image Area */}
-        <div className="relative w-full h-72 border-y">
-          {isGenerating ? (
-            <AIImageLoadingOverlay 
-              message="AI is creating your image..."
-            />
-          ) : item.imageUrl ? (
-            <div className="relative w-full h-full group">
-              <img 
-                src={item.imageUrl} 
-                alt={item.title}
-                className="w-full h-full object-cover"
-              />
-              <button
-                onClick={onImageSelect}
-                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <div className="text-white text-center">
-                  <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                  <p className="text-sm font-medium">Change Image</p>
-                </div>
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={onImageSelect}
-              className="w-full h-full bg-gradient-to-br from-muted/30 to-muted/50 flex flex-col items-center justify-center hover:from-primary/10 hover:to-primary/20 transition-all duration-300 cursor-pointer group"
-            >
-              <ImageIcon className="h-12 w-12 mb-3 text-muted-foreground group-hover:text-primary transition-colors" />
-              <p className="text-sm font-medium text-foreground mb-1">Choose Image</p>
-              <p className="text-xs text-muted-foreground">Click to select from library or upload</p>
-            </button>
+}) => (
+  <Card variant="outlined" sx={{ overflow: "hidden", p: 0 }}>
+    <CardContent sx={{ p: 2 }}>
+      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }} useFlexGap>
+          <Chip
+            color="neutral"
+            size="sm"
+            startDecorator={<Facebook aria-hidden="true" size={14} />}
+            variant="soft"
+          >
+            Facebook
+          </Chip>
+          {item.themeName && (
+            <Chip color="primary" size="sm" variant="soft">
+              {item.themeName}
+            </Chip>
           )}
-        </div>
+        </Stack>
+        <Typography color="neutral" level="body-xs">
+          {format(toDate(item.date), "MMM d")}
+        </Typography>
+      </Stack>
+    </CardContent>
 
-        {/* Facebook Engagement Bar */}
-        <div className="border-t border-b bg-muted/10">
-          <div className="flex items-center justify-around py-2 text-muted-foreground">
-            <div className="flex items-center gap-2 text-xs">
-              <ThumbsUp className="h-4 w-4" />
-              <span>Like</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <MessageCircle className="h-4 w-4" />
-              <span>Comment</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Share2 className="h-4 w-4" />
-              <span>Share</span>
-            </div>
-          </div>
-        </div>
+    <CardContent sx={{ p: 2, pt: 0 }}>
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        <Avatar color="neutral" size="sm" variant="soft">
+          P
+        </Avatar>
+        <Stack spacing={0.1}>
+          <Typography level="body-sm" sx={{ fontWeight: "lg" }}>
+            Your Page
+          </Typography>
+          <Typography color="neutral" level="body-xs">
+            {format(toDate(item.date), "MMM d")} · Public
+          </Typography>
+        </Stack>
+      </Stack>
+      <Typography level="title-sm" sx={{ mt: 1.5 }}>
+        {item.title}
+      </Typography>
+      <Typography
+        level="body-sm"
+        sx={{
+          display: "-webkit-box",
+          mt: 0.75,
+          overflow: "hidden",
+          whiteSpace: "pre-wrap",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 4,
+        }}
+      >
+        {item.caption}
+      </Typography>
+    </CardContent>
 
-        {/* Action Buttons */}
-        <div className="bg-muted/20 p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onEdit}
-              className="gap-1"
-            >
-              <Edit2 className="h-3 w-3" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={onRegenerate}
-              className="gap-1"
-            >
-              <RefreshCw className="h-3 w-3" />
-              Regenerate
-            </Button>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            📘 Facebook
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+    <CardOverflow>
+      <SquareImagePreview item={item} />
+    </CardOverflow>
+
+    <CardContent sx={{ p: 1.5 }}>
+      <Stack direction="row" justifyContent="space-around" spacing={1}>
+        {[
+          { icon: ThumbsUp, label: "Like" },
+          { icon: MessageCircle, label: "Comment" },
+          { icon: Share2, label: "Share" },
+        ].map(({ icon: Icon, label }) => (
+          <Stack alignItems="center" direction="row" key={label} spacing={0.75}>
+            <Icon aria-hidden="true" size={15} />
+            <Typography color="neutral" level="body-xs">
+              {label}
+            </Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </CardContent>
+
+    <Divider />
+    <Stack
+      direction="row"
+      justifyContent="flex-end"
+      spacing={0.75}
+      sx={{ p: 1.25 }}
+    >
+      <IconButton
+        aria-label="Edit Facebook post"
+        color="neutral"
+        onClick={onEdit}
+        size="sm"
+        variant="plain"
+      >
+        <Pencil size={16} />
+      </IconButton>
+      <IconButton
+        aria-label="Regenerate Facebook post"
+        color="neutral"
+        onClick={onRegenerate}
+        size="sm"
+        variant="plain"
+      >
+        <RefreshCw size={16} />
+      </IconButton>
+      <IconButton
+        aria-label="Select Facebook image"
+        color="neutral"
+        onClick={onImageSelect}
+        size="sm"
+        variant="plain"
+      >
+        <ImageIcon size={16} />
+      </IconButton>
+    </Stack>
+  </Card>
+);

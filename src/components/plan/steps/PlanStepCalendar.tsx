@@ -1,56 +1,64 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Alert from "@mui/joy/Alert";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import FormControl from "@mui/joy/FormControl";
+import FormLabel from "@mui/joy/FormLabel";
+import IconButton from "@mui/joy/IconButton";
+import Input from "@mui/joy/Input";
+import LinearProgress from "@mui/joy/LinearProgress";
+import Link from "@mui/joy/Link";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Skeleton from "@mui/joy/Skeleton";
+import Snackbar from "@mui/joy/Snackbar";
+import Stack from "@mui/joy/Stack";
+import Switch from "@mui/joy/Switch";
+import Textarea from "@mui/joy/Textarea";
+import Typography from "@mui/joy/Typography";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Textarea } from "@/components/ui-legacy/textarea";
-import { Label } from "@/components/ui-legacy/label";
-import { Switch } from "@/components/ui-legacy/switch";
-import { Badge } from "@/components/ui-legacy/badge";
-import { RichTextEditor } from "@/components/ui-legacy/rich-text-editor";
-import { SafeHtml } from "@/components/ui-legacy/safe-html";
-import { renderMarkdownToMagazineHtml } from "@/utils/renderMarkdown";
-import { convertMarkdownToHtml } from "@/utils/markdownUtils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui-legacy/dropdown-menu";
-import {
-  Calendar,
-  Mail,
-  MessageSquare,
-  Facebook,
-  Instagram,
-  Edit,
-  Sparkles,
-  Replace,
-  Clock,
-  Tag,
-  FileText,
-  Check,
   AlertTriangle,
+  Check,
+  Clock,
   Eye,
+  Facebook,
+  FileText,
+  Heart,
+  ImagePlus,
+  Instagram,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  Pencil,
+  RefreshCw,
+  Send,
+  Share2,
+  Store,
+  Tags,
+  ThumbsUp,
+  type LucideIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import { parseMonthParam } from "@/utils/dateUtils";
 import { usePlanWizard } from "../PlanWizardContext";
 import { PlanItem } from "../constants";
 import { generateMultiThemeSeasonalPlanContent } from "@/services/seasonalPlanGenerator";
-import { MediaSelectorImage } from "@/components/crm/MediaSelectorImage";
+import {
+  MediaSelectorImage,
+  type MediaSelectorImageHandle,
+} from "@/components/crm/MediaSelectorImage";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useLoading } from "@/contexts/LoadingContext";
-import { ProgressiveLoadingCard } from "@/components/dashboard/ProgressiveLoadingCard";
 import { SocialPostPreviewModal } from "@/components/publish/preview/SocialPostPreviewModal";
 import { MergeTagsPreviewDialog } from "@/components/crm/MergeTagsPreviewDialog";
+import { BlogContentViewer } from "../BlogContentViewer";
 import { searchGalleryForPost } from "@/services/imageGallerySearch";
 import { resolveImage } from "@/services/imageResolutionService";
 import { resolveTenantMutationContext } from "@/utils/resolveTenantMutationContext";
@@ -60,28 +68,65 @@ interface PlanStepCalendarProps {
   onBack: () => void;
 }
 
-const typeConfig = {
-  email: { icon: Mail, color: "bg-blue-500", label: "Email", emoji: "📧" },
-  sms: {
-    icon: MessageSquare,
-    color: "bg-green-500",
-    label: "SMS",
-    emoji: "💬",
-  },
-  facebook: {
-    icon: Facebook,
-    color: "bg-blue-600",
-    label: "Facebook",
-    emoji: "📘",
-  },
+type ImageEligibleType = Extract<
+  PlanItem["type"],
+  "email" | "blog" | "facebook" | "instagram"
+>;
+
+type ImageEligiblePlanItem = PlanItem & { type: ImageEligibleType };
+type ImageResolutionPhase = "searching" | "generating";
+type PreviewPlatform = "instagram" | "facebook";
+
+interface FeaturedImageState {
+  url: string;
+  metadata: NonNullable<PlanItem["imageMetadata"]>;
+}
+
+interface FeaturedImageResponse {
+  imageUrl?: string;
+  globalImageId?: string;
+  metadata?: { tags?: string[] };
+}
+
+interface GeneratedPlanItemImage {
+  itemId: string;
+  imageUrl: string;
+  imageMetadata: NonNullable<PlanItem["imageMetadata"]>;
+}
+
+interface ImageNoticeState {
+  message: string;
+  retryFeatured?: boolean;
+  retryItems?: PlanItem[];
+}
+
+const CHANNEL_CONFIG: Record<
+  PlanItem["type"],
+  { icon: LucideIcon; label: string; previewPlatform?: PreviewPlatform }
+> = {
+  email: { icon: Mail, label: "Email" },
+  sms: { icon: MessageSquare, label: "SMS" },
+  facebook: { icon: Facebook, label: "Facebook", previewPlatform: "facebook" },
   instagram: {
     icon: Instagram,
-    color: "bg-pink-500",
     label: "Instagram",
-    emoji: "📱",
+    previewPlatform: "instagram",
   },
-  blog: { icon: FileText, color: "bg-purple-500", label: "Blog", emoji: "📝" },
+  blog: { icon: FileText, label: "Blog" },
 };
+
+const IMAGE_CHANNEL_MAP: Record<
+  ImageEligibleType,
+  "newsletter" | "blog" | "facebook" | "instagram"
+> = {
+  email: "newsletter",
+  blog: "blog",
+  facebook: "facebook",
+  instagram: "instagram",
+};
+
+const IMAGE_GENERATION_BATCH_SIZE = 6;
+const EDITABLE_CARD_TYPES = ["email", "sms", "facebook", "instagram", "blog"];
 
 const getWeekLabel = (weekNum: number, month: string) => {
   const monthName = month ? format(parseMonthParam(month), "MMMM") : "";
@@ -100,41 +145,131 @@ const getWeekLabel = (weekNum: number, month: string) => {
   }
 };
 
-const IMAGE_GENERATION_BATCH_SIZE = 6;
-
-const IMAGE_CHANNEL_MAP: Record<
-  Extract<PlanItem["type"], "email" | "blog" | "facebook" | "instagram">,
-  "newsletter" | "blog" | "facebook" | "instagram"
-> = {
-  email: "newsletter",
-  blog: "blog",
-  facebook: "facebook",
-  instagram: "instagram",
-};
-
-const isImageEligiblePlanItem = (item: Pick<PlanItem, "type">) =>
+const isImageEligiblePlanItem = (
+  item: PlanItem,
+): item is ImageEligiblePlanItem =>
   item.type === "facebook" ||
   item.type === "instagram" ||
   item.type === "blog" ||
   item.type === "email";
 
-const getPlanItemImagePrompt = (
-  item: Pick<PlanItem, "imageQuery" | "imageIdea" | "caption" | "title">,
-) => {
-  const candidates = [
-    item.imageQuery,
-    item.imageIdea,
-    item.caption,
-    item.title,
-  ];
-
-  for (const candidate of candidates) {
-    if (candidate && candidate.trim()) {
-      return candidate.trim();
-    }
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error && error.message) {
+    return error.message;
   }
 
-  return "seasonal garden content";
+  return fallback;
+};
+
+const toDate = (date: Date | string) =>
+  date instanceof Date ? date : new Date(date);
+
+const parseDateInput = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const stripMarkup = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getDisplayContent = (item: PlanItem) => {
+  if (item.type === "blog") {
+    return (
+      item.enhancedContent?.summary ||
+      item.enhancedContent?.fullContent ||
+      item.caption
+    );
+  }
+
+  if (item.type === "email") {
+    return stripMarkup(item.caption);
+  }
+
+  return item.caption;
+};
+
+const getBlogFullContent = (item: PlanItem) =>
+  item.enhancedContent?.fullContent || item.caption;
+
+const getBlogPreviewText = (item: PlanItem) =>
+  stripMarkup(item.enhancedContent?.summary || getBlogFullContent(item));
+
+const getBlogReadingTime = (item: PlanItem) => {
+  if (item.enhancedContent?.readingTime) {
+    return item.enhancedContent.readingTime;
+  }
+
+  const wordCount = getBlogFullContent(item)
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
+};
+
+const getSmsSegments = (message: string) =>
+  Math.max(1, Math.ceil(message.length / 160));
+
+const channelPreviewImageOverlay =
+  "linear-gradient(to top, rgb(var(--joy-palette-common-blackChannel, 0 0 0) / 0.70) 0%, rgb(var(--joy-palette-common-blackChannel, 0 0 0) / 0.30) 40%, transparent 100%)";
+
+const blogPreviewImageOverlay =
+  "linear-gradient(to top, rgb(var(--joy-palette-common-blackChannel, 0 0 0) / 0.60) 0%, transparent 60%)";
+
+const getImageSelectorContentType = (
+  item: PlanItem,
+): "facebook" | "instagram" | "blog" | undefined =>
+  item.type === "facebook" || item.type === "instagram" || item.type === "blog"
+    ? item.type
+    : undefined;
+
+const normalizeStringArray = (value: unknown) =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : undefined;
+
+const normalizeImageMetadata = (
+  metadata?: Record<string, unknown>,
+): PlanItem["imageMetadata"] | undefined => {
+  if (!metadata) return undefined;
+
+  return {
+    alt: typeof metadata.alt === "string" ? metadata.alt : undefined,
+    photographer:
+      typeof metadata.photographer === "string"
+        ? metadata.photographer
+        : undefined,
+    photographer_url:
+      typeof metadata.photographer_url === "string"
+        ? metadata.photographer_url
+        : undefined,
+    source: typeof metadata.source === "string" ? metadata.source : undefined,
+    unsplash_id:
+      typeof metadata.unsplash_id === "string"
+        ? metadata.unsplash_id
+        : undefined,
+    enhanced_query:
+      typeof metadata.enhanced_query === "string"
+        ? metadata.enhanced_query
+        : undefined,
+    globalImageId:
+      typeof metadata.globalImageId === "string"
+        ? metadata.globalImageId
+        : undefined,
+    tags: normalizeStringArray(metadata.tags),
+    storagePath:
+      typeof metadata.storagePath === "string"
+        ? metadata.storagePath
+        : undefined,
+    generationTime:
+      typeof metadata.generationTime === "number"
+        ? metadata.generationTime
+        : undefined,
+    matchedTags: normalizeStringArray(metadata.matchedTags),
+    matchScore:
+      typeof metadata.matchScore === "number" ? metadata.matchScore : undefined,
+  };
 };
 
 const preparePlanItemForImageGeneration = (item: PlanItem): PlanItem => {
@@ -158,35 +293,27 @@ const preparePlanItemForImageGeneration = (item: PlanItem): PlanItem => {
   };
 };
 
-const getImageGenerationErrorMessage = (error: unknown) => {
-  if (error instanceof Error && error.message) {
-    return error.message;
+const getPlanItemImagePrompt = (
+  item: Pick<PlanItem, "imageQuery" | "imageIdea" | "caption" | "title">,
+) => {
+  const candidates = [
+    item.imageQuery,
+    item.imageIdea,
+    item.caption,
+    item.title,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate?.trim()) {
+      return candidate.trim();
+    }
   }
 
-  return "Image generation failed";
+  return "seasonal garden content";
 };
 
-interface GeneratedPlanItemImage {
-  itemId: string;
-  imageUrl: string;
-  imageMetadata: NonNullable<PlanItem["imageMetadata"]>;
-}
-
-type ImageResolutionPhase = "searching" | "generating";
-
-interface MultichannelResponseItem {
-  channel?: "newsletter" | "instagram" | "facebook" | "blog" | "video";
-  title?: string;
-  body?: string;
-  content?: string;
-  caption?: string;
-  blocks?: unknown[];
-  markdown?: string;
-  summary?: string;
-}
-
 const buildGeneratedPlanItemImage = (
-  item: PlanItem,
+  item: ImageEligiblePlanItem,
   result: Awaited<ReturnType<typeof resolveImage>>,
 ): GeneratedPlanItemImage => {
   const contentTitle = item.title?.trim() || getPlanItemImagePrompt(item);
@@ -208,14 +335,10 @@ const buildGeneratedPlanItemImage = (
 };
 
 const generatePlanItemImage = async (
-  item: PlanItem,
+  item: ImageEligiblePlanItem,
   context: { tenantId: string; userId: string },
   options?: { forceGenerate?: boolean },
 ): Promise<GeneratedPlanItemImage> => {
-  if (!isImageEligiblePlanItem(item)) {
-    throw new Error(`Unsupported image generation type: ${item.type}`);
-  }
-
   const result = await resolveImage({
     channel: IMAGE_CHANNEL_MAP[item.type],
     contentTitle: item.title?.trim() || "",
@@ -228,209 +351,1304 @@ const generatePlanItemImage = async (
   return buildGeneratedPlanItemImage(item, result);
 };
 
-export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
-  onNext,
-  onBack,
+const GenerationSkeletonCard = () => (
+  <Card variant="outlined" sx={{ minHeight: 228, overflow: "hidden", p: 2.5 }}>
+    <Stack spacing={2}>
+      <Stack direction="row" justifyContent="space-between" spacing={2}>
+        <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
+          <Skeleton height={28} variant="rectangular" width={86} />
+          <Skeleton height={28} variant="rectangular" width={104} />
+        </Stack>
+        <Skeleton height={28} variant="rectangular" width={92} />
+      </Stack>
+      <Stack spacing={0.75}>
+        <Skeleton level="title-sm" variant="text" width="64%" />
+        <Skeleton level="body-sm" variant="text" width="100%" />
+        <Skeleton level="body-sm" variant="text" width="92%" />
+        <Skeleton level="body-sm" variant="text" width="70%" />
+      </Stack>
+      <Skeleton height={92} variant="rectangular" />
+    </Stack>
+  </Card>
+);
+
+const GenerationState = ({
+  error,
+  monthName,
+  onRetry,
+  progress,
+}: {
+  error: string | null;
+  monthName: string;
+  onRetry: () => void;
+  progress: number;
+}) => (
+  <Stack spacing={2.5}>
+    <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+      <Stack spacing={2}>
+        <Stack spacing={0.75}>
+          <Typography level="h3">Generating Your Content Calendar</Typography>
+          <Typography color="neutral" level="body-md">
+            AI is creating a multi-channel plan for{" "}
+            {monthName || "your selected month"}.
+          </Typography>
+        </Stack>
+        {error ? (
+          <Alert
+            color="danger"
+            endDecorator={
+              <Button color="danger" onClick={onRetry} size="sm" variant="soft">
+                Retry
+              </Button>
+            }
+            startDecorator={<AlertTriangle aria-hidden="true" size={18} />}
+            variant="soft"
+          >
+            {error}
+          </Alert>
+        ) : (
+          <Stack spacing={0.75}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography color="neutral" level="body-xs">
+                Building content plan
+              </Typography>
+              <Typography color="neutral" level="body-xs">
+                {Math.round(progress)}%
+              </Typography>
+            </Stack>
+            <LinearProgress determinate value={progress} />
+          </Stack>
+        )}
+      </Stack>
+    </Card>
+
+    {!error && (
+      <Stack spacing={2}>
+        {Array.from({ length: 4 }).map((_, index) => (
+          <GenerationSkeletonCard key={index} />
+        ))}
+      </Stack>
+    )}
+  </Stack>
+);
+
+const ImageProgressModal = ({
+  open,
+  progress,
+}: {
+  open: boolean;
+  progress: { phase: ImageResolutionPhase; completed: number; total: number };
 }) => {
-  const {
-    state,
-    setItems,
-    updateItem,
-    toggleItem,
-    replaceWeekContent,
-    addWeekContent,
-  } = usePlanWizard();
+  const progressValue = progress.total
+    ? (progress.completed / progress.total) * 100
+    : 0;
+
+  return (
+    <Modal open={open}>
+      <ModalDialog sx={{ maxWidth: 440, width: "calc(100% - 32px)", p: 3 }}>
+        <Stack spacing={2.25}>
+          <Stack spacing={0.75}>
+            <Typography level="title-lg">
+              {progress.phase === "searching"
+                ? "Searching Image Library"
+                : "Generating New Images"}
+            </Typography>
+            <Typography color="neutral" level="body-sm">
+              {progress.phase === "searching"
+                ? "Checking your tagged gallery before creating new visuals."
+                : "Creating AI images for content that still needs visuals."}
+            </Typography>
+          </Stack>
+
+          <Stack spacing={0.75}>
+            <Stack direction="row" justifyContent="space-between">
+              <Typography color="neutral" level="body-sm">
+                Progress
+              </Typography>
+              <Typography level="body-sm">
+                {progress.completed} / {progress.total}
+              </Typography>
+            </Stack>
+            <LinearProgress determinate value={progressValue} />
+          </Stack>
+        </Stack>
+      </ModalDialog>
+    </Modal>
+  );
+};
+
+const ImageStatusChip = ({
+  isRetrying,
+  item,
+}: {
+  isRetrying: boolean;
+  item: PlanItem;
+}) => {
+  if (!isImageEligiblePlanItem(item)) {
+    return (
+      <Chip color="neutral" size="sm" variant="soft">
+        No image required
+      </Chip>
+    );
+  }
+
+  if (item.imageUrl) {
+    return (
+      <Chip
+        color="success"
+        size="sm"
+        startDecorator={<Check aria-hidden="true" size={14} />}
+        variant="soft"
+      >
+        Image selected
+      </Chip>
+    );
+  }
+
+  if (item.imageGenerationStatus === "generating" || isRetrying) {
+    return (
+      <Chip
+        color="neutral"
+        size="sm"
+        startDecorator={<CircularProgress size="sm" />}
+        variant="soft"
+      >
+        Generating...
+      </Chip>
+    );
+  }
+
+  if (item.imageGenerationStatus === "failed") {
+    return (
+      <Chip color="danger" size="sm" variant="soft">
+        Image failed
+      </Chip>
+    );
+  }
+
+  return (
+    <Chip color="warning" size="sm" variant="soft">
+      Image needed
+    </Chip>
+  );
+};
+
+const DecorativeEngagementBar = ({
+  actions,
+}: {
+  actions: { icon: LucideIcon; label: string }[];
+}) => (
+  <Box
+    sx={{
+      display: "flex",
+      gap: { xs: 1.5, sm: 2 },
+      flexWrap: "wrap",
+      px: 2,
+      py: 1.5,
+      borderTop: "1px solid",
+      borderColor: "neutral.200",
+    }}
+  >
+    {actions.map(({ icon: Icon, label }) => (
+      <Stack alignItems="center" direction="row" key={label} spacing={0.75}>
+        <Icon aria-hidden="true" color="currentColor" size={15} />
+        <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+          {label}
+        </Typography>
+      </Stack>
+    ))}
+  </Box>
+);
+
+const PreviewImageFrame = ({
+  disabled = false,
+  item,
+  onClick,
+  overlayGradient,
+  ratio,
+}: {
+  disabled?: boolean;
+  item: PlanItem;
+  onClick?: () => void;
+  overlayGradient?: string;
+  ratio: string;
+}) => {
+  const isGenerating = item.imageGenerationStatus === "generating";
+  const isClickable = Boolean(onClick) && !disabled;
+
+  return (
+    <AspectRatio
+      ratio={ratio}
+      onClick={isClickable ? onClick : undefined}
+      sx={{
+        bgcolor: "neutral.100",
+        cursor: isClickable ? "pointer" : "default",
+        overflow: "hidden",
+      }}
+    >
+      {isGenerating ? (
+        <Box sx={{ width: "100%", height: "100%", position: "relative" }}>
+          <Skeleton animation="wave" variant="overlay">
+            <Box sx={{ width: "100%", height: "100%" }} />
+          </Skeleton>
+          <Stack
+            alignItems="center"
+            justifyContent="center"
+            sx={{ inset: 0, position: "absolute" }}
+          >
+            <CircularProgress size="sm" />
+          </Stack>
+        </Box>
+      ) : item.imageUrl ? (
+        <Box sx={{ width: "100%", height: "100%", position: "relative" }}>
+          <Box
+            alt={item.title}
+            component="img"
+            src={item.imageUrl}
+            sx={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transition: "transform 180ms ease",
+              ...(isClickable
+                ? {
+                    "&:hover": {
+                      transform: "scale(1.01)",
+                    },
+                  }
+                : undefined),
+            }}
+          />
+          {overlayGradient ? (
+            <Box
+              sx={{
+                background: overlayGradient,
+                inset: 0,
+                pointerEvents: "none",
+                position: "absolute",
+              }}
+            />
+          ) : null}
+        </Box>
+      ) : (
+        <Sheet
+          variant="plain"
+          sx={{
+            width: "100%",
+            height: "100%",
+            bgcolor: "neutral.100",
+            color: "neutral.400",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Stack alignItems="center" spacing={1} sx={{ px: 2 }}>
+            <ImagePlus aria-hidden="true" size={32} />
+            <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+              Click to add image
+            </Typography>
+          </Stack>
+        </Sheet>
+      )}
+    </AspectRatio>
+  );
+};
+
+const MergeTagsButton = ({
+  item,
+  onUpdate,
+}: {
+  item: PlanItem;
+  onUpdate: <K extends keyof PlanItem>(
+    id: string,
+    field: K,
+    value: PlanItem[K],
+  ) => void;
+}) => (
+  <MergeTagsPreviewDialog
+    emailContent={{
+      subject: item.emailSubject,
+      preheader: item.emailPreheader,
+      body: item.caption,
+    }}
+    onMergeComplete={(content, field) => {
+      if (field === "subject") {
+        onUpdate(item.id, "emailSubject", content);
+        return;
+      }
+
+      if (field === "preheader") {
+        onUpdate(item.id, "emailPreheader", content);
+        return;
+      }
+
+      onUpdate(item.id, "caption", content);
+    }}
+  >
+    <Button
+      color="neutral"
+      size="sm"
+      startDecorator={<Tags aria-hidden="true" size={15} />}
+      variant="plain"
+    >
+      Merge Tags
+    </Button>
+  </MergeTagsPreviewDialog>
+);
+
+const DateEditor = ({
+  item,
+  onUpdate,
+}: {
+  item: PlanItem;
+  onUpdate: <K extends keyof PlanItem>(
+    id: string,
+    field: K,
+    value: PlanItem[K],
+  ) => void;
+}) => (
+  <FormControl>
+    <FormLabel>Date</FormLabel>
+    <Input
+      type="date"
+      value={format(toDate(item.date), "yyyy-MM-dd")}
+      onChange={(event) =>
+        onUpdate(item.id, "date", parseDateInput(event.target.value))
+      }
+      sx={{ maxWidth: 240 }}
+    />
+  </FormControl>
+);
+
+const PlanContentCard = ({
+  editing,
+  featuredImage,
+  isRetryingImage,
+  item,
+  onApplyFeaturedImage,
+  onCloseEdit,
+  onImageSelect,
+  onOpenBlog,
+  onOpenPreview,
+  onRetryImage,
+  onToggleEdit,
+  onToggleEnabled,
+  onUpdate,
+}: {
+  editing: boolean;
+  featuredImage: FeaturedImageState | null;
+  isRetryingImage: boolean;
+  item: PlanItem;
+  onApplyFeaturedImage: (itemId: string) => void;
+  onCloseEdit: () => void;
+  onImageSelect: (
+    itemId: string,
+    imageUrl: string,
+    metadata?: Record<string, unknown>,
+  ) => void;
+  onOpenBlog: (item: PlanItem) => void;
+  onOpenPreview: (item: PlanItem, platform: PreviewPlatform) => void;
+  onRetryImage: (item: PlanItem) => void;
+  onToggleEdit: (itemId: string) => void;
+  onToggleEnabled: (item: PlanItem) => void;
+  onUpdate: <K extends keyof PlanItem>(
+    id: string,
+    field: K,
+    value: PlanItem[K],
+  ) => void;
+}) => {
+  const config = CHANNEL_CONFIG[item.type];
+  const TypeIcon = config.icon;
+  const isDisabled = !item.enabled;
+  const canShowSocialPreview =
+    item.type === "facebook" || item.type === "instagram";
+  const canShowImageEditor = isImageEligiblePlanItem(item);
+  const contentLength = stripMarkup(getBlogFullContent(item)).length;
+  const imageSelectorRef = React.useRef<MediaSelectorImageHandle | null>(null);
+  const blogPreviewText = getBlogPreviewText(item);
+  const emailBodyPreview = stripMarkup(item.caption);
+  const instagramCaption = [item.caption, item.hashtags]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  const handleOpenImageSelector = useCallback(() => {
+    if (!canShowImageEditor || isDisabled) {
+      return;
+    }
+
+    imageSelectorRef.current?.openDialog();
+  }, [canShowImageEditor, isDisabled]);
+
+  const renderActionControls = () => (
+    <Stack
+      alignItems="center"
+      direction="row"
+      spacing={0.75}
+      sx={{
+        flexWrap: "wrap",
+        justifyContent: { xs: "flex-start", sm: "flex-end" },
+      }}
+      useFlexGap
+    >
+      <Chip
+        color="neutral"
+        size="sm"
+        startDecorator={<TypeIcon aria-hidden="true" size={14} />}
+        variant="soft"
+      >
+        {config.label}
+      </Chip>
+      {item.themeName && (
+        <Chip color="neutral" size="sm" variant="soft">
+          {item.themeName}
+        </Chip>
+      )}
+      <IconButton
+        aria-label={`Edit ${item.title}`}
+        color="neutral"
+        disabled={isDisabled || !EDITABLE_CARD_TYPES.includes(item.type)}
+        onClick={() => onToggleEdit(item.id)}
+        size="sm"
+        variant="plain"
+      >
+        <Pencil size={16} />
+      </IconButton>
+      <Switch
+        checked={item.enabled}
+        color={item.enabled ? "success" : "neutral"}
+        onChange={() => onToggleEnabled(item)}
+        size="sm"
+      />
+    </Stack>
+  );
+
+  const renderPreviewCard = () => {
+    if (item.type === "facebook") {
+      return (
+        <Stack spacing={0}>
+          <Box sx={{ p: 2 }}>
+            <Stack
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              spacing={1.5}
+            >
+              <Stack alignItems="center" direction="row" spacing={1.5}>
+                <Avatar color="neutral" size="sm" variant="soft">
+                  <Store aria-hidden="true" size={14} />
+                </Avatar>
+                <Stack spacing={0.25}>
+                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                    Storefront
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {format(toDate(item.date), "MMM d, yyyy")}
+                  </Typography>
+                </Stack>
+              </Stack>
+              {renderActionControls()}
+            </Stack>
+          </Box>
+
+          <PreviewImageFrame
+            disabled={isDisabled}
+            item={item}
+            onClick={handleOpenImageSelector}
+            ratio="16/9"
+          />
+
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={0.75}>
+              <Typography level="title-sm" sx={{ fontWeight: 600 }}>
+                {item.title}
+              </Typography>
+              <Typography
+                level="body-sm"
+                sx={{
+                  color: "text.secondary",
+                  display: "-webkit-box",
+                  overflow: "hidden",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 3,
+                }}
+              >
+                {item.caption}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <DecorativeEngagementBar
+            actions={[
+              { icon: ThumbsUp, label: "Like" },
+              { icon: MessageCircle, label: "Comment" },
+              { icon: Share2, label: "Share" },
+            ]}
+          />
+        </Stack>
+      );
+    }
+
+    if (item.type === "instagram") {
+      return (
+        <Stack spacing={0}>
+          <Box sx={{ p: 2 }}>
+            <Stack
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              spacing={1.5}
+            >
+              <Stack alignItems="center" direction="row" spacing={1.5}>
+                <Avatar color="neutral" size="sm" variant="soft">
+                  <Store aria-hidden="true" size={14} />
+                </Avatar>
+                <Stack spacing={0.25}>
+                  <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+                    Storefront
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {format(toDate(item.date), "MMM d, yyyy")}
+                  </Typography>
+                </Stack>
+              </Stack>
+              {renderActionControls()}
+            </Stack>
+          </Box>
+
+          <PreviewImageFrame
+            disabled={isDisabled}
+            item={item}
+            onClick={handleOpenImageSelector}
+            ratio="1/1"
+          />
+
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={0.75}>
+              <Typography level="title-sm" sx={{ fontWeight: 600 }}>
+                {item.title}
+              </Typography>
+              <Typography
+                level="body-sm"
+                sx={{
+                  color: "text.secondary",
+                  display: "-webkit-box",
+                  overflow: "hidden",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 2,
+                }}
+              >
+                {instagramCaption || item.caption}
+              </Typography>
+            </Stack>
+          </Box>
+
+          <DecorativeEngagementBar
+            actions={[
+              { icon: Heart, label: "Like" },
+              { icon: MessageCircle, label: "Comment" },
+              { icon: Send, label: "Share" },
+            ]}
+          />
+        </Stack>
+      );
+    }
+
+    if (item.type === "email") {
+      return (
+        <Stack spacing={0}>
+          <Box
+            sx={{
+              p: 2,
+              bgcolor: "neutral.50",
+              borderBottom: "1px solid",
+              borderColor: "neutral.200",
+            }}
+          >
+            <Stack
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              spacing={1.5}
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Stack alignItems="baseline" direction="row" spacing={0.75}>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    Subject:
+                  </Typography>
+                  <Typography level="body-sm" sx={{ minWidth: 0 }}>
+                    {item.emailSubject || item.title}
+                  </Typography>
+                </Stack>
+                <Stack alignItems="baseline" direction="row" spacing={0.75}>
+                  <Typography level="body-xs" sx={{ fontWeight: 600 }}>
+                    Preheader:
+                  </Typography>
+                  <Typography
+                    level="body-xs"
+                    sx={{ color: "neutral.500", fontStyle: "italic" }}
+                  >
+                    {item.emailPreheader || "No preheader yet"}
+                  </Typography>
+                </Stack>
+                <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                  {format(toDate(item.date), "MMM d, yyyy")}
+                </Typography>
+              </Stack>
+              {renderActionControls()}
+            </Stack>
+          </Box>
+
+          <PreviewImageFrame
+            disabled={isDisabled}
+            item={item}
+            onClick={handleOpenImageSelector}
+            ratio="16/9"
+          />
+
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={1.25}>
+              <Typography level="title-sm" sx={{ fontWeight: 600 }}>
+                {item.title}
+              </Typography>
+              <Typography
+                level="body-sm"
+                sx={{
+                  color: "text.secondary",
+                  display: "-webkit-box",
+                  overflow: "hidden",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 4,
+                }}
+              >
+                {emailBodyPreview}
+              </Typography>
+              <ImageStatusChip isRetrying={isRetryingImage} item={item} />
+            </Stack>
+          </Box>
+        </Stack>
+      );
+    }
+
+    if (item.type === "blog") {
+      return (
+        <Stack spacing={0}>
+          <PreviewImageFrame
+            disabled={isDisabled}
+            item={item}
+            onClick={handleOpenImageSelector}
+            overlayGradient={blogPreviewImageOverlay}
+            ratio="2.5/1"
+          />
+
+          <Box sx={{ p: 2 }}>
+            <Stack spacing={1.25}>
+              <Stack
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                spacing={1.5}
+              >
+                <Stack
+                  alignItems="center"
+                  direction="row"
+                  spacing={1}
+                  sx={{ flexWrap: "wrap" }}
+                  useFlexGap
+                >
+                  <Chip
+                    color="neutral"
+                    size="sm"
+                    startDecorator={<FileText aria-hidden="true" size={14} />}
+                    variant="soft"
+                  >
+                    Blog
+                  </Chip>
+                  {item.themeName && (
+                    <Chip color="neutral" size="sm" variant="soft">
+                      {item.themeName}
+                    </Chip>
+                  )}
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {format(toDate(item.date), "MMM d, yyyy")}
+                  </Typography>
+                </Stack>
+                <Stack alignItems="center" direction="row" spacing={0.75}>
+                  <IconButton
+                    aria-label={`Edit ${item.title}`}
+                    color="neutral"
+                    disabled={isDisabled}
+                    onClick={() => onToggleEdit(item.id)}
+                    size="sm"
+                    variant="plain"
+                  >
+                    <Pencil size={16} />
+                  </IconButton>
+                  <Switch
+                    checked={item.enabled}
+                    color={item.enabled ? "success" : "neutral"}
+                    onChange={() => onToggleEnabled(item)}
+                    size="sm"
+                  />
+                </Stack>
+              </Stack>
+
+              <Typography level="title-md" sx={{ fontWeight: 700 }}>
+                {item.title}
+              </Typography>
+              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                {getBlogReadingTime(item)} · {contentLength} characters
+              </Typography>
+              <Typography
+                level="body-sm"
+                sx={{
+                  color: "text.secondary",
+                  display: "-webkit-box",
+                  overflow: "hidden",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 3,
+                }}
+              >
+                {blogPreviewText}
+              </Typography>
+              <Link
+                component="button"
+                level="body-xs"
+                onClick={() => onOpenBlog(item)}
+                type="button"
+              >
+                Click to see more
+              </Link>
+            </Stack>
+          </Box>
+        </Stack>
+      );
+    }
+
+    const segmentCount = getSmsSegments(item.caption);
+
+    return (
+      <Stack spacing={0}>
+        <Box sx={{ p: 2 }}>
+          <Stack
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <Stack
+              alignItems="center"
+              direction="row"
+              spacing={1}
+              sx={{ flexWrap: "wrap" }}
+              useFlexGap
+            >
+              <Chip
+                color="neutral"
+                size="sm"
+                startDecorator={<MessageSquare aria-hidden="true" size={14} />}
+                variant="soft"
+              >
+                SMS
+              </Chip>
+              {item.themeName && (
+                <Chip color="neutral" size="sm" variant="soft">
+                  {item.themeName}
+                </Chip>
+              )}
+              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                {format(toDate(item.date), "MMM d, yyyy")}
+              </Typography>
+            </Stack>
+            <Stack alignItems="center" direction="row" spacing={0.75}>
+              <IconButton
+                aria-label={`Edit ${item.title}`}
+                color="neutral"
+                disabled={isDisabled}
+                onClick={() => onToggleEdit(item.id)}
+                size="sm"
+                variant="plain"
+              >
+                <Pencil size={16} />
+              </IconButton>
+              <Switch
+                checked={item.enabled}
+                color={item.enabled ? "success" : "neutral"}
+                onChange={() => onToggleEnabled(item)}
+                size="sm"
+              />
+            </Stack>
+          </Stack>
+        </Box>
+
+        <Box sx={{ p: 2, pt: 0 }}>
+          <Box sx={{ bgcolor: "neutral.50", borderRadius: "xl", p: 2 }}>
+            <Stack spacing={1.25}>
+              <Sheet
+                sx={{
+                  bgcolor: "background.surface",
+                  borderRadius: "lg",
+                  boxShadow: "xs",
+                  maxWidth: "85%",
+                  p: 1.5,
+                }}
+              >
+                <Typography level="body-sm" sx={{ whiteSpace: "pre-wrap" }}>
+                  {item.caption}
+                </Typography>
+              </Sheet>
+              <Typography level="body-xs" sx={{ color: "neutral.400" }}>
+                {item.caption.length}/160 chars · {segmentCount} segment
+                {segmentCount === 1 ? "" : "s"}
+              </Typography>
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+    );
+  };
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        opacity: isDisabled ? 0.5 : 1,
+        overflow: "hidden",
+        p: 0,
+        transition: "opacity 180ms ease, border-color 180ms ease",
+      }}
+    >
+      <Stack spacing={2}>
+        {renderPreviewCard()}
+
+        {item.imageGenerationStatus === "failed" &&
+          isImageEligiblePlanItem(item) && (
+            <Box sx={{ px: 2, pb: editing ? 0 : 2 }}>
+              <Alert
+                color="danger"
+                endDecorator={
+                  <Button
+                    color="danger"
+                    disabled={isRetryingImage}
+                    loading={isRetryingImage}
+                    onClick={() => onRetryImage(item)}
+                    size="sm"
+                    variant="soft"
+                  >
+                    Retry
+                  </Button>
+                }
+                variant="soft"
+              >
+                {item.imageError ||
+                  "This item still needs an image before launch."}
+              </Alert>
+            </Box>
+          )}
+
+        {editing && !isDisabled && (
+          <Sheet
+            variant="outlined"
+            sx={{
+              mx: 2,
+              mb: 2,
+              borderRadius: "md",
+              p: { xs: 2, sm: 2.5 },
+              transition: "opacity 200ms ease",
+            }}
+          >
+            <Stack spacing={2}>
+              {item.type === "email" ? (
+                <>
+                  <Stack
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    direction={{ xs: "column", sm: "row" }}
+                    justifyContent="space-between"
+                    spacing={1}
+                  >
+                    <Typography level="title-sm">Email content</Typography>
+                    <MergeTagsButton item={item} onUpdate={onUpdate} />
+                  </Stack>
+                  <FormControl>
+                    <FormLabel>Subject</FormLabel>
+                    <Input
+                      value={item.emailSubject || ""}
+                      onChange={(event) =>
+                        onUpdate(item.id, "emailSubject", event.target.value)
+                      }
+                    />
+                    <Typography
+                      color="neutral"
+                      level="body-xs"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {(item.emailSubject || "").length}/50 characters
+                    </Typography>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Preheader</FormLabel>
+                    <Input
+                      value={item.emailPreheader || ""}
+                      onChange={(event) =>
+                        onUpdate(item.id, "emailPreheader", event.target.value)
+                      }
+                    />
+                    <Typography
+                      color="neutral"
+                      level="body-xs"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {(item.emailPreheader || "").length}/90 characters
+                    </Typography>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Body</FormLabel>
+                    <Textarea
+                      minRows={5}
+                      value={item.caption}
+                      onChange={(event) =>
+                        onUpdate(item.id, "caption", event.target.value)
+                      }
+                    />
+                  </FormControl>
+                  <DateEditor item={item} onUpdate={onUpdate} />
+                </>
+              ) : item.type === "blog" ? (
+                <>
+                  <FormControl>
+                    <FormLabel>Title</FormLabel>
+                    <Input
+                      value={item.title}
+                      onChange={(event) =>
+                        onUpdate(item.id, "title", event.target.value)
+                      }
+                    />
+                  </FormControl>
+                  <DateEditor item={item} onUpdate={onUpdate} />
+                  <Button
+                    color="neutral"
+                    onClick={() => onOpenBlog(item)}
+                    size="sm"
+                    startDecorator={<FileText aria-hidden="true" size={16} />}
+                    variant="plain"
+                  >
+                    Click to see more
+                  </Button>
+                </>
+              ) : item.type === "sms" ? (
+                <>
+                  <FormControl>
+                    <FormLabel>Message body</FormLabel>
+                    <Textarea
+                      minRows={4}
+                      value={item.caption}
+                      onChange={(event) =>
+                        onUpdate(item.id, "caption", event.target.value)
+                      }
+                    />
+                    <Typography
+                      color="neutral"
+                      level="body-xs"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {item.caption.length} characters -{" "}
+                      {getSmsSegments(item.caption)} segment
+                      {getSmsSegments(item.caption) === 1 ? "" : "s"}
+                    </Typography>
+                  </FormControl>
+                  <DateEditor item={item} onUpdate={onUpdate} />
+                </>
+              ) : (
+                <>
+                  <FormControl>
+                    <FormLabel>Title</FormLabel>
+                    <Input
+                      value={item.title}
+                      onChange={(event) =>
+                        onUpdate(item.id, "title", event.target.value)
+                      }
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Caption</FormLabel>
+                    <Textarea
+                      minRows={4}
+                      value={item.caption}
+                      onChange={(event) =>
+                        onUpdate(item.id, "caption", event.target.value)
+                      }
+                    />
+                    <Typography
+                      color="neutral"
+                      level="body-xs"
+                      sx={{ mt: 0.5 }}
+                    >
+                      {item.caption.length} characters
+                    </Typography>
+                  </FormControl>
+                  <DateEditor item={item} onUpdate={onUpdate} />
+                </>
+              )}
+
+              {canShowImageEditor && (
+                <Stack spacing={1.25}>
+                  <Stack
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    direction={{ xs: "column", sm: "row" }}
+                    justifyContent="space-between"
+                    spacing={1}
+                  >
+                    <Typography level="title-sm">Featured image</Typography>
+                    {featuredImage && !item.imageUrl && (
+                      <Button
+                        color="neutral"
+                        onClick={() => onApplyFeaturedImage(item.id)}
+                        size="sm"
+                        startDecorator={<Check aria-hidden="true" size={15} />}
+                        variant="outlined"
+                      >
+                        Use Featured Image
+                      </Button>
+                    )}
+                  </Stack>
+                  {featuredImage && !item.imageUrl && (
+                    <Card variant="outlined" sx={{ p: 1.5 }}>
+                      <Stack direction="row" spacing={1.5}>
+                        <Box
+                          alt={featuredImage.metadata.alt || "Featured image"}
+                          component="img"
+                          src={featuredImage.url}
+                          sx={{
+                            aspectRatio: "1 / 1",
+                            borderRadius: "sm",
+                            flexShrink: 0,
+                            objectFit: "cover",
+                            width: 80,
+                          }}
+                        />
+                        <Stack spacing={0.5}>
+                          <Typography level="title-sm">
+                            Theme featured image available
+                          </Typography>
+                          <Typography color="neutral" level="body-xs">
+                            {featuredImage.metadata.alt}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  )}
+                  <Box sx={{ maxWidth: 520 }}>
+                    <MediaSelectorImage
+                      contentContext={getPlanItemImagePrompt(item)}
+                      contentType={getImageSelectorContentType(item)}
+                      imageGenerationStatus={item.imageGenerationStatus}
+                      onChange={(imageUrl, metadata) =>
+                        onImageSelect(item.id, imageUrl, metadata)
+                      }
+                      src={item.imageUrl}
+                    />
+                  </Box>
+                </Stack>
+              )}
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                spacing={1}
+              >
+                {canShowSocialPreview && config.previewPlatform ? (
+                  <Button
+                    color="neutral"
+                    onClick={() => onOpenPreview(item, config.previewPlatform)}
+                    size="sm"
+                    startDecorator={<Eye aria-hidden="true" size={16} />}
+                    variant="plain"
+                  >
+                    Preview Post
+                  </Button>
+                ) : (
+                  <Box />
+                )}
+                <Button
+                  color="neutral"
+                  onClick={onCloseEdit}
+                  size="sm"
+                  variant="soft"
+                >
+                  Save & Close
+                </Button>
+              </Stack>
+            </Stack>
+          </Sheet>
+        )}
+
+        {canShowImageEditor && (
+          <Box sx={{ display: "none" }}>
+            <MediaSelectorImage
+              ref={imageSelectorRef}
+              contentContext={getPlanItemImagePrompt(item)}
+              contentType={getImageSelectorContentType(item)}
+              imageGenerationStatus={item.imageGenerationStatus}
+              onChange={(imageUrl, metadata) =>
+                onImageSelect(item.id, imageUrl, metadata)
+              }
+              src={item.imageUrl}
+            />
+          </Box>
+        )}
+      </Stack>
+    </Card>
+  );
+};
+
+export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
+  onBack,
+  onNext,
+}) => {
+  const { state, setItems, updateItem, toggleItem, replaceWeekContent } =
+    usePlanWizard();
   const [editingItem, setEditingItem] = useState<string | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [generationAttempted, setGenerationAttempted] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(8);
+  const [contentGenerationError, setContentGenerationError] = useState<
+    string | null
+  >(null);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [previewItem, setPreviewItem] = useState<PlanItem | null>(null);
-  const [previewPlatform, setPreviewPlatform] = useState<
-    "instagram" | "facebook"
-  >("instagram");
-  const [expandedBlogs, setExpandedBlogs] = useState<Set<string>>(new Set());
-  const [featuredImage, setFeaturedImage] = useState<{
-    url: string;
-    metadata: NonNullable<PlanItem["imageMetadata"]>;
-  } | null>(null);
+  const [previewPlatform, setPreviewPlatform] =
+    useState<PreviewPlatform>("instagram");
+  const [blogViewerItem, setBlogViewerItem] = useState<PlanItem | null>(null);
+  const [featuredImage, setFeaturedImage] = useState<FeaturedImageState | null>(
+    null,
+  );
   const [generatingImages, setGeneratingImages] = useState(false);
   const [imageGenerationProgress, setImageGenerationProgress] = useState({
     phase: "searching" as ImageResolutionPhase,
     completed: 0,
     total: 0,
   });
-  const { setLoading, clearLoading } = useLoading();
   const [retryingImageItemIds, setRetryingImageItemIds] = useState<string[]>(
     [],
   );
+  const [imageNotice, setImageNotice] = useState<ImageNoticeState | null>(null);
+  const [replacingWeeks, setReplacingWeeks] = useState<number[]>([]);
 
-  // Helper functions for blog expansion
-  const toggleBlogExpansion = (itemId: string) => {
-    const newExpanded = new Set(expandedBlogs);
-    if (newExpanded.has(itemId)) {
-      newExpanded.delete(itemId);
-    } else {
-      newExpanded.add(itemId);
-    }
-    setExpandedBlogs(newExpanded);
-  };
+  const monthName = state.month
+    ? format(parseMonthParam(state.month), "MMMM yyyy")
+    : "";
 
-  const truncateText = (text: string, maxLength: number = 300) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
-  };
+  const itemsByWeek = useMemo(
+    () =>
+      state.items.reduce(
+        (acc, item) => {
+          if (!acc[item.week]) acc[item.week] = [];
+          acc[item.week].push(item);
+          return acc;
+        },
+        {} as Record<number, PlanItem[]>,
+      ),
+    [state.items],
+  );
 
-  const hydrateGeneratedItems = useCallback(
-    async (generatedItems: PlanItem[]) => {
-      const preparedItems = generatedItems.map(
-        preparePlanItemForImageGeneration,
-      );
-      setItems(preparedItems);
+  const sortedWeekNumbers = useMemo(
+    () =>
+      Object.keys(itemsByWeek)
+        .map(Number)
+        .sort((a, b) => a - b),
+    [itemsByWeek],
+  );
 
-      const itemsNeedingImages = preparedItems.filter(
+  const themeBreakdown = useMemo(
+    () =>
+      state.themes.map((theme) => {
+        const themeItems = state.items.filter(
+          (item) => item.themeId === theme.id,
+        );
+        const channels = Array.from(
+          new Set(themeItems.map((item) => item.type)),
+        );
+
+        return {
+          channels,
+          count: themeItems.length,
+          theme,
+        };
+      }),
+    [state.items, state.themes],
+  );
+
+  const itemsMissingImages = useMemo(
+    () =>
+      state.items.filter(
         (item) => isImageEligiblePlanItem(item) && !item.imageUrl,
-      );
+      ),
+    [state.items],
+  );
 
-      if (itemsNeedingImages.length === 0) {
-        return;
+  const isBusy = isInitialLoading || replacingWeeks.length > 0;
+
+  const handleGenerateFeaturedImage = useCallback(async () => {
+    if (!state.month || state.themes.length === 0) return;
+
+    const featuredPrompt = `${state.themes[0]?.label || "garden"} ${format(
+      parseMonthParam(state.month),
+      "MMMM",
+    )} professional showcase`;
+
+    try {
+      const { data, error } =
+        await supabase.functions.invoke<FeaturedImageResponse>(
+          "generate-ai-image",
+          {
+            body: {
+              contentContext: featuredPrompt,
+              contentTitle: `${format(
+                parseMonthParam(state.month),
+                "MMMM",
+              )} Featured Garden`,
+              channel: "instagram",
+              uploadToStorage: true,
+              storageBucket: "global-ai-images",
+            },
+          },
+        );
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      const resolutionContext = await resolveTenantMutationContext({});
+      if (!data?.imageUrl) {
+        throw new Error("No featured image was returned.");
+      }
 
-      const runGenerationPass = async (itemsForPass: PlanItem[]) => {
-        let completedCount = 0;
-        const failedItems: PlanItem[] = [];
+      setFeaturedImage({
+        url: data.imageUrl,
+        metadata: {
+          alt: featuredPrompt,
+          source: "ai_generated_featured",
+          globalImageId: data.globalImageId,
+          tags: data.metadata?.tags || [],
+        },
+      });
+    } catch (error) {
+      setImageNotice({
+        message: `Featured image generation failed: ${getErrorMessage(
+          error,
+          "Unable to generate featured image.",
+        )}`,
+        retryFeatured: true,
+      });
+    }
+  }, [state.month, state.themes]);
 
-        for (
-          let index = 0;
-          index < itemsForPass.length;
-          index += IMAGE_GENERATION_BATCH_SIZE
-        ) {
-          const batch = itemsForPass.slice(
-            index,
-            index + IMAGE_GENERATION_BATCH_SIZE,
-          );
+  const resolveImagesForItems = useCallback(
+    async (itemsForResolution: PlanItem[]) => {
+      const itemsNeedingImages = itemsForResolution
+        .filter(isImageEligiblePlanItem)
+        .filter((item) => !item.imageUrl);
 
-          batch.forEach((item) => {
-            updateItem(item.id, {
-              imageGenerationStatus: "generating",
-              imageError: null,
-            });
-          });
-
-          const batchResults = await Promise.allSettled(
-            batch.map((item) =>
-              generatePlanItemImage(item, resolutionContext, {
-                forceGenerate: true,
-              }),
-            ),
-          );
-
-          batchResults.forEach((result, resultIndex) => {
-            const batchItem = batch[resultIndex];
-            completedCount += 1;
-            setImageGenerationProgress({
-              completed: completedCount,
-              total: itemsForPass.length,
-            });
-
-            if (result.status === "fulfilled") {
-              updateItem(batchItem.id, {
-                imageUrl: result.value.imageUrl,
-                imageMetadata: result.value.imageMetadata,
-                imageGenerationStatus: "completed",
-                imageError: null,
-              });
-              return;
-            }
-
-            failedItems.push(batchItem);
-            updateItem(batchItem.id, {
-              imageGenerationStatus: "failed",
-              imageError: getImageGenerationErrorMessage(result.reason),
-            });
-          });
-        }
-
-        return failedItems;
-      };
-
-      const runGallerySearchPass = async (itemsForPass: PlanItem[]) => {
-        let completedCount = 0;
-        const itemsToGenerate: PlanItem[] = [];
-
-        for (
-          let index = 0;
-          index < itemsForPass.length;
-          index += IMAGE_GENERATION_BATCH_SIZE
-        ) {
-          const batch = itemsForPass.slice(
-            index,
-            index + IMAGE_GENERATION_BATCH_SIZE,
-          );
-
-          batch.forEach((item) => {
-            updateItem(item.id, {
-              imageGenerationStatus: "generating",
-              imageError: null,
-            });
-          });
-
-          const batchResults = await Promise.allSettled(
-            batch.map(async (item) => {
-              const match = await searchGalleryForPost({
-                channel:
-                  IMAGE_CHANNEL_MAP[
-                    item.type as keyof typeof IMAGE_CHANNEL_MAP
-                  ],
-                contentTitle: item.title?.trim() || "",
-                imageQuery: getPlanItemImagePrompt(item),
-                tenantId: resolutionContext.tenantId,
-              });
-
-              return { item, match };
-            }),
-          );
-
-          batchResults.forEach((result, resultIndex) => {
-            const batchItem = batch[resultIndex];
-            completedCount += 1;
-            setImageGenerationProgress({
-              phase: "searching",
-              completed: completedCount,
-              total: itemsForPass.length,
-            });
-
-            if (result.status === "fulfilled" && result.value.match) {
-              const galleryMatch = result.value.match;
-              updateItem(batchItem.id, {
-                imageUrl: galleryMatch.publicUrl,
-                imageMetadata: {
-                  alt:
-                    batchItem.title?.trim() ||
-                    getPlanItemImagePrompt(batchItem),
-                  source: "gallery-reuse",
-                  globalImageId: galleryMatch.imageId,
-                  matchedTags: galleryMatch.matchedTags,
-                  matchScore: galleryMatch.matchScore,
-                  storagePath: galleryMatch.storagePath,
-                  tags: galleryMatch.matchedTags,
-                },
-                imageGenerationStatus: "completed",
-                imageError: null,
-              });
-              return;
-            }
-
-            itemsToGenerate.push(batchItem);
-            updateItem(batchItem.id, {
-              imageGenerationStatus: "pending",
-              imageError: null,
-            });
-          });
-        }
-
-        return itemsToGenerate;
-      };
+      if (itemsNeedingImages.length === 0) return;
 
       setGeneratingImages(true);
       setImageGenerationProgress({
@@ -439,43 +1657,163 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
         total: itemsNeedingImages.length,
       });
 
-      const toastId = toast.loading(
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
-            <span className="font-medium">Searching Image Library</span>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Reusing tagged gallery images before generating anything new
-          </span>
-        </div>,
-      );
-
       try {
-        const itemsToGenerate = await runGallerySearchPass(itemsNeedingImages);
+        const resolutionContext = await resolveTenantMutationContext({});
 
-        let failedItems: PlanItem[] = [];
+        const runGallerySearchPass = async (
+          itemsForPass: ImageEligiblePlanItem[],
+        ) => {
+          let completedCount = 0;
+          const itemsToGenerate: ImageEligiblePlanItem[] = [];
+
+          for (
+            let index = 0;
+            index < itemsForPass.length;
+            index += IMAGE_GENERATION_BATCH_SIZE
+          ) {
+            const batch = itemsForPass.slice(
+              index,
+              index + IMAGE_GENERATION_BATCH_SIZE,
+            );
+
+            batch.forEach((item) => {
+              updateItem(item.id, {
+                imageGenerationStatus: "generating",
+                imageError: null,
+              });
+            });
+
+            const batchResults = await Promise.allSettled(
+              batch.map(async (item) => {
+                const match = await searchGalleryForPost({
+                  channel: IMAGE_CHANNEL_MAP[item.type],
+                  contentTitle: item.title?.trim() || "",
+                  imageQuery: getPlanItemImagePrompt(item),
+                  tenantId: resolutionContext.tenantId,
+                });
+
+                return { item, match };
+              }),
+            );
+
+            batchResults.forEach((result, resultIndex) => {
+              const batchItem = batch[resultIndex];
+              completedCount += 1;
+              setImageGenerationProgress({
+                phase: "searching",
+                completed: completedCount,
+                total: itemsForPass.length,
+              });
+
+              if (result.status === "fulfilled" && result.value.match) {
+                const galleryMatch = result.value.match;
+                updateItem(batchItem.id, {
+                  imageUrl: galleryMatch.publicUrl,
+                  imageMetadata: {
+                    alt:
+                      batchItem.title?.trim() ||
+                      getPlanItemImagePrompt(batchItem),
+                    source: "gallery-reuse",
+                    globalImageId: galleryMatch.imageId,
+                    matchedTags: galleryMatch.matchedTags,
+                    matchScore: galleryMatch.matchScore,
+                    storagePath: galleryMatch.storagePath,
+                    tags: galleryMatch.matchedTags,
+                  },
+                  imageGenerationStatus: "completed",
+                  imageError: null,
+                });
+                return;
+              }
+
+              itemsToGenerate.push(batchItem);
+              updateItem(batchItem.id, {
+                imageGenerationStatus: "pending",
+                imageError: null,
+              });
+            });
+          }
+
+          return itemsToGenerate;
+        };
+
+        const runGenerationPass = async (
+          itemsForPass: ImageEligiblePlanItem[],
+        ) => {
+          let completedCount = 0;
+          const failedItems: ImageEligiblePlanItem[] = [];
+
+          for (
+            let index = 0;
+            index < itemsForPass.length;
+            index += IMAGE_GENERATION_BATCH_SIZE
+          ) {
+            const batch = itemsForPass.slice(
+              index,
+              index + IMAGE_GENERATION_BATCH_SIZE,
+            );
+
+            batch.forEach((item) => {
+              updateItem(item.id, {
+                imageGenerationStatus: "generating",
+                imageError: null,
+              });
+            });
+
+            const batchResults = await Promise.allSettled(
+              batch.map((item) =>
+                generatePlanItemImage(item, resolutionContext, {
+                  forceGenerate: true,
+                }),
+              ),
+            );
+
+            batchResults.forEach((result, resultIndex) => {
+              const batchItem = batch[resultIndex];
+              completedCount += 1;
+              setImageGenerationProgress({
+                phase: "generating",
+                completed: completedCount,
+                total: itemsForPass.length,
+              });
+
+              if (result.status === "fulfilled") {
+                updateItem(batchItem.id, {
+                  imageUrl: result.value.imageUrl,
+                  imageMetadata: result.value.imageMetadata,
+                  imageGenerationStatus: "completed",
+                  imageError: null,
+                });
+                return;
+              }
+
+              failedItems.push(batchItem);
+              updateItem(batchItem.id, {
+                imageGenerationStatus: "failed",
+                imageError: getErrorMessage(
+                  result.reason,
+                  "Image generation failed",
+                ),
+              });
+            });
+          }
+
+          return failedItems;
+        };
+
+        const itemsToGenerate = await runGallerySearchPass(itemsNeedingImages);
+        let failedItems: ImageEligiblePlanItem[] = [];
 
         if (itemsToGenerate.length > 0) {
-          toast.loading(`Generating ${itemsToGenerate.length} new images...`, {
-            id: toastId,
-          });
           setImageGenerationProgress({
             phase: "generating",
             completed: 0,
             total: itemsToGenerate.length,
           });
           failedItems = await runGenerationPass(itemsToGenerate);
-        } else {
-          toast.loading("All images were resolved from the library.", {
-            id: toastId,
-          });
         }
 
         if (failedItems.length > 0) {
-          toast.loading(`Retrying ${failedItems.length} failed images...`, {
-            id: toastId,
-          });
           setImageGenerationProgress({
             phase: "generating",
             completed: 0,
@@ -485,26 +1823,21 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
         }
 
         if (failedItems.length > 0) {
-          toast.error(
-            `${failedItems.length} posts couldn't generate images. You can retry individually or launch without images.`,
-            { id: toastId },
-          );
-        } else {
-          const reusedCount =
-            itemsNeedingImages.length - itemsToGenerate.length;
-          toast.success(
-            reusedCount > 0
-              ? `Resolved ${reusedCount} from the library and generated ${itemsToGenerate.length} new images.`
-              : `Generated images for ${itemsNeedingImages.length} posts.`,
-            { id: toastId },
-          );
+          setImageNotice({
+            message: `${failedItems.length} content item${
+              failedItems.length === 1 ? "" : "s"
+            } could not generate images. Retry generation or choose images manually before launch.`,
+            retryItems: failedItems,
+          });
         }
       } catch (error) {
-        console.error("[PlanStepCalendar] Error generating AI images:", error);
-        toast.error(
-          "Image generation failed. You can retry individually or launch without images.",
-          { id: toastId },
-        );
+        setImageNotice({
+          message: `Image generation failed: ${getErrorMessage(
+            error,
+            "Unable to generate images.",
+          )}`,
+          retryItems: itemsNeedingImages,
+        });
       } finally {
         setGeneratingImages(false);
         setImageGenerationProgress({
@@ -514,12 +1847,100 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
         });
       }
     },
-    [setItems, updateItem],
+    [updateItem],
   );
+
+  const hydrateGeneratedItems = useCallback(
+    (generatedItems: PlanItem[]) => {
+      const preparedItems = generatedItems.map(
+        preparePlanItemForImageGeneration,
+      );
+      setItems(preparedItems);
+      void resolveImagesForItems(preparedItems);
+    },
+    [resolveImagesForItems, setItems],
+  );
+
+  const handleGenerateCalendar = useCallback(async () => {
+    if (state.themes.length === 0 || !state.month) return;
+
+    setGenerationAttempted(true);
+    setIsInitialLoading(true);
+    setContentGenerationError(null);
+    setGenerationProgress(12);
+    void handleGenerateFeaturedImage();
+
+    try {
+      setGenerationProgress(36);
+      const generatedItems = await generateMultiThemeSeasonalPlanContent(
+        state.themes,
+        state.month,
+      );
+      setGenerationProgress(82);
+      hydrateGeneratedItems(generatedItems);
+      setGenerationProgress(100);
+    } catch (error) {
+      setItems([]);
+      setContentGenerationError(
+        getErrorMessage(error, "Failed to generate content. Please try again."),
+      );
+    } finally {
+      setIsInitialLoading(false);
+    }
+  }, [
+    handleGenerateFeaturedImage,
+    hydrateGeneratedItems,
+    setItems,
+    state.month,
+    state.themes,
+  ]);
+
+  useEffect(() => {
+    if (
+      state.themes.length > 0 &&
+      state.month &&
+      state.items.length === 0 &&
+      !generationAttempted &&
+      !isInitialLoading
+    ) {
+      void handleGenerateCalendar();
+    }
+  }, [
+    generationAttempted,
+    handleGenerateCalendar,
+    isInitialLoading,
+    state.items.length,
+    state.month,
+    state.themes.length,
+  ]);
+
+  const handleItemUpdate = <K extends keyof PlanItem>(
+    id: string,
+    field: K,
+    value: PlanItem[K],
+  ) => {
+    updateItem(id, { [field]: value } as Pick<PlanItem, K>);
+  };
+
+  const handleImageSelect = (
+    itemId: string,
+    imageUrl: string,
+    metadata?: Record<string, unknown>,
+  ) => {
+    updateItem(itemId, {
+      imageUrl,
+      imageMetadata: normalizeImageMetadata(metadata),
+      imageGenerationStatus: "completed",
+      imageError: null,
+    });
+  };
 
   const handleRetrySingleImage = useCallback(
     async (item: PlanItem) => {
-      if (retryingImageItemIds.includes(item.id)) {
+      if (
+        !isImageEligiblePlanItem(item) ||
+        retryingImageItemIds.includes(item.id)
+      ) {
         return;
       }
 
@@ -538,18 +1959,13 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
           imageGenerationStatus: "completed",
           imageError: null,
         });
-        toast.success(
-          result.imageMetadata.source === "gallery-reuse"
-            ? `Reused a library image for ${item.title}`
-            : `Image generated for ${item.title}`,
-        );
       } catch (error) {
-        const imageError = getImageGenerationErrorMessage(error);
+        const imageError = getErrorMessage(error, "Image generation failed");
         updateItem(item.id, {
           imageGenerationStatus: "failed",
           imageError,
         });
-        toast.error(imageError);
+        setImageNotice({ message: imageError, retryItems: [item] });
       } finally {
         setRetryingImageItemIds((current) =>
           current.filter((itemId) => itemId !== item.id),
@@ -559,1315 +1975,382 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
     [retryingImageItemIds, updateItem],
   );
 
-  // Generate initial seasonal content when component mounts
-  useEffect(() => {
-    if (state.themes.length > 0 && state.month && state.items.length === 0) {
-      setIsInitialLoading(true);
-      setLoading("plan-calendar", {
-        isLoading: true,
-        message: "Generating your content calendar...",
-        priority: "page",
-      });
+  const handleRetryImageNotice = () => {
+    if (!imageNotice) return;
 
-      // Generate AI featured image
-      const featuredPrompt = `${state.themes[0]?.label || "garden"} ${format(parseMonthParam(state.month), "MMMM")} professional showcase`;
-      supabase.functions
-        .invoke("generate-ai-image", {
-          body: {
-            contentContext: featuredPrompt,
-            contentTitle: `${format(parseMonthParam(state.month), "MMMM")} Featured Garden`,
-            channel: "instagram",
-            uploadToStorage: true,
-            storageBucket: "global-ai-images",
-          },
-        })
-        .then(({ data, error }) => {
-          if (!error && data?.imageUrl) {
-            setFeaturedImage({
-              url: data.imageUrl,
-              metadata: {
-                alt: featuredPrompt,
-                source: "ai_generated_featured",
-                globalImageId: data.globalImageId,
-                tags: data.metadata?.tags || [],
-              },
-            });
-          }
-        })
-        .catch((err) => {});
-
-      generateMultiThemeSeasonalPlanContent(state.themes, state.month)
-        .then(async (generatedItems) => {
-          await hydrateGeneratedItems(generatedItems);
-        })
-        .catch((error) => {
-          console.error("Error generating multi-theme content:", error);
-          // Fallback to basic items if seasonal generation fails
-          setItems([]);
-          toast.error("Failed to generate content. Please try regenerating.");
-        })
-        .finally(() => {
-          setIsInitialLoading(false);
-          clearLoading("plan-calendar");
-        });
+    if (imageNotice.retryFeatured) {
+      setImageNotice(null);
+      void handleGenerateFeaturedImage();
+      return;
     }
-  }, [
-    state.themes,
-    state.month,
-    state.items.length,
-    setItems,
-    setLoading,
-    clearLoading,
-    hydrateGeneratedItems,
-  ]);
 
-  const handleItemUpdate = <K extends keyof PlanItem>(
-    id: string,
-    field: K,
-    value: PlanItem[K],
-  ) => {
-    updateItem(id, { [field]: value } as Pick<PlanItem, K>);
+    if (imageNotice.retryItems?.length) {
+      const retryItems = imageNotice.retryItems;
+      setImageNotice(null);
+      void resolveImagesForItems(retryItems);
+    }
   };
 
-  const handleImageSelect = (
-    itemId: string,
-    imageUrl: string,
-    metadata?: PlanItem["imageMetadata"],
-  ) => {
+  const applyFeaturedImage = (itemId: string) => {
+    if (!featuredImage) return;
+
     updateItem(itemId, {
-      imageUrl,
-      imageMetadata: metadata,
+      imageUrl: featuredImage.url,
+      imageMetadata: featuredImage.metadata,
       imageGenerationStatus: "completed",
       imageError: null,
     });
   };
 
-  const applyFeaturedImage = (itemId: string) => {
-    if (featuredImage) {
-      updateItem(itemId, {
-        imageUrl: featuredImage.url,
-        imageMetadata: featuredImage.metadata,
-        imageGenerationStatus: "completed",
-        imageError: null,
-      });
+  const handleToggleEnabled = (item: PlanItem) => {
+    toggleItem(item.id);
+    if (item.enabled && editingItem === item.id) {
+      setEditingItem(null);
     }
   };
 
-  // Regenerate content with AI
-  const handleRegenerateWithAI = async () => {
-    if (state.themes.length === 0 || !state.month) return;
+  const handleReplaceWeekContent = async (weekNumber: number) => {
+    if (
+      !state.month ||
+      state.themes.length === 0 ||
+      replacingWeeks.includes(weekNumber)
+    ) {
+      return;
+    }
 
-    setIsRegenerating(true);
-    setLoading("plan-regenerate", {
-      isLoading: true,
-      message:
-        "Regenerating content with proper templates and MediaSelector...",
-      priority: "page",
-    });
+    setReplacingWeeks((current) => [...current, weekNumber]);
+
     try {
-      // Use the new multichannel content generation with proper templates
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("User not authenticated");
-
-      const { data: me } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", currentUser.id)
-        .single();
-
-      const workspaceId = me?.tenant_id || currentUser.id;
-
-      const response = await supabase.functions.invoke(
-        "generate-multichannel-content",
-        {
-          body: {
-            mode: "custom",
-            userIdea: {
-              title: state.themes.map((t) => t.label).join(" + "),
-              notes: state.themes.map((t) => t.description).join("; "),
-              tone: "professional and helpful",
-            },
-            workspaceId,
-            channels: ["newsletter", "instagram", "facebook", "blog", "video"],
-          },
-        },
+      const replacementItems = await generateMultiThemeSeasonalPlanContent(
+        state.themes,
+        state.month,
+      );
+      const preparedReplacementItems = replacementItems
+        .map(preparePlanItemForImageGeneration)
+        .filter((item) => item.week === weekNumber);
+      const existingWeekItems = state.items.filter(
+        (item) => item.week === weekNumber,
+      );
+      const themeIds = Array.from(
+        new Set(
+          [...existingWeekItems, ...preparedReplacementItems]
+            .map((item) => item.themeId)
+            .filter((themeId): themeId is string => Boolean(themeId)),
+        ),
       );
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      // Convert the multichannel response back to plan items
-      if (response.data?.items) {
-        const enhancedItems = await generateMultiThemeSeasonalPlanContent(
-          state.themes,
-          state.month,
+      themeIds.forEach((themeId) => {
+        replaceWeekContent(
+          weekNumber,
+          themeId,
+          preparedReplacementItems.filter((item) => item.themeId === themeId),
         );
+      });
 
-        // Enhance with AI-generated content from proper templates
-        response.data.items.forEach(
-          (aiItem: MultichannelResponseItem, index: number) => {
-            const matchingItem = enhancedItems[index % enhancedItems.length];
-            if (matchingItem) {
-              if (aiItem.channel === "newsletter") {
-                matchingItem.caption = aiItem.body || aiItem.content || "";
-                matchingItem.enhancedContent = {
-                  title: aiItem.title || matchingItem.title,
-                  fullContent: aiItem.body || "",
-                  blocks: aiItem.blocks || [],
-                };
-              } else if (
-                aiItem.channel === "instagram" ||
-                aiItem.channel === "facebook"
-              ) {
-                matchingItem.caption = aiItem.caption || aiItem.body || "";
-              } else if (aiItem.channel === "blog") {
-                matchingItem.enhancedContent = {
-                  title: aiItem.title || matchingItem.title,
-                  fullContent: aiItem.markdown || aiItem.body || "",
-                  summary: aiItem.summary || "",
-                };
-              }
-            }
-          },
-        );
-
-        await hydrateGeneratedItems(enhancedItems);
-      }
-
-      toast.success(
-        "Content regenerated with CRM templates and MediaSelector!",
-      );
+      void resolveImagesForItems(preparedReplacementItems);
     } catch (error) {
-      console.error("Error regenerating content:", error);
-      toast.error("Failed to regenerate content. Using seasonal templates.");
-      // Fallback to regular seasonal content
-      try {
-        const fallbackItems = await generateMultiThemeSeasonalPlanContent(
-          state.themes,
+      setImageNotice({
+        message: `Could not replace ${getWeekLabel(
+          weekNumber,
           state.month,
-        );
-        await hydrateGeneratedItems(fallbackItems);
-      } catch (fallbackError) {
-        toast.error("Unable to regenerate content");
-      }
+        )}: ${getErrorMessage(error, "Unable to regenerate this week.")}`,
+      });
     } finally {
-      setIsRegenerating(false);
-      clearLoading("plan-regenerate");
+      setReplacingWeeks((current) =>
+        current.filter((week) => week !== weekNumber),
+      );
     }
   };
 
-  // Group items by week
-  const itemsByWeek = state.items.reduce(
-    (acc, item) => {
-      if (!acc[item.week]) acc[item.week] = [];
-      acc[item.week].push(item);
-      return acc;
-    },
-    {} as Record<number, PlanItem[]>,
-  );
+  const handleOpenPreview = (item: PlanItem, platform: PreviewPlatform) => {
+    setPreviewItem(item);
+    setPreviewPlatform(platform);
+  };
 
-  const monthName = state.month
-    ? format(parseMonthParam(state.month), "MMMM yyyy")
-    : "";
-  const itemsMissingImages = state.items.filter(
-    (item) => isImageEligiblePlanItem(item) && !item.imageUrl,
-  );
+  const blogViewerContent = blogViewerItem
+    ? {
+        title: blogViewerItem.title,
+        caption: blogViewerItem.caption,
+        enhancedContent: {
+          title: blogViewerItem.enhancedContent?.title || blogViewerItem.title,
+          description:
+            blogViewerItem.enhancedContent?.summary || blogViewerItem.caption,
+          fullContent: getBlogFullContent(blogViewerItem),
+          tags: blogViewerItem.imageMetadata?.tags || [],
+          readingTime: getBlogReadingTime(blogViewerItem),
+        },
+      }
+    : null;
 
-  // Get theme breakdown for display
-  const themeBreakdown = state.themes.map((theme) => {
-    const themeItems = state.items.filter((item) => item.themeId === theme.id);
-    return {
-      theme,
-      count: themeItems.length,
-      channels: [...new Set(themeItems.map((item) => item.type))],
-    };
-  });
-
-  const isLoading = isInitialLoading || isRegenerating;
-
-  // Show loading state during initial generation
-  if (isInitialLoading && state.items.length === 0) {
+  if (state.themes.length === 0 || !state.month) {
     return (
-      <div className="max-w-5xl mx-auto space-y-8">
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <Calendar className="h-8 w-8 text-primary" />
-            <h2 className="text-3xl font-bold">Review Your Content Calendar</h2>
-          </div>
-          <p className="text-muted-foreground text-lg">
-            Your multi-theme content plan for {monthName}
-          </p>
-        </div>
+      <Alert color="warning" variant="soft">
+        Choose a target month and at least one theme before generating the
+        calendar.
+      </Alert>
+    );
+  }
 
-        <ProgressiveLoadingCard
-          title="Generating Your Content Calendar"
-          description="AI is creating personalized content based on your selected themes"
-          expectedContent="Email campaigns, social media posts, and promotional content optimized for your business"
-          isLoading={true}
-        />
-      </div>
+  if (contentGenerationError && state.items.length === 0) {
+    return (
+      <GenerationState
+        error={contentGenerationError}
+        monthName={monthName}
+        onRetry={() => void handleGenerateCalendar()}
+        progress={generationProgress}
+      />
+    );
+  }
+
+  if (state.items.length === 0 || isInitialLoading) {
+    return (
+      <GenerationState
+        error={null}
+        monthName={monthName}
+        onRetry={() => void handleGenerateCalendar()}
+        progress={generationProgress}
+      />
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      {/* AI Image Generation Progress Overlay */}
-      {generatingImages && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <Card className="max-w-md w-full mx-4">
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary border-t-transparent" />
-                  <Sparkles className="absolute inset-0 m-auto h-8 w-8 text-primary animate-pulse" />
-                </div>
+    <>
+      <ImageProgressModal
+        open={generatingImages}
+        progress={imageGenerationProgress}
+      />
 
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    {imageGenerationProgress.phase === "searching"
-                      ? "Searching Image Library"
-                      : "Generating New Images"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {imageGenerationProgress.phase === "searching"
-                      ? "Checking your tagged gallery before generating anything new"
-                      : "Creating new AI-generated images for the remaining posts"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {imageGenerationProgress.phase === "searching"
-                      ? "Gallery matches resolve immediately when tags line up"
-                      : "This may take 8-12 seconds per image"}
-                  </p>
-                </div>
+      <Box
+        sx={{
+          bgcolor: "background.surface",
+          borderRadius: { xs: "lg", md: "xl" },
+        }}
+      >
+        <Box
+          sx={{
+            px: { xs: 0.75, sm: 1 },
+            py: { xs: 0.75, sm: 1 },
+          }}
+        >
+          <Stack spacing={{ xs: 3, md: 4 }} sx={{ pb: { xs: 3, md: 4 } }}>
+            <Stack spacing={1.5} sx={{ textAlign: "center", px: 0.5 }}>
+              <Typography level="h3">Review Your Content Calendar</Typography>
+              <Typography color="neutral" level="body-md">
+                Your multi-theme content plan for {monthName}. Edit drafts,
+                replace weekly packs, and prepare images before launch.
+              </Typography>
+              <Stack
+                direction="row"
+                justifyContent="center"
+                spacing={1}
+                sx={{ flexWrap: "wrap", pt: 0.5 }}
+                useFlexGap
+              >
+                {themeBreakdown.map(({ channels, count, theme }) => (
+                  <Chip
+                    color="neutral"
+                    endDecorator={
+                      <Stack direction="row" spacing={0.35}>
+                        {channels.map((channel) => {
+                          const ChannelIcon = CHANNEL_CONFIG[channel].icon;
+                          return (
+                            <ChannelIcon
+                              aria-hidden="true"
+                              key={channel}
+                              size={12}
+                            />
+                          );
+                        })}
+                      </Stack>
+                    }
+                    key={theme.id}
+                    size="sm"
+                    variant="soft"
+                  >
+                    {theme.label} ({count})
+                  </Chip>
+                ))}
+              </Stack>
+            </Stack>
 
-                <div className="w-full space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span className="font-medium">
-                      {imageGenerationProgress.completed} /{" "}
-                      {imageGenerationProgress.total}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-300 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-primary h-full transition-all duration-500 ease-out"
-                      style={{
-                        width: `${(imageGenerationProgress.completed / imageGenerationProgress.total) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            <Stack spacing={2}>
+              {sortedWeekNumbers.map((weekNumber) => {
+                const weekItems = [...itemsByWeek[weekNumber]].sort(
+                  (a, b) => toDate(a.date).getTime() - toDate(b.date).getTime(),
+                );
+                const isReplacingWeek = replacingWeeks.includes(weekNumber);
 
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-2">
-          <Calendar className="h-8 w-8 text-primary" />
-          <h2 className="text-3xl font-bold">Review Your Content Calendar</h2>
-        </div>
-        <p className="text-muted-foreground text-lg">
-          Your multi-theme content plan for {monthName}. Edit, swap content
-          packs, and add extra campaigns.
-        </p>
-
-        {/* Theme Breakdown */}
-        <div className="flex flex-wrap justify-center gap-2 pt-2">
-          {themeBreakdown.map(({ theme, count, channels }) => (
-            <Badge key={theme.id} variant="secondary" className="gap-2">
-              {theme.label}: {count} items (
-              {channels.map((c) => typeConfig[c]?.emoji || c).join("")})
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* Content Calendar */}
-      <div className="space-y-6">
-        {!generatingImages && itemsMissingImages.length > 0 && (
-          <Card className="border-amber-300 bg-amber-50">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-medium text-amber-900">
-                    {itemsMissingImages.length} posts still have no image
-                  </p>
-                  <p className="text-sm text-amber-800">
-                    You can retry failed items individually or continue to
-                    review and launch with a warning.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        {Object.keys(itemsByWeek)
-          .sort((a, b) => Number(a) - Number(b))
-          .map((weekNum) => {
-            const weekItems = itemsByWeek[Number(weekNum)];
-            const weekLabel = getWeekLabel(Number(weekNum), state.month);
-
-            return (
-              <Card key={weekNum} className="overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-muted/50 to-muted/30">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Clock className="h-5 w-5" />
-                      {weekLabel}
-                    </CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Replace className="h-4 w-4" />
-                        Replace Pack
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 bg-muted/20">
-                  <div className="space-y-4">
-                    {weekItems.map((item, index) => {
-                      const TypeIcon = typeConfig[item.type].icon;
-                      const isEditing = editingItem === item.id;
-                      const isImageMissing =
-                        isImageEligiblePlanItem(item) && !item.imageUrl;
-                      const showImageFailureState =
-                        isImageMissing && !generatingImages;
-                      const isRetryingImage = retryingImageItemIds.includes(
-                        item.id,
-                      );
-
-                      return (
-                        <Card
-                          key={item.id}
-                          className={`m-4 shadow-lg hover:shadow-xl transition-shadow duration-300 ${
-                            !item.enabled ? "opacity-50" : ""
-                          } ${
-                            showImageFailureState
-                              ? "border-red-300 ring-1 ring-red-200"
-                              : ""
-                          }`}
+                return (
+                  <Stack key={weekNumber} spacing={2}>
+                    <Stack spacing={1}>
+                      <Stack
+                        alignItems="center"
+                        direction="row"
+                        justifyContent="space-between"
+                        spacing={2}
+                      >
+                        <Stack alignItems="center" direction="row" spacing={1}>
+                          <Clock aria-hidden="true" size={18} />
+                          <Typography level="title-lg">
+                            {getWeekLabel(weekNumber, state.month)}
+                          </Typography>
+                        </Stack>
+                        <Button
+                          color="neutral"
+                          loading={isReplacingWeek}
+                          onClick={() =>
+                            void handleReplaceWeekContent(weekNumber)
+                          }
+                          size="sm"
+                          startDecorator={
+                            <RefreshCw aria-hidden="true" size={16} />
+                          }
+                          variant="plain"
                         >
-                          <CardContent className="p-6">
-                            <div className="flex items-start gap-4">
-                              {/* Type Icon & Featured Image Option */}
-                              <div className="flex-shrink-0 space-y-2">
-                                <div
-                                  className={`w-10 h-10 rounded-full ${typeConfig[item.type].color} flex items-center justify-center text-white shadow-md`}
-                                >
-                                  <TypeIcon className="h-5 w-5" />
-                                </div>
-                                {featuredImage &&
-                                  !item.imageUrl &&
-                                  [
-                                    "facebook",
-                                    "instagram",
-                                    "blog",
-                                    "email",
-                                  ].includes(item.type) && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        applyFeaturedImage(item.id)
-                                      }
-                                      className="w-10 h-10 p-0"
-                                      title="Use featured image"
-                                    >
-                                      <img
-                                        src={featuredImage.url}
-                                        alt="Featured"
-                                        className="w-full h-full object-cover rounded"
-                                      />
-                                    </Button>
-                                  )}
-                              </div>
+                          Replace Pack
+                        </Button>
+                      </Stack>
+                      <Divider />
+                    </Stack>
 
-                              {/* Content */}
-                              <div className="flex-1 space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      {typeConfig[item.type].label}
-                                    </Badge>
-                                    {item.themeName && (
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-xs"
-                                      >
-                                        {item.themeName}
-                                      </Badge>
-                                    )}
-                                    <span className="text-sm text-muted-foreground">
-                                      {format(item.date, "MMM d, yyyy")}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        setEditingItem(
-                                          isEditing ? null : item.id,
-                                        )
-                                      }
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <div
-                                      className="flex items-center gap-3 bg-muted/50 hover:bg-muted/70 px-3 py-2 rounded-lg cursor-pointer transition-colors group/toggle"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleItem(item.id);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (
-                                          e.key === "Enter" ||
-                                          e.key === " "
-                                        ) {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          toggleItem(item.id);
-                                        }
-                                      }}
-                                      role="button"
-                                      tabIndex={0}
-                                      aria-label={`Toggle ${item.enabled ? "off" : "on"}`}
-                                      title="Click to toggle active/inactive"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div
-                                          className={`w-3 h-3 rounded-full transition-colors ${
-                                            item.enabled
-                                              ? "bg-green-500 group-hover/toggle:bg-green-600"
-                                              : "bg-gray-300 group-hover/toggle:bg-gray-400"
-                                          }`}
-                                        />
-                                        <span
-                                          className={`text-sm font-medium transition-colors ${
-                                            item.enabled
-                                              ? "text-green-700 group-hover/toggle:text-green-800"
-                                              : "text-gray-500 group-hover/toggle:text-gray-600"
-                                          }`}
-                                        >
-                                          {item.enabled ? "Active" : "Inactive"}
-                                        </span>
-                                      </div>
-                                      <Switch
-                                        id={`toggle-${item.id}`}
-                                        checked={item.enabled}
-                                        onCheckedChange={() =>
-                                          toggleItem(item.id)
-                                        }
-                                        onClick={(e) => e.stopPropagation()} // Prevent double toggle from container
-                                        className="relative h-6 w-11 data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-gray-300 border-2 data-[state=checked]:border-green-600 data-[state=unchecked]:border-gray-400 shadow-md transition-all duration-300 ease-in-out hover:shadow-lg hover:scale-105 active:scale-95 [&>span]:h-4 [&>span]:w-4 [&>span]:bg-white [&>span]:shadow-lg [&>span]:transition-all [&>span]:duration-300 [&>span]:ease-in-out data-[state=checked]:[&>span]:translate-x-5 data-[state=unchecked]:[&>span]:translate-x-0.5"
-                                        data-switch
-                                        aria-label={`Toggle ${item.enabled ? "off" : "on"}`}
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
+                    <Stack spacing={2}>
+                      {weekItems.map((item) => (
+                        <PlanContentCard
+                          editing={editingItem === item.id}
+                          featuredImage={featuredImage}
+                          isRetryingImage={retryingImageItemIds.includes(
+                            item.id,
+                          )}
+                          item={item}
+                          key={item.id}
+                          onApplyFeaturedImage={applyFeaturedImage}
+                          onCloseEdit={() => setEditingItem(null)}
+                          onImageSelect={handleImageSelect}
+                          onOpenBlog={setBlogViewerItem}
+                          onOpenPreview={handleOpenPreview}
+                          onRetryImage={(retryItem) =>
+                            void handleRetrySingleImage(retryItem)
+                          }
+                          onToggleEdit={(itemId) =>
+                            setEditingItem((current) =>
+                              current === itemId ? null : itemId,
+                            )
+                          }
+                          onToggleEnabled={handleToggleEnabled}
+                          onUpdate={handleItemUpdate}
+                        />
+                      ))}
+                    </Stack>
+                  </Stack>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </Box>
 
-                                {isEditing ? (
-                                  <div className="space-y-4 bg-muted/30 p-4 rounded-lg">
-                                    <div>
-                                      <Label htmlFor={`title-${item.id}`}>
-                                        Title
-                                      </Label>
-                                      <Input
-                                        id={`title-${item.id}`}
-                                        value={item.title}
-                                        onChange={(e) =>
-                                          handleItemUpdate(
-                                            item.id,
-                                            "title",
-                                            e.target.value,
-                                          )
-                                        }
-                                        className="mt-1"
-                                      />
-                                    </div>
-                                    {/* Email-specific fields first */}
-                                    {item.type === "email" && (
-                                      <>
-                                        <div>
-                                          <div className="flex items-center justify-between">
-                                            <Label
-                                              htmlFor={`subject-${item.id}`}
-                                            >
-                                              Subject Line
-                                            </Label>
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  className="gap-2"
-                                                >
-                                                  <Tag className="h-3 w-3" />
-                                                  Merge Tags
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent
-                                                align="end"
-                                                className="w-64"
-                                              >
-                                                <DropdownMenuLabel>
-                                                  Insert Tag
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailSubject",
-                                                      (item.emailSubject ||
-                                                        "") +
-                                                        '{{ first_name | default: "Friend" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {
-                                                    '{{ first_name | default: "Friend" }}'
-                                                  }
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailSubject",
-                                                      (item.emailSubject ||
-                                                        "") +
-                                                        '{{ last_name | default: "" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {"{{ last_name }}"}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuLabel>
-                                                  Company Info
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailSubject",
-                                                      (item.emailSubject ||
-                                                        "") +
-                                                        '{{ company.name | default: "Our Team" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {"{{ company.name }}"}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuLabel>
-                                                  Preview
-                                                </DropdownMenuLabel>
-                                                <MergeTagsPreviewDialog
-                                                  emailContent={{
-                                                    subject: item.emailSubject,
-                                                    preheader:
-                                                      item.emailPreheader,
-                                                    body: item.caption,
-                                                  }}
-                                                  onMergeComplete={(
-                                                    content,
-                                                    field,
-                                                  ) => {
-                                                    if (field === "subject") {
-                                                      handleItemUpdate(
-                                                        item.id,
-                                                        "emailSubject",
-                                                        content,
-                                                      );
-                                                    }
-                                                  }}
-                                                >
-                                                  <DropdownMenuItem
-                                                    onSelect={(e) =>
-                                                      e.preventDefault()
-                                                    }
-                                                  >
-                                                    Preview with Customer...
-                                                  </DropdownMenuItem>
-                                                </MergeTagsPreviewDialog>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          </div>
-                                          <Input
-                                            id={`subject-${item.id}`}
-                                            value={item.emailSubject || ""}
-                                            onChange={(e) =>
-                                              handleItemUpdate(
-                                                item.id,
-                                                "emailSubject",
-                                                e.target.value,
-                                              )
-                                            }
-                                            className="mt-1"
-                                            placeholder="Enter email subject..."
-                                          />
-                                          <p className="text-xs text-muted-foreground mt-1">
-                                            {item.emailSubject?.length || 0}/50
-                                            characters
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <div className="flex items-center justify-between">
-                                            <Label
-                                              htmlFor={`preheader-${item.id}`}
-                                            >
-                                              Preheader
-                                            </Label>
-                                            <DropdownMenu>
-                                              <DropdownMenuTrigger asChild>
-                                                <Button
-                                                  variant="outline"
-                                                  size="sm"
-                                                  className="gap-2"
-                                                >
-                                                  <Tag className="h-3 w-3" />
-                                                  Merge Tags
-                                                </Button>
-                                              </DropdownMenuTrigger>
-                                              <DropdownMenuContent
-                                                align="end"
-                                                className="w-64"
-                                              >
-                                                <DropdownMenuLabel>
-                                                  Insert Tag
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailPreheader",
-                                                      (item.emailPreheader ||
-                                                        "") +
-                                                        '{{ first_name | default: "Friend" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {
-                                                    '{{ first_name | default: "Friend" }}'
-                                                  }
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailPreheader",
-                                                      (item.emailPreheader ||
-                                                        "") +
-                                                        '{{ last_name | default: "" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {"{{ last_name }}"}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuLabel>
-                                                  Company Info
-                                                </DropdownMenuLabel>
-                                                <DropdownMenuItem
-                                                  onClick={() =>
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "emailPreheader",
-                                                      (item.emailPreheader ||
-                                                        "") +
-                                                        '{{ company.name | default: "Our Team" }}',
-                                                    )
-                                                  }
-                                                >
-                                                  {"{{company_name}}"}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuLabel>
-                                                  Preview
-                                                </DropdownMenuLabel>
-                                                <MergeTagsPreviewDialog
-                                                  emailContent={{
-                                                    subject: item.emailSubject,
-                                                    preheader:
-                                                      item.emailPreheader,
-                                                    body: item.caption,
-                                                  }}
-                                                  onMergeComplete={(
-                                                    content,
-                                                    field,
-                                                  ) => {
-                                                    if (field === "preheader") {
-                                                      handleItemUpdate(
-                                                        item.id,
-                                                        "emailPreheader",
-                                                        content,
-                                                      );
-                                                    }
-                                                  }}
-                                                >
-                                                  <DropdownMenuItem
-                                                    onSelect={(e) =>
-                                                      e.preventDefault()
-                                                    }
-                                                  >
-                                                    Preview with Customer...
-                                                  </DropdownMenuItem>
-                                                </MergeTagsPreviewDialog>
-                                              </DropdownMenuContent>
-                                            </DropdownMenu>
-                                          </div>
-                                          <Input
-                                            id={`preheader-${item.id}`}
-                                            value={item.emailPreheader || ""}
-                                            onChange={(e) =>
-                                              handleItemUpdate(
-                                                item.id,
-                                                "emailPreheader",
-                                                e.target.value,
-                                              )
-                                            }
-                                            className="mt-1"
-                                            placeholder="Enter email preheader..."
-                                          />
-                                          <p className="text-xs text-muted-foreground mt-1">
-                                            {item.emailPreheader?.length || 0}
-                                            /90 characters
-                                          </p>
-                                        </div>
-                                      </>
-                                    )}
-
-                                    <div>
-                                      <Label htmlFor={`date-${item.id}`}>
-                                        Date
-                                      </Label>
-                                      <Input
-                                        id={`date-${item.id}`}
-                                        type="date"
-                                        value={format(item.date, "yyyy-MM-dd")}
-                                        onChange={(e) => {
-                                          const newDate = new Date(
-                                            e.target.value,
-                                          );
-                                          handleItemUpdate(
-                                            item.id,
-                                            "date",
-                                            newDate,
-                                          );
-                                        }}
-                                        className="mt-1 max-w-xs"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <div className="flex items-center justify-between">
-                                        <Label htmlFor={`caption-${item.id}`}>
-                                          {item.type === "email"
-                                            ? "Email Content"
-                                            : item.type === "blog"
-                                              ? "Blog Content"
-                                              : "Caption"}
-                                        </Label>
-                                        {item.type === "email" && (
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2"
-                                              >
-                                                <Tag className="h-3 w-3" />
-                                                Merge Tags
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                              align="end"
-                                              className="w-48"
-                                            >
-                                              <DropdownMenuLabel>
-                                                Insert Tag
-                                              </DropdownMenuLabel>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleItemUpdate(
-                                                    item.id,
-                                                    "caption",
-                                                    item.caption +
-                                                      "{{first_name}}",
-                                                  )
-                                                }
-                                              >
-                                                {"{{first_name}}"}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleItemUpdate(
-                                                    item.id,
-                                                    "caption",
-                                                    item.caption +
-                                                      "{{last_name}}",
-                                                  )
-                                                }
-                                              >
-                                                {"{{last_name}}"}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleItemUpdate(
-                                                    item.id,
-                                                    "caption",
-                                                    item.caption + "{{email}}",
-                                                  )
-                                                }
-                                              >
-                                                {"{{email}}"}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuLabel>
-                                                Company Info
-                                              </DropdownMenuLabel>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleItemUpdate(
-                                                    item.id,
-                                                    "caption",
-                                                    item.caption +
-                                                      "{{company_name}}",
-                                                  )
-                                                }
-                                              >
-                                                {"{{company_name}}"}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleItemUpdate(
-                                                    item.id,
-                                                    "caption",
-                                                    item.caption +
-                                                      "{{website}}",
-                                                  )
-                                                }
-                                              >
-                                                {"{{website}}"}
-                                              </DropdownMenuItem>
-                                              <DropdownMenuSeparator />
-                                              <DropdownMenuLabel>
-                                                Preview
-                                              </DropdownMenuLabel>
-                                              <MergeTagsPreviewDialog
-                                                emailContent={{
-                                                  subject: item.emailSubject,
-                                                  preheader:
-                                                    item.emailPreheader,
-                                                  body: item.caption,
-                                                }}
-                                                onMergeComplete={(
-                                                  content,
-                                                  field,
-                                                ) => {
-                                                  if (field === "body") {
-                                                    handleItemUpdate(
-                                                      item.id,
-                                                      "caption",
-                                                      content,
-                                                    );
-                                                  }
-                                                }}
-                                              >
-                                                <DropdownMenuItem
-                                                  onSelect={(e) =>
-                                                    e.preventDefault()
-                                                  }
-                                                >
-                                                  Preview with Customer...
-                                                </DropdownMenuItem>
-                                              </MergeTagsPreviewDialog>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        )}
-                                      </div>
-                                      {item.type === "email" ? (
-                                        <RichTextEditor
-                                          content={item.caption}
-                                          onChange={(html) =>
-                                            handleItemUpdate(
-                                              item.id,
-                                              "caption",
-                                              html,
-                                            )
-                                          }
-                                          placeholder="Write your email content here..."
-                                          className="mt-1"
-                                          editorClassName="min-h-[120px]"
-                                        />
-                                      ) : item.type === "blog" ? (
-                                        <RichTextEditor
-                                          content={
-                                            item.enhancedContent?.fullContent ||
-                                            item.caption
-                                          }
-                                          onChange={(html) => {
-                                            const updatedEnhancedContent = {
-                                              ...item.enhancedContent,
-                                              fullContent: html,
-                                              title:
-                                                item.enhancedContent?.title ||
-                                                item.title,
-                                            };
-                                            handleItemUpdate(
-                                              item.id,
-                                              "enhancedContent",
-                                              updatedEnhancedContent,
-                                            );
-                                          }}
-                                          placeholder="Write your blog content here..."
-                                          className="mt-1"
-                                          editorClassName="min-h-[200px]"
-                                        />
-                                      ) : (
-                                        <Textarea
-                                          id={`caption-${item.id}`}
-                                          value={item.caption}
-                                          onChange={(e) =>
-                                            handleItemUpdate(
-                                              item.id,
-                                              "caption",
-                                              e.target.value,
-                                            )
-                                          }
-                                          rows={3}
-                                          className="mt-1"
-                                        />
-                                      )}
-                                    </div>
-                                    {(item.type === "facebook" ||
-                                      item.type === "instagram" ||
-                                      item.type === "email" ||
-                                      item.type === "blog") && (
-                                      <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                          <Label>Featured Image</Label>
-                                          {featuredImage && !item.imageUrl && (
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() =>
-                                                applyFeaturedImage(item.id)
-                                              }
-                                              className="gap-2"
-                                            >
-                                              <Check className="h-3 w-3" />
-                                              Use Featured Image
-                                            </Button>
-                                          )}
-                                        </div>
-
-                                        {featuredImage && !item.imageUrl && (
-                                          <div className="mb-3 p-3 bg-muted/50 rounded-lg border border-dashed border-primary/30">
-                                            <div className="flex items-start gap-3">
-                                              <img
-                                                src={featuredImage.url}
-                                                alt="Featured"
-                                                className="w-24 h-24 object-cover rounded"
-                                              />
-                                              <div className="flex-1 space-y-1">
-                                                <p className="text-sm font-medium">
-                                                  Theme Featured Image Available
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                  {featuredImage.metadata.alt}
-                                                </p>
-                                                {featuredImage.metadata
-                                                  .photographer && (
-                                                  <p className="text-xs text-muted-foreground">
-                                                    Photo by{" "}
-                                                    {
-                                                      featuredImage.metadata
-                                                        .photographer
-                                                    }
-                                                  </p>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        <div className="mt-2">
-                                          <MediaSelectorImage
-                                            src={item.imageUrl}
-                                            onChange={(imageUrl, metadata) =>
-                                              handleImageSelect(
-                                                item.id,
-                                                imageUrl,
-                                                metadata,
-                                              )
-                                            }
-                                            contentContext={getPlanItemImagePrompt(
-                                              item,
-                                            )}
-                                            imageGenerationStatus={
-                                              item.imageGenerationStatus
-                                            }
-                                            className="max-w-md"
-                                          />
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Action Buttons */}
-                                    <div className="flex justify-between pt-2">
-                                      {(item.type === "facebook" ||
-                                        item.type === "instagram") && (
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setPreviewItem(item);
-                                            setPreviewPlatform(
-                                              item.type as
-                                                | "instagram"
-                                                | "facebook",
-                                            );
-                                          }}
-                                          className="gap-2"
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                          Preview Post
-                                        </Button>
-                                      )}
-                                      <div className="flex-1" />
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setEditingItem(null)}
-                                        className="px-4"
-                                      >
-                                        Save & Close
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div
-                                    className="space-y-3 cursor-pointer hover:bg-muted/20 -m-2 p-2 rounded-md transition-colors group/content"
-                                    onClick={() => setEditingItem(item.id)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        setEditingItem(item.id);
-                                      }
-                                    }}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-label="Click to edit content"
-                                    title="Click to edit"
-                                  >
-                                    {/* Email header info at the top */}
-                                    {item.type === "email" && (
-                                      <div className="space-y-1 text-xs text-muted-foreground mb-3 p-2 bg-muted/30 rounded">
-                                        {item.emailSubject && (
-                                          <div>
-                                            <span className="font-medium">
-                                              Subject:
-                                            </span>{" "}
-                                            {item.emailSubject}
-                                          </div>
-                                        )}
-                                        {item.emailPreheader && (
-                                          <div>
-                                            <span className="font-medium">
-                                              Preheader:
-                                            </span>{" "}
-                                            {item.emailPreheader}
-                                          </div>
-                                        )}
-                                        <div>
-                                          <span className="font-medium">
-                                            Date:
-                                          </span>{" "}
-                                          {format(item.date, "MMM d, yyyy")}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    <h4 className="font-medium group-hover/content:text-primary transition-colors">
-                                      {item.title}
-                                    </h4>
-
-                                    {/* Content display */}
-                                    {item.type === "email" ? (
-                                      <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                        <SafeHtml
-                                          content={item.caption}
-                                          type="general"
-                                          className="prose prose-sm max-w-none"
-                                        />
-                                      </div>
-                                    ) : item.type === "blog" ? (
-                                      <div className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                        {(() => {
-                                          const fullContent =
-                                            item.enhancedContent?.fullContent ||
-                                            item.caption;
-                                          const isExpanded = expandedBlogs.has(
-                                            item.id,
-                                          );
-                                          const shouldTruncate =
-                                            fullContent.length > 300;
-                                          const displayContent =
-                                            isExpanded || !shouldTruncate
-                                              ? fullContent
-                                              : truncateText(fullContent, 300);
-
-                                          return (
-                                            <>
-                                              <div
-                                                className="prose prose-sm max-w-none [&>*]:text-justify"
-                                                dangerouslySetInnerHTML={{
-                                                  __html:
-                                                    renderMarkdownToMagazineHtml(
-                                                      displayContent,
-                                                    ),
-                                                }}
-                                              />
-                                              {shouldTruncate && (
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleBlogExpansion(
-                                                      item.id,
-                                                    );
-                                                  }}
-                                                  className="text-xs text-primary hover:text-primary/80 font-medium mt-2 block transition-colors"
-                                                >
-                                                  {isExpanded
-                                                    ? "Show less"
-                                                    : "Click to see more"}
-                                                </button>
-                                              )}
-                                              {item.enhancedContent
-                                                ?.fullContent &&
-                                                item.enhancedContent.fullContent
-                                                  .length > 200 && (
-                                                  <div className="text-xs text-muted-foreground mt-2">
-                                                    {
-                                                      item.enhancedContent
-                                                        .fullContent.length
-                                                    }{" "}
-                                                    characters
-                                                  </div>
-                                                )}
-                                            </>
-                                          );
-                                        })()}
-                                      </div>
-                                    ) : (
-                                      <p className="text-sm text-muted-foreground group-hover/content:text-foreground transition-colors">
-                                        {item.caption}
-                                      </p>
-                                    )}
-                                    {item.imageUrl && (
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500 bg-opacity-20 text-sm text-green-600 font-medium">
-                                          <Check className="h-3.5 w-3.5" />
-                                          <span>Image selected</span>
-                                        </div>
-                                        {item.imageMetadata?.source ===
-                                          "gallery-reuse" && (
-                                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500 bg-opacity-15 text-sm text-blue-700 font-medium">
-                                            <Sparkles className="h-3.5 w-3.5" />
-                                            <span>From library</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    {showImageFailureState && (
-                                      <div className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                                        <div className="flex items-start gap-2 text-red-700">
-                                          <AlertTriangle className="h-4 w-4 mt-0.5" />
-                                          <div>
-                                            <p className="text-sm font-medium">
-                                              Image generation failed
-                                            </p>
-                                            <p className="text-xs text-red-600">
-                                              {item.imageError ||
-                                                "This post still needs an image before launch."}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="border-red-200 bg-white text-red-700 hover:bg-red-100"
-                                          disabled={isRetryingImage}
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            void handleRetrySingleImage(item);
-                                          }}
-                                        >
-                                          {isRetryingImage
-                                            ? "Generating..."
-                                            : "Auto Pick"}
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-      </div>
-
-      {/* Navigation */}
-      <div className="flex justify-between pt-8">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          size="lg"
-          className="px-8"
-          disabled={isLoading}
+        <Sheet
+          sx={{
+            bgcolor: "background.surface",
+            borderTop: "1px solid",
+            borderColor: "divider",
+            boxShadow: "sm",
+            bottom: 0,
+            position: "sticky",
+            px: { xs: 2, sm: 2.5 },
+            py: { xs: 2, sm: 2.5 },
+            zIndex: 10,
+          }}
         >
-          Back
-        </Button>
-        <Button
-          onClick={onNext}
-          size="lg"
-          className="px-8"
-          disabled={isLoading || state.items.length === 0}
-        >
-          Review & Launch
-        </Button>
-      </div>
+          <Stack spacing={1.5}>
+            {!generatingImages && itemsMissingImages.length > 0 && (
+              <Alert color="warning" variant="soft">
+                {itemsMissingImages.length} content item
+                {itemsMissingImages.length === 1 ? "" : "s"} still need images
+                before launch. Add images or retry generation before the final
+                review.
+              </Alert>
+            )}
+            <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+              <Button
+                color="neutral"
+                disabled={isBusy}
+                onClick={onBack}
+                size="lg"
+                variant="outlined"
+              >
+                Back
+              </Button>
+              <Button
+                color="primary"
+                disabled={isBusy || state.items.length === 0}
+                onClick={onNext}
+                size="lg"
+                variant="solid"
+              >
+                Continue to Preview
+              </Button>
+            </Stack>
+          </Stack>
+        </Sheet>
+      </Box>
 
-      {/* Social Post Preview Modal */}
       {previewItem && (
         <SocialPostPreviewModal
-          open={true}
-          onClose={() => setPreviewItem(null)}
-          platform={previewPlatform}
-          onPlatformChange={(platform) => setPreviewPlatform(platform)}
           accountName="Your Business"
           caption={previewItem.caption}
           mediaUrl={previewItem.imageUrl || ""}
+          onClose={() => setPreviewItem(null)}
+          onPlatformChange={(platform) => setPreviewPlatform(platform)}
+          open={true}
+          platform={previewPlatform}
+          scheduledFor={toDate(previewItem.date).toISOString()}
         />
       )}
-    </div>
+
+      <Modal
+        open={Boolean(blogViewerItem)}
+        onClose={() => setBlogViewerItem(null)}
+      >
+        <ModalDialog
+          sx={{
+            maxHeight: "90vh",
+            maxWidth: 900,
+            overflow: "auto",
+            width: "calc(100% - 32px)",
+          }}
+        >
+          <ModalClose />
+          <Typography level="title-lg" sx={{ pr: 3 }}>
+            Blog Content
+          </Typography>
+          {blogViewerContent && (
+            <BlogContentViewer blogItem={blogViewerContent} />
+          )}
+        </ModalDialog>
+      </Modal>
+
+      <Snackbar
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
+        autoHideDuration={7000}
+        color="danger"
+        onClose={() => setImageNotice(null)}
+        open={Boolean(imageNotice)}
+        variant="soft"
+      >
+        <Stack alignItems="center" direction="row" spacing={1.5}>
+          <Typography level="body-sm">{imageNotice?.message}</Typography>
+          {(imageNotice?.retryFeatured || imageNotice?.retryItems?.length) && (
+            <Button
+              color="danger"
+              onClick={handleRetryImageNotice}
+              size="sm"
+              variant="plain"
+            >
+              Retry
+            </Button>
+          )}
+        </Stack>
+      </Snackbar>
+    </>
   );
 };

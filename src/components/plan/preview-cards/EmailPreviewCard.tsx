@@ -1,9 +1,19 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { Mail, Edit2, RefreshCw, Image as ImageIcon } from 'lucide-react';
-import { PlanItem } from '../constants';
-import { format } from 'date-fns';
+import React from "react";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import CardContent from "@mui/joy/CardContent";
+import CardOverflow from "@mui/joy/CardOverflow";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Image as ImageIcon, Mail, Pencil, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
+import { PlanItem } from "../constants";
 
 interface EmailPreviewCardProps {
   item: PlanItem;
@@ -12,143 +22,172 @@ interface EmailPreviewCardProps {
   onImageSelect: () => void;
 }
 
+const toDate = (date: Date | string) =>
+  date instanceof Date ? date : new Date(date);
+
+const stripMarkup = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const ImagePreview = ({ item }: { item: PlanItem }) => {
+  const isGenerating = item.imageGenerationStatus === "generating";
+
+  if (!item.imageUrl && !isGenerating) {
+    return (
+      <AspectRatio ratio="16/9">
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          spacing={1}
+          sx={{ bgcolor: "neutral.softBg", color: "neutral.500" }}
+        >
+          <ImageIcon aria-hidden="true" size={22} />
+          <Typography color="neutral" level="body-xs">
+            Image can be selected
+          </Typography>
+        </Stack>
+      </AspectRatio>
+    );
+  }
+
+  return (
+    <AspectRatio ratio="16/9">
+      {isGenerating ? (
+        <Box sx={{ height: "100%", position: "relative", width: "100%" }}>
+          <Skeleton sx={{ height: "100%", inset: 0, position: "absolute" }} />
+          <Stack
+            alignItems="center"
+            justifyContent="center"
+            sx={{ height: "100%" }}
+          >
+            <CircularProgress size="sm" />
+          </Stack>
+        </Box>
+      ) : (
+        <Box
+          alt={item.title}
+          component="img"
+          src={item.imageUrl}
+          sx={{ height: "100%", objectFit: "cover", width: "100%" }}
+        />
+      )}
+    </AspectRatio>
+  );
+};
+
 export const EmailPreviewCard: React.FC<EmailPreviewCardProps> = ({
   item,
   onEdit,
+  onImageSelect,
   onRegenerate,
-  onImageSelect
 }) => {
-  const truncateText = (text: string, length: number) => {
-    // Strip HTML tags for length calculation
-    const plainText = text.replace(/<[^>]*>/g, '');
-    if (plainText.length <= length) return text;
-    
-    // If we need to truncate, find the best cut-off point in the original HTML
-    let charCount = 0;
-    let result = '';
-    const htmlChars = text.split('');
-    let inTag = false;
-    
-    for (let i = 0; i < htmlChars.length; i++) {
-      const char = htmlChars[i];
-      result += char;
-      
-      if (char === '<') {
-        inTag = true;
-      } else if (char === '>') {
-        inTag = false;
-      } else if (!inTag) {
-        charCount++;
-        if (charCount >= length) {
-          result += '...';
-          break;
-        }
-      }
-    }
-    
-    return result;
-  };
+  const bodyPreview = stripMarkup(item.caption);
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-card border-2 hover:border-primary/40">
-      {/* Email Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 p-4 border-b">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
-              <Mail className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-foreground">Your Business Name</div>
-              <div className="text-xs text-muted-foreground">newsletter@yourbusiness.com</div>
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {format(item.date, 'MMM d')}
-          </div>
-        </div>
-        <div className="font-semibold text-base text-foreground">
-          {item.title}
-        </div>
-      </div>
-
-      {/* Email Body Preview */}
-      <CardContent className="p-4 space-y-3">
-        {/* Featured Image Placeholder */}
-        {item.imageUrl ? (
-          <div className="relative w-full h-40 rounded-lg overflow-hidden group">
-            <img 
-              src={item.imageUrl} 
-              alt="Email featured" 
-              className="w-full h-full object-cover"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={onImageSelect}
-            >
-              <ImageIcon className="h-3 w-3 mr-1" />
-              Change
-            </Button>
-          </div>
-        ) : (
-          <div 
-            className="w-full h-40 bg-muted/30 rounded-lg flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors border-2 border-dashed border-muted-foreground/30"
-            onClick={onImageSelect}
+    <Card variant="outlined" sx={{ overflow: "hidden", p: 0 }}>
+      <CardContent sx={{ p: 2 }}>
+        <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ flexWrap: "wrap" }}
+            useFlexGap
           >
-            <div className="text-center">
-              <ImageIcon className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to add image</p>
-            </div>
-          </div>
-        )}
-
-        {/* Email Content Preview */}
-        <div 
-          className="text-sm text-foreground/80 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: truncateText(item.caption, 200) }}
-        />
-
-        {/* CTA Button Preview */}
-        <div className="pt-2">
-          <div className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium">
-            Learn More
-          </div>
-        </div>
-
-        {/* Footer Preview */}
-        <div className="pt-4 mt-4 border-t text-xs text-muted-foreground text-center">
-          You're receiving this because you subscribed to our newsletter
-        </div>
+            <Chip
+              color="neutral"
+              size="sm"
+              startDecorator={<Mail aria-hidden="true" size={14} />}
+              variant="soft"
+            >
+              Email
+            </Chip>
+            {item.themeName && (
+              <Chip color="primary" size="sm" variant="soft">
+                {item.themeName}
+              </Chip>
+            )}
+          </Stack>
+          <Typography color="neutral" level="body-xs">
+            {format(toDate(item.date), "MMM d")}
+          </Typography>
+        </Stack>
       </CardContent>
 
-      {/* Action Buttons */}
-      <div className="border-t bg-muted/20 p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onEdit}
-            className="gap-1"
-          >
-            <Edit2 className="h-3 w-3" />
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRegenerate}
-            className="gap-1"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Regenerate
-          </Button>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          📧 Email
-        </div>
-      </div>
+      <CardOverflow>
+        <ImagePreview item={item} />
+      </CardOverflow>
+
+      <CardContent sx={{ p: 2.25 }}>
+        <Card variant="outlined" sx={{ p: 2 }}>
+          <Stack spacing={1.25}>
+            <Typography color="neutral" level="body-xs">
+              From
+            </Typography>
+            <Typography level="title-sm" sx={{ fontWeight: "lg" }}>
+              {item.emailSubject || item.title}
+            </Typography>
+            {item.emailPreheader && (
+              <Typography
+                color="neutral"
+                level="body-xs"
+                sx={{ fontStyle: "italic" }}
+              >
+                {item.emailPreheader}
+              </Typography>
+            )}
+            <Typography
+              color="neutral"
+              level="body-sm"
+              sx={{
+                display: "-webkit-box",
+                overflow: "hidden",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: 4,
+              }}
+            >
+              {bodyPreview}
+            </Typography>
+          </Stack>
+        </Card>
+      </CardContent>
+
+      <Divider />
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        spacing={0.75}
+        sx={{ p: 1.25 }}
+      >
+        <IconButton
+          aria-label="Edit email"
+          color="neutral"
+          onClick={onEdit}
+          size="sm"
+          variant="plain"
+        >
+          <Pencil size={16} />
+        </IconButton>
+        <IconButton
+          aria-label="Regenerate email"
+          color="neutral"
+          onClick={onRegenerate}
+          size="sm"
+          variant="plain"
+        >
+          <RefreshCw size={16} />
+        </IconButton>
+        <IconButton
+          aria-label="Select email image"
+          color="neutral"
+          onClick={onImageSelect}
+          size="sm"
+          variant="plain"
+        >
+          <ImageIcon size={16} />
+        </IconButton>
+      </Stack>
     </Card>
   );
 };
