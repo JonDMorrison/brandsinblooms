@@ -430,6 +430,8 @@ function normalizeAudience(value: unknown): FormAudience {
 function mapFormRow(row: FormRow): Form {
   return {
     ...row,
+    name: typeof row.name === "string" ? row.name : "",
+    embed_key: typeof row.embed_key === "string" ? row.embed_key : "",
     fields_json: Array.isArray(row.fields_json)
       ? (row.fields_json as unknown as FormField[])
       : [],
@@ -801,9 +803,10 @@ export function useForms() {
 
       if (error) throw error;
 
-      return (data || []).map((form) =>
-        mapFormWithStatsRow(form as RawFormsWithStatsRow),
-      ) as FormWithStats[];
+      const rows = Array.isArray(data) ? data : [];
+      return rows
+        .filter((form): form is RawFormsWithStatsRow => isRecord(form))
+        .map((form) => mapFormWithStatsRow(form as RawFormsWithStatsRow));
     },
   });
 
