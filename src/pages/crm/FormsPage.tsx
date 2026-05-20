@@ -156,8 +156,13 @@ function getStatusColor(status: FormStatus): string {
   }
 }
 
+function getFieldCount(form: FormWithStats): number {
+  return Array.isArray(form.fields_json) ? form.fields_json.length : 0;
+}
+
 function getStepCount(form: FormWithStats): number {
-  return Math.max(1, form.settings_json.steps?.length || 0);
+  const steps = form.settings_json?.steps;
+  return Math.max(1, Array.isArray(steps) ? steps.length : 0);
 }
 
 function getSubmissionSummary(form: FormWithStats): {
@@ -617,8 +622,10 @@ function FormsGridCard({
   onArchiveToggle,
   onDelete,
 }: GridCardProps) {
+  const fieldCount = getFieldCount(form);
   const stepCount = getStepCount(form);
   const submissionSummary = getSubmissionSummary(form);
+  const hasNoFields = fieldCount === 0;
 
   return (
     <Sheet
@@ -698,9 +705,16 @@ function FormsGridCard({
         <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
           <CompactMeta
             icon={<FileText size={14} />}
-            label={`${form.fields_json.length} fields`}
+            label={
+              hasNoFields ? "Draft — no fields yet" : `${fieldCount} fields`
+            }
           />
-          <CompactMeta icon={<List size={14} />} label={`${stepCount} steps`} />
+          {hasNoFields ? null : (
+            <CompactMeta
+              icon={<List size={14} />}
+              label={`${stepCount} steps`}
+            />
+          )}
         </Stack>
 
         <Stack spacing={0.4}>
@@ -826,8 +840,13 @@ function FormsListRow({
   onArchiveToggle,
   onDelete,
 }: ListRowProps) {
+  const fieldCount = getFieldCount(form);
   const stepCount = getStepCount(form);
   const submissionSummary = getSubmissionSummary(form);
+  const fieldStepLabel =
+    fieldCount === 0
+      ? "Draft — no fields yet"
+      : `${fieldCount} fields · ${stepCount} steps`;
 
   return (
     <Box
@@ -891,7 +910,7 @@ function FormsListRow({
         </Stack>
 
         <Typography level="body-sm" color="neutral" sx={{ width: { md: 140 } }}>
-          {form.fields_json.length} fields · {stepCount} steps
+          {fieldStepLabel}
         </Typography>
 
         <Stack spacing={0.2} sx={{ width: { md: 220 } }}>
@@ -1207,10 +1226,15 @@ export default function FormsPage() {
     [updateForm],
   );
 
+  const safeForms = React.useMemo<FormWithStats[]>(
+    () => (Array.isArray(forms) ? forms : []),
+    [forms],
+  );
+
   const filteredForms = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return [...forms]
+    return [...safeForms]
       .filter((form) => {
         if (status !== "all" && form.status !== status) {
           return false;
@@ -1220,13 +1244,14 @@ export default function FormsPage() {
           return true;
         }
 
+        const settings = form.settings_json ?? {};
         const haystack = [
           form.name,
-          form.settings_json.form_description,
-          form.settings_json.form_title,
-          form.settings_json.form_headline,
+          settings.form_description,
+          settings.form_title,
+          settings.form_headline,
         ]
-          .filter(Boolean)
+          .filter((value): value is string => typeof value === "string" && value.length > 0)
           .join(" ")
           .toLowerCase();
 
@@ -1235,9 +1260,9 @@ export default function FormsPage() {
       .sort((left, right) => {
         switch (sort) {
           case "name-asc":
-            return left.name.localeCompare(right.name);
+            return (left.name ?? "").localeCompare(right.name ?? "");
           case "name-desc":
-            return right.name.localeCompare(left.name);
+            return (right.name ?? "").localeCompare(left.name ?? "");
           case "submissions-desc":
             return right.total_submissions - left.total_submissions;
           case "newest":
@@ -1258,7 +1283,7 @@ export default function FormsPage() {
             );
         }
       });
-  }, [forms, query, sort, status]);
+  }, [safeForms, query, sort, status]);
 
   React.useEffect(() => {
     const validIds = new Set(filteredForms.map((form) => form.id));
@@ -1271,12 +1296,12 @@ export default function FormsPage() {
 
   const statusCounts = React.useMemo(
     () => ({
-      all: forms.length,
-      draft: forms.filter((form) => form.status === "draft").length,
-      published: forms.filter((form) => form.status === "published").length,
-      archived: forms.filter((form) => form.status === "archived").length,
+      all: safeForms.length,
+      draft: safeForms.filter((form) => form.status === "draft").length,
+      published: safeForms.filter((form) => form.status === "published").length,
+      archived: safeForms.filter((form) => form.status === "archived").length,
     }),
-    [forms],
+    [safeForms],
   );
 
   const statusOptions = React.useMemo(
@@ -1296,9 +1321,9 @@ export default function FormsPage() {
   );
 
   const isPageLoading = isLoading;
-  const hasNoForms = !isPageLoading && forms.length === 0;
+  const hasNoForms = !isPageLoading && safeForms.length === 0;
   const hasNoFilteredResults =
-    !isPageLoading && forms.length > 0 && filteredForms.length === 0;
+    !isPageLoading && safeForms.length > 0 && filteredForms.length === 0;
   const hasActiveFilters =
     Boolean(query.trim()) || status !== "all" || sort !== "updated-desc";
   const selectedCount = selectedFormIds.length;
@@ -1408,8 +1433,8 @@ export default function FormsPage() {
               <Stack spacing={0.35}>
                 <Typography level="h4">Forms</Typography>
                 <Typography level="body-sm" color="neutral">
-                  {forms.length.toLocaleString()}{" "}
-                  {forms.length === 1 ? "form" : "forms"}
+                  {safeForms.length.toLocaleString()}{" "}
+                  {safeForms.length === 1 ? "form" : "forms"}
                 </Typography>
               </Stack>
             </Box>
@@ -1438,7 +1463,7 @@ export default function FormsPage() {
               statusCounts={statusCounts}
               sortOptions={SORT_OPTIONS}
               isLoading={isPageLoading}
-              formCount={forms.length}
+              formCount={safeForms.length}
               filteredFormCount={filteredForms.length}
             />
           </Stack>
