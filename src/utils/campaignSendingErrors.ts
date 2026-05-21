@@ -14,6 +14,9 @@ export type SendErrorCode =
   | 'QUOTA_EXCEEDED'
   | 'DOMAIN_NON_COMPLIANT_FOR_SCALE'
   | 'DOMAIN_BLOCKED'
+  | 'PROTECTED_SEND_ACTIVE'
+  | 'SEND_PAUSED_BY_ADMIN'
+  | 'HIGH_VOLUME_REVIEW_REQUIRED'
   | 'CAMPAIGN_SAVE_FAILED'
   | 'CAMPAIGN_NOT_FOUND'
   | 'NETWORK_ERROR'
@@ -50,14 +53,14 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
     recoverable: true
   },
   NO_OPTED_IN_CUSTOMERS: {
-    title: "No opted-in recipients",
-    description: "None of your contacts have opted in to receive marketing emails. Contacts must have email consent enabled before you can send to them.",
-    action: "Go to Contacts and enable 'Email Opt-In' for customers who have given consent, or import contacts with opt-in status.",
+    title: "No eligible recipients",
+    description: "There are no eligible opted-in contacts to email after BloomSuite applied consent and suppression checks.",
+    action: "Review your audience, import contacts with consent, or check skipped contacts for details.",
     recoverable: true
   },
   EMAIL_SERVICE_NOT_CONFIGURED: {
     title: "Email service not configured",
-    description: "The email service (Resend) is not configured properly.",
+    description: "The email service is not configured properly.",
     action: "Please contact support to configure email sending.",
     recoverable: false
   },
@@ -69,21 +72,39 @@ export const SEND_ERRORS: Record<SendErrorCode, Omit<SendError, 'code'>> = {
   },
   QUOTA_EXCEEDED: {
     title: "Sending limit reached",
-    description: "You've reached your email sending limit for this period.",
-    action: "Upgrade your plan or wait until your quota resets.",
-    recoverable: false
+    description: "This campaign is larger than the current sending limit for this account or domain.",
+    action: "Try a smaller audience or contact support to review the sending limit.",
+    recoverable: true
   },
   DOMAIN_NON_COMPLIANT_FOR_SCALE: {
-    title: "Domain compliance required for high-volume sending",
-    description: "High-volume campaigns require SPF, DKIM, DMARC (p=none minimum), verified ownership, valid sender identity, physical address, unsubscribe support, and acceptable spam risk.",
-    action: "Fix the domain and compliance issues shown in Email Settings and campaign checks, or send a lower-volume campaign.",
+    title: "Review needed before high-volume send",
+    description: "This campaign is large enough that BloomSuite needs a few sender details cleaned up before sending safely.",
+    action: "Fix the items shown in Email Settings or reduce the audience size and send again.",
     recoverable: true
   },
   DOMAIN_BLOCKED: {
-    title: "Domain blocked",
-    description: "Your sending domain has been blocked due to high bounce or complaint rates.",
-    action: "Review your domain health in Email Settings.",
+    title: "Sending paused for this domain",
+    description: "This sending domain is paused or blocked and needs support review before more campaigns can send.",
+    action: "Review your domain health in Email Settings or contact support.",
     recoverable: false
+  },
+  PROTECTED_SEND_ACTIVE: {
+    title: "Protected Send is active",
+    description: "BloomSuite will send this campaign more gradually to protect inbox placement.",
+    action: "No action is required. The campaign can continue with protected pacing.",
+    recoverable: true
+  },
+  SEND_PAUSED_BY_ADMIN: {
+    title: "Campaign sending is paused",
+    description: "This campaign was paused by an admin or support rule before sending.",
+    action: "Review the campaign status or contact support if you believe this is incorrect.",
+    recoverable: true
+  },
+  HIGH_VOLUME_REVIEW_REQUIRED: {
+    title: "Review needed before high-volume send",
+    description: "This high-volume campaign needs a few deliverability checks resolved before sending.",
+    action: "Review the highlighted sender, content, or business-address items, then try again.",
+    recoverable: true
   },
   CAMPAIGN_SAVE_FAILED: {
     title: "Failed to save campaign",
@@ -120,6 +141,7 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
 
   const reason = typeof data?.reason === 'string' ? data.reason : '';
   const bodyError = typeof data?.error === 'string' ? data.error : '';
+  const reputationAction = typeof data?.reputation?.action === 'string' ? data.reputation.action : '';
 
   // Check for specific error patterns from send-email-campaign edge function
   if (message.includes('Campaign ID is required')) {
@@ -136,11 +158,36 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
 
   if (
     reason === 'sender_domain_required' ||
+    reason === 'shared_sender_disabled' ||
     bodyError.includes('custom domain sender') ||
     message.includes('custom domain sender') ||
     message.includes('sender domain')
   ) {
     return { code: 'SENDER_DOMAIN_REQUIRED', ...SEND_ERRORS.SENDER_DOMAIN_REQUIRED };
+  }
+
+  if (reason === 'admin_paused' || reason === 'force_stopped' || message.includes('Campaign is paused')) {
+    return { code: 'SEND_PAUSED_BY_ADMIN', ...SEND_ERRORS.SEND_PAUSED_BY_ADMIN };
+  }
+
+  if (
+    reason === 'reputation_critical_autopause' ||
+    reputationAction === 'pause' ||
+    message.includes('auto-paused')
+  ) {
+    return {
+      code: 'SEND_PAUSED_BY_ADMIN',
+      ...SEND_ERRORS.SEND_PAUSED_BY_ADMIN,
+      description: bodyError || message || SEND_ERRORS.SEND_PAUSED_BY_ADMIN.description,
+    };
+  }
+
+  if (
+    reason === 'reputation_restricted' ||
+    reputationAction === 'throttle' ||
+    message.includes('restricted tier')
+  ) {
+    return { code: 'PROTECTED_SEND_ACTIVE', ...SEND_ERRORS.PROTECTED_SEND_ACTIVE };
   }
 
   if (message.includes('no segments selected') || message.includes('Campaign has no segments')) {
@@ -161,15 +208,20 @@ export function parseEdgeFunctionError(error: any, responseData?: any): SendErro
   }
 
   if (
+    reason === 'compliance_not_met_for_scale' ||
     message.includes('domain_not_compliant_for_scale') ||
-    message.includes('compliance_not_met_for_scale') ||
     message.includes('High-volume sending blocked') ||
     message.includes('requires SPF, DKIM, DMARC')
   ) {
-    return { code: 'DOMAIN_NON_COMPLIANT_FOR_SCALE', ...SEND_ERRORS.DOMAIN_NON_COMPLIANT_FOR_SCALE };
+    return { code: 'HIGH_VOLUME_REVIEW_REQUIRED', ...SEND_ERRORS.HIGH_VOLUME_REVIEW_REQUIRED };
   }
 
-  if (message.includes('blocked') || message.includes('paused') || message.includes('reputation')) {
+  if (
+    reason === 'domain_blocked' ||
+    reason === 'domain_paused' ||
+    bodyError.includes('domain has been blocked') ||
+    message.includes('domain has been blocked')
+  ) {
     return { code: 'DOMAIN_BLOCKED', ...SEND_ERRORS.DOMAIN_BLOCKED };
   }
 
@@ -202,7 +254,7 @@ export function validateBeforeSend(params: {
   blocks: Array<any>;
   content: string;
 }): PreSendValidation {
-  const { campaignName, subjectLine, segments, blocks, content } = params;
+  const { campaignName, subjectLine, blocks, content } = params;
 
   if (!campaignName?.trim()) {
     return { valid: false, error: { code: 'NO_CAMPAIGN_NAME', ...SEND_ERRORS.NO_CAMPAIGN_NAME } };
