@@ -15,32 +15,38 @@ function formatRate(rate: number) {
   return `${(rate * 100).toFixed(2)}%`;
 }
 
-function formatImpact(impact: string) {
+function formatSendingMode(impact: string) {
   switch (impact) {
     case "policy_and_throttle":
-      return "Policy + Throttle";
-    case "policy_only":
-      return "Policy";
     case "throttle_only":
-      return "Throttle";
+      return "Protected Send";
+    case "policy_only":
+      return "Protected Send";
     default:
-      return "None";
+      return "Standard Send";
   }
 }
 
 function formatThresholdCategory(category: string) {
   const value = (category || "").toLowerCase();
-  if (value === "hard_bounce_rate") return "Hard bounce threshold";
-  if (value === "soft_bounce_rate") return "Soft bounce threshold";
-  if (value === "complaint_rate") return "Complaint threshold";
-  if (value === "failed_delivery_rate") return "Failed delivery threshold";
-  if (value === "rapid_negative_trend") return "Rapid negative trend";
-  return "Deliverability threshold";
+  if (value === "hard_bounce_rate") return "Hard bounce rate needs attention";
+  if (value === "soft_bounce_rate") return "Soft bounce rate needs attention";
+  if (value === "complaint_rate") return "Complaint rate needs attention";
+  if (value === "failed_delivery_rate") return "Failed delivery rate needs attention";
+  if (value === "rapid_negative_trend") return "Recent delivery trend needs attention";
+  return "Sending health needs attention";
 }
 
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return "Not yet";
   return new Date(value).toLocaleString();
+}
+
+function formatRiskLabel(risk: ReturnType<typeof governanceRiskFromPolicy>) {
+  const label = governanceRiskLabel(risk);
+  if (label.toLowerCase().includes("red")) return "Needs Attention";
+  if (label.toLowerCase().includes("yellow")) return "Review Recommended";
+  return label;
 }
 
 export function CampaignGovernanceMetricsCard({
@@ -79,7 +85,7 @@ export function CampaignGovernanceMetricsCard({
       <Card>
         <CardContent className="py-8 flex items-center justify-center text-muted-foreground">
           <Clock3 className="h-4 w-4 mr-2 animate-pulse" />
-          Loading governance metrics...
+          Loading sending health...
         </CardContent>
       </Card>
     );
@@ -103,9 +109,9 @@ export function CampaignGovernanceMetricsCard({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
-          <CardTitle>Governance Risk Metrics</CardTitle>
+          <CardTitle>Sending Health</CardTitle>
           <Badge variant={governanceRiskBadgeVariant(risk)}>
-            {governanceRiskLabel(risk)}
+            {formatRiskLabel(risk)}
           </Badge>
         </div>
       </CardHeader>
@@ -167,12 +173,14 @@ export function CampaignGovernanceMetricsCard({
           </div>
 
           <div className="rounded-md border p-3">
-            <p className="text-xs text-muted-foreground">Reputation Impact</p>
+            <p className="text-xs text-muted-foreground">Sending Mode</p>
             <p className="text-base font-semibold">
-              {formatImpact(governanceData.reputation_impact)}
+              {formatSendingMode(governanceData.reputation_impact)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Tier {governanceData.reputation_tier} • Action {governanceData.reputation_action}
+              {governanceData.reputation_action === "throttle"
+                ? "BloomSuite is pacing this campaign more gradually."
+                : "Standard delivery pacing is active."}
             </p>
           </div>
 
@@ -209,12 +217,12 @@ export function CampaignGovernanceMetricsCard({
         </div>
 
         {governanceData.threshold_exceeded.length > 0 ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
-              Threshold exceeded
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+            <p className="text-sm font-medium flex items-center gap-2 text-amber-950">
+              <AlertTriangle className="h-4 w-4 text-amber-700" />
+              Sending health needs attention
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-amber-900 mt-1">
               {governanceData.threshold_exceeded
                 .map((reason) => formatThresholdCategory(reason))
                 .join(" • ")}
@@ -223,13 +231,13 @@ export function CampaignGovernanceMetricsCard({
         ) : (
           <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4" />
-            No hard-stop thresholds exceeded in the last 24h.
+            No sending-health thresholds exceeded in the last 24h.
           </div>
         )}
 
         {governanceData.is_throttled && governanceData.throttle_reasons.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            Throttling active:{" "}
+            Protected Send active:{" "}
             {governanceData.throttle_reasons
               .map((reason) => formatThresholdCategory(reason))
               .join(", ")}
