@@ -19,7 +19,7 @@ export interface HygieneRecipient {
 }
 
 export interface HygieneWarning {
-  type: 'inactive_ratio' | 'high_bounce_history';
+  type: 'inactive_ratio' | 'high_bounce_history' | 'invalid_email_ratio';
   severity: 'warning';
   message: string;
   value: number;
@@ -171,6 +171,16 @@ export async function analyzeCampaignListHygiene(
     }
   }
 
+  if (invalidEmailsPct > invalidBlockThresholdPct) {
+    warnings.push({
+      type: 'invalid_email_ratio',
+      severity: 'warning',
+      message: `${invalidEmailsCount} invalid email address${invalidEmailsCount === 1 ? '' : 'es'} will be skipped before sending.`,
+      value: invalidEmailsPct,
+      threshold: invalidBlockThresholdPct,
+    });
+  }
+
   if (inactivePct > inactiveWarningThresholdPct) {
     warnings.push({
       type: 'inactive_ratio',
@@ -181,8 +191,10 @@ export async function analyzeCampaignListHygiene(
     });
   }
 
-  const blocked = invalidEmailsPct > invalidBlockThresholdPct;
-  const blockReason = blocked ? 'list_hygiene_invalid_ratio' : null;
+  // Product decision: invalid list hygiene should not hard-block the entire campaign.
+  // The send pipeline skips invalid/suppressed recipients and sends to eligible contacts.
+  const blocked = false;
+  const blockReason = null;
 
   return {
     audienceTotal,
