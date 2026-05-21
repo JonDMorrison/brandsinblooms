@@ -7,7 +7,6 @@ import {
   validateBeforeSend,
   parseEdgeFunctionError,
   SendError,
-  SendErrorCode,
 } from "@/utils/campaignSendingErrors";
 
 export interface SendingState {
@@ -17,6 +16,9 @@ export interface SendingState {
   error?: SendError;
   campaignId?: string;
   recipientCount?: number;
+  skippedCount?: number;
+  sendingMode?: "ready" | "protected" | "review";
+  warnings?: string[];
 }
 
 export interface UseCampaignSendingOptions {
@@ -31,7 +33,11 @@ export type CampaignSendResult =
       success: true;
       campaignId: string;
       recipientCount: number;
+      skippedCount: number;
+      sendingMode: "ready" | "protected" | "review";
       complianceWarnings: string[];
+      hygieneWarnings: string[];
+      sendSummary: string;
     }
   | {
       success: false;
@@ -50,6 +56,67 @@ export interface CampaignSendInvocationOptions {
   forceBypassConsent?: boolean;
   forceBypassSoftSuppression?: boolean;
   acknowledgedWarnings?: CampaignSendAcknowledgedWarning[];
+}
+
+function normalizeWarningList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry && typeof entry === "object") {
+        const record = entry as Record<string, unknown>;
+        if (typeof record.message === "string") return record.message;
+        if (typeof record.label === "string") return record.label;
+      }
+      return "";
+    })
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function resolveSendingMode(sendResult: any): "ready" | "protected" | "review" {
+  const action = String(sendResult?.reputation?.action || "").toLowerCase();
+  const tier = String(sendResult?.reputation?.tier || "").toLowerCase();
+  const pacing = Number(sendResult?.reputation?.send_pacing_multiplier || 1);
+  const warningsCount =
+    normalizeWarningList(sendResult?.warnings).length +
+    normalizeWarningList(sendResult?.hygiene?.warnings).length;
+
+  if (action === "throttle" || tier === "restricted" || pacing > 1) {
+    return "protected";
+  }
+
+  if (warningsCount > 0) {
+    return "review";
+  }
+
+  return "ready";
+}
+
+function buildSendSummary(params: {
+  recipientCount: number;
+  skippedCount: number;
+  sendingMode: "ready" | "protected" | "review";
+  warningCount: number;
+}) {
+  const { recipientCount, skippedCount, sendingMode, warningCount } = params;
+  const recipientLabel = `${recipientCount.toLocaleString()} eligible recipient${recipientCount === 1 ? "" : "s"}`;
+  const skippedLabel = skippedCount > 0
+    ? ` ${skippedCount.toLocaleString()} contact${skippedCount === 1 ? " was" : "s were"} skipped to protect deliverability.`
+    : "";
+  const warningLabel = warningCount > 0
+    ? ` ${warningCount} deliverability warning${warningCount === 1 ? "" : "s"} found.`
+    : "";
+
+  if (sendingMode === "protected") {
+    return `Protected Send is active. Sending to ${recipientLabel} with safer pacing.${skippedLabel}${warningLabel}`;
+  }
+
+  if (sendingMode === "review") {
+    return `Campaign queued for ${recipientLabel}.${skippedLabel}${warningLabel}`;
+  }
+
+  return `Campaign queued for ${recipientLabel}.${skippedLabel}`;
 }
 
 export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
@@ -242,28 +309,43 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
         }
 
         const recipientCount = Number(sendResult?.total_recipients || 0);
-        const complianceWarnings = Array.isArray(sendResult?.warnings)
-          ? sendResult.warnings.filter((w: unknown) => typeof w === "string")
-          : [];
+        const hygieneSummary = sendResult?.hygiene?.summary || {};
+        const skippedCount =
+          Number(hygieneSummary?.invalid_emails_count || 0) +
+          Number(hygieneSummary?.duplicate_emails_count || 0) +
+          Number(hygieneSummary?.suppressed_count || 0);
+        const complianceWarnings = normalizeWarningList(sendResult?.warnings);
+        const hygieneWarnings = normalizeWarningList(sendResult?.hygiene?.warnings);
+        const allWarnings = [...complianceWarnings, ...hygieneWarnings];
+        const sendingMode = resolveSendingMode(sendResult);
+        const sendSummary = buildSendSummary({
+          recipientCount,
+          skippedCount,
+          sendingMode,
+          warningCount: allWarnings.length,
+        });
 
         setState({
           status: "success",
           campaignId: campaign.id,
           recipientCount,
-          message: `Queued for ${recipientCount} recipients`,
+          skippedCount,
+          sendingMode,
+          warnings: allWarnings,
+          message: sendSummary,
         });
 
         if (!suppressToasts) {
           toast({
-            title: "Campaign queued",
-            description: `Sending to ${recipientCount} recipients.`,
+            title: sendingMode === "protected" ? "Protected Send active" : "Campaign queued",
+            description: sendSummary,
           });
         }
 
-        if (!suppressToasts && complianceWarnings.length > 0) {
+        if (!suppressToasts && allWarnings.length > 0) {
           toast({
-            title: "Compliance warning",
-            description: complianceWarnings[0],
+            title: "Deliverability note",
+            description: allWarnings[0],
           });
         }
 
@@ -277,7 +359,11 @@ export function useCampaignSending(options: UseCampaignSendingOptions = {}) {
           success: true,
           campaignId: campaign.id,
           recipientCount,
+          skippedCount,
+          sendingMode,
           complianceWarnings,
+          hygieneWarnings,
+          sendSummary,
         };
       } catch (sendError: any) {
         console.error("❌ Send failed:", sendError);
