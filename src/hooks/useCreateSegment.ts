@@ -54,6 +54,10 @@ export function useCreateSegment() {
         throw new Error("A segment with this name already exists.");
       }
 
+      const conditionsToSave = input.includeAllCustomers
+        ? { ...input.rules, children: [] }
+        : input.rules;
+
       const { data: segment, error: insertError } = await supabase
         .from("crm_segments")
         .insert({
@@ -62,7 +66,7 @@ export function useCreateSegment() {
           name: trimmedName,
           description: input.description?.trim() || null,
           auto_update: input.type === "dynamic",
-          conditions: input.rules,
+          conditions: conditionsToSave,
           include_all_customers: input.includeAllCustomers ?? false,
           status: input.status ?? "active",
           customer_count:

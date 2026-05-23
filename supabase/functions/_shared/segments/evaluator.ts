@@ -98,8 +98,15 @@ export function evaluateRule(rule: SegmentRule, customer: Record<string, any>): 
 }
 
 export function evaluateConditions(conditions: SegmentConditions, customer: Record<string, any>): boolean {
-  const rules = conditions.rules || [];
-  if (rules.length === 0) return false;
+  const rawRules = conditions?.rules ?? [];
+  const rules = rawRules.filter((rule) => Boolean(rule && rule.field && rule.operator));
+
+  // A segment with no meaningful rules has no filter, so it should match every
+  // customer. The historical behaviour of returning false here is what caused
+  // "include all customers" segments saved with a blank default rule to match
+  // zero contacts. Callers that want to short-circuit on include_all should
+  // do so before invoking this evaluator.
+  if (rules.length === 0) return true;
 
   const logic = conditions.logic || "AND";
   if (logic === "OR") {

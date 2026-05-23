@@ -1063,7 +1063,19 @@ export function evaluateSegmentRule(
   customer: CustomerRow,
   context: SegmentEvaluationContext = {},
 ) {
-  const evaluations = group.children.map((child) => {
+  const meaningfulChildren = group.children.filter((child) => {
+    if (isRuleGroup(child)) {
+      return child.children.length > 0;
+    }
+
+    return Boolean(child.fieldId && child.operatorId);
+  });
+
+  if (meaningfulChildren.length === 0) {
+    return true;
+  }
+
+  const evaluations = meaningfulChildren.map((child) => {
     if (isRuleGroup(child)) {
       return evaluateSegmentRule(child, customer, context);
     }
