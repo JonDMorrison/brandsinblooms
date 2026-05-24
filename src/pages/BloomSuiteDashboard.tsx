@@ -22,6 +22,7 @@ import {
 } from "@/components/dashboard/TwilioSetupChecker";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
+import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
 import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
@@ -34,6 +35,7 @@ import {
   Calendar,
   Share2,
   HelpCircle,
+  Info,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -82,6 +84,86 @@ const getHeaderStatusChipMessage = (label: string, message: string) => {
 
   return normalizedMessage;
 };
+
+function StatLabelWithInfo({
+  label,
+  tooltip,
+}: {
+  label: string;
+  tooltip: string;
+}) {
+  return (
+    <Stack
+      component="span"
+      direction="row"
+      spacing={0.5}
+      alignItems="center"
+      sx={{ display: "inline-flex" }}
+    >
+      <span>{label}</span>
+      <JoyTooltip
+        title={tooltip}
+        placement="top"
+        variant="outlined"
+        color="neutral"
+        arrow
+        sx={{
+          maxWidth: 320,
+          backgroundColor: "#FFFFFF",
+          color: "#1F4341",
+          fontSize: "13px",
+          lineHeight: 1.45,
+          boxShadow: "var(--joy-shadow-md)",
+          border: "1px solid",
+          borderColor: "neutral.200",
+          p: 1.25,
+          "--variant-borderWidth": "1px",
+        }}
+      >
+        <Box
+          component="span"
+          role="button"
+          tabIndex={0}
+          aria-label={`What does ${label} mean?`}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === " " || event.key === "Enter") {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 14,
+            height: 14,
+            color: "neutral.500",
+            cursor: "help",
+            borderRadius: "50%",
+            "&:hover": { color: "neutral.700" },
+            "&:focus-visible": {
+              outline: "2px solid var(--joy-palette-primary-400)",
+              outlineOffset: "1px",
+            },
+            "& > .lucide": {
+              width: 14,
+              height: 14,
+            },
+          }}
+        >
+          <Info aria-hidden="true" />
+        </Box>
+      </JoyTooltip>
+    </Stack>
+  );
+}
+
+const CUSTOMERS_TOOLTIP_COPY =
+  "This shows customers who have a profile in BloomSuite. Walk-in cash transactions don't create profiles automatically.";
+
+const REVENUE_TOOLTIP_COPY =
+  "This shows revenue from sales linked to a named customer in your contact list. Walk-in cash sales and customers without a profile are not included here. To see total revenue including walk-ins, check the main reporting view.";
 
 type DashboardStatCardProps = {
   label: React.ReactNode;
@@ -469,7 +551,12 @@ export const BloomSuiteDashboard = () => {
 
   const overviewStats = [
     {
-      label: "Customers",
+      label: (
+        <StatLabelWithInfo
+          label="Customers"
+          tooltip={CUSTOMERS_TOOLTIP_COPY}
+        />
+      ),
       value: customersValue,
       icon: <Mail />,
       change:
@@ -514,7 +601,9 @@ export const BloomSuiteDashboard = () => {
       onClick: () => navigate("/crm/campaigns"),
     },
     {
-      label: "Revenue",
+      label: (
+        <StatLabelWithInfo label="Revenue" tooltip={REVENUE_TOOLTIP_COPY} />
+      ),
       value: revenueValue,
       icon: <BarChart3 />,
       change:
