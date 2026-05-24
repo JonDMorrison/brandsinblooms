@@ -591,12 +591,20 @@ Deno.serve(async (req) => {
       await sleep(getAdaptiveCooldownMs(totalFetched));
     }
 
-    // Update connection stats
+    // Update connection stats. Counter reflects the total row count of synced
+    // Lightspeed customers for this tenant — not just rows touched by the
+    // current run — so subsequent incremental syncs that fetch zero new rows
+    // don't reset the displayed total to 0.
+    const { count: totalCustomerRowCount } = await supabaseAdmin
+      .from("lightspeed_customers")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+
     await supabaseClient
       .from("lightspeed_connections")
       .update({
         last_customer_sync: new Date().toISOString(),
-        customers_synced: totalInserted,
+        customers_synced: totalCustomerRowCount ?? totalInserted,
         last_customer_version_cursor: String(finalVersionCursor),
       })
       .eq("tenant_id", tenantId);
