@@ -205,7 +205,7 @@ export function getAuthErrorMessage(
     return {
       code: "invalid_credentials",
       message:
-        "Email or password is incorrect. If you originally signed up with Google, use the Sign in with Google button instead.",
+        "Email or password is incorrect. Try again or use Forgot password if you can't remember.",
       retryable: true,
     };
   }
