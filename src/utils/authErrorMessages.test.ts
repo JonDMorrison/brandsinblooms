@@ -291,15 +291,23 @@ describe("getAuthErrorMessage", () => {
   });
 
   describe("invalid_credentials (signIn only)", () => {
-    it("maps invalid_credentials by code in signIn", () => {
+    it("maps invalid_credentials by code in signIn with neutral copy", () => {
       const result = getAuthErrorMessage(
         { code: "invalid_credentials", message: "bad creds" },
         "signIn",
       );
       expect(result.code).toBe("invalid_credentials");
       expect(result.message).toContain("Email or password is incorrect");
-      expect(result.message).toContain("Sign in with Google");
+      expect(result.message).toContain("Forgot password");
       expect(result.retryable).toBe(true);
+    });
+
+    it("does NOT reference Google for invalid_credentials", () => {
+      const result = getAuthErrorMessage(
+        { code: "invalid_credentials", message: "bad creds" },
+        "signIn",
+      );
+      expect(result.message).not.toMatch(/google/i);
     });
 
     it("maps 'Invalid login credentials' by message", () => {
@@ -308,6 +316,32 @@ describe("getAuthErrorMessage", () => {
         "signIn",
       );
       expect(result.code).toBe("invalid_credentials");
+      expect(result.message).not.toMatch(/google/i);
+    });
+
+    it("does NOT reference Google for any non-Google error code in signIn", () => {
+      const codes = [
+        "email_not_confirmed",
+        "user_banned",
+        "over_request_rate_limit",
+        "over_email_send_rate_limit",
+        "captcha_failed",
+        "validation_failed",
+        "provider_disabled",
+      ] as const;
+
+      for (const code of codes) {
+        const result = getAuthErrorMessage({ code }, "signIn");
+        expect(result.message).not.toMatch(/google/i);
+      }
+    });
+
+    it("does NOT reference Google for unknown errors", () => {
+      const result = getAuthErrorMessage(
+        new Error("Something weird happened on the server"),
+        "signIn",
+      );
+      expect(result.message).not.toMatch(/google/i);
     });
 
     it("does NOT map invalid_credentials in signUp context", () => {
