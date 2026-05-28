@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SidebarLayout } from "@/components/SidebarLayout";
+import { BloomShell } from "@/components/bloom/BloomShell";
 import ChunkErrorBoundary from "@/components/loading/ChunkErrorBoundary";
 import { PageSkeleton } from "@/components/loading/PageSkeleton";
 import PublicPageFallback from "@/components/loading/PublicPageFallback";
@@ -315,6 +316,14 @@ const BloomSuiteDashboard = lazyNamed(
   () => import("@/pages/BloomSuiteDashboard"),
   "BloomSuiteDashboard",
 );
+const BloomPage = lazyRetry(() => import("@/pages/BloomPage"));
+const BloomKnowledgePage = lazyRetry(
+  () => import("@/pages/BloomKnowledgePage"),
+);
+const BloomSettingsPage = lazyRetry(() => import("@/pages/BloomSettingsPage"));
+const BloomAdminDashboardPage = lazyRetry(
+  () => import("@/pages/BloomAdminDashboardPage"),
+);
 const CalendarPage = lazyRetry(() => import("@/pages/CalendarPage"));
 const ActivityCenterPage = lazyRetry(
   () => import("@/pages/ActivityCenterPage"),
@@ -596,6 +605,22 @@ function App() {
                 DASHBOARD_LAZY_PAGE_OPTIONS,
               )}
             />
+            <Route
+              path="/bloom"
+              element={
+                <ProtectedRoute>
+                  <SidebarLayout>
+                    <BloomShell />
+                  </SidebarLayout>
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<BloomPage />} />
+              <Route path="knowledge" element={<BloomKnowledgePage />} />
+              <Route path="settings" element={<BloomSettingsPage />} />
+              <Route path="admin" element={<BloomAdminDashboardPage />} />
+              <Route path=":chatId" element={<BloomPage />} />
+            </Route>
             <Route
               path="/newsletters"
               element={renderProtectedSidebarLazyPage(

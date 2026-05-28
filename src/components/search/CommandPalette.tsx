@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -15,6 +16,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CommandPaletteFooter } from "@/components/search/CommandPaletteFooter";
 import { CommandPaletteInput } from "@/components/search/CommandPaletteInput";
 import { CommandPaletteResults } from "@/components/search/CommandPaletteResults";
+import { BloomCompactMode } from "@/components/bloom/BloomCompactMode";
 import { applyRouteVisitBoost } from "@/components/search/databaseSearch";
 import {
   coerceSearchFilter,
@@ -28,6 +30,7 @@ import {
   getStaticSearchItemById,
   getContextualJumpToEntries,
   getQuickActionEntries,
+  scoreStaticSearchItem,
 } from "@/components/search/staticSearchRegistry";
 import {
   getCommandIdFromSearchItem,
@@ -73,6 +76,10 @@ import {
 } from "@/components/search/types";
 import { useCommandPaletteSearch } from "@/components/search/useCommandPaletteSearch";
 import { useCommandPaletteNavigation } from "@/components/search/useCommandPaletteNavigation";
+import {
+  useBloomCompactMode,
+  type BloomCompactActivationRequest,
+} from "@/hooks/bloom/useBloomCompactMode";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import useMediaQuery from "@/hooks/use-media-query";
@@ -81,7 +88,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/utils/toast";
 
 const PALETTE_EXIT_DURATION_MS = 150;
+const COMPACT_VIEW_TRANSITION_MS = 100;
 const ACTION_SUCCESS_DURATION_MS = 1500;
+const ASK_BLOOM_COMMAND_ID = "ask-bloom";
+const ASK_BLOOM_ITEM_ID = "command:ask-bloom";
+const ASK_BLOOM_FALLBACK_PREFIX = "Ask Bloom:";
+const STRONG_MATCH_STATIC_SCORE_THRESHOLD = 3.5;
 const SUPPORTED_SYNC_PROVIDERS = new Set([
   "square",
   "clover",
@@ -90,6 +102,7 @@ const SUPPORTED_SYNC_PROVIDERS = new Set([
 ]);
 
 interface CommandPaletteProps {
+  compactActivationRequest?: BloomCompactActivationRequest | null;
   open: boolean;
   openSource?: SearchOpenSource;
   onClose: () => void;
@@ -99,7 +112,96 @@ function getPaletteOptionId(itemId: string) {
   return `command-palette-option-${itemId.replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 }
 
+function getAskBloomPromptFromItem(item: SearchResultItem): string | null {
+  if (!item.title.startsWith(ASK_BLOOM_FALLBACK_PREFIX)) {
+    return null;
+  }
+
+  const prompt = item.title.slice(ASK_BLOOM_FALLBACK_PREFIX.length).trim();
+  return prompt || null;
+}
+
+function hasStrongSearchMatch(
+  groups: SearchResultGroup[],
+  query: string,
+): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+
+  return groups.some((group) =>
+    group.results.some((item) => {
+      if (getCommandIdFromSearchItem(item) === ASK_BLOOM_COMMAND_ID) {
+        return false;
+      }
+
+      const title = item.title.toLowerCase();
+      const subtitle = item.subtitle?.toLowerCase() ?? "";
+      const metadata = item.metadata?.toLowerCase() ?? "";
+      const keywords =
+        item.keywords?.map((keyword) => keyword.toLowerCase()) ?? [];
+
+      if (title === normalizedQuery || title.startsWith(normalizedQuery)) {
+        return true;
+      }
+
+      if (
+        queryTokens.length > 0 &&
+        queryTokens.every(
+          (token) =>
+            title.includes(token) ||
+            subtitle.includes(token) ||
+            metadata.includes(token) ||
+            keywords.some((keyword) => keyword.includes(token)),
+        )
+      ) {
+        return true;
+      }
+
+      return (
+        scoreStaticSearchItem(item, normalizedQuery) >=
+        STRONG_MATCH_STATIC_SCORE_THRESHOLD
+      );
+    }),
+  );
+}
+
+function prependActionResult(
+  groups: SearchResultGroup[],
+  item: SearchResultItem,
+): SearchResultGroup[] {
+  const actionsGroupIndex = groups.findIndex(
+    (group) => group.category === "actions",
+  );
+
+  if (actionsGroupIndex === -1) {
+    return [
+      {
+        category: "actions",
+        title: SEARCH_GROUP_METADATA.actions.title,
+        icon: SEARCH_GROUP_METADATA.actions.icon,
+        results: [item],
+      },
+      ...groups,
+    ];
+  }
+
+  return groups.map((group, index) =>
+    index === actionsGroupIndex
+      ? {
+          ...group,
+          results: [item, ...group.results],
+        }
+      : group,
+  );
+}
+
 export function CommandPalette({
+  compactActivationRequest = null,
   open,
   openSource = "click",
   onClose,
@@ -111,14 +213,18 @@ export function CommandPalette({
   const copiedActionTimeoutRef = useRef<number | null>(null);
   const announcementTimeoutRef = useRef<number | null>(null);
   const lifecycleOpenRef = useRef(open);
+  const handledCompactRequestIdRef = useRef<number | null>(null);
   const trackedQueryKeyRef = useRef<string | null>(null);
   const trackedNoResultsKeyRef = useRef<string | null>(null);
   const closeSnapshotRef = useRef({ query: "", resultCount: 0 });
+  const compactViewInitializedRef = useRef(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { mode, setMode } = useColorScheme();
   const { cloneCampaign } = useCampaignCloning();
+  const compactMode = useBloomCompactMode();
+  const { activateCompact, dismissCompact } = compactMode;
   const prefersReducedMotion = useMediaQuery(
     "(prefers-reduced-motion: reduce)",
   );
@@ -132,6 +238,8 @@ export function CommandPalette({
   const [analyticsQuery, setAnalyticsQuery] = useState("");
   const [isMounted, setIsMounted] = useState(open);
   const [isVisible, setIsVisible] = useState(open);
+  const [isCompactViewVisible, setIsCompactViewVisible] = useState(false);
+  const [isCompactViewSwitching, setIsCompactViewSwitching] = useState(false);
   const [recentSearches, setRecentSearches] = useState<
     RecentSearchQueryEntry[]
   >([]);
@@ -142,6 +250,8 @@ export function CommandPalette({
   const [focusedFilterIndex, setFocusedFilterIndex] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [copiedActionId, setCopiedActionId] = useState<string | null>(null);
+  const [pendingCompactAutoSendPrompt, setPendingCompactAutoSendPrompt] =
+    useState<string | null>(null);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
   const [itemOverrides, setItemOverrides] = useState<
@@ -232,16 +342,95 @@ export function CommandPalette({
       setFocusedFilterIndex(0);
       setShowShortcuts(false);
       setCopiedActionId(null);
+      setPendingCompactAutoSendPrompt(null);
       setPendingActionId(null);
       setActionErrors({});
       setItemOverrides({});
+      dismissCompact();
       previousFocusRef.current?.focus?.();
     }, PALETTE_EXIT_DURATION_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isMounted, open]);
+  }, [dismissCompact, isMounted, open]);
+
+  useEffect(() => {
+    if (!open || !compactActivationRequest) {
+      return;
+    }
+
+    if (handledCompactRequestIdRef.current === compactActivationRequest.id) {
+      return;
+    }
+
+    handledCompactRequestIdRef.current = compactActivationRequest.id;
+    compactMode.setActiveMode("standard");
+    activateCompact(
+      compactActivationRequest.prompt,
+      compactActivationRequest.entityContext,
+    );
+    setPendingCompactAutoSendPrompt(
+      compactActivationRequest.autoSend
+        ? compactActivationRequest.prompt.trim() || null
+        : null,
+    );
+    setShowShortcuts(false);
+  }, [activateCompact, compactActivationRequest, compactMode, open]);
+
+  useEffect(() => {
+    if (
+      !pendingCompactAutoSendPrompt ||
+      !compactMode.isActive ||
+      compactMode.isStreaming ||
+      compactMode.draftPrompt.trim() !== pendingCompactAutoSendPrompt
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void compactMode
+      .sendCompactMessage(pendingCompactAutoSendPrompt)
+      .then((sent) => {
+        if (!cancelled && sent) {
+          setPendingCompactAutoSendPrompt(null);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    compactMode.draftPrompt,
+    compactMode.isActive,
+    compactMode.isStreaming,
+    compactMode.sendCompactMessage,
+    pendingCompactAutoSendPrompt,
+  ]);
+
+  useEffect(() => {
+    if (!compactViewInitializedRef.current) {
+      compactViewInitializedRef.current = true;
+      setIsCompactViewVisible(compactMode.isActive);
+      return;
+    }
+
+    const transitionDelay = prefersReducedMotion
+      ? 0
+      : COMPACT_VIEW_TRANSITION_MS;
+    setIsCompactViewSwitching(true);
+
+    const timeoutId = window.setTimeout(() => {
+      setIsCompactViewVisible(compactMode.isActive);
+      setIsCompactViewSwitching(false);
+    }, transitionDelay);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [compactMode.isActive, prefersReducedMotion]);
 
   useEffect(() => {
     if (!open) {
@@ -429,6 +618,46 @@ export function CommandPalette({
     () => applyOverridesToGroups(filteredResults),
     [filteredResults, itemOverrides],
   );
+  const askBloomFallbackItem = useMemo(() => {
+    if (isCommandMode || !trimmedSearchQuery) {
+      return null;
+    }
+
+    if (
+      results.some((group) =>
+        group.results.some(
+          (item) => getCommandIdFromSearchItem(item) === ASK_BLOOM_COMMAND_ID,
+        ),
+      )
+    ) {
+      return null;
+    }
+
+    if (hasStrongSearchMatch(results, trimmedSearchQuery)) {
+      return null;
+    }
+
+    const baseItem = getStaticSearchItemById(ASK_BLOOM_ITEM_ID);
+
+    if (!baseItem) {
+      return null;
+    }
+
+    return {
+      ...baseItem,
+      title: `${ASK_BLOOM_FALLBACK_PREFIX} ${trimmedSearchQuery}`,
+      subtitle: "Send this prompt to Bloom without leaving the current page.",
+      route: pathname,
+      keywords: [...(baseItem.keywords ?? []), trimmedSearchQuery],
+    } satisfies SearchResultItem;
+  }, [isCommandMode, pathname, results, trimmedSearchQuery]);
+  const queryResults = useMemo(
+    () =>
+      askBloomFallbackItem
+        ? prependActionResult(results, askBloomFallbackItem)
+        : results,
+    [askBloomFallbackItem, results],
+  );
   const commandResults = useMemo<SearchResultGroup[]>(() => {
     if (!isCommandMode || !debouncedQuery.trim()) {
       return [];
@@ -451,7 +680,7 @@ export function CommandPalette({
       },
     ];
   }, [debouncedQuery, isCommandMode, itemOverrides, pathname]);
-  const displayedResults = isCommandMode ? commandResults : results;
+  const displayedResults = isCommandMode ? commandResults : queryResults;
   const suggestions = useMemo(
     () =>
       isCommandMode
@@ -726,6 +955,12 @@ export function CommandPalette({
       };
 
       switch (action.execution.type) {
+        case "activate-bloom-compact": {
+          activateCompact(action.execution.prefilledPrompt ?? undefined);
+          announce("Bloom is ready.");
+          trackAction();
+          return;
+        }
         case "navigate": {
           if (trimmedSearchQuery) {
             persistRecentSearchSelection(trimmedSearchQuery, {
@@ -875,6 +1110,32 @@ export function CommandPalette({
     }
   };
 
+  const resolveItemAction = useCallback(
+    (
+      item: SearchResultItem,
+      action: PaletteExecutableAction,
+    ): PaletteExecutableAction => {
+      if (action.execution.type !== "activate-bloom-compact") {
+        return action;
+      }
+
+      const prompt = getAskBloomPromptFromItem(item);
+
+      if (!prompt || action.execution.prefilledPrompt === prompt) {
+        return action;
+      }
+
+      return {
+        ...action,
+        execution: {
+          ...action.execution,
+          prefilledPrompt: prompt,
+        },
+      };
+    },
+    [],
+  );
+
   const handleSelectItem = (item: SearchResultItem) => {
     const commandId = getCommandIdFromSearchItem(item);
     const rankedGroups = trimmedSearchQuery
@@ -919,7 +1180,7 @@ export function CommandPalette({
       const action = getResolvedCommandAction(commandId, pathname);
 
       if (action) {
-        void executePaletteAction(item, action);
+        void executePaletteAction(item, resolveItemAction(item, action));
       }
 
       return;
@@ -946,7 +1207,13 @@ export function CommandPalette({
     navigate(item.route);
   };
 
-  const getItemActions = (item: SearchResultItem) => getResultActionItems(item);
+  const getItemActions = useCallback(
+    (item: SearchResultItem) =>
+      getResultActionItems(item).map((action) =>
+        resolveItemAction(item, action),
+      ),
+    [resolveItemAction],
+  );
 
   const {
     activeActionIndex,
@@ -1024,6 +1291,35 @@ export function CommandPalette({
   const resultCount = query.trim()
     ? displayedResults.reduce((count, group) => count + group.results.length, 0)
     : navigableGroups.reduce((count, group) => count + group.results.length, 0);
+
+  const compactStreamState = useMemo(
+    () => ({
+      activeToolCall: compactMode.activeToolCall,
+      connectionState: compactMode.connectionState,
+      isResearchComplete: compactMode.isResearchComplete,
+      isResearchSynthesizing: compactMode.isResearchSynthesizing,
+      researchConversationId: compactMode.researchConversationId,
+      researchPlan: compactMode.researchPlan,
+      researchSteps: compactMode.researchSteps,
+      streamError: compactMode.streamError,
+      streamingBlocks: compactMode.streamingBlocks,
+      streamingContent: compactMode.streamingContent,
+      streamingThinking: compactMode.streamingThinking,
+    }),
+    [
+      compactMode.activeToolCall,
+      compactMode.connectionState,
+      compactMode.isResearchComplete,
+      compactMode.isResearchSynthesizing,
+      compactMode.researchConversationId,
+      compactMode.researchPlan,
+      compactMode.researchSteps,
+      compactMode.streamError,
+      compactMode.streamingBlocks,
+      compactMode.streamingContent,
+      compactMode.streamingThinking,
+    ],
+  );
 
   closeSnapshotRef.current = {
     query: trimmedSearchQuery,
@@ -1176,9 +1472,9 @@ export function CommandPalette({
     const focusableElements = paletteRef.current
       ? Array.from(
           paletteRef.current.querySelectorAll<HTMLElement>(
-            'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
           ),
-        ).filter((element) => !element.hasAttribute("aria-hidden"))
+        ).filter((element) => !element.closest("[aria-hidden='true']"))
       : [];
 
     if (focusableElements.length === 0) {
@@ -1292,89 +1588,149 @@ export function CommandPalette({
           >
             {liveAnnouncement}
           </Box>
-          <CommandPaletteInput
-            activeDescendantId={
-              activeItem ? getPaletteOptionId(activeItem.id) : undefined
-            }
-            ariaControlsId={listboxId}
-            dialogLabelId={dialogLabelId}
-            inputRef={inputRef}
-            isCommandMode={isCommandMode}
-            isLoading={!isCommandMode && isDatabaseLoading}
-            onClose={onClose}
-            onKeyDown={handleInputKeyDown}
-            onQueryChange={(nextQuery) => {
-              setQuery(nextQuery);
-            }}
-            onSuggestionSelect={setQuery}
-            query={query}
-            suggestions={suggestions}
-          />
-
-          {showFilterBar ? (
-            <CommandPaletteFilterBar
-              activeFilter={effectiveFilter}
-              counts={filterCounts}
-              filterRefs={filterChipRefs}
-              filters={visibleFilters}
-              onFocusFilter={setFocusedFilterIndex}
-              onKeyDownFilter={handleFilterKeyDown}
-              onSelectFilter={handleSelectFilter}
-              tabListId={filterTabListId}
-            />
-          ) : null}
-
-          <Box
-            sx={{
-              minHeight: 0,
-              maxHeight: "min(60vh, 520px)",
-              overflowY: "auto",
-              overflowX: "hidden",
-              overscrollBehavior: "contain",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            <CommandPaletteResults
-              activeItemId={activeItem?.id}
-              activeActionIndex={activeActionIndex}
-              copiedActionId={copiedActionId}
-              currentPathname={pathname}
-              errorByItemId={actionErrors}
-              getItemActions={getItemActions}
-              isDatabaseLoading={isDatabaseLoading}
-              jumpTo={visibleJumpTo}
-              listboxId={listboxId}
-              onCloseActionMenu={closeActionMenu}
-              onClearRecentSearches={handleClearRecentSearches}
-              onHoverAction={setActiveActionByIndex}
-              onHoverItem={setActiveItemById}
-              onOpenActionMenu={openActionMenu}
-              onRemoveRecentSearch={handleRemoveRecentSearch}
-              onSelectAction={(item, action) => {
-                void executePaletteAction(item, action);
+          {isCompactViewVisible ? (
+            <Box
+              sx={{
+                opacity: isCompactViewSwitching ? 0 : 1,
+                transition: prefersReducedMotion
+                  ? "none"
+                  : `opacity ${COMPACT_VIEW_TRANSITION_MS}ms ease`,
               }}
-              onSelectItem={handleSelectItem}
-              onSuggestQuery={setQuery}
-              openActionItemId={openActionItemId}
-              pendingActionId={pendingActionId}
-              query={query}
-              recentItems={recentItemsWithOverrides}
-              recentSearches={recentSearches}
-              results={displayedResults}
-              routeAwareSuggestions={routeAwareSuggestions}
-              showShortcuts={showShortcuts}
-              warning={warning}
-            />
-          </Box>
+            >
+              <BloomCompactMode
+                activeMode={compactMode.activeMode}
+                connectionState={compactMode.connectionState}
+                draftPrompt={compactMode.draftPrompt}
+                isStreaming={compactMode.isStreaming}
+                onBack={() => {
+                  setPendingCompactAutoSendPrompt(null);
+                  compactMode.dismissCompact();
+                  announce("Command palette restored.");
+                }}
+                onCancelStream={compactMode.cancelStream}
+                onContinueInBloom={() => {
+                  const didContinue = compactMode.continueInBloom();
 
-          <CommandPaletteFooter
-            activeFilter={effectiveFilter}
-            onToggleShortcuts={() =>
-              setShowShortcuts((currentValue) => !currentValue)
-            }
-            resultCount={resultCount}
-            shortcutsOpen={showShortcuts}
-          />
+                  if (didContinue) {
+                    setPendingCompactAutoSendPrompt(null);
+                    onClose();
+                  }
+
+                  return didContinue;
+                }}
+                onDraftPromptChange={compactMode.setDraftPrompt}
+                onModeChange={compactMode.setActiveMode}
+                onSendPrompt={(prompt) => {
+                  void compactMode
+                    .sendCompactMessage(prompt)
+                    .catch(() => undefined);
+                }}
+                streamState={compactStreamState}
+                submittedPrompt={compactMode.submittedPrompt}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                opacity: isCompactViewSwitching ? 0 : 1,
+                transition: prefersReducedMotion
+                  ? "none"
+                  : `opacity ${COMPACT_VIEW_TRANSITION_MS}ms ease`,
+                animation:
+                  prefersReducedMotion || isCompactViewSwitching
+                    ? "none"
+                    : "commandPaletteStandardIn 100ms ease both",
+                "@keyframes commandPaletteStandardIn": {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 },
+                },
+              }}
+            >
+              <CommandPaletteInput
+                activeDescendantId={
+                  activeItem ? getPaletteOptionId(activeItem.id) : undefined
+                }
+                ariaControlsId={listboxId}
+                dialogLabelId={dialogLabelId}
+                inputRef={inputRef}
+                isCommandMode={isCommandMode}
+                isLoading={!isCommandMode && isDatabaseLoading}
+                onClose={onClose}
+                onKeyDown={handleInputKeyDown}
+                onQueryChange={(nextQuery) => {
+                  setQuery(nextQuery);
+                }}
+                onSuggestionSelect={setQuery}
+                query={query}
+                suggestions={suggestions}
+              />
+
+              {showFilterBar ? (
+                <CommandPaletteFilterBar
+                  activeFilter={effectiveFilter}
+                  counts={filterCounts}
+                  filterRefs={filterChipRefs}
+                  filters={visibleFilters}
+                  onFocusFilter={setFocusedFilterIndex}
+                  onKeyDownFilter={handleFilterKeyDown}
+                  onSelectFilter={handleSelectFilter}
+                  tabListId={filterTabListId}
+                />
+              ) : null}
+
+              <Box
+                sx={{
+                  minHeight: 0,
+                  maxHeight: "min(60vh, 520px)",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  overscrollBehavior: "contain",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
+                <CommandPaletteResults
+                  activeItemId={activeItem?.id}
+                  activeActionIndex={activeActionIndex}
+                  copiedActionId={copiedActionId}
+                  currentPathname={pathname}
+                  errorByItemId={actionErrors}
+                  getItemActions={getItemActions}
+                  isDatabaseLoading={isDatabaseLoading}
+                  jumpTo={visibleJumpTo}
+                  listboxId={listboxId}
+                  onCloseActionMenu={closeActionMenu}
+                  onClearRecentSearches={handleClearRecentSearches}
+                  onHoverAction={setActiveActionByIndex}
+                  onHoverItem={setActiveItemById}
+                  onOpenActionMenu={openActionMenu}
+                  onRemoveRecentSearch={handleRemoveRecentSearch}
+                  onSelectAction={(item, action) => {
+                    void executePaletteAction(item, action);
+                  }}
+                  onSelectItem={handleSelectItem}
+                  onSuggestQuery={setQuery}
+                  openActionItemId={openActionItemId}
+                  pendingActionId={pendingActionId}
+                  query={query}
+                  recentItems={recentItemsWithOverrides}
+                  recentSearches={recentSearches}
+                  results={displayedResults}
+                  routeAwareSuggestions={routeAwareSuggestions}
+                  showShortcuts={showShortcuts}
+                  warning={warning}
+                />
+              </Box>
+
+              <CommandPaletteFooter
+                activeFilter={effectiveFilter}
+                onToggleShortcuts={() =>
+                  setShowShortcuts((currentValue) => !currentValue)
+                }
+                resultCount={resultCount}
+                shortcutsOpen={showShortcuts}
+              />
+            </Box>
+          )}
         </Sheet>
       </Box>
     </Modal>

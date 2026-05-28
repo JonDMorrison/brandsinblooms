@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CustomerActivityPanel } from "@/components/activity/CustomerActivityPanel";
+import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsightsActions";
 import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
 import { CrossChannelIntelligence } from "@/components/crm/customer-dashboard/CrossChannelIntelligence";
@@ -63,6 +64,8 @@ import {
   transformToTimelineEvents,
 } from "@/lib/customerDashboardTransformers";
 import { logActivity } from "@/lib/activityLogger";
+import { buildCustomerFocus } from "@/utils/askBloomContextBuilders";
+import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 type DashboardTab =
   | "overview"
@@ -381,6 +384,58 @@ const CustomerDashboardPage: React.FC = () => {
     return match?.persona_name ?? null;
   }, [allPersonas, assignments]);
 
+  const customerFocusSegments = React.useMemo(
+    () => segmentLabels.map((name) => ({ name })),
+    [segmentLabels],
+  );
+
+  const buildCustomerResourceFocus = React.useCallback(() => {
+    if (!displayCustomer) {
+      throw new Error("Customer focus is unavailable until the customer loads.");
+    }
+
+    return buildCustomerFocus(
+      displayCustomer,
+      undefined,
+      undefined,
+      customerFocusSegments,
+    );
+  }, [customerFocusSegments, displayCustomer]);
+
+  React.useEffect(() => {
+    if (!displayCustomer?.id) {
+      return;
+    }
+
+    return registerResourceAccessor("customer", {
+      getResourceFocus: (resourceId, resourceQueryClient) => {
+        if (resourceId === displayCustomer.id) {
+          return buildCustomerResourceFocus();
+        }
+
+        const cachedCustomer = resourceQueryClient.getQueryData<CustomerData | null>([
+          "customer-360",
+          resourceId,
+        ]);
+        if (!cachedCustomer) {
+          return null;
+        }
+
+        const cachedSegments =
+          resourceQueryClient.getQueryData<
+            Array<{ segment?: { name?: string | null } }>
+          >(["customer-segments", resourceId]) ?? [];
+
+        return buildCustomerFocus(
+          cachedCustomer,
+          undefined,
+          undefined,
+          cachedSegments.map((item) => ({ name: item.segment?.name ?? undefined })),
+        );
+      },
+    });
+  }, [buildCustomerResourceFocus, displayCustomer?.id]);
+
   const handleRefresh = React.useCallback(async () => {
     await refetch();
   }, [refetch]);
@@ -460,6 +515,14 @@ const CustomerDashboardPage: React.FC = () => {
             segmentLabels={segmentLabels}
             isVip={isVip}
             isDeleting={deleteCustomer.isPending}
+            headerActions={
+              <AskBloomResourceTrigger
+                resourceType="customer"
+                resourceId={displayCustomer.id}
+                resourceLabel={customerName}
+                buildContext={buildCustomerResourceFocus}
+              />
+            }
             onBack={() => navigate("/crm/customers")}
             onEdit={() => setIsEditDialogOpen(true)}
             onViewActivity={() => updateSearchParam({ tab: "activity" })}

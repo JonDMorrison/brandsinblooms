@@ -57,6 +57,7 @@ export interface CustomerProfileHeaderProps {
   segmentLabels?: string[];
   isVip?: boolean;
   isDeleting?: boolean;
+  headerActions?: React.ReactNode;
   onBack: () => void;
   onEdit: () => void;
   onViewActivity: () => void;
@@ -91,6 +92,7 @@ export function CustomerProfileHeader({
   segmentLabels = [],
   isVip = false,
   isDeleting = false,
+  headerActions,
   onBack,
   onEdit,
   onViewActivity,
@@ -360,6 +362,7 @@ export function CustomerProfileHeader({
               flexWrap="wrap"
               alignSelf={{ xs: "stretch", md: "flex-start" }}
             >
+              {headerActions}
               <JoyButton
                 color="neutral"
                 variant="soft"

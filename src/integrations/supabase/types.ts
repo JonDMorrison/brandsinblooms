@@ -565,6 +565,474 @@ export type Database = {
         };
         Relationships: [];
       };
+      bloom_audit_log: {
+        Row: {
+          conversation_id: string | null;
+          created_at: string;
+          event_data: Json;
+          event_type: string;
+          id: string;
+          latency_ms: number | null;
+          message_id: string | null;
+          model_used: string | null;
+          tenant_id: string;
+          tokens_input: number | null;
+          tokens_output: number | null;
+          user_id: string;
+        };
+        Insert: {
+          conversation_id?: string | null;
+          created_at?: string;
+          event_data?: Json;
+          event_type: string;
+          id?: string;
+          latency_ms?: number | null;
+          message_id?: string | null;
+          model_used?: string | null;
+          tenant_id: string;
+          tokens_input?: number | null;
+          tokens_output?: number | null;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string | null;
+          created_at?: string;
+          event_data?: Json;
+          event_type?: string;
+          id?: string;
+          latency_ms?: number | null;
+          message_id?: string | null;
+          model_used?: string | null;
+          tenant_id?: string;
+          tokens_input?: number | null;
+          tokens_output?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_audit_log_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_audit_log_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_audit_log_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_audit_log_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_conversations: {
+        Row: {
+          created_at: string;
+          id: string;
+          last_message_preview: string | null;
+          message_count: number;
+          metadata: Json;
+          mode: string;
+          resource_id: string | null;
+          resource_type: string | null;
+          session_type: string;
+          status: string;
+          tenant_id: string;
+          title: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          last_message_preview?: string | null;
+          message_count?: number;
+          metadata?: Json;
+          mode?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          session_type?: string;
+          status?: string;
+          tenant_id: string;
+          title?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          last_message_preview?: string | null;
+          message_count?: number;
+          metadata?: Json;
+          mode?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          session_type?: string;
+          status?: string;
+          tenant_id?: string;
+          title?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_conversations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_conversations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_conversation_exports: {
+        Row: {
+          content: string;
+          conversation_id: string;
+          exported_at: string;
+          id: string;
+          resource_id: string | null;
+          resource_type: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Insert: {
+          content: string;
+          conversation_id: string;
+          exported_at?: string;
+          id?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          tenant_id: string;
+          user_id: string;
+        };
+        Update: {
+          content?: string;
+          conversation_id?: string;
+          exported_at?: string;
+          id?: string;
+          resource_id?: string | null;
+          resource_type?: string | null;
+          tenant_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_conversation_exports_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_conversation_exports_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_messages: {
+        Row: {
+          attachments: Json;
+          block_data: Json;
+          content: string | null;
+          conversation_id: string;
+          created_at: string;
+          follow_up_chips: Json;
+          id: string;
+          is_bookmarked: boolean;
+          is_compacted: boolean;
+          metadata: Json;
+          mode: string;
+          model: string | null;
+          role: string;
+          tenant_id: string;
+          thinking_content: string | null;
+          tokens_input: number | null;
+          tokens_output: number | null;
+          user_id: string;
+        };
+        Insert: {
+          attachments?: Json;
+          block_data?: Json;
+          content?: string | null;
+          conversation_id: string;
+          created_at?: string;
+          follow_up_chips?: Json;
+          id?: string;
+          is_bookmarked?: boolean;
+          is_compacted?: boolean;
+          metadata?: Json;
+          mode?: string;
+          model?: string | null;
+          role: string;
+          tenant_id: string;
+          thinking_content?: string | null;
+          tokens_input?: number | null;
+          tokens_output?: number | null;
+          user_id: string;
+        };
+        Update: {
+          attachments?: Json;
+          block_data?: Json;
+          content?: string | null;
+          conversation_id?: string;
+          created_at?: string;
+          follow_up_chips?: Json;
+          id?: string;
+          is_bookmarked?: boolean;
+          is_compacted?: boolean;
+          metadata?: Json;
+          mode?: string;
+          model?: string | null;
+          role?: string;
+          tenant_id?: string;
+          thinking_content?: string | null;
+          tokens_input?: number | null;
+          tokens_output?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_messages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_proactive_insights: {
+        Row: {
+          action_prompt: string | null;
+          created_at: string;
+          description: string;
+          dismissed_by: string[];
+          entity_id: string | null;
+          entity_type: string | null;
+          expires_at: string | null;
+          id: string;
+          insight_type: string;
+          severity: string;
+          tenant_id: string;
+          title: string;
+        };
+        Insert: {
+          action_prompt?: string | null;
+          created_at?: string;
+          description: string;
+          dismissed_by?: string[];
+          entity_id?: string | null;
+          entity_type?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          insight_type: string;
+          severity?: string;
+          tenant_id: string;
+          title: string;
+        };
+        Update: {
+          action_prompt?: string | null;
+          created_at?: string;
+          description?: string;
+          dismissed_by?: string[];
+          entity_id?: string | null;
+          entity_type?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          insight_type?: string;
+          severity?: string;
+          tenant_id?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_proactive_insights_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_proactive_insights_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_tool_executions: {
+        Row: {
+          conversation_id: string;
+          created_at: string;
+          error_message: string | null;
+          execution_time_ms: number | null;
+          id: string;
+          message_id: string;
+          status: string;
+          tenant_id: string;
+          tool_input: Json;
+          tool_name: string;
+          tool_output: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          conversation_id: string;
+          created_at?: string;
+          error_message?: string | null;
+          execution_time_ms?: number | null;
+          id?: string;
+          message_id: string;
+          status?: string;
+          tenant_id: string;
+          tool_input?: Json;
+          tool_name: string;
+          tool_output?: Json | null;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string;
+          created_at?: string;
+          error_message?: string | null;
+          execution_time_ms?: number | null;
+          id?: string;
+          message_id?: string;
+          status?: string;
+          tenant_id?: string;
+          tool_input?: Json;
+          tool_name?: string;
+          tool_output?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_tool_executions_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_tool_executions_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "bloom_messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bloom_tool_executions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_tool_executions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      bloom_user_profiles: {
+        Row: {
+          created_at: string;
+          id: string;
+          interaction_count: number;
+          onboarding_stage: number;
+          preferences: Json;
+          seen_tips: string[];
+          tenant_id: string;
+          updated_at: string;
+          user_id: string;
+          workspace_memory: Json;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          interaction_count?: number;
+          onboarding_stage?: number;
+          preferences?: Json;
+          seen_tips?: string[];
+          tenant_id: string;
+          updated_at?: string;
+          user_id: string;
+          workspace_memory?: Json;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          interaction_count?: number;
+          onboarding_stage?: number;
+          preferences?: Json;
+          seen_tips?: string[];
+          tenant_id?: string;
+          updated_at?: string;
+          user_id?: string;
+          workspace_memory?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bloom_user_profiles_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "bloom_user_profiles_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       automation_email_executions: {
         Row: {
           automation_id: string;
@@ -15946,6 +16414,14 @@ export type Database = {
         }[];
       };
       get_remaining_budget: { Args: { p_tenant_id: string }; Returns: Json };
+      get_resource_insights: {
+        Args: {
+          p_resource_id: string;
+          p_resource_type: string;
+          p_tenant_id: string;
+        };
+        Returns: Json;
+      };
       get_sms_warmup_info: {
         Args: { p_messaging_service_sid?: string; p_phone_number?: string };
         Returns: {

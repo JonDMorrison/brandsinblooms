@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { CampaignActiveSendView } from "@/components/crm/campaign-editor/CampaignActiveSendView";
 import { ContentPreviewCard } from "@/components/crm/campaign-editor/ContentPreviewCard";
 import {
@@ -101,6 +102,8 @@ import type {
   CampaignPersonaSummary,
   CampaignSegmentSummary,
 } from "@/lib/crm/campaignEditor";
+import { buildCampaignFocus } from "@/utils/askBloomContextBuilders";
+import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 const EDITOR_MAX_WIDTH = 1200;
 const AUDIENCE_CUSTOMER_PAGE_SIZE = 8;
@@ -799,6 +802,53 @@ function CampaignEditorScreen() {
     ],
   );
 
+  const buildCampaignResourceFocus = React.useCallback(() => {
+    if (!campaignId) {
+      throw new Error("Campaign focus is unavailable until the draft is saved.");
+    }
+
+    return buildCampaignFocus(
+      {
+        id: campaignId,
+        name,
+        type: campaignType,
+        status,
+        subject: subjectLine,
+        preview_text: preheaderText,
+      },
+      undefined,
+      {
+        segment_name: selectedSegments[0]?.name ?? null,
+        projected_recipient_count: audienceCount,
+      },
+    );
+  }, [
+    audienceCount,
+    campaignId,
+    campaignType,
+    name,
+    preheaderText,
+    selectedSegments,
+    status,
+    subjectLine,
+  ]);
+
+  React.useEffect(() => {
+    if (!campaignId) {
+      return;
+    }
+
+    return registerResourceAccessor("campaign", {
+      getResourceFocus: (resourceId) => {
+        if (resourceId !== campaignId) {
+          return null;
+        }
+
+        return buildCampaignResourceFocus();
+      },
+    });
+  }, [buildCampaignResourceFocus, campaignId]);
+
   React.useEffect(() => {
     if (!audienceExpansionOpen) {
       return;
@@ -1399,6 +1449,14 @@ function CampaignEditorScreen() {
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {campaignId ? (
+              <AskBloomResourceTrigger
+                resourceType="campaign"
+                resourceId={campaignId}
+                resourceLabel={name || "Campaign"}
+                buildContext={buildCampaignResourceFocus}
+              />
+            ) : null}
             <JoyButton
               variant="outlined"
               color="neutral"
@@ -1567,7 +1625,9 @@ function CampaignEditorScreen() {
                               sx={{ color: "neutral.600" }}
                             >
                               {additionalCustomerIds.length} customer
-                              {additionalCustomerIds.length === 1 ? "" : "s"}{" "}
+                              {additionalCustomerIds.length === 1
+                                ? ""
+                                : "s"}{" "}
                               attached directly to this campaign.
                             </Typography>
                           </Stack>
@@ -1635,8 +1695,8 @@ function CampaignEditorScreen() {
                             level="body-xs"
                             sx={{ color: "neutral.600" }}
                           >
-                            Direct additions are saved, but the customer
-                            details are not available right now.
+                            Direct additions are saved, but the customer details
+                            are not available right now.
                           </Typography>
                         )}
 
@@ -1646,8 +1706,8 @@ function CampaignEditorScreen() {
                             level="body-xs"
                             sx={{ color: "neutral.500" }}
                           >
-                            Some saved customer IDs are no longer available
-                            in this tenant.
+                            Some saved customer IDs are no longer available in
+                            this tenant.
                           </Typography>
                         ) : null}
                       </Stack>
@@ -1719,9 +1779,7 @@ function CampaignEditorScreen() {
                 value={preheaderText}
                 disabled={isLocked}
                 placeholder="Shows next to the subject in their inbox"
-                onValueChange={(value) =>
-                  updateSetup({ preheaderText: value })
-                }
+                onValueChange={(value) => updateSetup({ preheaderText: value })}
                 helperText={
                   <Box
                     component="span"
@@ -1809,8 +1867,7 @@ function CampaignEditorScreen() {
                     textDecoration: "underline",
                     cursor: canSaveAsTemplate ? "pointer" : "not-allowed",
                     "&:focus-visible": {
-                      outline:
-                        "2px solid var(--joy-palette-primary-400)",
+                      outline: "2px solid var(--joy-palette-primary-400)",
                       outlineOffset: "2px",
                       borderRadius: "2px",
                     },

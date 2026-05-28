@@ -40,6 +40,7 @@ import { resolveNewsletterIdeaDraftSeed } from "@/lib/studio/newsletterIdeaSeed"
 import { ensureFooterBlockCompliance } from "@/lib/studio/footerCompliance";
 import type { StudioBlock } from "@/types/studioBlocks";
 import type { SendError } from "@/utils/campaignSendingErrors";
+import { subscribeAskBloomResourceSync } from "@/utils/askBloomResourceSync";
 
 type Segment = CampaignSegmentSummary;
 type Persona = CampaignPersonaSummary;
@@ -515,6 +516,24 @@ export function CampaignEditorProvider({
   React.useEffect(() => {
     void reload();
   }, [reload]);
+
+  React.useEffect(() => {
+    if (!campaignId) {
+      return;
+    }
+
+    return subscribeAskBloomResourceSync((detail) => {
+      if (
+        detail.status !== "completed" ||
+        detail.resourceType !== "campaign" ||
+        detail.resourceId !== campaignId
+      ) {
+        return;
+      }
+
+      void reload();
+    });
+  }, [campaignId, reload]);
 
   React.useEffect(() => {
     if (!campaignId && senderConfig && !hasHydratedRef.current) {

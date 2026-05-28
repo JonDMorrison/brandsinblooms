@@ -1166,6 +1166,17 @@ const SETUP_ENTRIES: SearchResultItem[] = [
 
 const ACTION_ENTRIES: SearchResultItem[] = [
   createStaticItem({
+    id: "command:ask-bloom",
+    type: "action",
+    title: "Ask Bloom",
+    subtitle: "Ask Bloom about the page you're on without leaving your work.",
+    route: "/bloom",
+    icon: "saved-block",
+    metadata: "Command",
+    keywords: ["ask bloom", "bloom", "assistant", "ai", "question"],
+    group: "actions",
+  }),
+  createStaticItem({
     id: "static:action:add-customer",
     type: "action",
     title: "Add Customer",

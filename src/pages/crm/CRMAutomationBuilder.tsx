@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { AutomationFlowCanvas } from "@/components/automation/flow/AutomationFlowCanvas";
@@ -40,6 +41,8 @@ import {
   extractTriggerConditions,
   validateTriggerConditions,
 } from "@/lib/automation/extractTriggerConditions";
+import { buildGenericFocus } from "@/utils/askBloomContextBuilders";
+import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 interface AutomationRunSummary {
   executionCount: number;
@@ -440,6 +443,50 @@ export const CRMAutomationBuilder = () => {
     return { color: "neutral" as const, label: "Draft" };
   }, [automationId, isActive, runSummary.executionCount]);
 
+  const buildAutomationResourceFocus = useCallback(() => {
+    if (!automationId) {
+      throw new Error("Automation focus is unavailable until the draft is saved.");
+    }
+
+    return buildGenericFocus("automation", automationId, automationName, {
+      status: statusChip.label,
+      isActive,
+      workflowStepCount,
+      executionCount: runSummary.executionCount,
+      lastTriggeredAt: runSummary.lastTriggeredAt,
+      lastSavedAt,
+      selectedSegments: selectedSegments.map((segment) => segment.name),
+      selectedPersonas: selectedPersonas.map((persona) => persona.persona_name),
+    });
+  }, [
+    automationId,
+    automationName,
+    isActive,
+    lastSavedAt,
+    runSummary.executionCount,
+    runSummary.lastTriggeredAt,
+    selectedPersonas,
+    selectedSegments,
+    statusChip.label,
+    workflowStepCount,
+  ]);
+
+  useEffect(() => {
+    if (!automationId) {
+      return;
+    }
+
+    return registerResourceAccessor("automation", {
+      getResourceFocus: (resourceId) => {
+        if (resourceId !== automationId) {
+          return null;
+        }
+
+        return buildAutomationResourceFocus();
+      },
+    });
+  }, [automationId, buildAutomationResourceFocus]);
+
   if (isLoading) {
     return (
       <PageContainer
@@ -571,6 +618,14 @@ export const CRMAutomationBuilder = () => {
                   spacing={1}
                   alignItems={{ xs: "stretch", sm: "center" }}
                 >
+                  {automationId ? (
+                    <AskBloomResourceTrigger
+                      resourceType="automation"
+                      resourceId={automationId}
+                      resourceLabel={automationName}
+                      buildContext={buildAutomationResourceFocus}
+                    />
+                  ) : null}
                   <JoyButton
                     variant="outlined"
                     color="neutral"

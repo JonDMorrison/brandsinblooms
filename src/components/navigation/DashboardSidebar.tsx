@@ -19,6 +19,7 @@ import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { JoyBadge } from "@/components/joy/JoyBadge";
 import { useDashboardShell } from "@/components/layout/DashboardShell";
 import {
   getActiveBranchIds,
@@ -32,7 +33,9 @@ import {
 } from "@/components/navigation/sidebarNavigation";
 import logoImage from "@/assets/bloomsuite-logo-correct.png";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBloomInsightNotifications } from "@/hooks/bloom/useBloomInsightNotifications";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
+import { useTenant } from "@/hooks/useTenant";
 
 const EXPANDED_BRANCHES_STORAGE_KEY = "dashboard-sidebar:expanded-branches";
 const SIDEBAR_TOUCH_TARGET = 48;
@@ -359,10 +362,12 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const { data: isSuperAdmin, isLoading: isLoadingSuperAdmin } =
     useIsSuperAdmin();
   const {
     isSidebarCollapsed,
+    isSidebarCollapseLocked,
     sidebarWidth,
     toggleSidebar,
     closeMobileSidebar,
@@ -379,6 +384,7 @@ export function DashboardSidebar({
     user?.user_metadata?.full_name as string | undefined,
     user?.email,
   );
+  const { unreadCount } = useBloomInsightNotifications(tenant?.id);
   const userInitials = getInitials(displayName);
   const sidebarGroups = useMemo(
     () =>
@@ -545,6 +551,8 @@ export function DashboardSidebar({
         ? 18
         : SIDEBAR_ICON_SIZE;
     const showTooltip = compact && context !== "flyout";
+    const showBloomNotificationBadge =
+      item.id === "bloom" && mode === "tenant" && unreadCount > 0;
 
     const button = (
       <ListItemButton
@@ -565,10 +573,29 @@ export function DashboardSidebar({
             mr: compact ? 0 : 1.5,
             justifyContent: "center",
             color: "var(--sidebar-icon-color)",
+            overflow: "visible",
             transition: SIDEBAR_INTERACTIVE_TRANSITION,
           }}
         >
-          {renderSidebarIcon(item.icon, iconSize)}
+          {showBloomNotificationBadge ? (
+            <JoyBadge
+              badgeContent={unreadCount}
+              color="danger"
+              max={99}
+              variant="solid"
+              sx={{
+                "& .MuiBadge-badge": {
+                  boxShadow: "0 0 0 2px var(--joy-palette-brandNavy-800)",
+                },
+              }}
+            >
+              <Box sx={{ display: "flex" }}>
+                {renderSidebarIcon(item.icon, iconSize)}
+              </Box>
+            </JoyBadge>
+          ) : (
+            renderSidebarIcon(item.icon, iconSize)
+          )}
         </ListItemDecorator>
         {renderCompactContent ? (
           <ListItemContent sx={labelSx}>
@@ -712,13 +739,19 @@ export function DashboardSidebar({
   };
 
   const renderToggleItem = () => {
-    const buttonLabel = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    const toggleLocked = isSidebarCollapseLocked;
+    const buttonLabel = toggleLocked
+      ? "Sidebar locked while Bloom is open"
+      : collapsed
+        ? "Expand sidebar"
+        : "Collapse sidebar";
     const renderCompactContent = !collapsed || shouldRenderCollapsedContent;
 
     const button = (
       <ListItemButton
         aria-label={buttonLabel}
         data-dashboard-sidebar-focusable="true"
+        disabled={toggleLocked}
         onClick={toggleSidebar}
         onKeyDown={(event) => moveFocusWithinScope(event, "sidebar-footer")}
         sx={getNavButtonSx({ active: false, compact: collapsed })}

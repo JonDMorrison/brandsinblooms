@@ -328,6 +328,9 @@ verify_jwt = false
 [functions.send-transactional-email]
 verify_jwt = false
 
+[functions.bloom-assist]
+verify_jwt = true
+
 [functions.square-test-automation]
 verify_jwt = true
 
