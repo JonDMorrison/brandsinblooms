@@ -13,7 +13,7 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Send } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lock, Send, ShieldCheck } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useCampaignEditor } from "@/components/crm/campaign-editor/CampaignEditorContext";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
@@ -377,58 +377,277 @@ function useAudiencePreflightSummary(options: {
   });
 }
 
-type PreflightItem = {
+type ChecklistRow = {
   id: string;
   label: string;
   detail: string;
-  warning?: string | null;
   loading?: boolean;
 };
 
-function PreflightLine({ item }: { item: PreflightItem }) {
-  const hasWarning = Boolean(item.warning);
-  const iconColor = hasWarning
-    ? "var(--joy-palette-warning-600)"
-    : "var(--joy-palette-success-600)";
-
+function ReadyRow({ row }: { row: ChecklistRow }) {
   return (
     <Stack direction="row" spacing={1.25} alignItems="flex-start">
       <Box
         sx={{ width: 20, pt: 0.25, display: "flex", justifyContent: "center" }}
       >
-        {item.loading ? (
+        {row.loading ? (
           <CircularProgress
             size="sm"
             sx={{ "--CircularProgress-size": "18px" }}
           />
-        ) : hasWarning ? (
-          <AlertTriangle size={18} style={{ color: iconColor }} />
         ) : (
-          <CheckCircle2 size={18} style={{ color: iconColor }} />
+          <CheckCircle2
+            size={18}
+            style={{ color: "var(--joy-palette-success-600)" }}
+          />
         )}
       </Box>
-      <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={{ xs: 0.25, sm: 1 }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          sx={{ width: "100%" }}
-        >
-          <Typography level="body-sm" fontWeight="lg">
-            {item.label}
-          </Typography>
-          <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-            {item.detail}
-          </Typography>
-        </Stack>
-        {item.warning ? (
-          <Typography level="body-xs" sx={{ color: "warning.700" }}>
-            {item.warning}
-          </Typography>
-        ) : null}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={{ xs: 0.25, sm: 1 }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        sx={{ width: "100%", minWidth: 0 }}
+      >
+        <Typography level="body-sm" fontWeight="lg">
+          {row.label}
+        </Typography>
+        <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+          {row.detail}
+        </Typography>
       </Stack>
     </Stack>
+  );
+}
+
+type ProtectedRowProps = {
+  id: string;
+  message: string;
+  variant?: "locked" | "info";
+  loading?: boolean;
+};
+
+function ProtectedRow({ message, variant = "info", loading }: ProtectedRowProps) {
+  const Icon = variant === "locked" ? Lock : ShieldCheck;
+  return (
+    <Stack direction="row" spacing={1.25} alignItems="flex-start">
+      <Box
+        sx={{ width: 20, pt: 0.25, display: "flex", justifyContent: "center" }}
+      >
+        {loading ? (
+          <CircularProgress
+            size="sm"
+            sx={{ "--CircularProgress-size": "18px" }}
+          />
+        ) : (
+          <Icon
+            size={18}
+            style={{ color: "var(--joy-palette-primary-500)" }}
+          />
+        )}
+      </Box>
+      <Typography level="body-sm" sx={{ color: "neutral.700", minWidth: 0 }}>
+        {message}
+      </Typography>
+    </Stack>
+  );
+}
+
+type ReviewExcludedDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  consentExcludedCount: number;
+  softSuppressionRestorableCount: number;
+  hardSuppressionExcludedCount: number;
+  includeMissingConsent: boolean;
+  includeSoftSuppressions: boolean;
+  onChangeIncludeMissingConsent: (value: boolean) => void;
+  onChangeIncludeSoftSuppressions: (value: boolean) => void;
+  onConfirm: () => void;
+};
+
+function ReviewExcludedDialog({
+  open,
+  onClose,
+  consentExcludedCount,
+  softSuppressionRestorableCount,
+  hardSuppressionExcludedCount,
+  includeMissingConsent,
+  includeSoftSuppressions,
+  onChangeIncludeMissingConsent,
+  onChangeIncludeSoftSuppressions,
+  onConfirm,
+}: ReviewExcludedDialogProps) {
+  const [acknowledged, setAcknowledged] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) {
+      setAcknowledged(false);
+    }
+  }, [open]);
+
+  const hasSelection = includeMissingConsent || includeSoftSuppressions;
+  const canInclude = hasSelection && acknowledged;
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog
+        variant="outlined"
+        size="md"
+        sx={{ width: "min(560px, calc(100vw - 2rem))", p: 0 }}
+      >
+        <ModalClose />
+        <Box sx={{ px: 3, pt: 3, pb: 2 }}>
+          <DialogTitle sx={{ p: 0, mb: 0.5 }}>
+            Review Excluded Contacts
+          </DialogTitle>
+          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            Choose which protected contacts to include for this campaign send only.
+          </Typography>
+        </Box>
+
+        <DialogContent sx={{ px: 3, py: 0 }}>
+          <Stack spacing={2}>
+            <Sheet
+              variant="soft"
+              color="warning"
+              sx={{ borderRadius: "md", p: 1.5 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <AlertTriangle
+                  size={17}
+                  style={{ flexShrink: 0, marginTop: 2 }}
+                />
+                <Typography level="body-sm">
+                  Overrides only apply to this campaign send. Default protections
+                  stay in place for future sends.
+                </Typography>
+              </Stack>
+            </Sheet>
+
+            <Sheet
+              variant="outlined"
+              sx={{ borderRadius: "md", p: 2, opacity: consentExcludedCount > 0 ? 1 : 0.6 }}
+            >
+              <Stack spacing={1}>
+                <Checkbox
+                  checked={includeMissingConsent && consentExcludedCount > 0}
+                  disabled={consentExcludedCount === 0}
+                  onChange={(event) =>
+                    onChangeIncludeMissingConsent(Boolean(event.target.checked))
+                  }
+                  label={
+                    <Typography level="title-sm" fontWeight="lg">
+                      Missing consent · {consentExcludedCount.toLocaleString()} contacts
+                    </Typography>
+                  }
+                />
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", pl: 4 }}
+                >
+                  These contacts don&apos;t have a recorded opt-in. Including them
+                  may affect deliverability and compliance.
+                </Typography>
+              </Stack>
+            </Sheet>
+
+            <Sheet
+              variant="outlined"
+              sx={{
+                borderRadius: "md",
+                p: 2,
+                opacity: softSuppressionRestorableCount > 0 ? 1 : 0.6,
+              }}
+            >
+              <Stack spacing={1}>
+                <Checkbox
+                  checked={
+                    includeSoftSuppressions && softSuppressionRestorableCount > 0
+                  }
+                  disabled={softSuppressionRestorableCount === 0}
+                  onChange={(event) =>
+                    onChangeIncludeSoftSuppressions(Boolean(event.target.checked))
+                  }
+                  label={
+                    <Typography level="title-sm" fontWeight="lg">
+                      Soft suppressions · {softSuppressionRestorableCount.toLocaleString()} contacts
+                    </Typography>
+                  }
+                />
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", pl: 4 }}
+                >
+                  Temporarily suppressed by recent soft bounces or inactivity.
+                  Re-engaging may slow this campaign while providers re-evaluate.
+                </Typography>
+              </Stack>
+            </Sheet>
+
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ borderRadius: "md", p: 2 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Lock
+                  size={17}
+                  style={{
+                    flexShrink: 0,
+                    marginTop: 2,
+                    color: "var(--joy-palette-neutral-500)",
+                  }}
+                />
+                <Stack spacing={0.5}>
+                  <Typography level="title-sm" fontWeight="lg">
+                    Hard suppressions · {hardSuppressionExcludedCount.toLocaleString()} contacts
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                    Unsubscribes, complaints, and hard bounces always stay blocked.
+                    This protects your domain reputation and cannot be overridden.
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Sheet>
+
+            {hasSelection ? (
+              <Checkbox
+                checked={acknowledged}
+                onChange={(event) =>
+                  setAcknowledged(Boolean(event.target.checked))
+                }
+                label="I understand this override applies to this send only."
+              />
+            ) : null}
+          </Stack>
+        </DialogContent>
+
+        <Divider sx={{ mt: 2 }} />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: "100%",
+              gap: 1.5,
+            }}
+          >
+            <JoyButton variant="plain" color="neutral" onClick={onClose}>
+              Cancel
+            </JoyButton>
+            <JoyButton
+              variant="solid"
+              color="warning"
+              disabled={!canInclude}
+              onClick={onConfirm}
+            >
+              Include Selected Contacts for This Send
+            </JoyButton>
+          </Box>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
   );
 }
 
@@ -474,13 +693,18 @@ export function CampaignSendConfirmation({
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [inlineError, setInlineError] = React.useState<string | null>(null);
-  const [warningsAcknowledged, setWarningsAcknowledged] = React.useState(false);
+  const [reviewOpen, setReviewOpen] = React.useState(false);
+  const [includeMissingConsent, setIncludeMissingConsent] = React.useState(false);
+  const [includeSoftSuppressions, setIncludeSoftSuppressions] =
+    React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
       setInlineError(null);
       setIsSubmitting(false);
-      setWarningsAcknowledged(false);
+      setReviewOpen(false);
+      setIncludeMissingConsent(false);
+      setIncludeSoftSuppressions(false);
     }
   }, [open]);
 
@@ -510,126 +734,114 @@ export function CampaignSendConfirmation({
   const suppressionBypassRecipientCount =
     audienceSummaryQuery.data?.suppressionBypassRecipientCount ?? 0;
 
-  const preflightItems = React.useMemo<PreflightItem[]>(
+  const reputationDetail = healthQuery.isLoading
+    ? "Checking health"
+    : reputationScore === null
+      ? "No score yet"
+      : `${reputationScore}/100`;
+
+  const readyRows = React.useMemo<ChecklistRow[]>(
     () => [
       {
         id: "domain",
         label: "Domain verified",
-        detail: domainsLoading ? "Checking sender" : senderEmail || "No sender",
+        detail: domainsLoading
+          ? "Checking sender"
+          : senderEmail || "No sender",
         loading: domainsLoading,
-        warning:
-          !domainsLoading && !domainReady
-            ? "Sending may be blocked if this sender is not verified."
-            : null,
-      },
-      {
-        id: "consent",
-        label: "Consent compliance",
-        detail: audienceSummaryQuery.isLoading
-          ? "Checking audience"
-          : `${consentGap.toLocaleString()} without consent`,
-        loading: audienceSummaryQuery.isLoading,
-        warning:
-          !audienceSummaryQuery.isLoading && consentGap > 0
-            ? `${consentGap.toLocaleString()} matching contacts are excluded from the normal send. Send Anyway includes them unless another hard block still applies.`
-            : null,
-      },
-      {
-        id: "reputation",
-        label: "Reputation status",
-        detail: healthQuery.isLoading
-          ? "Checking health"
-          : reputationScore === null
-            ? "No score yet"
-            : `${reputationScore}/100`,
-        loading: healthQuery.isLoading,
-        warning:
-          reputationScore !== null && reputationScore < 70
-            ? "Provider pacing may slow this campaign to protect deliverability."
-            : null,
-      },
-      {
-        id: "suppression",
-        label: "Suppression list applied",
-        detail: audienceSummaryQuery.isLoading
-          ? "Checking list"
-          : `${suppressionTotal.toLocaleString()} audience suppressions`,
-        loading: audienceSummaryQuery.isLoading,
-        warning:
-          !audienceSummaryQuery.isLoading && suppressionTotal > 0
-            ? suppressionBypassRecipientCount > 0
-              ? `Normal send excludes ${suppressionTotal.toLocaleString()} suppressed addresses. Send Anyway restores ${suppressionBypassRecipientCount.toLocaleString()} soft suppressions while ${hardSuppressionExcludedCount.toLocaleString()} hard suppressions remain excluded.`
-              : "Suppressed addresses will be skipped. Any remaining hard compliance suppressions still apply."
-            : null,
       },
       {
         id: "audience",
         label: "Audience ready",
-        detail: `${formattedRecipients} recipients`,
-        warning:
-          filteredRecipientCount === 0
-            ? "No recipients remain after the current send safeguards are applied."
-            : null,
+        detail: audienceSummaryQuery.isLoading
+          ? "Checking audience"
+          : `${formattedRecipients} approved recipients`,
+        loading: audienceSummaryQuery.isLoading,
+      },
+      {
+        id: "reputation",
+        label: "Reputation status",
+        detail: reputationDetail,
+        loading: healthQuery.isLoading,
       },
     ],
     [
       audienceSummaryQuery.isLoading,
-      consentGap,
-      domainReady,
       domainsLoading,
       formattedRecipients,
-      filteredRecipientCount,
-      hardSuppressionExcludedCount,
       healthQuery.isLoading,
-      reputationScore,
+      reputationDetail,
       senderEmail,
-      suppressionBypassRecipientCount,
-      suppressionTotal,
     ],
   );
 
-  const hasWarning = preflightItems.some((item) => Boolean(item.warning));
   const hasBuilderWarnings = builderWarnings.length > 0;
   const hasBuilderBlockers = builderBlockers.length > 0;
-  const hasWarnings = hasWarning || hasBuilderWarnings;
-  const canForceOverride = sendImmediately && hasWarnings;
+  const hasProtectedExclusions =
+    consentGap > 0 ||
+    hardSuppressionExcludedCount > 0 ||
+    suppressionBypassRecipientCount > 0;
 
-  const acknowledgedWarnings = React.useMemo<AcknowledgedWarning[]>(
-    () => [
-      ...preflightItems
-        .filter((item) => Boolean(item.warning))
-        .map((item) => ({
-          id: item.id,
-          label: item.label,
-          detail: item.detail,
-          warning: item.warning ?? null,
-        })),
-      ...builderWarnings.map((warning, index) => ({
+  const overrideActive = includeMissingConsent || includeSoftSuppressions;
+  const projectedRecipientCount = !overrideActive
+    ? filteredRecipientCount
+    : includeMissingConsent && includeSoftSuppressions
+      ? overrideRecipientCount
+      : filteredRecipientCount +
+        (includeMissingConsent ? consentGap : 0) +
+        (includeSoftSuppressions ? suppressionBypassRecipientCount : 0);
+  const formattedProjectedRecipients = projectedRecipientCount.toLocaleString();
+
+  const acknowledgedWarnings = React.useMemo<AcknowledgedWarning[]>(() => {
+    const items: AcknowledgedWarning[] = [];
+    if (includeMissingConsent) {
+      items.push({
+        id: "override-consent",
+        label: "Override: missing consent",
+        detail: `${consentGap.toLocaleString()} contacts without recorded consent`,
+        warning:
+          "User reviewed excluded contacts and chose to include missing-consent recipients for this send only.",
+      });
+    }
+    if (includeSoftSuppressions) {
+      items.push({
+        id: "override-soft-suppressions",
+        label: "Override: soft suppressions",
+        detail: `${suppressionBypassRecipientCount.toLocaleString()} soft-suppressed contacts`,
+        warning:
+          "User reviewed excluded contacts and chose to include soft-suppressed recipients for this send only.",
+      });
+    }
+    builderWarnings.forEach((warning, index) => {
+      items.push({
         id: `builder-warning-${index + 1}`,
         label: "Content warning",
         detail: warning,
         warning,
-      })),
-    ],
-    [builderWarnings, preflightItems],
-  );
+      });
+    });
+    return items;
+  }, [
+    builderWarnings,
+    consentGap,
+    includeMissingConsent,
+    includeSoftSuppressions,
+    suppressionBypassRecipientCount,
+  ]);
 
   const isBusy = isSaving || isSubmitting;
-  const useForceOverride = canForceOverride && warningsAcknowledged;
-  const primaryActionLabel = useForceOverride
-    ? "Send Anyway"
-    : sendImmediately
-      ? "Send Now"
-      : "Schedule";
-  const primaryActionColor = useForceOverride ? "warning" : "primary";
-  const primaryActionMode = useForceOverride ? "override" : "normal";
+  const primaryActionLabel = !sendImmediately
+    ? `Schedule for ${formattedProjectedRecipients} approved recipients`
+    : overrideActive
+      ? `Send to ${formattedProjectedRecipients} recipients (with override)`
+      : `Send to ${formattedProjectedRecipients} approved recipients`;
+  const primaryActionColor: "primary" | "warning" = overrideActive
+    ? "warning"
+    : "primary";
   const primaryActionDisabled =
     isBusy ||
     hasBuilderBlockers ||
-    (canForceOverride && !warningsAcknowledged) ||
-    (useForceOverride
-      ? overrideRecipientCount === 0
-      : filteredRecipientCount === 0);
+    projectedRecipientCount === 0;
 
   const handleClose = React.useCallback(() => {
     if (!isBusy) {
@@ -637,256 +849,340 @@ export function CampaignSendConfirmation({
     }
   }, [isBusy, onClose]);
 
-  const handleSubmit = React.useCallback(
-    async (mode: "normal" | "override") => {
-      const shouldForceOverride = mode === "override" && canForceOverride;
-      const isDisabled =
-        isBusy ||
-        hasBuilderBlockers ||
-        (shouldForceOverride
-          ? overrideRecipientCount === 0
-          : filteredRecipientCount === 0) ||
-        (canForceOverride && !shouldForceOverride);
+  const handleSubmit = React.useCallback(async () => {
+    if (primaryActionDisabled) {
+      return;
+    }
 
-      if (isDisabled) {
+    setInlineError(null);
+    setIsSubmitting(true);
+    try {
+      const result = await activate({
+        suppressToasts: true,
+        forceBypassConsent: includeMissingConsent,
+        forceBypassSoftSuppression: includeSoftSuppressions,
+        acknowledgedWarnings: overrideActive ? acknowledgedWarnings : undefined,
+      });
+      if (result.success) {
+        onClose();
         return;
       }
+      setInlineError(result.error.description || result.error.title);
+    } catch (error) {
+      setInlineError(
+        error instanceof Error
+          ? error.message
+          : "The send request could not be accepted into the queue.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    acknowledgedWarnings,
+    activate,
+    includeMissingConsent,
+    includeSoftSuppressions,
+    onClose,
+    overrideActive,
+    primaryActionDisabled,
+  ]);
 
-      setInlineError(null);
-      setIsSubmitting(true);
-      try {
-        const result = await activate({
-          suppressToasts: true,
-          forceBypassConsent: shouldForceOverride,
-          forceBypassSoftSuppression: shouldForceOverride,
-          acknowledgedWarnings: shouldForceOverride
-            ? acknowledgedWarnings
-            : undefined,
-        });
-        if (result.success) {
-          onClose();
-          return;
-        }
-        setInlineError(result.error.description || result.error.title);
-      } catch (error) {
-        setInlineError(
-          error instanceof Error
-            ? error.message
-            : "The send request could not be accepted into the queue.",
-        );
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [
-      acknowledgedWarnings,
-      activate,
-      canForceOverride,
-      filteredRecipientCount,
-      hasBuilderBlockers,
-      isBusy,
-      onClose,
-      overrideRecipientCount,
-    ],
-  );
+  const handleConfirmReview = React.useCallback(() => {
+    setReviewOpen(false);
+  }, []);
+
+  const showDomainWarning = !domainsLoading && !domainReady;
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <ModalDialog
-        variant="outlined"
-        size="md"
-        sx={{ width: "min(640px, calc(100vw - 2rem))", p: 0 }}
-      >
-        {!isBusy ? <ModalClose /> : null}
-        <Box sx={{ px: 3, pt: 3, pb: 2 }}>
-          <DialogTitle sx={{ p: 0, mb: 0.5 }}>
-            Confirm Campaign Send
-          </DialogTitle>
-          <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-            {canForceOverride && overrideRecipientCount > filteredRecipientCount
-              ? `This campaign is currently ready to send to ${formattedRecipients} filtered recipients. Send Anyway expands this to ${formattedOverrideRecipients}.`
-              : sendImmediately
-                ? `This campaign will be sent to ${formattedRecipients} recipients.`
-                : `This campaign will be scheduled for ${formattedRecipients} recipients.`}
-          </Typography>
-        </Box>
+    <>
+      <Modal open={open && !reviewOpen} onClose={handleClose}>
+        <ModalDialog
+          variant="outlined"
+          size="md"
+          sx={{ width: "min(640px, calc(100vw - 2rem))", p: 0 }}
+        >
+          {!isBusy ? <ModalClose /> : null}
+          <Box sx={{ px: 3, pt: 3, pb: 2 }}>
+            <DialogTitle sx={{ p: 0, mb: 0.5 }}>
+              Ready to send {name || "this campaign"}
+            </DialogTitle>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              {audienceSummaryQuery.isLoading
+                ? "BloomSuite is checking your audience..."
+                : `BloomSuite checked your campaign and found ${formattedRecipients} approved recipients.`}
+            </Typography>
+          </Box>
 
-        <DialogContent sx={{ px: 3, py: 0 }}>
-          <Stack spacing={2.25}>
-            <Sheet
-              variant="soft"
-              color="neutral"
-              sx={{ borderRadius: "md", p: 2 }}
-            >
+          <DialogContent sx={{ px: 3, py: 0 }}>
+            <Stack spacing={2.25}>
+              <Sheet
+                variant="soft"
+                color="neutral"
+                sx={{ borderRadius: "md", p: 2 }}
+              >
+                <Stack spacing={1.25}>
+                  <Box>
+                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                      Campaign
+                    </Typography>
+                    <Typography level="title-sm" fontWeight="lg">
+                      {name || "Untitled Campaign"}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                      Subject line
+                    </Typography>
+                    <Typography level="body-sm">
+                      {subjectLine || "No subject line"}
+                    </Typography>
+                  </Box>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        From
+                      </Typography>
+                      <Typography
+                        level="body-sm"
+                        sx={{ wordBreak: "break-word" }}
+                      >
+                        {senderName
+                          ? `${senderName} <${senderEmail}>`
+                          : senderEmail || "No sender"}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                        Reply-to
+                      </Typography>
+                      <Typography
+                        level="body-sm"
+                        sx={{ wordBreak: "break-word" }}
+                      >
+                        {replyTo || senderEmail || "No reply-to"}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {sendImmediately
+                      ? "Delivery starts as soon as the queue is accepted."
+                      : `Scheduled for ${sendAt?.toLocaleString() ?? "later"}.`}
+                  </Typography>
+                </Stack>
+              </Sheet>
+
               <Stack spacing={1.25}>
-                <Box>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Campaign
-                  </Typography>
-                  <Typography level="title-sm" fontWeight="lg">
-                    {name || "Untitled Campaign"}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Subject line
-                  </Typography>
-                  <Typography level="body-sm">
-                    {subjectLine || "No subject line"}
-                  </Typography>
-                </Box>
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                      From
-                    </Typography>
-                    <Typography
-                      level="body-sm"
-                      sx={{ wordBreak: "break-word" }}
-                    >
-                      {senderName
-                        ? `${senderName} <${senderEmail}>`
-                        : senderEmail || "No sender"}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                      Reply-to
-                    </Typography>
-                    <Typography
-                      level="body-sm"
-                      sx={{ wordBreak: "break-word" }}
-                    >
-                      {replyTo || senderEmail || "No reply-to"}
-                    </Typography>
-                  </Box>
-                </Stack>
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  {sendImmediately
-                    ? "Delivery starts as soon as the queue is accepted."
-                    : `Scheduled for ${sendAt?.toLocaleString() ?? "later"}.`}
+                <Typography
+                  level="body-xs"
+                  fontWeight="lg"
+                  sx={{
+                    color: "neutral.500",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Ready
                 </Typography>
+                <Stack spacing={1.25}>
+                  {readyRows.map((row) => (
+                    <ReadyRow key={row.id} row={row} />
+                  ))}
+                </Stack>
+                {showDomainWarning ? (
+                  <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                    Sending may be blocked if this sender domain isn&apos;t verified.
+                  </Typography>
+                ) : null}
               </Stack>
-            </Sheet>
 
-            <Stack spacing={1.4}>
-              {preflightItems.map((item) => (
-                <PreflightLine key={item.id} item={item} />
-              ))}
+              {hasProtectedExclusions ? (
+                <Stack spacing={1.25}>
+                  <Typography
+                    level="body-xs"
+                    fontWeight="lg"
+                    sx={{
+                      color: "neutral.500",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Protected by BloomSuite
+                  </Typography>
+                  <Stack spacing={1.25}>
+                    {consentGap > 0 ? (
+                      <ProtectedRow
+                        id="consent-check"
+                        message={`${consentGap.toLocaleString()} contacts are missing recorded consent and will be excluded.`}
+                      />
+                    ) : null}
+                    {hardSuppressionExcludedCount > 0 ? (
+                      <ProtectedRow
+                        id="hard-suppression"
+                        variant="locked"
+                        message={`${hardSuppressionExcludedCount.toLocaleString()} hard-suppressed addresses will stay blocked.`}
+                      />
+                    ) : null}
+                    {suppressionBypassRecipientCount > 0 ? (
+                      <ProtectedRow
+                        id="soft-suppression"
+                        message={`${suppressionBypassRecipientCount.toLocaleString()} soft-suppressed addresses can be reviewed.`}
+                      />
+                    ) : null}
+                  </Stack>
+                  <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                    We recommend sending only to approved recipients to protect
+                    compliance and deliverability.
+                  </Typography>
+                </Stack>
+              ) : null}
+
+              {overrideActive ? (
+                <Sheet
+                  variant="soft"
+                  color="warning"
+                  sx={{ borderRadius: "md", p: 1.5 }}
+                >
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <AlertTriangle
+                      size={17}
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    />
+                    <Typography level="body-sm">
+                      Override active for this send:{" "}
+                      {includeMissingConsent && includeSoftSuppressions
+                        ? "missing-consent and soft-suppressed contacts"
+                        : includeMissingConsent
+                          ? "missing-consent contacts"
+                          : "soft-suppressed contacts"}{" "}
+                      will be included.
+                    </Typography>
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              {hasBuilderBlockers ? (
+                <Sheet
+                  variant="soft"
+                  color="danger"
+                  sx={{ borderRadius: "md", p: 1.5 }}
+                >
+                  <Stack spacing={0.75}>
+                    <Typography level="body-sm" fontWeight="lg">
+                      Fix these blockers before sending
+                    </Typography>
+                    {builderBlockers.map((blocker) => (
+                      <Typography key={blocker} level="body-xs">
+                        {blocker}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              {hasBuilderWarnings ? (
+                <Sheet
+                  variant="soft"
+                  color="neutral"
+                  sx={{ borderRadius: "md", p: 1.5 }}
+                >
+                  <Stack spacing={0.75}>
+                    <Typography level="body-sm" fontWeight="lg">
+                      Content notes to review
+                    </Typography>
+                    {builderWarnings.map((warning) => (
+                      <Typography key={warning} level="body-xs">
+                        {warning}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              {inlineError ? (
+                <Sheet
+                  variant="soft"
+                  color="danger"
+                  sx={{ borderRadius: "md", p: 1.5 }}
+                >
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <AlertTriangle
+                      size={17}
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    />
+                    <Typography level="body-sm">{inlineError}</Typography>
+                  </Stack>
+                </Sheet>
+              ) : null}
             </Stack>
+          </DialogContent>
 
-            {hasBuilderBlockers ? (
-              <Sheet
-                variant="soft"
-                color="danger"
-                sx={{ borderRadius: "md", p: 1.5 }}
-              >
-                <Stack spacing={0.75}>
-                  <Typography level="body-sm" fontWeight="lg">
-                    Fix these blockers before sending
-                  </Typography>
-                  {builderBlockers.map((blocker) => (
-                    <Typography key={blocker} level="body-xs">
-                      {blocker}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Sheet>
-            ) : null}
-
-            {hasBuilderWarnings ? (
-              <Sheet
-                variant="soft"
-                color="warning"
-                sx={{ borderRadius: "md", p: 1.5 }}
-              >
-                <Stack spacing={0.75}>
-                  <Typography level="body-sm" fontWeight="lg">
-                    Review these content warnings before sending
-                  </Typography>
-                  {builderWarnings.map((warning) => (
-                    <Typography key={warning} level="body-xs">
-                      {warning}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Sheet>
-            ) : null}
-
-            {canForceOverride ? (
-              <Checkbox
-                checked={warningsAcknowledged}
-                onChange={(event) =>
-                  setWarningsAcknowledged(Boolean(event.target.checked))
-                }
-                label="I understand these warnings and want to continue."
-                disabled={hasBuilderBlockers || isBusy}
-              />
-            ) : null}
-
-            {canForceOverride ? (
-              <Typography level="body-xs" sx={{ color: "warning.700" }}>
-                Send Anyway bypasses consent filtering and soft suppressions for
-                this send only. Any remaining hard compliance blocks and
-                placeholder addresses stay excluded.
-              </Typography>
-            ) : null}
-
-            {inlineError ? (
-              <Sheet
-                variant="soft"
-                color="danger"
-                sx={{ borderRadius: "md", p: 1.5 }}
-              >
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <AlertTriangle
-                    size={17}
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <Typography level="body-sm">{inlineError}</Typography>
-                </Stack>
-              </Sheet>
-            ) : null}
-          </Stack>
-        </DialogContent>
-
-        <Divider />
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "100%",
-              gap: 1.5,
-            }}
-          >
-            <JoyButton
-              variant="plain"
-              color="neutral"
-              onClick={handleClose}
-              disabled={isBusy}
-            >
-              Back
-            </JoyButton>
-            <JoyButton
-              variant="solid"
-              color={primaryActionColor}
-              loading={isBusy}
-              disabled={primaryActionDisabled}
-              onClick={() => void handleSubmit(primaryActionMode)}
-              startDecorator={<Send size={16} />}
+          <Divider />
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Box
               sx={{
-                ml: "auto",
-                transition:
-                  "background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                width: "100%",
+                gap: 1.5,
+                flexWrap: "wrap",
               }}
             >
-              {primaryActionLabel}
-            </JoyButton>
-          </Box>
-        </DialogActions>
-      </ModalDialog>
-    </Modal>
+              <JoyButton
+                variant="plain"
+                color="neutral"
+                onClick={handleClose}
+                disabled={isBusy}
+              >
+                Back
+              </JoyButton>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ ml: "auto", flexWrap: "wrap" }}
+              >
+                {hasProtectedExclusions ? (
+                  <JoyButton
+                    variant="outlined"
+                    color="neutral"
+                    onClick={() => setReviewOpen(true)}
+                    disabled={isBusy}
+                  >
+                    Review Excluded Contacts
+                  </JoyButton>
+                ) : null}
+                <JoyButton
+                  variant="solid"
+                  color={primaryActionColor}
+                  loading={isBusy}
+                  disabled={primaryActionDisabled}
+                  onClick={() => void handleSubmit()}
+                  startDecorator={<Send size={16} />}
+                  sx={{
+                    transition:
+                      "background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease",
+                  }}
+                >
+                  {primaryActionLabel}
+                </JoyButton>
+              </Stack>
+            </Box>
+          </DialogActions>
+        </ModalDialog>
+      </Modal>
+
+      <ReviewExcludedDialog
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        consentExcludedCount={consentGap}
+        softSuppressionRestorableCount={suppressionBypassRecipientCount}
+        hardSuppressionExcludedCount={hardSuppressionExcludedCount}
+        includeMissingConsent={includeMissingConsent}
+        includeSoftSuppressions={includeSoftSuppressions}
+        onChangeIncludeMissingConsent={setIncludeMissingConsent}
+        onChangeIncludeSoftSuppressions={setIncludeSoftSuppressions}
+        onConfirm={handleConfirmReview}
+      />
+    </>
   );
 }
