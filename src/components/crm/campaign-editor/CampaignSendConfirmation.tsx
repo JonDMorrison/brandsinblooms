@@ -28,6 +28,7 @@ import {
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useCampaignEditor } from "@/components/crm/campaign-editor/CampaignEditorContext";
 import { useEmailDomains } from "@/hooks/useEmailDomains";
+import { usePreviousCampaignRecipientCount } from "@/hooks/usePreviousCampaignRecipientCount";
 import { useTenantEmailHealthDashboard } from "@/hooks/useTenantEmailHealthDashboard";
 import { useTenant } from "@/hooks/useTenant";
 import {
@@ -1083,7 +1084,12 @@ export function CampaignSendConfirmation({
     selectedPersonas,
     includeAllCustomers,
     additionalCustomerIds,
+    campaignId,
   } = useCampaignEditor();
+  const previousCampaignQuery = usePreviousCampaignRecipientCount(tenant?.id, {
+    enabled: open,
+    excludeCampaignId: campaignId ?? null,
+  });
   const { emailDomains, loading: domainsLoading } = useEmailDomains();
   const healthQuery = useTenantEmailHealthDashboard(tenant?.id, {
     enabled: open,
@@ -1550,6 +1556,65 @@ export function CampaignSendConfirmation({
                     hardSuppressionExcludedCount={hardSuppressionExcludedCount}
                   />
                 </Stack>
+              ) : null}
+
+              {/* Audience-shrinkage warning vs previous send */}
+              {previousCampaignQuery.data?.count &&
+              previousCampaignQuery.data.count >= 1 &&
+              projectedRecipientCount > 0 &&
+              projectedRecipientCount <
+                previousCampaignQuery.data.count * 0.5 ? (
+                <Sheet
+                  variant="soft"
+                  color="warning"
+                  data-testid="audience-shrinkage-warning"
+                  sx={{ borderRadius: "md", p: 2 }}
+                >
+                  <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                    <AlertTriangle
+                      size={18}
+                      style={{
+                        flexShrink: 0,
+                        marginTop: 2,
+                        color: "var(--joy-palette-warning-700)",
+                      }}
+                    />
+                    <Stack spacing={0.5}>
+                      <Typography
+                        level="title-sm"
+                        fontWeight="lg"
+                        sx={{ color: "warning.700" }}
+                      >
+                        Your eligible audience has changed significantly.
+                      </Typography>
+                      <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                        Your audience for this send is{" "}
+                        <Typography
+                          component="span"
+                          fontWeight="lg"
+                          sx={{ color: "neutral.900" }}
+                        >
+                          {projectedRecipientCount.toLocaleString()} recipients
+                        </Typography>
+                        . Your previous campaign
+                        {previousCampaignQuery.data.campaignName
+                          ? ` (${previousCampaignQuery.data.campaignName})`
+                          : ""}{" "}
+                        sent to{" "}
+                        <Typography
+                          component="span"
+                          fontWeight="lg"
+                          sx={{ color: "neutral.900" }}
+                        >
+                          {previousCampaignQuery.data.count.toLocaleString()}{" "}
+                          recipients
+                        </Typography>
+                        . Review your customer consent settings before sending
+                        if this is unexpected.
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Sheet>
               ) : null}
 
               {/* Section C — Recommendation box */}

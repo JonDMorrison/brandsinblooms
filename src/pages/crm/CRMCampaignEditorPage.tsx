@@ -91,6 +91,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
+import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
@@ -518,6 +519,7 @@ function CampaignEditorScreen() {
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { emailDomains, loading: emailDomainsLoading } = useEmailDomains();
+  const audienceHealthQuery = useTenantAudienceHealth(tenant?.id);
   const { designSystem, isLoading: isDesignSystemLoading } = useDesignSystem();
   const {
     campaignId,
@@ -1546,6 +1548,145 @@ function CampaignEditorScreen() {
             loading={segmentsQuery.isLoading}
             onChange={(next) => updateAudience(next)}
           />
+
+          {audienceHealthQuery.data &&
+          audienceHealthQuery.data.total > 0 ? (
+            <Sheet
+              variant="outlined"
+              data-testid="audience-consent-breakdown"
+              sx={{ borderRadius: "md", p: 1.75 }}
+            >
+              <Stack spacing={1.25}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Typography
+                    level="body-xs"
+                    fontWeight="lg"
+                    sx={{
+                      color: "neutral.500",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Consent status across your contacts
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                    {audienceHealthQuery.data.total.toLocaleString()} total
+                  </Typography>
+                </Stack>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "repeat(2, minmax(0, 1fr))",
+                      sm: "repeat(4, minmax(0, 1fr))",
+                    },
+                    gap: 1.25,
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      level="title-md"
+                      sx={{ color: "success.700", lineHeight: 1 }}
+                    >
+                      {audienceHealthQuery.data.confirmed.toLocaleString()}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.600", mt: 0.5 }}
+                    >
+                      Confirmed opt-in
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      level="title-md"
+                      sx={{
+                        color:
+                          audienceHealthQuery.data.pending > 0
+                            ? "warning.700"
+                            : "neutral.700",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {audienceHealthQuery.data.pending.toLocaleString()}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.600", mt: 0.5 }}
+                    >
+                      Pending confirmation
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      level="title-md"
+                      sx={{ color: "neutral.700", lineHeight: 1 }}
+                    >
+                      {audienceHealthQuery.data.optedOut.toLocaleString()}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.600", mt: 0.5 }}
+                    >
+                      Opted out
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      level="title-md"
+                      sx={{ color: "neutral.700", lineHeight: 1 }}
+                    >
+                      {audienceHealthQuery.data.suppressed.toLocaleString()}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: "neutral.600", mt: 0.5 }}
+                    >
+                      Suppressed
+                    </Typography>
+                  </Box>
+                </Box>
+                {audienceHealthQuery.data.pending > 0 &&
+                audienceHealthQuery.data.pending /
+                  audienceHealthQuery.data.total >
+                  0.1 ? (
+                  <Sheet
+                    variant="soft"
+                    color="warning"
+                    data-testid="audience-pending-confirmation-warning"
+                    sx={{ borderRadius: "md", p: 1.25 }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <AlertCircle
+                        size={16}
+                        style={{
+                          flexShrink: 0,
+                          marginTop: 2,
+                          color: "var(--joy-palette-warning-700)",
+                        }}
+                      />
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: "neutral.700" }}
+                      >
+                        You have{" "}
+                        {audienceHealthQuery.data.pending.toLocaleString()}{" "}
+                        customers whose email consent is pending confirmation.
+                        They are not currently eligible to receive marketing
+                        email. If you have consent records for these
+                        customers, contact support to restore them.
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                ) : null}
+              </Stack>
+            </Sheet>
+          ) : null}
 
           {personaDisclosureOpen ? (
             <JoyAutocomplete<CampaignPersonaSummary, true, false, false>

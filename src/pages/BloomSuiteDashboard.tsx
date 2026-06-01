@@ -25,6 +25,7 @@ import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
+import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
 import { useTenant } from "@/hooks/useTenant";
 import {
@@ -370,6 +371,7 @@ export const BloomSuiteDashboard = () => {
     isLoading: loadingTenantSummary,
     error: tenantSummaryError,
   } = useTenantCustomerSummary(tenant?.id);
+  const audienceHealthQuery = useTenantAudienceHealth(tenant?.id);
 
   const displayName = useMemo(() => {
     const fullName =
@@ -850,6 +852,127 @@ export const BloomSuiteDashboard = () => {
           />
         ))}
       </Box>
+
+      {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
+        <Sheet
+          variant="outlined"
+          data-testid="dashboard-audience-health-card"
+          sx={{ borderRadius: "12px", p: 2, backgroundColor: "#FFFFFF" }}
+        >
+          <Stack spacing={1.25}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Stack spacing={0.25}>
+                <Typography
+                  level="title-md"
+                  sx={{ fontSize: "16px", fontWeight: 600 }}
+                >
+                  Audience health
+                </Typography>
+                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                  Consent status across your{" "}
+                  {audienceHealthQuery.data.total.toLocaleString()} contacts
+                </Typography>
+              </Stack>
+              <Box
+                component="button"
+                type="button"
+                onClick={() => navigate("/crm/customers")}
+                sx={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "primary.600",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  textDecoration: "underline",
+                  "&:hover": { color: "primary.700" },
+                }}
+              >
+                View contacts
+              </Box>
+            </Stack>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "repeat(2, minmax(0, 1fr))",
+                  sm: "repeat(4, minmax(0, 1fr))",
+                },
+                gap: 1.5,
+              }}
+            >
+              <Box>
+                <Typography
+                  level="h4"
+                  sx={{ color: "success.700", lineHeight: 1, fontWeight: 700 }}
+                >
+                  {audienceHealthQuery.data.eligible.toLocaleString()}
+                </Typography>
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", mt: 0.5 }}
+                >
+                  Eligible for email
+                </Typography>
+              </Box>
+              <Box>
+                <Typography
+                  level="h4"
+                  sx={{
+                    color:
+                      audienceHealthQuery.data.pending > 0
+                        ? "warning.700"
+                        : "neutral.700",
+                    lineHeight: 1,
+                    fontWeight: 700,
+                  }}
+                >
+                  {audienceHealthQuery.data.pending.toLocaleString()}
+                </Typography>
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", mt: 0.5 }}
+                >
+                  Pending confirmation
+                </Typography>
+              </Box>
+              <Box>
+                <Typography
+                  level="h4"
+                  sx={{ color: "neutral.700", lineHeight: 1, fontWeight: 700 }}
+                >
+                  {audienceHealthQuery.data.optedOut.toLocaleString()}
+                </Typography>
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", mt: 0.5 }}
+                >
+                  Opted out
+                </Typography>
+              </Box>
+              <Box>
+                <Typography
+                  level="h4"
+                  sx={{ color: "neutral.700", lineHeight: 1, fontWeight: 700 }}
+                >
+                  {audienceHealthQuery.data.suppressed.toLocaleString()}
+                </Typography>
+                <Typography
+                  level="body-xs"
+                  sx={{ color: "neutral.600", mt: 0.5 }}
+                >
+                  Suppressed
+                </Typography>
+              </Box>
+            </Box>
+          </Stack>
+        </Sheet>
+      ) : null}
 
       <Box
         sx={{
