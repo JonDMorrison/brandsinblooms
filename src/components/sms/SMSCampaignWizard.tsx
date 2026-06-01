@@ -5,6 +5,7 @@ import Autocomplete from "@mui/joy/Autocomplete";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
 import Card from "@mui/joy/Card";
+import Checkbox from "@mui/joy/Checkbox";
 import Chip from "@mui/joy/Chip";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
@@ -97,6 +98,13 @@ type ValidationCheck = {
   label: string;
   detail: string;
   passed: boolean;
+};
+
+type ComplianceSeverity = "block" | "warning";
+
+type ComplianceIssue = {
+  severity: ComplianceSeverity;
+  message: string;
 };
 
 const WIZARD_STEPS: StepDefinition[] = [
@@ -784,47 +792,80 @@ export function SMSCampaignWizard() {
     subscriberHealthQuery.data,
   ]);
 
-  const complianceIssues = React.useMemo(() => {
-    const issues: string[] = [];
-    const lowerMessage = message.toLowerCase();
+  const complianceIssues = React.useMemo<ComplianceIssue[]>(() => {
+    const issues: ComplianceIssue[] = [];
 
     if (message.trim().length === 0) {
       return issues;
     }
 
+    const lowerMessage = message.toLowerCase();
+    const normalize = (value: string) =>
+      value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedMessage = normalize(message);
+    const normalizedBrand = normalize(tenant?.name ?? "");
+
     if (
       !lowerMessage.includes("stop") &&
       !lowerMessage.includes("unsubscribe")
     ) {
-      issues.push(
-        'Add opt-out language such as "Reply STOP to opt out" before launch.',
-      );
+      issues.push({
+        severity: "block",
+        message:
+          'Add opt-out language such as "Reply STOP to opt out" before launch.',
+      });
     }
 
-    if (
-      !lowerMessage.includes("company") &&
-      !lowerMessage.includes("team") &&
-      !lowerMessage.includes("bloomsuite")
-    ) {
-      issues.push(
-        "Consider clear brand identification near the start of the message.",
-      );
+    const brandMatched = normalizedBrand
+      ? normalizedMessage.includes(normalizedBrand)
+      : lowerMessage.includes("company") ||
+        lowerMessage.includes("team") ||
+        lowerMessage.includes("bloomsuite");
+
+    if (!brandMatched) {
+      issues.push({
+        severity: "warning",
+        message:
+          "Consider clear brand identification near the start of the message.",
+      });
     }
 
     if (segmentInfo.segments > 3) {
-      issues.push(
-        `This copy spans ${segmentInfo.segments} SMS segments and will cost more credits to deliver.`,
-      );
+      issues.push({
+        severity: "warning",
+        message: `This copy spans ${segmentInfo.segments} SMS segments and will cost more credits to deliver.`,
+      });
     }
 
     if (mediaUrls.length > 0) {
-      issues.push(
-        "MMS attachments may affect carrier behavior and delivery speed for some recipients.",
-      );
+      issues.push({
+        severity: "warning",
+        message:
+          "MMS attachments may affect carrier behavior and delivery speed for some recipients.",
+      });
     }
 
     return issues;
-  }, [mediaUrls.length, message, segmentInfo.segments]);
+  }, [mediaUrls.length, message, segmentInfo.segments, tenant?.name]);
+
+  const blockingComplianceIssues = React.useMemo(
+    () => complianceIssues.filter((issue) => issue.severity === "block"),
+    [complianceIssues],
+  );
+  const warningComplianceIssues = React.useMemo(
+    () => complianceIssues.filter((issue) => issue.severity === "warning"),
+    [complianceIssues],
+  );
+  const [complianceWarningsAcknowledged, setComplianceWarningsAcknowledged] =
+    React.useState(false);
+
+  React.useEffect(() => {
+    setComplianceWarningsAcknowledged(false);
+  }, [message, mediaUrls.length, tenant?.name]);
+
+  const compliancePassed =
+    blockingComplianceIssues.length === 0 &&
+    (warningComplianceIssues.length === 0 || complianceWarningsAcknowledged);
 
   const validationChecks = React.useMemo<ValidationCheck[]>(() => {
     return [
@@ -862,21 +903,28 @@ export function SMSCampaignWizard() {
         key: "compliance",
         label: "Compliance review",
         detail:
-          complianceIssues.length === 0
-            ? "No blocking compliance warnings were detected."
-            : `${complianceIssues.length} warning${complianceIssues.length === 1 ? "" : "s"} need review.`,
-        passed: complianceIssues.length === 0,
+          blockingComplianceIssues.length > 0
+            ? `${blockingComplianceIssues.length} blocking issue${blockingComplianceIssues.length === 1 ? "" : "s"} must be resolved before sending.`
+            : warningComplianceIssues.length === 0
+              ? "No compliance issues detected."
+              : complianceWarningsAcknowledged
+                ? `Acknowledged ${warningComplianceIssues.length} non-blocking warning${warningComplianceIssues.length === 1 ? "" : "s"}.`
+                : `${warningComplianceIssues.length} warning${warningComplianceIssues.length === 1 ? "" : "s"} to review before sending.`,
+        passed: compliancePassed,
       },
     ];
   }, [
     audienceMode,
+    blockingComplianceIssues.length,
     campaignName,
-    complianceIssues.length,
+    compliancePassed,
+    complianceWarningsAcknowledged,
     message,
     scheduleMode,
     scheduledAt,
     selectedPersona,
     selectedSegment,
+    warningComplianceIssues.length,
   ]);
 
   const blockingIssues = validationChecks.filter((check) => !check.passed);
@@ -1821,40 +1869,105 @@ export function SMSCampaignWizard() {
                         </Stack>
 
                         {complianceIssues.length > 0 ? (
-                          <Alert
-                            variant="soft"
-                            color="warning"
-                            sx={{
-                              borderRadius: "18px",
-                              alignItems: "flex-start",
-                            }}
-                          >
-                            <List sx={{ "--List-padding": "0px", gap: 0.5 }}>
-                              {complianceIssues.map((issue) => (
-                                <ListItem
-                                  key={issue}
-                                  sx={{
-                                    px: 0,
-                                    py: 0,
-                                    alignItems: "flex-start",
-                                  }}
-                                >
-                                  <ListItemDecorator
-                                    sx={{
-                                      minWidth: 18,
-                                      color: "warning.700",
-                                      mt: 0.2,
-                                    }}
-                                  >
-                                    -
-                                  </ListItemDecorator>
-                                  <Typography level="body-sm">
-                                    {issue}
+                          <Stack spacing={1.25}>
+                            {blockingComplianceIssues.length > 0 ? (
+                              <Alert
+                                variant="soft"
+                                color="danger"
+                                sx={{
+                                  borderRadius: "18px",
+                                  alignItems: "flex-start",
+                                }}
+                              >
+                                <Stack spacing={0.75} sx={{ width: "100%" }}>
+                                  <Typography level="title-sm" color="danger">
+                                    {`${blockingComplianceIssues.length} blocking compliance issue${blockingComplianceIssues.length === 1 ? "" : "s"}`}
                                   </Typography>
-                                </ListItem>
-                              ))}
-                            </List>
-                          </Alert>
+                                  <List
+                                    sx={{ "--List-padding": "0px", gap: 0.5 }}
+                                  >
+                                    {blockingComplianceIssues.map((issue) => (
+                                      <ListItem
+                                        key={`block-${issue.message}`}
+                                        sx={{
+                                          px: 0,
+                                          py: 0,
+                                          alignItems: "flex-start",
+                                        }}
+                                      >
+                                        <ListItemDecorator
+                                          sx={{
+                                            minWidth: 18,
+                                            color: "danger.700",
+                                            mt: 0.2,
+                                          }}
+                                        >
+                                          -
+                                        </ListItemDecorator>
+                                        <Typography level="body-sm">
+                                          {issue.message}
+                                        </Typography>
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                </Stack>
+                              </Alert>
+                            ) : null}
+
+                            {warningComplianceIssues.length > 0 ? (
+                              <Alert
+                                variant="soft"
+                                color="warning"
+                                sx={{
+                                  borderRadius: "18px",
+                                  alignItems: "flex-start",
+                                }}
+                              >
+                                <Stack spacing={1} sx={{ width: "100%" }}>
+                                  <Typography level="title-sm" color="warning">
+                                    {`${warningComplianceIssues.length} non-blocking warning${warningComplianceIssues.length === 1 ? "" : "s"}`}
+                                  </Typography>
+                                  <List
+                                    sx={{ "--List-padding": "0px", gap: 0.5 }}
+                                  >
+                                    {warningComplianceIssues.map((issue) => (
+                                      <ListItem
+                                        key={`warn-${issue.message}`}
+                                        sx={{
+                                          px: 0,
+                                          py: 0,
+                                          alignItems: "flex-start",
+                                        }}
+                                      >
+                                        <ListItemDecorator
+                                          sx={{
+                                            minWidth: 18,
+                                            color: "warning.700",
+                                            mt: 0.2,
+                                          }}
+                                        >
+                                          -
+                                        </ListItemDecorator>
+                                        <Typography level="body-sm">
+                                          {issue.message}
+                                        </Typography>
+                                      </ListItem>
+                                    ))}
+                                  </List>
+                                  <Checkbox
+                                    checked={complianceWarningsAcknowledged}
+                                    onChange={(event) =>
+                                      setComplianceWarningsAcknowledged(
+                                        event.target.checked,
+                                      )
+                                    }
+                                    label="I've reviewed the warnings above and want to send anyway."
+                                    size="sm"
+                                  />
+                                </Stack>
+                              </Alert>
+                            ) : null}
+                          </Stack>
                         ) : null}
 
                         {unicodeCharacters.length > 0 ? (
@@ -2015,9 +2128,13 @@ export function SMSCampaignWizard() {
                       <ReviewRow
                         label="Compliance"
                         value={
-                          complianceIssues.length === 0
-                            ? "No active warnings"
-                            : `${complianceIssues.length} warning${complianceIssues.length === 1 ? "" : "s"} require review`
+                          blockingComplianceIssues.length > 0
+                            ? `${blockingComplianceIssues.length} blocking issue${blockingComplianceIssues.length === 1 ? "" : "s"}`
+                            : warningComplianceIssues.length === 0
+                              ? "No active warnings"
+                              : complianceWarningsAcknowledged
+                                ? `${warningComplianceIssues.length} warning${warningComplianceIssues.length === 1 ? "" : "s"} acknowledged`
+                                : `${warningComplianceIssues.length} warning${warningComplianceIssues.length === 1 ? "" : "s"} to review`
                         }
                         onEdit={() => setCurrentStep("content")}
                       />
