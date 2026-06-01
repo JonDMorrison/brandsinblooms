@@ -17,6 +17,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -1472,7 +1473,15 @@ function CampaignEditorScreen() {
         summary={audienceDetail}
         defaultExpanded={audienceInitiallyExpanded}
         badge={
-          <Chip variant="soft" color="neutral" size="sm">
+          <Chip
+            variant="soft"
+            color={
+              !isAudienceLoading && (audienceCount ?? 0) <= 1
+                ? "warning"
+                : "neutral"
+            }
+            size="sm"
+          >
             {isAudienceLoading
               ? "Calculating audience"
               : asCountLabel(audienceCount)}
@@ -1480,6 +1489,43 @@ function CampaignEditorScreen() {
         }
       >
         <Stack spacing={2}>
+          {!isAudienceLoading &&
+          !includeAllCustomers &&
+          selectedSegments.length === 0 &&
+          selectedPersonas.length === 0 &&
+          additionalCustomerIds.length === 0 ? (
+            <Sheet
+              variant="soft"
+              color="warning"
+              data-testid="campaign-audience-empty-warning"
+              sx={{ borderRadius: "md", p: 1.5 }}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <AlertCircle
+                  size={17}
+                  style={{
+                    flexShrink: 0,
+                    marginTop: 2,
+                    color: "var(--joy-palette-warning-700)",
+                  }}
+                />
+                <Stack spacing={0.25}>
+                  <Typography
+                    level="body-sm"
+                    fontWeight="lg"
+                    sx={{ color: "warning.700" }}
+                  >
+                    This campaign currently has no audience configured.
+                  </Typography>
+                  <Typography level="body-xs" sx={{ color: "neutral.700" }}>
+                    Pick &ldquo;All Contacts&rdquo; or a segment below before
+                    sending — otherwise this campaign will not reach anyone.
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Sheet>
+          ) : null}
+
           <SegmentsAudienceSelect
             segments={segmentsQuery.data ?? []}
             selectedSegments={selectedSegments}
