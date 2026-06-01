@@ -56,13 +56,17 @@ export function useUpdateSegment() {
         throw new Error("A segment with this name already exists.");
       }
 
+      const conditionsToSave = input.includeAllCustomers
+        ? { ...input.rules, children: [] }
+        : input.rules;
+
       const { error: updateError } = await supabase
         .from("crm_segments")
         .update({
           name: trimmedName,
           description: input.description?.trim() || null,
           auto_update: input.type === "dynamic",
-          conditions: input.rules,
+          conditions: conditionsToSave,
           include_all_customers: input.includeAllCustomers ?? false,
           status: input.status,
         })
