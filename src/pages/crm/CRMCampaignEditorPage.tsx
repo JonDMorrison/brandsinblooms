@@ -186,7 +186,7 @@ function formatAudienceDetail(params: {
   const parts: string[] = [];
 
   if (params.includeAllCustomers) {
-    parts.push("All customers");
+    parts.push("All Contacts");
   }
 
   if (params.selectedSegmentCount > 0) {
@@ -207,7 +207,7 @@ function formatAudienceDetail(params: {
     );
   }
 
-  return parts.join(" · ") || "All eligible contacts";
+  return parts.length > 0 ? parts.join(" · ") : "No audience selected";
 }
 
 function formatStatusLabel(value: string) {
@@ -1470,7 +1470,19 @@ function CampaignEditorScreen() {
       <CollapsibleSection
         id="campaign-editor-audience"
         title="Who's this for?"
-        summary={audienceDetail}
+        summary={
+          audienceDetail === "No audience selected" ? (
+            <Typography
+              component="span"
+              level="body-sm"
+              sx={{ color: "warning.700", fontWeight: "md" }}
+            >
+              {audienceDetail}
+            </Typography>
+          ) : (
+            audienceDetail
+          )
+        }
         defaultExpanded={audienceInitiallyExpanded}
         badge={
           <Chip
