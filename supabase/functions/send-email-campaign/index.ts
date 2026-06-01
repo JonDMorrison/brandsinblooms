@@ -1655,6 +1655,89 @@ serve(async (req: Request) => {
       }
     }
 
+    // Forensic breadcrumb #2: when a campaign's resolved audience is less
+    // than half of the tenant's previous sent campaign (and that previous
+    // campaign was at least 100 recipients), log a high-priority warning so
+    // we can proactively find tenants whose lists have been narrowed by
+    // consent enforcement without waiting for a customer report.
+    // Ref: Erin Minter / Minter Country Garden — went from 4,346 → 1
+    // between consecutive sends, with no surface warning.
+    if (recipientCount > 1) {
+      try {
+        const { data: previousCampaign, error: previousCampaignError } =
+          await supabase
+            .from("crm_campaigns")
+            .select("id, name, total_recipients, projected_recipient_count")
+            .eq("tenant_id", campaignTenantId)
+            .neq("id", campaign.id)
+            .in("status", [
+              "sent",
+              "sent_with_errors",
+              "sending",
+              "queued",
+              "partially_queued",
+            ])
+            .order("sent_at", { ascending: false, nullsFirst: false })
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (previousCampaignError) {
+          console.warn(
+            "⚠️ Failed to fetch previous campaign for audience-shrinkage check:",
+            serializeSupabaseError(previousCampaignError),
+          );
+        } else if (previousCampaign) {
+          const previousCount =
+            typeof previousCampaign.total_recipients === "number" &&
+            Number.isFinite(previousCampaign.total_recipients) &&
+            previousCampaign.total_recipients > 0
+              ? previousCampaign.total_recipients
+              : typeof previousCampaign.projected_recipient_count === "number" &&
+                  Number.isFinite(previousCampaign.projected_recipient_count) &&
+                  previousCampaign.projected_recipient_count > 0
+                ? previousCampaign.projected_recipient_count
+                : null;
+
+          if (
+            previousCount !== null &&
+            previousCount >= 100 &&
+            recipientCount < previousCount * 0.5
+          ) {
+            await supabase.from("edge_function_errors").insert({
+              function_name: "send-email-campaign",
+              error_message: `Campaign audience shrank from ${previousCount} (previous send) to ${recipientCount} — possible consent enforcement impact`,
+              payload: {
+                severity: "warning",
+                kind: "audience_shrinkage",
+                tenant_id: campaignTenantId,
+                campaign_id: campaign.id,
+                campaign_name: campaign.name ?? null,
+                current_count: recipientCount,
+                previous_count: previousCount,
+                previous_campaign_id: previousCampaign.id ?? null,
+                previous_campaign_name: previousCampaign.name ?? null,
+                ratio: previousCount > 0 ? recipientCount / previousCount : 0,
+                audience_config: {
+                  include_all_customers: includeAllCustomers,
+                  uses_legacy_all_customers_fallback:
+                    usesLegacyAllCustomersFallback,
+                  segment_ids: segmentIds,
+                  persona_ids: personaIdList,
+                  additional_customer_ids_count: additionalCustomerIds.length,
+                },
+              },
+            });
+          }
+        }
+      } catch (shrinkageError) {
+        console.warn(
+          "⚠️ Failed to evaluate audience-shrinkage breadcrumb:",
+          serializeSupabaseError(shrinkageError as Error),
+        );
+      }
+    }
+
     // Milestone 7: Campaigns must declare an explicit sending domain.
     // If missing, attempt to auto-select the tenant's most recent operational domain.
     let domainIdToUse: string | null = campaign.from_email_domain_id;
