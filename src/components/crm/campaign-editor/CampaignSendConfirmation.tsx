@@ -76,6 +76,7 @@ type AudiencePreflightSummary = {
   suppressionExcludedCount: number;
   suppressionBypassRecipientCount: number;
   hardSuppressionExcludedCount: number;
+  singleRecipientEmail: string | null;
 };
 
 type AcknowledgedWarning = {
@@ -305,6 +306,7 @@ async function fetchAudiencePreflightSummary(params: {
   let suppressionExcludedCount = 0;
   let suppressionBypassRecipientCount = 0;
   let hardSuppressionExcludedCount = 0;
+  let lastApprovedEmail: string | null = null;
 
   for (const customer of candidates) {
     const suppressionTypes =
@@ -338,6 +340,7 @@ async function fetchAudiencePreflightSummary(params: {
 
     if (!isConsentExcluded && !blockedNormally) {
       filteredRecipientCount += 1;
+      lastApprovedEmail = customer.normalizedEmail;
     }
 
     if (!blockedWithOverride) {
@@ -355,6 +358,8 @@ async function fetchAudiencePreflightSummary(params: {
     suppressionExcludedCount,
     suppressionBypassRecipientCount,
     hardSuppressionExcludedCount,
+    singleRecipientEmail:
+      filteredRecipientCount === 1 ? lastApprovedEmail : null,
   } satisfies AudiencePreflightSummary;
 }
 
@@ -731,6 +736,149 @@ type OverrideConfirmDialogProps = {
   overrideCount: number;
 };
 
+type LowCountConfirmDialogProps = {
+  open: boolean;
+  count: number;
+  singleRecipientEmail: string | null;
+  campaignName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+  isSubmitting: boolean;
+};
+
+function LowCountConfirmDialog({
+  open,
+  count,
+  singleRecipientEmail,
+  campaignName,
+  onCancel,
+  onConfirm,
+  isSubmitting,
+}: LowCountConfirmDialogProps) {
+  const cancelButtonRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      // Default focus on Cancel — protects against accidental confirm.
+      const timer = window.setTimeout(() => {
+        cancelButtonRef.current?.focus();
+      }, 50);
+      return () => window.clearTimeout(timer);
+    }
+    return;
+  }, [open]);
+
+  const isZero = count === 0;
+  const recipientLabel = count === 1 ? "1 recipient" : "0 recipients";
+
+  return (
+    <Modal open={open} onClose={isSubmitting ? undefined : onCancel}>
+      <ModalDialog
+        variant="outlined"
+        size="md"
+        color="warning"
+        sx={{ width: "min(520px, calc(100vw - 2rem))", p: 0 }}
+        role="alertdialog"
+        aria-labelledby="low-count-confirm-title"
+      >
+        <Box sx={{ px: 3, pt: 3, pb: 2 }}>
+          <Stack direction="row" spacing={1.25} alignItems="flex-start">
+            <AlertTriangle
+              size={22}
+              style={{
+                flexShrink: 0,
+                marginTop: 2,
+                color: "var(--joy-palette-warning-700)",
+              }}
+            />
+            <Stack spacing={0.5}>
+              <DialogTitle
+                id="low-count-confirm-title"
+                sx={{ p: 0, color: "warning.700" }}
+              >
+                Send to only {recipientLabel}?
+              </DialogTitle>
+              <Typography level="body-sm" sx={{ color: "neutral.700" }}>
+                {campaignName || "This campaign"} will be sent to{" "}
+                <Typography
+                  component="span"
+                  fontWeight="lg"
+                  sx={{ color: "neutral.900" }}
+                >
+                  {recipientLabel}
+                </Typography>
+                . If you expected your full customer list, cancel and check your
+                audience settings.
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
+
+        <DialogContent sx={{ px: 3, py: 0 }}>
+          <Sheet
+            variant="outlined"
+            sx={{
+              borderRadius: "md",
+              p: 2,
+              backgroundColor: "background.body",
+            }}
+          >
+            <Stack spacing={0.5}>
+              <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+                {isZero
+                  ? "Resolved recipient"
+                  : "This send will go to one address"}
+              </Typography>
+              <Typography
+                level="body-sm"
+                fontWeight="lg"
+                sx={{ wordBreak: "break-word", color: "neutral.900" }}
+              >
+                {isZero
+                  ? "No matching contact"
+                  : (singleRecipientEmail ?? "Unknown recipient")}
+              </Typography>
+            </Stack>
+          </Sheet>
+        </DialogContent>
+
+        <Divider sx={{ mt: 2 }} />
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: "100%",
+              gap: 1.5,
+            }}
+          >
+            <JoyButton
+              ref={cancelButtonRef}
+              variant="solid"
+              color="primary"
+              onClick={onCancel}
+              disabled={isSubmitting}
+              data-testid="low-count-cancel"
+              autoFocus
+            >
+              Cancel and check audience
+            </JoyButton>
+            <JoyButton
+              variant="outlined"
+              color="warning"
+              loading={isSubmitting}
+              onClick={onConfirm}
+              data-testid="low-count-confirm"
+            >
+              Send to {recipientLabel} anyway
+            </JoyButton>
+          </Box>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
+  );
+}
+
 function OverrideConfirmDialog({
   open,
   onCancel,
@@ -952,6 +1100,7 @@ export function CampaignSendConfirmation({
   const [inlineError, setInlineError] = React.useState<string | null>(null);
   const [reviewOpen, setReviewOpen] = React.useState(false);
   const [confirmOverrideOpen, setConfirmOverrideOpen] = React.useState(false);
+  const [lowCountConfirmOpen, setLowCountConfirmOpen] = React.useState(false);
   const [pendingIncludeMissingConsent, setPendingIncludeMissingConsent] =
     React.useState(false);
   const [pendingIncludeSoftSuppressions, setPendingIncludeSoftSuppressions] =
@@ -966,6 +1115,7 @@ export function CampaignSendConfirmation({
       setIsSubmitting(false);
       setReviewOpen(false);
       setConfirmOverrideOpen(false);
+      setLowCountConfirmOpen(false);
       setPendingIncludeMissingConsent(false);
       setPendingIncludeSoftSuppressions(false);
       setIncludeMissingConsent(false);
@@ -1153,11 +1303,7 @@ export function CampaignSendConfirmation({
     }
   }, [isBusy, onClose]);
 
-  const handleSubmit = React.useCallback(async () => {
-    if (primaryActionDisabled) {
-      return;
-    }
-
+  const proceedWithSend = React.useCallback(async () => {
     setInlineError(null);
     setIsSubmitting(true);
     try {
@@ -1168,11 +1314,14 @@ export function CampaignSendConfirmation({
         acknowledgedWarnings: overrideActive ? acknowledgedWarnings : undefined,
       });
       if (result.success) {
+        setLowCountConfirmOpen(false);
         onClose();
         return;
       }
+      setLowCountConfirmOpen(false);
       setInlineError(result.error.description || result.error.title);
     } catch (error) {
+      setLowCountConfirmOpen(false);
       setInlineError(
         error instanceof Error
           ? error.message
@@ -1188,12 +1337,25 @@ export function CampaignSendConfirmation({
     includeSoftSuppressions,
     onClose,
     overrideActive,
-    primaryActionDisabled,
   ]);
+
+  const handleSubmit = React.useCallback(async () => {
+    if (primaryActionDisabled) {
+      return;
+    }
+
+    if (projectedRecipientCount <= 1) {
+      setLowCountConfirmOpen(true);
+      return;
+    }
+
+    await proceedWithSend();
+  }, [primaryActionDisabled, projectedRecipientCount, proceedWithSend]);
 
   const showDomainWarning = !domainsLoading && !domainReady;
 
-  const showMainModal = open && !reviewOpen && !confirmOverrideOpen;
+  const showMainModal =
+    open && !reviewOpen && !confirmOverrideOpen && !lowCountConfirmOpen;
 
   return (
     <>
@@ -1578,6 +1740,22 @@ export function CampaignSendConfirmation({
         onCancel={handleOverrideCancel}
         onConfirm={handleOverrideConfirm}
         overrideCount={pendingOverrideAddedCount}
+      />
+
+      <LowCountConfirmDialog
+        open={lowCountConfirmOpen}
+        count={projectedRecipientCount}
+        singleRecipientEmail={
+          audienceSummaryQuery.data?.singleRecipientEmail ?? null
+        }
+        campaignName={name || "this campaign"}
+        onCancel={() => {
+          if (!isSubmitting) {
+            setLowCountConfirmOpen(false);
+          }
+        }}
+        onConfirm={() => void proceedWithSend()}
+        isSubmitting={isSubmitting}
       />
     </>
   );
