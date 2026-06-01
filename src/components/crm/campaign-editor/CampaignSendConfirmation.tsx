@@ -746,7 +746,7 @@ type LowCountConfirmDialogProps = {
   isSubmitting: boolean;
 };
 
-function LowCountConfirmDialog({
+export function LowCountConfirmDialog({
   open,
   count,
   singleRecipientEmail,
