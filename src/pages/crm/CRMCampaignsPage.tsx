@@ -126,6 +126,21 @@ function getRecipientCountForList(campaign: CampaignCatalogItem) {
   return Math.max(0, Number(getCampaignDisplayRecipientCount(campaign) || 0));
 }
 
+const LOW_RECIPIENT_REVIEW_STATUSES: ReadonlySet<CampaignStatus> = new Set([
+  CAMPAIGN_STATUS.DRAFT,
+  CAMPAIGN_STATUS.SCHEDULED,
+]);
+
+function shouldShowLowRecipientWarning(campaign: CampaignCatalogItem) {
+  if (!isCampaignStatus(campaign.status)) {
+    return false;
+  }
+  if (!LOW_RECIPIENT_REVIEW_STATUSES.has(campaign.status as CampaignStatus)) {
+    return false;
+  }
+  return getRecipientCountForList(campaign) <= 1;
+}
+
 function getProcessedCount(campaign: CampaignCatalogItem) {
   return (
     Number(campaign.messagesSent || 0) +
@@ -1295,23 +1310,50 @@ export function CRMCampaignsPage() {
                               <ProgressMeter campaign={campaign} />
                             </JoyTableCell>
                             <JoyTableCell sx={{ textAlign: "right" }}>
-                              <Typography
-                                level="body-sm"
-                                sx={{ fontWeight: "md" }}
+                              <Stack
+                                spacing={0.5}
+                                alignItems="flex-end"
+                                sx={{ width: "100%" }}
                               >
-                                {getRecipientCountForList(
-                                  campaign,
-                                ).toLocaleString()}
-                              </Typography>
-                              {campaign.status === CAMPAIGN_STATUS.SENDING ? (
                                 <Typography
-                                  level="body-xs"
-                                  sx={{ color: "neutral.500" }}
+                                  level="body-sm"
+                                  sx={{ fontWeight: "md" }}
                                 >
-                                  {getProcessedCount(campaign).toLocaleString()}{" "}
-                                  processed
+                                  {getRecipientCountForList(
+                                    campaign,
+                                  ).toLocaleString()}
                                 </Typography>
-                              ) : null}
+                                {shouldShowLowRecipientWarning(campaign) ? (
+                                  <Tooltip
+                                    title={
+                                      getRecipientCountForList(campaign) === 0
+                                        ? "This campaign has no audience configured. Open it to set the recipients before sending."
+                                        : "This campaign will send to only one recipient. Open it to confirm the audience is what you expected."
+                                    }
+                                  >
+                                    <Chip
+                                      size="sm"
+                                      variant="soft"
+                                      color="warning"
+                                      data-testid="campaign-row-low-recipient-chip"
+                                      sx={{ fontSize: "11px" }}
+                                    >
+                                      {getRecipientCountForList(campaign) === 0
+                                        ? "No recipients"
+                                        : "1 recipient"}
+                                    </Chip>
+                                  </Tooltip>
+                                ) : null}
+                                {campaign.status === CAMPAIGN_STATUS.SENDING ? (
+                                  <Typography
+                                    level="body-xs"
+                                    sx={{ color: "neutral.500" }}
+                                  >
+                                    {getProcessedCount(campaign).toLocaleString()}{" "}
+                                    processed
+                                  </Typography>
+                                ) : null}
+                              </Stack>
                             </JoyTableCell>
                             <JoyTableCell>
                               <Typography

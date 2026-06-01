@@ -1611,6 +1611,50 @@ serve(async (req: Request) => {
       `📧 Found ${recipientCount} customers (job batch size: ${batchSizePerJob})`,
     );
 
+    // Forensic breadcrumb: when a campaign resolves to zero or one recipient,
+    // log a high-priority warning so we can investigate the next time a customer
+    // reports a silent zero-recipient send (ref: Erin Minter incident,
+    // campaign 9bce4c8c-d16e-4b7e-901d-5ef67ab2b552, 2026-05-30). The send is
+    // NOT blocked here — the UI's send-time low-count confirmation modal
+    // (CampaignSendConfirmation.tsx) is the user-facing safety net. This log
+    // exists for post-incident forensics only.
+    if (recipientCount <= 1) {
+      try {
+        await supabase.from("edge_function_errors").insert({
+          function_name: "send-email-campaign",
+          error_message: `Campaign resolved to ${recipientCount} recipient${recipientCount === 1 ? "" : "s"} — possible audience misconfiguration`,
+          payload: {
+            severity: "warning",
+            kind: "low_recipient_count",
+            tenant_id: campaignTenantId,
+            campaign_id: campaign.id,
+            campaign_name: campaign.name ?? null,
+            recipient_count: recipientCount,
+            audience_config: {
+              include_all_customers: includeAllCustomers,
+              uses_legacy_all_customers_fallback: usesLegacyAllCustomersFallback,
+              segment_ids: segmentIds,
+              persona_ids: personaIdList,
+              additional_customer_ids_count: additionalCustomerIds.length,
+              raw_include_all_customers: rawIncludeAllCustomers,
+            },
+            single_recipient_email:
+              recipientCount === 1
+                ? (customers[0]?.email ?? null)
+                : null,
+            requester_user_id: requesterUserId ?? null,
+            force_bypass_consent: forceBypassConsent,
+            force_bypass_soft_suppression: forceBypassSoftSuppression,
+          },
+        });
+      } catch (logError) {
+        console.warn(
+          "⚠️ Failed to log low-recipient-count breadcrumb:",
+          serializeSupabaseError(logError as Error),
+        );
+      }
+    }
+
     // Milestone 7: Campaigns must declare an explicit sending domain.
     // If missing, attempt to auto-select the tenant's most recent operational domain.
     let domainIdToUse: string | null = campaign.from_email_domain_id;
