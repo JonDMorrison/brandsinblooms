@@ -5,7 +5,7 @@ import Grid from "@mui/joy/Grid";
 import IconButton from "@mui/joy/IconButton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { Clock3, X } from "lucide-react";
+import { ArrowRight, Clock3, Sparkles, X } from "lucide-react";
 import type {
   RecentSearchItemEntry,
   RecentSearchQueryEntry,
@@ -16,7 +16,12 @@ import {
   isCurrentRouteMatch,
   type SearchResultItem,
 } from "@/components/search/types";
-import type { PaletteExecutableAction } from "@/components/search/searchActionRegistry";
+import {
+  getCommandIdFromSearchItem,
+  type PaletteExecutableAction,
+} from "@/components/search/searchActionRegistry";
+
+const ASK_BLOOM_COMMAND_ID = "ask-bloom";
 
 interface CommandPaletteEmptyStateProps {
   activeItemId?: string | null;
@@ -66,6 +71,160 @@ function formatRelativeTime(value: string) {
   return `${days}d ago`;
 }
 
+interface AskBloomSuggestionCardProps {
+  item: SearchResultItem;
+  isActive: boolean;
+  onHover: (itemId: string) => void;
+  onSelect: (item: SearchResultItem) => void;
+}
+
+/**
+ * Premium, brand-forward entry point for the Ask Bloom assistant. Rendered as a
+ * full-width hero above the generic route suggestions so the AI surface reads as
+ * the primary call to action rather than one more outlined button.
+ */
+function AskBloomSuggestionCard({
+  item,
+  isActive,
+  onHover,
+  onSelect,
+}: AskBloomSuggestionCardProps) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      aria-label={
+        item.subtitle ? `${item.title} — ${item.subtitle}` : item.title
+      }
+      onClick={() => onSelect(item)}
+      onFocus={() => onHover(item.id)}
+      onMouseEnter={() => onHover(item.id)}
+      onMouseDown={(event) => event.preventDefault()}
+      sx={{
+        appearance: "none",
+        position: "relative",
+        overflow: "hidden",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        textAlign: "left",
+        cursor: "pointer",
+        p: 1.5,
+        borderRadius: "var(--joy-radius-xl)",
+        border: "1px solid",
+        borderColor: isActive
+          ? "rgba(var(--joy-palette-primary-mainChannel) / 0.55)"
+          : "rgba(var(--joy-palette-primary-mainChannel) / 0.22)",
+        color: "text.primary",
+        backgroundColor: "background.surface",
+        backgroundImage:
+          "linear-gradient(135deg, rgba(var(--joy-palette-primary-mainChannel) / 0.16) 0%, rgba(var(--joy-palette-primary-mainChannel) / 0.05) 45%, rgba(var(--joy-palette-primary-mainChannel) / 0) 100%)",
+        boxShadow: isActive
+          ? "0 0 0 1px rgba(var(--joy-palette-primary-mainChannel) / 0.45), 0 18px 36px -18px rgba(var(--joy-palette-primary-mainChannel) / 0.6)"
+          : "0 1px 2px rgba(var(--joy-palette-neutral-mainChannel) / 0.06)",
+        transition:
+          "transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease",
+        "&:hover": {
+          transform: "translateY(-1px)",
+          borderColor: "rgba(var(--joy-palette-primary-mainChannel) / 0.5)",
+          boxShadow:
+            "0 0 0 1px rgba(var(--joy-palette-primary-mainChannel) / 0.35), 0 20px 40px -18px rgba(var(--joy-palette-primary-mainChannel) / 0.55)",
+        },
+        "&:hover .ask-bloom-suggestion-arrow": {
+          transform: "translateX(3px)",
+          opacity: 1,
+        },
+        "&:active": { transform: "translateY(0)" },
+        "&:focus-visible": {
+          outline: "none",
+          boxShadow:
+            "0 0 0 2px rgba(var(--joy-palette-primary-mainChannel) / 0.5), 0 18px 36px -18px rgba(var(--joy-palette-primary-mainChannel) / 0.55)",
+        },
+        "@media (prefers-reduced-motion: reduce)": {
+          transition: "none",
+          "&:hover": { transform: "none" },
+          "&:hover .ask-bloom-suggestion-arrow": { transform: "none" },
+        },
+      }}
+    >
+      <Box
+        aria-hidden
+        sx={{
+          position: "absolute",
+          top: -42,
+          right: -28,
+          width: 150,
+          height: 150,
+          borderRadius: "50%",
+          backgroundImage:
+            "radial-gradient(circle, rgba(var(--joy-palette-primary-mainChannel) / 0.22) 0%, rgba(var(--joy-palette-primary-mainChannel) / 0) 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <Box
+        aria-hidden
+        sx={{
+          position: "relative",
+          flexShrink: 0,
+          width: 42,
+          height: 42,
+          borderRadius: "14px",
+          display: "grid",
+          placeItems: "center",
+          color: "common.white",
+          backgroundColor: "primary.600",
+          backgroundImage:
+            "linear-gradient(140deg, var(--joy-palette-primary-400) 0%, var(--joy-palette-primary-600) 55%, var(--joy-palette-brandNavy-700) 100%)",
+          boxShadow:
+            "0 8px 18px -8px rgba(var(--joy-palette-primary-mainChannel) / 0.7), inset 0 1px 0 rgba(255 255 255 / 0.3)",
+        }}
+      >
+        <Sparkles size={20} strokeWidth={2} />
+      </Box>
+
+      <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1, position: "relative" }}>
+        <Typography
+          level="title-sm"
+          sx={{ fontWeight: 700, color: "text.primary", lineHeight: 1.2 }}
+        >
+          {item.title}
+        </Typography>
+        {item.subtitle ? (
+          <Typography
+            level="body-xs"
+            sx={{ color: "text.secondary", lineHeight: 1.35 }}
+          >
+            {item.subtitle}
+          </Typography>
+        ) : null}
+      </Stack>
+
+      <Box
+        aria-hidden
+        className="ask-bloom-suggestion-arrow"
+        sx={{
+          position: "relative",
+          flexShrink: 0,
+          width: 30,
+          height: 30,
+          borderRadius: "999px",
+          display: "grid",
+          placeItems: "center",
+          color: "var(--joy-palette-primary-700)",
+          backgroundColor: "rgba(var(--joy-palette-primary-mainChannel) / 0.12)",
+          opacity: 0.85,
+          transition: "transform 200ms ease, opacity 200ms ease",
+          "@media (prefers-reduced-motion: reduce)": { transition: "none" },
+        }}
+      >
+        <ArrowRight size={16} strokeWidth={2.2} />
+      </Box>
+    </Box>
+  );
+}
+
 export function CommandPaletteEmptyState({
   activeItemId,
   activeActionIndex,
@@ -89,6 +248,13 @@ export function CommandPaletteEmptyState({
   recentSearches,
   routeAwareSuggestions,
 }: CommandPaletteEmptyStateProps) {
+  const askBloomSuggestion = routeAwareSuggestions.find(
+    (item) => getCommandIdFromSearchItem(item) === ASK_BLOOM_COMMAND_ID,
+  );
+  const otherSuggestions = routeAwareSuggestions.filter(
+    (item) => item.id !== askBloomSuggestion?.id,
+  );
+
   return (
     <Stack spacing={2.5} sx={{ p: 1.5 }}>
       <Box sx={{ px: 0.5, pt: 0.25 }}>
@@ -190,9 +356,20 @@ export function CommandPaletteEmptyState({
           These suggestions follow the page you are on right now.
         </Typography>
 
-        {routeAwareSuggestions.length > 0 ? (
-          <Grid container spacing={1} sx={{ mt: 1.25 }}>
-            {routeAwareSuggestions.map((item) => {
+        {askBloomSuggestion ? (
+          <Box sx={{ mt: 1.25 }}>
+            <AskBloomSuggestionCard
+              item={askBloomSuggestion}
+              isActive={activeItemId === askBloomSuggestion.id}
+              onHover={onHoverItem}
+              onSelect={onSelectItem}
+            />
+          </Box>
+        ) : null}
+
+        {otherSuggestions.length > 0 ? (
+          <Grid container spacing={1} sx={{ mt: askBloomSuggestion ? 1 : 1.25 }}>
+            {otherSuggestions.map((item) => {
               const SuggestionIcon = getSearchIcon(item.icon ?? item.categoryIcon);
               const isActive = activeItemId === item.id;
 
@@ -229,11 +406,13 @@ export function CommandPaletteEmptyState({
               );
             })}
           </Grid>
-        ) : (
+        ) : null}
+
+        {routeAwareSuggestions.length === 0 ? (
           <Typography level="body-sm" sx={{ mt: 1, color: "neutral.500" }}>
             Open a CRM, SMS, integrations, or settings page to get route-specific actions here.
           </Typography>
-        )}
+        ) : null}
       </Box>
 
       <Divider sx={{ mx: 0.5 }} />

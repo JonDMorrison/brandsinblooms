@@ -2,6 +2,7 @@ import { KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/joy/Avatar";
 import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
 import Chip from "@mui/joy/Chip";
 import Dropdown from "@mui/joy/Dropdown";
 import IconButton from "@mui/joy/IconButton";
@@ -12,6 +13,7 @@ import MenuButton from "@mui/joy/MenuButton";
 import MenuItem from "@mui/joy/MenuItem";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
+import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
 import {
   Bug,
@@ -20,10 +22,12 @@ import {
   Menu as MenuIcon,
   Search,
   Settings,
+  Sparkles,
   UserCircle2,
   X,
 } from "lucide-react";
 import { useDashboardShell } from "@/components/layout/DashboardShell";
+import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { signOutCompletely } from "@/integrations/supabase/client";
@@ -129,13 +133,28 @@ const getCommandPaletteShortcutLabel = () => {
   return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? "⌘K" : "Ctrl K";
 };
 
+const getAskBloomToggleShortcutLabel = () => {
+  if (typeof navigator === "undefined") {
+    return "Ctrl+Shift+B";
+  }
+
+  const platform = `${navigator.platform} ${navigator.userAgent}`;
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? "⌘⇧B" : "Ctrl+Shift+B";
+};
+
 export function DashboardTopBar({
   pageTitle,
   onOpenCommandPalette,
 }: DashboardTopBarProps) {
   const navigate = useNavigate();
+  const askBloom = useOptionalAskBloom();
   const { user, loading } = useAuth();
-  const { isMobile, isMobileSidebarOpen, toggleSidebar } = useDashboardShell();
+  const {
+    isMobile,
+    isMobileSidebarOpen,
+    isSidebarCollapseLocked,
+    toggleSidebar,
+  } = useDashboardShell();
   const [isReportProblemOpen, setIsReportProblemOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -158,6 +177,10 @@ export function DashboardTopBar({
   const showCenteredTitle = Boolean(pageTitle && !isMobile);
   const commandPaletteShortcutLabel = useMemo(
     () => getCommandPaletteShortcutLabel(),
+    [],
+  );
+  const askBloomToggleShortcutLabel = useMemo(
+    () => getAskBloomToggleShortcutLabel(),
     [],
   );
 
@@ -220,11 +243,16 @@ export function DashboardTopBar({
               {isMobile && (
                 <IconButton
                   aria-label={
-                    isMobileSidebarOpen ? "Close sidebar" : "Open sidebar"
+                    isSidebarCollapseLocked
+                      ? "Sidebar locked while Bloom is open"
+                      : isMobileSidebarOpen
+                        ? "Close sidebar"
+                        : "Open sidebar"
                   }
                   color="neutral"
                   size="sm"
                   variant="plain"
+                  disabled={isSidebarCollapseLocked}
                   onClick={toggleSidebar}
                   sx={iconButtonSx}
                 >
@@ -328,6 +356,62 @@ export function DashboardTopBar({
               spacing={0.75}
               sx={{ minWidth: 0, justifySelf: "end" }}
             >
+              {askBloom ? (
+                <Tooltip
+                  arrow
+                  placement="bottom"
+                  title={`Toggle AI panel (${askBloomToggleShortcutLabel})`}
+                >
+                  <Button
+                    variant="plain"
+                    color="neutral"
+                    size="sm"
+                    startDecorator={<Sparkles size={16} />}
+                    onClick={() => {
+                      if (askBloom.state.isOpen) {
+                        askBloom.close();
+                        return;
+                      }
+
+                      askBloom.openGeneral();
+                    }}
+                    sx={{
+                      minHeight: 32,
+                      border: 0,
+                      borderRadius: "999px",
+                      fontWeight: 500,
+                      fontSize: "13px",
+                      px: 1.5,
+                      py: 0.5,
+                      color: askBloom.state.isOpen
+                        ? "neutral.900"
+                        : "text.secondary",
+                      bgcolor: askBloom.state.isOpen
+                        ? "neutral.100"
+                        : "transparent",
+                      boxShadow: askBloom.state.isOpen
+                        ? "inset 0 1px 2px rgba(var(--joy-palette-neutral-mainChannel) / 0.18)"
+                        : "none",
+                      transition:
+                        "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 100ms ease",
+                      "&:hover": {
+                        bgcolor: askBloom.state.isOpen
+                          ? "neutral.100"
+                          : "neutral.100",
+                        color: askBloom.state.isOpen
+                          ? "neutral.900"
+                          : "neutral.800",
+                      },
+                      "&:active": {
+                        transform: "scale(0.98)",
+                      },
+                      "&.Mui-focusVisible, &:focus-visible": focusRingSx,
+                    }}
+                  >
+                    Ask Bloom
+                  </Button>
+                </Tooltip>
+              ) : null}
               <Dropdown>
                 <MenuButton
                   aria-label="Open user menu"

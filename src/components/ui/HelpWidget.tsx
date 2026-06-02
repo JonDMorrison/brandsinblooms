@@ -71,7 +71,7 @@ export function HelpWidget() {
   return (
     <Box
       sx={{
-        position: "fixed",
+        position: "absolute",
         bottom: 24,
         right: 24,
         zIndex: 1400,
@@ -134,19 +134,14 @@ export function HelpWidget() {
                   title="Book a Call"
                   subtitle="Schedule time with Jon or Jeff"
                   onClick={() =>
-                    window.open(
-                      "https://calendly.com/brandsinblooms",
-                      "_blank",
-                    )
+                    window.open("https://calendly.com/brandsinblooms", "_blank")
                   }
                 />
               </Box>
             )}
 
             {view === "form" && (
-              <Box
-                sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
-              >
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <Button
                   variant="plain"
                   size="sm"
@@ -174,9 +169,7 @@ export function HelpWidget() {
                 </Typography>
                 <Button
                   size="sm"
-                  disabled={
-                    !subject.trim() || !message.trim() || submitting
-                  }
+                  disabled={!subject.trim() || !message.trim() || submitting}
                   onClick={handleSubmit}
                   sx={{
                     backgroundColor: "#68BEB9",

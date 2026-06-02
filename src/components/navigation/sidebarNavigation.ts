@@ -26,6 +26,7 @@ import {
   Shield,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
   Store,
   Target,
   User,
@@ -107,6 +108,10 @@ const createLegacyItem = (
 const legacyDashboardItem = createLegacyItem("Dashboard", "/dashboard", Home, [
   { path: "/", end: true },
   { path: "/dashboard", end: false },
+]);
+const legacyBloomItem = createLegacyItem("Bloom", "/bloom", Sparkles, [
+  { path: "/bloom", end: true },
+  { path: "/bloom/*", end: false },
 ]);
 const legacyAnalyticsItem = createLegacyItem(
   "Analytics",
@@ -221,6 +226,7 @@ const BASE_LEGACY_SIDEBAR_GROUPS: LegacySidebarGroup[] = [
     label: "Overview",
     items: [
       legacyDashboardItem,
+      legacyBloomItem,
       legacyAnalyticsItem,
       legacyActivityItem,
       legacyCalendarItem,
@@ -413,6 +419,9 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
       createDashboardLinkItem("dashboard", legacyDashboardItem, {
         contentWidth: "full",
       }),
+      createDashboardLinkItem("bloom", legacyBloomItem, {
+        contentWidth: "full",
+      }),
       createDashboardLinkItem("analytics", legacyAnalyticsItem, {
         contentWidth: "full",
       }),
@@ -521,6 +530,22 @@ const adminSidebarGroups: DashboardSidebarGroup[] = [
 
 const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("Dashboard", legacyDashboardItem.patterns, "full"),
+  createRouteDescriptor(
+    "Bloom Admin",
+    [{ path: "/bloom/admin", end: true }],
+    "full",
+  ),
+  createRouteDescriptor(
+    "Bloom Settings",
+    [{ path: "/bloom/settings", end: true }],
+    "full",
+  ),
+  createRouteDescriptor(
+    "Knowledge Base",
+    [{ path: "/bloom/knowledge", end: true }],
+    "full",
+  ),
+  createRouteDescriptor("Bloom", legacyBloomItem.patterns, "full"),
   createRouteDescriptor("Analytics", legacyAnalyticsItem.patterns, "full"),
   createRouteDescriptor("Activity Center", legacyActivityItem.patterns, "full"),
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),

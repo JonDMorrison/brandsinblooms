@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow, isTomorrow, isValid } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { BloomChip } from "@/components/bloom/BloomChip";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
@@ -1005,15 +1006,28 @@ export function CRMCampaignsPage() {
                   {activeCount.toLocaleString()} active sends
                 </Typography>
               </Stack>
-              <Button
-                color="neutral"
-                variant="solid"
-                startDecorator={<Plus size={16} />}
-                onClick={() => navigate("/crm/campaigns/new?type=email")}
-                sx={{ alignSelf: { xs: "flex-start", md: "auto" } }}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent={{ xs: "flex-start", md: "flex-end" }}
+                useFlexGap
+                flexWrap="wrap"
               >
-                New Campaign
-              </Button>
+                <BloomChip
+                  label="Campaign insights"
+                  prompt="Show me how my campaigns performed this month and suggest improvements"
+                />
+                <Button
+                  color="neutral"
+                  variant="solid"
+                  startDecorator={<Plus size={16} />}
+                  onClick={() => navigate("/crm/campaigns/new?type=email")}
+                  sx={{ alignSelf: { xs: "flex-start", md: "auto" } }}
+                >
+                  New Campaign
+                </Button>
+              </Stack>
             </Stack>
           </Sheet>
 

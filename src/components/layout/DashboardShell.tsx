@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Box from "@mui/joy/Box";
 import CircularProgress from "@mui/joy/CircularProgress";
 import Sheet from "@mui/joy/Sheet";
@@ -40,6 +40,10 @@ import {
 import type { SearchOpenSource } from "@/components/search/searchAnalytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpWidget } from "@/components/ui/HelpWidget";
+import {
+  BLOOM_COMPACT_ACTIVATION_EVENT,
+  type BloomCompactActivationRequest,
+} from "@/hooks/bloom/useBloomCompactMode";
 import useMediaQuery from "@/hooks/use-media-query";
 import { useLocationBlockingGuard } from "@/hooks/useLocationBlockingGuard";
 
@@ -69,6 +73,22 @@ const getStoredCollapsedPreference = (storageKey: string) => {
   return raw === "true";
 };
 
+const isTextEntryShortcutTarget = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  if (target instanceof HTMLElement && target.isContentEditable) {
+    return true;
+  }
+
+  return Boolean(
+    target.closest(
+      "input, textarea, select, [contenteditable='true'], [role='textbox']",
+    ),
+  );
+};
+
 export { resolveAdminDashboardContentWidth };
 
 type DashboardShellContextValue = {
@@ -76,6 +96,7 @@ type DashboardShellContextValue = {
   isTablet: boolean;
   isDesktop: boolean;
   isSidebarCollapsed: boolean;
+  isSidebarCollapseLocked: boolean;
   isMobileSidebarOpen: boolean;
   sidebarWidth: number;
   toggleSidebar: () => void;
@@ -108,6 +129,7 @@ export function DashboardShell({
   mode = "admin",
 }: DashboardShellProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useMediaQuery("(max-width: 767.95px)");
@@ -125,6 +147,8 @@ export function DashboardShell({
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [commandPaletteOpenSource, setCommandPaletteOpenSource] =
     useState<SearchOpenSource>("click");
+  const [compactActivationRequest, setCompactActivationRequest] =
+    useState<BloomCompactActivationRequest | null>(null);
   const [hasRequestedCommandPalette, setHasRequestedCommandPalette] =
     useState(false);
   const { isBlocked: isLocationBlocked, isLoading: isLocationLoading } =
@@ -133,6 +157,7 @@ export function DashboardShell({
     () => resolveDashboardNavigationTitle(pathname, mode),
     [mode, pathname],
   );
+  const isBloomRoute = pathname.startsWith("/bloom");
   const resolvedContentWidth = useMemo(
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
@@ -156,6 +181,32 @@ export function DashboardShell({
 
     setIsSidebarCollapsed(isTablet);
   }, [isTablet]);
+
+  useEffect(() => {
+    const handleCompactActivationRequest = (event: Event) => {
+      const request = (event as CustomEvent<BloomCompactActivationRequest>)
+        .detail;
+
+      if (!request) {
+        return;
+      }
+
+      setCompactActivationRequest(request);
+      openCommandPalette("click");
+    };
+
+    window.addEventListener(
+      BLOOM_COMPACT_ACTIVATION_EVENT,
+      handleCompactActivationRequest as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        BLOOM_COMPACT_ACTIVATION_EVENT,
+        handleCompactActivationRequest as EventListener,
+      );
+    };
+  }, [openCommandPalette]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -189,12 +240,24 @@ export function DashboardShell({
         return;
       }
 
-      if (event.key.toLowerCase() !== "k") {
+      if (isTextEntryShortcutTarget(event.target)) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === "k" && !event.shiftKey) {
+        event.preventDefault();
+        openCommandPalette("keyboard");
+        return;
+      }
+
+      if (key !== "j") {
         return;
       }
 
       event.preventDefault();
-      openCommandPalette("keyboard");
+      navigate(event.shiftKey ? "/bloom?new=true" : "/bloom");
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -202,7 +265,7 @@ export function DashboardShell({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [openCommandPalette]);
+  }, [navigate, openCommandPalette]);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -217,18 +280,31 @@ export function DashboardShell({
     };
   }, []);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
+    if (isBloomRoute) {
+      return;
+    }
+
     if (isMobile) {
       setIsMobileSidebarOpen((currentValue) => !currentValue);
       return;
     }
 
     setIsSidebarCollapsed((currentValue) => !currentValue);
-  };
+  }, [isBloomRoute, isMobile]);
+
+  const closeMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
+
+  const effectiveIsSidebarCollapsed = isBloomRoute || isSidebarCollapsed;
+  const effectiveIsMobileSidebarOpen = isBloomRoute
+    ? false
+    : isMobileSidebarOpen;
 
   const sidebarWidth = isMobile
     ? SIDEBAR_EXPANDED_WIDTH
-    : isSidebarCollapsed
+    : effectiveIsSidebarCollapsed
       ? SIDEBAR_COLLAPSED_WIDTH
       : SIDEBAR_EXPANDED_WIDTH;
 
@@ -237,13 +313,23 @@ export function DashboardShell({
       isMobile,
       isTablet,
       isDesktop: !isMobile && !isTablet,
-      isSidebarCollapsed,
-      isMobileSidebarOpen,
+      isSidebarCollapsed: effectiveIsSidebarCollapsed,
+      isSidebarCollapseLocked: isBloomRoute,
+      isMobileSidebarOpen: effectiveIsMobileSidebarOpen,
       sidebarWidth,
       toggleSidebar,
-      closeMobileSidebar: () => setIsMobileSidebarOpen(false),
+      closeMobileSidebar,
     }),
-    [isMobile, isTablet, isSidebarCollapsed, isMobileSidebarOpen, sidebarWidth],
+    [
+      closeMobileSidebar,
+      effectiveIsMobileSidebarOpen,
+      effectiveIsSidebarCollapsed,
+      isBloomRoute,
+      isMobile,
+      isTablet,
+      sidebarWidth,
+      toggleSidebar,
+    ],
   );
 
   return (
@@ -252,7 +338,7 @@ export function DashboardShell({
         data-testid="dashboard-shell-root"
         sx={{
           position: "relative",
-          width: "100vw",
+          width: "100%",
           height: "100vh",
           overflow: "hidden",
           display: "grid",
@@ -316,13 +402,19 @@ export function DashboardShell({
               width: "100%",
               height: "100%",
               minHeight: "100%",
-              px: { xs: 4, md: 6 },
-              py: 8,
-              mx: "auto",
-              maxWidth: resolvedContentWidth === "contained" ? "80rem" : "100%",
+              px: isBloomRoute ? 0 : { xs: 4, md: 6 },
+              py: isBloomRoute ? 0 : 8,
+              mx: isBloomRoute ? 0 : "auto",
+              maxWidth:
+                isBloomRoute || resolvedContentWidth === "full"
+                  ? "100%"
+                  : "80rem",
             }}
           >
-            <Stack spacing={6} sx={{ height: "100%", minHeight: "100%" }}>
+            <Stack
+              spacing={isBloomRoute ? 0 : 6}
+              sx={{ height: "100%", minHeight: "100%" }}
+            >
               <TrialBanner />
               {!isLocationLoading && isLocationBlocked && (
                 <LocationBlockingBanner />
@@ -333,7 +425,7 @@ export function DashboardShell({
                   height: "100%",
                   minHeight: 0,
                   flex: 1,
-                  display: "flex",
+                  display: "block",
                   flexDirection: "column",
                 }}
               >
@@ -346,6 +438,7 @@ export function DashboardShell({
           <DashboardMobileSidebarBackdrop open={isMobileSidebarOpen} />
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
+        {!isBloomRoute && <HelpWidget />}
       </Box>
       {hasRequestedCommandPalette ? (
         <ChunkErrorBoundary>
@@ -360,6 +453,7 @@ export function DashboardShell({
               }
             >
               <LazyCommandPalette
+                compactActivationRequest={compactActivationRequest}
                 open={isCommandPaletteOpen}
                 openSource={commandPaletteOpenSource}
                 onClose={() => setIsCommandPaletteOpen(false)}
@@ -368,7 +462,6 @@ export function DashboardShell({
           </CommandPaletteErrorBoundary>
         </ChunkErrorBoundary>
       ) : null}
-      <HelpWidget />
     </DashboardShellContext.Provider>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Box from "@mui/joy/Box";
 import IconButton from "@mui/joy/IconButton";
 import Skeleton from "@mui/joy/Skeleton";
@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
@@ -36,7 +37,9 @@ import {
   useProductVariations,
 } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
-import { ProductFormData } from "@/types/product";
+import { Product, ProductFormData } from "@/types/product";
+import { buildProductFocus } from "@/utils/askBloomContextBuilders";
+import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
 
 const STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -531,6 +534,40 @@ export default function ProductDetailPage() {
     return () => window.clearTimeout(timeoutId);
   }, [formData.track_inventory]);
 
+  const buildProductResourceFocus = useCallback(
+    (currentProduct: Product) =>
+      buildProductFocus(
+        currentProduct,
+        currentProduct.variations ?? [],
+        undefined,
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    if (isNew || !product?.id) {
+      return;
+    }
+
+    return registerResourceAccessor("product", {
+      getResourceFocus: (resourceId, queryClient) => {
+        if (resourceId === product.id) {
+          return buildProductResourceFocus(product);
+        }
+
+        const cachedProduct = queryClient.getQueryData<Product | null>([
+          "product",
+          resourceId,
+        ]);
+        if (!cachedProduct) {
+          return null;
+        }
+
+        return buildProductResourceFocus(cachedProduct);
+      },
+    });
+  }, [buildProductResourceFocus, isNew, product]);
+
   const handleSave = async () => {
     setIsSaving(true);
 
@@ -653,6 +690,14 @@ export default function ProductDetailPage() {
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            {!isNew && product ? (
+              <AskBloomResourceTrigger
+                resourceType="product"
+                resourceId={product.id}
+                resourceLabel={product.name || "Product"}
+                buildContext={() => buildProductResourceFocus(product)}
+              />
+            ) : null}
             {!isNew ? (
               <JoyButton
                 bloomVariant="ghost"

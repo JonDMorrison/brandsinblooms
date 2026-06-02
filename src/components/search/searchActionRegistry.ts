@@ -28,6 +28,7 @@ import { scoreStaticSearchItem } from "./staticSearchRegistry";
 import type { SearchResultItem } from "./types";
 
 export type PaletteCommandId =
+  | "ask-bloom"
   | "go-dashboard"
   | "create-customer"
   | "import-customers"
@@ -59,6 +60,10 @@ export type PaletteCommandId =
   | "create-ticket";
 
 export type PaletteActionExecution =
+  | {
+      type: "activate-bloom-compact";
+      prefilledPrompt: string | null;
+    }
   | {
       type: "navigate";
       route: string;
@@ -119,6 +124,7 @@ interface CommandRegistryEntry {
 
 const FALLBACK_PATHNAME = "/";
 const COMMAND_METADATA = "Command";
+const DEFAULT_SUGGESTION_COMMAND_IDS: PaletteCommandId[] = ["ask-bloom"];
 
 function getActivePathname(pathname?: string): string {
   if (!pathname) {
@@ -137,7 +143,9 @@ function withSearch(baseRoute: string, search: string): string {
 }
 
 function getCurrentCampaignBaseRoute(pathname: string): string | null {
-  const match = pathname.match(/^\/crm\/campaigns\/([^/?#]+)(?:\/(?:analytics|report|recipients)(?:\/[^/?#]+)?)?$/);
+  const match = pathname.match(
+    /^\/crm\/campaigns\/([^/?#]+)(?:\/(?:analytics|report|recipients)(?:\/[^/?#]+)?)?$/,
+  );
 
   if (!match) {
     return null;
@@ -159,6 +167,17 @@ function isIntegrationsRoute(pathname: string): boolean {
 }
 
 const COMMAND_REGISTRY: CommandRegistryEntry[] = [
+  {
+    id: "ask-bloom",
+    title: "Ask Bloom",
+    subtitle: "Ask Bloom about the page you're on without leaving your work.",
+    icon: "saved-block",
+    keywords: ["ask bloom", "bloom", "assistant", "ai", "question"],
+    resolve: () => ({
+      type: "activate-bloom-compact",
+      prefilledPrompt: null,
+    }),
+  },
   {
     id: "go-dashboard",
     title: "Go to Dashboard",
@@ -327,7 +346,8 @@ const COMMAND_REGISTRY: CommandRegistryEntry[] = [
     subtitle: "Trigger a sync for the current product or integration context.",
     icon: "integrations",
     keywords: ["sync", "point of sale", "inventory", "square", "shopify"],
-    isAvailable: (pathname) => isProductsRoute(pathname) || isIntegrationsRoute(pathname),
+    isAvailable: (pathname) =>
+      isProductsRoute(pathname) || isIntegrationsRoute(pathname),
     resolve: (pathname) => ({
       type: "sync-pos",
       integrationRoute: pathname,
@@ -453,7 +473,8 @@ const ROUTE_AWARE_COMMANDS: Array<{
   commandIds: PaletteCommandId[];
 }> = [
   {
-    pattern: /^\/crm\/campaigns\/[^/?#]+(?:\/(?:analytics|report|recipients)(?:\/[^/?#]+)?)?$/,
+    pattern:
+      /^\/crm\/campaigns\/[^/?#]+(?:\/(?:analytics|report|recipients)(?:\/[^/?#]+)?)?$/,
     commandIds: [
       "preview-campaign",
       "view-campaign-recipients",
@@ -619,7 +640,9 @@ export function getResolvedCommandAction(
   commandId: PaletteCommandId,
   pathname?: string,
 ): PaletteExecutableAction | null {
-  const entry = COMMAND_REGISTRY.find((candidate) => candidate.id === commandId);
+  const entry = COMMAND_REGISTRY.find(
+    (candidate) => candidate.id === commandId,
+  );
 
   if (!entry) {
     return null;
@@ -663,17 +686,17 @@ export function getCommandSearchItems(
     .map((entry) => entry.item);
 }
 
-export function getRouteAwareSuggestionItems(pathname?: string): SearchResultItem[] {
+export function getRouteAwareSuggestionItems(
+  pathname?: string,
+): SearchResultItem[] {
   const activePathname = getActivePathname(pathname);
   const match = ROUTE_AWARE_COMMANDS.find((candidate) =>
     candidate.pattern.test(activePathname),
   );
 
-  if (!match) {
-    return [];
-  }
-
-  return match.commandIds
+  return Array.from(
+    new Set([...DEFAULT_SUGGESTION_COMMAND_IDS, ...(match?.commandIds ?? [])]),
+  )
     .map((commandId) => getResolvedCommandAction(commandId, activePathname))
     .filter((action): action is PaletteExecutableAction => action !== null)
     .map((action) => {
@@ -687,7 +710,9 @@ function getResolvedCommandSearchItem(
   commandId: PaletteCommandId,
   pathname?: string,
 ): SearchResultItem | null {
-  const entry = COMMAND_REGISTRY.find((candidate) => candidate.id === commandId);
+  const entry = COMMAND_REGISTRY.find(
+    (candidate) => candidate.id === commandId,
+  );
 
   if (!entry) {
     return null;
@@ -709,10 +734,18 @@ function getRegexMatch(
 }
 
 function getEmailFromItem(item: SearchResultItem): string | null {
-  const fields = [item.subtitle, item.metadata, item.title, ...(item.keywords ?? [])];
+  const fields = [
+    item.subtitle,
+    item.metadata,
+    item.title,
+    ...(item.keywords ?? []),
+  ];
 
   for (const field of fields) {
-    const value = getRegexMatch(field, /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
+    const value = getRegexMatch(
+      field,
+      /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i,
+    );
 
     if (value) {
       return value;
@@ -730,8 +763,13 @@ function getSkuFromItem(item: SearchResultItem): string | null {
       continue;
     }
 
-    const parts = field.split(" • ").map((part) => part.trim()).filter(Boolean);
-    const candidate = parts.find((part) => /^[A-Z0-9][A-Z0-9_-]{2,}$/i.test(part));
+    const parts = field
+      .split(" • ")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const candidate = parts.find((part) =>
+      /^[A-Z0-9][A-Z0-9_-]{2,}$/i.test(part),
+    );
 
     if (candidate) {
       return candidate;
@@ -796,12 +834,10 @@ function getCampaignBaseRoute(route: string): string {
 
 function getProductActions(item: SearchResultItem): PaletteExecutableAction[] {
   const actions = [
-    buildAction(
-      `${item.id}:edit-product`,
-      "Edit Product",
-      PackagePlus,
-      { type: "navigate", route: item.route },
-    ),
+    buildAction(`${item.id}:edit-product`, "Edit Product", PackagePlus, {
+      type: "navigate",
+      route: item.route,
+    }),
     buildAction(
       `${item.id}:view-storefront`,
       "View on Storefront",
@@ -833,15 +869,10 @@ function getFormActions(item: SearchResultItem): PaletteExecutableAction[] {
       type: "navigate",
       route: item.route,
     }),
-    buildAction(
-      `${item.id}:view-submissions`,
-      "View Submissions",
-      Mail,
-      {
-        type: "navigate",
-        route: withSearch(item.route, "tab=submissions"),
-      },
-    ),
+    buildAction(`${item.id}:view-submissions`, "View Submissions", Mail, {
+      type: "navigate",
+      route: withSearch(item.route, "tab=submissions"),
+    }),
   ];
   const embedKey = getEmbedKeyFromItem(item);
 
@@ -932,15 +963,10 @@ function getCampaignActions(item: SearchResultItem): PaletteExecutableAction[] {
       type: "navigate",
       route: `${baseRoute}/report`,
     }),
-    buildAction(
-      `${item.id}:view-recipients`,
-      "View Recipients",
-      Users,
-      {
-        type: "navigate",
-        route: `${baseRoute}/recipients`,
-      },
-    ),
+    buildAction(`${item.id}:view-recipients`, "View Recipients", Users, {
+      type: "navigate",
+      route: `${baseRoute}/recipients`,
+    }),
   ];
 
   if (campaignId) {
@@ -967,15 +993,10 @@ function getSegmentActions(item: SearchResultItem): PaletteExecutableAction[] {
       type: "navigate",
       route: `${item.route}/members`,
     }),
-    buildAction(
-      `${item.id}:segment-campaign`,
-      "Create Campaign",
-      Megaphone,
-      {
-        type: "navigate",
-        route: withSearch("/crm/campaigns/new", segmentSearch),
-      },
-    ),
+    buildAction(`${item.id}:segment-campaign`, "Create Campaign", Megaphone, {
+      type: "navigate",
+      route: withSearch("/crm/campaigns/new", segmentSearch),
+    }),
     buildAction(`${item.id}:segment-sms`, "Send SMS", MessageSquare, {
       type: "navigate",
       route: withSearch("/sms/new", segmentSearch),
@@ -983,8 +1004,13 @@ function getSegmentActions(item: SearchResultItem): PaletteExecutableAction[] {
   ];
 }
 
-function getAutomationActions(item: SearchResultItem): PaletteExecutableAction[] {
-  const automationId = getRegexMatch(item.route, /^\/crm\/automations\/([^/?#]+)/);
+function getAutomationActions(
+  item: SearchResultItem,
+): PaletteExecutableAction[] {
+  const automationId = getRegexMatch(
+    item.route,
+    /^\/crm\/automations\/([^/?#]+)/,
+  );
   const isActive = item.metadata?.toLowerCase() === "active";
   const actions = [
     buildAction(`${item.id}:edit-workflow`, "Edit Workflow", Workflow, {
@@ -1012,7 +1038,9 @@ function getAutomationActions(item: SearchResultItem): PaletteExecutableAction[]
   return actions;
 }
 
-function getSavedBlockActions(item: SearchResultItem): PaletteExecutableAction[] {
+function getSavedBlockActions(
+  item: SearchResultItem,
+): PaletteExecutableAction[] {
   const highlightId = getHighlightQueryValue(item.route);
   const duplicateRoute = highlightId
     ? withSearch(item.route, `duplicate=${highlightId}`)
@@ -1037,16 +1065,24 @@ function getSavedBlockActions(item: SearchResultItem): PaletteExecutableAction[]
   ];
 }
 
-function getSmsCampaignActions(item: SearchResultItem): PaletteExecutableAction[] {
+function getSmsCampaignActions(
+  item: SearchResultItem,
+): PaletteExecutableAction[] {
   return [
     buildAction(`${item.id}:view-details`, "View Details", ArrowUpRight, {
       type: "navigate",
       route: item.route,
     }),
-    buildAction(`${item.id}:open-new-tab`, "Open in New Tab", ExternalLink, {
-      type: "open-new-tab",
-      route: item.route,
-    }, { keepPaletteOpen: true }),
+    buildAction(
+      `${item.id}:open-new-tab`,
+      "Open in New Tab",
+      ExternalLink,
+      {
+        type: "open-new-tab",
+        route: item.route,
+      },
+      { keepPaletteOpen: true },
+    ),
   ];
 }
 
@@ -1074,16 +1110,29 @@ function getTicketActions(item: SearchResultItem): PaletteExecutableAction[] {
   return actions;
 }
 
-function getIntegrationActions(item: SearchResultItem): PaletteExecutableAction[] {
+function getIntegrationActions(
+  item: SearchResultItem,
+): PaletteExecutableAction[] {
   return [
-    buildAction(`${item.id}:open-integration`, "Open Integration", ArrowUpRight, {
-      type: "navigate",
-      route: item.route,
-    }),
-    buildAction(`${item.id}:sync-now`, "Sync Now", RefreshCcw, {
-      type: "sync-pos",
-      integrationRoute: item.route,
-    }, { keepPaletteOpen: true }),
+    buildAction(
+      `${item.id}:open-integration`,
+      "Open Integration",
+      ArrowUpRight,
+      {
+        type: "navigate",
+        route: item.route,
+      },
+    ),
+    buildAction(
+      `${item.id}:sync-now`,
+      "Sync Now",
+      RefreshCcw,
+      {
+        type: "sync-pos",
+        integrationRoute: item.route,
+      },
+      { keepPaletteOpen: true },
+    ),
     buildAction(`${item.id}:view-logs`, "View Logs", ShieldCheck, {
       type: "navigate",
       route: withSearch(item.route, "tab=sync-logs"),
@@ -1093,19 +1142,32 @@ function getIntegrationActions(item: SearchResultItem): PaletteExecutableAction[
 
 function getPageActions(item: SearchResultItem): PaletteExecutableAction[] {
   return [
-    buildAction(`${item.id}:open-page`, item.type === "setting" ? "Open Setting" : "Open Page", ArrowUpRight, {
-      type: "navigate",
-      route: item.route,
-    }),
-    buildAction(`${item.id}:open-page-tab`, "Open in New Tab", ExternalLink, {
-      type: "open-new-tab",
-      route: item.route,
-    }, { keepPaletteOpen: true }),
+    buildAction(
+      `${item.id}:open-page`,
+      item.type === "setting" ? "Open Setting" : "Open Page",
+      ArrowUpRight,
+      {
+        type: "navigate",
+        route: item.route,
+      },
+    ),
+    buildAction(
+      `${item.id}:open-page-tab`,
+      "Open in New Tab",
+      ExternalLink,
+      {
+        type: "open-new-tab",
+        route: item.route,
+      },
+      { keepPaletteOpen: true },
+    ),
   ];
 }
 
 function getActionIconForCommand(commandId: PaletteCommandId): LucideIcon {
   switch (commandId) {
+    case "ask-bloom":
+      return Sparkles;
     case "create-customer":
       return Plus;
     case "import-customers":
@@ -1160,7 +1222,9 @@ function getActionIconForCommand(commandId: PaletteCommandId): LucideIcon {
   }
 }
 
-export function getResultActionItems(item: SearchResultItem): PaletteExecutableAction[] {
+export function getResultActionItems(
+  item: SearchResultItem,
+): PaletteExecutableAction[] {
   switch (item.type) {
     case "customer":
       return getCustomerActions(item);
@@ -1188,7 +1252,9 @@ export function getResultActionItems(item: SearchResultItem): PaletteExecutableA
       return getPageActions(item);
     case "action": {
       const commandId = getCommandIdFromSearchItem(item);
-      const action = commandId ? getResolvedCommandAction(commandId, item.route) : null;
+      const action = commandId
+        ? getResolvedCommandAction(commandId, item.route)
+        : null;
       return action ? [action] : getPageActions(item);
     }
     default:

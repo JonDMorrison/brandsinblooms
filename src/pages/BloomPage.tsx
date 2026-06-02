@@ -1,0 +1,304 @@
+import { useEffect, useRef } from "react";
+import {
+  useLocation,
+  useNavigate,
+  useOutletContext,
+  useSearchParams,
+} from "react-router-dom";
+import { toast } from "sonner";
+import Box from "@mui/joy/Box";
+import { BloomConversationArea } from "@/components/bloom/BloomConversationArea";
+import { BloomApprovalBar } from "@/components/bloom/BloomApprovalBar";
+import { useBloom } from "@/components/bloom/BloomContext";
+import { BloomInputArea } from "@/components/bloom/BloomInputArea";
+import type { BloomShellOutletContext } from "@/components/bloom/BloomShell";
+import {
+  bloomSupabase,
+  toBloomProactiveInsight,
+  type BloomProactiveInsightRow,
+} from "@/hooks/bloom/types";
+import { useTenant } from "@/hooks/useTenant";
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+
+function BloomPageParamHandler() {
+  const { createConversation, sendMessage } = useBloom();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { tenant, loading: tenantLoading } = useTenant();
+  const isProcessingRef = useRef(false);
+
+  useEffect(() => {
+    const insightId = searchParams.get("insight")?.trim() ?? "";
+    const queryConversationId =
+      searchParams.get("conversationId")?.trim() ?? "";
+    const continueConversationId = searchParams.get("continue")?.trim() ?? "";
+    const shouldCreateNewConversation = searchParams.get("new") === "true";
+
+    if (
+      !insightId &&
+      !queryConversationId &&
+      !continueConversationId &&
+      !shouldCreateNewConversation
+    ) {
+      isProcessingRef.current = false;
+      return;
+    }
+
+    if (location.pathname !== "/bloom" || isProcessingRef.current) {
+      return;
+    }
+
+    const remainingParams = new URLSearchParams(searchParams);
+    remainingParams.delete("conversationId");
+    remainingParams.delete("continue");
+    remainingParams.delete("new");
+    remainingParams.delete("insight");
+    const remainingSearch = remainingParams.toString();
+
+    if (insightId) {
+      if (!isUuid(insightId)) {
+        isProcessingRef.current = true;
+        toast.error("Bloom insight unavailable", {
+          description: "That Bloom insight link is invalid.",
+        });
+        navigate(
+          {
+            pathname: "/bloom",
+            search: remainingSearch ? `?${remainingSearch}` : "",
+          },
+          { replace: true },
+        );
+        return;
+      }
+
+      if (tenantLoading) {
+        return;
+      }
+
+      if (!tenant?.id) {
+        isProcessingRef.current = true;
+        toast.error("Bloom insight unavailable", {
+          description:
+            "Select an organization before opening Bloom insight links.",
+        });
+        navigate(
+          {
+            pathname: "/bloom",
+            search: remainingSearch ? `?${remainingSearch}` : "",
+          },
+          { replace: true },
+        );
+        return;
+      }
+
+      isProcessingRef.current = true;
+
+      void bloomSupabase
+        .from("bloom_proactive_insights")
+        .select(
+          "id, tenant_id, insight_type, title, description, action_prompt, entity_type, entity_id, severity, dismissed_by, expires_at, created_at",
+        )
+        .eq("id", insightId)
+        .eq("tenant_id", tenant.id)
+        .maybeSingle()
+        .then(async ({ data, error }) => {
+          if (error) {
+            throw error;
+          }
+
+          if (!data) {
+            toast.error("Bloom insight unavailable", {
+              description:
+                "That Bloom insight no longer exists for this organization.",
+            });
+            navigate(
+              {
+                pathname: "/bloom",
+                search: remainingSearch ? `?${remainingSearch}` : "",
+              },
+              { replace: true },
+            );
+            return;
+          }
+
+          const insight = toBloomProactiveInsight(
+            data as BloomProactiveInsightRow,
+          );
+          const isExpired = Boolean(
+            insight.expiresAt &&
+            new Date(insight.expiresAt).getTime() <= Date.now(),
+          );
+
+          if (isExpired) {
+            toast.error("Bloom insight expired", {
+              description:
+                "This proactive Bloom insight is no longer available.",
+            });
+            navigate(
+              {
+                pathname: "/bloom",
+                search: remainingSearch ? `?${remainingSearch}` : "",
+              },
+              { replace: true },
+            );
+            return;
+          }
+
+          if (!insight.actionPrompt) {
+            toast.error("Bloom insight unavailable", {
+              description:
+                "This proactive Bloom insight cannot start a conversation.",
+            });
+            navigate(
+              {
+                pathname: "/bloom",
+                search: remainingSearch ? `?${remainingSearch}` : "",
+              },
+              { replace: true },
+            );
+            return;
+          }
+
+          await sendMessage(insight.actionPrompt);
+
+          const currentPathname =
+            typeof window !== "undefined"
+              ? window.location.pathname
+              : location.pathname;
+
+          navigate(
+            {
+              pathname: currentPathname,
+              search: remainingSearch ? `?${remainingSearch}` : "",
+            },
+            { replace: true },
+          );
+        })
+        .catch((error: unknown) => {
+          toast.error("Failed to open Bloom insight", {
+            description:
+              error instanceof Error
+                ? error.message
+                : "Something went wrong loading that Bloom insight.",
+          });
+          navigate(
+            {
+              pathname: "/bloom",
+              search: remainingSearch ? `?${remainingSearch}` : "",
+            },
+            { replace: true },
+          );
+        });
+
+      return;
+    }
+
+    if (queryConversationId && isUuid(queryConversationId)) {
+      isProcessingRef.current = true;
+      navigate(
+        {
+          pathname: `/bloom/${queryConversationId}`,
+          search: remainingSearch ? `?${remainingSearch}` : "",
+        },
+        { replace: true },
+      );
+      return;
+    }
+
+    if (continueConversationId && isUuid(continueConversationId)) {
+      isProcessingRef.current = true;
+      navigate(
+        {
+          pathname: `/bloom/${continueConversationId}`,
+          search: remainingSearch ? `?${remainingSearch}` : "",
+        },
+        { replace: true },
+      );
+      return;
+    }
+
+    if (!shouldCreateNewConversation) {
+      isProcessingRef.current = false;
+      return;
+    }
+
+    isProcessingRef.current = true;
+    void createConversation()
+      .then((conversationId) => {
+        if (!remainingSearch) {
+          return;
+        }
+
+        navigate(
+          {
+            pathname: `/bloom/${conversationId}`,
+            search: `?${remainingSearch}`,
+          },
+          { replace: true },
+        );
+      })
+      .finally(() => {
+        isProcessingRef.current = false;
+      });
+  }, [
+    createConversation,
+    location.pathname,
+    navigate,
+    searchParams,
+    sendMessage,
+    tenant?.id,
+    tenantLoading,
+  ]);
+
+  return null;
+}
+
+export default function BloomPage() {
+  const { prioritizePageContext } = useOutletContext<BloomShellOutletContext>();
+
+  return (
+    <>
+      <BloomPageParamHandler />
+      {/* Single relative stage that holds the conversation and the floating
+          composer. The conversation area fills the full height, so its dotted
+          grid backdrop now spans the entire page — including the space behind
+          and around the floating input. */}
+      <Box
+        sx={{
+          position: "relative",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <BloomConversationArea prioritizePageContext={prioritizePageContext} />
+        {/* Floating composer: absolutely anchored to the bottom so it hovers
+            over the conversation rather than sitting in a flat bar. The wrapper
+            is click-through (`pointerEvents: none`) so messages behind the dead
+            space around the composer stay scrollable/selectable; the composer,
+            approval bar, and creation-form card re-enable pointer events
+            themselves. The creation form renders as its own rounded card above
+            the composer, so no shared full-width surface lives here. */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        >
+          <BloomApprovalBar />
+          <BloomInputArea />
+        </Box>
+      </Box>
+    </>
+  );
+}

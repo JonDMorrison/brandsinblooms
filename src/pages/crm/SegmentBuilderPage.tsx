@@ -27,6 +27,7 @@ import {
   CatalogStatsStrip,
   CatalogStatsStripSkeleton,
 } from "@/components/crm/catalog/CatalogStatsStrip";
+import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { SegmentDeleteDialog } from "@/components/crm/segments/SegmentDeleteDialog";
 import { NaturalLanguageRulePreview } from "@/components/crm/segments/rule-builder/NaturalLanguageRulePreview";
 import { SegmentLivePreview } from "@/components/crm/segments/rule-builder/SegmentLivePreview";
@@ -47,7 +48,7 @@ import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { useCreateSegment } from "@/hooks/useCreateSegment";
 import { useDeleteSegment } from "@/hooks/useDeleteSegment";
 import { useEvaluateSegments } from "@/hooks/useSegmentEvaluation";
-import { useSegment } from "@/hooks/useSegment";
+import { type SegmentDetailResult, useSegment } from "@/hooks/useSegment";
 import { useSegmentMembers } from "@/hooks/useSegmentMembers";
 import { useSegmentPreview } from "@/hooks/useSegmentPreview";
 import {
@@ -66,6 +67,9 @@ import {
   type SegmentField,
   type SegmentRuleGroup,
 } from "@/lib/segmentFields";
+import { buildGenericFocus } from "@/utils/askBloomContextBuilders";
+import { registerResourceAccessor } from "@/utils/askBloomResourceRegistry";
+import { subscribeAskBloomResourceSync } from "@/utils/askBloomResourceSync";
 
 const SEGMENT_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -551,6 +555,76 @@ export default function SegmentBuilderPage() {
     .filter((segment) => segment.id !== segmentId)
     .map((segment) => ({ id: segment.id, label: segment.name }));
 
+  const buildSegmentResourceFocus = useMemo(
+    () => () => {
+      if (!segmentId || !segmentQuery.data) {
+        throw new Error("Segment focus is unavailable until the segment loads.");
+      }
+
+      return buildGenericFocus("segment", segmentId, segmentQuery.data.name, {
+        description: segmentQuery.data.description,
+        type: segmentQuery.data.type,
+        status: segmentQuery.data.status,
+        memberCount: previewQuery.preview.count ?? segmentQuery.data.memberCount,
+        includeAllCustomers: segmentQuery.data.includeAllCustomers,
+        usage: segmentQuery.data.usage.map((usage) => usage.name),
+      });
+    },
+    [previewQuery.preview.count, segmentId, segmentQuery.data],
+  );
+
+  useEffect(() => {
+    if (!tenantId || !segmentId || !segmentQuery.data) {
+      return;
+    }
+
+    return registerResourceAccessor("segment", {
+      getResourceFocus: (resourceId, queryClient) => {
+        if (resourceId === segmentId) {
+          return buildSegmentResourceFocus();
+        }
+
+        const cachedSegment = queryClient.getQueryData<SegmentDetailResult | null>([
+          "segment",
+          tenantId,
+          resourceId,
+        ]);
+        if (!cachedSegment) {
+          return null;
+        }
+
+        return buildGenericFocus("segment", resourceId, cachedSegment.name, {
+          description: cachedSegment.description,
+          type: cachedSegment.type,
+          status: cachedSegment.status,
+          memberCount: cachedSegment.memberCount,
+          includeAllCustomers: cachedSegment.includeAllCustomers,
+          usage: cachedSegment.usage.map((usage) => usage.name),
+        });
+      },
+    });
+  }, [buildSegmentResourceFocus, segmentId, segmentQuery.data, tenantId]);
+
+  useEffect(() => {
+    if (!segmentId) {
+      return;
+    }
+
+    return subscribeAskBloomResourceSync((detail) => {
+      if (
+        detail.status !== "completed" ||
+        detail.resourceType !== "segment" ||
+        detail.resourceId !== segmentId
+      ) {
+        return;
+      }
+
+      setInitialized(false);
+      void segmentQuery.refetch();
+      void segmentMembersQuery.refetch();
+    });
+  }, [segmentId, segmentMembersQuery, segmentQuery]);
+
   if (isInitialLoading) {
     return <SegmentBuilderSkeleton />;
   }
@@ -715,6 +789,14 @@ export default function SegmentBuilderPage() {
             justifyContent={{ xs: "flex-start", md: "flex-end" }}
             sx={{ flexShrink: 0 }}
           >
+            {segmentId && segmentQuery.data ? (
+              <AskBloomResourceTrigger
+                resourceType="segment"
+                resourceId={segmentId}
+                resourceLabel={segmentQuery.data.name}
+                buildContext={buildSegmentResourceFocus}
+              />
+            ) : null}
             {segmentId ? (
               <Tooltip title="View members">
                 <IconButton
