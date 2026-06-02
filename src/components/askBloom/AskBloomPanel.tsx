@@ -7,31 +7,71 @@ import Typography from "@mui/joy/Typography";
 import { AnimatePresence, motion } from "framer-motion";
 import { RefreshCw, Sparkles } from "lucide-react";
 import { AskBloomActionBar } from "@/components/askBloom/AskBloomActionBar";
+import { AskBloomApprovalBar } from "@/components/askBloom/AskBloomApprovalBar";
 import useMediaQuery from "@/hooks/use-media-query";
 import { useAskBloom } from "@/providers/AskBloomProvider";
 import { AskBloomConversationArea } from "@/components/askBloom/AskBloomConversationArea";
 import { AskBloomHeader } from "@/components/askBloom/AskBloomHeader";
-import { AskBloomInput } from "@/components/askBloom/AskBloomInput";
+import AskBloomInput from "@/components/askBloom/AskBloomInput";
 import { AskBloomResourceBanner } from "@/components/askBloom/AskBloomResourceBanner";
 
 const DEFAULT_PANEL_WIDTH = 400;
 const TABLET_PANEL_WIDTH = 400;
 
 const panelSurfaceSx = {
+  "--ask-bloom-floating-input-height": "0px",
+  "--ask-bloom-floating-stack-height": "0px",
+  position: "relative",
   height: "100%",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
   bgcolor: "background.surface",
+  backgroundImage:
+    "radial-gradient(var(--joy-palette-neutral-300) 1px, transparent 1px)",
+  backgroundSize: "10px 10px",
+  backgroundPosition: "center",
 } as const;
 
-function AskBloomPanelBody({
-  showLeftBorder,
-}: {
-  showLeftBorder: boolean;
-}) {
+function AskBloomPanelBody() {
   const askBloom = useAskBloom();
+  const bottomStackRef = React.useRef<HTMLDivElement | null>(null);
   const [showContextUpdated, setShowContextUpdated] = React.useState(false);
+
+  React.useEffect(() => {
+    const stack = bottomStackRef.current;
+    if (!stack) {
+      return undefined;
+    }
+
+    const panel = stack.closest("[data-ask-bloom-panel]");
+    const panelElement = panel instanceof HTMLElement ? panel : null;
+
+    const syncLayout = () => {
+      panelElement?.style.setProperty(
+        "--ask-bloom-floating-stack-height",
+        `${Math.ceil(stack.getBoundingClientRect().height)}px`,
+      );
+    };
+
+    syncLayout();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        panelElement?.style.removeProperty("--ask-bloom-floating-stack-height");
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncLayout();
+    });
+
+    observer.observe(stack);
+    return () => {
+      observer.disconnect();
+      panelElement?.style.removeProperty("--ask-bloom-floating-stack-height");
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!askBloom.state.contextUpdatedToken) {
@@ -50,7 +90,10 @@ function AskBloomPanelBody({
 
   const shouldShowActionBar =
     Boolean(askBloom.state.resourceFocus) &&
-    (askBloom.state.messages.length === 0 || askBloom.state.messages.length < 3);
+    askBloom.state.messages.length < 3 &&
+    !askBloom.state.isLoadingConversation &&
+    !askBloom.state.isTransitioning &&
+    !askBloom.state.isSendingMessage;
 
   return (
     <Sheet
@@ -61,7 +104,7 @@ function AskBloomPanelBody({
         width: "100%",
         minWidth: 320,
         maxWidth: 600,
-        borderLeft: showLeftBorder ? "1px solid" : "none",
+        borderLeft: "none",
         borderColor: "divider",
       }}
     >
@@ -101,7 +144,32 @@ function AskBloomPanelBody({
       </AnimatePresence>
       {shouldShowActionBar ? <AskBloomActionBar /> : null}
       <AskBloomConversationArea />
-      <AskBloomInput />
+      <Box
+        ref={bottomStackRef}
+        sx={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 2,
+          display: "flex",
+          flexDirection: "column",
+          pointerEvents: "none",
+        }}
+      >
+        <Box sx={{ pointerEvents: "auto" }}>
+          <AskBloomApprovalBar />
+        </Box>
+        <Box
+          sx={{
+            pointerEvents: "auto",
+            mx: 1.5,
+            mb: "max(12px, env(safe-area-inset-bottom))",
+          }}
+        >
+          <AskBloomInput />
+        </Box>
+      </Box>
     </Sheet>
   );
 }
@@ -113,9 +181,10 @@ export function AskBloomPanel() {
     "(min-width: 1024px) and (max-width: 1279.95px)",
   );
   const [isResizing, setIsResizing] = React.useState(false);
-  const resizeStateRef = React.useRef<{ startX: number; startWidth: number } | null>(
-    null,
-  );
+  const resizeStateRef = React.useRef<{
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!isResizing) {
@@ -173,13 +242,16 @@ export function AskBloomPanel() {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          borderLeft: "1px solid",
+          borderLeft: "none",
           borderColor: "divider",
           bgcolor: "background.surface",
           flexShrink: 0,
         }}
       >
-        <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="danger">
+        <Badge
+          badgeContent={unreadCount > 0 ? unreadCount : undefined}
+          color="danger"
+        >
           <Sparkles size={18} strokeWidth={1.5} />
         </Badge>
       </Sheet>
@@ -224,7 +296,7 @@ export function AskBloomPanel() {
               bottom: 0,
               left: 2,
               width: 2,
-              bgcolor: isResizing ? "primary.400" : "neutral.300",
+              bgcolor: isResizing ? "primary.400" : "transparent",
               transition: "background-color 150ms ease",
             },
             "&:hover::after": {
@@ -232,7 +304,7 @@ export function AskBloomPanel() {
             },
           }}
         />
-        <AskBloomPanelBody showLeftBorder />
+        <AskBloomPanelBody />
       </Box>
     );
   }
@@ -260,7 +332,7 @@ export function AskBloomPanel() {
           },
         }}
       >
-        <AskBloomPanelBody showLeftBorder={false} />
+        <AskBloomPanelBody />
       </Drawer>
     );
   }
@@ -299,7 +371,7 @@ export function AskBloomPanel() {
           },
         }}
       >
-        <AskBloomPanelBody showLeftBorder={false} />
+        <AskBloomPanelBody />
       </Sheet>
     </Box>
   );

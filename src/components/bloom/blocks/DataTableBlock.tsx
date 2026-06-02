@@ -331,6 +331,25 @@ function columnAlign(column: DataTableColumn): "left" | "right" {
     : "left";
 }
 
+function columnWidth(column: DataTableColumn): number {
+  if (column.key === "name" || column.key === "title") {
+    return 220;
+  }
+
+  switch (column.type) {
+    case "currency":
+    case "number":
+    case "percentage":
+      return 128;
+    case "date":
+      return 144;
+    case "status":
+      return 140;
+    default:
+      return 180;
+  }
+}
+
 export function DataTableBlock({
   columns,
   entityType,
@@ -351,6 +370,14 @@ export function DataTableBlock({
   );
   const resolvedColumns =
     columns.length > 0 ? columns : defaultColumnsForEntity(entityType, rows);
+  const tableMinWidth = React.useMemo(
+    () =>
+      resolvedColumns.reduce(
+        (totalWidth, column) => totalWidth + columnWidth(column),
+        0,
+      ),
+    [resolvedColumns],
+  );
   const sortedRows = React.useMemo(
     () => sortRows(rows, resolvedColumns, sortState),
     [resolvedColumns, rows, sortState],
@@ -441,7 +468,11 @@ export function DataTableBlock({
           </Box>
         ) : (
           <>
-            <JoyTable stickyHeader>
+            <JoyTable
+              stickyHeader
+              containerSx={{ maxWidth: "100%", overflowX: "auto" }}
+              sx={{ minWidth: `${tableMinWidth}px`, tableLayout: "fixed" }}
+            >
               <JoyTableHead>
                 <JoyTableRow>
                   {resolvedColumns.map((column) => {
@@ -449,6 +480,7 @@ export function DataTableBlock({
                       sortState?.key === column.key
                         ? sortState.direction
                         : "none";
+                    const fixedWidth = columnWidth(column);
                     return (
                       <JoyTableHeaderCell
                         key={column.key}
@@ -456,6 +488,12 @@ export function DataTableBlock({
                         sortable={Boolean(column.sortable)}
                         sortDirection={activeSortDirection}
                         onSort={() => handleSort(column)}
+                        sx={{
+                          width: `${fixedWidth}px`,
+                          minWidth: `${fixedWidth}px`,
+                          maxWidth: `${fixedWidth}px`,
+                          verticalAlign: "top",
+                        }}
                       >
                         {column.label}
                       </JoyTableHeaderCell>
@@ -482,18 +520,27 @@ export function DataTableBlock({
                         }
                       }}
                     >
-                      {resolvedColumns.map((column) => (
-                        <JoyTableCell
-                          key={`${id ?? index}-${column.key}`}
-                          align={columnAlign(column)}
-                        >
-                          <TableCellContent
-                            column={column}
-                            entityType={entityType}
-                            row={row}
-                          />
-                        </JoyTableCell>
-                      ))}
+                      {resolvedColumns.map((column) => {
+                        const fixedWidth = columnWidth(column);
+                        return (
+                          <JoyTableCell
+                            key={`${id ?? index}-${column.key}`}
+                            align={columnAlign(column)}
+                            sx={{
+                              width: `${fixedWidth}px`,
+                              minWidth: `${fixedWidth}px`,
+                              maxWidth: `${fixedWidth}px`,
+                              verticalAlign: "top",
+                            }}
+                          >
+                            <TableCellContent
+                              column={column}
+                              entityType={entityType}
+                              row={row}
+                            />
+                          </JoyTableCell>
+                        );
+                      })}
                     </JoyTableRow>
                   );
                 })}

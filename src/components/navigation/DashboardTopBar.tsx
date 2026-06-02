@@ -363,7 +363,7 @@ export function DashboardTopBar({
                   title={`Toggle AI panel (${askBloomToggleShortcutLabel})`}
                 >
                   <Button
-                    variant="outlined"
+                    variant="plain"
                     color="neutral"
                     size="sm"
                     startDecorator={<Sparkles size={16} />}
@@ -376,24 +376,36 @@ export function DashboardTopBar({
                       askBloom.openGeneral();
                     }}
                     sx={{
-                      borderRadius: "8px",
+                      minHeight: 32,
+                      border: 0,
+                      borderRadius: "999px",
                       fontWeight: 500,
                       fontSize: "13px",
                       px: 1.5,
                       py: 0.5,
-                      borderColor: askBloom.state.isOpen
-                        ? "primary.300"
-                        : "neutral.300",
                       color: askBloom.state.isOpen
-                        ? "primary.600"
+                        ? "neutral.900"
                         : "text.secondary",
                       bgcolor: askBloom.state.isOpen
-                        ? "primary.50"
+                        ? "neutral.100"
                         : "transparent",
+                      boxShadow: askBloom.state.isOpen
+                        ? "inset 0 1px 2px rgba(var(--joy-palette-neutral-mainChannel) / 0.18)"
+                        : "none",
+                      transition:
+                        "background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 100ms ease",
                       "&:hover": {
-                        borderColor: "primary.400",
-                        bgcolor: "primary.50",
+                        bgcolor: askBloom.state.isOpen
+                          ? "neutral.100"
+                          : "neutral.100",
+                        color: askBloom.state.isOpen
+                          ? "neutral.900"
+                          : "neutral.800",
                       },
+                      "&:active": {
+                        transform: "scale(0.98)",
+                      },
+                      "&.Mui-focusVisible, &:focus-visible": focusRingSx,
                     }}
                   >
                     Ask Bloom

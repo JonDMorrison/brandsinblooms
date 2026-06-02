@@ -1,5 +1,3 @@
-import * as XLSX from "npm:xlsx@0.18.5";
-
 import type {
   AttachmentContext,
   JsonArray,
@@ -10,6 +8,8 @@ import type {
   PersistenceClient,
 } from "./types.ts";
 
+type XlsxModule = typeof import("npm:xlsx@0.18.5");
+
 export const BLOOM_UPLOADS_BUCKET = "bloom-uploads";
 
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
@@ -18,6 +18,8 @@ const MAX_CONTEXT_TEXT_CHARS = 12_000;
 const TEXT_PREVIEW_CHARS = 500;
 const MAX_CSV_ANALYSIS_ROWS = 5;
 const MAX_ATTACHMENT_NAME_CHARS = 180;
+
+let xlsxModulePromise: Promise<XlsxModule> | null = null;
 
 const CSV_MIME_TYPES = new Set([
   "text/csv",
@@ -153,6 +155,19 @@ function toErrorMessage(error: unknown): string {
   }
 
   return "Unknown error";
+}
+
+async function loadXlsxModule(): Promise<XlsxModule> {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import("npm:xlsx@0.18.5");
+  }
+
+  try {
+    return await xlsxModulePromise;
+  } catch (error) {
+    xlsxModulePromise = null;
+    throw new Error(`Excel parser failed to load: ${toErrorMessage(error)}`);
+  }
 }
 
 function estimateTokenCount(text: string): number {
@@ -428,8 +443,9 @@ function normalizeSheetRows(rawRows: unknown): string[][] {
     .filter((row) => row.some((cell) => cell.length > 0));
 }
 
-function parseExcelBytes(bytes: Uint8Array): CsvDataProfile {
-  const workbook = XLSX.read(bytes, { type: "array" });
+async function parseExcelBytes(bytes: Uint8Array): Promise<CsvDataProfile> {
+  const xlsx = await loadXlsxModule();
+  const workbook = xlsx.read(bytes, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) {
     throw new Error("Excel workbook did not contain any sheets.");
@@ -441,7 +457,7 @@ function parseExcelBytes(bytes: Uint8Array): CsvDataProfile {
   }
 
   const rows = normalizeSheetRows(
-    XLSX.utils.sheet_to_json(worksheet, {
+    xlsx.utils.sheet_to_json(worksheet, {
       header: 1,
       raw: false,
       blankrows: false,
@@ -1032,7 +1048,7 @@ async function processSpreadsheetAttachment(args: {
   const profile =
     args.kind === "csv"
       ? parseCsvText(decodeText(args.bytes))
-      : parseExcelBytes(args.bytes);
+      : await parseExcelBytes(args.bytes);
 
   if (profile.rows.length === 0 || profile.columnCount === 0) {
     throw new Error("Spreadsheet did not contain readable rows.");

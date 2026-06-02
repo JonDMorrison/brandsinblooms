@@ -454,7 +454,7 @@ function jsonArrayOrEmpty(value: unknown): JsonArray {
 
 function jsonObjectOrNull(value: unknown): JsonObject | null {
   return isRecord(value) && Object.values(value).every(isJsonValue)
-    ? value
+    ? (value as JsonObject)
     : null;
 }
 
@@ -1395,7 +1395,7 @@ function mapProviderConnection(
     accountName: row.provider_account_name,
     accountId: row.provider_account_id,
     status: row.revoked_at ? "revoked" : row.status,
-    connectedAt: row.connected_at ?? row.created_at,
+    connectedAt: row.connected_at,
     updatedAt: row.updated_at,
     lastSyncedAt: null,
     hasWebhookMonitoring: false,
@@ -1953,10 +1953,6 @@ function twilioStatusRow(
   };
 }
 
-function stripeStatusRow(tenantId: string): JsonObject {
-  return baseDisconnectedRow("stripe", tenantId);
-}
-
 function tenantUserDisplayName(user: TenantUserRow): string {
   const fullName = user.full_name?.trim();
   if (fullName) {
@@ -2152,8 +2148,8 @@ async function stripeStatusRow(
     last_sync_at: snapshot.current_period_end,
     last_activity_at: updatedAt,
     sync_counts: {
-      max_connections: snapshot.feature_limits.maxSites,
-      max_products: snapshot.feature_limits.maxProducts,
+      max_connections: snapshot.feature_limits.max_sites,
+      max_products: snapshot.feature_limits.max_products,
     },
     webhooks: {
       monitored: false,
@@ -2177,7 +2173,13 @@ async function stripeStatusRow(
       cancel_at_period_end: snapshot.cancel_at_period_end,
       trial_end: snapshot.trial_end,
       can_access_premium: snapshot.can_access_premium,
-      feature_limits: snapshot.feature_limits,
+      feature_limits: {
+        max_sites: snapshot.feature_limits.max_sites,
+        max_products: snapshot.feature_limits.max_products,
+        custom_domain: snapshot.feature_limits.custom_domain,
+        remove_branding: snapshot.feature_limits.remove_branding,
+        priority_support: snapshot.feature_limits.priority_support,
+      },
       stripe_customer_id: subscription.stripe_customer_id ?? null,
       stripe_subscription_id: subscription.stripe_subscription_id ?? null,
       stripe_subscription_item_id:

@@ -13,10 +13,14 @@ import Sheet from "@mui/joy/Sheet";
 import { useColorScheme } from "@mui/joy/styles";
 import { CommandPaletteFilterBar } from "@/components/search/CommandPaletteFilterBar";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { CommandPaletteFooter } from "@/components/search/CommandPaletteFooter";
 import { CommandPaletteInput } from "@/components/search/CommandPaletteInput";
 import { CommandPaletteResults } from "@/components/search/CommandPaletteResults";
 import { BloomCompactMode } from "@/components/bloom/BloomCompactMode";
+import { useOptionalAskBloom } from "@/providers/AskBloomProvider";
+import { getResourceFocusFromCache } from "@/utils/askBloomResourceRegistry";
+import { parseResourceFromPath } from "@/utils/askBloomRouteContext";
 import { applyRouteVisitBoost } from "@/components/search/databaseSearch";
 import {
   coerceSearchFilter,
@@ -121,6 +125,39 @@ function getAskBloomPromptFromItem(item: SearchResultItem): string | null {
   return prompt || null;
 }
 
+function focusAskBloomPanelInput(attemptsRemaining = 6) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  // The composer is the only <textarea> inside the panel. Target it directly:
+  // the panel's input wrapper <div> and a hidden file <input> also carry
+  // `data-ask-bloom-panel-input`, and neither is a valid focus target.
+  const input = document.querySelector<HTMLTextAreaElement>(
+    "[data-ask-bloom-panel] textarea",
+  );
+
+  if (input) {
+    input.focus();
+
+    // The palette Modal keeps an active focus trap until its ~150ms exit
+    // animation finishes, which can pull focus straight back. Retry past that
+    // window until focus actually lands on the composer.
+    if (document.activeElement === input) {
+      return;
+    }
+  }
+
+  if (attemptsRemaining <= 0) {
+    return;
+  }
+
+  window.setTimeout(
+    () => focusAskBloomPanelInput(attemptsRemaining - 1),
+    60,
+  );
+}
+
 function hasStrongSearchMatch(
   groups: SearchResultGroup[],
   query: string,
@@ -221,6 +258,8 @@ export function CommandPalette({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const askBloom = useOptionalAskBloom();
+  const queryClient = useQueryClient();
   const { mode, setMode } = useColorScheme();
   const { cloneCampaign } = useCampaignCloning();
   const compactMode = useBloomCompactMode();
@@ -956,7 +995,53 @@ export function CommandPalette({
 
       switch (action.execution.type) {
         case "activate-bloom-compact": {
-          activateCompact(action.execution.prefilledPrompt ?? undefined);
+          const prefilledPrompt =
+            action.execution.prefilledPrompt?.trim() || null;
+
+          // Tenant shell: the Ask Bloom sidebar lives in the AskBloomProvider
+          // tree, so route the palette's "Ask Bloom" entry point there instead
+          // of opening the embedded compact chat.
+          if (askBloom) {
+            trackAction();
+            onClose();
+
+            // The palette restores focus to its trigger ~150ms after closing
+            // (see the open/close effect). Clear that target so it does not
+            // steal focus back from the sidebar composer.
+            previousFocusRef.current = null;
+
+            if (!askBloom.state.isOpen) {
+              const parsedResource = parseResourceFromPath(pathname);
+              const resourceFocus = parsedResource
+                ? getResourceFocusFromCache(
+                    parsedResource.resourceType,
+                    parsedResource.resourceId,
+                    queryClient,
+                  )
+                : null;
+
+              if (resourceFocus) {
+                askBloom.openWithResource(resourceFocus);
+              } else {
+                askBloom.openGeneral();
+              }
+            }
+
+            // A typed "Ask Bloom: <query>" entry carries the query as its
+            // prompt; forward it to the sidebar so the prompt is not lost.
+            if (prefilledPrompt) {
+              askBloom.sendMessage(prefilledPrompt);
+            }
+
+            // Focus the composer once the panel has mounted and the palette's
+            // focus trap has released (the helper retries past the exit).
+            focusAskBloomPanelInput();
+            return;
+          }
+
+          // No provider available (e.g. the admin shell): keep the embedded
+          // compact experience as a fallback.
+          activateCompact(prefilledPrompt ?? undefined);
           announce("Bloom is ready.");
           trackAction();
           return;

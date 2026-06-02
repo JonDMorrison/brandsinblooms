@@ -71,7 +71,7 @@ const listItemSx = {
 const listItemButtonSx = {
   px: 2,
   py: 0.75,
-  borderRadius: 0,
+  borderRadius: "var(--joy-radius-lg)",
   alignItems: "center",
   "&.Mui-selected": {
     bgcolor: "neutral.100",
@@ -211,7 +211,7 @@ export function BloomPlusMenu({
               left: 0,
               minWidth: 300,
               maxWidth: 340,
-              borderRadius: 0,
+              borderRadius: "var(--joy-radius-xl)",
               bgcolor: "background.surface",
               boxShadow:
                 "0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)",

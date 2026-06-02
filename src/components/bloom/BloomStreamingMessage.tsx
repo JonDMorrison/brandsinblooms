@@ -1,22 +1,36 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
 import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { AlertCircle } from "lucide-react";
-import { BloomAvatar } from "@/components/bloom/BloomAvatar";
 import { useBloom } from "@/components/bloom/BloomContext";
-import { useBloomReducedMotion } from "@/components/bloom/BloomMotionContext";
-import { BloomToolLoadingPill } from "@/components/bloom/BloomToolLoadingPill";
+import { BloomStreamingIndicator } from "@/components/bloom/BloomToolLoadingPill";
 import { createResearchProgressPayload } from "@/components/bloom/blocks/researchProgressPayload";
 import { ThinkingBlock } from "@/components/bloom/blocks/ThinkingBlock";
 import { ContentBlockRenderer } from "@/components/bloom/content/ContentBlockRenderer";
-import { contentBlockFromStreamingBlock } from "@/components/bloom/content/parseContentBlocks";
+import {
+  contentBlockFromStreamingBlock,
+  extractIdentifiersFromToolResults,
+  stripRedundantContent,
+} from "@/components/bloom/content/parseContentBlocks";
+import {
+  stripEchoedToolPayloads,
+  stripStreamingMarkdownTables,
+} from "@/components/bloom/content/sanitizeBloomContent";
+import {
+  analyzeStreamingContent,
+  extractPreFormText,
+  gateLoaderMessage,
+  isGlobalGateAction,
+  type GateDecision,
+} from "@/components/bloom/utils/contentGate";
+import type { PendingResourceForm } from "@/components/bloom/utils/resourceFormRegistry";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyChip } from "@/components/joy/JoyChip";
 import type { BloomBlockActionContext } from "@/components/bloom/blocks/blockTypes";
+import type { BloomContentBlock } from "@/components/bloom/content/parseContentBlocks";
 import type { BloomMessage } from "@/hooks/bloom/types";
 import type {
   BloomActiveToolCall,
@@ -47,6 +61,7 @@ export interface BloomStreamingMessageContentProps {
   compact?: boolean;
   message: BloomMessage;
   onCancelStream: () => void;
+  onResourceFormDetected?: (form: PendingResourceForm) => void;
   onSubmitPrompt: (prompt: string) => void;
   renderBlock?: (
     block: BloomStreamingBlock,
@@ -65,87 +80,6 @@ const initialTextItem = (messageId: string): StreamRenderItem => ({
   kind: "text",
   id: `${messageId}-text-0`,
 });
-
-export function BloomResponseLoadingAvatar() {
-  const reducedMotion = useBloomReducedMotion();
-
-  return (
-    <Box
-      sx={{
-        position: "relative",
-        alignItems: "center",
-        display: "inline-flex",
-        flexShrink: 0,
-        height: 36,
-        justifyContent: "center",
-        width: 36,
-      }}
-    >
-      {reducedMotion ? (
-        <Box
-          aria-hidden="true"
-          sx={{
-            position: "absolute",
-            inset: 0,
-            border: "2px solid",
-            borderColor: "primary.300",
-            borderRadius: "50%",
-          }}
-        />
-      ) : (
-        <CircularProgress
-          aria-label="Bloom is generating a response"
-          color="primary"
-          size="sm"
-          thickness={2.5}
-          sx={{
-            position: "absolute",
-            inset: 0,
-            "--CircularProgress-size": "36px",
-          }}
-        />
-      )}
-      <BloomAvatar size={28} />
-    </Box>
-  );
-}
-
-function ThinkingDots({ reducedMotion }: { reducedMotion: boolean }) {
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        alignItems: "center",
-        alignSelf: "flex-start",
-        display: "inline-flex",
-        minHeight: 36,
-        width: "fit-content",
-      }}
-    >
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        {[0, 1, 2].map((index) => (
-          <Box
-            key={index}
-            sx={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              backgroundColor: "neutral.500",
-              animation: reducedMotion
-                ? "none"
-                : "bloomStreamingThinkingDot 1.4s ease-in-out infinite",
-              animationDelay: `${index * 140}ms`,
-              "@keyframes bloomStreamingThinkingDot": {
-                "0%, 80%, 100%": { opacity: 0.35, transform: "translateY(0)" },
-                "40%": { opacity: 1, transform: "translateY(-2px)" },
-              },
-            }}
-          />
-        ))}
-      </Stack>
-    </Box>
-  );
-}
 
 function CompactThinkingNotice() {
   return (
@@ -212,30 +146,16 @@ function ErrorActions({
   );
 }
 
-function useLastToolCall(activeToolCall: BloomActiveToolCall | null) {
-  const [lastToolCall, setLastToolCall] =
-    React.useState<BloomActiveToolCall | null>(activeToolCall);
-
-  React.useEffect(() => {
-    if (activeToolCall) {
-      setLastToolCall(activeToolCall);
-    }
-  }, [activeToolCall]);
-
-  return lastToolCall;
-}
-
 export function BloomStreamingMessageContent({
   compact = false,
   message,
   onCancelStream,
+  onResourceFormDetected,
   onSubmitPrompt,
   renderBlock,
   retryPrompt,
-  showAvatar = true,
   streamState,
 }: BloomStreamingMessageContentProps) {
-  const reducedMotion = useBloomReducedMotion();
   const {
     activeToolCall,
     connectionState,
@@ -251,26 +171,31 @@ export function BloomStreamingMessageContent({
   } = streamState;
   const textRefs = React.useRef<Map<string, HTMLSpanElement>>(new Map());
   const appendedLengthRef = React.useRef(0);
+  const currentTextStartRef = React.useRef(0);
   const renderedBlockIdsRef = React.useRef<Set<string>>(new Set());
   const currentTextItemIdRef = React.useRef(initialTextItem(message.id).id);
+  // Streaming-time redundant-text suppression: when a tool-result card has
+  // rendered and the trailing text only restates the same entities, we clear
+  // the live text element and show an "Organizing your results…" loader.
+  const suppressTrailingRef = React.useRef(false);
+  const postToolTrailingRef = React.useRef(false);
+  const toolResultBlocksRef = React.useRef<BloomContentBlock[]>([]);
+  // Content-gate decision that hides the WHOLE live buffer (JSON payloads, form
+  // requests, task plans). Drives both the imperative text writer and the
+  // tailored loader copy.
+  const globalGateRef = React.useRef<GateDecision | null>(null);
   const [currentTextItemId, setCurrentTextItemId] = React.useState(
     currentTextItemIdRef.current,
   );
   const [items, setItems] = React.useState<StreamRenderItem[]>(() => [
     initialTextItem(message.id),
   ]);
-  const lastToolCall = useLastToolCall(activeToolCall);
   const showConnecting =
-    connectionState === "connecting" &&
+    (connectionState === "connecting" || connectionState === "streaming") &&
     !streamingContent.trim() &&
     !streamingThinking.trim() &&
     streamingBlocks.length === 0 &&
     !activeToolCall;
-  const showGeneratingAvatar =
-    showAvatar &&
-    !compact &&
-    (connectionState === "connecting" || connectionState === "streaming");
-  const cursorVisible = connectionState === "streaming";
 
   const setTextRef = React.useCallback(
     (id: string, element: HTMLSpanElement | null) => {
@@ -284,8 +209,8 @@ export function BloomStreamingMessageContent({
     [],
   );
 
-  const appendStreamingText = React.useCallback((nextContent: string) => {
-    if (nextContent.length <= appendedLengthRef.current) {
+  const renderCurrentText = React.useCallback((nextContent: string) => {
+    if (nextContent.length === appendedLengthRef.current) {
       return;
     }
 
@@ -294,15 +219,51 @@ export function BloomStreamingMessageContent({
       return;
     }
 
-    const nextText = nextContent.slice(appendedLengthRef.current);
-    currentElement.textContent = `${currentElement.textContent ?? ""}${nextText}`;
+    // Rewrite the current text element from its starting offset, hiding any
+    // markdown tables so raw `| pipe |` rows never flash during streaming.
+    // Frozen elements (before an inline block) keep their last rendered text.
+    const slice = nextContent.slice(currentTextStartRef.current);
+    let rendered: string;
+    const globalGate = globalGateRef.current;
+    if (globalGate) {
+      // JSON payload / task plan: hide everything. Form request: keep only the
+      // pre-form intro prose so the field list never flashes as raw text.
+      rendered =
+        globalGate.action === "intercept_form"
+          ? extractPreFormText(stripStreamingMarkdownTables(slice))
+          : "";
+    } else if (suppressTrailingRef.current) {
+      // Trailing text is fully redundant with the result cards — keep it empty
+      // while the loader is shown.
+      rendered = "";
+    } else if (
+      postToolTrailingRef.current &&
+      toolResultBlocksRef.current.length > 0
+    ) {
+      // Post-card text: strip any restated tables/lists so only real analysis
+      // remains visible, consistent with the completion-time cleanup.
+      rendered = stripRedundantContent(
+        stripStreamingMarkdownTables(slice),
+        toolResultBlocksRef.current,
+      );
+    } else {
+      // Default path also strips any echoed tool-error JSON so a complete
+      // payload never flashes mid-stream before the gate can buffer it.
+      rendered = stripEchoedToolPayloads(stripStreamingMarkdownTables(slice));
+    }
+    currentElement.textContent = rendered;
     appendedLengthRef.current = nextContent.length;
   }, []);
 
   React.useEffect(() => {
     textRefs.current.clear();
     appendedLengthRef.current = 0;
+    currentTextStartRef.current = 0;
     renderedBlockIdsRef.current = new Set();
+    suppressTrailingRef.current = false;
+    postToolTrailingRef.current = false;
+    toolResultBlocksRef.current = [];
+    globalGateRef.current = null;
     const firstTextItem = initialTextItem(message.id);
     currentTextItemIdRef.current = firstTextItem.id;
     setCurrentTextItemId(firstTextItem.id);
@@ -310,8 +271,8 @@ export function BloomStreamingMessageContent({
   }, [message.id]);
 
   React.useLayoutEffect(() => {
-    appendStreamingText(streamingContent);
-  }, [appendStreamingText, items, streamingContent]);
+    renderCurrentText(streamingContent);
+  }, [renderCurrentText, items, streamingContent]);
 
   React.useEffect(() => {
     const nextItems: StreamRenderItem[] = [];
@@ -322,11 +283,15 @@ export function BloomStreamingMessageContent({
         continue;
       }
 
-      appendStreamingText(streamingContent);
+      // Freeze the text streamed so far into the current element, then start a
+      // fresh text element positioned after this inline block.
+      renderCurrentText(streamingContent);
       renderedBlockIdsRef.current.add(block.id);
       const textItemId = `${message.id}-text-${renderedBlockIdsRef.current.size}`;
       nextItems.push({ kind: "block", id: block.id, block });
       nextItems.push({ kind: "text", id: textItemId });
+      currentTextItemIdRef.current = textItemId;
+      currentTextStartRef.current = streamingContent.length;
       nextTextItemId = textItemId;
     }
 
@@ -334,10 +299,9 @@ export function BloomStreamingMessageContent({
       return;
     }
 
-    currentTextItemIdRef.current = nextTextItemId;
     setCurrentTextItemId(nextTextItemId);
     setItems((current) => [...current, ...nextItems]);
-  }, [appendStreamingText, message.id, streamingBlocks, streamingContent]);
+  }, [renderCurrentText, message.id, streamingBlocks, streamingContent]);
 
   const handleBlockAction = React.useCallback(
     (action: string, _context: BloomBlockActionContext) => {
@@ -361,6 +325,77 @@ export function BloomStreamingMessageContent({
       })
     : null;
 
+  // Tool-result cards rendered so far in this stream, normalized to content
+  // blocks for the redundancy detector.
+  const toolResultBlocks = React.useMemo<BloomContentBlock[]>(
+    () =>
+      streamingBlocks
+        .map((block) => contentBlockFromStreamingBlock(block))
+        .filter((block) => block.type === "tool_result"),
+    [streamingBlocks],
+  );
+
+  // Once a result card exists, the trailing text is "post-tool". If everything
+  // streamed after that card is redundant with the cards, suppress it and show
+  // the organizing loader instead of restated data.
+  const isStreaming = connectionState === "streaming";
+  const trailingText = streamingContent.slice(currentTextStartRef.current);
+  const postToolTrailing = toolResultBlocks.length > 0;
+  const cleanedTrailing = postToolTrailing
+    ? stripRedundantContent(
+        stripStreamingMarkdownTables(trailingText),
+        toolResultBlocks,
+      )
+    : trailingText;
+  const suppressTrailing =
+    isStreaming &&
+    postToolTrailing &&
+    trailingText.trim().length > 0 &&
+    cleanedTrailing.trim().length === 0;
+
+  // Content-gate pass over the whole live buffer. Only "global" actions (JSON
+  // payloads, form requests, task plans) override the entire render; redundant
+  // suppression stays with the precise trailing stripper above.
+  const gateDecision = React.useMemo<GateDecision>(() => {
+    if (!streamingContent.trim()) {
+      return { action: "pass" };
+    }
+    return analyzeStreamingContent(streamingContent, {
+      hasToolResultBlocks: toolResultBlocks.length > 0,
+      toolResultIdentifiers:
+        extractIdentifiersFromToolResults(toolResultBlocks),
+      isAfterToolResult: toolResultBlocks.length > 0,
+    });
+  }, [streamingContent, toolResultBlocks]);
+  const globalGate =
+    isStreaming && isGlobalGateAction(gateDecision) ? gateDecision : null;
+
+  suppressTrailingRef.current = suppressTrailing;
+  postToolTrailingRef.current = postToolTrailing;
+  toolResultBlocksRef.current = toolResultBlocks;
+  globalGateRef.current = globalGate;
+
+  // When the gate detects a "please provide these fields" request, surface it
+  // as an interactive resource form in the approval bar (once per message).
+  const resourceFormGate =
+    globalGate && globalGate.action === "intercept_form" ? globalGate : null;
+  const presentedFormMessageRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!onResourceFormDetected || !resourceFormGate) {
+      return;
+    }
+    if (presentedFormMessageRef.current === message.id) {
+      return;
+    }
+    presentedFormMessageRef.current = message.id;
+    onResourceFormDetected({
+      messageId: message.id,
+      resourceType: resourceFormGate.resourceType,
+      fields: resourceFormGate.fields,
+      prefilledValues: resourceFormGate.prefilledValues,
+    });
+  }, [message.id, onResourceFormDetected, resourceFormGate]);
+
   return (
     <Box
       sx={{
@@ -371,9 +406,10 @@ export function BloomStreamingMessageContent({
         pr: compact ? 0 : { xs: 0, md: 5 },
       }}
     >
-      {showGeneratingAvatar ? <BloomResponseLoadingAvatar /> : null}
       <Stack spacing={compact ? 1 : 1.25} sx={{ minWidth: 0, flex: 1 }}>
-        {showConnecting ? <ThinkingDots reducedMotion={reducedMotion} /> : null}
+        {showConnecting ? (
+          <BloomStreamingIndicator connectionState={connectionState} />
+        ) : null}
 
         {compact ? (
           streamingThinking.trim() ? (
@@ -444,42 +480,25 @@ export function BloomStreamingMessageContent({
                     setTextRef(item.id, element)
                   }
                 />
-                {item.id === currentTextItemId ? (
-                  <Box
-                    aria-hidden="true"
-                    component="span"
-                    sx={{
-                      display: cursorVisible ? "inline-block" : "none",
-                      width: 2,
-                      height: "1em",
-                      ml: 0.25,
-                      verticalAlign: "-0.12em",
-                      borderRadius: 999,
-                      backgroundColor: "primary.500",
-                      opacity: cursorVisible ? 1 : 0,
-                      transition: reducedMotion ? "none" : "opacity 200ms ease",
-                      animation: cursorVisible
-                        ? reducedMotion
-                          ? "none"
-                          : "bloomStreamingCursor 1s step-end infinite"
-                        : "none",
-                      "@keyframes bloomStreamingCursor": {
-                        "0%, 50%": { opacity: 1 },
-                        "51%, 100%": { opacity: 0 },
-                      },
-                    }}
-                  />
-                ) : null}
               </Typography>
             );
           })}
         </Stack>
 
-        {lastToolCall && !showResearchProgress ? (
-          <BloomToolLoadingPill
-            description={lastToolCall.description}
-            isActive={Boolean(activeToolCall)}
-            toolName={lastToolCall.toolName}
+        {globalGate ? (
+          <BloomStreamingIndicator
+            connectionState="streaming"
+            overrideMessage={gateLoaderMessage(globalGate)}
+          />
+        ) : suppressTrailing ? (
+          <BloomStreamingIndicator overrideMessage />
+        ) : null}
+
+        {activeToolCall && !showResearchProgress ? (
+          <BloomStreamingIndicator
+            connectionState="streaming"
+            hasPartialText={Boolean(streamingContent)}
+            toolName={activeToolCall.toolName}
           />
         ) : null}
 
@@ -512,6 +531,7 @@ export function BloomStreamingMessage({
     connectionState,
     isResearchComplete,
     isResearchSynthesizing,
+    presentResourceForm,
     researchConversationId,
     researchPlan,
     researchSteps,
@@ -563,6 +583,7 @@ export function BloomStreamingMessage({
       compact={compact}
       message={message}
       onCancelStream={cancelStream}
+      onResourceFormDetected={presentResourceForm}
       onSubmitPrompt={submitPrompt}
       retryPrompt={retryPrompt}
       streamState={streamState}

@@ -65,6 +65,17 @@ const sectionLabels: Record<ConversationSectionKey, string> = {
 
 const SIDEBAR_TRANSITION = "200ms cubic-bezier(0.4, 0, 0.2, 1)";
 const LONG_PRESS_MS = 300;
+const SIDEBAR_ITEM_HOVER_BG = "rgba(255,255,255,0.08)";
+const SIDEBAR_ITEM_SELECTED_BG = "rgba(255,255,255,0.12)";
+const SIDEBAR_ITEM_ACTIVE_BG = "rgba(255,255,255,0.16)";
+const SIDEBAR_ITEM_HOVER_BORDER = "rgba(255,255,255,0.12)";
+const SIDEBAR_ITEM_SELECTED_BORDER = "rgba(255,255,255,0.14)";
+const SIDEBAR_ITEM_ACTION_SURFACE = "rgba(16, 40, 62, 0.9)";
+const SIDEBAR_ITEM_ACTION_HOVER_BG = "rgba(255,255,255,0.12)";
+const SIDEBAR_ITEM_TITLE_COLOR = "rgba(255,255,255,0.92)";
+const SIDEBAR_ITEM_TITLE_ACTIVE_COLOR = "rgba(255,255,255,0.98)";
+const SIDEBAR_ITEM_PREVIEW_COLOR = "rgba(255,255,255,0.68)";
+const SIDEBAR_ITEM_PREVIEW_ACTIVE_COLOR = "rgba(255,255,255,0.76)";
 
 type SidebarNavigationItem = {
   kind: "conversation";
@@ -387,8 +398,20 @@ function ConversationRow({
         onPointerMove={clearLongPress}
         onPointerUp={clearLongPress}
         onPointerCancel={clearLongPress}
-        onMouseEnter={() => onSelect(conversation)}
         sx={{
+          "--variant-plainHoverBg": active
+            ? SIDEBAR_ITEM_ACTIVE_BG
+            : selected
+              ? SIDEBAR_ITEM_SELECTED_BG
+              : SIDEBAR_ITEM_HOVER_BG,
+          "--variant-plainActiveBg": active
+            ? SIDEBAR_ITEM_ACTIVE_BG
+            : selected
+              ? SIDEBAR_ITEM_ACTIVE_BG
+              : SIDEBAR_ITEM_SELECTED_BG,
+          "--ListItemButton-selectedBg": active
+            ? SIDEBAR_ITEM_ACTIVE_BG
+            : SIDEBAR_ITEM_SELECTED_BG,
           width: "100%",
           minHeight: 56,
           alignItems: "center",
@@ -399,33 +422,38 @@ function ConversationRow({
           borderColor: active
             ? "rgba(var(--joy-palette-primary-mainChannel) / 0.34)"
             : selected
-              ? "brandNavy.500"
+              ? SIDEBAR_ITEM_SELECTED_BORDER
               : "transparent",
           backgroundColor: active
-            ? "brandNavy.900"
+            ? SIDEBAR_ITEM_ACTIVE_BG
             : selected
-              ? "brandNavy.800"
+              ? SIDEBAR_ITEM_SELECTED_BG
               : "transparent",
-          color: active || selected ? "common.white" : "brandNavy.50",
+          color:
+            active || selected
+              ? SIDEBAR_ITEM_TITLE_ACTIVE_COLOR
+              : SIDEBAR_ITEM_TITLE_COLOR,
           pl: 1.75,
           pr: isArchived ? 9 : 5.5,
           py: 0.85,
           boxShadow: active
-            ? "inset 0 0 0 1px rgba(var(--joy-palette-primary-mainChannel) / 0.18), 0 8px 18px rgba(var(--joy-palette-brandNavy-darkChannel) / 0.18)"
+            ? "inset 0 0 0 1px rgba(var(--joy-palette-primary-mainChannel) / 0.16), 0 8px 18px rgba(0, 0, 0, 0.18)"
             : selected
-              ? "inset 0 0 0 1px rgba(var(--joy-palette-brandNavy-lightChannel) / 0.14)"
+              ? "inset 0 0 0 1px rgba(255, 255, 255, 0.04)"
               : "none",
           transition:
             "background-color 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1)",
           "&:hover": {
             backgroundColor: active
-              ? "brandNavy.900"
+              ? SIDEBAR_ITEM_ACTIVE_BG
               : selected
-                ? "brandNavy.800"
-                : "brandNavy.800",
+                ? SIDEBAR_ITEM_SELECTED_BG
+                : SIDEBAR_ITEM_HOVER_BG,
             borderColor: active
               ? "rgba(var(--joy-palette-primary-mainChannel) / 0.4)"
-              : "brandNavy.500",
+              : selected
+                ? SIDEBAR_ITEM_SELECTED_BORDER
+                : SIDEBAR_ITEM_HOVER_BORDER,
           },
           "&.Mui-focusVisible, &:focus-visible": {
             outline: 0,
@@ -447,8 +475,11 @@ function ConversationRow({
                 level="body-sm"
                 noWrap
                 sx={{
-                  color: active || selected ? "common.white" : "brandNavy.50",
-                  fontWeight: active ? 650 : 500,
+                  color:
+                    active || selected
+                      ? SIDEBAR_ITEM_TITLE_ACTIVE_COLOR
+                      : SIDEBAR_ITEM_TITLE_COLOR,
+                  fontWeight: active ? 650 : selected ? 600 : 500,
                   letterSpacing: "-0.01em",
                 }}
               >
@@ -457,7 +488,12 @@ function ConversationRow({
               <Typography
                 level="body-xs"
                 noWrap
-                sx={{ color: active ? "brandNavy.100" : "brandNavy.200" }}
+                sx={{
+                  color:
+                    active || selected
+                      ? SIDEBAR_ITEM_PREVIEW_ACTIVE_COLOR
+                      : SIDEBAR_ITEM_PREVIEW_COLOR,
+                }}
               >
                 {createPreview(conversation.lastMessagePreview)}
               </Typography>
@@ -480,11 +516,11 @@ function ConversationRow({
             opacity: { xs: 1, md: 0 },
             pointerEvents: { xs: "auto", md: "none" },
             transition: `opacity ${SIDEBAR_TRANSITION}`,
-            backgroundColor: active ? "brandNavy.900" : "brandNavy.800",
+            backgroundColor: SIDEBAR_ITEM_ACTION_SURFACE,
             border: "1px solid",
-            borderColor: "brandNavy.600",
+            borderColor: "rgba(255,255,255,0.08)",
             borderRadius: "var(--joy-radius-md)",
-            boxShadow: "var(--joy-shadow-sm)",
+            boxShadow: "0 8px 18px rgba(0, 0, 0, 0.2)",
           }}
         >
           {isArchived && onUnarchive ? (
@@ -551,10 +587,10 @@ function ArchivedActionButton({
           width: 28,
           height: 28,
           minHeight: 28,
-          color: "brandNavy.100",
+          color: "rgba(255,255,255,0.72)",
           borderRadius: "var(--joy-radius-sm)",
           "&:hover": {
-            backgroundColor: "brandNavy.700",
+            backgroundColor: SIDEBAR_ITEM_ACTION_HOVER_BG,
             color: "common.white",
           },
         }}
@@ -606,6 +642,8 @@ function ConversationSectionList({
           <ListItemButton
             onClick={onToggleOlder}
             sx={{
+              "--variant-plainHoverBg": "brandNavy.700",
+              "--variant-plainActiveBg": "brandNavy.600",
               minHeight: 28,
               borderRadius: "var(--joy-radius-sm)",
               px: 1,

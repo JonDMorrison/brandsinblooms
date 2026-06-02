@@ -1,5 +1,5 @@
 import type { JsonObject, JsonValue, PersistenceClient } from "../types.ts";
-import { executeTool } from "../tools/executor.ts";
+import { executeTool, humanizeToolAction } from "../tools/executor.ts";
 import { getRegisteredTool } from "../tools/registry.ts";
 import type { ToolName, ToolResult, ToolRiskLevel } from "../tools/types.ts";
 import type {
@@ -203,13 +203,13 @@ function fieldChangesFromParams(params: JsonObject): FieldChange[] {
     return [];
   }
 
-  return Object.entries(changes)
-    .map(([field, value]) => ({
+  return Object.entries(changes).map(
+    ([field, value]): FieldChange => ({
       field,
       current_value: null,
       new_value: asJsonValue(value),
-    }))
-    .filter((change): change is FieldChange => change.new_value !== undefined);
+    }),
+  );
 }
 
 function directFieldChanges(
@@ -292,6 +292,12 @@ function inferEntityName(
   const proposed = asJsonObject(taskPlan.proposed);
   const campaign = asJsonObject(taskPlan.campaign);
   const segment = asJsonObject(taskPlan.segment);
+  const changes = asJsonObject(params.changes);
+  const firstName =
+    readString(params.first_name) ?? readString(changes?.first_name);
+  const lastName =
+    readString(params.last_name) ?? readString(changes?.last_name);
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
 
   return (
     readNestedName(campaign) ||
@@ -299,6 +305,7 @@ function inferEntityName(
     readString(taskPlan.segment_name) ||
     readNestedName(proposed) ||
     readNestedName(current) ||
+    (fullName.length > 0 ? fullName : null) ||
     readString(params.name) ||
     readString(params.new_name) ||
     readNestedName(params.changes) ||
@@ -707,10 +714,10 @@ export function generateTaskPlan(
       toolResult.tool_params,
       taskPlan,
     );
-    const description =
-      readString(details.action) ||
-      readString(toolResult.tool_result.message) ||
-      `${toolResult.tool_name.replace(/_/g, " ")} with approved parameters`;
+    const description = humanizeToolAction(
+      toolResult.tool_name,
+      toolResult.tool_params,
+    );
 
     overallRisk = maxRisk(overallRisk, riskLevel);
     tasks.push({

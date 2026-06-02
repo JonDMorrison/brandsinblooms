@@ -3,6 +3,7 @@ import type {
   AskBloomActionCardStatus,
   AskBloomBlock,
   AskBloomBlockType,
+  BloomContentBlock,
 } from "@/types/askBloom";
 
 type UnknownRecord = Record<string, unknown>;
@@ -29,21 +30,105 @@ export const toDataRecord = (value: unknown): Record<string, unknown> => {
   return { value };
 };
 
+const KNOWN_ASK_BLOOM_BLOCK_TYPES: readonly AskBloomBlockType[] = [
+  "text",
+  "thinking",
+  "data_card",
+  "content",
+  "interaction",
+  "stat_card",
+  "insight",
+  "insight_card",
+  "confirmation",
+  "navigation",
+  "data_table",
+  "task_plan",
+  "code",
+  "research_progress",
+  "chart",
+  "image",
+  "tool_result",
+  "mutation_action",
+  "suggestion_chips",
+];
+
 export const toAskBloomBlockType = (value: unknown): AskBloomBlockType => {
   const normalized = readString(value).toLowerCase().replace(/-/g, "_");
-  switch (normalized) {
+
+  // Legacy alias: Bloom emits `action_card`, Ask Bloom models it as a mutation.
+  if (normalized === "action_card") {
+    return "mutation_action";
+  }
+
+  // Direct pass-through for all known types — preserve block identity.
+  if ((KNOWN_ASK_BLOOM_BLOCK_TYPES as readonly string[]).includes(normalized)) {
+    return normalized as AskBloomBlockType;
+  }
+
+  // Fallback: preserve unknown/future types as a data card so they still persist.
+  return "data_card";
+};
+
+/**
+ * Converts a Bloom content block (the source-of-truth union produced by
+ * `parseContentBlocks`) into an Ask Bloom block, preserving the original block
+ * for direct renderer pass-through in later milestones.
+ */
+export const bloomContentBlockToAskBloomBlock = (
+  bloomBlock: BloomContentBlock,
+  index: number,
+): AskBloomBlock => {
+  const id = bloomBlock.id || `block-${index}-${Date.now()}`;
+
+  switch (bloomBlock.type) {
     case "text":
-      return "text";
-    case "action_card":
-    case "mutation_action":
-      return "mutation_action";
-    case "insight_card":
-      return "insight_card";
-    case "suggestion_chips":
-      return "suggestion_chips";
-    case "data_card":
-    default:
-      return "data_card";
+    case "thinking":
+      return {
+        type: bloomBlock.type,
+        content: bloomBlock.content,
+        data: {},
+        id,
+        bloomContentBlock: bloomBlock,
+      };
+    case "error":
+      return {
+        type: "text",
+        content: bloomBlock.message,
+        data: {},
+        id,
+        bloomContentBlock: bloomBlock,
+      };
+    case "tool_result": {
+      const data = toDataRecord(bloomBlock.data);
+      const status: "success" | "error" =
+        bloomBlock.status === "error" || bloomBlock.status === "failed"
+          ? "error"
+          : "success";
+      return {
+        type: "tool_result",
+        content: bloomBlock.message ?? "",
+        data,
+        id,
+        bloomContentBlock: bloomBlock,
+        toolResult: {
+          toolName: bloomBlock.toolName ?? "",
+          blockType: bloomBlock.blockType,
+          data,
+          status,
+          message: bloomBlock.message,
+          error: bloomBlock.error,
+          count: bloomBlock.count,
+        },
+      };
+    }
+    case "block":
+      return {
+        type: toAskBloomBlockType(bloomBlock.blockType),
+        content: "",
+        data: toDataRecord(bloomBlock.payload),
+        id,
+        bloomContentBlock: bloomBlock,
+      };
   }
 };
 
@@ -129,6 +214,24 @@ export const serializeAskBloomBlock = (
       content: block.content,
       payload: {
         suggestions: block.data.suggestions,
+      },
+    };
+  }
+
+  if (block.type === "tool_result" && block.toolResult) {
+    // Keep the persisted payload self-describing so `parseContentBlocks` and the
+    // Ask Bloom re-hydration path can reconstruct the tool result later.
+    return {
+      block_type: block.type,
+      content: block.content,
+      payload: {
+        ...block.data,
+        tool_name: block.toolResult.toolName,
+        block_type: block.toolResult.blockType,
+        status: block.toolResult.status,
+        message: block.toolResult.message,
+        error: block.toolResult.error,
+        count: block.toolResult.count,
       },
     };
   }

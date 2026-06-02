@@ -599,9 +599,11 @@ export function normalizePersonaMetadata(
   }
 
   const metadata = value as PersonaMetadata;
-  const color = accentValues.has(metadata.color ?? "")
-    ? (metadata.color as PersonaAccent)
-    : null;
+  const metadataColor = normalizeString(metadata.color);
+  const color =
+    metadataColor && (accentValues as ReadonlySet<string>).has(metadataColor)
+      ? (metadataColor as PersonaAccent)
+      : null;
 
   return {
     icon: normalizeString(metadata.icon),

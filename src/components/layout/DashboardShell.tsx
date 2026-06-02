@@ -121,16 +121,12 @@ interface DashboardShellProps {
   children: ReactNode;
   contentWidth?: DashboardShellContentWidth;
   mode?: DashboardShellMode;
-  contentLayout?: "default" | "split";
-  rightPanel?: ReactNode;
 }
 
 export function DashboardShell({
   children,
-  contentLayout = "default",
   contentWidth,
   mode = "admin",
-  rightPanel = null,
 }: DashboardShellProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -166,7 +162,6 @@ export function DashboardShell({
     () => contentWidth ?? resolveDashboardContentWidth(pathname, mode),
     [contentWidth, mode, pathname],
   );
-  const usesSplitContentLayout = contentLayout === "split";
 
   const openCommandPalette = useCallback(
     (source: SearchOpenSource = "click") => {
@@ -343,7 +338,7 @@ export function DashboardShell({
         data-testid="dashboard-shell-root"
         sx={{
           position: "relative",
-          width: "100vw",
+          width: "100%",
           height: "100vh",
           overflow: "hidden",
           display: "grid",
@@ -369,9 +364,9 @@ export function DashboardShell({
             gridRow: "2",
             minWidth: 0,
             minHeight: 0,
-            overflowY: usesSplitContentLayout ? "hidden" : "auto",
+            overflowY: "auto",
             overflowX: "hidden",
-            scrollBehavior: usesSplitContentLayout ? "auto" : "smooth",
+            scrollBehavior: "smooth",
             overscrollBehavior: "contain",
             backgroundColor: "var(--joy-palette-sand-50)",
             scrollbarWidth: "thin",
@@ -430,55 +425,11 @@ export function DashboardShell({
                   height: "100%",
                   minHeight: 0,
                   flex: 1,
-                  display: usesSplitContentLayout ? "flex" : "block",
+                  display: "block",
                   flexDirection: "column",
                 }}
               >
-                {usesSplitContentLayout ? (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flex: 1,
-                      minWidth: 0,
-                      minHeight: 0,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        flex: 1,
-                        minWidth: 0,
-                        minHeight: 0,
-                        overflowY: "auto",
-                        overflowX: "hidden",
-                        scrollBehavior: "smooth",
-                        overscrollBehavior: "contain",
-                        transition: "all 250ms ease",
-                        scrollbarWidth: "thin",
-                        scrollbarColor: "var(--joy-palette-neutral-300) transparent",
-                        "&::-webkit-scrollbar": {
-                          width: "6px",
-                          height: "6px",
-                        },
-                        "&::-webkit-scrollbar-thumb": {
-                          backgroundColor: "var(--joy-palette-neutral-300)",
-                          borderRadius: "999px",
-                        },
-                        "&::-webkit-scrollbar-thumb:hover": {
-                          backgroundColor: "var(--joy-palette-neutral-400)",
-                        },
-                        "&::-webkit-scrollbar-track": {
-                          backgroundColor: "transparent",
-                        },
-                      }}
-                    >
-                      {children}
-                    </Box>
-                    {rightPanel}
-                  </Box>
-                ) : (
-                  children
-                )}
+                {children}
               </Box>
             </Stack>
           </Box>
@@ -487,6 +438,7 @@ export function DashboardShell({
           <DashboardMobileSidebarBackdrop open={isMobileSidebarOpen} />
         )}
         {isMobile && <DashboardMobileSidebarSlot mode={mode} />}
+        {!isBloomRoute && <HelpWidget />}
       </Box>
       {hasRequestedCommandPalette ? (
         <ChunkErrorBoundary>
@@ -510,7 +462,6 @@ export function DashboardShell({
           </CommandPaletteErrorBoundary>
         </ChunkErrorBoundary>
       ) : null}
-      <HelpWidget />
     </DashboardShellContext.Provider>
   );
 }

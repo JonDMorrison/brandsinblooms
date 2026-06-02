@@ -1,7 +1,9 @@
 import * as React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  bloomSupabase,
   isBloomMode,
   type BloomConversation,
   type BloomDefaultModePreference,
@@ -11,10 +13,19 @@ import {
   type BloomPageContext,
   type BloomModelPreference,
   type BloomMode,
+  type Json,
 } from "@/hooks/bloom/types";
 import { resolvePageContext } from "@/components/bloom/utils/resolvePageContext";
+import {
+  parsePersistedFormState,
+  type PendingResourceForm,
+  type PersistedResourceFormState,
+} from "@/components/bloom/utils/resourceFormRegistry";
 import { useBloomEntitySummary } from "@/hooks/bloom/useBloomEntitySummary";
-import { useBloomConversations } from "@/hooks/bloom/useBloomConversations";
+import {
+  bloomConversationsQueryBaseKey,
+  useBloomConversations,
+} from "@/hooks/bloom/useBloomConversations";
 import { useBloomMessages } from "@/hooks/bloom/useBloomMessages";
 import { useBloomConversationMutations } from "@/hooks/bloom/useBloomConversationMutations";
 import { useBloomMessageMutations } from "@/hooks/bloom/useBloomMessageMutations";
@@ -57,6 +68,12 @@ interface BloomComposerController {
 interface BloomMessageListController {
   startEditingMessage: (messageId: string) => void;
   stopEditingMessage: () => void;
+}
+
+export interface BloomPlanDecision {
+  decision: "approved" | "cancelled";
+  approvedTaskIds: string[];
+  at: string;
 }
 
 interface BloomContextType {
@@ -105,6 +122,12 @@ interface BloomContextType {
   ) => Promise<unknown>;
   activePlan: BloomTaskPlan | null;
   pendingTaskPlan: BloomTaskPlan | null;
+  dismissPendingTaskPlan: () => void;
+  pendingResourceForm: PendingResourceForm | null;
+  presentResourceForm: (form: PendingResourceForm) => void;
+  dismissResourceForm: () => void;
+  persistResourceFormState: (values: Record<string, string>) => void;
+  clearPersistedFormState: () => void;
   approveTaskPlan: (
     plan: BloomTaskPlan,
     approvedTaskIds: string[],
@@ -122,6 +145,7 @@ interface BloomContextType {
     planId: string,
   ) => BloomTaskCompletionSummary | null;
   isTaskPlanExecuting: (planId: string) => boolean;
+  getPlanDecision: (planId: string) => BloomPlanDecision | null;
   getComposerValue: () => string;
   isComposerFocused: () => boolean;
   isSlashMenuOpen: () => boolean;
@@ -195,6 +219,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { tenant } = useTenant();
+  const queryClient = useQueryClient();
   const routeConversationId =
     chatId ?? resolveBloomRouteConversationId(location.pathname);
   const [lastActiveConversationId, setLastActiveConversationId] =
@@ -222,11 +247,24 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const [completionSummaries, setCompletionSummaries] = React.useState<
     Record<string, BloomTaskCompletionSummary>
   >({});
+  const [planDecisions, setPlanDecisions] = React.useState<
+    Record<string, BloomPlanDecision>
+  >({});
   const [conversationStartCount, setConversationStartCount] = React.useState(0);
   const [pageContext, setPageContext] = React.useState<BloomPageContext | null>(
     () => resolvePageContext(location.pathname),
   );
   const [shortcutsPanelOpen, setShortcutsPanelOpen] = React.useState(false);
+  const [pendingResourceForm, setPendingResourceForm] =
+    React.useState<PendingResourceForm | null>(null);
+  const persistFormTimerRef = React.useRef<number | undefined>(undefined);
+  // Tracks which conversation the persisted form state was already restored
+  // for, so refetches of the conversation list don't clobber a live form.
+  const restoredFormConversationRef = React.useRef<string | null>(null);
+  // Message IDs whose creation form the user explicitly dismissed. A dismissed
+  // form must never be re-presented (e.g. when the same streaming message
+  // re-detects, or a stale persisted snapshot is read back).
+  const dismissedFormMessageIdsRef = React.useRef<Set<string>>(new Set());
   const composerControllerRef = React.useRef<BloomComposerController | null>(
     null,
   );
@@ -246,6 +284,95 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const markConversationStarted = React.useCallback(() => {
     setConversationStartCount((current) => current + 1);
   }, []);
+
+  // Read-modify-write the conversation's `metadata.pending_form_state` so a
+  // persisted form survives reload without clobbering other metadata keys
+  // (e.g. the server-managed compaction summary). Best-effort: failures never
+  // disrupt the UI. Also patches the conversations cache so switching away and
+  // back within a session restores the latest edits.
+  const writePendingFormState = React.useCallback(
+    async (
+      conversationId: string,
+      state: PersistedResourceFormState | null,
+    ) => {
+      try {
+        const { data, error: readError } = await bloomSupabase
+          .from("bloom_conversations")
+          .select("metadata")
+          .eq("id", conversationId)
+          .single();
+        if (readError) {
+          return;
+        }
+        const current =
+          data?.metadata &&
+          typeof data.metadata === "object" &&
+          !Array.isArray(data.metadata)
+            ? (data.metadata as Record<string, Json>)
+            : {};
+        const nextMetadata: Record<string, Json> = { ...current };
+        if (state) {
+          nextMetadata.pending_form_state = state as unknown as Json;
+        } else {
+          delete nextMetadata.pending_form_state;
+        }
+        await bloomSupabase
+          .from("bloom_conversations")
+          .update({ metadata: nextMetadata as Json })
+          .eq("id", conversationId);
+
+        queryClient.setQueriesData<BloomConversation[]>(
+          { queryKey: bloomConversationsQueryBaseKey(tenant?.id ?? null) },
+          (existing) =>
+            Array.isArray(existing)
+              ? existing.map((conversation) =>
+                  conversation.id === conversationId
+                    ? { ...conversation, metadata: nextMetadata as Json }
+                    : conversation,
+                )
+              : existing,
+        );
+      } catch {
+        // Persistence is best-effort.
+      }
+    },
+    [queryClient, tenant?.id],
+  );
+
+  // Debounced persistence of the latest field values for the active form.
+  const persistResourceFormState = React.useCallback(
+    (values: Record<string, string>) => {
+      const form = pendingResourceForm;
+      const conversationId = activeConversationId;
+      if (!form || !conversationId) {
+        return;
+      }
+      if (persistFormTimerRef.current) {
+        window.clearTimeout(persistFormTimerRef.current);
+      }
+      persistFormTimerRef.current = window.setTimeout(() => {
+        void writePendingFormState(conversationId, {
+          messageId: form.messageId,
+          resourceType: form.resourceType,
+          fields: form.fields,
+          prefilledValues: form.prefilledValues,
+          values,
+          savedAt: new Date().toISOString(),
+        });
+      }, 500);
+    },
+    [activeConversationId, pendingResourceForm, writePendingFormState],
+  );
+
+  const clearPersistedFormState = React.useCallback(() => {
+    if (persistFormTimerRef.current) {
+      window.clearTimeout(persistFormTimerRef.current);
+    }
+    const conversationId = activeConversationId;
+    if (conversationId) {
+      void writePendingFormState(conversationId, null);
+    }
+  }, [activeConversationId, writePendingFormState]);
 
   React.useEffect(() => {
     if (routeConversationId) {
@@ -348,6 +475,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
     isResearchSynthesizing,
     isStreaming,
     pendingTaskPlan,
+    dismissPendingTaskPlan,
     researchConversationId,
     researchPlan,
     researchSteps,
@@ -396,6 +524,11 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
         return;
       }
 
+      // Sending any message supersedes a pending creation form (the user either
+      // submitted it, which builds this message, or typed something else).
+      setPendingResourceForm(null);
+      clearPersistedFormState();
+
       const conversationId =
         activeConversationId ??
         (await conversationMutations.createConversation(activeMode));
@@ -419,6 +552,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
     [
       activeConversationId,
       activeMode,
+      clearPersistedFormState,
       conversationMutations,
       markConversationStarted,
       modelPreference,
@@ -443,6 +577,14 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
         .filter((task) => !approved.has(task.taskId))
         .map((task) => task.taskId);
 
+      setPlanDecisions((current) => ({
+        ...current,
+        [plan.planId]: {
+          decision: "approved",
+          approvedTaskIds: [...approvedTaskIds],
+          at: new Date().toISOString(),
+        },
+      }));
       setExecutingPlanIds((current) => new Set(current).add(plan.planId));
       setCompletionSummaries((current) => {
         const next = { ...current };
@@ -521,6 +663,14 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   );
 
   const cancelTaskPlan = React.useCallback((planId: string) => {
+    setPlanDecisions((current) => ({
+      ...current,
+      [planId]: {
+        decision: "cancelled",
+        approvedTaskIds: [],
+        at: new Date().toISOString(),
+      },
+    }));
     setExecutingPlanIds((current) => {
       const next = new Set(current);
       next.delete(planId);
@@ -544,6 +694,11 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const isTaskPlanExecuting = React.useCallback(
     (planId: string) => executingPlanIds.has(planId),
     [executingPlanIds],
+  );
+
+  const getPlanDecision = React.useCallback(
+    (planId: string) => planDecisions[planId] ?? null,
+    [planDecisions],
   );
 
   const registerComposerController = React.useCallback(
@@ -611,10 +766,89 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
   const openShortcutsPanel = React.useCallback(() => {
     setShortcutsPanelOpen(true);
   }, []);
-
   const closeShortcutsPanel = React.useCallback(() => {
     setShortcutsPanelOpen(false);
   }, []);
+
+  const presentResourceForm = React.useCallback(
+    (form: PendingResourceForm) => {
+      // Never re-open a form the user explicitly dismissed.
+      if (dismissedFormMessageIdsRef.current.has(form.messageId)) {
+        return;
+      }
+      setPendingResourceForm(form);
+      // Persist immediately on detection so the form survives a reload even
+      // before the user edits anything. Mark it restored so the list refetch
+      // triggered by this write doesn't re-run the restore effect.
+      if (activeConversationId) {
+        restoredFormConversationRef.current = activeConversationId;
+        void writePendingFormState(activeConversationId, {
+          messageId: form.messageId,
+          resourceType: form.resourceType,
+          fields: form.fields,
+          prefilledValues: form.prefilledValues,
+          values: { ...form.prefilledValues },
+          savedAt: new Date().toISOString(),
+        });
+      }
+    },
+    [activeConversationId, writePendingFormState],
+  );
+
+  const dismissResourceForm = React.useCallback(() => {
+    setPendingResourceForm((current) => {
+      if (current) {
+        dismissedFormMessageIdsRef.current.add(current.messageId);
+      }
+      return null;
+    });
+    clearPersistedFormState();
+  }, [clearPersistedFormState]);
+
+  // On conversation switch, restore any in-progress creation form persisted on
+  // the newly active conversation (or clear when none). Runs once per
+  // conversation so a metadata write's refetch never overwrites a live form.
+  React.useEffect(() => {
+    if (!activeConversationId) {
+      restoredFormConversationRef.current = null;
+      setPendingResourceForm(null);
+      return;
+    }
+    if (restoredFormConversationRef.current === activeConversationId) {
+      return;
+    }
+    const conversation = (conversationsQuery.data ?? []).find(
+      (candidate) => candidate.id === activeConversationId,
+    );
+    // Wait until the conversation record is available before deciding.
+    if (!conversation) {
+      return;
+    }
+    restoredFormConversationRef.current = activeConversationId;
+    const metadata = conversation.metadata;
+    const persisted =
+      metadata && typeof metadata === "object" && !Array.isArray(metadata)
+        ? parsePersistedFormState(
+            (metadata as Record<string, Json>).pending_form_state,
+          )
+        : null;
+    if (persisted) {
+      // Respect an explicit dismissal even if a stale snapshot lingers.
+      if (dismissedFormMessageIdsRef.current.has(persisted.messageId)) {
+        setPendingResourceForm(null);
+        return;
+      }
+      setPendingResourceForm({
+        messageId: persisted.messageId,
+        resourceType: persisted.resourceType,
+        fields: persisted.fields,
+        // Seed the rendered form with the latest in-progress edits.
+        prefilledValues: { ...persisted.prefilledValues, ...persisted.values },
+      });
+    } else {
+      setPendingResourceForm(null);
+    }
+  }, [activeConversationId, conversationsQuery.data]);
 
   const value = React.useMemo(
     () => ({
@@ -660,12 +894,19 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       toggleBookmark: messageMutations.toggleBookmark,
       activePlan,
       pendingTaskPlan,
+      dismissPendingTaskPlan,
+      pendingResourceForm,
+      presentResourceForm,
+      dismissResourceForm,
+      persistResourceFormState,
+      clearPersistedFormState,
       approveTaskPlan,
       cancelTaskPlan,
       retryTaskPlan,
       getTaskStatuses,
       getTaskCompletionSummary,
       isTaskPlanExecuting,
+      getPlanDecision,
       getComposerValue,
       isComposerFocused,
       isSlashMenuOpen,
@@ -711,6 +952,7 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       getComposerValue,
       getTaskCompletionSummary,
       getTaskStatuses,
+      getPlanDecision,
       imageModePulseKey,
       isComposerFocused,
       isSlashMenuOpen,
@@ -729,6 +971,12 @@ export const BloomProvider = ({ children }: { children?: React.ReactNode }) => {
       openShortcutsPanel,
       closeShortcutsPanel,
       pendingTaskPlan,
+      dismissPendingTaskPlan,
+      pendingResourceForm,
+      presentResourceForm,
+      dismissResourceForm,
+      persistResourceFormState,
+      clearPersistedFormState,
       researchConversationId,
       researchPlan,
       researchSteps,

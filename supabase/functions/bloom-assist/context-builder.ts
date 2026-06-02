@@ -508,7 +508,7 @@ function parseWorkspaceMemoryArray<T>(
     return [];
   }
 
-  return value.map(parser).filter(Boolean);
+  return value.map(parser).filter((item): item is T => item !== null);
 }
 
 function hasMeaningfulWorkspaceMemoryPreferenceValue(
@@ -1100,13 +1100,13 @@ function buildAttachmentContextBlock(injections: string[]): string | null {
 }
 
 function isPinnedHistoryMessage(message: OpenAIChatMessage): boolean {
+  const content = typeof message.content === "string" ? message.content : "";
+
   return (
     message.role === "system" &&
-    (message.content?.startsWith(
-      "Layer 5 - Conversation compaction summary:",
-    ) ||
-      message.content === "Layer 5 - Recent conversation history follows." ||
-      message.content?.startsWith("[Recalled Context]"))
+    (content.startsWith("Layer 5 - Conversation compaction summary:") ||
+      content === "Layer 5 - Recent conversation history follows." ||
+      content.startsWith("[Recalled Context]"))
   );
 }
 
@@ -1122,9 +1122,10 @@ function insertRecalledContextMessage(
     role: "system",
     content: recalledContext,
   };
-  const summaryIndex = historyMessages.findIndex((message) =>
-    message.content?.startsWith("Layer 5 - Conversation compaction summary:"),
-  );
+  const summaryIndex = historyMessages.findIndex((message) => {
+    const content = typeof message.content === "string" ? message.content : "";
+    return content.startsWith("Layer 5 - Conversation compaction summary:");
+  });
 
   if (summaryIndex === -1) {
     return [recalledMessage, ...historyMessages];

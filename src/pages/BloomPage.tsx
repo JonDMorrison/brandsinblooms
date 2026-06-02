@@ -6,7 +6,9 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { toast } from "sonner";
+import Box from "@mui/joy/Box";
 import { BloomConversationArea } from "@/components/bloom/BloomConversationArea";
+import { BloomApprovalBar } from "@/components/bloom/BloomApprovalBar";
 import { useBloom } from "@/components/bloom/BloomContext";
 import { BloomInputArea } from "@/components/bloom/BloomInputArea";
 import type { BloomShellOutletContext } from "@/components/bloom/BloomShell";
@@ -32,7 +34,8 @@ function BloomPageParamHandler() {
 
   useEffect(() => {
     const insightId = searchParams.get("insight")?.trim() ?? "";
-    const queryConversationId = searchParams.get("conversationId")?.trim() ?? "";
+    const queryConversationId =
+      searchParams.get("conversationId")?.trim() ?? "";
     const continueConversationId = searchParams.get("continue")?.trim() ?? "";
     const shouldCreateNewConversation = searchParams.get("new") === "true";
 
@@ -261,8 +264,41 @@ export default function BloomPage() {
   return (
     <>
       <BloomPageParamHandler />
-      <BloomConversationArea prioritizePageContext={prioritizePageContext} />
-      <BloomInputArea />
+      {/* Single relative stage that holds the conversation and the floating
+          composer. The conversation area fills the full height, so its dotted
+          grid backdrop now spans the entire page — including the space behind
+          and around the floating input. */}
+      <Box
+        sx={{
+          position: "relative",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <BloomConversationArea prioritizePageContext={prioritizePageContext} />
+        {/* Floating composer: absolutely anchored to the bottom so it hovers
+            over the conversation rather than sitting in a flat bar. The wrapper
+            is click-through (`pointerEvents: none`) so messages behind the dead
+            space around the composer stay scrollable/selectable; the composer,
+            approval bar, and creation-form card re-enable pointer events
+            themselves. The creation form renders as its own rounded card above
+            the composer, so no shared full-width surface lives here. */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        >
+          <BloomApprovalBar />
+          <BloomInputArea />
+        </Box>
+      </Box>
     </>
   );
 }

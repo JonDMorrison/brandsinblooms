@@ -1,5 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  stripRedundantContent,
+  type BloomContentBlock,
+} from "@/components/bloom/content/parseContentBlocks";
+import {
+  analyzeStreamingContent,
+  extractPreFormText,
+} from "@/components/bloom/utils/contentGate";
+import { stripToolJsonFromText } from "@/components/bloom/utils/stripToolJson";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -24,6 +33,7 @@ type BloomConversationRow =
 type BloomMessageRow = Database["public"]["Tables"]["bloom_messages"]["Row"];
 
 interface UseAskBloomConversationParams {
+  conversationId: string | null;
   resourceType: AskBloomResourceType | null;
   resourceId: string | null;
   enabled: boolean;
@@ -33,6 +43,8 @@ interface AskBloomConversationQueryResult {
   conversation: AskBloomConversation | null;
   messages: AskBloomMessage[];
 }
+
+const EMPTY_ASK_BLOOM_MESSAGES: AskBloomMessage[] = [];
 
 const toToolCallStatus = (value: unknown): AskBloomToolCallStatus => {
   const normalized = readString(value).toLowerCase();
@@ -53,7 +65,9 @@ const toToolCallStatus = (value: unknown): AskBloomToolCallStatus => {
 };
 
 const parseSuggestionTags = (content: string): string[] => {
-  const match = content.match(/<(?:suggestions|follow_ups)>([\s\S]*?)<\/(?:suggestions|follow_ups)>/i);
+  const match = content.match(
+    /<(?:suggestions|follow_ups)>([\s\S]*?)<\/(?:suggestions|follow_ups)>/i,
+  );
   if (!match) {
     return [];
   }
@@ -62,7 +76,8 @@ const parseSuggestionTags = (content: string): string[] => {
     const parsed = JSON.parse(match[1]);
     return Array.isArray(parsed)
       ? parsed.filter(
-          (item): item is string => typeof item === "string" && item.trim().length > 0,
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
         )
       : [];
   } catch {
@@ -72,12 +87,18 @@ const parseSuggestionTags = (content: string): string[] => {
 
 const stripSuggestionTags = (content: string) =>
   content
-    .replace(/<(?:suggestions|follow_ups)>[\s\S]*?<\/(?:suggestions|follow_ups)>/gi, "")
+    .replace(
+      /<(?:suggestions|follow_ups)>[\s\S]*?<\/(?:suggestions|follow_ups)>/gi,
+      "",
+    )
     .trim();
 
 const parseFollowUpChips = (value: unknown): string[] =>
   Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    ? value.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
     : [];
 
 const withFollowUpChipBlock = (
@@ -101,7 +122,135 @@ const withFollowUpChipBlock = (
   ];
 };
 
-const parseBlocks = (row: BloomMessageRow): AskBloomBlock[] => {
+type ToolResultContentBlock = Extract<
+  BloomContentBlock,
+  { type: "tool_result" }
+>;
+
+const askBloomToolResultToContentBlock = (
+  block: AskBloomBlock,
+  index: number,
+): ToolResultContentBlock | null => {
+  if (block.type !== "tool_result") {
+    return null;
+  }
+
+  const toolResult = block.toolResult;
+  const trimmedContent = block.content.trim();
+  return {
+    type: "tool_result",
+    id: block.id ?? `persisted-tool-result-${index}`,
+    toolName: toolResult?.toolName || null,
+    blockType: toolResult?.blockType ?? null,
+    data: toolResult?.data ?? block.data,
+    status: toolResult?.status ?? "success",
+    message: toolResult?.message ?? (trimmedContent ? trimmedContent : null),
+    error: toolResult?.error ?? null,
+    count: toolResult?.count ?? null,
+  };
+};
+
+const toolResultBlocksFromAskBloomBlocks = (
+  blocks: AskBloomBlock[],
+): ToolResultContentBlock[] =>
+  blocks
+    .map(askBloomToolResultToContentBlock)
+    .filter((block): block is ToolResultContentBlock => block !== null);
+
+const sanitizePersistedTextContent = (
+  content: string,
+  toolResultBlocks: ToolResultContentBlock[],
+): string => {
+  let sanitized = stripToolJsonFromText(content);
+  const gateDecision = analyzeStreamingContent(sanitized, {
+    hasToolResultBlocks: false,
+    toolResultIdentifiers: new Set<string>(),
+    isAfterToolResult: false,
+  });
+
+  if (
+    gateDecision.action === "gate_json" ||
+    (gateDecision.action === "suppress" &&
+      (gateDecision.reason === "tool_error_json" ||
+        gateDecision.reason === "tool_json_payload"))
+  ) {
+    sanitized = "";
+  } else if (
+    gateDecision.action === "intercept_form" ||
+    gateDecision.action === "intercept_plan"
+  ) {
+    sanitized = extractPreFormText(sanitized);
+  }
+
+  if (toolResultBlocks.length > 0) {
+    sanitized = stripRedundantContent(sanitized, toolResultBlocks);
+  }
+
+  return sanitized.trim();
+};
+
+const sanitizePersistedBlocks = (blocks: AskBloomBlock[]): AskBloomBlock[] => {
+  const toolResultBlocks = toolResultBlocksFromAskBloomBlocks(blocks);
+  return blocks
+    .map((block) => {
+      if (block.type !== "text") {
+        return block;
+      }
+
+      const content = sanitizePersistedTextContent(
+        block.content,
+        toolResultBlocks,
+      );
+      return content === block.content ? block : { ...block, content };
+    })
+    .filter(
+      (block) => block.type !== "text" || block.content.trim().length > 0,
+    );
+};
+
+const sanitizePersistedMessageContent = (
+  content: string,
+  blocks: AskBloomBlock[],
+): string =>
+  sanitizePersistedTextContent(
+    stripSuggestionTags(content),
+    toolResultBlocksFromAskBloomBlocks(blocks),
+  );
+
+const readOriginalAssistantContent = (row: BloomMessageRow): string | null => {
+  const blockData = row.block_data;
+
+  if (isRecord(blockData) && Array.isArray(blockData.blocks)) {
+    for (const block of blockData.blocks) {
+      if (!isRecord(block)) {
+        continue;
+      }
+
+      const blockType = toAskBloomBlockType(
+        block.block_type ?? block.blockType,
+      );
+      if (blockType !== "text") {
+        continue;
+      }
+
+      const payload = toDataRecord(block.payload);
+      const content =
+        readString(block.content) || readString(payload.text) || "";
+      const normalizedContent = stripSuggestionTags(content).trim();
+      if (normalizedContent) {
+        return normalizedContent;
+      }
+    }
+  }
+
+  const fallbackContent = stripSuggestionTags(row.content ?? "").trim();
+  return fallbackContent || null;
+};
+
+const parseBlocks = (
+  row: BloomMessageRow,
+  shouldSanitize: boolean,
+): AskBloomBlock[] => {
   const blockData = row.block_data;
   const rawContent = row.content?.trim() ?? "";
   const fallbackText = stripSuggestionTags(rawContent);
@@ -133,9 +282,36 @@ const parseBlocks = (row: BloomMessageRow): AskBloomBlock[] => {
         const content =
           readString(block.content) ||
           readString(payload.text) ||
-          (safeBlockType === "text"
-            ? fallbackText
-            : "");
+          (safeBlockType === "text" ? fallbackText : "");
+
+        if (safeBlockType === "tool_result") {
+          // Rebuild the structured tool-result payload so reloaded cards route
+          // to the correct entity card (CustomerResultCard, etc.) instead of
+          // degrading to the generic fallback. `serializeAskBloomBlock` embeds
+          // tool_name / block_type / status / message / error / count in the
+          // persisted payload, so recover them here.
+          const persistedStatus = readString(payload.status).toLowerCase();
+          const toolResultStatus: "success" | "error" =
+            persistedStatus === "error" || persistedStatus === "failed"
+              ? "error"
+              : "success";
+          const persistedCount = payload.count;
+
+          return {
+            type: "tool_result",
+            content,
+            data: payload,
+            toolResult: {
+              toolName: readString(payload.tool_name),
+              blockType: readString(payload.block_type) || null,
+              data: payload,
+              status: toolResultStatus,
+              message: readString(payload.message) || null,
+              error: readString(payload.error) || null,
+              count: typeof persistedCount === "number" ? persistedCount : null,
+            },
+          };
+        }
 
         return {
           type: safeBlockType,
@@ -144,17 +320,23 @@ const parseBlocks = (row: BloomMessageRow): AskBloomBlock[] => {
         };
       });
 
-    if (parsed.length > 0) {
-      return withFollowUpChipBlock(parsed, followUpChips);
+    const normalized = shouldSanitize
+      ? sanitizePersistedBlocks(parsed)
+      : parsed;
+    if (normalized.length > 0) {
+      return withFollowUpChipBlock(normalized, followUpChips);
     }
   }
 
-  if (!fallbackText) {
+  const normalizedFallbackText = shouldSanitize
+    ? sanitizePersistedTextContent(fallbackText, [])
+    : fallbackText;
+  if (!normalizedFallbackText) {
     return withFollowUpChipBlock([], followUpChips);
   }
 
   return withFollowUpChipBlock(
-    [{ type: "text", content: fallbackText, data: {} }],
+    [{ type: "text", content: normalizedFallbackText, data: {} }],
     followUpChips,
   );
 };
@@ -179,7 +361,8 @@ const parseToolCalls = (row: BloomMessageRow): AskBloomToolCall[] => {
 
     return {
       id: readString(toolCall.id) || `tool-call-${row.id}-${index}`,
-      name: readString(toolCall.name) || readString(toolCall.tool_name) || "tool",
+      name:
+        readString(toolCall.name) || readString(toolCall.tool_name) || "tool",
       arguments: argumentsValue,
       result: toolCall.result ?? toolCall.tool_output ?? null,
       status: toToolCallStatus(toolCall.status),
@@ -196,6 +379,7 @@ const toAskBloomConversation = (
   title: row.title,
   status: row.status,
   mode: row.mode,
+  metadata: row.metadata,
   messageCount: row.message_count,
   lastMessagePreview: row.last_message_preview,
   sessionType: row.session_type,
@@ -205,18 +389,30 @@ const toAskBloomConversation = (
   updatedAt: row.updated_at,
 });
 
-const toAskBloomMessage = (row: BloomMessageRow): AskBloomMessage => ({
-  id: row.id,
-  conversationId: row.conversation_id,
-  role: row.role as AskBloomMessage["role"],
-  content: row.content ?? "",
-  blocks: parseBlocks(row),
-  toolCalls: parseToolCalls(row),
-  createdAt: row.created_at,
-  isStreaming: false,
-});
+const toAskBloomMessage = (row: BloomMessageRow): AskBloomMessage => {
+  const shouldSanitize = row.role === "assistant";
+  const blocks = parseBlocks(row, shouldSanitize);
+  const originalContent = shouldSanitize
+    ? readOriginalAssistantContent(row)
+    : null;
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    role: row.role as AskBloomMessage["role"],
+    content: shouldSanitize
+      ? sanitizePersistedMessageContent(row.content ?? "", blocks)
+      : (row.content ?? ""),
+    originalContent: originalContent ?? undefined,
+    blocks,
+    toolCalls: parseToolCalls(row),
+    createdAt: row.created_at,
+    isStreaming: false,
+    attachments: Array.isArray(row.attachments) ? row.attachments : [],
+  };
+};
 
 export function useAskBloomConversation({
+  conversationId,
   resourceType,
   resourceId,
   enabled,
@@ -227,25 +423,79 @@ export function useAskBloomConversation({
   const userId = user?.id ?? null;
 
   const query = useQuery({
-    queryKey: ["ask-bloom-conversation", resourceType, resourceId],
-    enabled: Boolean(enabled && resourceType && resourceId && tenantId && userId),
+    queryKey: [
+      "ask-bloom-conversation",
+      conversationId,
+      resourceType,
+      resourceId,
+    ],
+    enabled: Boolean(
+      enabled &&
+      tenantId &&
+      userId &&
+      (conversationId || (resourceType && resourceId)),
+    ),
+    placeholderData: (previousData) => previousData,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
     staleTime: 0,
     retry: 1,
     queryFn: async (): Promise<AskBloomConversationQueryResult> => {
-      if (!resourceType || !resourceId || !tenantId || !userId) {
+      if (!tenantId || !userId) {
         return { conversation: null, messages: [] };
       }
 
-      const { data: conversationRows, error: conversationError } = await supabase
-        .from("bloom_conversations")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("user_id", userId)
-        .eq("session_type", "resource_focused")
-        .eq("resource_type", resourceType)
-        .eq("resource_id", resourceId)
-        .order("updated_at", { ascending: false })
-        .limit(1);
+      if (conversationId) {
+        const { data: conversationRow, error: conversationError } =
+          await supabase
+            .from("bloom_conversations")
+            .select("*")
+            .eq("id", conversationId)
+            .eq("tenant_id", tenantId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (conversationError) {
+          throw conversationError;
+        }
+
+        if (!conversationRow) {
+          return { conversation: null, messages: [] };
+        }
+
+        const { data: messageRows, error: messageError } = await supabase
+          .from("bloom_messages")
+          .select("*")
+          .eq("conversation_id", conversationRow.id)
+          .eq("tenant_id", tenantId)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true });
+
+        if (messageError) {
+          throw messageError;
+        }
+
+        return {
+          conversation: toAskBloomConversation(conversationRow),
+          messages: (messageRows ?? []).map(toAskBloomMessage),
+        };
+      }
+
+      if (!resourceType || !resourceId) {
+        return { conversation: null, messages: [] };
+      }
+
+      const { data: conversationRows, error: conversationError } =
+        await supabase
+          .from("bloom_conversations")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .eq("user_id", userId)
+          .eq("session_type", "resource_focused")
+          .eq("resource_type", resourceType)
+          .eq("resource_id", resourceId)
+          .order("updated_at", { ascending: false })
+          .limit(1);
 
       if (conversationError) {
         throw conversationError;
@@ -277,8 +527,9 @@ export function useAskBloomConversation({
 
   return {
     conversation: query.data?.conversation ?? null,
-    messages: query.data?.messages ?? [],
+    messages: query.data?.messages ?? EMPTY_ASK_BLOOM_MESSAGES,
     isLoading: query.isLoading,
     error: query.error,
+    refetch: query.refetch,
   };
 }

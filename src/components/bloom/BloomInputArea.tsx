@@ -670,7 +670,13 @@ export function BloomInputArea() {
         pt: { xs: 1, sm: 1.25 },
         pb: { xs: 1.25, sm: 5 },
         display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
         justifyContent: "center",
+        // The wrapper floats over the conversation; only the composer card
+        // captures pointer events so the dead space around it stays
+        // click-through to the messages behind.
+        pointerEvents: "none",
       }}
     >
       <Sheet
@@ -680,6 +686,7 @@ export function BloomInputArea() {
         sx={{
           position: "relative",
           flexShrink: 0,
+          pointerEvents: "auto",
           width: { xs: "100%", sm: "min(100%, 52rem)" },
           transform: {
             xs: "translateY(-8px)",
@@ -892,7 +899,14 @@ export function BloomInputArea() {
                 gap: 0.5,
                 flex: 1,
                 minWidth: 0,
-                overflow: "hidden",
+                // The + actions menu (BloomPlusMenu) expands upward as an
+                // absolutely-positioned Sheet whose containing block lives
+                // inside this flex item. `overflow: hidden` here would clip the
+                // menu to the toolbar's height, leaving only the rotated +
+                // button visible (BLOOM-FIX-48). The pills self-constrain via
+                // their own maxWidth and overflow, so visible overflow does not
+                // spill horizontally.
+                overflow: "visible",
               }}
             >
               <AnimatePresence mode="wait" initial={false}>
@@ -1225,6 +1239,22 @@ export function BloomInputArea() {
           </Box>
         </Box>
       </Sheet>
+      <Typography
+        level="body-xs"
+        sx={{
+          mt: { xs: "-2px", sm: "-6px" },
+          maxWidth: { xs: "100%", sm: "min(100%, 52rem)" },
+          textAlign: "center",
+          color: "neutral.700",
+          fontSize: "0.75rem",
+          lineHeight: 1.4,
+          letterSpacing: "0.01em",
+          userSelect: "none",
+        }}
+      >
+        Bloom Assist can make mistakes. Double-check important details before
+        acting on them.
+      </Typography>
     </Box>
   );
 }

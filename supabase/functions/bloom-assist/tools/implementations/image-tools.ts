@@ -106,7 +106,7 @@ function readNumber(value: unknown): number | null {
 
 function readJsonObject(value: unknown): JsonObject | null {
   return isRecord(value) && Object.values(value).every(isJsonValue)
-    ? value
+    ? (value as JsonObject)
     : null;
 }
 

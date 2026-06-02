@@ -253,7 +253,9 @@ async function ambiguityDetection(
 
   const { data, error } = await query;
   if (error) throw error;
-  const rows = (data ?? []).filter(isRecord);
+  const rows = (
+    Array.isArray(data as unknown) ? (data as unknown[]) : []
+  ).filter(isRecord);
   if (rows.length <= 1) return [];
 
   return [

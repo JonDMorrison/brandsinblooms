@@ -51,7 +51,7 @@ const SEGMENT_SORT_FIELDS = [
   "persona_id",
 ] as const;
 
-function summarizeRules(value: JsonValue | null): string {
+function summarizeRules(value: unknown): string {
   if (!value) {
     return "No rules configured";
   }

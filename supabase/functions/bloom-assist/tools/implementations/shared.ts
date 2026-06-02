@@ -9,9 +9,7 @@ import type {
 } from "../types.ts";
 import { FILTER_OPERATORS } from "../types.ts";
 
-type PublicSchema = Database["public"];
-
-export type BloomQueryClient = SupabaseClient<Database, "public", PublicSchema>;
+export type BloomQueryClient = SupabaseClient<Database, "public">;
 
 export type ListQueryParams = {
   filters: ToolFilter[];
@@ -24,13 +22,14 @@ export type ListQueryParams = {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
-const MAX_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
 const FILTER_OPERATOR_SET = new Set<string>(FILTER_OPERATORS);
 
 export function getQueryClient(
   context: ToolExecutionContext,
 ): BloomQueryClient {
-  return (context.dataClient ?? context.serviceClient) as BloomQueryClient;
+  return (context.dataClient ??
+    context.serviceClient) as unknown as BloomQueryClient;
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

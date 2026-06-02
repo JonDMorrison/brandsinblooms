@@ -34,7 +34,6 @@ const CONTENT_MODES: BloomMode[] = ["standard", "reasoning"];
 const IMAGE_MODES: BloomMode[] = ["image"];
 const NAVIGATION_MODES: BloomMode[] = ["standard", "reasoning", "research"];
 const SORT_ORDERS = ["asc", "desc"] as const;
-const PAGE_SIZES = [10, 25, 50] as const;
 const EXPORT_FORMATS = ["csv", "json"] as const;
 const CONTENT_TYPES = [
   "email_body",
@@ -354,9 +353,18 @@ function queryParameters(
       minimum: 1,
       maximum: 1000,
     }),
-    page_size: integerSchema("Page size.", { enum: PAGE_SIZES }),
-    sort_by: stringSchema("Field to sort by.", { enum: sortFields }),
-    sort_order: stringSchema("Sort direction.", { enum: SORT_ORDERS }),
+    page_size: integerSchema(
+      'Number of results to return, from 1 to 100. For "top N" requests set this to N (for example 5 for "top 5"). Common values: 5, 10, 25, 50. Default 10.',
+      { minimum: 1, maximum: 100 },
+    ),
+    sort_by: stringSchema(
+      'Field to sort by. Must be one of the entity\'s allowed fields. For "highest spending" use total_spent; for "newest" use created_at.',
+      { enum: sortFields },
+    ),
+    sort_order: stringSchema(
+      'Sort direction: "desc" for highest or newest first, "asc" for lowest or oldest first.',
+      { enum: SORT_ORDERS },
+    ),
   });
 }
 
@@ -581,7 +589,10 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
         minimum: 1,
         maximum: 1000,
       }),
-      page_size: integerSchema("Page size.", { enum: PAGE_SIZES }),
+      page_size: integerSchema(
+        'Number of results to return, from 1 to 100. For "top N" requests set this to N (for example 5 for "top 5"). Common values: 5, 10, 25, 50. Default 10.',
+        { minimum: 1, maximum: 100 },
+      ),
     }),
     category: "query",
     riskLevel: "safe",
@@ -605,7 +616,10 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
         minimum: 1,
         maximum: 1000,
       }),
-      page_size: integerSchema("Page size.", { enum: PAGE_SIZES }),
+      page_size: integerSchema(
+        'Number of results to return, from 1 to 100. For "top N" requests set this to N (for example 5 for "top 5"). Common values: 5, 10, 25, 50. Default 10.',
+        { minimum: 1, maximum: 100 },
+      ),
     }),
     category: "query",
     riskLevel: "safe",
@@ -683,7 +697,10 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
           minimum: 1,
           maximum: 1000,
         }),
-        page_size: integerSchema("Page size.", { enum: PAGE_SIZES }),
+        page_size: integerSchema(
+          'Number of results to return, from 1 to 100. For "top N" requests set this to N (for example 5 for "top 5"). Common values: 5, 10, 25, 50. Default 10.',
+          { minimum: 1, maximum: 100 },
+        ),
         search: stringSchema("Optional member search phrase.", {
           maxLength: 120,
         }),

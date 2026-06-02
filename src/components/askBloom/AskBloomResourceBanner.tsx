@@ -25,7 +25,10 @@ const buildCustomerSubtitle = (resourceFocus: ResourceFocus) => {
       .map((value) => value.trim())
       .find((value) => value && value !== "None") ??
     "Focused view";
-  const orders = readSummaryValue(resourceFocus.resourceSummary, "Total Orders");
+  const orders = readSummaryValue(
+    resourceFocus.resourceSummary,
+    "Total Orders",
+  );
   return `Customer · ${primaryTag} · ${orders || "0"} orders`;
 };
 
@@ -43,7 +46,10 @@ const buildOrderSubtitle = (resourceFocus: ResourceFocus) => {
 
 const buildCampaignSubtitle = (resourceFocus: ResourceFocus) => {
   const status = readSummaryValue(resourceFocus.resourceSummary, "Status");
-  const reach = readSummaryValue(resourceFocus.resourceSummary, "Audience Reach");
+  const reach = readSummaryValue(
+    resourceFocus.resourceSummary,
+    "Audience Reach",
+  );
   return `Campaign · ${status || "Status unavailable"} · ${reach || "Reach unavailable"}`;
 };
 
@@ -77,7 +83,7 @@ export function AskBloomResourceBanner() {
         py: 1,
         borderBottom: "1px solid",
         borderColor: "divider",
-        bgcolor: "background.level1",
+        bgcolor: "transparent",
         flexShrink: 0,
       }}
     >

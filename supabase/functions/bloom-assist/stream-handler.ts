@@ -121,6 +121,12 @@ type ReadStreamResult = {
   cycleRawContent: string;
 };
 
+type VisibleGuard = {
+  phase: "init" | "buffering" | "passthrough";
+  kind: "object" | "fence" | null;
+  buffer: string;
+};
+
 type ContentRoutingState = {
   rawContent: string;
   visibleContent: string;
@@ -128,6 +134,7 @@ type ContentRoutingState = {
   pending: string;
   inThinking: boolean;
   inFollowUps: boolean;
+  guard: VisibleGuard;
 };
 
 type CompletionState = {
@@ -233,6 +240,10 @@ function formatSseEvent(event: BloomSseEvent): string {
   return `event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`;
 }
 
+function createVisibleGuard(): VisibleGuard {
+  return { phase: "init", kind: null, buffer: "" };
+}
+
 function createInitialRoutingState(): ContentRoutingState {
   return {
     rawContent: "",
@@ -241,6 +252,7 @@ function createInitialRoutingState(): ContentRoutingState {
     pending: "",
     inThinking: false,
     inFollowUps: false,
+    guard: createVisibleGuard(),
   };
 }
 
@@ -371,6 +383,292 @@ function findNextTagIndex(
   return { index: nextIndex, tag: nextTag };
 }
 
+function guardIsRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function guardIsToolPayloadObject(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(guardIsToolPayloadObject);
+  }
+  if (!guardIsRecord(value)) {
+    return false;
+  }
+  if (value.block_type !== undefined) {
+    return true;
+  }
+  if (value.tool_output !== undefined) {
+    return true;
+  }
+  if (value.confirmation_required !== undefined) {
+    return true;
+  }
+  if (
+    value.error === "validation_error" ||
+    value.error === "execution_error" ||
+    value.error === "timeout_error" ||
+    value.error === "forbidden" ||
+    value.error === "tenant_isolation_violation"
+  ) {
+    return true;
+  }
+  // The canonical tool-result envelope is `{ success, message, error, ... }`.
+  // A failed echo always carries `success: false` alongside a non-null `error`
+  // code — a combination that does not occur in user-requested JSON.
+  if (value.success === false && typeof value.error === "string") {
+    return true;
+  }
+  if (value.success !== undefined && guardIsRecord(value.data)) {
+    return true;
+  }
+  return false;
+}
+
+function segmentIsToolPayload(candidate: string): boolean {
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return false;
+  }
+  try {
+    return guardIsToolPayloadObject(JSON.parse(trimmed));
+  } catch {
+    return /"block_type"\s*:|"tool_output"\s*:|"confirmation_required"\s*:|"error"\s*:\s*"(?:validation_error|execution_error|timeout_error|forbidden|tenant_isolation_violation)"/.test(
+      trimmed,
+    );
+  }
+}
+
+function findBalancedJsonEnd(text: string, start: number): number {
+  const open = text[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === open) {
+      depth += 1;
+    } else if (char === close) {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    }
+  }
+
+  return -1;
+}
+
+function findFenceEnd(buffer: string): number {
+  const firstNewline = buffer.indexOf("\n");
+  if (firstNewline === -1) {
+    return -1;
+  }
+  const closeIndex = buffer.indexOf("\n```", firstNewline);
+  if (closeIndex === -1) {
+    return -1;
+  }
+  const afterClose = closeIndex + "\n```".length;
+  let cursor = afterClose;
+  while (cursor < buffer.length && buffer[cursor] !== "\n") {
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function emitVisibleChunk(
+  chunk: string,
+  state: ContentRoutingState,
+  emit: (event: BloomSseEvent) => void,
+): void {
+  if (!chunk) {
+    return;
+  }
+  state.visibleContent += chunk;
+  emit({ event: "token", data: { text: chunk } });
+}
+
+// A leaked `block_type` label line ("text" / "json") sitting on its own line
+// immediately before an echoed JSON envelope. The model occasionally emits this
+// instead of fencing the payload, so the bare word and the JSON must both be
+// suppressed together.
+const VISIBLE_LABEL_BEFORE_JSON = /^(?:text|json)[ \t]*\r?\n[ \t]*(?=[{[])/i;
+// A still-streaming prefix that could become the label line above: any partial
+// of "text"/"json" plus trailing whitespace/newline, with no body revealed yet.
+const VISIBLE_PARTIAL_LABEL =
+  /^(?:t(?:e(?:xt?)?)?|j(?:s(?:on?)?)?)[ \t]*\r?\n?[ \t]*$/i;
+const VISIBLE_LABEL_PREFIX = /^(?:text|json)[ \t]*\r?\n[ \t]*/i;
+
+/**
+ * Suppresses tool-execution JSON that the model occasionally echoes back as its
+ * visible answer (a fenced ```text/```json block, a bare JSON object/array, or a
+ * leaked `text`/`json` label line followed by the JSON envelope, at the very
+ * start of the turn). Normal prose passes through immediately, so streaming
+ * responsiveness is unaffected for the common path.
+ */
+function routeVisibleText(
+  text: string,
+  state: ContentRoutingState,
+  emit: (event: BloomSseEvent) => void,
+): void {
+  const guard = state.guard;
+
+  if (guard.phase === "passthrough") {
+    emitVisibleChunk(text, state, emit);
+    return;
+  }
+
+  guard.buffer += text;
+  const trimmed = guard.buffer.replace(/^\s+/, "");
+  if (trimmed === "") {
+    return;
+  }
+
+  if (guard.phase === "init") {
+    const first = trimmed[0];
+    const startsObject = first === "{" || first === "[";
+    const startsFence = trimmed.startsWith("```");
+    const couldBecomeFence =
+      trimmed === "`" || trimmed === "``" || "```".startsWith(trimmed);
+    const startsLabeledJson = VISIBLE_LABEL_BEFORE_JSON.test(trimmed);
+    const couldBecomeLabel = VISIBLE_PARTIAL_LABEL.test(trimmed);
+
+    if (!startsObject && !startsFence && !startsLabeledJson) {
+      if (couldBecomeFence || couldBecomeLabel) {
+        return;
+      }
+      guard.phase = "passthrough";
+      const flushed = guard.buffer;
+      guard.buffer = "";
+      emitVisibleChunk(flushed, state, emit);
+      return;
+    }
+
+    guard.phase = "buffering";
+    guard.kind = startsFence ? "fence" : "object";
+  }
+
+  const leadingLength = guard.buffer.length - trimmed.length;
+  const leading = guard.buffer.slice(0, leadingLength);
+
+  if (guard.kind === "object") {
+    // Strip a leaked `text`/`json` label line that precedes the JSON envelope so
+    // both the bare word and the payload are evaluated (and suppressed) as one.
+    const labelMatch = trimmed.match(VISIBLE_LABEL_PREFIX);
+    const label = labelMatch ? labelMatch[0] : "";
+    const jsonText = label ? trimmed.slice(label.length) : trimmed;
+    if (!jsonText.startsWith("{") && !jsonText.startsWith("[")) {
+      // Label seen but the JSON body has not arrived yet — keep buffering.
+      return;
+    }
+    const end = findBalancedJsonEnd(jsonText, 0);
+    if (end === -1) {
+      return;
+    }
+    const segment = jsonText.slice(0, end);
+    const rest = jsonText.slice(end);
+    guard.phase = "passthrough";
+    guard.buffer = "";
+    if (!segmentIsToolPayload(segment)) {
+      emitVisibleChunk(leading + label + segment, state, emit);
+    }
+    emitVisibleChunk(rest, state, emit);
+    return;
+  }
+
+  if (guard.kind === "fence") {
+    const end = findFenceEnd(trimmed);
+    if (end === -1) {
+      return;
+    }
+    const segment = trimmed.slice(0, end);
+    const rest = trimmed.slice(end);
+    const infoMatch = segment.match(/^```[ \t]*([^\n`]*)\r?\n/);
+    const info = (infoMatch?.[1] ?? "").trim().toLowerCase();
+    const body = segment
+      .replace(/^```[^\n]*\r?\n/, "")
+      .replace(/\r?\n```[^\n]*$/, "");
+    const suppressible = info === "" || info === "text" || info === "json";
+    guard.phase = "passthrough";
+    guard.buffer = "";
+    if (!(suppressible && segmentIsToolPayload(body))) {
+      emitVisibleChunk(leading + segment, state, emit);
+    }
+    emitVisibleChunk(rest, state, emit);
+    return;
+  }
+}
+
+function finalizeVisibleGuard(
+  state: ContentRoutingState,
+  emit: (event: BloomSseEvent) => void,
+): void {
+  const guard = state.guard;
+  if (guard.phase !== "buffering") {
+    guard.buffer = "";
+    return;
+  }
+  const buffered = guard.buffer;
+  guard.phase = "passthrough";
+  guard.buffer = "";
+  // Run the leftover through the full echoed-payload stripper so a labeled or
+  // partially-buffered tool envelope is cleaned even when the stream ends
+  // mid-buffer, while legitimate prose/code is preserved.
+  const cleaned = stripEchoedToolPayloads(buffered);
+  if (cleaned.trim()) {
+    emitVisibleChunk(cleaned, state, emit);
+  }
+}
+
+function stripEchoedToolPayloads(text: string): string {
+  if (!text || (!text.includes("{") && !text.includes("["))) {
+    return text;
+  }
+
+  const result = text.replace(
+    /```[ \t]*(text|json)?[ \t]*\r?\n([\s\S]*?)\r?\n?```/gi,
+    (match, _info: string, body: string) =>
+      segmentIsToolPayload(body) ? "" : match,
+  );
+
+  let scanned = "";
+  let cursor = 0;
+  while (cursor < result.length) {
+    const char = result[cursor];
+    const atLineStart = cursor === 0 || /\s/.test(result[cursor - 1] ?? "");
+    if ((char === "{" || char === "[") && atLineStart) {
+      const end = findBalancedJsonEnd(result, cursor);
+      if (end !== -1 && segmentIsToolPayload(result.slice(cursor, end))) {
+        scanned = scanned.replace(
+          /(?:^|\n)[ \t]*(?:text|json)[ \t]*\n?$/i,
+          "\n",
+        );
+        cursor = end;
+        continue;
+      }
+    }
+    scanned += char;
+    cursor += 1;
+  }
+
+  return scanned.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function emitText(
   text: string,
   state: ContentRoutingState,
@@ -386,8 +684,7 @@ function emitText(
     return;
   }
 
-  state.visibleContent += text;
-  emit({ event: "token", data: { text } });
+  routeVisibleText(text, state, emit);
 }
 
 function applyTag(tag: string, state: ContentRoutingState): void {
@@ -640,6 +937,8 @@ async function readOpenAIStream(
   let cycleRawContent = "";
   let firstChunkObserved = false;
 
+  routingState.guard = createVisibleGuard();
+
   try {
     while (!cancellationState.cancelled) {
       const { done, value } = await reader.read();
@@ -665,6 +964,7 @@ async function readOpenAIStream(
         const data = trimmedLine.slice("data:".length).trim();
         if (data === "[DONE]") {
           flushPendingContent(mode, routingState, emit);
+          finalizeVisibleGuard(routingState, emit);
           return {
             toolCalls: finalizeToolCalls(accumulators),
             finishReason,
@@ -701,6 +1001,7 @@ async function readOpenAIStream(
   }
 
   flushPendingContent(mode, routingState, emit);
+  finalizeVisibleGuard(routingState, emit);
   return {
     toolCalls: finalizeToolCalls(accumulators),
     finishReason,
@@ -920,7 +1221,10 @@ async function executeAndAppendTools(args: {
       collectKnownEntityIds(result.result, args.knownEntityIds);
     }
 
-    if (result.block_type === "mutation_action" && isJsonObject(result.result)) {
+    if (
+      result.block_type === "mutation_action" &&
+      isJsonObject(result.result)
+    ) {
       args.actionCards.push(result.result);
       args.emit({
         event: "action_card",
@@ -1020,7 +1324,9 @@ export function processOpenAIStream(
     completionState.completed = true;
     flushPendingContent(options.mode, routingState, () => undefined);
     let followUpChips = parseFollowUpChips(routingState.rawContent);
-    let content = stripResponseTags(routingState.visibleContent);
+    let content = stripEchoedToolPayloads(
+      stripResponseTags(routingState.visibleContent),
+    );
     const outputValidation = options.validateOutput?.(content, {
       knownEntityIds,
     });
@@ -1053,7 +1359,9 @@ export function processOpenAIStream(
                 ...actionCards.map((card) => ({
                   block_type: "mutation_action",
                   content:
-                    typeof card.description === "string" ? card.description : "",
+                    typeof card.description === "string"
+                      ? card.description
+                      : "",
                   payload: card,
                 })),
               ],
@@ -1190,8 +1498,9 @@ export function processOpenAIStream(
             flushPendingContent(options.mode, routingState, emit);
             let followUpChips = parseFollowUpChips(routingState.rawContent);
             let content =
-              stripResponseTags(routingState.visibleContent) ||
-              "I prepared a task plan for your approval.";
+              stripEchoedToolPayloads(
+                stripResponseTags(routingState.visibleContent),
+              ) || "I prepared a task plan for your approval.";
             const outputValidation = options.validateOutput?.(content, {
               knownEntityIds,
             });

@@ -26,21 +26,21 @@ export const ALLOWED_FILTER_FIELDS: FilterFieldCatalog = {
 
 type ComparableValue = string | number | boolean;
 
-type SupabaseFilterBuilder<Query> = {
-  eq: (field: string, value: JsonValue) => Query;
-  neq: (field: string, value: JsonValue) => Query;
-  ilike: (field: string, pattern: string) => Query;
+type SupabaseFilterBuilder = {
+  eq: (field: string, value: unknown) => unknown;
+  neq: (field: string, value: unknown) => unknown;
+  ilike: (field: string, pattern: string) => unknown;
   not: (
     field: string,
     operator: string,
     value: JsonValue | string | null,
-  ) => Query;
-  gt: (field: string, value: ComparableValue) => Query;
-  lt: (field: string, value: ComparableValue) => Query;
-  gte: (field: string, value: ComparableValue) => Query;
-  lte: (field: string, value: ComparableValue) => Query;
-  in: (field: string, values: JsonArray) => Query;
-  is: (field: string, value: null) => Query;
+  ) => unknown;
+  gt: (field: string, value: ComparableValue) => unknown;
+  lt: (field: string, value: ComparableValue) => unknown;
+  gte: (field: string, value: ComparableValue) => unknown;
+  lte: (field: string, value: ComparableValue) => unknown;
+  in: (field: string, values: readonly unknown[]) => unknown;
+  is: (field: string, value: null) => unknown;
 };
 
 type ZonedDateParts = {
@@ -93,6 +93,10 @@ function isComparableValue(value: JsonValue): value is ComparableValue {
     typeof value === "number" ||
     typeof value === "boolean"
   );
+}
+
+function asFilterBuilder(query: unknown): SupabaseFilterBuilder {
+  return query as SupabaseFilterBuilder;
 }
 
 function normalizeRelativeDateKey(value: string): string {
@@ -398,16 +402,14 @@ function parseJunctionFilterValue(filter: ToolFilter): JunctionFilterValue {
   };
 }
 
-function applyNoMatches<Query extends SupabaseFilterBuilder<Query>>(
-  query: Query,
-): Query {
-  return query.eq("id", "00000000-0000-4000-8000-000000000000");
+function applyNoMatches<Query>(query: Query): Query {
+  return asFilterBuilder(query).eq(
+    "id",
+    "00000000-0000-4000-8000-000000000000",
+  ) as Query;
 }
 
-function applyJunctionFilter<Query extends SupabaseFilterBuilder<Query>>(
-  query: Query,
-  filter: ToolFilter,
-): Query {
+function applyJunctionFilter<Query>(query: Query, filter: ToolFilter): Query {
   const junction = parseJunctionFilterValue(filter);
   const matchingIds = junction.matching_ids;
 
@@ -419,14 +421,14 @@ function applyJunctionFilter<Query extends SupabaseFilterBuilder<Query>>(
 
   if (filter.operator === "has") {
     return matchingIds.length > 0
-      ? query.in("id", matchingIds)
+      ? (asFilterBuilder(query).in("id", matchingIds) as Query)
       : applyNoMatches(query);
   }
 
   if (filter.operator === "has_not") {
     let next = query;
     for (const id of matchingIds) {
-      next = next.neq("id", id);
+      next = asFilterBuilder(next).neq("id", id) as Query;
     }
     return next;
   }
@@ -437,14 +439,14 @@ function applyJunctionFilter<Query extends SupabaseFilterBuilder<Query>>(
     }
 
     return matchingIds.length > 0
-      ? query.in("id", matchingIds)
+      ? (asFilterBuilder(query).in("id", matchingIds) as Query)
       : applyNoMatches(query);
   }
 
   return query;
 }
 
-function applyEquals<Query extends SupabaseFilterBuilder<Query>>(
+function applyEquals<Query>(
   query: Query,
   filter: ToolFilter,
   timezone?: string,
@@ -453,21 +455,22 @@ function applyEquals<Query extends SupabaseFilterBuilder<Query>>(
   if (typeof value === "string") {
     const range = resolveRelativeDateRange(value, timezone);
     if (range) {
-      return query.gte(filter.field, range.start).lte(filter.field, range.end);
+      const afterStart = asFilterBuilder(query).gte(filter.field, range.start);
+      return asFilterBuilder(afterStart).lte(filter.field, range.end) as Query;
     }
   }
 
-  return query.eq(filter.field, value);
+  return asFilterBuilder(query).eq(filter.field, value) as Query;
 }
 
-function applyNotIn<Query extends SupabaseFilterBuilder<Query>>(
+function applyNotIn<Query>(
   query: Query,
   field: string,
   values: JsonArray,
 ): Query {
   let next = query;
   for (const value of values) {
-    next = next.neq(field, value);
+    next = asFilterBuilder(next).neq(field, value) as Query;
   }
   return next;
 }
@@ -479,7 +482,7 @@ export function resolveRelativeDateValue(
   return resolveRelativeDateRange(value, timezone);
 }
 
-export function applyFilters<Query extends SupabaseFilterBuilder<Query>>(
+export function applyFilters<Query>(
   query: Query,
   filters: ToolFilter[],
   options: ApplyFiltersOptions = {},
@@ -501,74 +504,78 @@ export function applyFilters<Query extends SupabaseFilterBuilder<Query>>(
         ) {
           throw new Error("not_equals does not support relative date ranges");
         }
-        next = next.neq(filter.field, value);
+        next = asFilterBuilder(next).neq(filter.field, value) as Query;
         break;
       }
       case "contains":
-        next = next.ilike(
+        next = asFilterBuilder(next).ilike(
           filter.field,
           `%${String(requireComparable(filter, options.timezone))}%`,
-        );
+        ) as Query;
         break;
       case "not_contains":
-        next = next.not(
+        next = asFilterBuilder(next).not(
           filter.field,
           "ilike",
           `%${String(requireComparable(filter, options.timezone))}%`,
-        );
+        ) as Query;
         break;
       case "starts_with":
-        next = next.ilike(
+        next = asFilterBuilder(next).ilike(
           filter.field,
           `${String(requireComparable(filter, options.timezone))}%`,
-        );
+        ) as Query;
         break;
       case "ends_with":
-        next = next.ilike(
+        next = asFilterBuilder(next).ilike(
           filter.field,
           `%${String(requireComparable(filter, options.timezone))}`,
-        );
+        ) as Query;
         break;
       case "gt":
-        next = next.gt(
+        next = asFilterBuilder(next).gt(
           filter.field,
           requireComparable(filter, options.timezone),
-        );
+        ) as Query;
         break;
       case "lt":
-        next = next.lt(
+        next = asFilterBuilder(next).lt(
           filter.field,
           requireComparable(filter, options.timezone),
-        );
+        ) as Query;
         break;
       case "gte":
-        next = next.gte(
+        next = asFilterBuilder(next).gte(
           filter.field,
           requireComparable(filter, options.timezone),
-        );
+        ) as Query;
         break;
       case "lte":
-        next = next.lte(
+        next = asFilterBuilder(next).lte(
           filter.field,
           requireComparable(filter, options.timezone),
-        );
+        ) as Query;
         break;
       case "between": {
         const [start, end] = resolveBetweenValues(filter, options.timezone);
-        next = next.gte(filter.field, start).lte(filter.field, end);
+        const afterStart = asFilterBuilder(next).gte(filter.field, start);
+        next = asFilterBuilder(afterStart).lte(filter.field, end) as Query;
         break;
       }
       case "in":
-        next = next.in(filter.field, requireValueArray(filter));
+        next = asFilterBuilder(next).in(
+          filter.field,
+          requireValueArray(filter),
+        ) as Query;
         break;
       case "not_in":
         next = applyNotIn(next, filter.field, requireValueArray(filter));
         break;
       case "is_null":
-        next = next.is(filter.field, null);
+        next = asFilterBuilder(next).is(filter.field, null) as Query;
         break;
       case "is_not_null":
-        next = next.not(filter.field, "is", null);
+        next = asFilterBuilder(next).not(filter.field, "is", null) as Query;
         break;
       case "has":
       case "has_not":

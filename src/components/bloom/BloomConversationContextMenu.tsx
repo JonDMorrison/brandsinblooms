@@ -31,6 +31,8 @@ interface BloomConversationContextMenuProps {
 }
 
 const menuIcon = (icon: React.ReactNode) => icon;
+const SIDEBAR_MENU_BUTTON_HOVER_BG = "rgba(255,255,255,0.1)";
+const SIDEBAR_MENU_BUTTON_ACTIVE_BG = "rgba(255,255,255,0.12)";
 
 export function BloomConversationContextMenu({
   conversation,
@@ -62,10 +64,16 @@ export function BloomConversationContextMenu({
           onClick={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
           iconButtonSx={{
-            color: "brandNavy.100",
-            backgroundColor: "brandNavy.800",
+            color: "rgba(255,255,255,0.72)",
+            backgroundColor: "transparent",
+            "--IconButton-hoverBg": SIDEBAR_MENU_BUTTON_HOVER_BG,
+            "--IconButton-activeBg": SIDEBAR_MENU_BUTTON_ACTIVE_BG,
             "&:hover": {
-              backgroundColor: "brandNavy.700",
+              backgroundColor: SIDEBAR_MENU_BUTTON_HOVER_BG,
+              color: "common.white",
+            },
+            "&[aria-expanded='true']": {
+              backgroundColor: SIDEBAR_MENU_BUTTON_ACTIVE_BG,
               color: "common.white",
             },
           }}

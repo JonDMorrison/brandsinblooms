@@ -674,7 +674,7 @@ function normalizeCustomerFilter(filter: ToolFilter): ToolFilter {
       value: value ?? {
         relationship: filter.field,
         match_field: "name",
-        match_value: filter.value,
+        match_value: filter.value ?? null,
       },
     };
   }

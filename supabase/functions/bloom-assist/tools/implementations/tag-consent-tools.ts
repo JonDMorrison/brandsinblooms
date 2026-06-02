@@ -124,7 +124,7 @@ function calculatePreferredChannel(
   return "none";
 }
 
-function createCompletedConfirmationResult(args: {
+function createCompletedDataCardResult(args: {
   toolName: TagToolName;
   message: string;
   count: number | null;
@@ -135,7 +135,7 @@ function createCompletedConfirmationResult(args: {
     success: true,
     message: args.message,
     count: args.count,
-    blockType: "confirmation",
+    blockType: "data_card",
     data: {
       summary: {
         completed_count: 1,
@@ -153,7 +153,7 @@ function createCompletedConfirmationResult(args: {
             success: true,
             message: args.message,
             error: null,
-            block_type: "text",
+            block_type: "data_card",
             count: args.count,
             data: args.resultData,
             confirmation_required: false,
@@ -272,7 +272,7 @@ async function createTag(
 
   const tag = insertedTag as TagRow;
 
-  return createCompletedConfirmationResult({
+  return createCompletedDataCardResult({
     toolName: "create_tag",
     message: `Created the \"${tag.name}\" tag.`,
     count: 1,
@@ -412,7 +412,7 @@ async function bulkTagCustomers(
         ? `Removed the \"${tagRecord.name}\" tag from ${affectedCount} customer${affectedCount === 1 ? "" : "s"}.`
         : `None of the selected customers currently had the \"${tagRecord.name}\" tag.`;
 
-  return createCompletedConfirmationResult({
+  return createCompletedDataCardResult({
     toolName: "bulk_tag_customers",
     message,
     count: affectedCount,
@@ -532,7 +532,7 @@ async function manageConsent(
       throw eventError;
     }
 
-    return createCompletedConfirmationResult({
+    return createCompletedDataCardResult({
       toolName: "manage_consent",
       message: `Recorded ${action.replace("_", " ")} for ${customerDisplayName(customer)} on the email channel.`,
       count: 1,
@@ -598,7 +598,7 @@ async function manageConsent(
     throw eventError;
   }
 
-  return createCompletedConfirmationResult({
+  return createCompletedDataCardResult({
     toolName: "manage_consent",
     message: `Recorded ${action.replace("_", " ")} for ${customerDisplayName(customer)} on the SMS channel.`,
     count: 1,

@@ -79,7 +79,7 @@ const CAMPAIGN_SORT_FIELDS = [
   "auto_send_enabled",
 ] as const;
 
-function readMetric(metrics: JsonValue | null, names: string[]): number | null {
+function readMetric(metrics: unknown, names: string[]): number | null {
   if (!isRecord(metrics)) {
     return null;
   }

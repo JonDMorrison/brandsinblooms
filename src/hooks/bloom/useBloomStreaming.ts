@@ -7,6 +7,7 @@ import {
 } from "@/integrations/supabase/config";
 import type { Json } from "@/integrations/supabase/types";
 import { useTenant } from "@/hooks/useTenant";
+import { stripEchoedToolPayloads } from "@/components/bloom/content/sanitizeBloomContent";
 import {
   bloomSupabase,
   isBloomMode,
@@ -827,6 +828,10 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
     setLastDoneMetadata(null);
   }, []);
 
+  const dismissPendingTaskPlan = React.useCallback(() => {
+    setPendingTaskPlan(null);
+  }, []);
+
   const logClientLatencyMetrics = React.useCallback(
     async (
       input: StartStreamInput,
@@ -964,7 +969,7 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
       bloomMessagesQueryKey(conversationId),
       (current) =>
         patchMessage(current, placeholderId, {
-          text: streamingContentRef.current,
+          text: stripEchoedToolPayloads(streamingContentRef.current),
           thinkingContent: streamingThinkingRef.current.trim() || null,
           blockData: createStreamingBlockData(streamingBlocksRef.current),
         }),
@@ -1554,5 +1559,6 @@ export function useBloomStreaming(handlers: BloomStreamingHandlers = {}) {
     lastLatencyMetrics,
     lastDoneMetadata,
     resetStream: resetStreamState,
+    dismissPendingTaskPlan,
   };
 }

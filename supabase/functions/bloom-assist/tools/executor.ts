@@ -300,6 +300,126 @@ function validateValueAgainstSchema(
   }
 }
 
+// Maps natural-language sort directions the model tends to emit onto the only
+// values the schema accepts ("asc" / "desc").
+const SORT_ORDER_ALIASES: Record<string, "asc" | "desc"> = {
+  asc: "asc",
+  ascend: "asc",
+  ascending: "asc",
+  lowest: "asc",
+  oldest: "asc",
+  earliest: "asc",
+  least: "asc",
+  bottom: "asc",
+  desc: "desc",
+  descend: "desc",
+  descending: "desc",
+  highest: "desc",
+  newest: "desc",
+  latest: "desc",
+  most: "desc",
+  top: "desc",
+};
+
+// Maps common sort-field synonyms onto canonical column names. A mapping is only
+// applied when the target field is actually allowed for the tool being called,
+// so this can never turn a valid request into a validation failure.
+const SORT_BY_ALIASES: Record<string, string> = {
+  spending: "total_spent",
+  total_spending: "total_spent",
+  spent: "total_spent",
+  amount: "total_spent",
+  total: "total_spent",
+  revenue: "total_spent",
+  ltv: "lifetime_value",
+  value: "lifetime_value",
+  date: "created_at",
+  created: "created_at",
+  joined: "created_at",
+  signup: "created_at",
+  updated: "updated_at",
+  modified: "updated_at",
+  recent: "updated_at",
+  alphabetical: "name",
+  alpha: "name",
+  inventory: "inventory_count",
+  stock: "inventory_count",
+  last_purchase: "last_purchase_date",
+  last_order: "last_purchase_date",
+};
+
+function normalizePageInteger(
+  value: unknown,
+  fallback: number,
+  max: number,
+): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return fallback;
+  }
+  const rounded = Math.round(numeric);
+  return rounded > max ? max : rounded;
+}
+
+function normalizePageNumber(value: unknown): number {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric < 1) {
+    return 1;
+  }
+  return Math.round(numeric);
+}
+
+/**
+ * Defense-in-depth coercion applied BEFORE schema validation so the model's
+ * reasonable-but-slightly-off arguments do not produce a hard validation error
+ * (which then leaks back as raw JSON). Pagination values are clamped/rounded
+ * into range, and sort hints are mapped onto the schema's accepted values.
+ * Anything that cannot be safely normalized is left untouched for the validator.
+ */
+export function normalizeToolParams(
+  tool: ToolDefinition,
+  params: unknown,
+): unknown {
+  if (!isRecord(params)) {
+    return params;
+  }
+
+  const properties = readSchemaProperties(tool.function.parameters);
+  const normalized: Record<string, unknown> = { ...params };
+
+  if ("page_size" in normalized) {
+    normalized.page_size = normalizePageInteger(normalized.page_size, 10, 100);
+  }
+  if ("limit" in normalized) {
+    normalized.limit = normalizePageInteger(normalized.limit, 10, 100);
+  }
+  if ("page" in normalized) {
+    normalized.page = normalizePageNumber(normalized.page);
+  }
+
+  if (typeof normalized.sort_order === "string") {
+    const alias =
+      SORT_ORDER_ALIASES[normalized.sort_order.trim().toLowerCase()];
+    if (alias) {
+      const allowed = readEnumValues(properties.sort_order ?? {});
+      if (!allowed || enumMatches(alias, allowed)) {
+        normalized.sort_order = alias;
+      }
+    }
+  }
+
+  if (typeof normalized.sort_by === "string") {
+    const key = normalized.sort_by.trim().toLowerCase();
+    const candidate = SORT_BY_ALIASES[key] ?? key;
+    const allowed = readEnumValues(properties.sort_by ?? {});
+    if (allowed && enumMatches(candidate, allowed)) {
+      normalized.sort_by = candidate;
+    }
+  }
+
+  return normalized;
+}
+
 export function validateToolParams(
   tool: ToolDefinition,
   params: unknown,
@@ -346,6 +466,153 @@ function normalizeToolName(toolName: string): string {
   return trimmed || "unknown_tool";
 }
 
+type ToolActionFormatter = (params: Record<string, unknown>) => string;
+
+function readParamString(
+  params: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = params[key];
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readChanges(params: Record<string, unknown>): Record<string, unknown> {
+  return isRecord(params.changes) ? params.changes : {};
+}
+
+function readFirstLastName(params: Record<string, unknown>): string | null {
+  const firstName = readParamString(params, "first_name");
+  const lastName = readParamString(params, "last_name");
+  const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
+  return fullName || null;
+}
+
+function readNamedValue(
+  params: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = readParamString(params, key);
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function quotedName(value: string | null): string {
+  return value ? ` "${value}"` : "";
+}
+
+function selectedEntity(entity: string, name: string | null): string {
+  return name ? `${entity} "${name}"` : `the selected ${entity}`;
+}
+
+function customerName(params: Record<string, unknown>): string | null {
+  const changes = readChanges(params);
+  return (
+    readFirstLastName(params) ??
+    readFirstLastName(changes) ??
+    readParamString(params, "email") ??
+    readParamString(changes, "email")
+  );
+}
+
+function changedName(params: Record<string, unknown>): string | null {
+  return readNamedValue(readChanges(params), ["name", "title", "subject_line"]);
+}
+
+function customerCountLabel(params: Record<string, unknown>): string {
+  const customerIds = params.customer_ids;
+  if (Array.isArray(customerIds)) {
+    return `${customerIds.length} customer${customerIds.length === 1 ? "" : "s"}`;
+  }
+
+  return "selected customers";
+}
+
+const TOOL_ACTION_FORMATTERS: Record<string, ToolActionFormatter> = {
+  create_customer: (params) =>
+    `Create customer${quotedName(customerName(params))}`,
+  update_customer: (params) =>
+    `Update ${selectedEntity("customer", customerName(params))}`,
+  delete_customer: () => "Delete the selected customer",
+  create_product: (params) =>
+    `Create product${quotedName(readParamString(params, "name"))}`,
+  update_product: (params) =>
+    `Update ${selectedEntity("product", changedName(params))}`,
+  toggle_product_status: (params) => {
+    const status = readParamString(params, "status");
+    return status
+      ? `Change the selected product status to "${status}"`
+      : "Change the selected product status";
+  },
+  create_campaign: (params) =>
+    `Create campaign${quotedName(readParamString(params, "name"))}`,
+  update_campaign: (params) =>
+    `Update ${selectedEntity("campaign", changedName(params))}`,
+  clone_campaign: (params) =>
+    `Clone the selected campaign${quotedName(readParamString(params, "new_name"))}`,
+  schedule_campaign: (params) => {
+    const scheduledAt = readParamString(params, "scheduled_at");
+    return scheduledAt
+      ? `Schedule the selected campaign for ${scheduledAt}`
+      : "Schedule the selected campaign";
+  },
+  send_campaign: () => "Send the selected campaign now",
+  pause_resume_campaign: (params) => {
+    const action =
+      readParamString(params, "action") === "resume" ? "Resume" : "Pause";
+    return `${action} the selected campaign`;
+  },
+  create_segment: (params) =>
+    `Create segment${quotedName(readParamString(params, "name"))}`,
+  update_segment: (params) =>
+    `Update ${selectedEntity("segment", changedName(params))}`,
+  assign_segment: (params) => {
+    const action =
+      readParamString(params, "action") === "remove" ? "Remove" : "Add";
+    const direction = action === "Remove" ? "from" : "to";
+    return `${action} ${customerCountLabel(params)} ${direction} the selected segment`;
+  },
+  create_tag: (params) =>
+    `Create tag${quotedName(readParamString(params, "name"))}`,
+  bulk_tag_customers: (params) => {
+    const action =
+      readParamString(params, "action") === "remove"
+        ? "Remove a tag from"
+        : "Apply a tag to";
+    return `${action} ${customerCountLabel(params)}`;
+  },
+  manage_consent: (params) => {
+    const channel =
+      readParamString(params, "channel")?.toUpperCase() ?? "communication";
+    return readParamString(params, "action") === "opt_in"
+      ? `Opt the selected customer in to ${channel}`
+      : `Opt the selected customer out of ${channel}`;
+  },
+  export_data: (params) => {
+    const entity = readParamString(params, "entity") ?? "data";
+    const format = readParamString(params, "format")?.toUpperCase() ?? "file";
+    return `Export ${entity} as ${format}`;
+  },
+};
+
+export function humanizeToolAction(
+  toolName: string,
+  params: Record<string, unknown>,
+): string {
+  const formatter = TOOL_ACTION_FORMATTERS[toolName];
+  if (formatter) {
+    return formatter(params);
+  }
+
+  return `Run ${normalizeToolName(toolName).replace(/_/g, " ")}`;
+}
+
 function inferAffectedCount(params: JsonObject): number | null {
   const customerIds = params.customer_ids;
   if (Array.isArray(customerIds)) {
@@ -370,7 +637,6 @@ function isLikelyReversible(toolName: ToolName): boolean {
     case "send_campaign":
     case "bulk_tag_customers":
     case "manage_consent":
-    case "export_data":
       return false;
     default:
       return true;
@@ -412,7 +678,7 @@ function buildConfirmationDetails(
   params: JsonObject,
 ): ConfirmationDetails {
   return {
-    action: `${tool.function.name} with the validated parameters`,
+    action: humanizeToolAction(tool.function.name, params),
     affected_count: inferAffectedCount(params),
     reversible: isLikelyReversible(tool.function.name),
     risk_level: tool.risk_level,
@@ -427,13 +693,14 @@ function createConfirmationResult(
   const confirmationDetails = buildConfirmationDetails(tool, params);
   return createResult({
     success: true,
-    message: `Confirmation is required before Bloom can run ${tool.function.name}.`,
+    message: `Confirmation is required: ${confirmationDetails.action}`,
     blockType: "confirmation",
     confirmationRequired: true,
     confirmationDetails,
     data: {
       tool_name: tool.function.name,
       confirmation_details: confirmationDetails,
+      tool_params: params,
     },
   });
 }
@@ -690,7 +957,8 @@ export async function executeTool(
     return result;
   }
 
-  const validation = validateToolParams(tool, params);
+  const normalizedParams = normalizeToolParams(tool, params);
+  const validation = validateToolParams(tool, normalizedParams);
   if (!validation.ok) {
     result = validationErrorResult(validation.issues);
     await logToolExecution(context, {

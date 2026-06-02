@@ -9,9 +9,12 @@ import {
   duplicateDisplayResult,
   exportResultMetadata,
   inferEntityFromToolName,
+  isRecord,
   normalizeToolResult,
+  readString,
 } from "@/components/bloom/content/cards/cardUtils";
 import { BloomErrorCard } from "@/components/bloom/content/BloomErrorCard";
+import type { BloomErrorIssue } from "@/components/bloom/content/BloomErrorCard";
 
 export interface BloomToolResultCardProps {
   blockType?: string | null;
@@ -30,6 +33,32 @@ export interface BloomToolResultCardProps {
     | "failed"
     | null;
   toolName?: string | null;
+}
+
+function extractValidationIssues(data: unknown): BloomErrorIssue[] | undefined {
+  const rawIssues = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.issues)
+      ? data.issues
+      : null;
+  if (!rawIssues) {
+    return undefined;
+  }
+
+  const issues = rawIssues
+    .map((entry): BloomErrorIssue | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const message = readString(entry.message);
+      if (!message) {
+        return null;
+      }
+      return { path: readString(entry.path), message };
+    })
+    .filter((entry): entry is BloomErrorIssue => entry !== null);
+
+  return issues.length > 0 ? issues : undefined;
 }
 
 export function BloomToolResultCard({
@@ -57,6 +86,7 @@ export function BloomToolResultCard({
   if (result.status === "error") {
     return (
       <BloomErrorCard
+        issues={extractValidationIssues(result.data)}
         message={
           result.error ??
           result.message ??

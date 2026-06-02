@@ -10,10 +10,8 @@ import { Info } from "lucide-react";
 import { BloomAssistantMessage } from "@/components/bloom/BloomAssistantMessage";
 import { BloomContextualTip } from "@/components/bloom/BloomContextualTip";
 import { useBloomReducedMotion } from "@/components/bloom/BloomMotionContext";
-import {
-  BloomResponseLoadingAvatar,
-  BloomStreamingMessage,
-} from "@/components/bloom/BloomStreamingMessage";
+import { BloomStreamingMessage } from "@/components/bloom/BloomStreamingMessage";
+import { BloomStreamingIndicator } from "@/components/bloom/BloomToolLoadingPill";
 import { BloomUserMessage } from "@/components/bloom/BloomUserMessage";
 import { normalizeBloomBlockItems } from "@/components/bloom/blocks/blockUtils";
 import { useBloom } from "@/components/bloom/BloomContext";
@@ -94,47 +92,15 @@ function MessageSkeletons() {
   );
 }
 
-function TypingIndicator() {
-  const reducedMotion = useBloomReducedMotion();
-
+function TypingIndicator({
+  connectionState,
+}: {
+  connectionState: ReturnType<typeof useBloom>["connectionState"];
+}) {
   return (
-    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
-      <BloomResponseLoadingAvatar />
-      <Box
-        aria-hidden="true"
-        sx={{
-          alignItems: "center",
-          display: "inline-flex",
-          minHeight: 36,
-          width: "fit-content",
-        }}
-      >
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          {[0, 1, 2].map((index) => (
-            <Box
-              key={index}
-              sx={{
-                width: 6,
-                height: 6,
-                borderRadius: 999,
-                backgroundColor: "neutral.500",
-                animation: reducedMotion
-                  ? "none"
-                  : "bloomThinkingDot 1.4s ease-in-out infinite",
-                animationDelay: `${index * 140}ms`,
-                "@keyframes bloomThinkingDot": {
-                  "0%, 80%, 100%": {
-                    opacity: 0.35,
-                    transform: "translateY(0)",
-                  },
-                  "40%": { opacity: 1, transform: "translateY(-2px)" },
-                },
-              }}
-            />
-          ))}
-        </Stack>
-      </Box>
-    </Stack>
+    <Box sx={{ mb: 3 }}>
+      <BloomStreamingIndicator connectionState={connectionState} />
+    </Box>
   );
 }
 
@@ -657,7 +623,10 @@ export const BloomMessageList = React.forwardRef<
         ))
       )}
 
-      {isStreaming && !latestStreamingPlaceholder ? <TypingIndicator /> : null}
+      {(connectionState === "connecting" || connectionState === "streaming") &&
+      !latestStreamingPlaceholder ? (
+        <TypingIndicator connectionState={connectionState} />
+      ) : null}
     </Stack>
   );
 });

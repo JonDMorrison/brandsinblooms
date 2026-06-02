@@ -25,8 +25,10 @@ import {
   readString,
   rowsFromValue,
 } from "@/components/bloom/blocks/blockUtils";
-import { TaskExecutionProgress } from "@/components/bloom/task-plan/TaskExecutionProgress";
-import { TaskPlanBlock } from "@/components/bloom/task-plan/TaskPlanBlock";
+import {
+  BloomApprovalSummaryCard,
+  BloomExecutionResultCard,
+} from "@/components/bloom/task-plan/BloomPlanSummaryCards";
 import { parseBloomTaskPlan } from "@/hooks/bloom/taskPlanTypes";
 
 export type HeavyBlockType =
@@ -162,13 +164,12 @@ function readDataTablePayload(payload: unknown) {
 
 function TaskPlanRenderer({ payload }: { payload: unknown }) {
   const {
-    approveTaskPlan,
-    cancelTaskPlan,
+    getPlanDecision,
     getTaskCompletionSummary,
     getTaskStatuses,
     isTaskPlanExecuting,
+    pendingTaskPlan,
     retryTaskPlan,
-    sendMessage,
   } = useBloom();
   const plan = parseBloomTaskPlan(payload);
 
@@ -176,36 +177,46 @@ function TaskPlanRenderer({ payload }: { payload: unknown }) {
     return <HeavyFallbackBlock blockType="task_plan" payload={payload} />;
   }
 
+  // Pending plans are presented in the Approval Bar above the input (M01),
+  // not inside the chat flow.
+  if (pendingTaskPlan?.planId === plan.planId) {
+    return null;
+  }
+
+  const decision = getPlanDecision(plan.planId);
   const taskStatuses = getTaskStatuses(plan.planId);
   const completionSummary = getTaskCompletionSummary(plan.planId);
   const isExecuting = isTaskPlanExecuting(plan.planId);
+  const hasExecutionState =
+    completionSummary !== null || isExecuting || taskStatuses.size > 0;
 
-  const submitDiscussion = (question: string) => {
-    void sendMessage(question).catch(() => undefined);
-  };
+  if (decision?.decision === "cancelled") {
+    return (
+      <BloomApprovalSummaryCard
+        plan={plan}
+        status="cancelled"
+        approvedTaskIds={null}
+        at={decision.at}
+      />
+    );
+  }
 
   return (
     <Stack spacing={1}>
-      <TaskPlanBlock
-        compact={plan.compact}
-        isExecuting={isExecuting}
-        onApprove={(approvedTaskIds, editedFields) => {
-          void approveTaskPlan(plan, approvedTaskIds, editedFields).catch(
-            () => undefined,
-          );
-        }}
-        onCancel={() => cancelTaskPlan(plan.planId)}
-        onDiscuss={submitDiscussion}
+      <BloomApprovalSummaryCard
         plan={plan}
+        status="approved"
+        approvedTaskIds={decision?.approvedTaskIds ?? null}
+        at={decision?.at ?? null}
       />
-      {isExecuting || completionSummary ? (
-        <TaskExecutionProgress
-          completionSummary={completionSummary}
+      {hasExecutionState ? (
+        <BloomExecutionResultCard
+          plan={plan}
+          statuses={taskStatuses}
+          summary={completionSummary}
           onRetry={(taskId) => {
             void retryTaskPlan(plan, taskId).catch(() => undefined);
           }}
-          plan={plan}
-          taskStatuses={taskStatuses}
         />
       ) : null}
     </Stack>

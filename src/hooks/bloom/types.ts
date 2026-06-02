@@ -141,6 +141,7 @@ export interface BloomConversation {
   mode: BloomMode;
   messageCount: number;
   lastMessagePreview: string;
+  metadata: Json;
   createdAt: string;
   updatedAt: string;
 }
@@ -772,6 +773,7 @@ export const toBloomConversation = (
   mode: row.mode,
   messageCount: row.message_count,
   lastMessagePreview: row.last_message_preview?.trim() || "",
+  metadata: row.metadata,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });

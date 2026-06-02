@@ -132,6 +132,10 @@ function readString(value: unknown): string | null {
     : null;
 }
 
+function readNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 function readWorkspaceEntityType(value: unknown): WorkspaceEntityType | null {
   switch (value) {
     case "customer":
@@ -223,13 +227,19 @@ function parsePinnedContextEntity(value: unknown): PinnedContextEntity | null {
 function parseWorkspaceMemory(value: unknown): WorkspaceMemory {
   const record = isRecord(value) ? value : {};
   const recentEntities = Array.isArray(record.recent_entities)
-    ? record.recent_entities.map(parseRecentEntity).filter(Boolean)
+    ? record.recent_entities
+        .map(parseRecentEntity)
+        .filter((item): item is RecentEntity => item !== null)
     : [];
   const recentActions = Array.isArray(record.recent_actions)
-    ? record.recent_actions.map(parseRecentAction).filter(Boolean)
+    ? record.recent_actions
+        .map(parseRecentAction)
+        .filter((item): item is RecentAction => item !== null)
     : [];
   const pinnedContext = Array.isArray(record.pinned_context)
-    ? record.pinned_context.map(parsePinnedContextEntity).filter(Boolean)
+    ? record.pinned_context
+        .map(parsePinnedContextEntity)
+        .filter((item): item is PinnedContextEntity => item !== null)
     : [];
 
   return {
@@ -430,15 +440,16 @@ function extractQueryEntities(
       execution.input,
       timestamp,
     );
-    const memberEntities = Array.isArray(readOutputData(execution))
-      ? (readOutputData(execution) as JsonArray)
+    const outputData = readOutputData(execution);
+    const memberEntities = Array.isArray(outputData)
+      ? outputData
           .slice(0, MAX_LIST_ENTITIES_PER_TOOL)
           .map((item) => entityFromRecord("customer", item, timestamp))
-          .filter(Boolean)
+          .filter((item): item is RecentEntity => item !== null)
       : [];
 
     return [segmentEntity, ...memberEntities]
-      .filter(Boolean)
+      .filter((item): item is RecentEntity => item !== null)
       .slice(0, MAX_LIST_ENTITIES_PER_TOOL);
   }
 
@@ -452,7 +463,7 @@ function extractQueryEntities(
     return data
       .slice(0, MAX_LIST_ENTITIES_PER_TOOL)
       .map((item) => entityFromRecord(entityType, item, timestamp))
-      .filter(Boolean);
+      .filter((item): item is RecentEntity => item !== null);
   }
 
   const entity = entityFromRecord(entityType, data, timestamp);
@@ -691,7 +702,7 @@ export async function processPostResponse(
     );
   }
 
-  const currentRecord = isRecord(data) ? data : {};
+  const currentRecord: Record<string, unknown> = isRecord(data) ? data : {};
   const currentMemoryJson = isJsonObject(currentRecord.workspace_memory)
     ? currentRecord.workspace_memory
     : {};

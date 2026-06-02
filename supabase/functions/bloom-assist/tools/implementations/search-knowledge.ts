@@ -59,7 +59,7 @@ function readNumber(value: unknown): number | null {
 
 function jsonObjectOrEmpty(value: unknown): JsonObject {
   return isRecord(value) && Object.values(value).every(isJsonValue)
-    ? value
+    ? (value as JsonObject)
     : {};
 }
 

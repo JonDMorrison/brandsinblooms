@@ -77,7 +77,6 @@ export function selectModel(
       case "navigation":
         return STANDARD_MODEL;
       case "content":
-      case "image":
         return CONTENT_MODEL;
       case "mutation":
       case "analytics":

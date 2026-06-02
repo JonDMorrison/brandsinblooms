@@ -320,34 +320,35 @@ function ResultRow({
         alignItems={{ xs: "stretch", sm: "flex-start" }}
         justifyContent="space-between"
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="flex-start"
-          sx={{ minWidth: 0 }}
-        >
-          <JoyChip
-            color={tone}
-            size="sm"
-            variant="soft"
-            startDecorator={<Icon size={13} strokeWidth={1.9} />}
+        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            useFlexGap
+            sx={{ flexWrap: "wrap", minWidth: 0 }}
           >
-            {formatLabel(result.status)}
-          </JoyChip>
-          <Stack spacing={0.25} sx={{ minWidth: 0 }}>
             <Typography
               level="body-sm"
               sx={{ color: "neutral.800", overflowWrap: "anywhere" }}
             >
               {result.message}
             </Typography>
-            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-              {formatLabel(result.toolName ?? "Task")}
-              {result.executionTimeMs !== null
-                ? ` - ${formatNumberValue(result.executionTimeMs)} ms`
-                : ""}
-            </Typography>
+            <JoyChip
+              color={tone}
+              size="sm"
+              variant="soft"
+              startDecorator={<Icon size={13} strokeWidth={1.9} />}
+            >
+              {formatLabel(result.status)}
+            </JoyChip>
           </Stack>
+          <Typography level="body-xs" sx={{ color: "neutral.500" }}>
+            {formatLabel(result.toolName ?? "Task")}
+            {result.executionTimeMs !== null
+              ? ` - ${formatNumberValue(result.executionTimeMs)} ms`
+              : ""}
+          </Typography>
         </Stack>
 
         <Stack
@@ -403,6 +404,7 @@ export function ConfirmationBlock({
         <Stack
           direction={{ xs: "column", sm: "row" }}
           spacing={1}
+          alignItems={{ xs: "stretch", sm: "center" }}
           justifyContent="space-between"
         >
           <Stack spacing={0.35} sx={{ minWidth: 0 }}>

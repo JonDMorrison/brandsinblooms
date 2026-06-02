@@ -484,13 +484,13 @@ export function evaluateSegmentRule(
   group: SegmentRuleGroup,
   customer: Record<string, unknown>,
   context: SegmentEvaluationContext = {},
-) {
+): boolean {
   const normalized = normalizeSegmentRuleGroup(group);
   if (!normalized.children.length) {
     return false;
   }
 
-  const results = normalized.children.map((child) => {
+  const results: boolean[] = normalized.children.map((child) => {
     const maybeGroup = child as SegmentRuleGroup;
     return Array.isArray(maybeGroup.children)
       ? evaluateSegmentRule(maybeGroup, customer, context)

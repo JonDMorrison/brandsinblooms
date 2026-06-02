@@ -680,17 +680,15 @@ function trimHistoryToBudget(
   let truncatedHistoryCount = 0;
 
   while (estimateContextTokens(trimmed) > tokenBudget) {
-    const dropIndex = trimmed.findIndex(
-      (message) =>
-        !(
-          message.role === "system" &&
-          (message.content?.startsWith(
-            "Layer 5 - Conversation compaction summary:",
-          ) ||
-            message.content ===
-              "Layer 5 - Recent conversation history follows.")
-        ),
-    );
+    const dropIndex = trimmed.findIndex((message) => {
+      const content =
+        typeof message.content === "string" ? message.content : "";
+      return !(
+        message.role === "system" &&
+        (content.startsWith("Layer 5 - Conversation compaction summary:") ||
+          content === "Layer 5 - Recent conversation history follows.")
+      );
+    });
 
     if (dropIndex === -1) {
       break;
