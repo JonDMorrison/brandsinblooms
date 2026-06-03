@@ -1,94 +1,94 @@
-import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui-legacy/dialog';
-import { Button } from '@/components/ui-legacy/button';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CelebrationConfetti } from '@/components/ui-legacy/celebration-confetti';
-import { Calendar, ArrowLeft } from 'lucide-react';
+import React from "react";
+import Button from "@mui/joy/Button";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { format } from "date-fns";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 interface PlanSuccessModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const formatLaunchMonth = (month: string | null) => {
+  if (!month) return "your plan";
+
+  const parsed = new Date(`${month}-01T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? month : format(parsed, "MMMM yyyy");
+};
+
 export const PlanSuccessModal: React.FC<PlanSuccessModalProps> = ({
   open,
-  onOpenChange
+  onOpenChange,
 }) => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [showConfetti, setShowConfetti] = useState(false);
-  
-  // Extract launch details from URL params
-  const month = searchParams.get('launchMonth') || 'your plan';
-  const itemCount = searchParams.get('launchItems') || '0';
-  
-  useEffect(() => {
-    if (open) {
-      setShowConfetti(true);
-      
-      // Clear launch params from URL after modal opens
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('launchMonth');
-      newParams.delete('launchItems');
-      newParams.delete('planLaunched');
-      
-      const newUrl = window.location.pathname + (newParams.toString() ? '?' + newParams.toString() : '');
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [open, searchParams]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const planLaunched = searchParams.get("planLaunched") === "true";
+  const month = formatLaunchMonth(searchParams.get("launchMonth"));
+  const itemCount = searchParams.get("launchItems") || "0";
+  const modalOpen = open || planLaunched;
 
-  const handleViewCalendar = () => {
+  const clearLaunchParams = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("launchMonth");
+    nextParams.delete("launchItems");
+    nextParams.delete("planLaunched");
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleClose = () => {
+    clearLaunchParams();
     onOpenChange(false);
   };
 
-  const handleBackToDashboard = () => {
-    navigate('/dashboard');
+  const handleViewCalendar = () => {
+    onOpenChange(false);
+    navigate("/calendar", { replace: true });
+  };
+
+  const handleCreateAnotherPlan = () => {
+    onOpenChange(false);
+    navigate("/plan", { replace: true });
   };
 
   return (
-    <>
-      <CelebrationConfetti 
-        trigger={showConfetti} 
-        onComplete={() => setShowConfetti(false)} 
-      />
-      
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center">
-              <Calendar className="h-8 w-8 text-white" />
-            </div>
-            
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-              🎉 Your {month} Plan is Ready!
-            </DialogTitle>
-            
-            <p className="text-muted-foreground">
-              {itemCount} items have been scheduled across Email, SMS, and Social. 
-              You can view or edit them anytime in your calendar.
-            </p>
-          </DialogHeader>
-          
-          <div className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Button 
+    <Modal open={modalOpen} onClose={handleClose}>
+      <ModalDialog sx={{ maxWidth: 440, width: "calc(100% - 32px)" }}>
+        <ModalClose />
+        <Stack spacing={3} sx={{ pt: 1 }}>
+          <Stack spacing={1} sx={{ pr: 3 }}>
+            <Typography level="h3">{month} plan is ready</Typography>
+            <Typography color="neutral" level="body-md">
+              {itemCount} item{itemCount === "1" ? "" : "s"} have been scheduled
+              on your calendar. You can review dates, edit copy, and adjust
+              assets before anything is sent.
+            </Typography>
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
+            <Button
+              fullWidth
               onClick={handleViewCalendar}
-              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+              size="lg"
+              variant="solid"
             >
-              <Calendar className="h-4 w-4 mr-2" />
-              View My Calendar
+              View Calendar
             </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={handleBackToDashboard}
-              className="flex-1"
+            <Button
+              color="neutral"
+              fullWidth
+              onClick={handleCreateAnotherPlan}
+              size="lg"
+              variant="outlined"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
+              Create Another Plan
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          </Stack>
+        </Stack>
+      </ModalDialog>
+    </Modal>
   );
 };

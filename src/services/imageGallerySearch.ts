@@ -154,7 +154,6 @@ export async function searchGalleryForPost(
       p_limit: 5,
       p_min_confidence: 0.7,
       p_tags: searchTags,
-      p_tenant_id: params.tenantId,
     });
 
     if (error) {

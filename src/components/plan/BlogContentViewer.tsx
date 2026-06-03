@@ -1,183 +1,270 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-legacy/card';
-import { Badge } from '@/components/ui-legacy/badge';
-import { Button } from '@/components/ui-legacy/button';
-import { FileText, Clock, Tag, Copy, ExternalLink } from 'lucide-react';
-import { showToast } from '@/utils/toastUtils';
+import React from "react";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Snackbar from "@mui/joy/Snackbar";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { Copy, ExternalLink } from "lucide-react";
+import { convertMarkdownToHtml } from "@/utils/markdownUtils";
 
-interface BlogContentViewerProps {
-  blogItem: {
-    title: string;
-    caption: string;
-    enhancedContent?: {
-      title: string;
-      description: string;
-      fullContent: string;
-      tags: string[];
-      readingTime: string;
-    };
+interface BlogContentViewerItem {
+  title: string;
+  caption: string;
+  enhancedContent?: {
+    title?: string;
+    description?: string;
+    fullContent?: string;
+    readingTime?: string;
+    summary?: string;
+    tags?: string[];
   };
 }
 
-export const BlogContentViewer: React.FC<BlogContentViewerProps> = ({ blogItem }) => {
-  const enhanced = blogItem.enhancedContent;
+interface BlogContentViewerProps {
+  blogItem?: BlogContentViewerItem | null;
+  open?: boolean;
+  onClose?: () => void;
+}
 
-  if (!enhanced) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Blog Content Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-lg">{blogItem.title}</h3>
-              <p className="text-muted-foreground mt-2">{blogItem.caption}</p>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              Basic Description Only
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-    );
+const stripStyleTags = (html: string) =>
+  html.replace(/<style[\s\S]*?<\/style>/gi, "");
+
+const hasHtml = (value: string) => /<\/?[a-z][\s\S]*>/i.test(value);
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const getBlogFullContent = (blogItem: BlogContentViewerItem) =>
+  blogItem.enhancedContent?.fullContent || blogItem.caption;
+
+const getReadingTime = (blogItem: BlogContentViewerItem) => {
+  if (blogItem.enhancedContent?.readingTime) {
+    return blogItem.enhancedContent.readingTime;
   }
 
-  const copyContent = () => {
-    navigator.clipboard.writeText(enhanced.fullContent);
-    showToast.success('Blog content copied to clipboard!');
-  };
+  const wordCount = getBlogFullContent(blogItem)
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
+};
 
-  const copyMarkdown = () => {
-    const markdown = enhanced.fullContent;
-    navigator.clipboard.writeText(markdown);
-    showToast.success('Markdown content copied to clipboard!');
-  };
+const BlogContentBody = ({
+  blogItem,
+  onCopy,
+  onOpenNewTab,
+  renderedHtml,
+}: {
+  blogItem: BlogContentViewerItem;
+  onCopy: () => void;
+  onOpenNewTab: () => void;
+  renderedHtml: string;
+}) => {
+  const title = blogItem.enhancedContent?.title || blogItem.title;
+  const fullContent = getBlogFullContent(blogItem);
 
   return (
-    <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-purple-600" />
-                {enhanced.title}
-              </CardTitle>
-              <p className="text-muted-foreground">{enhanced.description}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {enhanced.readingTime}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {enhanced.tags.map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                <Tag className="h-3 w-3 mr-1" />
-                {tag}
-              </Badge>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={copyContent}
-              className="flex items-center gap-2"
-            >
-              <Copy className="h-4 w-4" />
-              Copy Content
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={copyMarkdown}
-              className="flex items-center gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Copy Markdown
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                window.open('data:text/html;charset=utf-8,' + encodeURIComponent(`
-                  <html>
-                    <head>
-                      <title>${enhanced.title}</title>
-                      <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-                        h1 { color: #1f2937; border-bottom: 3px solid #10b981; padding-bottom: 10px; }
-                        h2 { color: #374151; margin-top: 2em; }
-                        h3 { color: #4b5563; }
-                        ul, ol { margin: 1em 0; }
-                        li { margin: 0.5em 0; }
-                        p { margin: 1em 0; }
-                        strong { color: #1f2937; }
-                        code { background: #f3f4f6; padding: 2px 4px; border-radius: 3px; }
-                        pre { background: #f3f4f6; padding: 15px; border-radius: 6px; overflow-x: auto; }
-                        blockquote { border-left: 4px solid #10b981; margin: 0; padding-left: 20px; font-style: italic; }
-                        .highlight { background: #fef3c7; padding: 2px 4px; border-radius: 3px; }
-                      </style>
-                    </head>
-                    <body>
-                      ${enhanced.fullContent
-                        .replace(/\n/g, '<br>')
-                        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-                        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-                        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-                        .replace(/<h[1-3]>([^<]+)<br>/g, '<h$1>$2</h$1>')
-                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                        .replace(/^\* (.+)$/gm, '<li>$1</li>')
-                        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-                        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-                        .replace(/<br><br>/g, '</p><p>')
-                        .replace(/^/, '<p>')
-                        .replace(/$/, '</p>')
-                      }
-                    </body>
-                  </html>
-                `), '_blank');
-              }}
-              className="flex items-center gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open in New Tab
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+    <Stack spacing={2.5}>
+      <Stack
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        spacing={1.5}
+        sx={{ pr: { sm: 3 } }}
+      >
+        <Stack spacing={0.5}>
+          <Typography level="title-lg">{title}</Typography>
+          <Typography color="neutral" level="body-xs">
+            {fullContent.length} characters
+          </Typography>
+        </Stack>
+        <Chip color="neutral" size="sm" variant="soft">
+          {getReadingTime(blogItem)}
+        </Chip>
+      </Stack>
 
-      {/* Content Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Content Preview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-h-96 overflow-y-auto prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap font-mono text-sm bg-muted p-4 rounded-lg">
-              {enhanced.fullContent.substring(0, 1000)}
-              {enhanced.fullContent.length > 1000 && (
-                <div className="text-muted-foreground mt-2">
-                  ... and {enhanced.fullContent.length - 1000} more characters
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Total content length: {enhanced.fullContent.length} characters
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <Sheet
+        color="neutral"
+        variant="soft"
+        sx={{
+          borderRadius: "lg",
+          maxHeight: "62vh",
+          overflow: "auto",
+          p: { xs: 2, sm: 3 },
+        }}
+      >
+        <Box
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
+          sx={{
+            color: "text.primary",
+            "& blockquote": {
+              borderColor: "primary.outlinedBorder",
+              borderLeft: "3px solid",
+              color: "text.secondary",
+              m: 0,
+              my: 2,
+              pl: 2,
+            },
+            "& code": {
+              bgcolor: "background.level2",
+              borderRadius: "xs",
+              px: 0.5,
+            },
+            "& h1": {
+              color: "text.primary",
+              fontSize: "var(--joy-fontSize-xl3)",
+              lineHeight: "var(--joy-lineHeight-sm)",
+              mb: 2,
+            },
+            "& h2": {
+              color: "text.primary",
+              fontSize: "var(--joy-fontSize-xl2)",
+              lineHeight: "var(--joy-lineHeight-sm)",
+              mt: 3,
+              mb: 1.5,
+            },
+            "& h3": {
+              color: "text.primary",
+              fontSize: "var(--joy-fontSize-xl)",
+              mt: 2.5,
+              mb: 1,
+            },
+            "& li": {
+              color: "text.secondary",
+              lineHeight: "var(--joy-lineHeight-md)",
+              mb: 0.75,
+            },
+            "& p": {
+              color: "text.secondary",
+              lineHeight: "var(--joy-lineHeight-lg)",
+              mb: 1.5,
+            },
+            "& pre": {
+              bgcolor: "background.level2",
+              borderRadius: "md",
+              overflow: "auto",
+              p: 1.5,
+            },
+            "& ul, & ol": {
+              m: 0,
+              mb: 2,
+              pl: 3,
+            },
+          }}
+        />
+      </Sheet>
+
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="flex-end"
+        spacing={1}
+      >
+        <Button
+          color="neutral"
+          onClick={onCopy}
+          startDecorator={<Copy aria-hidden="true" size={16} />}
+          variant="outlined"
+        >
+          Copy Markdown
+        </Button>
+        <Button
+          color="neutral"
+          onClick={onOpenNewTab}
+          startDecorator={<ExternalLink aria-hidden="true" size={16} />}
+          variant="outlined"
+        >
+          Open in New Tab
+        </Button>
+      </Stack>
+    </Stack>
+  );
+};
+
+export const BlogContentViewer: React.FC<BlogContentViewerProps> = ({
+  blogItem,
+  onClose,
+  open,
+}) => {
+  const [notice, setNotice] = React.useState<string | null>(null);
+
+  const renderedHtml = React.useMemo(() => {
+    if (!blogItem) return "";
+
+    const fullContent = getBlogFullContent(blogItem);
+    return stripStyleTags(
+      hasHtml(fullContent) ? fullContent : convertMarkdownToHtml(fullContent),
+    );
+  }, [blogItem]);
+
+  if (!blogItem) {
+    return null;
+  }
+
+  const handleCopyMarkdown = () => {
+    void navigator.clipboard.writeText(getBlogFullContent(blogItem));
+    setNotice("Blog markdown copied");
+  };
+
+  const handleOpenNewTab = () => {
+    const title = blogItem.enhancedContent?.title || blogItem.title;
+    const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(
+      title,
+    )}</title></head><body><article>${renderedHtml}</article></body></html>`;
+
+    window.open(
+      `data:text/html;charset=utf-8,${encodeURIComponent(documentHtml)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  const content = (
+    <BlogContentBody
+      blogItem={blogItem}
+      onCopy={handleCopyMarkdown}
+      onOpenNewTab={handleOpenNewTab}
+      renderedHtml={renderedHtml}
+    />
+  );
+
+  return (
+    <>
+      {typeof open === "boolean" ? (
+        <Modal open={open} onClose={onClose}>
+          <ModalDialog
+            sx={{
+              maxHeight: "92vh",
+              maxWidth: 900,
+              overflow: "auto",
+              width: "calc(100% - 32px)",
+            }}
+          >
+            <ModalClose />
+            {content}
+          </ModalDialog>
+        </Modal>
+      ) : (
+        content
+      )}
+      <Snackbar
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
+        autoHideDuration={3000}
+        color="neutral"
+        onClose={() => setNotice(null)}
+        open={Boolean(notice)}
+        variant="soft"
+      >
+        {notice}
+      </Snackbar>
+    </>
   );
 };

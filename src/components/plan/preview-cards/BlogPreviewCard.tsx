@@ -1,138 +1,223 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui-legacy/card';
-import { Button } from '@/components/ui-legacy/button';
-import { FileText, Edit2, RefreshCw, Image as ImageIcon, Clock } from 'lucide-react';
-import { PlanItem } from '../constants';
-import { format } from 'date-fns';
-import { AIImageLoadingOverlay } from '@/components/ui-legacy/AIImageLoadingOverlay';
+import React from "react";
+import AspectRatio from "@mui/joy/AspectRatio";
+import Box from "@mui/joy/Box";
+import Card from "@mui/joy/Card";
+import CardContent from "@mui/joy/CardContent";
+import CardOverflow from "@mui/joy/CardOverflow";
+import Chip from "@mui/joy/Chip";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import IconButton from "@mui/joy/IconButton";
+import Link from "@mui/joy/Link";
+import Skeleton from "@mui/joy/Skeleton";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import { FileText, Image as ImageIcon, Pencil, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
+import { PlanItem } from "../constants";
 
 interface BlogPreviewCardProps {
   item: PlanItem;
   onEdit: () => void;
   onRegenerate: () => void;
   onImageSelect: () => void;
+  onReadMore: () => void;
 }
+
+const imageOverlayGradient =
+  "linear-gradient(to top, rgb(var(--joy-palette-common-blackChannel, 0 0 0) / 0.80), rgb(var(--joy-palette-common-blackChannel, 0 0 0) / 0.50), transparent)";
+
+const toDate = (date: Date | string) =>
+  date instanceof Date ? date : new Date(date);
+
+const getBlogFullContent = (item: PlanItem) =>
+  item.enhancedContent?.fullContent || item.caption;
+
+const getBlogPreview = (item: PlanItem) =>
+  item.enhancedContent?.summary || getBlogFullContent(item);
+
+const getBlogReadingTime = (item: PlanItem) => {
+  if (item.enhancedContent?.readingTime) {
+    return item.enhancedContent.readingTime;
+  }
+
+  const wordCount = getBlogFullContent(item)
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return `${Math.max(1, Math.ceil(wordCount / 200))} min read`;
+};
+
+const BlogImage = ({ item }: { item: PlanItem }) => {
+  const isGenerating = item.imageGenerationStatus === "generating";
+
+  return (
+    <AspectRatio ratio="16/9">
+      {isGenerating ? (
+        <Box sx={{ height: "100%", position: "relative", width: "100%" }}>
+          <Skeleton sx={{ height: "100%", inset: 0, position: "absolute" }} />
+          <Stack
+            alignItems="center"
+            justifyContent="center"
+            sx={{ height: "100%" }}
+          >
+            <CircularProgress size="sm" />
+          </Stack>
+        </Box>
+      ) : item.imageUrl ? (
+        <Box sx={{ height: "100%", position: "relative", width: "100%" }}>
+          <Box
+            alt={item.title}
+            component="img"
+            src={item.imageUrl}
+            sx={{ height: "100%", objectFit: "cover", width: "100%" }}
+          />
+          <Box
+            sx={{
+              background: imageOverlayGradient,
+              inset: 0,
+              position: "absolute",
+            }}
+          />
+          <Stack
+            justifyContent="flex-end"
+            sx={{ inset: 0, p: 2, position: "absolute" }}
+          >
+            <Typography
+              level="title-md"
+              sx={{ color: "common.white", fontWeight: "lg" }}
+            >
+              {item.title}
+            </Typography>
+          </Stack>
+        </Box>
+      ) : (
+        <Stack
+          alignItems="center"
+          justifyContent="center"
+          spacing={1}
+          sx={{ bgcolor: "neutral.softBg", color: "neutral.500" }}
+        >
+          <ImageIcon aria-hidden="true" size={24} />
+          <Typography color="neutral" level="body-xs">
+            Featured image can be selected
+          </Typography>
+        </Stack>
+      )}
+    </AspectRatio>
+  );
+};
 
 export const BlogPreviewCard: React.FC<BlogPreviewCardProps> = ({
   item,
   onEdit,
+  onImageSelect,
+  onReadMore,
   onRegenerate,
-  onImageSelect
 }) => {
-  // Image loading removed - placeholder for new AI implementation
-  const isGenerating = false;
-  
-  const truncateText = (text: string, length: number) => {
-    if (text.length <= length) return text;
-    return text.substring(0, length) + '...';
-  };
-
-  const estimatedReadTime = Math.ceil(item.caption.split(' ').length / 200);
+  const fullContent = getBlogFullContent(item);
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 bg-white dark:bg-card border-2 hover:border-primary/40">
-      {/* Blog Header */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-100 dark:from-purple-950/20 dark:to-indigo-900/20 p-4 border-b">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center">
-              <FileText className="h-4 w-4 text-white" />
-            </div>
-            <div className="text-sm font-semibold text-foreground">Blog Post</div>
-          </div>
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {estimatedReadTime} min read
-          </div>
-        </div>
-        <h3 className="font-bold text-lg text-foreground leading-tight">
-          {item.title}
-        </h3>
-      </div>
-
-      {/* Blog Content Preview */}
-      <CardContent className="p-4 space-y-3">
-        {/* Featured Image Area */}
-        <div className="relative w-full h-48 rounded-lg overflow-hidden">
-          {isGenerating ? (
-            <AIImageLoadingOverlay 
-              message="AI is creating your image..."
-            />
-          ) : item.imageUrl ? (
-            <div className="relative w-full h-full group">
-              <img 
-                src={item.imageUrl} 
-                alt={item.title}
-                className="w-full h-full object-cover"
-              />
-              <button
-                onClick={onImageSelect}
-                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-              >
-                <div className="text-white text-center">
-                  <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                  <p className="text-sm font-medium">Change Image</p>
-                </div>
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={onImageSelect}
-              className="w-full h-full bg-gradient-to-br from-muted/30 to-muted/50 flex flex-col items-center justify-center hover:from-primary/10 hover:to-primary/20 transition-all duration-300 cursor-pointer group"
+    <Card variant="outlined" sx={{ overflow: "hidden", p: 0 }}>
+      <CardContent sx={{ p: 2 }}>
+        <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ flexWrap: "wrap" }}
+            useFlexGap
+          >
+            <Chip
+              color="neutral"
+              size="sm"
+              startDecorator={<FileText aria-hidden="true" size={14} />}
+              variant="soft"
             >
-              <ImageIcon className="h-12 w-12 mb-3 text-muted-foreground group-hover:text-primary transition-colors" />
-              <p className="text-sm font-medium text-foreground mb-1">Choose Image</p>
-              <p className="text-xs text-muted-foreground">Click to select from library or upload</p>
-            </button>
-          )}
-        </div>
-
-        {/* Blog Excerpt */}
-        <div className="text-sm text-foreground/80 leading-relaxed">
-          {truncateText(item.caption, 250)}
-        </div>
-
-        {/* Read More Link */}
-        <div className="pt-2">
-          <span className="text-sm text-primary font-medium hover:underline cursor-pointer">
-            Read full article →
-          </span>
-        </div>
-
-        {/* Meta Info */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2">
-          <span>Published {format(item.date, 'MMM d, yyyy')}</span>
-          <span>·</span>
-          <span>{item.themeName || 'Seasonal'}</span>
-        </div>
+              Blog
+            </Chip>
+            {item.themeName && (
+              <Chip color="primary" size="sm" variant="soft">
+                {item.themeName}
+              </Chip>
+            )}
+          </Stack>
+          <Typography color="neutral" level="body-xs">
+            {format(toDate(item.date), "MMM d")}
+          </Typography>
+        </Stack>
       </CardContent>
 
-      {/* Action Buttons */}
-      <div className="border-t bg-muted/20 p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onEdit}
-            className="gap-1"
+      <CardOverflow>
+        <BlogImage item={item} />
+      </CardOverflow>
+
+      <CardContent sx={{ p: 2.25 }}>
+        <Stack spacing={1.25}>
+          {!item.imageUrl && (
+            <Typography level="title-md" sx={{ fontWeight: "lg" }}>
+              {item.title}
+            </Typography>
+          )}
+          <Typography color="neutral" level="body-xs">
+            {getBlogReadingTime(item)} · {fullContent.length} characters
+          </Typography>
+          <Typography
+            color="neutral"
+            level="body-sm"
+            sx={{
+              display: "-webkit-box",
+              overflow: "hidden",
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 3,
+            }}
           >
-            <Edit2 className="h-3 w-3" />
-            Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRegenerate}
-            className="gap-1"
+            {getBlogPreview(item)}
+          </Typography>
+          <Link
+            component="button"
+            level="body-xs"
+            onClick={onReadMore}
+            type="button"
           >
-            <RefreshCw className="h-3 w-3" />
-            Regenerate
-          </Button>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          📝 Blog
-        </div>
-      </div>
+            Read more
+          </Link>
+        </Stack>
+      </CardContent>
+
+      <Divider />
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        spacing={0.75}
+        sx={{ p: 1.25 }}
+      >
+        <IconButton
+          aria-label="Edit blog post"
+          color="neutral"
+          onClick={onEdit}
+          size="sm"
+          variant="plain"
+        >
+          <Pencil size={16} />
+        </IconButton>
+        <IconButton
+          aria-label="Regenerate blog post"
+          color="neutral"
+          onClick={onRegenerate}
+          size="sm"
+          variant="plain"
+        >
+          <RefreshCw size={16} />
+        </IconButton>
+        <IconButton
+          aria-label="Select blog image"
+          color="neutral"
+          onClick={onImageSelect}
+          size="sm"
+          variant="plain"
+        >
+          <ImageIcon size={16} />
+        </IconButton>
+      </Stack>
     </Card>
   );
 };

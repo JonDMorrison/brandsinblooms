@@ -1,21 +1,38 @@
 import { useState, useEffect } from "react";
+import Accordion from "@mui/joy/Accordion";
+import AccordionDetails from "@mui/joy/AccordionDetails";
+import AccordionGroup from "@mui/joy/AccordionGroup";
+import AccordionSummary from "@mui/joy/AccordionSummary";
+import Avatar from "@mui/joy/Avatar";
+import Box from "@mui/joy/Box";
+import Button from "@mui/joy/Button";
+import Card from "@mui/joy/Card";
+import Checkbox from "@mui/joy/Checkbox";
+import CircularProgress from "@mui/joy/CircularProgress";
+import Divider from "@mui/joy/Divider";
+import FormControl from "@mui/joy/FormControl";
+import FormHelperText from "@mui/joy/FormHelperText";
+import FormLabel from "@mui/joy/FormLabel";
+import Input from "@mui/joy/Input";
+import Modal from "@mui/joy/Modal";
+import ModalClose from "@mui/joy/ModalClose";
+import ModalDialog from "@mui/joy/ModalDialog";
+import Sheet from "@mui/joy/Sheet";
+import Stack from "@mui/joy/Stack";
+import Textarea from "@mui/joy/Textarea";
+import Tooltip from "@mui/joy/Tooltip";
+import Typography from "@mui/joy/Typography";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui-legacy/dialog";
-import { Button } from "@/components/ui-legacy/button";
-import { Input } from "@/components/ui-legacy/input";
-import { Label } from "@/components/ui-legacy/label";
-import { Checkbox } from "@/components/ui-legacy/checkbox";
-import { Textarea } from "@/components/ui-legacy/textarea";
-import { X, Plus, Users2, Sparkles } from "lucide-react";
-import { PersonaTag } from "./PersonaTag";
+  Check,
+  Info,
+  Plus,
+  Search,
+  Target,
+  UserCircle,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ConceptTooltip } from "./ConceptTooltip";
-import { PersonaVsSegmentExplainer } from "./PersonaVsSegmentExplainer";
 import { getPersonaEmoji } from "@/config/systemPersonas";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
 
@@ -27,6 +44,34 @@ interface PersonaSelectorModalProps {
   title?: string;
   description?: string;
 }
+
+const sectionHeadingSx = {
+  color: "neutral.500",
+  letterSpacing: "0.05em",
+  textTransform: "uppercase",
+} as const;
+
+const selectableCardSx = (isSelected: boolean) => ({
+  cursor: "pointer",
+  transition: "all 0.15s ease",
+  borderColor: isSelected ? "primary.500" : "neutral.outlinedBorder",
+  bgcolor: isSelected ? "primary.softBg" : "background.surface",
+  boxShadow: isSelected ? "sm" : "none",
+  "&:hover": {
+    borderColor: isSelected ? "primary.500" : "primary.300",
+    bgcolor: "primary.softBg",
+  },
+});
+
+const clampSx = (lines: number) => ({
+  display: "-webkit-box",
+  WebkitLineClamp: lines,
+  WebkitBoxOrient: "vertical" as const,
+  overflow: "hidden",
+});
+
+const matchesQuery = (value: string | null | undefined, query: string) =>
+  !query || (value ?? "").toLowerCase().includes(query);
 
 export const PersonaSelectorModal = ({
   open,
@@ -44,6 +89,7 @@ export const PersonaSelectorModal = ({
     persona_description: "",
   });
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
   const { toast } = useToast();
   const { personas, loading, createPersona } = useAllPersonas();
 
@@ -52,9 +98,14 @@ export const PersonaSelectorModal = ({
 
   useEffect(() => {
     if (open) {
+      // Re-seed selection on open only. Consumers pass a freshly-mapped
+      // selectedPersonaIds array each render, so keying on it would reset
+      // in-modal toggles (and any just-created persona) on unrelated parent
+      // re-renders. Matches SegmentSelectorModal's intentional [open] keying.
       setSelectedPredefined(selectedPersonaIds);
     }
-  }, [open, selectedPersonaIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handlePredefinedToggle = (personaId: string) => {
     setSelectedPredefined((prev) =>
@@ -134,230 +185,498 @@ export const PersonaSelectorModal = ({
   const handleClose = () => {
     setShowCustomForm(false);
     setCustomPersona({ persona_name: "", persona_description: "" });
+    setSearch("");
     onClose();
   };
 
-  return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent
-        className="max-w-3xl max-h-[80vh] overflow-y-auto"
-        aria-describedby="persona-selector-desc"
-      >
-        <p id="persona-selector-desc" className="sr-only">
-          Select target customer personas based on gardening experience levels
-          to define your campaign audience.
-        </p>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Users2 className="h-5 w-5 text-purple-600" />
-            <ConceptTooltip type="persona">{title}</ConceptTooltip>
-          </DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+  const query = search.trim().toLowerCase();
+  const filteredPredefined = predefinedPersonas.filter((persona) =>
+    matchesQuery(persona.persona_name, query),
+  );
+  const filteredSaved = savedPersonas.filter((persona) =>
+    matchesQuery(persona.persona_name, query),
+  );
+  const selectedCount = selectedPredefined.length;
 
-        <div className="space-y-6">
-          {/* Predefined Personas */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4">
-              Choose from Popular Personas
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {predefinedPersonas.map((persona) => (
-                <div
-                  key={persona.id}
-                  className="p-4 border rounded-xl hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-colors"
-                  onClick={() => handlePredefinedToggle(persona.id)}
+  return (
+    <Modal open={open} onClose={handleClose}>
+      <ModalDialog
+        aria-labelledby="persona-selector-title"
+        layout="center"
+        variant="outlined"
+        sx={{
+          width: { xs: "95vw", sm: 600, md: 700 },
+          maxHeight: "85vh",
+          borderRadius: "xl",
+          p: 0,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <ModalClose sx={{ zIndex: 20 }} />
+
+        {/* A. HEADER */}
+        <Box
+          sx={{
+            bgcolor: "background.surface",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            px: 3,
+            pt: 2.5,
+            pb: 2,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "flex-start" }}>
+            <Box sx={{ color: "primary.500", display: "inline-flex", mt: 0.25 }}>
+              <UserCircle aria-hidden="true" size={22} />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0, pr: 4 }}>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{ alignItems: "center" }}
+              >
+                <Typography id="persona-selector-title" level="title-lg">
+                  {title}
+                </Typography>
+                <Tooltip
+                  arrow
+                  title="Personas are fictional profiles representing customer types, used to personalize messaging."
                 >
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id={persona.id}
-                      checked={selectedPredefined.includes(persona.id)}
-                      onCheckedChange={() => handlePredefinedToggle(persona.id)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-lg">
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      color: "neutral.400",
+                      cursor: "help",
+                      display: "inline-flex",
+                    }}
+                  >
+                    <Info size={16} />
+                  </Box>
+                </Tooltip>
+              </Stack>
+              <Typography color="neutral" level="body-sm">
+                {description}
+              </Typography>
+            </Box>
+          </Stack>
+          <Input
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search personas..."
+            size="sm"
+            slotProps={{ input: { "aria-label": "Search personas" } }}
+            startDecorator={<Search aria-hidden="true" size={16} />}
+            sx={{ mt: 1.5 }}
+            value={search}
+            variant="outlined"
+          />
+        </Box>
+
+        {/* B. BODY */}
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 3, py: 2 }}>
+          <Typography level="title-sm" sx={{ ...sectionHeadingSx, mb: 1.5 }}>
+            Popular Personas
+          </Typography>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+              <CircularProgress size="sm" />
+            </Box>
+          ) : filteredPredefined.length > 0 ? (
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1.5,
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+              }}
+            >
+              {filteredPredefined.map((persona) => {
+                const isSelected = selectedPredefined.includes(persona.id);
+                return (
+                  <Card
+                    key={persona.id}
+                    aria-pressed={isSelected}
+                    onClick={() => handlePredefinedToggle(persona.id)}
+                    role="button"
+                    size="sm"
+                    variant="outlined"
+                    sx={{ ...selectableCardSx(isSelected), minHeight: 140 }}
+                  >
+                    <Stack spacing={1}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center" }}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          readOnly
+                          slotProps={{ input: { tabIndex: -1 } }}
+                          sx={{ pointerEvents: "none" }}
+                        />
+                        <Avatar
+                          size="sm"
+                          variant="soft"
+                          sx={{ bgcolor: "primary.softBg", fontSize: "1.25rem" }}
+                        >
                           {getPersonaEmoji(persona)}
-                        </span>
-                        <Label
-                          htmlFor={persona.id}
-                          className="text-sm font-medium cursor-pointer"
+                        </Avatar>
+                        <Typography
+                          level="title-sm"
+                          noWrap
+                          sx={{ flex: 1, minWidth: 0 }}
                         >
                           {persona.persona_name}
-                        </Label>
-                      </div>
-                      <p className="text-xs text-gray-600 leading-relaxed">
-                        {persona.persona_description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Existing Custom Personas */}
-          {savedPersonas.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">
-                Your Custom Personas
-              </h3>
-              <div className="space-y-2">
-                {savedPersonas.map((persona) => (
-                  <div
-                    key={persona.id}
-                    className="flex items-center space-x-3 p-3 border rounded-lg"
-                  >
-                    <Checkbox
-                      id={persona.id}
-                      checked={selectedPredefined.includes(persona.id)}
-                      onCheckedChange={() => handlePredefinedToggle(persona.id)}
-                    />
-                    <div className="flex-1">
-                      <Label
-                        htmlFor={persona.id}
-                        className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                        </Typography>
+                      </Stack>
+                      <Typography
+                        color="neutral"
+                        level="body-xs"
+                        sx={clampSx(3)}
                       >
-                        <span>{getPersonaEmoji(persona)}</span>
-                        {persona.persona_name}
-                      </Label>
-                      {persona.persona_description && (
-                        <p className="text-xs text-gray-600 mt-1">
-                          {persona.persona_description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                        {persona.persona_description}
+                      </Typography>
+                    </Stack>
+                  </Card>
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography
+              color="neutral"
+              level="body-sm"
+              sx={{ fontStyle: "italic" }}
+            >
+              {query
+                ? `No personas match "${search}".`
+                : "No personas available."}
+            </Typography>
           )}
 
-          {/* Custom Persona Creation */}
-          <div>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography level="title-sm" sx={{ ...sectionHeadingSx, mb: 1.5 }}>
+            Your Custom Personas
+          </Typography>
+          {filteredSaved.length > 0 ? (
+            <Stack spacing={1.5}>
+              {filteredSaved.map((persona) => {
+                const isSelected = selectedPredefined.includes(persona.id);
+                return (
+                  <Card
+                    key={persona.id}
+                    aria-pressed={isSelected}
+                    onClick={() => handlePredefinedToggle(persona.id)}
+                    role="button"
+                    size="sm"
+                    variant="outlined"
+                    sx={selectableCardSx(isSelected)}
+                  >
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center" }}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        readOnly
+                        slotProps={{ input: { tabIndex: -1 } }}
+                        sx={{ pointerEvents: "none" }}
+                      />
+                      <Avatar
+                        size="sm"
+                        variant="soft"
+                        sx={{ bgcolor: "primary.softBg", fontSize: "1.25rem" }}
+                      >
+                        {getPersonaEmoji(persona)}
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography level="title-sm">
+                          {persona.persona_name}
+                        </Typography>
+                        {persona.persona_description && (
+                          <Typography
+                            color="neutral"
+                            level="body-xs"
+                            sx={clampSx(2)}
+                          >
+                            {persona.persona_description}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
+                  </Card>
+                );
+              })}
+            </Stack>
+          ) : (
+            <Typography
+              color="neutral"
+              level="body-sm"
+              sx={{ fontStyle: "italic" }}
+            >
+              {savedPersonas.length === 0
+                ? "No custom personas yet."
+                : `No custom personas match "${search}".`}
+            </Typography>
+          )}
+
+          <Box sx={{ mt: 2 }}>
             {!showCustomForm ? (
               <Button
-                variant="outline"
+                color="neutral"
+                fullWidth
                 onClick={() => setShowCustomForm(true)}
-                className="w-full border-dashed border-2 hover:border-purple-300 hover:bg-purple-50 rounded-xl"
+                startDecorator={<Plus aria-hidden="true" size={16} />}
+                sx={{ borderStyle: "dashed" }}
+                variant="outlined"
               >
-                <Plus className="h-4 w-4 mr-2" />
                 Add Your Own Persona
               </Button>
             ) : (
-              <div className="border rounded-xl p-4 bg-purple-50">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold">Create Custom Persona</h4>
+              <Sheet
+                variant="outlined"
+                sx={{ borderRadius: "md", overflow: "hidden" }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  sx={{
+                    alignItems: "center",
+                    bgcolor: "background.level1",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    px: 2,
+                    py: 1.5,
+                  }}
+                >
+                  <Box sx={{ color: "primary.500", display: "inline-flex" }}>
+                    <UserPlus aria-hidden="true" size={18} />
+                  </Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography level="title-sm">
+                      Create Custom Persona
+                    </Typography>
+                    <Typography color="neutral" level="body-xs">
+                      Give it a name and a short description of who they are.
+                    </Typography>
+                  </Box>
+                </Stack>
+                <Box sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <FormControl required>
+                      <FormLabel>Persona Name</FormLabel>
+                      <Input
+                        onChange={(event) =>
+                          setCustomPersona((prev) => ({
+                            ...prev,
+                            persona_name: event.target.value,
+                          }))
+                        }
+                        placeholder="e.g., Succulent Sam"
+                        slotProps={{ input: { maxLength: 50 } }}
+                        value={customPersona.persona_name}
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Description</FormLabel>
+                      <Textarea
+                        maxRows={6}
+                        minRows={3}
+                        onChange={(event) =>
+                          setCustomPersona((prev) => ({
+                            ...prev,
+                            persona_description: event.target.value,
+                          }))
+                        }
+                        placeholder="Describe this customer persona..."
+                        slotProps={{ textarea: { maxLength: 250 } }}
+                        value={customPersona.persona_description}
+                      />
+                      <FormHelperText sx={{ justifyContent: "flex-end" }}>
+                        {customPersona.persona_description.length}/250 characters
+                      </FormHelperText>
+                    </FormControl>
+                  </Stack>
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: "background.level1",
+                    borderTop: "1px solid",
+                    borderColor: "divider",
+                    display: "flex",
+                    gap: 1,
+                    justifyContent: "flex-end",
+                    px: 2,
+                    py: 1.5,
+                  }}
+                >
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCustomForm(false)}
+                    color="neutral"
+                    disabled={creating}
+                    onClick={() => {
+                      setShowCustomForm(false);
+                      setCustomPersona({
+                        persona_name: "",
+                        persona_description: "",
+                      });
+                    }}
+                    variant="plain"
                   >
-                    <X className="h-4 w-4" />
+                    Cancel
                   </Button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="persona-name">Persona Name *</Label>
-                    <Input
-                      id="persona-name"
-                      value={customPersona.persona_name}
-                      onChange={(e) =>
-                        setCustomPersona((prev) => ({
-                          ...prev,
-                          persona_name: e.target.value,
-                        }))
-                      }
-                      placeholder="e.g., Succulent Sam"
-                      maxLength={50}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="persona-description">Description</Label>
-                    <Textarea
-                      id="persona-description"
-                      value={customPersona.persona_description}
-                      onChange={(e) =>
-                        setCustomPersona((prev) => ({
-                          ...prev,
-                          persona_description: e.target.value,
-                        }))
-                      }
-                      placeholder="Describe this customer persona..."
-                      rows={3}
-                      maxLength={250}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {customPersona.persona_description.length}/250 characters
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={createCustomPersona}
-                      disabled={creating}
-                      className="bg-purple-600 hover:bg-purple-700"
-                    >
-                      {creating ? "Creating..." : "Create Persona"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCustomForm(false)}
-                      disabled={creating}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
+                  <Button
+                    color="primary"
+                    disabled={!customPersona.persona_name.trim()}
+                    loading={creating}
+                    onClick={createCustomPersona}
+                    startDecorator={<Plus aria-hidden="true" size={16} />}
+                    variant="solid"
+                  >
+                    Create Persona
+                  </Button>
+                </Box>
+              </Sheet>
             )}
-          </div>
+          </Box>
 
-          {/* Selected Preview */}
-          {selectedPredefined.length > 0 && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <h4 className="font-medium mb-3">
-                Selected Personas ({selectedPredefined.length})
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {selectedPredefined.map((personaId) => {
-                  const persona = personas.find(
-                    (item) => item.id === personaId,
-                  );
-                  return persona ? (
-                    <PersonaTag key={personaId} persona={persona} size="sm" />
-                  ) : null;
-                })}
-              </div>
-            </div>
-          )}
+          {/* FAQ */}
+          <AccordionGroup
+            sx={{ borderRadius: "md", mt: 2 }}
+            variant="soft"
+          >
+            <Accordion>
+              <AccordionSummary>
+                What's the difference between personas and segments?
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={1.5} sx={{ pt: 1 }}>
+                  <Box
+                    sx={{
+                      display: "grid",
+                      gap: 1.5,
+                      gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    }}
+                  >
+                    <Sheet
+                      color="primary"
+                      variant="soft"
+                      sx={{ borderRadius: "md", p: 1.5 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center", mb: 1 }}
+                      >
+                        <Box sx={{ color: "primary.500", display: "inline-flex" }}>
+                          <Users aria-hidden="true" size={16} />
+                        </Box>
+                        <Typography level="title-sm">Personas</Typography>
+                      </Stack>
+                      <Typography level="body-xs" sx={{ mb: 1 }}>
+                        Fictional profiles representing customer types
+                      </Typography>
+                      <Stack spacing={0.5}>
+                        <Typography level="body-xs">
+                          • <strong>Purpose:</strong> Personalize messaging
+                        </Typography>
+                        <Typography level="body-xs">
+                          • <strong>Example:</strong> "DIY Dana" - loves hands-on
+                          projects
+                        </Typography>
+                        <Typography level="body-xs">
+                          • <strong>Used for:</strong> Content tone, product
+                          suggestions
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                    <Sheet
+                      color="success"
+                      variant="soft"
+                      sx={{ borderRadius: "md", p: 1.5 }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center", mb: 1 }}
+                      >
+                        <Box sx={{ color: "success.500", display: "inline-flex" }}>
+                          <Target aria-hidden="true" size={16} />
+                        </Box>
+                        <Typography level="title-sm">Segments</Typography>
+                      </Stack>
+                      <Typography level="body-xs" sx={{ mb: 1 }}>
+                        Real groups of customers with shared traits
+                      </Typography>
+                      <Stack spacing={0.5}>
+                        <Typography level="body-xs">
+                          • <strong>Purpose:</strong> Target specific audiences
+                        </Typography>
+                        <Typography level="body-xs">
+                          • <strong>Example:</strong> "Loyalty Members" - 847
+                          customers
+                        </Typography>
+                        <Typography level="body-xs">
+                          • <strong>Used for:</strong> Campaign targeting,
+                          analytics
+                        </Typography>
+                      </Stack>
+                    </Sheet>
+                  </Box>
+                  <Sheet
+                    variant="soft"
+                    sx={{ borderRadius: "md", p: 1.5 }}
+                  >
+                    <Typography color="neutral" level="body-xs">
+                      <strong>Pro tip:</strong> Use personas to craft the right
+                      message, then use segments to send it to the right people.
+                    </Typography>
+                  </Sheet>
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          </AccordionGroup>
+        </Box>
 
-          {/* Persona vs Segment Explainer */}
-          <PersonaVsSegmentExplainer />
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-between items-center pt-4 border-t">
-          <p className="text-sm text-gray-600">
-            {selectedPredefined.length === 0
-              ? "No personas selected yet."
-              : `${selectedPredefined.length} persona${selectedPredefined.length !== 1 ? "s" : ""} selected`}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleClose}>
+        {/* C. FOOTER */}
+        <Box
+          sx={{
+            alignItems: "center",
+            bgcolor: "background.surface",
+            borderTop: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            gap: 2,
+            px: 3,
+            py: 2,
+          }}
+        >
+          <Typography
+            color={selectedCount > 0 ? "primary" : "neutral"}
+            level="body-sm"
+            startDecorator={
+              selectedCount > 0 ? <Check aria-hidden="true" size={16} /> : null
+            }
+          >
+            {selectedCount > 0
+              ? `${selectedCount} persona${selectedCount === 1 ? "" : "s"} selected`
+              : "No personas selected yet"}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ ml: "auto" }}>
+            <Button color="neutral" onClick={handleClose} variant="plain">
               Cancel
             </Button>
             <Button
+              color="primary"
+              disabled={loading}
               onClick={handleConfirm}
-              className="bg-purple-600 hover:bg-purple-700"
+              variant="solid"
             >
               Save Selection
             </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+          </Stack>
+        </Box>
+      </ModalDialog>
+    </Modal>
   );
 };
