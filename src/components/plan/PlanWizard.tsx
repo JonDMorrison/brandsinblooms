@@ -286,6 +286,7 @@ const PlanWizardContent: React.FC = () => {
       sx={{
         bgcolor: "background.surface",
         minHeight: "100%",
+        flexShrink: 0,
         px: { xs: 2, sm: 3 },
         py: { xs: 3, md: 4 },
       }}

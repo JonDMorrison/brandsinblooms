@@ -9,6 +9,7 @@ import ChipDelete from "@mui/joy/ChipDelete";
 import FormControl from "@mui/joy/FormControl";
 import FormLabel from "@mui/joy/FormLabel";
 import Input from "@mui/joy/Input";
+import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
@@ -209,8 +210,17 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
   const canProceed = Boolean(state.month && state.themes.length > 0);
 
   return (
-    <Stack spacing={{ xs: 3, md: 4 }}>
-      <Stack spacing={1} sx={{ textAlign: "center" }}>
+    <Sheet
+      variant="outlined"
+      sx={{
+        bgcolor: "background.surface",
+        borderRadius: "lg",
+        p: { xs: 2, md: 3 },
+        mb: { xs: 3, md: 4 },
+      }}
+    >
+      <Stack spacing={{ xs: 3, md: 4 }}>
+        <Stack spacing={1} sx={{ textAlign: "center" }}>
         <Typography level="h3">Plan Your Marketing Focus</Typography>
         <Typography
           color="neutral"
@@ -432,6 +442,7 @@ export const PlanStepTheme: React.FC<PlanStepThemeProps> = ({ onNext }) => {
           Continue to Content Generation
         </Button>
       </Box>
-    </Stack>
+      </Stack>
+    </Sheet>
   );
 };

@@ -210,6 +210,7 @@ export const PlanStepReview: React.FC<PlanStepReviewProps> = ({
       <Card variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack spacing={2.5}>
           <Stack
+            alignItems={{ xs: "flex-start", sm: "center" }}
             direction={{ xs: "column", sm: "row" }}
             spacing={1.5}
             justifyContent="space-between"

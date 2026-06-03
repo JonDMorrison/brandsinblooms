@@ -50,6 +50,7 @@ import { format } from "date-fns";
 import { parseMonthParam } from "@/utils/dateUtils";
 import { usePlanWizard } from "../PlanWizardContext";
 import { PlanItem } from "../constants";
+import { ContentGenerationLoader } from "../ContentGenerationLoader";
 import { generateMultiThemeSeasonalPlanContent } from "@/services/seasonalPlanGenerator";
 import {
   MediaSelectorImage,
@@ -351,85 +352,46 @@ const generatePlanItemImage = async (
   return buildGeneratedPlanItemImage(item, result);
 };
 
-const GenerationSkeletonCard = () => (
-  <Card variant="outlined" sx={{ minHeight: 228, overflow: "hidden", p: 2.5 }}>
-    <Stack spacing={2}>
-      <Stack direction="row" justifyContent="space-between" spacing={2}>
-        <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
-          <Skeleton height={28} variant="rectangular" width={86} />
-          <Skeleton height={28} variant="rectangular" width={104} />
-        </Stack>
-        <Skeleton height={28} variant="rectangular" width={92} />
-      </Stack>
-      <Stack spacing={0.75}>
-        <Skeleton level="title-sm" variant="text" width="64%" />
-        <Skeleton level="body-sm" variant="text" width="100%" />
-        <Skeleton level="body-sm" variant="text" width="92%" />
-        <Skeleton level="body-sm" variant="text" width="70%" />
-      </Stack>
-      <Skeleton height={92} variant="rectangular" />
-    </Stack>
-  </Card>
-);
-
-const GenerationState = ({
+const GenerationErrorState = ({
   error,
   monthName,
   onRetry,
-  progress,
 }: {
-  error: string | null;
+  error: string;
   monthName: string;
   onRetry: () => void;
-  progress: number;
 }) => (
-  <Stack spacing={2.5}>
-    <Card variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={2}>
-        <Stack spacing={0.75}>
-          <Typography level="h3">Generating Your Content Calendar</Typography>
-          <Typography color="neutral" level="body-md">
-            AI is creating a multi-channel plan for{" "}
-            {monthName || "your selected month"}.
-          </Typography>
-        </Stack>
-        {error ? (
-          <Alert
-            color="danger"
-            endDecorator={
-              <Button color="danger" onClick={onRetry} size="sm" variant="soft">
-                Retry
-              </Button>
-            }
-            startDecorator={<AlertTriangle aria-hidden="true" size={18} />}
-            variant="soft"
-          >
-            {error}
-          </Alert>
-        ) : (
-          <Stack spacing={0.75}>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography color="neutral" level="body-xs">
-                Building content plan
-              </Typography>
-              <Typography color="neutral" level="body-xs">
-                {Math.round(progress)}%
-              </Typography>
-            </Stack>
-            <LinearProgress determinate value={progress} />
-          </Stack>
-        )}
+  <Card
+    variant="outlined"
+    sx={{
+      maxWidth: 640,
+      mx: "auto",
+      mt: { xs: 2, sm: 4 },
+      p: { xs: 3, sm: 4 },
+    }}
+  >
+    <Stack spacing={2}>
+      <Stack spacing={0.75}>
+        <Typography level="h3">Generating Your Content Calendar</Typography>
+        <Typography color="neutral" level="body-md">
+          AI is creating a multi-channel plan for{" "}
+          {monthName || "your selected month"}.
+        </Typography>
       </Stack>
-    </Card>
-
-    {!error && (
-      <Stack spacing={2}>
-        {Array.from({ length: 4 }).map((_, index) => (
-          <GenerationSkeletonCard key={index} />
-        ))}
-      </Stack>
-    )}
-  </Stack>
+      <Alert
+        color="danger"
+        endDecorator={
+          <Button color="danger" onClick={onRetry} size="sm" variant="soft">
+            Retry
+          </Button>
+        }
+        startDecorator={<AlertTriangle aria-hidden="true" size={18} />}
+        variant="soft"
+      >
+        {error}
+      </Alert>
+    </Stack>
+  </Card>
 );
 
 const ImageProgressModal = ({
@@ -2093,21 +2055,18 @@ export const PlanStepCalendar: React.FC<PlanStepCalendarProps> = ({
 
   if (contentGenerationError && state.items.length === 0) {
     return (
-      <GenerationState
+      <GenerationErrorState
         error={contentGenerationError}
         monthName={monthName}
         onRetry={() => void handleGenerateCalendar()}
-        progress={generationProgress}
       />
     );
   }
 
   if (state.items.length === 0 || isInitialLoading) {
     return (
-      <GenerationState
-        error={null}
+      <ContentGenerationLoader
         monthName={monthName}
-        onRetry={() => void handleGenerateCalendar()}
         progress={generationProgress}
       />
     );

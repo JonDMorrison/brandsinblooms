@@ -234,6 +234,7 @@ export const AudienceTargetingSection: React.FC<
       <Card variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Stack spacing={2.25}>
           <Stack
+            alignItems={{ xs: "flex-start", sm: "center" }}
             direction={{ xs: "column", sm: "row" }}
             spacing={1.5}
             justifyContent="space-between"
