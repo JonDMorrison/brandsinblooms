@@ -96,6 +96,27 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
     ],
   },
   {
+    // Surfaced directly after Content so spacing controls are visible while
+    // composing body copy — the editor's most common reach for the picker.
+    id: "layout",
+    label: "Layout",
+    blocks: [
+      {
+        type: "spacer",
+        name: "Spacer",
+        description:
+          "Add adjustable vertical white space between blocks (8–64px)",
+        icon: MoveVertical,
+      },
+      {
+        type: "divider",
+        name: "Divider",
+        description: "Horizontal line separator",
+        icon: Minus,
+      },
+    ],
+  },
+  {
     id: "media",
     label: "Media",
     blocks: [
@@ -128,24 +149,6 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
         name: "Social Follow",
         description: "Social media icon links",
         icon: Share2,
-      },
-    ],
-  },
-  {
-    id: "layout",
-    label: "Layout",
-    blocks: [
-      {
-        type: "divider",
-        name: "Divider",
-        description: "Horizontal line separator",
-        icon: Minus,
-      },
-      {
-        type: "spacer",
-        name: "Spacer",
-        description: "Adjustable vertical space",
-        icon: MoveVertical,
       },
     ],
   },
