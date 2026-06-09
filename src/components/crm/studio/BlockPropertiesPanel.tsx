@@ -1,6 +1,7 @@
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Button from "@mui/joy/Button";
+import Chip from "@mui/joy/Chip";
 import IconButton from "@mui/joy/IconButton";
 import Input from "@mui/joy/Input";
 import Sheet from "@mui/joy/Sheet";
@@ -4810,6 +4811,44 @@ function PanelContent({
                 title: "Layout",
                 content: (
                   <>
+                    <Stack spacing={0.5}>
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          fontSize: "11px",
+                          fontWeight: 650,
+                          color: "neutral.700",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        Quick heights
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ flexWrap: "wrap", rowGap: 0.5 }}
+                      >
+                        {[8, 16, 24, 32, 48, 64].map((preset) => {
+                          const active =
+                            (block.spacerHeight ?? 32) === preset;
+                          return (
+                            <Chip
+                              key={preset}
+                              size="sm"
+                              variant={active ? "solid" : "outlined"}
+                              color={active ? "primary" : "neutral"}
+                              onClick={() =>
+                                updateField("spacerHeight", preset)
+                              }
+                              sx={{ cursor: "pointer" }}
+                            >
+                              {preset}px
+                            </Chip>
+                          );
+                        })}
+                      </Stack>
+                    </Stack>
                     <StudioSliderField
                       label="Spacer Height"
                       min={0}
