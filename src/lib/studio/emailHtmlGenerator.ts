@@ -435,18 +435,25 @@ function sanitizeRichHtml(
       /<h3(\s[^>]*)?>/gi,
       `<h3 style="margin:0 0 10px;font-family:${subheadingFont};font-size:18px;line-height:1.3;">`,
     )
+    // Lists: use padding-left for indentation (Outlook + Gmail mobile render
+    // padding-left on UL/OL more reliably than margin-left). Explicit
+    // list-style-position:outside avoids hidden bullets on dark email modes.
     .replace(
       /<ul(\s[^>]*)?>/gi,
-      `<ul style="margin:0 0 12px 20px;padding:0;font-family:${bodyFont};">`,
+      `<ul style="margin:0 0 12px;padding-left:24px;font-family:${bodyFont};list-style-type:disc;list-style-position:outside;">`,
     )
     .replace(
       /<ol(\s[^>]*)?>/gi,
-      `<ol style="margin:0 0 12px 20px;padding:0;font-family:${bodyFont};">`,
+      `<ol style="margin:0 0 12px;padding-left:24px;font-family:${bodyFont};list-style-type:decimal;list-style-position:outside;">`,
     )
     .replace(
       /<li(\s[^>]*)?>/gi,
-      `<li style="margin:0 0 6px;font-family:${bodyFont};">`,
+      `<li style="margin:0 0 4px;font-family:${bodyFont};">`,
     )
+    // Soft line breaks: self-close so XHTML-strict email clients (older
+    // Outlook + several mobile webmail viewers) render them as a real line
+    // break instead of swallowing the tag.
+    .replace(/<br\s*\/?>/gi, "<br />")
     .replace(/<a(\s[^>]*)?>/gi, (_match, attrs: string = "") => {
       const styleMatch = attrs.match(/\sstyle=("([^"]*)"|'([^']*)')/i);
 

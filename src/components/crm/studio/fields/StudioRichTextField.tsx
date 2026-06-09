@@ -98,7 +98,15 @@ export default function StudioRichTextField({
   const minEditorHeight = Math.max(2, minRows) * 22 + 24;
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ underline: false, link: false }),
+      // HardBreak (Shift+Enter for a soft line break within the same paragraph)
+      // is a StarterKit default but make the config explicit so a future
+      // StarterKit upgrade can't quietly drop the keymap. keepMarks lets the
+      // line break carry bold/italic marks from the surrounding text.
+      StarterKit.configure({
+        underline: false,
+        link: false,
+        hardBreak: { keepMarks: true },
+      }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Underline,
       TiptapLink.configure({
@@ -477,6 +485,19 @@ export default function StudioRichTextField({
           ) : null}
           <EditorContent editor={editor} />
         </Box>
+        <Typography
+          level="body-xs"
+          sx={{
+            color: "neutral.400",
+            fontSize: "11px",
+            mt: 0.5,
+            px: 0.25,
+            userSelect: "none",
+          }}
+        >
+          Enter for a new paragraph · Shift + Enter for a soft line break ·
+          use the list buttons in the toolbar for bullets
+        </Typography>
       </Sheet>
     </Stack>
   );
