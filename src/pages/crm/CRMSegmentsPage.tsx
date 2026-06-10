@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { SYSTEM_SEGMENTS } from "@/config/segmentDefinitions";
 import { getSegmentDisplayDescription } from "@/config/systemSegments";
 import { CatalogGridSkeleton } from "@/components/crm/catalog/CatalogCardSkeleton";
+import { TermTooltip } from "@/components/crm/copy/TermTooltip";
 import {
   CatalogStatsStrip,
   CatalogStatsStripSkeleton,
@@ -568,8 +569,16 @@ export function CRMSegmentsPage() {
     <PageContainer>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <JoyPageHeaderBand
-          title="Segments"
-          description="System and custom segments for targeting, campaign planning, and audience management."
+          title={
+            <Box
+              component="span"
+              sx={{ display: "inline-flex", alignItems: "center" }}
+            >
+              Segments
+              <TermTooltip term="segment" />
+            </Box>
+          }
+          description="Groups of customers who go together — big spenders, weekend regulars, people new this season. Use segments to send the right message to the right group."
           actions={
             <>
               <JoyTooltip title="Refresh segments">
