@@ -1630,7 +1630,7 @@ function CampaignEditorScreen() {
                       letterSpacing: "0.06em",
                     }}
                   >
-                    Consent status across your contacts
+                    Who can receive email from you
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {audienceHealthQuery.data.total.toLocaleString()} total
@@ -1657,7 +1657,7 @@ function CampaignEditorScreen() {
                       level="body-xs"
                       sx={{ color: "neutral.600", mt: 0.5 }}
                     >
-                      Confirmed opt-in
+                      Said yes to email
                     </Typography>
                   </Box>
                   <Box>
@@ -1677,7 +1677,7 @@ function CampaignEditorScreen() {
                       level="body-xs"
                       sx={{ color: "neutral.600", mt: 0.5 }}
                     >
-                      Pending confirmation
+                      Waiting for permission
                     </Typography>
                   </Box>
                   <Box>
@@ -1691,7 +1691,7 @@ function CampaignEditorScreen() {
                       level="body-xs"
                       sx={{ color: "neutral.600", mt: 0.5 }}
                     >
-                      Opted out
+                      Asked us to stop
                     </Typography>
                   </Box>
                   <Box>
@@ -1705,7 +1705,7 @@ function CampaignEditorScreen() {
                       level="body-xs"
                       sx={{ color: "neutral.600", mt: 0.5 }}
                     >
-                      Suppressed
+                      Can't be sent to
                     </Typography>
                   </Box>
                 </Box>
@@ -1732,12 +1732,11 @@ function CampaignEditorScreen() {
                         level="body-xs"
                         sx={{ color: "neutral.700" }}
                       >
-                        You have{" "}
                         {audienceHealthQuery.data.pending.toLocaleString()}{" "}
-                        customers whose email consent is pending confirmation.
-                        They are not currently eligible to receive marketing
-                        email. If you have consent records for these
-                        customers, contact support to restore them.
+                        of your contacts are waiting for permission to receive
+                        email — they won't get this campaign. If you already
+                        have permission records for them, contact support and
+                        we'll help you restore them.
                       </Typography>
                     </Stack>
                   </Sheet>

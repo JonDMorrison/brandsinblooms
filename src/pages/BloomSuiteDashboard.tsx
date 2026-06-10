@@ -871,10 +871,10 @@ export const BloomSuiteDashboard = () => {
                   level="title-md"
                   sx={{ fontSize: "16px", fontWeight: 600 }}
                 >
-                  Audience health
+                  Inbox health
                 </Typography>
                 <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  Consent status across your{" "}
+                  Who you can reach across your{" "}
                   {audienceHealthQuery.data.total.toLocaleString()} contacts
                 </Typography>
               </Stack>
@@ -917,7 +917,7 @@ export const BloomSuiteDashboard = () => {
                   level="body-xs"
                   sx={{ color: "neutral.600", mt: 0.5 }}
                 >
-                  Eligible for email
+                  Said yes to email
                 </Typography>
               </Box>
               <Box>
@@ -938,7 +938,7 @@ export const BloomSuiteDashboard = () => {
                   level="body-xs"
                   sx={{ color: "neutral.600", mt: 0.5 }}
                 >
-                  Pending confirmation
+                  Waiting for permission
                 </Typography>
               </Box>
               <Box>
@@ -952,7 +952,7 @@ export const BloomSuiteDashboard = () => {
                   level="body-xs"
                   sx={{ color: "neutral.600", mt: 0.5 }}
                 >
-                  Opted out
+                  Asked us to stop
                 </Typography>
               </Box>
               <Box>
@@ -966,7 +966,7 @@ export const BloomSuiteDashboard = () => {
                   level="body-xs"
                   sx={{ color: "neutral.600", mt: 0.5 }}
                 >
-                  Suppressed
+                  Can't be sent to
                 </Typography>
               </Box>
             </Box>

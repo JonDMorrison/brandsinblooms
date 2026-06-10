@@ -621,7 +621,8 @@ function ReviewExcludedDialog({
                   }
                   label={
                     <Typography level="title-sm" fontWeight="lg">
-                      Missing consent · {consentExcludedCount.toLocaleString()} contacts
+                      Waiting for permission ·{" "}
+                      {consentExcludedCount.toLocaleString()} contacts
                     </Typography>
                   }
                 />
@@ -629,9 +630,9 @@ function ReviewExcludedDialog({
                   level="body-xs"
                   sx={{ color: "neutral.600", pl: 4 }}
                 >
-                  These contacts do not have recorded consent. We recommend
-                  keeping them excluded unless you are certain they should
-                  receive this message.
+                  These contacts haven't given permission to receive email
+                  from you yet. We recommend keeping them out unless you're
+                  sure they should receive this message.
                 </Typography>
               </Stack>
             </Sheet>
@@ -657,7 +658,7 @@ function ReviewExcludedDialog({
                   }
                   label={
                     <Typography level="title-sm" fontWeight="lg">
-                      Temporarily suppressed ·{" "}
+                      Temporary delivery problem ·{" "}
                       {softSuppressionRestorableCount.toLocaleString()} contacts
                     </Typography>
                   }
@@ -666,8 +667,9 @@ function ReviewExcludedDialog({
                   level="body-xs"
                   sx={{ color: "neutral.600", pl: 4 }}
                 >
-                  These contacts were temporarily suppressed because of recent
-                  delivery issues. Including them may affect deliverability.
+                  Mail to these contacts didn't go through recently — could
+                  be a full inbox or a server hiccup. Including them now may
+                  affect your inbox health.
                 </Typography>
               </Stack>
             </Sheet>
@@ -688,13 +690,13 @@ function ReviewExcludedDialog({
                 />
                 <Stack spacing={0.5}>
                   <Typography level="title-sm" fontWeight="lg">
-                    Permanently blocked ·{" "}
+                    Can't be sent to ·{" "}
                     {hardSuppressionExcludedCount.toLocaleString()} contacts
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                    These contacts cannot be included because they are
-                    permanently blocked, invalid, unsubscribed, or otherwise
-                    unsafe to send to.
+                    These contacts unsubscribed, complained, or have an
+                    address that keeps bouncing. They stay blocked to keep
+                    your inbox health strong.
                   </Typography>
                 </Stack>
               </Stack>
@@ -1003,7 +1005,7 @@ function ExclusionDetailsAccordion({
           }}
         >
           <Typography level="body-sm" fontWeight="lg">
-            Why were contacts excluded?
+            Why were these contacts held back?
           </Typography>
         </AccordionSummary>
         <AccordionDetails>
@@ -1015,10 +1017,11 @@ function ExclusionDetailsAccordion({
                   fontWeight="lg"
                   sx={{ color: "neutral.700" }}
                 >
-                  Missing consent ({consentGap.toLocaleString()}):
+                  Waiting for permission ({consentGap.toLocaleString()}):
                 </Typography>{" "}
-                contacts without a recorded opt-in. Sending without consent
-                increases spam complaints and can harm sender reputation.
+                contacts who haven't said yes to email yet. Sending without
+                permission risks spam complaints and hurts how mail providers
+                see you.
               </Typography>
             ) : null}
             {softSuppressionRestorableCount > 0 ? (
@@ -1028,12 +1031,12 @@ function ExclusionDetailsAccordion({
                   fontWeight="lg"
                   sx={{ color: "neutral.700" }}
                 >
-                  Temporarily suppressed (
+                  Temporary delivery problem (
                   {softSuppressionRestorableCount.toLocaleString()}):
                 </Typography>{" "}
-                addresses recently flagged by soft bounces or inactivity. They
-                can be reviewed and included for this send if you&apos;re
-                confident.
+                addresses where mail recently didn't go through — could be a
+                full inbox or a quiet recipient. You can review and include
+                them this once if you&apos;re confident.
               </Typography>
             ) : null}
             {hardSuppressionExcludedCount > 0 ? (
@@ -1043,11 +1046,12 @@ function ExclusionDetailsAccordion({
                   fontWeight="lg"
                   sx={{ color: "neutral.700" }}
                 >
-                  Permanently blocked (
+                  Can't be sent to (
                   {hardSuppressionExcludedCount.toLocaleString()}):
                 </Typography>{" "}
-                unsubscribes, complaints, and hard bounces. These stay blocked
-                to protect your domain reputation and cannot be overridden.
+                unsubscribes, complaints, and addresses that keep bouncing.
+                These stay blocked to keep your inbox health strong — they
+                can't be overridden.
               </Typography>
             ) : null}
           </Stack>
@@ -1525,30 +1529,30 @@ export function CampaignSendConfirmation({
                     {consentGap > 0 ? (
                       <ProtectedRow
                         id="consent-check"
-                        message={`${consentGap.toLocaleString()} contacts are missing recorded consent and will not receive this campaign.`}
+                        message={`${consentGap.toLocaleString()} contacts are waiting for permission and won't get this campaign.`}
                       />
                     ) : null}
                     {hardSuppressionExcludedCount > 0 ? (
                       <ProtectedRow
                         id="hard-suppression"
                         variant="locked"
-                        message={`${hardSuppressionExcludedCount.toLocaleString()} addresses are permanently blocked and cannot be sent to.`}
+                        message={`${hardSuppressionExcludedCount.toLocaleString()} addresses can't be sent to — they stay blocked.`}
                       />
                     ) : null}
                     {suppressionBypassRecipientCount > 0 ? (
                       <ProtectedRow
                         id="soft-suppression"
-                        message={`${suppressionBypassRecipientCount.toLocaleString()} addresses are temporarily suppressed and can be reviewed.`}
+                        message={`${suppressionBypassRecipientCount.toLocaleString()} addresses had a temporary delivery problem — you can review them.`}
                       />
                     ) : null}
                   </Stack>
                   <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                    These protections help reduce spam complaints, failed sends,
-                    and compliance risk.
+                    Holding these contacts back keeps your inbox health
+                    strong and protects you from spam complaints.
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    Most campaigns have a few contacts held back. This is normal
-                    and helps keep your email reputation healthy.
+                    Most campaigns hold a few contacts back. That's normal
+                    and it's how providers keep trusting you.
                   </Typography>
                   <ExclusionDetailsAccordion
                     consentGap={consentGap}

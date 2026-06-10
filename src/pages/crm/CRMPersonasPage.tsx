@@ -27,6 +27,7 @@ import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { JoyCard, JoyCardContent } from "@/components/joy/JoyCard";
 import { JoyPageHeaderBand } from "@/components/joy/JoyPageHeaderBand";
+import { TermTooltip } from "@/components/crm/copy/TermTooltip";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { useAllPersonas } from "@/hooks/useAllPersonas";
@@ -312,8 +313,16 @@ export const CRMPersonasPage = () => {
     <PageContainer>
       <Stack spacing={3} sx={{ pb: 4 }}>
         <JoyPageHeaderBand
-          title="Personas"
-          description="System and custom personas for targeting, campaign planning, and audience management."
+          title={
+            <Box
+              component="span"
+              sx={{ display: "inline-flex", alignItems: "center" }}
+            >
+              Personas
+              <TermTooltip term="persona" />
+            </Box>
+          }
+          description="Types of customers — like brand new to gardening, regular customer, or master gardener. Personas shape what you say; segments decide who hears it."
           actions={
             <>
               <JoyTooltip title="Refresh personas">
