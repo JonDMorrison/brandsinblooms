@@ -25,6 +25,7 @@ import { JoyChip } from "@/components/joy/JoyChip";
 import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
 import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
+import { BloomWeeklySuggestionsCard } from "@/components/dashboard/BloomWeeklySuggestionsCard";
 import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
 import { useTenant } from "@/hooks/useTenant";
@@ -852,6 +853,8 @@ export const BloomSuiteDashboard = () => {
           />
         ))}
       </Box>
+
+      <BloomWeeklySuggestionsCard />
 
       {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
         <Sheet
