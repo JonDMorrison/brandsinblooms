@@ -16,8 +16,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { JoyButton } from "@/components/joy/JoyButton";
-import type { CampaignIntentKey } from "@/lib/studio/campaignTemplates";
+import {
+  getTemplateForIntent,
+  type CampaignIntentKey,
+} from "@/lib/studio/campaignTemplates";
 import type { SavedTemplate } from "@/hooks/useSavedTemplates";
+import { IntentCardThumbnail } from "@/components/crm/campaign-editor/IntentCardThumbnail";
 
 export type IntentCardEntry = {
   key: CampaignIntentKey;
@@ -113,14 +117,15 @@ const cardDisabledSx = {
 } as const;
 
 const iconContainerSx = {
-  width: 40,
-  height: 40,
+  width: 32,
+  height: 32,
   borderRadius: "var(--joy-radius-md)",
   backgroundColor: "neutral.100",
   color: "neutral.700",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
+  flexShrink: 0,
 } as const;
 
 function formatRelativeFromNow(value: string) {
@@ -158,6 +163,11 @@ function IntentCard({
 }: IntentCardProps) {
   const isInactive = disabled || entry.comingSoon;
   const Icon = entry.icon;
+  const isBlank = entry.key === "blank";
+  const template = React.useMemo(
+    () => (isBlank ? null : getTemplateForIntent(entry.key)),
+    [entry.key, isBlank],
+  );
 
   return (
     <Box
@@ -184,21 +194,30 @@ function IntentCard({
         ...(isInactive ? cardDisabledSx : {}),
       }}
     >
-      <Box sx={iconContainerSx} aria-hidden>
-        <Icon size={20} strokeWidth={1.8} />
-      </Box>
-      <Typography
-        level="title-sm"
-        sx={{ fontSize: "15px", fontWeight: 500, color: "neutral.800" }}
-      >
-        {entry.title}
-      </Typography>
-      <Typography
-        level="body-sm"
-        sx={{ fontSize: "13px", color: "neutral.500" }}
-      >
-        {entry.subtitle}
-      </Typography>
+      <IntentCardThumbnail
+        template={template}
+        variant={isBlank ? "blank" : "preview"}
+        emptyLabel={entry.comingSoon ? "Coming soon" : null}
+      />
+      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mt: 1 }}>
+        <Box sx={iconContainerSx} aria-hidden>
+          <Icon size={18} strokeWidth={1.8} />
+        </Box>
+        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            level="title-sm"
+            sx={{ fontSize: "15px", fontWeight: 500, color: "neutral.800" }}
+          >
+            {entry.title}
+          </Typography>
+          <Typography
+            level="body-sm"
+            sx={{ fontSize: "13px", color: "neutral.500" }}
+          >
+            {entry.subtitle}
+          </Typography>
+        </Stack>
+      </Stack>
     </Box>
   );
 }
