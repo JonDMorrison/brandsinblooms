@@ -1,8 +1,13 @@
 import React from "react";
-import { Card, CardContent } from "@/components/ui-legacy/card";
-import { Button } from "@/components/ui-legacy/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import Box from "@mui/joy/Box";
+import Stack from "@mui/joy/Stack";
+import Typography from "@mui/joy/Typography";
+import Link from "@mui/joy/Link";
+import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 import { logReactError } from "@/utils/devErrorLogger";
+
+const SUPPORT_EMAIL = "support@brandsinblooms.com";
 
 const reportException = (error: Error, context: Record<string, unknown>) => {
   const telemetryEnabled =
@@ -24,10 +29,25 @@ const reportException = (error: Error, context: Record<string, unknown>) => {
     });
 };
 
+/**
+ * Short, human-readable reference for an incident. Customers paste this into
+ * support email; we use it to find the matching trace in telemetry. Not a
+ * security token — just a stable handle for one rendered failure.
+ */
+function makeIncidentRef(): string {
+  const now = Date.now().toString(36).toUpperCase();
+  const rand = Math.floor(Math.random() * 36 ** 4)
+    .toString(36)
+    .toUpperCase()
+    .padStart(4, "0");
+  return `${now}-${rand}`;
+}
+
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
   errorInfo: React.ErrorInfo | null;
+  incidentRef: string | null;
 }
 
 interface ErrorBoundaryProps {
@@ -44,18 +64,21 @@ export class ErrorBoundary extends React.Component<
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      incidentRef: null,
+    };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error };
+    return { hasError: true, error, incidentRef: makeIncidentRef() };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Store errorInfo for potential display
     this.setState({ errorInfo });
 
-    // Enhanced console logging for development
     console.group(
       "%c🔴 [REACT ERROR BOUNDARY]",
       "color: #ff4444; font-weight: bold; font-size: 14px;",
@@ -70,28 +93,51 @@ export class ErrorBoundary extends React.Component<
     console.error("%cComponent Stack:", "color: #74c0fc; font-weight: bold;");
     console.error(errorInfo.componentStack);
     console.error(
+      "%cIncident:",
+      "color: #69db7c; font-weight: bold;",
+      this.state.incidentRef,
+    );
+    console.error(
       "%cTimestamp:",
       "color: #69db7c; font-weight: bold;",
       new Date().toISOString(),
     );
     console.groupEnd();
 
-    // Log to dev error logger for Debug Panel
     logReactError(
       error,
       errorInfo.componentStack || undefined,
       "ErrorBoundary",
     );
 
-    // Send to Uptrace for production monitoring
     reportException(error, {
       componentStack: errorInfo.componentStack,
       context: "ErrorBoundary",
+      incidentRef: this.state.incidentRef,
     });
   }
 
   resetError = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      incidentRef: null,
+    });
+  };
+
+  goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+    } else if (typeof window !== "undefined") {
+      window.location.assign("/");
+    }
+  };
+
+  reload = () => {
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
   };
 
   render() {
@@ -103,34 +149,161 @@ export class ErrorBoundary extends React.Component<
         );
       }
 
+      const { incidentRef } = this.state;
+      const mailSubject = encodeURIComponent(
+        `BloomSuite hiccup — reference ${incidentRef ?? ""}`,
+      );
+      const mailBody = encodeURIComponent(
+        [
+          "Hi BloomSuite team,",
+          "",
+          "I ran into a page that wouldn't load. Here's what I was doing:",
+          "",
+          "(briefly describe what you were trying to do)",
+          "",
+          `Reference: ${incidentRef ?? "(none)"}`,
+        ].join("\n"),
+      );
+
       return (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6 text-center">
-            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-red-500" />
-            <h2 className="text-xl font-semibold text-red-700 mb-2">
-              Something went wrong
-            </h2>
-            <p className="text-red-600 mb-6">
-              We encountered an unexpected error. Please try refreshing the
-              page.
-            </p>
-            <div className="space-y-3">
-              <Button
-                onClick={this.resetError}
-                className="bg-red-600 hover:bg-red-700 text-white"
+        <Box
+          role="alert"
+          aria-live="assertive"
+          sx={{
+            minHeight: "60vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 2,
+            py: 6,
+          }}
+        >
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 520,
+              borderRadius: "var(--joy-radius-lg)",
+              border: "1px solid",
+              borderColor: "neutral.200",
+              backgroundColor: "background.surface",
+              boxShadow: "var(--joy-shadow-sm)",
+              p: { xs: 3, sm: 4 },
+            }}
+          >
+            <Stack spacing={2.5} alignItems="flex-start">
+              <Box
+                aria-hidden
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "999px",
+                  backgroundColor: "warning.softBg",
+                  color: "warning.solidBg",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
+                <AlertTriangle size={22} strokeWidth={1.8} />
+              </Box>
+
+              <Stack spacing={1}>
+                <Typography
+                  level="h3"
+                  sx={{ fontSize: "20px", fontWeight: 600, color: "neutral.800" }}
+                >
+                  This page didn't load right
+                </Typography>
+                <Typography
+                  level="body-md"
+                  sx={{ color: "neutral.600", lineHeight: 1.55 }}
+                >
+                  Something on our end stopped this screen from finishing. Your
+                  work isn't lost — saved drafts and sent campaigns are safe.
+                  Try the page again, or head back and come at it from a
+                  different angle.
+                </Typography>
+              </Stack>
+
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.25}
+                sx={{ width: "100%", pt: 0.5 }}
               >
-                Refresh Page
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <JoyButton
+                  variant="solid"
+                  color="primary"
+                  onClick={this.resetError}
+                  startDecorator={<RefreshCw size={16} strokeWidth={2} />}
+                  sx={{ flex: { sm: 1 } }}
+                >
+                  Try this page again
+                </JoyButton>
+                <JoyButton
+                  variant="outlined"
+                  color="neutral"
+                  onClick={this.goBack}
+                  startDecorator={<ArrowLeft size={16} strokeWidth={2} />}
+                  sx={{ flex: { sm: 1 } }}
+                >
+                  Go back
+                </JoyButton>
+              </Stack>
+
+              <Box
+                sx={{
+                  width: "100%",
+                  mt: 1,
+                  pt: 2,
+                  borderTop: "1px solid",
+                  borderColor: "neutral.100",
+                }}
+              >
+                <Typography
+                  level="body-sm"
+                  sx={{ color: "neutral.500", lineHeight: 1.5 }}
+                >
+                  Still stuck? Email{" "}
+                  <Link
+                    href={`mailto:${SUPPORT_EMAIL}?subject=${mailSubject}&body=${mailBody}`}
+                    sx={{ fontWeight: 500 }}
+                  >
+                    {SUPPORT_EMAIL}
+                  </Link>{" "}
+                  with a quick note about what you were doing.
+                </Typography>
+                {incidentRef ? (
+                  <Typography
+                    level="body-xs"
+                    sx={{
+                      mt: 1,
+                      color: "neutral.400",
+                      fontFamily:
+                        "var(--joy-fontFamily-code, ui-monospace, SFMono-Regular, Menlo, monospace)",
+                    }}
+                  >
+                    Reference: {incidentRef}
+                  </Typography>
+                ) : null}
+                <Typography
+                  level="body-xs"
+                  sx={{ mt: 1.5, color: "neutral.400" }}
+                >
+                  Or{" "}
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={this.reload}
+                    sx={{ fontWeight: 500 }}
+                  >
+                    reload the whole app
+                  </Link>{" "}
+                  if the page keeps acting up.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        </Box>
       );
     }
 
