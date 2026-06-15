@@ -95,6 +95,27 @@ export function useCreateSegment() {
         }
       }
 
+      if (segment && input.type === "dynamic") {
+        // Stamp the live count immediately so the segment list doesn't show 0
+        // until the next manual evaluation. The edge function evaluates the
+        // rule against current customers, upserts customer_segments rows, and
+        // writes customer_count. We log but don't throw on failure — the
+        // segment is real and re-evaluable; only the displayed count is stale.
+        const { error: evalError } = await supabase.functions.invoke(
+          "evaluate-segments",
+          {
+            body: { tenant_id: tenantId, segment_id: segment.id },
+          },
+        );
+
+        if (evalError) {
+          console.error(
+            "[useCreateSegment] evaluate-segments failed:",
+            evalError,
+          );
+        }
+      }
+
       return segment;
     },
     onSuccess: (_data) => {

@@ -37,8 +37,12 @@ serve(async (req) => {
     if (segment_ids?.length > 0) {
       segQuery = segQuery.in("id", segment_ids);
     } else {
+      // Tenant-wide recompute: include every dynamic segment so user-created
+      // ones aren't silently skipped by the nightly cron. Previously this only
+      // matched is_system_segment OR include_all_customers, which left
+      // user-created auto_update segments stuck at customer_count=0.
       segQuery = segQuery.or(
-        "is_system_segment.eq.true,include_all_customers.eq.true",
+        "is_system_segment.eq.true,include_all_customers.eq.true,auto_update.eq.true",
       );
     }
 
