@@ -43,7 +43,7 @@ export interface ImportResult {
   errors: string[];
 }
 
-export type ImportStage = 'upload' | 'mapping' | 'importing' | 'complete';
+export type ImportStage = 'upload' | 'mapping' | 'consent' | 'importing' | 'complete';
 
 export interface ImportProgress {
   stage: ImportStage;

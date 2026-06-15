@@ -43,6 +43,14 @@ import type {
   AIAnalysisResult,
 } from "@/types/import";
 import { CUSTOMER_FIELDS, applyField } from "@/lib/crm/customerImportSchema";
+import {
+  applyAttestationToCustomer,
+  DEFAULT_ATTESTATION_CHOICE,
+  recordImportAttestation,
+  recordImportConsentEvents,
+  type ImportAttestationChoice,
+} from "@/lib/crm/importConsent";
+import { ImportConsentAttestationStep } from "@/components/crm/segments/ImportConsentAttestationStep";
 
 interface EnhancedSegmentImportDialogProps {
   open: boolean;
@@ -68,6 +76,8 @@ export const EnhancedSegmentImportDialog: React.FC<
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
+  const [attestationChoice, setAttestationChoice] =
+    useState<ImportAttestationChoice>(DEFAULT_ATTESTATION_CHOICE);
 
   // Build field options from CUSTOMER_FIELDS schema
   const fieldOptions = [
@@ -244,7 +254,14 @@ export const EnhancedSegmentImportDialog: React.FC<
     return { isValid: errors.length === 0, errors };
   };
 
-  const processImport = async (): Promise<ImportResult> => {
+  const processImport = async (
+    choice: ImportAttestationChoice,
+  ): Promise<{
+    result: ImportResult;
+    insertedContacts: Array<{ id: string; email: string }>;
+    tenantId: string;
+    userId: string;
+  }> => {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) throw new Error("User not authenticated");
 
@@ -260,6 +277,10 @@ export const EnhancedSegmentImportDialog: React.FC<
 
     const tenantId = userRecord.tenant_id;
     const userId = user.user.id;
+
+    // Owner-attested defaults for newly inserted contacts. Per-row CSV opt-in
+    // columns (handled further down) can still override per-row.
+    const attestationConsent = applyAttestationToCustomer(choice);
 
     // Build customers using applyField from shared schema
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -283,9 +304,7 @@ export const EnhancedSegmentImportDialog: React.FC<
         tenant_id: tenantId,
         user_id: userId,
         email,
-        email_opt_in: false,
-        email_consent_source: "csv_import",
-        email_consent_method: "pending_confirmation",
+        ...attestationConsent,
         custom_fields: {},
       };
 
@@ -390,6 +409,8 @@ export const EnhancedSegmentImportDialog: React.FC<
       errors: [],
     };
 
+    const insertedContacts: Array<{ id: string; email: string }> = [];
+
     for (let i = 0; i < deduplicatedCustomers.length; i += BATCH_SIZE) {
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
       const batch = deduplicatedCustomers.slice(i, i + BATCH_SIZE);
@@ -409,11 +430,16 @@ export const EnhancedSegmentImportDialog: React.FC<
             onConflict: "tenant_id,email",
             ignoreDuplicates: false,
           })
-          .select("id");
+          .select("id, email");
 
         if (error) throw error;
 
         results.imported += data.length;
+        for (const row of data) {
+          if (row && typeof row.id === "string" && typeof row.email === "string") {
+            insertedContacts.push({ id: row.id, email: row.email });
+          }
+        }
 
         // If segment is specified, add customers to segment
         if (segmentId && data) {
@@ -442,11 +468,13 @@ export const EnhancedSegmentImportDialog: React.FC<
       }
     }
 
-    return results;
+    return { result: results, insertedContacts, tenantId, userId };
   };
 
-  const handleImport = async () => {
-    // Validate mappings
+  // From the mapping step, "Import N Customers" advances to the consent
+  // attestation step rather than committing rows. The actual commit happens
+  // from handleConfirmAttestation.
+  const handleImport = () => {
     const validation = validateMappings();
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
@@ -459,13 +487,57 @@ export const EnhancedSegmentImportDialog: React.FC<
     }
 
     setProgress({
+      stage: "consent",
+      progress: 0,
+      message: "",
+    });
+  };
+
+  const handleConfirmAttestation = async () => {
+    setProgress({
       stage: "importing",
       progress: 0,
       message: "Starting import...",
     });
 
     try {
-      const result = await processImport();
+      const { result, insertedContacts, tenantId, userId } =
+        await processImport(attestationChoice);
+
+      // Record the owner's attestation as an auditable header BEFORE the
+      // per-contact events so the events can reference its id. If the audit
+      // write fails the import itself already succeeded; we surface a toast
+      // but don't roll back the customer rows.
+      if (insertedContacts.length > 0) {
+        try {
+          const attestationId = await recordImportAttestation({
+            client: supabase,
+            tenantId,
+            attestedByUserId: userId,
+            choice: attestationChoice,
+            contactCount: insertedContacts.length,
+            importBatchId: file?.name ?? null,
+          });
+          await recordImportConsentEvents({
+            client: supabase,
+            tenantId,
+            attestationId,
+            choice: attestationChoice,
+            contacts: insertedContacts,
+          });
+        } catch (auditError) {
+          console.error(
+            "[EnhancedSegmentImportDialog] attestation audit write failed:",
+            auditError,
+          );
+          toast({
+            title: "Consent record didn't save",
+            description:
+              "Contacts imported, but we couldn't write the consent audit row. Try the import again, or contact support if it keeps happening.",
+            variant: "destructive",
+          });
+        }
+      }
 
       setImportResult(result);
       setProgress({
@@ -522,6 +594,7 @@ export const EnhancedSegmentImportDialog: React.FC<
     setProgress({ stage: "upload", progress: 0, message: "" });
     setImportResult(null);
     setValidationErrors([]);
+    setAttestationChoice(DEFAULT_ATTESTATION_CHOICE);
     onOpenChange(false);
   };
 
@@ -766,6 +839,19 @@ export const EnhancedSegmentImportDialog: React.FC<
           </div>
         )}
 
+        {/* Stage 2.5: Consent attestation */}
+        {progress.stage === "consent" && (
+          <ImportConsentAttestationStep
+            contactCount={dataRows.length}
+            value={attestationChoice}
+            onChange={setAttestationChoice}
+            onBack={() =>
+              setProgress({ stage: "mapping", progress: 0, message: "" })
+            }
+            onContinue={handleConfirmAttestation}
+          />
+        )}
+
         {/* Stage 3: Importing */}
         {progress.stage === "importing" && (
           <div className="space-y-4 py-8">
@@ -834,6 +920,25 @@ export const EnhancedSegmentImportDialog: React.FC<
                 </div>
               )}
             </div>
+
+            {attestationChoice === "unsure" && importResult.imported > 0 && (
+              <Alert>
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription className="space-y-2">
+                  <p className="font-semibold">
+                    These contacts are paused until they confirm.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    You marked consent as unsure, so we&apos;ve held{" "}
+                    {importResult.imported} contacts back from marketing
+                    sends. Send a one-time permission campaign asking them
+                    to opt in — only the people who confirm will become
+                    sendable. Open the campaigns page when you&apos;re ready;
+                    we won&apos;t auto-send anything on your behalf.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {importResult.errors.length > 0 && (
               <Alert variant="destructive">
