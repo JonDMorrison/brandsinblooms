@@ -104,6 +104,25 @@ export function useUpdateSegment() {
             throw deleteMembershipsError;
           }
         }
+
+        // Re-evaluate immediately so the stored count matches the new rule.
+        // Without this, deleting current memberships leaves customer_count
+        // at 0 (the DELETE trigger lowers it) and the card displays 0 until
+        // someone manually re-runs evaluation. Log but don't throw — the
+        // segment update itself succeeded.
+        const { error: evalError } = await supabase.functions.invoke(
+          "evaluate-segments",
+          {
+            body: { tenant_id: tenantId, segment_id: input.segmentId },
+          },
+        );
+
+        if (evalError) {
+          console.error(
+            "[useUpdateSegment] evaluate-segments failed:",
+            evalError,
+          );
+        }
       } else {
         const idsToAdd = [...targetMemberIds].filter(
           (id) => !currentMemberIds.has(id),
