@@ -4,8 +4,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 /**
  * recompute-all-tenants-segments
  *
- * Nightly cron (3am UTC). Full recompute of system segment memberships
- * for every tenant that has system segments.
+ * Nightly cron (3am UTC). Full recompute of dynamic segment memberships
+ * for every tenant that has at least one active auto_update segment —
+ * system or user-created. Previously this only enumerated tenants that
+ * had system segments, leaving tenants whose only dynamic segments were
+ * user-created out of the nightly refresh entirely.
  */
 
 serve(async () => {
@@ -18,7 +21,8 @@ serve(async () => {
     const { data: tenants, error } = await supabase
       .from("crm_segments")
       .select("tenant_id")
-      .eq("is_system_segment", true)
+      .eq("auto_update", true)
+      .eq("status", "active")
       .is("deleted_at", null);
 
     if (error) throw error;
@@ -27,7 +31,7 @@ serve(async () => {
 
     if (uniqueTenants.length === 0) {
       return new Response(
-        JSON.stringify({ message: "No tenants with system segments", count: 0 }),
+        JSON.stringify({ message: "No tenants with dynamic segments", count: 0 }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
