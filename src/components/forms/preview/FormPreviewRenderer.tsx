@@ -28,6 +28,7 @@ import {
   isMultiStepEnabled,
   normalizeFieldStepIndex,
 } from "@/lib/forms/formFlow";
+import { getSegmentOptions } from "@/lib/forms/segmentCheckbox";
 import {
   getFieldCharacterCount,
   getFieldMaxLength,
@@ -1617,7 +1618,158 @@ function FieldRenderer({
     );
   }
 
-  if (field.type === "checkbox") {
+  if (
+    field.type === "segment_checkbox" &&
+    Array.isArray(field.segment_options) &&
+    field.segment_options.length > 0
+  ) {
+    // Multi-option mode: each option pairs a real segment id with a
+    // creator-authored public label. The visitor sees only the labels —
+    // the internal segment names are never exposed. On submit, the
+    // resolved segment ids are written to customer_segments by the
+    // submit-form edge function (which trusts the renderer's encoding via
+    // the shared `getSubmittedSegmentIds` helper).
+    const options = getSegmentOptions(field);
+    const mode = field.segment_selection_mode ?? "checkbox";
+    const isSingle = mode === "single";
+    const selected = Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === "string")
+      : typeof value === "string" && value.length > 0
+        ? [value]
+        : [];
+
+    const toggle = (segmentId: string, checked: boolean) => {
+      if (isSingle) {
+        onChange(checked ? segmentId : "");
+        return;
+      }
+      const set = new Set(selected);
+      if (checked) {
+        set.add(segmentId);
+      } else {
+        set.delete(segmentId);
+      }
+      // Preserve the option order from the field, not the click order, so
+      // the submitted array is stable and easy to reason about server-side.
+      onChange(options.map((o) => o.segment_id).filter((id) => set.has(id)));
+    };
+
+    return (
+      <div
+        style={{
+          display: "grid",
+          gap: "0.5rem",
+          transition: "box-shadow 150ms ease",
+          ...(isHighlighted ? getHighlightStyle(tokens) : null),
+        }}
+        role={isSingle ? "radiogroup" : "group"}
+        aria-labelledby={`${field.id}-group-label`}
+        aria-describedby={errorId}
+      >
+        <span
+          id={`${field.id}-group-label`}
+          style={{
+            color: error ? tokens.error : tokens.text,
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}
+        >
+          {field.label}
+          {field.required && (
+            <span style={{ color: tokens.error, marginLeft: 4 }}>*</span>
+          )}
+        </span>
+
+        {options.map((option, index) => {
+          const inputId = `${field.id}-opt-${index}`;
+          const isChecked = selected.includes(option.segment_id);
+          return (
+            <label
+              key={option.segment_id}
+              htmlFor={inputId}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "0.75rem",
+                opacity: isDisabled ? 0.76 : 1,
+              }}
+            >
+              <input
+                id={inputId}
+                type={isSingle ? "radio" : "checkbox"}
+                name={isSingle ? field.id : undefined}
+                value={option.segment_id}
+                checked={isChecked}
+                onChange={(event) => toggle(option.segment_id, event.target.checked)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={handleBlur}
+                ref={
+                  index === 0
+                    ? (element) => registerFieldRef(field.id, element)
+                    : undefined
+                }
+                disabled={isDisabled}
+                aria-invalid={error ? true : undefined}
+                style={{
+                  marginTop: 2,
+                  width: 20,
+                  height: 20,
+                  borderRadius: isSingle ? "999px" : CONTROL_RADIUS,
+                  border: `2px solid ${tokens.strongBorder}`,
+                  accentColor: tokens.primary,
+                  boxShadow: isFocused
+                    ? `0 0 0 4px ${tokens.focusRing}`
+                    : undefined,
+                }}
+              />
+              <span
+                style={{
+                  color: tokens.text,
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  lineHeight: 1.6,
+                }}
+              >
+                {option.label}
+              </span>
+            </label>
+          );
+        })}
+
+        {error && (
+          <div
+            id={errorId}
+            style={{
+              marginTop: 6,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.375rem",
+              color: tokens.error,
+              fontSize: "0.75rem",
+            }}
+          >
+            <AlertCircle size={14} style={{ marginTop: 2, flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!error && helpText && (
+          <div
+            style={{
+              color: tokens.quietText,
+              fontSize: "0.75rem",
+              lineHeight: 1.5,
+            }}
+          >
+            {helpText}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (field.type === "checkbox" || field.type === "segment_checkbox") {
     return (
       <div
         style={{
