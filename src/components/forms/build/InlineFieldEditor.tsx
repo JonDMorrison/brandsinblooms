@@ -32,9 +32,13 @@ import {
   normalizeVisibilityRules,
 } from "@/lib/forms/formFlow";
 import { isConsentFieldType } from "@/lib/forms/fieldRegistry";
+import { useSegments } from "@/hooks/useSegments";
+import { getSegmentOptions } from "@/lib/forms/segmentCheckbox";
 import type {
   FormCompliance,
   FormField,
+  FormSegmentOption,
+  FormSegmentSelectionMode,
   FormStep,
   FormVisibilityOperator,
   FormVisibilityRule,
@@ -912,17 +916,10 @@ export function InlineFieldEditor({
           ) : null}
 
           {field.type === "segment_checkbox" ? (
-            <Stack spacing={1.25}>
-              <JoyInput
-                label="Segment name"
-                value={field.segment_name ?? ""}
-                onValueChange={(segment_name) =>
-                  onFieldChange({ segment_name })
-                }
-                placeholder="Newsletter subscribers"
-                helperText="This builder does not have a live CRM segment picker wired in yet, so the segment label is stored directly on the field."
-              />
-            </Stack>
+            <SegmentCheckboxFieldOptions
+              field={field}
+              onFieldChange={onFieldChange}
+            />
           ) : null}
 
           {field.type === "checkbox" ? (
@@ -1310,6 +1307,348 @@ export function InlineFieldEditor({
           ) : null}
         </Stack>
       </InspectorSection>
+    </Stack>
+  );
+}
+
+/**
+ * Field-options panel for a `segment_checkbox` field.
+ *
+ * Replaces the old broken "type a segment name" input with a live picker
+ * bound to the tenant's real segments. Each row pairs a segment_id with a
+ * creator-authored public label; the visitor sees only the labels. The
+ * picker only offers static segments — manually-added memberships on
+ * dynamic (rule-based) segments would be deleted by the nightly recompute,
+ * so we don't let creators get into that state.
+ *
+ * On mount, legacy fields (single `segment_id` + `segment_name`, no
+ * `segment_options`) are surfaced as a single editable row so historical
+ * configurations migrate naturally as the creator opens the form.
+ */
+function SegmentCheckboxFieldOptions({
+  field,
+  onFieldChange,
+}: {
+  field: FormField;
+  onFieldChange: (updates: Partial<FormField>) => void;
+}) {
+  const segmentsQuery = useSegments();
+  const segments = segmentsQuery.segments;
+
+  const staticSegments = React.useMemo(
+    () => segments.filter((segment) => !segment.autoUpdate),
+    [segments],
+  );
+
+  const segmentById = React.useMemo(
+    () => new Map(segments.map((segment) => [segment.id, segment])),
+    [segments],
+  );
+
+  // Hydrate the working list from the field. Legacy fields contribute one
+  // row; new fields contribute their explicit options. Keeping this derived
+  // means the inspector always shows the current saved state without
+  // intermediate local state to keep in sync.
+  const options = React.useMemo(() => getSegmentOptions(field), [field]);
+
+  const mode: FormSegmentSelectionMode =
+    field.segment_selection_mode ?? "checkbox";
+
+  const updateOptions = (next: FormSegmentOption[]) => {
+    onFieldChange({
+      segment_options: next,
+      // Once the field uses the option list, clear the legacy single-binding
+      // fields so we never write conflicting data back.
+      segment_id: undefined,
+      segment_name: undefined,
+    });
+  };
+
+  const handleAddOption = () => {
+    updateOptions([...options, { segment_id: "", label: "" }]);
+  };
+
+  const handleRemoveOption = (index: number) => {
+    updateOptions(options.filter((_, optionIndex) => optionIndex !== index));
+  };
+
+  const handleMoveOption = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= options.length) return;
+    const next = options.slice();
+    [next[index], next[target]] = [next[target], next[index]];
+    updateOptions(next);
+  };
+
+  const handleSegmentChange = (index: number, segmentId: string) => {
+    const segment = segmentById.get(segmentId);
+    const next = options.slice();
+    const existing = next[index] ?? { segment_id: "", label: "" };
+    next[index] = {
+      segment_id: segmentId,
+      // If the creator hasn't typed a public label yet, seed it with the
+      // segment's internal name so they have something sensible to edit
+      // rather than a blank box. Once they edit, we never overwrite.
+      label: existing.label.trim() ? existing.label : segment?.name ?? "",
+    };
+    updateOptions(next);
+  };
+
+  const handleLabelChange = (index: number, label: string) => {
+    const next = options.slice();
+    const existing = next[index] ?? { segment_id: "", label: "" };
+    next[index] = { ...existing, label };
+    updateOptions(next);
+  };
+
+  const handleModeChange = (nextMode: FormSegmentSelectionMode) => {
+    onFieldChange({ segment_selection_mode: nextMode });
+  };
+
+  const noStaticSegments = !segmentsQuery.loading && staticSegments.length === 0;
+  const hasUnsetOption = options.some((option) => !option.segment_id);
+
+  return (
+    <Stack spacing={1.25}>
+      <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+        Segment options
+      </Typography>
+      <Typography level="body-xs" color="neutral">
+        Each option pairs a real CRM segment with the public label the
+        visitor sees. The label can differ from the segment's internal
+        name. On submit, the contact is added to every segment the visitor
+        chose.
+      </Typography>
+
+      {noStaticSegments ? (
+        <Sheet
+          variant="soft"
+          color="warning"
+          sx={{ borderRadius: "lg", px: 1.25, py: 1 }}
+        >
+          <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+            No static segments to choose
+          </Typography>
+          <Typography level="body-xs" color="neutral">
+            This field only supports static segments — dynamic (rule-based)
+            segments are kept in sync by the nightly recompute and would
+            drop anyone added by a form. Create a static segment in the
+            CRM first, then come back here.
+          </Typography>
+        </Sheet>
+      ) : null}
+
+      <Stack spacing={1}>
+        {options.map((option, index) => {
+          const segment = option.segment_id
+            ? segmentById.get(option.segment_id)
+            : undefined;
+          const isDynamicMisbinding =
+            Boolean(segment) && segment?.autoUpdate === true;
+          const isMissing = Boolean(option.segment_id) && !segment;
+
+          return (
+            <Sheet
+              key={`${option.segment_id || "unset"}-${index}`}
+              variant="outlined"
+              sx={{ borderRadius: "lg", p: 1.25 }}
+            >
+              <Stack spacing={1}>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "minmax(0, 1fr) minmax(0, 1fr) auto",
+                    },
+                    gap: 1,
+                    alignItems: "end",
+                  }}
+                >
+                  <JoySelect
+                    label="Segment"
+                    value={option.segment_id || ""}
+                    onValueChange={(value) =>
+                      handleSegmentChange(index, value)
+                    }
+                    placeholder={
+                      segmentsQuery.loading
+                        ? "Loading segments…"
+                        : staticSegments.length === 0
+                          ? "No static segments available"
+                          : "Choose a segment"
+                    }
+                    options={[
+                      ...(option.segment_id && isMissing
+                        ? [
+                            {
+                              value: option.segment_id,
+                              label: `Unmatched segment (${option.segment_id.slice(0, 8)}…)`,
+                            },
+                          ]
+                        : []),
+                      ...staticSegments.map((entry) => ({
+                        value: entry.id,
+                        label: entry.name,
+                      })),
+                    ]}
+                    disabled={
+                      segmentsQuery.loading || staticSegments.length === 0
+                    }
+                  />
+                  <JoyInput
+                    label="Public label"
+                    value={option.label}
+                    onValueChange={(label) => handleLabelChange(index, label)}
+                    placeholder="Add me to your newsletter"
+                  />
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      color="neutral"
+                      onClick={() => handleMoveOption(index, -1)}
+                      disabled={index === 0}
+                      aria-label="Move option up"
+                    >
+                      <ChevronUp size={16} />
+                    </IconButton>
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      color="neutral"
+                      onClick={() => handleMoveOption(index, 1)}
+                      disabled={index === options.length - 1}
+                      aria-label="Move option down"
+                    >
+                      <ChevronDown size={16} />
+                    </IconButton>
+                    <IconButton
+                      size="sm"
+                      variant="plain"
+                      color="danger"
+                      onClick={() => handleRemoveOption(index)}
+                      aria-label="Remove option"
+                    >
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </Stack>
+                </Box>
+
+                {segment ? (
+                  <Typography level="body-xs" color="neutral">
+                    Internal segment: <strong>{segment.name}</strong> · The
+                    visitor will only ever see &ldquo;{option.label || "(no label yet)"}
+                    &rdquo;.
+                  </Typography>
+                ) : null}
+
+                {isMissing ? (
+                  <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                    This segment no longer exists or isn&apos;t available for
+                    this tenant. Pick a replacement or remove the option
+                    before publishing.
+                  </Typography>
+                ) : null}
+
+                {isDynamicMisbinding ? (
+                  <Typography level="body-xs" sx={{ color: "warning.700" }}>
+                    This segment is dynamic (rule-based). Memberships
+                    added by form submissions would be removed on the
+                    next recompute. Pick a static segment instead.
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Sheet>
+          );
+        })}
+      </Stack>
+
+      <Box>
+        <Button
+          size="sm"
+          variant="outlined"
+          color="neutral"
+          startDecorator={<Plus size={14} />}
+          onClick={handleAddOption}
+          disabled={segmentsQuery.loading || staticSegments.length === 0}
+        >
+          Add option
+        </Button>
+      </Box>
+
+      {hasUnsetOption && options.length > 0 ? (
+        <Typography level="body-xs" sx={{ color: "warning.700" }}>
+          One or more options don&apos;t have a segment selected yet. Pick a
+          segment or remove the row before publishing.
+        </Typography>
+      ) : null}
+
+      <Divider />
+
+      <FormControl>
+        <FormLabel>Selection mode</FormLabel>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gap: 1,
+          }}
+        >
+          <Sheet
+            variant={mode === "checkbox" ? "solid" : "outlined"}
+            color={mode === "checkbox" ? "primary" : "neutral"}
+            onClick={() => handleModeChange("checkbox")}
+            sx={{
+              borderRadius: "lg",
+              p: 1.25,
+              cursor: "pointer",
+              "&:hover": { borderColor: "primary.300" },
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleModeChange("checkbox");
+              }
+            }}
+          >
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Checkboxes (multi-select)
+            </Typography>
+            <Typography level="body-xs" color="neutral">
+              The visitor may check any number of options, including none.
+            </Typography>
+          </Sheet>
+          <Sheet
+            variant={mode === "single" ? "solid" : "outlined"}
+            color={mode === "single" ? "primary" : "neutral"}
+            onClick={() => handleModeChange("single")}
+            sx={{
+              borderRadius: "lg",
+              p: 1.25,
+              cursor: "pointer",
+              "&:hover": { borderColor: "primary.300" },
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleModeChange("single");
+              }
+            }}
+          >
+            <Typography level="body-sm" sx={{ fontWeight: 600 }}>
+              Single choice (radio)
+            </Typography>
+            <Typography level="body-xs" color="neutral">
+              The visitor picks one option, or leaves it blank.
+            </Typography>
+          </Sheet>
+        </Box>
+      </FormControl>
     </Stack>
   );
 }
