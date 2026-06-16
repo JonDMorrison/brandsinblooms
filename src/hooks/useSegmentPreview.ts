@@ -47,6 +47,71 @@ export interface SegmentPreviewResult {
   averageLifetimeValueDelta: number;
   updatedLabel: string;
   customFields: SegmentField[];
+  /**
+   * True if the customer fetch hit the per-page cap. The preview metrics
+   * are then computed off the first PREVIEW_PAGE_LIMIT × PREVIEW_PAGE_SIZE
+   * rows rather than the full tenant — accurate-ish but not exact.
+   */
+  basedOnSample: boolean;
+  sampleSize: number;
+}
+
+/**
+ * Page size for the paginated customer fetch. Mirrors the chunk size used
+ * by the materializer (`recompute-segment-memberships/index.ts` line 83)
+ * so the browser path and the server path see the same shape of batches.
+ */
+const PREVIEW_PAGE_SIZE = 1000;
+
+/**
+ * Hard ceiling on how many pages the preview will accumulate before
+ * declaring its metrics a sample. 50 pages × 1000 rows = 50,000 customers,
+ * which covers ~99% of BloomSuite tenants. Past that we surface
+ * `basedOnSample` so the UI can show a notice.
+ */
+const PREVIEW_MAX_PAGES = 50;
+
+/**
+ * Pages through a Supabase query in `.range(from, to)` chunks until either
+ * the result returns fewer rows than `pageSize` (we've reached the end) or
+ * `maxPages` is hit (we cap and flag the result as a sample).
+ *
+ * This exists because PostgREST silently caps single requests at
+ * `db-max-rows = 1000` (Supabase default) — the original single-shot
+ * fetch in this hook was returning ~1000 unordered heap rows for tenants
+ * above that size, which made every preview metric (count, percentage,
+ * lifecycle distribution, average LTV) wrong above 1000 customers.
+ * Specifically caught Jeff at Brands in Blooms (tenant 0a626809…, 1,965
+ * customers): preview showed 427/573 for two segments whose true
+ * membership was 618/1,347.
+ */
+export async function fetchAllPaginated<T>(
+  buildPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  pageSize: number = PREVIEW_PAGE_SIZE,
+  maxPages: number = PREVIEW_MAX_PAGES,
+): Promise<{ data: T[]; truncated: boolean }> {
+  const all: T[] = [];
+
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error } = await buildPage(from, to);
+    if (error) {
+      throw error;
+    }
+
+    const batch = data ?? [];
+    all.push(...batch);
+
+    if (batch.length < pageSize) {
+      return { data: all, truncated: false };
+    }
+  }
+
+  return { data: all, truncated: true };
 }
 
 export interface UseSegmentPreviewOptions {
@@ -125,64 +190,77 @@ export function useSegmentPreview({
 
       const segmentIds = (segments ?? []).map((segment) => segment.id);
 
+      // Both fetches must paginate. PostgREST's default `db-max-rows = 1000`
+      // would otherwise silently truncate the customer list (and the
+      // membership list, on tenants with >1000 memberships per segment),
+      // producing a preview where every count, percentage, and average is
+      // computed off a partial heap-order page.
       const [customersResult, membershipsResult] = await Promise.all([
-        supabase
-          .from("crm_customers")
-          .select(
-            `
-              id,
-              tenant_id,
-              created_at,
-              updated_at,
-              first_name,
-              last_name,
-              email,
-              phone,
-              email_opt_in,
-              sms_opt_in,
-              last_open_at,
-              last_email_clicked_at,
-              total_emails_opened,
-              total_emails_clicked,
-              total_emails_sent,
-              email_click_rate,
-              email_engagement_score,
-              first_purchase_date,
-              last_purchase_date,
-              lifetime_value,
-              total_spent,
-              pos_order_count,
-              persona,
-              persona_id,
-              preferred_channel,
-              tags,
-              product_tags,
-              suppressed,
-              opt_out,
-              is_vip,
-              custom_fields,
-              deleted_at
-            `,
-          )
-          .eq("tenant_id", tenantId)
-          .is("deleted_at", null),
+        fetchAllPaginated<SegmentPreviewCustomer>((from, to) =>
+          supabase
+            .from("crm_customers")
+            .select(
+              `
+                id,
+                tenant_id,
+                created_at,
+                updated_at,
+                first_name,
+                last_name,
+                email,
+                phone,
+                email_opt_in,
+                sms_opt_in,
+                last_open_at,
+                last_email_clicked_at,
+                total_emails_opened,
+                total_emails_clicked,
+                total_emails_sent,
+                email_click_rate,
+                email_engagement_score,
+                first_purchase_date,
+                last_purchase_date,
+                lifetime_value,
+                total_spent,
+                pos_order_count,
+                persona,
+                persona_id,
+                preferred_channel,
+                tags,
+                product_tags,
+                suppressed,
+                opt_out,
+                is_vip,
+                custom_fields,
+                deleted_at
+              `,
+            )
+            .eq("tenant_id", tenantId)
+            .is("deleted_at", null)
+            .order("id")
+            .range(from, to) as PromiseLike<{
+            data: SegmentPreviewCustomer[] | null;
+            error: unknown;
+          }>,
+        ),
         segmentIds.length
-          ? supabase
-              .from("customer_segments")
-              .select("customer_id, segment_id")
-              .in("segment_id", segmentIds)
-          : Promise.resolve({ data: [], error: null }),
+          ? fetchAllPaginated<{ customer_id: string; segment_id: string }>(
+              (from, to) =>
+                supabase
+                  .from("customer_segments")
+                  .select("customer_id, segment_id")
+                  .in("segment_id", segmentIds)
+                  .order("customer_id")
+                  .range(from, to),
+            )
+          : Promise.resolve({
+              data: [] as Array<{ customer_id: string; segment_id: string }>,
+              truncated: false,
+            }),
       ]);
 
-      if (customersResult.error) {
-        throw customersResult.error;
-      }
-      if (membershipsResult.error) {
-        throw membershipsResult.error;
-      }
-
       const membershipsByCustomerId = new Map<string, Set<string>>();
-      for (const membership of membershipsResult.data ?? []) {
+      for (const membership of membershipsResult.data) {
         const next =
           membershipsByCustomerId.get(membership.customer_id) ??
           new Set<string>();
@@ -190,12 +268,14 @@ export function useSegmentPreview({
         membershipsByCustomerId.set(membership.customer_id, next);
       }
 
-      const customers = (customersResult.data ??
-        []) as SegmentPreviewCustomer[];
+      const customers = customersResult.data;
 
       return {
         customers,
         membershipsByCustomerId,
+        basedOnSample:
+          customersResult.truncated || membershipsResult.truncated,
+        sampleSize: customers.length,
         customFields: deriveCustomSegmentFields(
           customers.map((customer) => customer.custom_fields),
         ),
@@ -294,11 +374,15 @@ export function useSegmentPreview({
       averageLifetimeValueDelta: averageLifetimeValue - allAverageLifetimeValue,
       updatedLabel: baseQuery.isFetching ? "Updating..." : "Updated just now",
       customFields,
+      basedOnSample: baseQuery.data?.basedOnSample ?? false,
+      sampleSize: baseQuery.data?.sampleSize ?? customers.length,
     };
   }, [
     baseQuery.data?.customers,
     baseQuery.data?.customFields,
     baseQuery.data?.membershipsByCustomerId,
+    baseQuery.data?.basedOnSample,
+    baseQuery.data?.sampleSize,
     baseQuery.isFetching,
     debouncedGroup,
     includeAllCustomers,
