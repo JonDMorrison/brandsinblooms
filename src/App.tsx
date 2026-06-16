@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { BloomShell } from "@/components/bloom/BloomShell";
 import ChunkErrorBoundary from "@/components/loading/ChunkErrorBoundary";
@@ -878,7 +879,12 @@ function App() {
             />
             <Route
               path="/crm/forms"
-              element={renderProtectedSidebarLazyPage(<FormsPage />, "table")}
+              element={renderProtectedSidebarLazyPage(
+                <PageErrorBoundary pageLabel="The forms page" context="forms">
+                  <FormsPage />
+                </PageErrorBoundary>,
+                "table",
+              )}
             />
             <Route
               path="/crm/forms/developer-guide"
