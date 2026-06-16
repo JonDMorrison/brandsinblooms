@@ -363,14 +363,47 @@ const spacingScale: Record<number, string> = {
   24: "96px",
 };
 
+const bloomBreakpointValues = {
+  xs: 0,
+  sm: 600,
+  md: 900,
+  lg: 1200,
+  xl: 1536,
+} as const;
+
+/**
+ * Mirror of @mui/system v9's `internal_mediaKeys` shape, generated from the
+ * same breakpoint values Joy already uses.
+ *
+ * Why this exists: top-level @mui/system is v9.0.0; @mui/joy@5.0.0-beta.52
+ * ships a nested @mui/system@5.18.0 that builds the theme. Joy's nested v5
+ * `createBreakpoints` does not produce `internal_mediaKeys`, but emotion
+ * resolves `styleFunctionSx` from the top-level v9, whose
+ * `createEmptyBreakpointObject` destructures `internal_mediaKeys` and reads
+ * `.length` on it. Without this property, ANY responsive sx (e.g.
+ * `display: { xs: "none", sm: "flex" }`) throws
+ * `TypeError: Cannot read properties of undefined (reading 'length')` at
+ * render time — `@mui/system/breakpoints/breakpoints.mjs:119:33` — and the
+ * page tree unmounts up to the App-level error boundary.
+ *
+ * Surfaced for Jeff at Brands in Blooms on /crm/forms (incidents
+ * MQGT8U01-STKT and MQGVPKVA-2MJE) because FormListToolbar uses many
+ * responsive sx values. Crash IS reproducible in vitest with
+ * `<CssVarsProvider><FormListToolbar /></CssVarsProvider>`.
+ *
+ * Long-term: align @mui/joy with @mui/system v9, or downgrade material/
+ * system to v5/v6. Until then, this shim makes Joy's v5 theme compatible
+ * with v9's sx evaluator.
+ */
+const bloomInternalMediaKeys = (Object.keys(bloomBreakpointValues) as Array<
+  keyof typeof bloomBreakpointValues
+>).map(
+  (key) => `@media (min-width:${bloomBreakpointValues[key]}px)`,
+);
+
 const bloomBreakpoints = {
-  values: {
-    xs: 0,
-    sm: 600,
-    md: 900,
-    lg: 1200,
-    xl: 1536,
-  },
+  values: bloomBreakpointValues,
+  internal_mediaKeys: bloomInternalMediaKeys,
 };
 
 const bloomSpacing = (...values: Array<number | string>) => {
