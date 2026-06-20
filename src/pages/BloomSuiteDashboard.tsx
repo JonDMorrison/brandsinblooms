@@ -554,6 +554,7 @@ export const BloomSuiteDashboard = () => {
 
   const overviewStats = [
     {
+      id: "customers",
       label: (
         <StatLabelWithInfo
           label="Customers"
@@ -576,6 +577,7 @@ export const BloomSuiteDashboard = () => {
       loading: loadingTenantSummary,
     },
     {
+      id: "orders",
       label: "Orders",
       value: (posAnalytics?.totalOrders ?? 0).toLocaleString(),
       icon: <Calendar />,
@@ -588,6 +590,7 @@ export const BloomSuiteDashboard = () => {
       onClick: () => navigate("/products"),
     },
     {
+      id: "active-campaigns",
       label: "Active campaigns",
       value: (crmMetrics?.activeCampaigns ?? 0).toLocaleString(),
       icon: <Megaphone />,
@@ -604,6 +607,7 @@ export const BloomSuiteDashboard = () => {
       onClick: () => navigate("/crm/campaigns"),
     },
     {
+      id: "revenue",
       label: (
         <StatLabelWithInfo label="Revenue" tooltip={REVENUE_TOOLTIP_COPY} />
       ),
@@ -843,7 +847,7 @@ export const BloomSuiteDashboard = () => {
       >
         {overviewStats.map((stat) => (
           <DashboardStatCard
-            key={stat.label}
+            key={stat.id}
             icon={stat.icon}
             label={stat.label}
             value={stat.value}
