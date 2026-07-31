@@ -153,14 +153,14 @@ const FIELD_TYPE_DEFINITIONS: FieldTypeDefinition[] = [
   {
     type: "segment_checkbox",
     category: "basic",
-    label: "Segment Checkbox",
-    description: "Add the submitter to a CRM segment when checked.",
+    label: "Segment Opt-In",
+    description: "Let visitors join one or more CRM segments by checking options.",
     helperText:
-      "Select a segment from your CRM. When the visitor checks this box, they are automatically added to that segment on submission.",
+      "Add one option per CRM segment you want to offer. Each option pairs a real segment with the public label the visitor sees. On submit, the contact joins every segment they chose.",
     icon: Users,
-    defaultLabel: "Join our mailing list",
+    defaultLabel: "Tell us what you're interested in",
     defaultRequired: false,
-    defaultMappingKey: "segment_checkbox",
+    defaultMappingKey: "segment_opt_in",
   },
 ];
 

@@ -53,6 +53,31 @@ export interface FormStep {
   description: string;
 }
 
+export type FormSegmentSelectionMode = "checkbox" | "single";
+
+/**
+ * A creator-defined option on a `segment_checkbox` field.
+ *
+ * The creator picks a real CRM segment by id (via a live picker bound to the
+ * tenant's segments) and authors a public-facing `label` that the visitor
+ * sees. The two are independent — the label may differ from the segment's
+ * internal name, and the segment's internal name is NEVER exposed to the
+ * visitor.
+ *
+ * On submission, the visitor's checked options resolve back to their
+ * segment_ids, and the contact is added to each mapped segment.
+ *
+ * Picker-side rule: only static segments (auto_update=false) may be selected
+ * here, because the nightly recompute would delete manually-added memberships
+ * on dynamic (rule-based) segments. See the picker filter in
+ * `InlineFieldEditor.tsx` and the submission writes in
+ * `supabase/functions/submit-form/index.ts`.
+ */
+export interface FormSegmentOption {
+  segment_id: string;
+  label: string;
+}
+
 export interface FormField {
   id: string;
   type: FormFieldType;
@@ -71,6 +96,21 @@ export interface FormField {
   segment_name?: string;
   persona_id?: string;
   persona_name?: string;
+  /**
+   * Creator-defined options for a `segment_checkbox` field. Each option pairs
+   * one real CRM segment with a creator-authored public label. When this
+   * array is present (length >= 1), the field renders as a multi-option
+   * group; the legacy single-segment `segment_id` / `segment_name` fields
+   * are ignored.
+   */
+  segment_options?: FormSegmentOption[];
+  /**
+   * Presentation mode for a `segment_checkbox` field that uses
+   * `segment_options`. `"checkbox"` = visitor may select 0+ options;
+   * `"single"` = visitor selects at most one (radio). Defaults to
+   * `"checkbox"`.
+   */
+  segment_selection_mode?: FormSegmentSelectionMode;
 }
 
 export type FormFontFamily = "inter" | "system" | "serif" | "mono";

@@ -73,6 +73,74 @@ interface FormField {
   segment_name?: string;
   persona_id?: string;
   persona_name?: string;
+  // Multi-segment opt-in (segment_checkbox with `segment_options`).
+  // Each option pairs a real segment id with a creator-authored public label.
+  // On submission the resolved segment ids are written to customer_segments.
+  segment_options?: Array<{ segment_id: string; label?: string }>;
+  segment_selection_mode?: "checkbox" | "single";
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolves the segment ids the visitor selected on a `segment_checkbox`
+ * field. Mirrors the client-side helper in
+ * `src/lib/forms/segmentCheckbox.ts` — the two surfaces must agree.
+ *
+ * Only segment ids that match one of the field's configured options are
+ * returned, so a tampered payload can't make us join arbitrary segments.
+ */
+function resolveSubmittedSegmentIds(
+  field: FormField,
+  value: unknown,
+): string[] {
+  const explicit = Array.isArray(field.segment_options)
+    ? field.segment_options.filter(
+        (option): option is { segment_id: string; label?: string } =>
+          Boolean(option) &&
+          typeof option.segment_id === "string" &&
+          option.segment_id.length > 0,
+      )
+    : [];
+
+  // Legacy single-binding field: behave exactly as before — a boolean true
+  // joins the single configured segment.
+  if (explicit.length === 0) {
+    if (
+      typeof field.segment_id === "string" &&
+      field.segment_id.length > 0 &&
+      (value === true || value === "true")
+    ) {
+      return [field.segment_id];
+    }
+    return [];
+  }
+
+  const allowed = new Set(explicit.map((option) => option.segment_id));
+  const ids: string[] = [];
+
+  const accept = (candidate: unknown) => {
+    if (
+      typeof candidate === "string" &&
+      UUID_RE.test(candidate) &&
+      allowed.has(candidate)
+    ) {
+      ids.push(candidate);
+    }
+  };
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      accept(entry);
+    }
+  } else if (typeof value === "string") {
+    accept(value);
+  } else if (value === true && explicit.length === 1) {
+    ids.push(explicit[0].segment_id);
+  }
+
+  return Array.from(new Set(ids));
 }
 
 interface FormCompliance {
@@ -1677,28 +1745,39 @@ Deno.serve(async (req) => {
     }
 
     // ─── Step 10b: Process checkbox/segment_checkbox fields ──────────────────
-    // If a checkbox or segment_checkbox field is checked and has segment_id or
-    // persona_id, add the customer to the corresponding segment/persona.
+    // If a checkbox or segment_checkbox field is checked, add the customer
+    // to the matching segments/persona. `segment_checkbox` fields with a
+    // `segment_options` array can join multiple segments per field.
     if (customerId) {
       const checkboxFields = (fields as FormField[]).filter(
         (f: FormField) =>
           (f.type === "segment_checkbox" || f.type === "checkbox") &&
-          (f.segment_id || f.persona_id),
+          (f.segment_id ||
+            f.persona_id ||
+            (Array.isArray(f.segment_options) && f.segment_options.length > 0)),
       );
 
       for (const cbField of checkboxFields) {
         try {
           const fieldValue = submissionData[cbField.mapping_key];
-          if (fieldValue !== true && fieldValue !== "true") continue;
 
-          // Assign to segment
-          if (cbField.segment_id) {
+          // Resolve the segments the visitor's submission actually selected.
+          // For multi-option `segment_checkbox` fields this returns one or
+          // more ids. For legacy single-segment checkbox / segment_checkbox
+          // fields it returns [segment_id] when fieldValue is true.
+          const selectedSegmentIds = resolveSubmittedSegmentIds(
+            cbField,
+            fieldValue,
+          );
+
+          // Assign to every selected segment.
+          for (const segmentId of selectedSegmentIds) {
             const { error: segErr } = await supabase
               .from("customer_segments")
               .upsert(
                 {
                   customer_id: customerId,
-                  segment_id: cbField.segment_id,
+                  segment_id: segmentId,
                   assigned_at: new Date().toISOString(),
                 },
                 { onConflict: "customer_id,segment_id" },
@@ -1706,15 +1785,32 @@ Deno.serve(async (req) => {
 
             if (segErr) {
               console.warn(
-                `[submit-form] Checkbox segment upsert failed for ${cbField.segment_id}:`,
+                `[submit-form] Checkbox segment upsert failed for ${segmentId}:`,
                 segErr.message,
               );
             } else {
-              segmentsJoined.push(cbField.segment_name || cbField.segment_id!);
+              const labelHint =
+                cbField.segment_options?.find(
+                  (option) => option.segment_id === segmentId,
+                )?.label ||
+                cbField.segment_name ||
+                segmentId;
+              segmentsJoined.push(labelHint);
               console.log(
-                `[submit-form] Checkbox: added customer to segment ${cbField.segment_name || cbField.segment_id}`,
+                `[submit-form] Checkbox: added customer to segment ${labelHint} (${segmentId})`,
               );
             }
+          }
+
+          // Skip the legacy persona path when this iteration was driven by
+          // a multi-option submission — only proceed to persona handling
+          // for fields that use the single boolean shape.
+          if (
+            fieldValue !== true &&
+            fieldValue !== "true" &&
+            selectedSegmentIds.length === 0
+          ) {
+            continue;
           }
 
           // Assign to persona
