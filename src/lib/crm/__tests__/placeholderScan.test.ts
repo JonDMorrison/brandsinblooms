@@ -113,6 +113,56 @@ describe("scanBlocksForPlaceholders", () => {
     expect(findings.length).toBeLessThanOrEqual(8);
   });
 
+  it("does not fire on bracketed prose that merely STARTS with an editorial verb", () => {
+    // Prefix-unbounded regression (post-#79 hardening): these are
+    // legitimate marketing copy, not editorial notes.
+    const blocks = [
+      { label: "Promo", body: "[additional savings inside]" },
+      { label: "Promo", body: "[links below]" },
+      { label: "Promo", body: "[editors pick of the week]" },
+      { label: "Promo", body: "[filled with spring color]" },
+      { label: "Promo", body: "[imagery by our team]" },
+    ];
+    expect(scanBlocksForPlaceholders(blocks)).toEqual([]);
+  });
+
+  it("does not fire on Outlook MSO conditionals or footer stubs in raw-HTML blocks", () => {
+    // Real snippets found in live draft blocks (Feuzion, Hunniford,
+    // Brands in Blooms). Every compiled email carries MSO conditionals;
+    // some drafts carry them inside raw-HTML block bodies too.
+    const blocks = [
+      {
+        label: "Raw HTML",
+        body: "<!--[if mso]><table><![endif]--> [if gte mso 9] [if mso | IE] <span data-ogsb>x</span>",
+      },
+      {
+        label: "Footer",
+        content: "[Unsubscribe Link] | [Manage Preferences Link]",
+      },
+    ];
+    expect(scanBlocksForPlaceholders(blocks)).toEqual([]);
+  });
+
+  it("does not fire on curly merge/personalization tokens", () => {
+    const blocks = [
+      {
+        label: "Footer",
+        content: "{{UNSUBSCRIBE_URL}} {{PREFERENCES_URL}} {{first_name}}",
+      },
+    ];
+    expect(scanBlocksForPlaceholders(blocks)).toEqual([]);
+  });
+
+  it("still fires on genuine bracketed editorial notes after the word-boundary fix", () => {
+    const blocks = [
+      { label: "Draft", body: "[add photo of the new arrivals]" },
+      { label: "Draft", body: "[insert hours here]" },
+      { label: "Draft", body: "[link to survey]" },
+    ];
+    const phrases = scanBlocksForPlaceholders(blocks).map((f) => f.phrase);
+    expect(phrases).toHaveLength(3);
+  });
+
   it("strips HTML before matching so tags don't hide notes", () => {
     const blocks = [
       { label: "Text", body: "<p><strong>(edit)</strong> finish this section</p>" },
