@@ -42,6 +42,10 @@ import { CampaignLockedView } from "@/components/crm/campaign-editor/CampaignLoc
 import { CampaignScheduleDrawer } from "@/components/crm/campaign-editor/CampaignScheduleDrawer";
 import { CampaignBlockerRow } from "@/components/crm/campaign-editor/CampaignBlockerRow";
 import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/CampaignSendConfirmation";
+import {
+  formatPlaceholderFindings,
+  scanBlocksForPlaceholders,
+} from "@/lib/crm/placeholderScan";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
 import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
 import { ManageTemplatesModal } from "@/components/crm/campaign-editor/ManageTemplatesModal";
@@ -1054,6 +1058,19 @@ function CampaignEditorScreen() {
 
     return warnings;
   }, [autoSaveStatus, campaignType, senderClassification, senderEmail]);
+
+  // Pre-send placeholder scan (Flowerhouse scaffold-send incident):
+  // detect template scaffold headings and editorial notes in the content
+  // blocks so the send confirmation can require an explicit acknowledgment
+  // before emailing likely-unfinished content to real customers. Soft
+  // warning, never a hard block — false positives are possible.
+  const placeholderWarningLines = React.useMemo(
+    () =>
+      campaignType === "email"
+        ? formatPlaceholderFindings(scanBlocksForPlaceholders(contentBlocks))
+        : [],
+    [campaignType, contentBlocks],
+  );
 
   const sendButtonDisabled =
     sendBlockerLines.length > 0 ||
@@ -2610,6 +2627,7 @@ function CampaignEditorScreen() {
         onClose={() => setSendConfirmOpen(false)}
         builderWarnings={sendWarningLines}
         builderBlockers={sendBlockerLines}
+        placeholderWarnings={placeholderWarningLines}
       />
       <SenderVerificationDialog
         open={verificationOpen}

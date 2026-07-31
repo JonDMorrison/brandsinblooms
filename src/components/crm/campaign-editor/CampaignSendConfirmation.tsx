@@ -1067,11 +1067,20 @@ export function CampaignSendConfirmation({
   onClose,
   builderWarnings = [],
   builderBlockers = [],
+  placeholderWarnings = [],
 }: {
   open: boolean;
   onClose: () => void;
   builderWarnings?: string[];
   builderBlockers?: string[];
+  /**
+   * Likely-unfinished content detected by the pre-send placeholder scan
+   * (scaffold headings, editorial notes). When non-empty, the user must
+   * explicitly acknowledge before the send button enables. Soft gate —
+   * some findings may be false positives — but the acknowledgment makes
+   * the review deliberate. (Flowerhouse scaffold-send incident.)
+   */
+  placeholderWarnings?: string[];
 }) {
   const { tenant } = useTenant();
   const {
@@ -1119,6 +1128,8 @@ export function CampaignSendConfirmation({
   const [includeMissingConsent, setIncludeMissingConsent] = React.useState(false);
   const [includeSoftSuppressions, setIncludeSoftSuppressions] =
     React.useState(false);
+  const [placeholderAcknowledged, setPlaceholderAcknowledged] =
+    React.useState(false);
 
   React.useEffect(() => {
     if (!open) {
@@ -1131,6 +1142,7 @@ export function CampaignSendConfirmation({
       setPendingIncludeSoftSuppressions(false);
       setIncludeMissingConsent(false);
       setIncludeSoftSuppressions(false);
+      setPlaceholderAcknowledged(false);
     }
   }, [open]);
 
@@ -1285,12 +1297,23 @@ export function CampaignSendConfirmation({
         warning,
       });
     });
+    if (placeholderAcknowledged && placeholderWarnings.length > 0) {
+      items.push({
+        id: "placeholder-content-acknowledged",
+        label: "Unfinished-content warning acknowledged",
+        detail: placeholderWarnings.join("; "),
+        warning:
+          "User reviewed the detected placeholder/scaffold content and chose to send anyway.",
+      });
+    }
     return items;
   }, [
     builderWarnings,
     consentGap,
     includeMissingConsent,
     includeSoftSuppressions,
+    placeholderAcknowledged,
+    placeholderWarnings,
     suppressionBypassRecipientCount,
   ]);
 
@@ -1303,9 +1326,12 @@ export function CampaignSendConfirmation({
   const primaryActionColor: "primary" | "warning" = overrideActive
     ? "warning"
     : "primary";
+  const requiresPlaceholderAck =
+    placeholderWarnings.length > 0 && !placeholderAcknowledged;
   const primaryActionDisabled =
     isBusy ||
     hasBuilderBlockers ||
+    requiresPlaceholderAck ||
     projectedRecipientCount === 0;
 
   const handleClose = React.useCallback(() => {
@@ -1322,7 +1348,10 @@ export function CampaignSendConfirmation({
         suppressToasts: true,
         forceBypassConsent: includeMissingConsent,
         forceBypassSoftSuppression: includeSoftSuppressions,
-        acknowledgedWarnings: overrideActive ? acknowledgedWarnings : undefined,
+        acknowledgedWarnings:
+          overrideActive || placeholderAcknowledged
+            ? acknowledgedWarnings
+            : undefined,
       });
       if (result.success) {
         setLowCountConfirmOpen(false);
@@ -1348,6 +1377,7 @@ export function CampaignSendConfirmation({
     includeSoftSuppressions,
     onClose,
     overrideActive,
+    placeholderAcknowledged,
   ]);
 
   const handleSubmit = React.useCallback(async () => {
@@ -1696,6 +1726,65 @@ export function CampaignSendConfirmation({
                         {blocker}
                       </Typography>
                     ))}
+                  </Stack>
+                </Sheet>
+              ) : null}
+
+              {placeholderWarnings.length > 0 ? (
+                <Sheet
+                  variant="soft"
+                  color="warning"
+                  data-testid="placeholder-content-warning"
+                  sx={{ borderRadius: "md", p: 2 }}
+                >
+                  <Stack spacing={1}>
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <AlertTriangle
+                        size={18}
+                        style={{
+                          flexShrink: 0,
+                          marginTop: 2,
+                          color: "var(--joy-palette-warning-700)",
+                        }}
+                      />
+                      <Stack spacing={0.5}>
+                        <Typography
+                          level="title-sm"
+                          fontWeight="lg"
+                          sx={{ color: "warning.700" }}
+                        >
+                          This campaign may contain unfinished content.
+                        </Typography>
+                        <Typography
+                          level="body-sm"
+                          sx={{ color: "neutral.700" }}
+                        >
+                          We spotted text that looks like template scaffolding
+                          or editing notes. Review before sending:
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Stack spacing={0.25} sx={{ pl: 3.5 }}>
+                      {placeholderWarnings.map((warning) => (
+                        <Typography
+                          key={warning}
+                          level="body-xs"
+                          sx={{ color: "neutral.700" }}
+                        >
+                          • {warning}
+                        </Typography>
+                      ))}
+                    </Stack>
+                    <Checkbox
+                      size="sm"
+                      checked={placeholderAcknowledged}
+                      onChange={(event) =>
+                        setPlaceholderAcknowledged(event.target.checked)
+                      }
+                      label="I've reviewed these and want to send anyway"
+                      data-testid="placeholder-acknowledge-checkbox"
+                      sx={{ mt: 0.5 }}
+                    />
                   </Stack>
                 </Sheet>
               ) : null}
