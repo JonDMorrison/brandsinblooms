@@ -45,6 +45,7 @@ import { CampaignSendConfirmation } from "@/components/crm/campaign-editor/Campa
 import {
   formatPlaceholderFindings,
   scanBlocksForPlaceholders,
+  scanSubjectForUnrenderedTokens,
 } from "@/lib/crm/placeholderScan";
 import { CollapsibleSection } from "@/components/crm/campaign-editor/CollapsibleSection";
 import { IntentPicker } from "@/components/crm/campaign-editor/IntentPicker";
@@ -1067,9 +1068,18 @@ function CampaignEditorScreen() {
   const placeholderWarningLines = React.useMemo(
     () =>
       campaignType === "email"
-        ? formatPlaceholderFindings(scanBlocksForPlaceholders(contentBlocks))
+        ? [
+            ...formatPlaceholderFindings(
+              scanBlocksForPlaceholders(contentBlocks),
+            ),
+            // Malformed {{ }} tokens in the subject line pass through the
+            // send-time merge engine untouched and reach every recipient
+            // literally. Well-formed tokens render per-recipient and are
+            // not flagged.
+            ...scanSubjectForUnrenderedTokens(subjectLine),
+          ]
         : [],
-    [campaignType, contentBlocks],
+    [campaignType, contentBlocks, subjectLine],
   );
 
   const sendButtonDisabled =

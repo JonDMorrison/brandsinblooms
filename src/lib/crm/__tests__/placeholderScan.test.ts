@@ -5,6 +5,7 @@ import {
   formatPlaceholderFindings,
   refreshHeaderDates,
   scanBlocksForPlaceholders,
+  scanSubjectForUnrenderedTokens,
 } from "@/lib/crm/placeholderScan";
 
 describe("scanBlocksForPlaceholders", () => {
@@ -168,5 +169,52 @@ describe("refreshHeaderDates", () => {
   it("passes through blocks with no date fields unchanged (same reference)", () => {
     const blocks = [{ type: "cta", title: "Shop now" }];
     expect(refreshHeaderDates(blocks, NOW)[0]).toBe(blocks[0]);
+  });
+});
+
+describe("scanSubjectForUnrenderedTokens", () => {
+  // Production-verified baseline: campaign b9b89a2b… stored the subject
+  // "A lighter spring edit is ready for {{ first_name }}" and delivered
+  // 1,245 personalized subjects with zero literal tokens. Well-formed
+  // tokens render at send time and must NOT warn.
+  it("does not flag well-formed tokens (they render per-recipient)", () => {
+    const subjects = [
+      "A lighter spring edit is ready for {{ first_name }}",
+      "{{first_name}}, your order is ready",
+      "Hi {{ first_name | default: 'friend' }}!",
+      "{{company.name}} weekly update",
+      "No tokens at all",
+    ];
+    for (const subject of subjects) {
+      expect(scanSubjectForUnrenderedTokens(subject)).toEqual([]);
+    }
+  });
+
+  it("flags malformed tokens the merge engine cannot render", () => {
+    const cases = [
+      "Ready for {{ first-name }}",       // hyphen — not a valid field
+      "Ready for {{first name}}",          // space inside the field
+      "Ready for {{first_name",            // unclosed
+      "Ready for first_name}} and more",   // dangling close
+    ];
+    for (const subject of cases) {
+      const warnings = scanSubjectForUnrenderedTokens(subject);
+      expect(warnings.length, subject).toBe(1);
+      expect(warnings[0]).toContain("won't render");
+    }
+  });
+
+  it("does not flag a subject that mixes a valid token with plain prose", () => {
+    expect(
+      scanSubjectForUnrenderedTokens(
+        "{{ first_name }}, blueberries are back {and so are you}",
+      ),
+    ).toEqual([]);
+  });
+
+  it("handles null/undefined/empty safely", () => {
+    expect(scanSubjectForUnrenderedTokens(null)).toEqual([]);
+    expect(scanSubjectForUnrenderedTokens(undefined)).toEqual([]);
+    expect(scanSubjectForUnrenderedTokens("")).toEqual([]);
   });
 });

@@ -2511,21 +2511,26 @@ serve((req: Request) => {
             continue;
           }
 
-          // Compute final metrics from email_messages
-          const { data: sentRows } = await supabase
+          // Compute final metrics from email_messages via server-side
+          // COUNT aggregates. The previous implementation fetched the rows
+          // and took `.length`, which PostgREST silently caps at its
+          // 1000-row default — campaigns over 1000 recipients finalized
+          // with messages_sent frozen at exactly 1000 (seen on campaigns
+          // 34bd5205… at 1624 real sends and b9b89a2b… at 1245).
+          const { count: sentCount } = await supabase
             .from("email_messages")
-            .select("id")
+            .select("id", { count: "exact", head: true })
             .eq("campaign_id", campaignId)
             .eq("status", "sent");
 
-          const { data: failedRows } = await supabase
+          const { count: failedCount } = await supabase
             .from("email_messages")
-            .select("id")
+            .select("id", { count: "exact", head: true })
             .eq("campaign_id", campaignId)
             .eq("status", "failed");
 
-          const totalSent = (sentRows || []).length;
-          const totalFailed = (failedRows || []).length;
+          const totalSent = sentCount ?? 0;
+          const totalFailed = failedCount ?? 0;
           const hasErrors = totalFailed > 0;
 
           const completedAt = new Date().toISOString();
