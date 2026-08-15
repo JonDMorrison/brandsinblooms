@@ -921,11 +921,13 @@ export default function CRMCampaignReport() {
     queryKey: ["crm-campaign-report-dashboard", campaignId],
     enabled: Boolean(campaignId),
     queryFn: async (): Promise<ReportSummary> => {
+      // Note: this used to also query crm_email_sends for the first send —
+      // that table has no writer anywhere in the codebase and is empty for
+      // every recent campaign. email_messages (below) is the live source.
       const [
         { data: campaignRow, error: campaignError },
         { data: trackingEvents, error: eventsError },
         editorRecord,
-        { data: firstSendRow, error: firstSendError },
         { data: firstMessageRow, error: firstMessageError },
       ] = await Promise.all([
         supabase
@@ -949,13 +951,6 @@ export default function CRMCampaignReport() {
           ]),
         fetchCampaignEditorRecord(campaignId!),
         supabase
-          .from("crm_email_sends")
-          .select("customer_id, email, sent_at")
-          .eq("campaign_id", campaignId)
-          .order("sent_at", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
-        supabase
           .from("email_messages")
           .select("id, customer_id, email, payload, sent_at")
           .eq("campaign_id", campaignId)
@@ -967,7 +962,6 @@ export default function CRMCampaignReport() {
 
       if (campaignError) throw campaignError;
       if (eventsError) throw eventsError;
-      if (firstSendError) throw firstSendError;
       if (firstMessageError) throw firstMessageError;
 
       const campaign = mapCampaignCatalogItem(campaignRow);
@@ -980,20 +974,15 @@ export default function CRMCampaignReport() {
         (firstMessageRow ?? null) as EmailMessagePreviewRow | null,
       );
       const previewCustomerId =
-        typeof firstSendRow?.customer_id === "string" &&
-        firstSendRow.customer_id
-          ? firstSendRow.customer_id
-          : typeof firstMessageRow?.customer_id === "string" &&
-              firstMessageRow.customer_id
-            ? firstMessageRow.customer_id
-            : null;
+        typeof firstMessageRow?.customer_id === "string" &&
+        firstMessageRow.customer_id
+          ? firstMessageRow.customer_id
+          : null;
       const previewEmail =
-        typeof firstSendRow?.email === "string" && firstSendRow.email.trim()
-          ? firstSendRow.email.trim()
-          : typeof firstMessageRow?.email === "string" &&
-              firstMessageRow.email.trim()
-            ? firstMessageRow.email.trim()
-            : "recipient@preview.invalid";
+        typeof firstMessageRow?.email === "string" &&
+        firstMessageRow.email.trim()
+          ? firstMessageRow.email.trim()
+          : "recipient@preview.invalid";
       let previewRecipient: ReportSummary["previewRecipient"] = {
         customerId: null,
         sampleCustomer: {
