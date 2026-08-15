@@ -307,11 +307,41 @@ serve(async (req: Request): Promise<Response> => {
       email = customer?.email;
     }
 
-    // Record the click event (upsert for idempotency)
+    // Automated-click detection: scanner user agents follow links before a
+    // human plausibly could. Mirrors the classifier in
+    // email-tracking-webhook so both click writers agree.
+    const uaLower = userAgent.toLowerCase();
+    const isAutomatedClick = [
+      'googleimageproxy',
+      'barracuda',
+      'proofpoint',
+      'mimecast',
+      'symantec',
+      'trendmicro',
+      'bitdefender',
+      'python-requests',
+      'curl/',
+      'axios/',
+      'go-http-client',
+      'okhttp',
+      'headlesschrome',
+      'bot',
+      'crawler',
+      'spider',
+    ].some((marker) => uaLower.includes(marker));
+
+    // Record the click event (upsert for idempotency).
+    // event_type is 'clicked' — the same literal the webhook writer uses —
+    // so every consumer filters one value. (This writer used 'click',
+    // which split the click stream across two event names.)
     const eventData = {
       campaign_id: effectiveCampaignId,
+      // Attribution fix: recipientId was already in hand (it was used to
+      // look up the email above) but was never written, leaving first-party
+      // click rows with customer_id NULL.
+      customer_id: recipientId || null,
       customer_email: email || 'unknown',
-      event_type: 'click',
+      event_type: 'clicked',
       event_data: {
         click_link: destinationUrl,
         link_id: linkId,
@@ -321,6 +351,7 @@ serve(async (req: Request): Promise<Response> => {
       link_id: linkId,
       user_agent: userAgent,
       ip_hash: ipHash,
+      is_mpp_guess: isAutomatedClick,
       provider_message_id: `click_${linkId}_${email || recipientId || 'anon'}_${Date.now()}`,
       event_ts_provider: new Date().toISOString(),
       ingested_at: new Date().toISOString()

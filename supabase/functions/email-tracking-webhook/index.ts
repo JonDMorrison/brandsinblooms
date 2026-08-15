@@ -442,10 +442,12 @@ const resolveGovernanceContext = async (
     }
   }
 
-  if (providerMessageId && (!tenantId || !campaignId || !domainId || !emailMessageId)) {
+  let messageSentAt: string | null = null;
+
+  if (providerMessageId) {
     const { data: message } = await supabase
       .from('email_messages')
-      .select('id, tenant_id, campaign_id, domain_id, customer_id')
+      .select('id, tenant_id, campaign_id, domain_id, customer_id, sent_at')
       .eq('resend_id', providerMessageId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -457,6 +459,7 @@ const resolveGovernanceContext = async (
       domainId = domainId || message.domain_id || null;
       emailMessageId = message.id || null;
       customerId = message.customer_id || null;
+      messageSentAt = message.sent_at || null;
     }
   }
 
@@ -466,6 +469,7 @@ const resolveGovernanceContext = async (
     domainId,
     emailMessageId,
     customerId,
+    messageSentAt,
   };
 };
 
@@ -786,6 +790,7 @@ const handler = async (req: Request): Promise<Response> => {
     const effectiveDomainId = isUuid(rawDomainId) ? rawDomainId : null;
     const effectiveEmailMessageId = isUuid(rawEmailMessageId) ? rawEmailMessageId : null;
     const effectiveCustomerId = isUuid(rawCustomerId) ? rawCustomerId : null;
+    const messageSentAt = governanceContext.messageSentAt || null;
 
     console.log('📋 Extracted metadata:', {
       ...metadata,
@@ -919,7 +924,64 @@ const handler = async (req: Request): Promise<Response> => {
       eventData.click_timestamp = payload.data.click.timestamp;
     }
 
-    // MPP Detection for opens
+    // Recipient-facing user agent. The HTTP request that delivers a Resend
+    // webhook comes from Svix, so `req.headers['user-agent']` is always
+    // "Svix-Webhooks/…" — useless for open/click classification. The
+    // recipient's real UA (mail client / proxy / scanner) lives inside the
+    // event payload. Prefer it whenever present; production data shows
+    // 21k+ open rows stored with the Svix UA, which is why MPP
+    // classification never fired on webhook-ingested opens.
+    let recipientUserAgent: string | null = null;
+
+    // Time from the per-recipient send to this event, when both timestamps
+    // are known. Sub-3-second opens/clicks are almost always automated
+    // (Apple MPP prefetch, corporate security scanners), not humans.
+    let timeToEventSeconds: number | null = null;
+    if (
+      (eventType === 'opened' || eventType === 'clicked') &&
+      messageSentAt &&
+      eventTsProvider
+    ) {
+      const sentMs = Date.parse(messageSentAt);
+      const eventMs = Date.parse(eventTsProvider);
+      if (Number.isFinite(sentMs) && Number.isFinite(eventMs) && eventMs >= sentMs) {
+        timeToEventSeconds = Math.round((eventMs - sentMs) / 1000);
+      }
+    }
+
+    const SCANNER_UA_MARKERS = [
+      'googleimageproxy',
+      'mail privacy protection',
+      'barracuda',
+      'proofpoint',
+      'mimecast',
+      'symantec',
+      'trendmicro',
+      'bitdefender',
+      'python-requests',
+      'curl/',
+      'axios/',
+      'go-http-client',
+      'okhttp',
+      'headlesschrome',
+      'bot',
+      'crawler',
+      'spider',
+    ];
+
+    const looksAutomated = (ua: string, ip: string): boolean => {
+      const lower = ua.toLowerCase();
+      if (lower.includes('applemail') || lower.includes('apple mail')) return true;
+      if (SCANNER_UA_MARKERS.some((marker) => lower.includes(marker))) return true;
+      if (ip.startsWith('17.') || ip.includes('apple') || ip.includes('icloud')) return true;
+      return false;
+    };
+
+    // Automated-event detection (Apple MPP prefetch, scanners). Stored in
+    // is_mpp_guess for both opens and clicks; the column means "likely not
+    // a human interaction". Raw counts are untouched — this is a
+    // classification layer for the UI to filter on, not a change to what
+    // total_opens/total_clicks count.
     let isMppGuess = false;
     if ((eventType === 'opened') && payload.data.open) {
       eventData.open_timestamp = payload.data.open.timestamp;
@@ -927,20 +989,37 @@ const handler = async (req: Request): Promise<Response> => {
       const openUserAgent = payload.data.open.user_agent || payload.data.open.userAgent;
       eventData.open_ip = openIp;
       eventData.open_user_agent = openUserAgent;
+      recipientUserAgent = openUserAgent || null;
 
-      // Heuristic: Apple Mail Privacy Protection detection
-      const ua = openUserAgent?.toLowerCase() || '';
-      const ip = openIp || '';
-
-      // Common MPP indicators:
-      // 1. User agent contains Apple Mail
-      // 2. Opens happening from Apple's proxy IPs (17.x.x.x range or known proxy ASNs)
-      if (ua.includes('applemail') || ua.includes('apple mail')) {
-        // If it's Apple Mail and opens very quickly after send, likely MPP
+      if (looksAutomated(openUserAgent?.toLowerCase() || '', openIp || '')) {
         isMppGuess = true;
       }
-      // Apple Private Relay IPs typically start with 17. or use iCloud Private Relay
-      if (ip.startsWith('17.') || ip.includes('apple') || ip.includes('icloud')) {
+      // A pixel fetched within seconds of delivery is a prefetch, whatever
+      // the UA claims.
+      if (timeToEventSeconds !== null && timeToEventSeconds < 3) {
+        isMppGuess = true;
+      }
+    }
+
+    if (eventType === 'clicked' && payload.data.click) {
+      const clickUserAgent =
+        (payload.data.click as any).user_agent || (payload.data.click as any).userAgent;
+      const clickIp =
+        (payload.data.click as any).ip_address || (payload.data.click as any).ipAddress;
+      if (clickUserAgent) {
+        eventData.click_user_agent = clickUserAgent;
+        recipientUserAgent = clickUserAgent;
+      }
+      if (clickIp) {
+        eventData.click_ip = clickIp;
+      }
+
+      if (looksAutomated(clickUserAgent?.toLowerCase() || '', clickIp || '')) {
+        isMppGuess = true;
+      }
+      // Sub-3-second clicks are link scanners following URLs before any
+      // human could plausibly have opened the email.
+      if (timeToEventSeconds !== null && timeToEventSeconds < 3) {
         isMppGuess = true;
       }
     }
@@ -1002,18 +1081,27 @@ const handler = async (req: Request): Promise<Response> => {
     // Use (tenant_id, provider_message_id, event_type, event_ts_provider) as unique key
     const trackingRecord = {
       campaign_id: effectiveCampaignId,
+      // Attribution fix: effectiveCustomerId was already resolved (via
+      // email_messages.resend_id) and written to the governance table, but
+      // was never included here — every webhook-ingested event landed with
+      // customer_id NULL (688/688 clicks in the 90 days before this fix).
+      customer_id: effectiveCustomerId,
       customer_email: normalizedEvent.recipient,
       event_type: eventType,
       event_data: {
         ...eventData,
         raw_payload: payload
       },
-      user_agent: userAgent,
+      // Recipient-facing UA when the payload carries one; the raw request
+      // UA is always Svix's and is preserved inside event_data.raw_payload.
+      user_agent: recipientUserAgent || userAgent,
       // New idempotency columns
       provider_message_id: providerMessageId,
       event_ts_provider: eventTsProvider,
       ingested_at: new Date().toISOString(),
       tenant_id: effectiveTenantId || null,
+      sent_at: messageSentAt,
+      time_to_event_seconds: timeToEventSeconds,
       is_mpp_guess: isMppGuess,
       ip_hash: ipHash,
       webhook_delivery_id: webhookDeliveryId
