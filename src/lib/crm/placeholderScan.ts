@@ -239,3 +239,64 @@ export function refreshHeaderDates<T extends Record<string, unknown>>(
     return changed ? (next as T) : block;
   });
 }
+
+// ─── Subject-line merge-token hygiene ────────────────────────────────────
+
+/**
+ * Mirror of the send-time merge-tag matcher in
+ * `supabase/functions/_shared/mergeTagEngine.ts` (MERGE_TAG_REGEX).
+ * Anything the engine matches gets rendered per-recipient at send time —
+ * verified against production: campaign b9b89a2b… delivered 1,245
+ * personalized subjects ("…ready for John/Mark/…"), zero literal tokens.
+ *
+ * The residual exposure is a MALFORMED token the engine can't match —
+ * "{{ first-name }}" (hyphen), "{{first name}}" (space inside the field),
+ * or an unclosed "{{first_name". Those pass through renderMergeTags
+ * untouched and reach every recipient literally. That's what this check
+ * flags. Well-formed tokens are deliberately NOT flagged — they work.
+ */
+const WELL_FORMED_MERGE_TAG_RE =
+  /\{\{\s*[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*\s*(?:\|\s*default:\s*["'][^"']*["'])?\s*\}\}/g;
+
+/**
+ * Returns user-facing warning lines for brace sequences in the subject line
+ * that the merge engine will NOT render — i.e. text that would reach every
+ * recipient literally. Returns [] for subjects with no braces or with only
+ * well-formed tokens.
+ */
+export function scanSubjectForUnrenderedTokens(
+  subject: string | null | undefined,
+): string[] {
+  if (
+    typeof subject !== "string" ||
+    (!subject.includes("{") && !subject.includes("}"))
+  ) {
+    return [];
+  }
+
+  // Remove every well-formed token; whatever brace syntax survives is
+  // unrenderable and will be delivered literally.
+  const leftover = subject.replace(WELL_FORMED_MERGE_TAG_RE, "");
+  if (!/\{\{|\}\}/.test(leftover)) {
+    return [];
+  }
+
+  // Pull the offending snippets for the warning message: any {{...}}-ish
+  // run, or a dangling {{ / }} with a bit of context.
+  const snippets = new Set<string>();
+  const braceRun = /\{\{[^}]{0,50}(?:\}\}|\}|$)|[^{]{0,20}\}\}/g;
+  let match: RegExpExecArray | null;
+  while ((match = braceRun.exec(leftover)) !== null) {
+    const snippet = match[0].trim();
+    if (snippet) {
+      snippets.add(clampPhrase(snippet));
+    }
+    if (snippets.size >= 3) break;
+  }
+
+  const detail =
+    snippets.size > 0 ? ` (${Array.from(snippets).join(", ")})` : "";
+  return [
+    `The subject line contains a personalization tag that won't render${detail}. Every recipient would see it exactly as typed — check the tag's spelling and braces.`,
+  ];
+}
