@@ -2,7 +2,9 @@ import {
   buildStudioDesignSystem,
   type StudioDesignSystem,
 } from "../../../src/lib/studio/designSystem.ts";
-import type { CompanyInfo } from "../../../src/hooks/useCompanyInfo.ts";
+// From types/company, not the useCompanyInfo hook: the hook pulls React,
+// the browser Supabase client, and AuthContext into this function's graph.
+import type { CompanyInfo } from "../../../src/types/company.ts";
 
 type AvailableFontRow = {
   id?: string | null;

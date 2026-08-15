@@ -4,8 +4,11 @@ import type {
   SocialLink,
   StudioBlock,
 } from "../../types/studioBlocks.ts";
-import { formatDraftRichText } from "@/lib/crm/htmlContent.ts";
-import type { StudioDesignSystem } from "@/lib/studio/designSystem.ts";
+// Relative, extension-bearing specifiers: this module is imported by
+// supabase/functions/_shared/* and must resolve under the Deno bundler,
+// which does not apply the app's "@/" path alias.
+import { formatDraftRichText } from "../crm/htmlContent.ts";
+import type { StudioDesignSystem } from "./designSystem.ts";
 
 export type EmailFooterLinks = {
   unsubscribeUrl?: string;
