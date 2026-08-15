@@ -81,7 +81,16 @@ const NOTE_PATTERNS: Array<{ re: RegExp; describe: (match: string) => string }> 
   { re: /lorem ipsum[^.!?\n]{0,40}/gi, describe: (m) => m },
   { re: /\bplaceholder\b[^.!?\n]{0,40}/gi, describe: (m) => m },
   {
-    re: /\[(?:edit|todo|tbd|add|insert|fill|placeholder|image|photo|link)[^\]]{0,60}\]/gi,
+    // Bracketed editorial notes: "[add photo]", "[insert hours here]".
+    // The verb must be a whole word (\b) — without it, legitimate prose
+    // like "[additional savings inside]" ("add"), "[links below]"
+    // ("link"), "[editors pick]" ("edit"), "[filled with spring color]"
+    // ("fill"), or "[imagery by our team]" ("image") would false-fire.
+    // Verified non-matches that must STAY non-matches: Outlook MSO
+    // conditionals ("[if mso]", "[endif]", "[data-ogsb]") present in any
+    // raw-HTML block, footer stubs ("[Unsubscribe Link]"), and the
+    // canonical curly merge tokens ("{{UNSUBSCRIBE_URL}}").
+    re: /\[(?:edit|todo|tbd|add|insert|fill|placeholder|image|photo|link)\b[^\]]{0,60}\]/gi,
     describe: (m) => m,
   },
 ];
