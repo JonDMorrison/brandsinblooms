@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Json } from "@/integrations/supabase/types";
 
 interface CampaignMetrics {
   sent: number;
@@ -217,82 +216,16 @@ export const useCampaignAnalytics = () => {
     }
   };
 
-  const calculateMetrics = (events: EmailTrackingEvent[]): CampaignMetrics => {
-    const metrics: CampaignMetrics = {
-      sent: 0,
-      delivered: 0,
-      opened: 0,
-      clicked: 0,
-      bounced: 0,
-      unsubscribed: 0,
-      revenue: 0,
-    };
-
-    // Count unique emails for each event type
-    const uniqueEmails = {
-      sent: new Set<string>(),
-      delivered: new Set<string>(),
-      opened: new Set<string>(),
-      clicked: new Set<string>(),
-      bounced: new Set<string>(),
-      unsubscribed: new Set<string>(),
-    };
-
-    events.forEach((event) => {
-      switch (event.event_type) {
-        case "sent":
-          uniqueEmails.sent.add(event.customer_email);
-          break;
-        case "delivered":
-          uniqueEmails.delivered.add(event.customer_email);
-          break;
-        case "opened":
-          uniqueEmails.opened.add(event.customer_email);
-          break;
-        case "clicked":
-          uniqueEmails.clicked.add(event.customer_email);
-          break;
-        case "bounced":
-          uniqueEmails.bounced.add(event.customer_email);
-          break;
-        case "unsubscribed":
-          uniqueEmails.unsubscribed.add(event.customer_email);
-          break;
-      }
-    });
-
-    metrics.sent = uniqueEmails.sent.size;
-    metrics.delivered = uniqueEmails.delivered.size;
-    metrics.opened = uniqueEmails.opened.size;
-    metrics.clicked = uniqueEmails.clicked.size;
-    metrics.bounced = uniqueEmails.bounced.size;
-    metrics.unsubscribed = uniqueEmails.unsubscribed.size;
-
-    return metrics;
-  };
-
   const refreshCampaignMetrics = async (campaignId: string) => {
     try {
-      const events = await loadCampaignEvents(campaignId);
-      const calculatedMetrics = calculateMetrics(events);
-
-      const { error } = await supabase
-        .from("crm_campaigns")
-        .update({
-          metrics: calculatedMetrics as unknown as Json,
-          total_sent: calculatedMetrics.sent,
-          total_opens: calculatedMetrics.opened,
-          total_clicks: calculatedMetrics.clicked,
-          open_rate:
-            calculatedMetrics.sent > 0
-              ? (calculatedMetrics.opened / calculatedMetrics.sent) * 100
-              : 0,
-          click_rate:
-            calculatedMetrics.sent > 0
-              ? (calculatedMetrics.clicked / calculatedMetrics.sent) * 100
-              : 0,
-        })
-        .eq("id", campaignId);
+      // Rollup columns and the metrics jsonb are owned by the server-side
+      // recompute (unique recipients across both legacy and current event
+      // names, rates over successful reach). Recounting events in the
+      // browser diverges from that definition and PostgREST caps unranged
+      // reads at 1000 rows, so never write the rollups from the client.
+      const { error } = await supabase.rpc("recompute_campaign_metrics", {
+        p_campaign_id: campaignId,
+      });
 
       if (error) throw error;
 
@@ -351,6 +284,5 @@ export const useCampaignAnalytics = () => {
     loadCampaigns,
     loadCampaignEvents,
     refreshCampaignMetrics,
-    calculateMetrics,
   };
 };
