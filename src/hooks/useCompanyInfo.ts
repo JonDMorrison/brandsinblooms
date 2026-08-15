@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import type {
+  BrandFooterColors,
+  CompanyInfo,
+} from "@/types/company";
+
+// Re-exported so existing consumers can keep importing these from the hook.
+export type { BrandFooterColors, CompanyInfo };
 
 const DEFAULT_COMPANY_INFO: CompanyInfo = {
   name: "Your Company",
@@ -9,83 +16,6 @@ const DEFAULT_COMPANY_INFO: CompanyInfo = {
 };
 const COMPANY_PROFILE_CHANNEL_CONNECT_DELAY_MS = 2000;
 const COMPANY_PROFILE_CHANNEL_RETRY_INTERVAL_MS = 250;
-
-// Brand footer colors from profile settings
-export interface BrandFooterColors {
-  backgroundColor?: string;
-  textColor?: string;
-  linkColor?: string;
-  dividerColor?: string;
-  logoBackgroundColor?: string;
-  logoTextColor?: string;
-}
-
-export interface CompanyInfo {
-  name?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  websiteUrl?: string;
-  streetAddress?: string;
-  city?: string;
-  stateProvince?: string;
-  postalCode?: string;
-  country?: string;
-  logoUrl?: string;
-  emailDomain?: string;
-  brandPrimaryColor?: string;
-  brandSecondaryColor?: string;
-  brandAccentColor?: string;
-  brandTextColor?: string;
-  brandPrimaryColorRaw?: string;
-  brandSecondaryColorRaw?: string;
-  brandAccentColorRaw?: string;
-  brandTextColorRaw?: string;
-  facebookUrl?: string;
-  instagramUrl?: string;
-  tiktokUrl?: string;
-  pinterestUrl?: string;
-  youtubeUrl?: string;
-  linkedinUrl?: string;
-  footerLegalText?: string;
-  // Brand footer colors from profile settings
-  brandFooterColors?: BrandFooterColors;
-  selectedFont?: {
-    id: string;
-    name: string;
-    displayName: string;
-    googleFontsUrl: string;
-    fontFamilyCss: string;
-  };
-  headlineFont?: {
-    id: string;
-    name: string;
-    displayName: string;
-    googleFontsUrl: string;
-    fontFamilyCss: string;
-  };
-  subheadingFont?: {
-    id: string;
-    name: string;
-    displayName: string;
-    googleFontsUrl: string;
-    fontFamilyCss: string;
-  };
-  bodyFont?: {
-    id: string;
-    name: string;
-    displayName: string;
-    googleFontsUrl: string;
-    fontFamilyCss: string;
-  };
-  buttonFont?: {
-    id: string;
-    name: string;
-    displayName: string;
-    googleFontsUrl: string;
-    fontFamilyCss: string;
-  };
-}
 
 export const useCompanyInfo = () => {
   const { user, loading } = useAuth();

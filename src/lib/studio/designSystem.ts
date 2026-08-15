@@ -1,5 +1,12 @@
-import type { CompanyInfo } from "@/hooks/useCompanyInfo";
-import type { SocialLink, StudioSocialPlatform } from "@/types/studioBlocks";
+// Relative, extension-bearing specifiers: this module is reachable from
+// supabase/functions/_shared/* and must resolve under the Deno bundler.
+// CompanyInfo comes from types/company rather than the useCompanyInfo hook
+// so React and the browser Supabase client stay out of the function graph.
+import type { CompanyInfo } from "../../types/company.ts";
+import type {
+  SocialLink,
+  StudioSocialPlatform,
+} from "../../types/studioBlocks.ts";
 
 export const STUDIO_SOCIAL_PLATFORM_ORDER: StudioSocialPlatform[] = [
   "facebook",

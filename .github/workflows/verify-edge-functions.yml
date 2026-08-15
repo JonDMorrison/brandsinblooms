@@ -1,0 +1,94 @@
+name: Verify Edge Functions
+
+# Why this exists: edge functions bundle shared modules from src/ (the email
+# HTML generator, design system, POS adapters). A change under src/ can break
+# a function's module graph without touching supabase/functions/** at all —
+# so the deploy workflow never even runs, and the breakage only surfaces the
+# next time someone edits a function, as a post-merge deploy failure nobody
+# is watching. That is exactly how six email functions sat frozen from
+# 2026-06-01 and two POS functions from 2026-04-07.
+#
+# This job builds every function's module graph on PRs and on pushes to main.
+# `deno info` resolves imports without type-checking or network deploys, so it
+# fails precisely on the class of error that breaks bundling: unresolved
+# specifiers, missing files, and missing file extensions.
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/**'
+      - 'src/**'
+      - '.github/workflows/verify-edge-functions.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - 'src/**'
+      - '.github/workflows/verify-edge-functions.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Resolve module graph for every function
+        run: |
+          broken=""
+          checked=0
+
+          for dir in supabase/functions/*/; do
+            fn="$(basename "$dir")"
+            [[ "$fn" == _* ]] && continue
+            [[ -f "$dir/index.ts" ]] || continue
+            checked=$((checked + 1))
+
+            output="$(deno info --config supabase/functions/deno.json "$dir/index.ts" 2>&1 || true)"
+            errors="$(printf '%s' "$output" \
+              | sed 's/\x1b\[[0-9;]*m//g' \
+              | grep -E 'resolve error|\(missing\)' \
+              | sed 's/^[^a-zA-Z]*//' \
+              | sort -u || true)"
+
+            if [[ -n "$errors" ]]; then
+              broken="$broken $fn"
+              echo "::error title=Edge function graph unresolved::$fn cannot be bundled"
+              {
+                echo "### ❌ \`$fn\`"
+                echo ""
+                echo '```'
+                echo "$errors"
+                echo '```'
+                echo ""
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "✗ $fn"
+              echo "$errors" | sed 's/^/    /'
+            else
+              echo "✓ $fn"
+            fi
+          done
+
+          echo ""
+          echo "Checked $checked functions."
+
+          if [[ -n "$broken" ]]; then
+            {
+              echo "**These functions would fail to deploy.**"
+              echo ""
+              echo "Imports reached from a function must be resolvable by Deno:"
+              echo "use relative specifiers with explicit \`.ts\` extensions"
+              echo "(the app's \`@/\` alias is not applied), and keep React-only"
+              echo "modules out of the graph."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Unresolved module graphs:$broken"
+            exit 1
+          fi
+
+          echo "### ✅ All $checked edge function graphs resolve" >> "$GITHUB_STEP_SUMMARY"

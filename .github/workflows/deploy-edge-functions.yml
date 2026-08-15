@@ -5,6 +5,20 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/**'
+      # src/ modules (email HTML generator, design system, POS adapters) are
+      # bundled into functions, so a change there must redeploy them too.
+      - 'src/lib/studio/**'
+      - 'src/lib/crm/htmlContent*.ts'
+      - 'src/types/**'
+      - 'src/config/**'
+      - 'src/components/crm/pos/adapters/**'
+      - 'src/hooks/useCompanyInfo.ts'
+      - 'src/integrations/supabase/types.ts'
+
+# A failed deploy must never pass silently: the job opens a tracking issue.
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   deploy:
@@ -19,17 +33,34 @@ jobs:
       - name: Detect changed functions
         id: changed
         run: |
-          changed=$(git diff --name-only HEAD~1 HEAD -- supabase/functions/ \
-            | grep -oP 'supabase/functions/\K[^/]+' \
-            | grep -v '^_' \
-            | sort -u \
-            | tr '\n' ' ')
+          changed_paths="$(git diff --name-only HEAD~1 HEAD)"
 
-          if [[ -z "$changed" ]]; then
+          # A change to _shared, the import map, or a bundled src/ module can
+          # affect any function, so redeploy everything in those cases.
+          if printf '%s\n' "$changed_paths" | grep -qE '^supabase/functions/(_|deno\.json)|^src/'; then
             echo "functions=" >> "$GITHUB_OUTPUT"
+            echo "Shared code changed — deploying all functions."
+            exit 0
+          fi
+
+          # Otherwise deploy only the changed function directories. Entries
+          # must be real directories: supabase/functions/deno.json would
+          # otherwise be picked up as a function named "deno.json".
+          changed=""
+          while read -r fn; do
+            [[ -z "$fn" ]] && continue
+            [[ "$fn" == _* ]] && continue
+            [[ -d "supabase/functions/$fn" ]] || continue
+            changed="$changed $fn"
+          done < <(printf '%s\n' "$changed_paths" \
+            | grep -oP '^supabase/functions/\K[^/]+' \
+            | sort -u)
+
+          changed="$(echo "$changed" | xargs || true)"
+          echo "functions=$changed" >> "$GITHUB_OUTPUT"
+          if [[ -z "$changed" ]]; then
             echo "No individual function changes detected — will deploy all."
           else
-            echo "functions=$changed" >> "$GITHUB_OUTPUT"
             echo "Changed functions: $changed"
           fi
 
@@ -39,6 +70,7 @@ jobs:
           version: latest
 
       - name: Deploy changed functions
+        id: deploy
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
@@ -55,6 +87,7 @@ jobs:
             for dir in supabase/functions/*/; do
               fn="$(basename "$dir")"
               [[ "$fn" == _* ]] && continue
+              [[ -f "$dir/index.ts" ]] || continue
               functions="$functions $fn"
             done
           fi
@@ -71,6 +104,7 @@ jobs:
               succeeded=$((succeeded + 1))
             else
               echo "  ✗ $fn FAILED"
+              echo "::error title=Edge function deploy failed::$fn was not deployed"
               failed=$((failed + 1))
               failed_names="$failed_names $fn"
             fi
@@ -82,7 +116,71 @@ jobs:
           echo "  Succeeded: $succeeded"
           echo "  Failed:    $failed"
 
+          {
+            echo "## Edge function deploy"
+            echo ""
+            echo "| Result | Count |"
+            echo "| --- | --- |"
+            echo "| Succeeded | $succeeded |"
+            echo "| Failed | $failed |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "failed_names=$(echo "$failed_names" | xargs || true)" >> "$GITHUB_OUTPUT"
+
           if [[ $failed -gt 0 ]]; then
             echo "  Failed: $failed_names"
+            {
+              echo ""
+              echo "**Not deployed:**$failed_names"
+              echo ""
+              echo "These functions are still running their previous version"
+              echo "in production. Merged changes to them are NOT live."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      # A red check on a post-merge workflow is easy to miss — the change is
+      # already merged and nobody is watching the run. Open an issue so an
+      # undeployed function is impossible to overlook.
+      - name: Open tracking issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failed = '${{ steps.deploy.outputs.failed_names }}'.trim();
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'Edge function deploy failed — functions are stale in production';
+            const body = [
+              failed
+                ? `The following functions failed to deploy and are still running their previous version in production:\n\n${failed.split(/\s+/).map((f) => `- \`${f}\``).join('\n')}`
+                : 'The edge function deploy workflow failed before reporting which functions were affected.',
+              '',
+              `Commit: ${context.sha}`,
+              `Run: ${runUrl}`,
+              '',
+              'Merged changes to these functions are NOT live until this is fixed and the deploy re-run.',
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'edge-deploy-failure',
+            });
+
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['edge-deploy-failure'],
+              });
+            }
