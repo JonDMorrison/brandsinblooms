@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, Typography } from "@mui/joy";
+import { Helmet } from "react-helmet-async";
 import { toast } from "sonner";
 
 import { DocHeader } from "@/components/docs/DocHeader";
@@ -13,6 +14,7 @@ import { getDocumentationContent } from "@/pages/integrations/documentation/cont
 
 export default function IntegrationDocumentationPage() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const contentRef = useRef<HTMLElement>(null);
 
@@ -21,6 +23,7 @@ export default function IntegrationDocumentationPage() {
     () => (seed ? getDocumentationContent(seed.slug) : null),
     [seed],
   );
+  const isPublicDocumentation = location.pathname.startsWith("/docs/");
 
   useEffect(() => {
     if (seed && content) {
@@ -28,8 +31,10 @@ export default function IntegrationDocumentationPage() {
     }
 
     toast.error("Documentation not available for this integration");
-    navigate("/integrations", { replace: true });
-  }, [content, navigate, seed]);
+    navigate(isPublicDocumentation ? "/knowledge-base" : "/integrations", {
+      replace: true,
+    });
+  }, [content, isPublicDocumentation, navigate, seed]);
 
   if (!seed || !content) {
     return null;
@@ -37,26 +42,42 @@ export default function IntegrationDocumentationPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>{content.pageTitle} | BloomSuite Documentation</title>
+        <meta name="description" content={content.overview} />
+        <link
+          rel="canonical"
+          href={`https://bloomsuite.app/docs/integrations/${seed.slug}`}
+        />
+      </Helmet>
       <div className="container mx-auto space-y-6 px-6 pt-6">
         <Breadcrumbs
           size="sm"
           aria-label="Integration documentation breadcrumb"
         >
-          <Link to="/dashboard">
+          <Link to={isPublicDocumentation ? "/" : "/dashboard"}>
             <Typography level="body-sm" color="neutral">
-              Dashboard
+              {isPublicDocumentation ? "BloomSuite" : "Dashboard"}
             </Typography>
           </Link>
-          <Link to="/integrations">
+          <Link
+            to={isPublicDocumentation ? "/knowledge-base" : "/integrations"}
+          >
             <Typography level="body-sm" color="neutral">
-              Integrations
+              {isPublicDocumentation ? "Help Centre" : "Integrations"}
             </Typography>
           </Link>
-          <Link to={`/integrations/${seed.slug}`}>
+          {isPublicDocumentation ? (
             <Typography level="body-sm" color="neutral">
               {seed.name}
             </Typography>
-          </Link>
+          ) : (
+            <Link to={`/integrations/${seed.slug}`}>
+              <Typography level="body-sm" color="neutral">
+                {seed.name}
+              </Typography>
+            </Link>
+          )}
           <Typography level="body-sm" fontWeight="lg">
             Documentation
           </Typography>
@@ -70,6 +91,8 @@ export default function IntegrationDocumentationPage() {
             integrationSlug={seed.slug}
             sections={content.sections}
             branding={content.branding}
+            backHref={isPublicDocumentation ? "/knowledge-base" : undefined}
+            backLabel={isPublicDocumentation ? "Back to Help Centre" : undefined}
           />
         }
       >
