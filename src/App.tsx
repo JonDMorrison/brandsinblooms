@@ -575,6 +575,10 @@ function App() {
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/features/:slug" element={<FeatureDetailPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+              <Route
+                path="/docs/integrations/:slug"
+                element={<IntegrationDocumentationPage />}
+              />
               <Route path="/home1" element={<Home1Page />} />
               <Route path="/email-preferences" element={<EmailPreferences />} />
 
