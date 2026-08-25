@@ -6,7 +6,14 @@ export function getSafeOAuthReturnTo(
 
   try {
     const url = new URL(returnTo, origin);
-    if (url.origin !== origin || !url.pathname.startsWith("/oauth/")) {
+    const isOAuthRoute = url.pathname.startsWith("/oauth/");
+    const isApprovedPartnerConnectRoute =
+      url.pathname === "/integrations/lightspeed/connect";
+
+    if (
+      url.origin !== origin ||
+      (!isOAuthRoute && !isApprovedPartnerConnectRoute)
+    ) {
       return null;
     }
 
