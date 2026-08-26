@@ -139,6 +139,10 @@ const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
 const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
 const AboutPage = lazyNamed(() => import("@/pages/AboutPage"), "AboutPage");
 const SmsPage = lazyNamed(() => import("@/pages/public/SmsPage"), "SmsPage");
+const LightspeedLandingPage = lazyNamed(
+  () => import("@/pages/public/LightspeedLandingPage"),
+  "LightspeedLandingPage",
+);
 const PrivacyPage = lazyNamed(
   () => import("@/pages/public/PrivacyPage"),
   "PrivacyPage",
@@ -572,6 +576,7 @@ function App() {
                 element={<PlatformAgreementPage />}
               />
               <Route path="/ecomm" element={<EcommPage />} />
+              <Route path="/lightspeed" element={<LightspeedLandingPage />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/features/:slug" element={<FeatureDetailPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
