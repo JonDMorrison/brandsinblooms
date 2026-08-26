@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { hasPersistedAuthState } from "@/integrations/supabase/client";
+import { getSafeOAuthReturnTo } from "@/utils/authReturnTo";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ const AUTH_REHYDRATION_GRACE_MS = 5000;
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [isAwaitingRehydration, setIsAwaitingRehydration] = useState(false);
   const hasPersistedSession = !user && hasPersistedAuthState();
@@ -51,7 +53,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    const requestedPath = `${location.pathname}${location.search}${location.hash}`;
+    const returnTo = getSafeOAuthReturnTo(requestedPath);
+    const authPath = returnTo
+      ? `/auth?returnTo=${encodeURIComponent(returnTo)}`
+      : "/auth";
+
+    return <Navigate to={authPath} replace />;
   }
 
   return <OnboardingGuard>{children}</OnboardingGuard>;

@@ -13,6 +13,8 @@ interface DocSidebarProps {
   integrationSlug: string;
   sections: DocSection[];
   branding: DocBranding;
+  backHref?: string;
+  backLabel?: string;
 }
 
 function scrollToSection(sectionId: string) {
@@ -30,6 +32,8 @@ export function DocSidebar({
   integrationSlug,
   sections,
   branding,
+  backHref,
+  backLabel,
 }: DocSidebarProps) {
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "");
 
@@ -129,11 +133,11 @@ export function DocSidebar({
       <aside className="hidden min-[900px]:block">
         <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pr-2">
           <Link
-            to={`/integrations/${integrationSlug}`}
+            to={backHref ?? `/integrations/${integrationSlug}`}
             className="mb-6 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" />
-            <span>Back to {integrationName}</span>
+            <span>{backLabel ?? `Back to ${integrationName}`}</span>
           </Link>
 
           <div className="mb-6 flex items-center gap-2">
