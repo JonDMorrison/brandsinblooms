@@ -11,6 +11,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const WORKER_ID = `automation-executor-${crypto.randomUUID().slice(0, 8)}`;
+
 interface AutomationTriggerEvent {
   trigger_type: string;
   tenant_id: string;
@@ -160,7 +162,8 @@ const handler = async (req: Request): Promise<Response> => {
         trigger_conditions,
         workflow_steps,
         name,
-        version
+        version,
+        overlap_behavior
       `)
       .eq('is_active', true);
 
@@ -996,25 +999,16 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
   let eventsEnqueued = 0;
 
   try {
-    // Fetch unprocessed trigger events (including queued events whose queue time has passed)
-    const now = new Date().toISOString();
-    const { data: events, error: eventsError } = await supabase
-      .from('automation_trigger_events')
-      .select(`
-        id,
-        automation_id,
-        customer_id,
-        segment_id,
-        persona_id,
-        tenant_id,
-        event_type,
-        created_at,
-        queued_until
-      `)
-      .is('processed_at', null)
-      .or(`queued_until.is.null,queued_until.lte.${now}`)
-      .order('created_at', { ascending: true })
-      .limit(100);
+    // Claim due events atomically. Direct SELECTs let concurrent cron/manual
+    // invocations process the same event more than once.
+    const { data: events, error: eventsError } = await supabase.rpc(
+      'claim_due_automation_trigger_events',
+      {
+        p_limit: 100,
+        p_worker_id: WORKER_ID,
+        p_stale_after_minutes: 15,
+      },
+    );
 
     if (eventsError) {
       console.error('❌ Failed to fetch trigger events:', eventsError);
@@ -1150,13 +1144,7 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
               const queuedUntil = existingRun.next_step_scheduled_at
                 ? new Date(new Date(existingRun.next_step_scheduled_at).getTime() + 5 * 60 * 1000).toISOString()
                 : new Date(Date.now() + 60 * 60 * 1000).toISOString(); // Default 1 hour if no scheduled time
-              await supabase
-                .from('automation_trigger_events')
-                .update({
-                  queued_until: queuedUntil,
-                  error_message: null
-                })
-                .eq('id', event.id);
+              await deferTriggerEvent(supabase, event.id, queuedUntil);
               // Skip processing now - will be picked up later when queued_until passes
               continue;
 
@@ -1205,7 +1193,11 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
 
       } catch (eventError) {
         console.error(`❌ Error processing trigger event ${event.id}:`, eventError);
-        await markEventProcessed(supabase, event.id, eventError instanceof Error ? eventError.message : 'Unknown error');
+        await failTriggerEvent(
+          supabase,
+          event.id,
+          eventError instanceof Error ? eventError.message : 'Unknown error',
+        );
       }
     }
 
@@ -1217,15 +1209,47 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
 }
 
 async function markEventProcessed(supabase: any, eventId: string, errorMessage?: string) {
-  const updateData: any = { processed_at: new Date().toISOString() };
-  if (errorMessage) {
-    updateData.error_message = errorMessage;
-  }
+  const { data: completed, error } = await supabase.rpc(
+    'complete_automation_trigger_event',
+    {
+      p_event_id: eventId,
+      p_worker_id: WORKER_ID,
+      p_error_message: errorMessage || null,
+    },
+  );
+  if (error) throw error;
+  if (!completed) throw new Error(`Trigger event ${eventId} claim was lost`);
+}
 
-  await supabase
-    .from('automation_trigger_events')
-    .update(updateData)
-    .eq('id', eventId);
+async function deferTriggerEvent(
+  supabase: any,
+  eventId: string,
+  queuedUntil: string,
+) {
+  const { data: deferred, error } = await supabase.rpc(
+    'defer_automation_trigger_event',
+    {
+      p_event_id: eventId,
+      p_worker_id: WORKER_ID,
+      p_queued_until: queuedUntil,
+    },
+  );
+  if (error) throw error;
+  if (!deferred) throw new Error(`Trigger event ${eventId} claim was lost`);
+}
+
+async function failTriggerEvent(
+  supabase: any,
+  eventId: string,
+  errorMessage: string,
+) {
+  const { data, error } = await supabase.rpc('fail_automation_trigger_event', {
+    p_event_id: eventId,
+    p_worker_id: WORKER_ID,
+    p_error_message: errorMessage,
+  });
+  if (error) console.error(`Failed to release trigger event ${eventId}:`, error);
+  else console.log(`Trigger event ${eventId} retry state:`, data);
 }
 
 serve(handler);
