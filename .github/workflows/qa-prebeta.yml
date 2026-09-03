@@ -24,7 +24,7 @@ jobs:
     
     - uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 22
         cache: 'npm'
         
     - name: Install dependencies
@@ -33,19 +33,10 @@ jobs:
     - name: Install Playwright
       run: npx playwright install --with-deps
       
-    - name: Setup test environment
-      run: |
-        cp .env.e2e .env.local
-        echo "ENVIRONMENT=staging" >> .env.local
-        
-    - name: Start development server
-      run: |
-        npm run dev &
-        npx wait-on http://localhost:5173 --timeout 60000
-        
     - name: Run Pre-Beta E2E Tests
       run: npm run test:e2e:prebeta
       env:
+        ENVIRONMENT: staging
         VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
         SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
