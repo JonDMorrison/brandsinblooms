@@ -57,7 +57,6 @@ import { useCampaignBounces } from "@/hooks/useCampaignBounces";
 import {
   normalizeEmailCampaignReportingSnapshot,
   normalizeDerivedMetrics,
-  useCampaignDerivedMetrics,
 } from "@/hooks/analytics/useCampaignDerivedMetrics";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import {
@@ -790,7 +789,6 @@ export default function CRMCampaignReport() {
   const queryClient = useQueryClient();
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
-  const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
   const lastStatusRef = React.useRef<string | null>(null);
   const [previewViewport, setPreviewViewport] =
     React.useState<PreviewViewport>("desktop");
@@ -923,7 +921,7 @@ export default function CRMCampaignReport() {
   });
 
   const report = reportQuery.data;
-  const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
+  const metrics = report?.metrics;
   const previewQueryKey = React.useMemo(
     () =>
       [
