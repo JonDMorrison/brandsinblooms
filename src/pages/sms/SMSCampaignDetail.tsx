@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquareText,
+  MousePointerClick,
   ShieldAlert,
   TimerReset,
   Users,
@@ -28,18 +29,14 @@ import { SmsCampaignActions } from "@/components/sms/SmsCampaignActions";
 import { SmsCampaignProgressCard } from "@/components/sms/SmsCampaignProgressCard";
 import { useSmsCampaignProgress } from "@/hooks/useSmsCampaignProgress";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  calculateSmsClickThroughRate,
+  resolveSmsCampaignMetrics,
+  type SmsCampaignMetricSource,
+} from "@/lib/sms/smsCampaignMetrics";
 
 const PAGE_SIZE = 20;
 const MOUNT_SKELETON_MS = 260;
-
-type MetricsShape = {
-  sent?: number;
-  delivered?: number;
-  clicked?: number;
-  failed?: number;
-  opt_outs?: number;
-  revenue?: number;
-};
 
 function formatDateTime(value: string | null) {
   if (!value) {
@@ -258,7 +255,7 @@ export default function SMSCampaignDetail() {
       const { data, error, count } = await supabase
         .from("sms_messages")
         .select(
-          "id, phone, content, status, created_at, sent_at, delivered_at, from_phone, error_message, error_code, media_urls",
+          "id, phone, content, status, created_at, sent_at, delivered_at, from_phone, error_message, error_code, media_urls, links_clicked, unique_links_clicked",
           { count: "exact" },
         )
         .eq("campaign_id", id)
@@ -394,19 +391,25 @@ export default function SMSCampaignDetail() {
     );
   }
 
-  const metrics =
-    campaign.metrics && typeof campaign.metrics === "object"
-      ? (campaign.metrics as MetricsShape)
-      : {};
-  const deliveredCount = progress?.messages.delivered ?? metrics.delivered ?? 0;
-  const sentCount = progress?.messages.sent ?? metrics.sent ?? 0;
-  const failedCount = progress?.messages.failed ?? metrics.failed ?? 0;
+  const metrics = resolveSmsCampaignMetrics(
+    campaign.metrics && typeof campaign.metrics === "object" && !Array.isArray(campaign.metrics)
+      ? (campaign.metrics as SmsCampaignMetricSource)
+      : null,
+  );
+  const deliveredCount = progress?.messages.delivered ?? metrics.delivered;
+  const sentCount = progress?.messages.sent ?? metrics.sent;
+  const failedCount = progress?.messages.failed ?? metrics.failed;
   const audienceEstimate =
     progress?.messages.total ??
     campaign.total_recipients_estimate ??
     sentCount + failedCount;
   const deliveryRate =
     sentCount > 0 ? ((deliveredCount / sentCount) * 100).toFixed(1) : "0.0";
+  const clickThroughRate = calculateSmsClickThroughRate(
+    metrics.uniqueClicks,
+    deliveredCount,
+    sentCount,
+  ).toFixed(1);
   const statusChip = getStatusChip(campaign.status);
   const mediaUrls = Array.isArray(campaign.media_urls)
     ? campaign.media_urls.filter(
@@ -577,9 +580,16 @@ export default function SMSCampaignDetail() {
             <MetricCard
               label="Failed"
               value={failedCount.toLocaleString()}
-              detail={`${metrics.opt_outs ?? 0} opt-outs tracked`}
+              detail="Delivery or compliance failures"
               icon={<TimerReset size={16} />}
               color={failedCount > 0 ? "danger" : "neutral"}
+            />
+            <MetricCard
+              label="Unique clicks"
+              value={metrics.uniqueClicks.toLocaleString()}
+              detail={`${clickThroughRate}% click-through rate`}
+              icon={<MousePointerClick size={16} />}
+              color="primary"
             />
           </Stack>
 
@@ -722,9 +732,10 @@ export default function SMSCampaignDetail() {
                           <tr>
                             <th style={{ width: "18%" }}>Recipient</th>
                             <th style={{ width: "36%" }}>Message</th>
-                            <th style={{ width: "14%" }}>Status</th>
-                            <th style={{ width: "16%" }}>Sent</th>
-                            <th style={{ width: "16%" }}>Error</th>
+                            <th style={{ width: "12%" }}>Status</th>
+                            <th style={{ width: "10%" }}>Clicks</th>
+                            <th style={{ width: "14%" }}>Sent</th>
+                            <th style={{ width: "14%" }}>Error</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -758,6 +769,16 @@ export default function SMSCampaignDetail() {
                                   >
                                     {chip.label}
                                   </Chip>
+                                </td>
+                                <td>
+                                  <Stack spacing={0.25}>
+                                    <Typography level="body-sm">
+                                      {message.links_clicked.toLocaleString()}
+                                    </Typography>
+                                    <Typography level="body-xs" color="neutral">
+                                      {`${message.unique_links_clicked.toLocaleString()} unique`}
+                                    </Typography>
+                                  </Stack>
                                 </td>
                                 <td>
                                   <Typography level="body-sm">
@@ -898,16 +919,24 @@ export default function SMSCampaignDetail() {
                     value={deliveredCount.toLocaleString()}
                   />
                   <SummaryRow
-                    label="Clicked"
-                    value={(metrics.clicked ?? 0).toLocaleString()}
+                    label="Unique clicks"
+                    value={metrics.uniqueClicks.toLocaleString()}
                   />
                   <SummaryRow
-                    label="Opt-outs"
-                    value={(metrics.opt_outs ?? 0).toLocaleString()}
+                    label="Total clicks"
+                    value={metrics.totalClicks.toLocaleString()}
+                  />
+                  <SummaryRow
+                    label="Click-through rate"
+                    value={`${clickThroughRate}%`}
+                  />
+                  <SummaryRow
+                    label="SMS opt-outs"
+                    value={metrics.optOuts.toLocaleString()}
                   />
                   <SummaryRow
                     label="Revenue"
-                    value={`$${(metrics.revenue ?? 0).toFixed(2)}`}
+                    value={`$${metrics.revenue.toFixed(2)}`}
                   />
                 </Stack>
               </Card>

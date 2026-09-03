@@ -13095,15 +13095,19 @@ export type Database = {
           error_code: string | null;
           error_message: string | null;
           failure_type: string | null;
+          first_clicked_at: string | null;
           from_phone: string | null;
           id: string;
           last_attempt_at: string | null;
+          last_clicked_at: string | null;
+          links_clicked: number;
           media_urls: Json | null;
           phone: string;
           scheduled_at: string | null;
           sent_at: string | null;
           status: string | null;
           twilio_sid: string | null;
+          unique_links_clicked: number;
           updated_at: string;
         };
         Insert: {
@@ -13117,15 +13121,19 @@ export type Database = {
           error_code?: string | null;
           error_message?: string | null;
           failure_type?: string | null;
+          first_clicked_at?: string | null;
           from_phone?: string | null;
           id?: string;
           last_attempt_at?: string | null;
+          last_clicked_at?: string | null;
+          links_clicked?: number;
           media_urls?: Json | null;
           phone: string;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
           twilio_sid?: string | null;
+          unique_links_clicked?: number;
           updated_at?: string;
         };
         Update: {
@@ -13139,15 +13147,19 @@ export type Database = {
           error_code?: string | null;
           error_message?: string | null;
           failure_type?: string | null;
+          first_clicked_at?: string | null;
           from_phone?: string | null;
           id?: string;
           last_attempt_at?: string | null;
+          last_clicked_at?: string | null;
+          links_clicked?: number;
           media_urls?: Json | null;
           phone?: string;
           scheduled_at?: string | null;
           sent_at?: string | null;
           status?: string | null;
           twilio_sid?: string | null;
+          unique_links_clicked?: number;
           updated_at?: string;
         };
         Relationships: [
