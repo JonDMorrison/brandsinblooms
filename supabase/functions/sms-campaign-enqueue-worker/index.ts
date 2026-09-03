@@ -13,6 +13,7 @@ import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/co
 import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from '../_shared/mergeTagEngine.ts'
 import { countSmsSegments } from '../_shared/smsSegmentCounter.ts'
 import { getSmsWarmupInfoByPhoneOrMessagingService, ensureSmsWarmupRowForMessagingServiceIfNeeded } from '../_shared/smsWarmup.ts'
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
 
 // Configuration constants
 const ENQUEUE_PAGE_SIZE = Number(Deno.env.get("SMS_ENQUEUE_PAGE_SIZE") ?? "1000");
@@ -67,19 +68,42 @@ Deno.serve(async (req) => {
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
 
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
+
   const startTime = Date.now();
 
   try {
-    const { campaignId, forceStart } = await req.json();
-
-    if (!campaignId) {
-      return corsJsonResponse({ error: 'campaignId is required' }, { status: 400 });
-    }
+    const requestBody = await req.json().catch(() => ({}));
+    let campaignId = requestBody.campaignId as string | undefined;
+    const forceStart = requestBody.forceStart === true;
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Cron invokes the worker without a campaign ID. Pick one unfinished
+    // campaign so large audiences continue across bounded invocations.
+    if (!campaignId) {
+      const { data: pendingCampaign, error: pendingError } = await supabase
+        .from('crm_sms_campaigns')
+        .select('id')
+        .in('enqueue_status', ['not_started', 'enqueuing'])
+        .in('status', ['queued', 'sending'])
+        .order('updated_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingError) {
+        console.error('[sms-enqueue-worker] Failed to discover pending campaign:', pendingError);
+        return corsJsonResponse({ error: 'Failed to discover pending campaigns' }, { status: 500 });
+      }
+      if (!pendingCampaign) {
+        return corsJsonResponse({ success: true, processed: 0, message: 'No campaigns need enqueueing.' });
+      }
+      campaignId = pendingCampaign.id;
+    }
 
     console.log(`[sms-enqueue-worker] Starting for campaign ${campaignId}, worker=${WORKER_ID}`);
 
@@ -212,6 +236,9 @@ Deno.serve(async (req) => {
           .eq('sms_opt_in', true)
           .eq('opt_out', false)
           .eq('suppressed', false)
+          .not('sms_opt_in_at', 'is', null)
+          .not('sms_consent_source', 'is', null)
+          .not('sms_consent_source', 'eq', '')
           .not('phone', 'is', null)
           .not('phone', 'eq', '');
 
@@ -275,6 +302,9 @@ Deno.serve(async (req) => {
           .eq('crm_customers.sms_opt_in', true)
           .eq('crm_customers.opt_out', false)
           .eq('crm_customers.suppressed', false)
+          .not('crm_customers.sms_opt_in_at', 'is', null)
+          .not('crm_customers.sms_consent_source', 'is', null)
+          .not('crm_customers.sms_consent_source', 'eq', '')
           .not('crm_customers.phone', 'is', null)
           .not('crm_customers.phone', 'eq', '')
           .order('customer_id', { ascending: true })
@@ -299,6 +329,9 @@ Deno.serve(async (req) => {
           .eq('sms_opt_in', true)
           .eq('opt_out', false)
           .eq('suppressed', false)
+          .not('sms_opt_in_at', 'is', null)
+          .not('sms_consent_source', 'is', null)
+          .not('sms_consent_source', 'eq', '')
           .not('phone', 'is', null)
           .not('phone', 'eq', '');
 
@@ -352,6 +385,7 @@ Deno.serve(async (req) => {
         const mediaUrls = campaign.image_url ? [campaign.image_url] : (campaign.media_urls || null);
 
         messageRows.push({
+          tenant_id: campaign.tenant_id,
           campaign_id: campaign.id,
           customer_id: customer.id,
           phone: formattedPhone,

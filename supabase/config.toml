@@ -239,7 +239,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.send-sms]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-sms-campaign]
 verify_jwt = true

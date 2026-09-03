@@ -262,7 +262,7 @@ serve(async (req) => {
       body: {
         to,
         body: finalMessage,
-        skipOptOutCheck: true // We already checked
+        purpose: 'test'
       }
     });
 
