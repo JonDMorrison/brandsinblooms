@@ -543,6 +543,12 @@ verify_jwt = true
 [functions.recompute-segment-memberships]
 verify_jwt = true
 
+[functions.notify-notion-trial]
+verify_jwt = false
+
+[functions.update-notion-profile]
+verify_jwt = false
+
 [functions.pos-link-customers]
 verify_jwt = true
 

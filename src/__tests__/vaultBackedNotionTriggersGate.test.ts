@@ -28,8 +28,8 @@ describe("Vault-backed internal Notion triggers", () => {
 
   it("resolves the service key at execution time instead of storing a JWT", () => {
     expect(migration).toContain("public.get_service_role_key()");
-    expect(migration).toContain("'Authorization', 'Bearer ' || v_service_key");
     expect(migration).toContain("'apikey', v_service_key");
+    expect(migration).not.toContain("'Authorization'");
     expect(migration).not.toMatch(/eyJ[A-Za-z0-9_-]+[.]eyJ/);
     expect(migration).not.toContain("supabase_functions.http_request");
   });

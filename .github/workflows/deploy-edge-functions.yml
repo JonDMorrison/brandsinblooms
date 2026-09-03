@@ -36,8 +36,28 @@ jobs:
       - name: Detect changed functions
         id: changed
         run: |
-          changed_paths="$(git diff --name-only HEAD~1 HEAD)"
-          printf '%s\n' "$changed_paths" \
+          changed_paths="$(git diff --name-only HEAD~1 HEAD | grep -v '^supabase/config.toml$' || true)"
+          config_function_paths=""
+          if ! git diff --quiet HEAD~1 HEAD -- supabase/config.toml; then
+            config_function_paths="$(python3 - <<'PY'
+          import subprocess
+          import tomllib
+
+          old = tomllib.loads(subprocess.check_output(
+              ["git", "show", "HEAD~1:supabase/config.toml"], text=True
+          ))
+          with open("supabase/config.toml", "rb") as source:
+              new = tomllib.load(source)
+
+          old_functions = old.get("functions", {})
+          new_functions = new.get("functions", {})
+          for name in sorted(set(old_functions) | set(new_functions)):
+              if old_functions.get(name) != new_functions.get(name):
+                  print(f"supabase/functions/{name}/.gateway-config")
+          PY
+          )"
+          fi
+          printf '%s\n%s\n' "$changed_paths" "$config_function_paths" \
             | node scripts/find-affected-edge-functions.mjs \
             >> "$GITHUB_OUTPUT"
 

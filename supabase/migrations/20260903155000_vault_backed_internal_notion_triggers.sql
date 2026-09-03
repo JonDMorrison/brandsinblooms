@@ -26,7 +26,6 @@ BEGIN
     url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/' || v_function_slug,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || v_service_key,
       'apikey', v_service_key
     ),
     body := jsonb_build_object(
