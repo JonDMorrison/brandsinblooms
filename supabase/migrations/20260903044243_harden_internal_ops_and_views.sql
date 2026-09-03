@@ -71,19 +71,9 @@ GRANT SELECT ON TABLE public.admin_tenant_overview TO service_role;
 SELECT cron.unschedule('watchdog-stuck-content');
 SELECT cron.unschedule('run-automation-executor-5m');
 
--- Six legacy jobs were created by the old SQL-editor role. pg_cron only lets
--- a job owner unschedule its jobs, so assume that role temporarily and remove
--- the membership again in the same migration.
-GRANT supabase_read_only_user TO postgres;
-SET LOCAL ROLE supabase_read_only_user;
-SELECT cron.unschedule('nightly-suppression-checker');
-SELECT cron.unschedule('reset-daily-limits-nightly');
-SELECT cron.unschedule('sms-daily-warmup-reset');
-SELECT cron.unschedule('process-automation-triggers');
-SELECT cron.unschedule('process-automation-outbox');
-SELECT cron.unschedule('token-refresh-worker-daily');
-RESET ROLE;
-REVOKE supabase_read_only_user FROM postgres;
+-- Six older jobs were created by Supabase's reserved SQL-editor role. The
+-- platform intentionally prevents migrations from assuming that role, so
+-- those jobs must be removed through Supabase's Cron control plane.
 
 -- The watchdog has no v2 replacement, so recreate it using the Vault-backed
 -- key helper. jsonb_build_object avoids the string-concatenation bug that
