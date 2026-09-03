@@ -15335,6 +15335,15 @@ export type Database = {
       };
     };
     Functions: {
+      begin_customer_csv_import: {
+        Args: {
+          p_attestation_type: string;
+          p_contact_count: number;
+          p_import_batch_id: string;
+          p_attestation_wording: string;
+        };
+        Returns: Json;
+      };
       crm_has_permission: {
         Args: {
           p_location_id?: string | null;
@@ -16697,6 +16706,10 @@ export type Database = {
         Returns: boolean;
       };
       increment_image_usage: { Args: { asset_id: string }; Returns: undefined };
+      import_crm_customer_batch: {
+        Args: { p_attestation_id: string; p_customers: Json };
+        Returns: Json;
+      };
       increment_template_usage: {
         Args: { template_id: string };
         Returns: undefined;
