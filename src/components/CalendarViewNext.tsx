@@ -55,7 +55,7 @@ import { CalendarToolbar } from "./calendar/CalendarToolbar";
 import { CalendarWeeklyThemesDialog } from "./calendar/CalendarWeeklyThemesDialog";
 
 type ViewMode = "month" | "week" | "list";
-type QuickAddType = "task" | "event" | "newsletter";
+type QuickAddType = "event" | "newsletter";
 
 type CalendarOverview = {
   totalCampaigns: number;
@@ -132,7 +132,7 @@ export const CalendarView = React.memo(function CalendarView({
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddDate, setQuickAddDate] = useState<Date | null>(null);
   const [quickAddDefaultType, setQuickAddDefaultType] =
-    useState<QuickAddType>("task");
+    useState<QuickAddType>("newsletter");
   const [quickAddLoading, setQuickAddLoading] = useState(false);
 
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
@@ -285,7 +285,7 @@ export const CalendarView = React.memo(function CalendarView({
   }, [clearSelection, refreshCalendar, selectedTasks, tenant?.id, user]);
 
   const openQuickAdd = useCallback(
-    (date: Date, type: QuickAddType = "task") => {
+    (date: Date, type: QuickAddType = "newsletter") => {
       setQuickAddDate(date);
       setQuickAddDefaultType(type);
       setQuickAddOpen(true);
@@ -321,21 +321,6 @@ export const CalendarView = React.memo(function CalendarView({
 
       setQuickAddLoading(true);
       try {
-        if (type === "task") {
-          const { error } = await supabase.from("content_tasks").insert({
-            post_type: "instagram",
-            status: "planned",
-            scheduled_date: date,
-            ai_output: title,
-            notes: notes || null,
-            user_id: user.id,
-            created_by_user_id: user.id,
-            ...(tenant?.id ? { tenant_id: tenant.id } : {}),
-          });
-
-          if (error) throw error;
-        }
-
         if (type === "event") {
           const { error } = await supabase.from("campaigns").insert({
             title,
@@ -379,12 +364,7 @@ export const CalendarView = React.memo(function CalendarView({
         }
 
         toast({
-          title:
-            type === "task"
-              ? "Task created"
-              : type === "event"
-                ? "Event created"
-                : "Newsletter scheduled",
+          title: type === "event" ? "Event created" : "Newsletter scheduled",
         });
         setQuickAddOpen(false);
         await refreshCalendar();
@@ -484,7 +464,7 @@ export const CalendarView = React.memo(function CalendarView({
     (date: Date) => {
       const dayEvents = getEventsForDate(date);
       if (dayEvents.length === 0) {
-        openQuickAdd(date, "task");
+        openQuickAdd(date, "newsletter");
         return;
       }
 
@@ -714,8 +694,8 @@ export const CalendarView = React.memo(function CalendarView({
               Campaign Calendar
             </Typography>
             <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-              Plan campaigns, content tasks, newsletters, and seasonal moments
-              from one organized planning surface.
+              Plan email campaigns, customer events, and seasonal moments from
+              one organized workspace.
             </Typography>
             <Typography level="body-xs" sx={{ color: "neutral.500", mt: 0.5 }}>
               {metadataLabel}
@@ -764,9 +744,6 @@ export const CalendarView = React.memo(function CalendarView({
                 Create
               </MenuButton>
               <Menu placement="bottom-end" sx={{ minWidth: 220, p: 0.5 }}>
-                <MenuItem onClick={() => openQuickAdd(currentDate, "task")}>
-                  New Task
-                </MenuItem>
                 <MenuItem onClick={() => openEventDialog(currentDate)}>
                   New Event
                 </MenuItem>
