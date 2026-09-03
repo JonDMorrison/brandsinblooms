@@ -71,6 +71,15 @@ jobs:
         with:
           version: latest
 
+      - name: Validate Supabase config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          tomllib.loads(Path("supabase/config.toml").read_text())
+          PY
+
       - name: Deploy changed functions
         id: deploy
         env:
