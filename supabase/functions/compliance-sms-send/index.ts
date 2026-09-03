@@ -20,8 +20,8 @@ interface Customer {
   id: string;
   phone: string;
   timezone?: string;
-  opt_out: boolean;
   sms_opt_in: boolean;
+  sms_consent?: boolean;
   footer_last_sent_at?: string;
 }
 
@@ -183,7 +183,7 @@ serve(async (req) => {
     };
 
     // Pre-flight opt-out check
-    if (customer && (customer.opt_out || !customer.sms_opt_in)) {
+    if (customer && (!customer.sms_opt_in || customer.sms_consent === false)) {
       await logCompliance(
         supabase,
         'blocked_send',

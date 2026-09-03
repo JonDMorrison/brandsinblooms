@@ -5,6 +5,10 @@ const migration = readFileSync(
   "supabase/migrations/20260903121500_sms_delivery_consent_gate.sql",
   "utf8",
 );
+const channelConsentMigration = readFileSync(
+  "supabase/migrations/20260903142617_atomic_channel_consent_management.sql",
+  "utf8",
+);
 const outboxWorker = readFileSync(
   "supabase/functions/process-automation-outbox/index.ts",
   "utf8",
@@ -37,11 +41,12 @@ describe("SMS delivery consent release gate", () => {
   });
 
   it("requires current, documented consent on the canonical customer", () => {
-    expect(migration).toContain("sms_opt_in IS DISTINCT FROM true");
-    expect(migration).toContain("coalesce(v_customer.opt_out, false)");
-    expect(migration).toContain("v_customer.sms_opt_in_at IS NULL");
-    expect(migration).toContain("v_customer.sms_consent_source");
-    expect(migration).toContain("merged_into_customer_id IS NULL");
+    expect(channelConsentMigration).toContain("sms_opt_in IS DISTINCT FROM true");
+    expect(channelConsentMigration).not.toContain("coalesce(v_customer.opt_out, false)");
+    expect(channelConsentMigration).toContain("v_customer.sms_opt_in_at IS NULL");
+    expect(channelConsentMigration).toContain("v_customer.sms_consent_source");
+    expect(channelConsentMigration).toContain("merged_into_customer_id IS NULL");
+    expect(channelConsentMigration).toContain("FROM public.suppression_list AS suppression");
   });
 
   it("blocks a queued phone after the customer changes it", () => {

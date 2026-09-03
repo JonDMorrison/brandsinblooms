@@ -3796,9 +3796,12 @@ export type Database = {
       };
       crm_email_consent_events: {
         Row: {
+          actor_user_id: string | null;
+          consent_basis: string | null;
           created_at: string;
           customer_id: string;
           email: string;
+          evidence: Json;
           event_type: string;
           id: string;
           ip_address: string | null;
@@ -3807,9 +3810,12 @@ export type Database = {
           user_agent: string | null;
         };
         Insert: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
           email: string;
+          evidence?: Json;
           event_type: string;
           id?: string;
           ip_address?: string | null;
@@ -3818,9 +3824,12 @@ export type Database = {
           user_agent?: string | null;
         };
         Update: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
           email?: string;
+          evidence?: Json;
           event_type?: string;
           id?: string;
           ip_address?: string | null;
@@ -4392,9 +4401,12 @@ export type Database = {
       };
       crm_sms_consent_events: {
         Row: {
+          actor_user_id: string | null;
+          consent_basis: string | null;
           created_at: string;
           customer_id: string;
           event_type: string;
+          evidence: Json;
           id: string;
           ip_address: string | null;
           phone: string;
@@ -4403,9 +4415,12 @@ export type Database = {
           user_agent: string | null;
         };
         Insert: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id: string;
           event_type: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           phone: string;
@@ -4414,9 +4429,12 @@ export type Database = {
           user_agent?: string | null;
         };
         Update: {
+          actor_user_id?: string | null;
+          consent_basis?: string | null;
           created_at?: string;
           customer_id?: string;
           event_type?: string;
+          evidence?: Json;
           id?: string;
           ip_address?: string | null;
           phone?: string;
@@ -16479,6 +16497,19 @@ export type Database = {
       };
       get_email_campaign_reporting_snapshot: {
         Args: { p_campaign_id: string };
+        Returns: Json;
+      };
+      set_customer_marketing_consent: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string | null;
+          p_customer_id: string;
+          p_evidence?: string | null;
+          p_ip_address?: string | null;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string | null;
+        };
         Returns: Json;
       };
       get_email_consent_stats: {
