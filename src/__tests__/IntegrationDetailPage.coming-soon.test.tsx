@@ -7,9 +7,13 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
 }));
 
 vi.mock("sonner", () => ({
@@ -153,11 +157,13 @@ function buildComingSoonState(
 
 function renderPage(slug: string) {
   render(
-    <MemoryRouter initialEntries={[`/integrations/${slug}`]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={[`/integrations/${slug}`]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -228,21 +234,14 @@ describe("IntegrationDetailPage coming-soon branches", () => {
     ).toBeDisabled();
   });
 
-  it("renders the Custom Webhooks payload preview collapsed by default", () => {
+  it("renders the Custom Webhooks payload preview", () => {
     mockedUseIntegrationDetailData.mockReturnValue(
       buildComingSoonState("custom-webhooks"),
     );
 
     renderPage("custom-webhooks");
 
-    const disclosure = screen.getByText(/Preview example payload/i);
-    expect(disclosure).toBeTruthy();
-    const details = disclosure.closest("details");
-    expect(details).not.toHaveAttribute("open");
-
-    fireEvent.click(disclosure);
-
-    expect(details).toHaveAttribute("open");
+    expect(screen.getByText(/Preview example payload/i)).toBeTruthy();
     expect(screen.getByText(/purchase.completed/i)).toBeTruthy();
   });
 

@@ -8,9 +8,12 @@ import { getCanonicalFormDocumentationPath } from "@/lib/forms/documentation";
 
 import { FormPublishTab } from "../FormPublishTab";
 
-const mockToast = vi.fn();
-vi.mock("@/hooks/use-toast", () => ({
-  useToast: () => ({ toast: mockToast }),
+const { mockToast } = vi.hoisted(() => ({ mockToast: vi.fn() }));
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: mockToast,
+  },
 }));
 
 describe("FormPublishTab", () => {
@@ -73,57 +76,28 @@ describe("FormPublishTab", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    expect(screen.getByText(/your form link/i)).toBeInTheDocument();
-    expect(screen.getByTestId("public-link-display")).toHaveTextContent(
-      /9509bb84\.\.\.068fc/i,
-    );
-    expect(screen.getByRole("link", { name: /email/i })).toHaveAttribute(
-      "href",
-      expect.stringContaining("mailto:?subject=Check%20out%20this%20form"),
-    );
-    expect(
-      screen.getByRole("button", { name: /copy social share message/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /show qr code/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/share your form/i)).toBeInTheDocument();
+    expect(screen.getByText("Direct link")).toBeInTheDocument();
+    expect(screen.getByText("QR code")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /copy public form link/i }),
+      screen.getByRole("button", { name: /copy link/i }),
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Copied!")).toBeInTheDocument();
+      expect(screen.getByText(/Copied/)).toBeInTheDocument();
     });
-    expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Copied" }),
-    );
+    expect(mockToast).toHaveBeenCalledWith("Link copied");
   });
 
-  it("copies the social share message and expands the QR preview", async () => {
-    const user = userEvent.setup();
+  it("renders QR download and copy actions", async () => {
     renderComponent();
 
-    await user.click(
-      screen.getByRole("button", { name: /copy social share message/i }),
-    );
-
-    await waitFor(() => {
-      expect(mockToast).toHaveBeenCalledWith(
-        expect.objectContaining({ title: "Copied" }),
-      );
-    });
-
-    await user.click(screen.getByRole("button", { name: /show qr code/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /download png/i }),
-      ).toBeInTheDocument();
-    });
-
     expect(
-      screen.getByRole("button", { name: /download svg/i }),
+      await screen.findByRole("button", { name: /download qr/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /copy qr/i }),
     ).toBeInTheDocument();
   });
 
@@ -131,13 +105,14 @@ describe("FormPublishTab", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    await user.click(screen.getByRole("tab", { name: /embed code/i }));
-    await user.click(screen.getByRole("button", { name: /modal/i }));
-    const buttonTextInput = screen.getByLabelText(/button text/i);
+    await screen.findByText("JavaScript embed");
+    await user.click(screen.getByRole("combobox", { name: /display mode/i }));
+    await user.click(screen.getByRole("option", { name: /modal/i }));
+    const buttonTextInput = screen.getByLabelText(/button label/i);
     await user.clear(buttonTextInput);
     await user.type(buttonTextInput, "Book now");
 
-    const codeBlock = screen.getByTestId("embed-code-block");
+    const codeBlock = screen.getAllByText(/data-display-mode=/i)[0];
     expect(codeBlock).toHaveTextContent('data-display-mode="modal"');
     expect(codeBlock).toHaveTextContent('data-button-text="Book now"');
   });
@@ -146,38 +121,26 @@ describe("FormPublishTab", () => {
     const user = userEvent.setup();
     renderComponent();
 
-    await user.click(
-      screen.getByRole("tab", { name: /developer integration/i }),
-    );
+    expect(await screen.findByText(/developer integration/i)).toBeInTheDocument();
 
     const docsLink = screen.getByRole("link", {
-      name: /open full developer documentation/i,
+      name: /view full api docs/i,
     });
     expect(docsLink).toHaveAttribute(
       "href",
       getCanonicalFormDocumentationPath(form.id),
     );
 
-    await user.click(screen.getByRole("tab", { name: /^cURL/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /copy cURL starter/i }),
-      ).toBeInTheDocument();
-    });
-
     await user.click(
-      screen.getByRole("button", { name: /copy cURL starter/i }),
+      screen.getByRole("button", { name: /copy cURL/i }),
     );
 
     expect(
-      screen.getByText(/copy as markdown for ai coding agents/i),
+      screen.getByText(/API endpoint/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/for ai training & integration purposes/i),
+      screen.getByText(/Server-side submission bypasses browser CORS/i),
     ).toBeInTheDocument();
-    expect(mockToast).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Copied" }),
-    );
+    expect(mockToast).toHaveBeenCalledWith("cURL snippet copied");
   });
 });

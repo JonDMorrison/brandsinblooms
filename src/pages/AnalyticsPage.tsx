@@ -287,7 +287,6 @@ const AnalyticsPage = () => {
           gaError={gaError}
           gaLoading={gaLoading}
           gaSettings={gaSettings}
-          onSyncComplete={overview.refetch}
         />
       </Stack>
     </PageContainer>

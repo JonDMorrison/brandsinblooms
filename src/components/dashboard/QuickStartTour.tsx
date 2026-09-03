@@ -16,7 +16,6 @@ import {
   Megaphone,
   Calendar,
   BarChart3,
-  Share2,
   ChevronLeft,
   ChevronRight,
   X,
@@ -78,21 +77,6 @@ const tourSteps = [
     ],
   },
   {
-    id: "social",
-    title: "Post with One Click",
-    description: "Share beautiful content across all your social platforms",
-    icon: (
-      <Share2 className="w-8 h-8" style={{ color: "hsl(var(--brand-teal))" }} />
-    ),
-    action: "Create Post",
-    route: "/publish",
-    tips: [
-      "AI generates post content",
-      "Beautiful images from Unsplash",
-      "Schedule across all platforms",
-    ],
-  },
-  {
     id: "analytics",
     title: "Track Your Results",
     description: "See how your campaigns are performing",
@@ -106,7 +90,7 @@ const tourSteps = [
     route: "/analytics",
     tips: [
       "Track email open rates",
-      "Monitor social engagement",
+      "Measure campaign clicks",
       "Understand your customers better",
     ],
   },

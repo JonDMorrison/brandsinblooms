@@ -77,9 +77,6 @@ const POSIntegrationsPage = lazyRetry(
 const CRMIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/CRMIntegrationsPage"),
 );
-const SocialIntegrationsPage = lazyRetry(
-  () => import("@/pages/integrations/SocialIntegrationsPage"),
-);
 const AutomationsIntegrationsPage = lazyRetry(
   () => import("@/pages/integrations/AutomationsIntegrationsPage"),
 );
@@ -299,11 +296,6 @@ const SegmentMembersPage = lazyRetry(
 const ContentLibraryPage = lazyRetry(
   () => import("@/pages/ContentLibraryPage"),
 );
-const SocialMediaPage = lazyRetry(() => import("@/pages/SocialMediaPage"));
-const PublishPage = lazyRetry(() => import("@/pages/PublishPage"));
-const CarouselComposerPage = lazyRetry(
-  () => import("@/pages/CarouselComposerPage"),
-);
 const TemplatesPage = lazyNamed(
   () => import("@/pages/TemplatesPage"),
   "TemplatesPage",
@@ -352,7 +344,6 @@ const HelpDeskPage = lazyRetry(() => import("@/pages/HelpDeskPage"));
 const TicketListPage = lazyRetry(() => import("@/pages/TicketListPage"));
 const CreateTicketPage = lazyRetry(() => import("@/pages/CreateTicketPage"));
 const TicketDetailPage = lazyRetry(() => import("@/pages/TicketDetailPage"));
-const PlanPage = lazyRetry(() => import("@/pages/PlanPage"));
 const CommunityPage = lazyNamed(
   () => import("@/pages/CommunityPage"),
   "CommunityPage",
@@ -711,11 +702,7 @@ function App() {
             />
             <Route
               path="/campaigns"
-              element={renderProtectedSidebarLazyPage(
-                <SocialMediaPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/crm"
@@ -1034,11 +1021,7 @@ function App() {
             />
             <Route
               path="/social-accounts"
-              element={renderProtectedSidebarLazyPage(
-                <SocialMediaPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/newsletters/new"
@@ -1061,14 +1044,21 @@ function App() {
                 <Route index element={<IntegrationsPage />} />
                 <Route path="pos" element={<POSIntegrationsPage />} />
                 <Route path="crm" element={<CRMIntegrationsPage />} />
-                <Route path="social" element={<SocialIntegrationsPage />} />
+                <Route
+                  path="social"
+                  element={<RedirectWithQuery to="/integrations" />}
+                />
                 <Route
                   path="facebook"
-                  element={<RedirectWithQuery to="/integrations/meta" />}
+                  element={<RedirectWithQuery to="/integrations" />}
                 />
                 <Route
                   path="instagram"
-                  element={<RedirectWithQuery to="/integrations/meta" />}
+                  element={<RedirectWithQuery to="/integrations" />}
+                />
+                <Route
+                  path="meta"
+                  element={<RedirectWithQuery to="/integrations" />}
                 />
                 <Route
                   path="google-analytics-4"
@@ -1107,11 +1097,11 @@ function App() {
             <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
             <Route
               path={LEGACY_SOCIAL_ROUTE}
-              element={<RedirectWithQuery to="/social-accounts" />}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path={LEGACY_SOCIAL_MEDIA_ROUTE}
-              element={<RedirectWithQuery to="/social-accounts" />}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
@@ -1230,27 +1220,15 @@ function App() {
 
             <Route
               path="/publish"
-              element={renderProtectedSidebarLazyPage(
-                <PublishPage />,
-                "form",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/carousel/composer"
-              element={renderProtectedSidebarLazyPage(
-                <CarouselComposerPage />,
-                "form",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/plan"
-              element={renderProtectedSidebarLazyPage(
-                <PlanPage />,
-                "default",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/calendar" />}
             />
             <Route path="/admin" element={<AdminRouteLayout />}>
               <Route element={<AdminLazyBoundary />}>

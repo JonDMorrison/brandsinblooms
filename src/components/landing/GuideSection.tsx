@@ -46,8 +46,8 @@ export const GuideSection = () => {
             <Card className="p-6 rounded-2xl bg-card border-2 border-secondary/20">
               <CardContent className="p-0">
                 <Award className="w-8 h-8 text-secondary mb-3" />
-                <div className="text-lg font-semibold text-accent mb-2">Social Media Automation</div>
-                <div className="text-sm text-muted-foreground">Generate and schedule plant care content across all platforms</div>
+                <div className="text-lg font-semibold text-accent mb-2">Email + SMS Automation</div>
+                <div className="text-sm text-muted-foreground">Send timely plant care and promotion journeys across both channels</div>
               </CardContent>
             </Card>
             

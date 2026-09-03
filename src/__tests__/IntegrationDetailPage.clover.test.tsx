@@ -6,9 +6,13 @@ import { buildIntegrationDetailModel } from "@/components/integrations/integrati
 import { getIntegrationSeed } from "@/components/integrations/integrationsHubConfig";
 import { useIntegrationDetailData } from "@/hooks/useIntegrationDetailData";
 import IntegrationDetailPage from "@/pages/integrations/IntegrationDetailPage";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 vi.mock("@/hooks/useIntegrationDetailData", () => ({
   useIntegrationDetailData: vi.fn(),
+}));
+vi.mock("@/hooks/useMailchimpImportProgress", () => ({
+  useMailchimpImportProgress: () => ({ jobId: null }),
 }));
 
 vi.mock("sonner", () => ({
@@ -355,12 +359,14 @@ function buildCloverDetailState() {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={["/integrations/clover"]}>
-      <Routes>
-        <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
-        <Route path="/crm/automations" element={<div>Automations Route</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={["/integrations/clover"]}>
+        <Routes>
+          <Route path="/integrations/:slug" element={<IntegrationDetailPage />} />
+          <Route path="/crm/automations" element={<div>Automations Route</div>} />
+        </Routes>
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -380,14 +386,14 @@ describe("IntegrationDetailPage Clover parity branch", () => {
         /Clover webhook delivery is configured at the app level, not per merchant/i,
       ),
     ).toBeTruthy();
-    expect(screen.getByText("Bloom Flowers")).toBeTruthy();
+    expect(screen.getAllByText("Bloom Flowers").length).toBeGreaterThan(0);
   });
 
   it("renders merchant details, region badge, and setup wizard fallback", () => {
     renderPage();
 
     expect(screen.getByText("Merchant Details")).toBeTruthy();
-    expect(screen.getByText("US")).toBeTruthy();
+    expect(screen.getAllByText("US").length).toBeGreaterThan(0);
     expect(screen.getByText("Not completed")).toBeTruthy();
   });
 
@@ -410,9 +416,11 @@ describe("IntegrationDetailPage Clover parity branch", () => {
 
     renderPage();
 
-    fireEvent.click(screen.getByRole("button", { name: "Connection Test" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Connection Test" }));
 
-    expect(screen.getByText("Connection Test Results")).toBeTruthy();
+    expect(
+      await screen.findByText(/Connection Test Results/i),
+    ).toBeTruthy();
     expect(
       screen.getAllByText(/4\/6 endpoints succeeded/i).length,
     ).toBeGreaterThanOrEqual(1);
@@ -425,13 +433,17 @@ describe("IntegrationDetailPage Clover parity branch", () => {
     });
   });
 
-  it("shows Clover-specific disconnect warnings", () => {
+  it("shows Clover-specific disconnect warnings", async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: /actions/i }));
-    fireEvent.click(screen.getAllByText("Disconnect Clover")[0]);
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: /Disconnect Clover/i }),
+    );
 
-    expect(screen.getByText("Disconnect Clover?")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Disconnect Clover?" }),
+    ).toBeTruthy();
     expect(
       screen.getByText(
         /Customer, sales, and product sync will stop until Clover is connected again/i,

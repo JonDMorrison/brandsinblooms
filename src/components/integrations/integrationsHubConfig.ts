@@ -16,7 +16,6 @@ export type IntegrationStatus = "connected" | "available" | "coming-soon";
 
 export type IntegrationCategory =
   | "pos-systems"
-  | "social"
   | "analytics"
   | "marketing-import"
   | "automation"
@@ -68,7 +67,6 @@ export const INTEGRATION_CATEGORIES: Array<{
   label: string;
 }> = [
   { value: "pos-systems", label: "POS Systems" },
-  { value: "social", label: "Social" },
   { value: "analytics", label: "Analytics" },
   { value: "marketing-import", label: "Marketing Import" },
   { value: "automation", label: "Automation" },
@@ -152,43 +150,6 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     detailActionLabel: "Connect Shopify",
     detailSummary:
       "Shopify connects BloomSuite to your storefront through a store-specific OAuth install flow.",
-  },
-  {
-    slug: "meta",
-    name: "Meta",
-    description:
-      "Manage Facebook Pages and Instagram Business accounts through a single Meta connection.",
-    category: "social",
-    categoryLabel: "Social",
-    defaultStatus: "available",
-    icon: Network,
-    keywords: [
-      "meta",
-      "facebook",
-      "instagram",
-      "social",
-      "pages",
-      "publishing",
-    ],
-    syncScopeLabel: "Facebook + Instagram publishing",
-    canDisconnect: true,
-    targetPath: "/social-accounts",
-    actionLabel: "Connect",
-    detailActionLabel: "Open social account settings",
-    detailSummary:
-      "Meta authorizes Facebook Pages and Instagram Business accounts from a shared OAuth flow.",
-    children: [
-      {
-        name: "Facebook",
-        status: "available",
-        description: "Facebook Pages and publishing access",
-      },
-      {
-        name: "Instagram",
-        status: "available",
-        description: "Instagram Business account access",
-      },
-    ],
   },
   {
     slug: "google-analytics",
@@ -420,7 +381,6 @@ export function getTabCounts(
   const counts: Record<IntegrationTabValue, number> = {
     all: filterIntegrations(items, "all", searchQuery).length,
     "pos-systems": 0,
-    social: 0,
     analytics: 0,
     "marketing-import": 0,
     automation: 0,

@@ -711,6 +711,7 @@ function MetaAssetList({
 function DetailPageSkeleton() {
   return (
     <PageContainer
+      data-testid="integration-detail-loading-shell"
       fullWidth
       sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3.5 } }}
     >
@@ -3416,12 +3417,16 @@ export default function IntegrationDetailPage() {
                         void detail.triggerLightspeedSync();
                       },
                     },
-                    {
-                      label: "Run diagnostics",
-                      icon: FlaskConical,
-                      onSelect: () =>
-                        navigate(lightspeedDetail.diagnosticsPath),
-                    },
+                    ...(detail.canAccessLightspeedAdminFeatures
+                      ? [
+                          {
+                            label: "Run diagnostics",
+                            icon: FlaskConical,
+                            onSelect: () =>
+                              navigate(lightspeedDetail.diagnosticsPath),
+                          },
+                        ]
+                      : []),
                     {
                       label: "View sync logs",
                       icon: Activity,

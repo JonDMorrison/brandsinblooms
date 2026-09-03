@@ -9,7 +9,6 @@ import { hubspotDocumentation } from "./hubspot";
 import { klaviyoDocumentation } from "./klaviyo";
 import { lightspeedDocumentation } from "./lightspeed";
 import { mailchimpDocumentation } from "./mailchimp";
-import { metaDocumentation } from "./meta";
 import { shopifyDocumentation } from "./shopify";
 import { slackDocumentation } from "./slack";
 import { squareDocumentation } from "./square";
@@ -19,7 +18,6 @@ const documentationRegistry: Record<string, DocContent> = {
   square: squareDocumentation,
   clover: cloverDocumentation,
   lightspeed: lightspeedDocumentation,
-  meta: metaDocumentation,
   "google-analytics": googleAnalytics4Documentation,
   "google-analytics-4": googleAnalytics4Documentation,
   mailchimp: mailchimpDocumentation,

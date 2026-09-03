@@ -16,12 +16,12 @@ export const PricingPlans = ({
   onStartTrial
 }: PricingPlansProps) => {
   const bloomSuiteFeatures = [
-    "Complete AI-powered content creation suite",
-    "Advanced seasonal marketing campaigns", 
-    "Multi-channel content distribution",
+    "Garden center-specific email and SMS creation",
+    "Advanced seasonal marketing campaigns",
+    "Coordinated email and SMS journeys",
     "Smart CRM with customer lifecycle tracking",
     "Automated email marketing sequences",
-    "Social media scheduling & management",
+    "POS-connected loyalty and customer intelligence",
     "Performance analytics & insights",
     "Custom brand voice & style training",
     "Priority support & dedicated success manager",

@@ -20,9 +20,7 @@ import {
   Package,
   ScrollText,
   Search,
-  Send,
   Settings,
-  Share2,
   Shield,
   ShieldCheck,
   SlidersHorizontal,
@@ -168,18 +166,6 @@ const legacyFormsItem = createLegacyItem("Forms", "/crm/forms", FileInput, [
   { path: "/crm/forms", end: false },
   { path: "/dashboard/forms", end: false },
 ]);
-const legacySocialItem = createLegacyItem(
-  "Social Media",
-  "/social-accounts",
-  Share2,
-  [
-    { path: "/social-accounts", end: false },
-    { path: "/campaigns", end: false },
-  ],
-);
-const legacyPublishItem = createLegacyItem("Publish Portal", "/publish", Send, [
-  { path: "/publish", end: false },
-]);
 const legacyNewsletterItem = createLegacyItem(
   "Newsletter",
   "/newsletters",
@@ -245,8 +231,8 @@ const BASE_LEGACY_SIDEBAR_GROUPS: LegacySidebarGroup[] = [
     ],
   },
   {
-    label: "Content & Publishing",
-    items: [legacySocialItem, legacyNewsletterItem, legacySmsItem],
+    label: "Email & SMS",
+    items: [legacyNewsletterItem, legacySmsItem],
   },
   {
     label: "Settings & Support",
@@ -467,20 +453,6 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
       createDashboardLinkItem("sms-campaigns", legacySmsItem, {
         contentWidth: "full",
       }),
-      {
-        kind: "branch",
-        id: "social-media-tools",
-        label: "Social Media",
-        icon: Share2,
-        children: [
-          createDashboardLinkItem("social-media", legacySocialItem, {
-            contentWidth: "full",
-          }),
-          createDashboardLinkItem("publish-portal", legacyPublishItem, {
-            contentWidth: "full",
-          }),
-        ],
-      },
     ],
   },
   {
@@ -555,7 +527,6 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("Segments", legacySegmentsItem.patterns, "full"),
   createRouteDescriptor("Personas", legacyPersonasItem.patterns, "full"),
   createRouteDescriptor("Forms", legacyFormsItem.patterns, "full"),
-  createRouteDescriptor("Social Media", legacySocialItem.patterns, "full"),
   createRouteDescriptor("Newsletter", legacyNewsletterItem.patterns, "full"),
   createRouteDescriptor("SMS Campaigns", legacySmsItem.patterns, "full"),
   createRouteDescriptor("Products", legacyProductsItem.patterns, "full"),
@@ -586,7 +557,6 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("Account Setup", [
     { path: "/account-setup", end: false },
   ]),
-  createRouteDescriptor("Publish Portal", legacyPublishItem.patterns, "full"),
   createRouteDescriptor(
     "Marketing Planner",
     [{ path: "/plan", end: false }],

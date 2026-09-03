@@ -126,6 +126,18 @@ vi.mock("@/components/dashboard/POSInsightsCard", () => ({
   POSInsightsCard: () => null,
 }));
 
+vi.mock("@/components/dashboard/BloomWeeklySuggestionsCard", () => ({
+  BloomWeeklySuggestionsCard: () => null,
+}));
+
+vi.mock("@/hooks/useTenantAudienceHealth", () => ({
+  useTenantAudienceHealth: () => ({
+    data: null,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 vi.mock("@/components/create-flow/CreateFlowDialog", () => ({
   CreateFlowDialog: () => null,
 }));

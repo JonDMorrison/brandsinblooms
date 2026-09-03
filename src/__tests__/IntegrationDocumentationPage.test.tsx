@@ -143,27 +143,6 @@ describe("IntegrationDocumentationPage", () => {
     expect(screen.getByText("webhooks")).toBeInTheDocument();
   });
 
-  it("renders provider-specific Meta documentation content", () => {
-    renderPage("/integrations/meta/documentation");
-
-    expect(
-      screen.getByRole("heading", { name: "Meta Integration Guide" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: "Connecting Your Meta Account",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: "Publishing and Analytics Coverage",
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Connect and Configure" }),
-    ).not.toBeInTheDocument();
-  });
-
   it("supports the requested Google Analytics alias route", () => {
     renderPage("/integrations/google-analytics/documentation");
 

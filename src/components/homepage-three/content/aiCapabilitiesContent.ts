@@ -29,7 +29,7 @@ export const AI_CAPABILITIES_HEADER = {
   headline:
     "Now you have a marketing team that thinks, plans, and works through the weekend.",
   subtext:
-    "Ask for what you need. Customer lists, a Mother's Day campaign, social posts for the week, a re-engagement sequence for slow weeks. Your assistant does the work and brings it back for you to review.",
+    "Ask for what you need. Customer lists, a Mother's Day email, an SMS reminder, or a re-engagement sequence for slow weeks. Your assistant does the work and brings it back for you to review.",
 };
 
 export const AI_CHAT_DEMO = {
@@ -96,7 +96,7 @@ export const AI_CAPABILITY_CARDS: AiCapabilityCardConfig[] = [
     icon: PenTool,
     title: "Drafts anything",
     description:
-      "Email subjects, product descriptions, social posts, blog articles. Pick the channel and the angle. Get a draft in your store's voice.",
+      "Email subjects, SMS reminders, product descriptions, and customer journeys. Pick the goal and the angle. Get a draft in your store's voice.",
     delayMs: 1500,
   },
   {

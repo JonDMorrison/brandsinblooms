@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
 import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
-import { useScheduledPosts } from "@/hooks/useScheduledPosts";
 import { useNewsletterCalendar } from "@/hooks/useNewsletterCalendar";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useRouteState } from "@/hooks/useRouteState";
@@ -9,7 +8,7 @@ import { sortCalendarEvents } from "@/components/calendar/calendarEventPresentat
 
 export interface UnifiedCalendarEvent {
   id: string;
-  type: "task" | "scheduled_post" | "newsletter" | "event" | "holiday";
+  type: "task" | "newsletter" | "event" | "holiday";
   title: string;
   date: Date;
   time?: string;
@@ -28,7 +27,7 @@ export interface CalendarFilters {
 }
 
 const DEFAULT_FILTERS: CalendarFilters = {
-  types: ["task", "scheduled_post", "newsletter", "event", "holiday"],
+  types: ["task", "newsletter", "event", "holiday"],
   platforms: [],
   statuses: [],
   showPublished: true,
@@ -44,15 +43,6 @@ export const useUnifiedCalendarData = () => {
     isRefreshing,
     lastUpdated,
   } = useGlobalCalendarData();
-  const {
-    scheduledPosts,
-    loading: postsLoading,
-    schedulePost,
-    reschedulePost,
-    unschedulePost,
-    deleteScheduledPost,
-    refreshScheduledPosts,
-  } = useScheduledPosts();
   const {
     newsletters,
     loading: newslettersLoading,
@@ -91,6 +81,11 @@ export const useUnifiedCalendarData = () => {
     const events: UnifiedCalendarEvent[] = [];
 
     tasks.forEach((task) => {
+      const postType = String((task as any).post_type ?? "").toLowerCase();
+      if (["facebook", "instagram", "social_post", "social_caption"].includes(postType)) {
+        return;
+      }
+
       if (task.scheduled_date) {
         events.push({
           id: task.id,
@@ -103,24 +98,6 @@ export const useUnifiedCalendarData = () => {
           platform: (task as any).post_type,
           campaign_id: task.campaign_id,
           meta: task,
-        });
-      }
-    });
-
-    scheduledPosts.forEach((post) => {
-      if (post.publish_at) {
-        const publishDate = new Date(post.publish_at);
-        events.push({
-          id: post.id,
-          type: "scheduled_post",
-          title: post.content?.caption
-            ? post.content.caption.substring(0, 50) + "..."
-            : `${post.platform} post`,
-          date: publishDate,
-          time: format(publishDate, "h:mm a"),
-          status: post.status,
-          platform: post.platform,
-          meta: post,
         });
       }
     });
@@ -162,7 +139,7 @@ export const useUnifiedCalendarData = () => {
     });
 
     return events;
-  }, [tasks, scheduledPosts, newsletters, campaigns, allHolidays]);
+  }, [tasks, newsletters, campaigns, allHolidays]);
 
   const filteredEvents = useMemo(() => {
     return unifiedEvents.filter((event) => {
@@ -293,21 +270,19 @@ export const useUnifiedCalendarData = () => {
   const refetch = useCallback(async () => {
     await Promise.all([
       refetchGlobal(),
-      refreshScheduledPosts(),
       loadNewsletters(),
       refetchHolidays(),
       refreshHolidayContent(),
     ]);
   }, [
     refetchGlobal,
-    refreshScheduledPosts,
     loadNewsletters,
     refetchHolidays,
     refreshHolidayContent,
   ]);
 
   const loading =
-    globalLoading || postsLoading || newslettersLoading || holidaysLoading;
+    globalLoading || newslettersLoading || holidaysLoading;
 
   return {
     unifiedEvents,
@@ -340,17 +315,9 @@ export const useUnifiedCalendarData = () => {
       refetchHolidays,
       holidayContentState,
     },
-    scheduledPostActions: {
-      schedulePost,
-      reschedulePost,
-      unschedulePost,
-      deleteScheduledPost,
-      refreshScheduledPosts,
-    },
     rawData: {
       campaigns,
       tasks,
-      scheduledPosts: scheduledPosts || [],
       newsletters: newsletters || [],
       holidays: allHolidays,
     },

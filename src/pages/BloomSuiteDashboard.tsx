@@ -11,11 +11,6 @@ import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
-import { PostComposerModal } from "@/components/dashboard/PostComposerModal";
-import {
-  useConnectedAccounts,
-  getConnectionStatus,
-} from "@/components/dashboard/ConnectedAccountChecker";
 import {
   useTwilioSetup,
   getTwilioStatus,
@@ -35,7 +30,6 @@ import {
   Mail,
   Megaphone,
   Calendar,
-  Share2,
   HelpCircle,
   Info,
   Sparkles,
@@ -354,13 +348,10 @@ export const BloomSuiteDashboard = () => {
     isLoading: onboardingLoading,
   } = useOnboardingStatus();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
-  const [showPostComposer, setShowPostComposer] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
   const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
 
-  const { data: socialConnections = [], isLoading: loadingConnections } =
-    useConnectedAccounts();
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
   const { data: crmMetrics, isLoading: loadingMetrics } =
     useCRMDashboardMetrics();
@@ -410,11 +401,9 @@ export const BloomSuiteDashboard = () => {
     );
   }
 
-  const socialStatus = getConnectionStatus(socialConnections);
   const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
   const cardsLoading = loadingMetrics || loadingPOSAnalytics;
-  const focusLoading =
-    loadingConnections || loadingTwilio || loadingPOSAnalytics;
+  const focusLoading = loadingTwilio || loadingPOSAnalytics;
 
   const handleSelectAction = (action: string) => {
     switch (action) {
@@ -427,9 +416,6 @@ export const BloomSuiteDashboard = () => {
         // Pick an Idea / template — instead of dropping them into
         // a blank CRMCampaignEditorPage with no decisions made.
         navigate("/newsletters/new");
-        break;
-      case "social-post":
-        setShowPostComposer(true);
         break;
       case "campaign":
         // /crm/automations/new mounts AutomationWizardLandingPage
@@ -476,7 +462,7 @@ export const BloomSuiteDashboard = () => {
       id: "create-flow",
       title: "Create Any Content",
       description:
-        "Generate social posts, newsletters, and campaign ideas without leaving the dashboard.",
+        "Generate newsletters, customer journeys, and campaign ideas without leaving the dashboard.",
       icon: Sparkles,
       primaryAction: {
         label: "Open assistant",
@@ -503,21 +489,6 @@ export const BloomSuiteDashboard = () => {
       },
     },
     {
-      id: "social",
-      title: "Post on Social Media",
-      description:
-        "Create, schedule, and publish content across your connected social channels.",
-      icon: Share2,
-      primaryAction: {
-        label: "Create post",
-        onClick: () => setShowPostComposer(true),
-      },
-      secondaryAction: {
-        label: "Manage Accounts",
-        onClick: () => navigate("/social-accounts"),
-      },
-    },
-    {
       id: "planner",
       title: "Plan the Month",
       description:
@@ -525,7 +496,7 @@ export const BloomSuiteDashboard = () => {
       icon: Calendar,
       primaryAction: {
         label: "Open planner",
-        onClick: () => navigate("/plan"),
+        onClick: () => navigate("/calendar"),
       },
       secondaryAction: {
         label: "View calendar",
@@ -630,14 +601,6 @@ export const BloomSuiteDashboard = () => {
 
   const todayItems = [
     {
-      label: "Social accounts",
-      value: socialStatus.statusMessage,
-      tone: socialStatus.status === "connected" ? "success" : "warning",
-      statusLabel:
-        socialStatus.status === "connected" ? "Ready" : "Needs attention",
-      highlighted: false,
-    },
-    {
       label: "SMS readiness",
       value: twilioStatus.statusMessage,
       tone: twilioStatus.status === "connected" ? "success" : "warning",
@@ -671,18 +634,6 @@ export const BloomSuiteDashboard = () => {
   ] as const;
 
   const headerStatusChips = [
-    {
-      key: "social",
-      label: "Social",
-      message: loadingConnections
-        ? "Checking connection"
-        : socialStatus.statusMessage,
-      color: loadingConnections
-        ? ("neutral" as const)
-        : socialStatus.status === "connected"
-          ? ("success" as const)
-          : ("warning" as const),
-    },
     {
       key: "sms",
       label: "SMS",
@@ -1302,11 +1253,6 @@ export const BloomSuiteDashboard = () => {
         isOpen={showLaunchpad}
         onClose={() => setShowLaunchpad(false)}
         onSelectAction={handleSelectAction}
-      />
-
-      <PostComposerModal
-        isOpen={showPostComposer}
-        onClose={() => setShowPostComposer(false)}
       />
 
       <QuickStartTour

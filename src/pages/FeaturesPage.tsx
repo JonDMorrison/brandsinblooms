@@ -7,7 +7,6 @@ import featuresHero from '@/assets/features-hero.jpg';
 import featuresCta from '@/assets/features-cta.jpg';
 import { 
   Calendar, 
-  Share2, 
   Users, 
   Database, 
   Sparkles, 
@@ -48,15 +47,15 @@ export const FeaturesPage = () => {
       gradient: "from-green-500 to-emerald-600"
     },
     {
-      icon: Share2,
-      title: "Post Direct To Social",
-      description: "Manage all your social media platforms from one place with AI-powered content creation.",
+      icon: Mail,
+      title: "Email + SMS That Work Together",
+      description: "Reach garden-center customers with reliable campaigns and automated journeys from one place.",
       features: [
-        "Multi-platform posting (Facebook, Instagram, Twitter, LinkedIn)",
-        "Optimal timing based on your audience engagement",
-        "Auto-generated captions with plant care tips",
-        "Visual content library with seasonal templates",
-        "Hashtag optimization for garden center audience"
+        "Professional email campaigns with test sends and mobile previews",
+        "Individual, scheduled, and mass SMS messaging",
+        "Email and SMS steps in the same customer journey",
+        "Automatic consent, unsubscribe, and STOP enforcement",
+        "Delivery and click reporting tied to customer profiles"
       ],
       gradient: "from-blue-500 to-cyan-600"
     },

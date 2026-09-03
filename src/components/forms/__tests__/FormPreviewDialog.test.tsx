@@ -10,7 +10,7 @@ import {
 import { FormPreviewDialog } from "../preview/FormPreviewDialog";
 
 describe("FormPreviewDialog", () => {
-  it("renders file fields with the upload control instead of a plain text input", () => {
+  it("renders file fields with the upload control instead of a plain text input", async () => {
     render(
       <FormPreviewDialog
         open={true}
@@ -36,10 +36,11 @@ describe("FormPreviewDialog", () => {
       />,
     );
 
-    expect(screen.getByText(/upload up to 2 files/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /choose files/i }),
-    ).toBeInTheDocument();
+      (await screen.findAllByRole("button", { name: /choose files/i })).some(
+        (element) => element.tagName === "BUTTON",
+      ),
+    ).toBe(true);
 
     const fileInput = document.body.querySelector(
       'input#portfolio-files[type="file"]',

@@ -2,17 +2,24 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ImageUploader } from '../imageUploader'
 
 // Mock Supabase
-const mockSupabase = {
-  storage: {
-    from: vi.fn(() => ({
-      upload: vi.fn(),
-      remove: vi.fn(),
-      getPublicUrl: vi.fn(() => ({
-        data: { publicUrl: 'https://mock-url.com/image.jpg' }
-      }))
+const { mockStorageFrom, mockSupabase } = vi.hoisted(() => {
+  const mockStorageFrom = {
+    upload: vi.fn(),
+    remove: vi.fn(),
+    getPublicUrl: vi.fn(() => ({
+      data: { publicUrl: 'https://mock-url.com/image.jpg' }
     }))
   }
-}
+
+  return {
+    mockStorageFrom,
+    mockSupabase: {
+      storage: {
+        from: vi.fn(() => mockStorageFrom)
+      }
+    }
+  }
+})
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: mockSupabase
@@ -20,12 +27,10 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 describe('ImageUploader', () => {
   let uploader: ImageUploader
-  let mockStorageFrom: any
 
   beforeEach(() => {
     vi.clearAllMocks()
     uploader = new ImageUploader('test-bucket')
-    mockStorageFrom = mockSupabase.storage.from()
   })
 
   describe('uploadProcessedImage', () => {

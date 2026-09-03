@@ -35,6 +35,10 @@ vi.mock("@/components/forms/preview/FormPreviewDialog", () => ({
     open ? <div data-testid="preview-dialog" /> : null,
 }));
 
+vi.mock("@/components/forms/FormListToolbar", () => ({
+  FormListToolbar: () => <div data-testid="form-list-toolbar" />,
+}));
+
 import FormsPage from "./FormsPage";
 
 function buildForm(overrides: Partial<FormWithStats> = {}): FormWithStats {

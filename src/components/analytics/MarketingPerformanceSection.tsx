@@ -14,17 +14,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Globe, Mail, Megaphone, Share2 } from "lucide-react";
+import { Globe, Mail, Megaphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { AnalyticsOverview } from "@/hooks/useAnalyticsOverview";
 import { useTenant } from "@/hooks/useTenant";
 import { GoogleAnalyticsCard } from "@/components/analytics/GoogleAnalyticsCard";
-import { SocialAnalyticsTab } from "@/components/analytics/SocialAnalyticsTab";
 import {
   formatCompactNumber,
   formatPercent,
-  normalizePlatformLabel,
 } from "@/components/analytics/analyticsUtils";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
@@ -75,8 +73,6 @@ type MarketingSummary = {
     openRate: number;
   }>;
   sentMessages: number;
-  socialConnected: boolean;
-  socialPlatforms: string[];
   totalCustomers: number;
 };
 
@@ -135,8 +131,6 @@ export function MarketingPerformanceSection({
             engagementRate: 0,
             recentCampaignPerformance: [],
             sentMessages: 0,
-            socialConnected: false,
-            socialPlatforms: [],
             totalCustomers: 0,
           };
         }
@@ -145,18 +139,12 @@ export function MarketingPerformanceSection({
         startDate.setDate(startDate.getDate() - dateRange);
 
         const [
-          socialConnections,
           totalCustomers,
           activeCampaigns,
           sentCampaigns,
           allCampaigns,
           sentMessages,
         ] = await Promise.all([
-          supabase
-            .from("social_connections")
-            .select("platform")
-            .eq("user_id", user.id)
-            .eq("is_active", true),
           supabase
             .from("crm_customers")
             .select("id", { count: "exact", head: true })
@@ -247,14 +235,6 @@ export function MarketingPerformanceSection({
           engagementRate: totalSent > 0 ? (totalEngaged / totalSent) * 100 : 0,
           recentCampaignPerformance,
           sentMessages: sentMessages.count ?? 0,
-          socialConnected: (socialConnections.data?.length ?? 0) > 0,
-          socialPlatforms: Array.from(
-            new Set(
-              (socialConnections.data ?? []).map((connection) =>
-                normalizePlatformLabel(connection.platform),
-              ),
-            ),
-          ),
           totalCustomers: totalCustomers.count ?? 0,
         };
       },
@@ -267,15 +247,6 @@ export function MarketingPerformanceSection({
       label: "Website",
       active: gaConnected,
       description: gaConnected ? "GA4 connected" : "Connection required",
-    },
-    {
-      id: "social",
-      icon: <Share2 size={16} />,
-      label: "Social",
-      active: data?.socialConnected ?? false,
-      description: data?.socialPlatforms.length
-        ? data.socialPlatforms.join(", ")
-        : "No social accounts connected",
     },
     {
       id: "email",
@@ -354,7 +325,7 @@ export function MarketingPerformanceSection({
           <Stack spacing={2}>
             <Grid container spacing={1.25}>
               {channelStates.map((channel) => (
-                <Grid key={channel.id} xs={12} sm={6} lg={3}>
+                <Grid key={channel.id} xs={12} sm={6} lg={4}>
                   <Sheet
                     variant="soft"
                     color={channel.active ? "success" : "neutral"}
@@ -391,17 +362,6 @@ export function MarketingPerformanceSection({
                       sx={{ display: { xs: "none", sm: "block" } }}
                     >
                       Website
-                    </Typography>
-                  </Stack>
-                </JoyTabsTrigger>
-                <JoyTabsTrigger value="social">
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Share2 size={14} />
-                    <Typography
-                      level="body-sm"
-                      sx={{ display: { xs: "none", sm: "block" } }}
-                    >
-                      Social Media
                     </Typography>
                   </Stack>
                 </JoyTabsTrigger>
@@ -450,10 +410,6 @@ export function MarketingPerformanceSection({
                     </JoyCardContent>
                   </JoyCard>
                 )}
-              </JoyTabsContent>
-
-              <JoyTabsContent value="social">
-                <SocialAnalyticsTab dateRange={dateRange} />
               </JoyTabsContent>
 
               <JoyTabsContent value="email">

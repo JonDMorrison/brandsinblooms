@@ -13,6 +13,7 @@ import {
   DashboardShell,
   resolveAdminDashboardContentWidth,
 } from "@/components/layout/DashboardShell";
+import { TestQueryClientProvider } from "@/test/TestQueryClientProvider";
 
 const { signOutCompletelyMock } = vi.hoisted(() => ({
   signOutCompletelyMock: vi.fn().mockResolvedValue(undefined),
@@ -30,6 +31,9 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/integrations/supabase/client", () => ({
   signOutCompletely: signOutCompletelyMock,
+  supabase: {
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+  },
 }));
 
 vi.mock("@/hooks/useIsSuperAdmin", () => ({
@@ -39,12 +43,36 @@ vi.mock("@/hooks/useIsSuperAdmin", () => ({
   }),
 }));
 
+vi.mock("@/hooks/useTenant", () => ({
+  useTenant: () => ({ tenant: { id: "tenant-1", name: "Bloom Flowers" } }),
+}));
+
 vi.mock("@/components/TrialBanner", () => ({
   TrialBanner: () => <div data-testid="trial-banner">Trial banner</div>,
 }));
 
 vi.mock("@/components/ui/HelpWidget", () => ({
   HelpWidget: () => <div data-testid="help-widget">Help widget</div>,
+}));
+
+vi.mock("@/components/search/CommandPalette", () => ({
+  CommandPalette: ({
+    open,
+    onClose,
+  }: {
+    open: boolean;
+    onClose: () => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Command palette">
+        <input
+          aria-label="Search across BloomSuite"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") onClose();
+          }}
+        />
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/components/location/LocationBlockingBanner", () => ({
@@ -127,14 +155,16 @@ function AdminReportsPage() {
 
 function renderShell(initialPath = "/admin") {
   return render(
-    <MemoryRouter initialEntries={[initialPath]}>
-      <Routes>
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminHubPage />} />
-          <Route path="reports" element={<AdminReportsPage />} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <TestQueryClientProvider>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <Routes>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminHubPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </TestQueryClientProvider>,
   );
 }
 
@@ -179,13 +209,15 @@ describe("DashboardShell", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the tablet shell with the sidebar collapsed by default", () => {
+  it("renders the tablet shell with the sidebar collapsed by default", async () => {
     setViewportWidth(900);
 
     renderShell();
 
-    expect(screen.getByTestId("dashboard-shell-sidebar")).toHaveStyle({
-      width: "72px",
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-shell-sidebar")).toHaveStyle({
+        width: "72px",
+      });
     });
   });
 

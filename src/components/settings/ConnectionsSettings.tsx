@@ -21,9 +21,7 @@ import Typography from "@mui/joy/Typography";
 import {
   CheckCircle2,
   ExternalLink,
-  Facebook,
   FileText,
-  Instagram,
   HelpCircle,
   MoreHorizontal,
   Plus,
@@ -42,10 +40,6 @@ import {
   type POSConnection,
   usePOSConnections,
 } from "@/hooks/usePOSConnections";
-import {
-  useConnectedAccounts,
-  getConnectionStatus,
-} from "@/components/dashboard/ConnectedAccountChecker";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -59,7 +53,7 @@ interface POSPlatform {
   name: string;
   icon: React.ReactNode;
   description: string;
-  category: "pos" | "social" | "integration";
+  category: "pos" | "integration";
 }
 
 interface POSSyncLog {
@@ -201,24 +195,6 @@ export const ConnectionsSettings = () => {
     [],
   );
 
-  const socialPlatforms = useMemo(
-    () => [
-      {
-        id: "facebook",
-        name: "Facebook",
-        icon: <Facebook className="h-6 w-6 text-blue-600" />,
-        description: "Publish posts and manage your connected Facebook Pages.",
-      },
-      {
-        id: "instagram",
-        name: "Instagram",
-        icon: <Instagram className="h-6 w-6 text-pink-600" />,
-        description: "Share posts and stories to your Instagram Business account.",
-      },
-    ],
-    [],
-  );
-
   const integrationPreviews = useMemo(
     () => [
       {
@@ -244,19 +220,11 @@ export const ConnectionsSettings = () => {
     runSync,
     disconnectPOS,
   } = usePOSConnections();
-  const {
-    data: socialConnections = [],
-    isLoading: socialLoading,
-    error: socialError,
-    refetch: refetchSocial,
-  } = useConnectedAccounts();
   const { toast } = useToast();
 
   const posConnections = (rawPosConnections as POSConnectionWithLogs[] | undefined) ?? [];
   const posLoadFailed = !posLoading && rawPosConnections === undefined;
   const connectedPOSIds = new Set(posConnections.map((connection) => connection.platform));
-  const connectionStatusData = getConnectionStatus(socialConnections);
-  const connectedSocialPlatforms = new Set(connectionStatusData.connectedPlatforms);
 
   const handleConnectPOS = (platform: string) => {
     setSelectedPlatform(platform);
@@ -516,102 +484,6 @@ export const ConnectionsSettings = () => {
                 })}
               </Box>
             </Stack>
-          </Stack>
-        )}
-      </SettingsSectionCard>
-
-      <SettingsSectionCard
-        description="Connect Facebook and Instagram accounts to publish content and manage social workflows."
-        headerActions={
-          <Chip
-            color={socialConnections.length > 0 ? "success" : "neutral"}
-            size="sm"
-            variant="soft"
-          >
-            {socialConnections.length > 0
-              ? connectionStatusData.statusMessage
-              : "No social accounts connected"}
-          </Chip>
-        }
-        startDecorator={<Users size={18} />}
-        title="Social Accounts"
-      >
-        {socialLoading ? (
-          renderLoadingCards(2)
-        ) : socialError ? (
-          <SettingsInlineError
-            message="Social account connections could not be loaded."
-            onRetry={() => {
-              void refetchSocial();
-            }}
-          />
-        ) : (
-          <Stack spacing={2.5}>
-            {socialConnections.length === 0 ? (
-              <SettingsEmptyState
-                description="No social account is connected yet. Open the social accounts workspace to connect Facebook or Instagram."
-                icon={Users}
-                primaryAction={{
-                  label: "Open Social Accounts",
-                  onClick: () => undefined,
-                  startDecorator: <ExternalLink size={16} />,
-                }}
-                title="No social accounts connected"
-              />
-            ) : null}
-
-            <Box sx={platformGridSx}>
-              {socialPlatforms.map((platform) => {
-                const isConnected = connectedSocialPlatforms.has(platform.id);
-
-                return (
-                  <Sheet key={platform.id} variant="outlined" sx={panelCardSx}>
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-                        <Stack direction="row" spacing={1.25} alignItems="center">
-                          <Box
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: "16px",
-                              display: "grid",
-                              placeItems: "center",
-                              bgcolor: "background.surface",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {platform.icon}
-                          </Box>
-                          <Stack spacing={0.25}>
-                            <Typography level="title-sm">{platform.name}</Typography>
-                            <Chip
-                              color={isConnected ? "success" : "neutral"}
-                              size="sm"
-                              variant="soft"
-                            >
-                              {isConnected ? "Connected" : "Not connected"}
-                            </Chip>
-                          </Stack>
-                        </Stack>
-                      </Stack>
-
-                      <Typography level="body-sm" sx={{ color: "text.secondary" }}>
-                        {platform.description}
-                      </Typography>
-
-                      <Box component={RouterLink} sx={{ textDecoration: "none" }} to="/social-accounts">
-                        <JoyButton
-                          startDecorator={isConnected ? <ExternalLink size={16} /> : <Plus size={16} />}
-                          variant="outline"
-                        >
-                          {isConnected ? "Manage" : "Connect"}
-                        </JoyButton>
-                      </Box>
-                    </Stack>
-                  </Sheet>
-                );
-              })}
-            </Box>
           </Stack>
         )}
       </SettingsSectionCard>
