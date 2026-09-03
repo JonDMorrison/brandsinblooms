@@ -180,6 +180,9 @@ async function handler(req: Request): Promise<Response> {
         .eq('sms_opt_in', true)
         .eq('opt_out', false)
         .eq('suppressed', false)
+        .not('sms_opt_in_at', 'is', null)
+        .not('sms_consent_source', 'is', null)
+        .not('sms_consent_source', 'eq', '')
         .not('phone', 'is', null)
         .not('phone', 'eq', '');
 
@@ -193,6 +196,9 @@ async function handler(req: Request): Promise<Response> {
             .eq('sms_opt_in', true)
             .eq('opt_out', false)
             .eq('suppressed', false)
+            .not('sms_opt_in_at', 'is', null)
+            .not('sms_consent_source', 'is', null)
+            .not('sms_consent_source', 'eq', '')
             .not('phone', 'is', null)
             .not('phone', 'eq', '')
             .eq('customer_loyalty_metrics.is_perks_member', true);
@@ -235,6 +241,9 @@ async function handler(req: Request): Promise<Response> {
         .eq('crm_customers.sms_opt_in', true)
         .eq('crm_customers.opt_out', false)
         .eq('crm_customers.suppressed', false)
+        .not('crm_customers.sms_opt_in_at', 'is', null)
+        .not('crm_customers.sms_consent_source', 'is', null)
+        .not('crm_customers.sms_consent_source', 'eq', '')
         .not('crm_customers.phone', 'is', null)
         .not('crm_customers.phone', 'eq', '');
       

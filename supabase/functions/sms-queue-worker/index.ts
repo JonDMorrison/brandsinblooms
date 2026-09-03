@@ -21,6 +21,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
 import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '../_shared/smsErrorPolicy.ts'
 import { logComplianceEvent, classifyErrorToComplianceType } from '../_shared/smsComplianceLogger.ts'
+import { checkSmsSendEligibility } from '../_shared/smsConsentGate.ts'
+import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
@@ -49,7 +51,7 @@ interface MTAConfig {
 
 interface SmsMessage {
   id: string
-  tenant_id: string
+  tenant_id: string | null
   phone: string
   content: string
   media_urls: string[] | null
@@ -253,6 +255,58 @@ function truncateError(message: string, maxLength: number = 250): string {
 }
 
 /**
+ * Fail a queued marketing message closed when current consent cannot be proven.
+ * This is deliberately evaluated after claiming and immediately before the
+ * provider call so a STOP received while the message was waiting is honored.
+ */
+async function blockIfSmsIneligible(
+  supabase: any,
+  msg: SmsMessage,
+  tenantId: string | null | undefined,
+): Promise<boolean> {
+  const eligibility = await checkSmsSendEligibility(supabase, {
+    tenantId,
+    customerId: msg.customer_id,
+    recipient: msg.phone,
+  });
+
+  if (eligibility.allowed) return false;
+
+  const now = new Date().toISOString();
+  const reason = `${eligibility.code}: ${eligibility.reason}`;
+  await supabase
+    .from('sms_messages')
+    .update({
+      status: 'failed',
+      error_message: truncateError(reason),
+      error_code: eligibility.code,
+      failure_type: 'compliance',
+      dead_lettered_at: now,
+      updated_at: now,
+    })
+    .eq('id', msg.id)
+    .eq('status', 'queued');
+
+  await logComplianceEvent(supabase, {
+    tenantId: tenantId || undefined,
+    customerId: msg.customer_id || undefined,
+    phone: msg.phone,
+    eventType: 'BLOCKED_SEND',
+    messageContent: msg.content,
+    source: 'worker',
+    errorCode: eligibility.code,
+    errorMessage: eligibility.reason,
+    metadata: {
+      campaign_id: msg.campaign_id,
+      message_id: msg.id,
+    },
+  });
+
+  console.log(`[sms-queue-worker] Blocked message ${msg.id}: ${reason}`);
+  return true;
+}
+
+/**
  * Reserve rate limit tokens for sending
  */
 async function reserveRateLimitTokens(
@@ -291,78 +345,20 @@ async function claimSmsSendJobsSafe(
   workerId: string,
   claimToken: string
 ): Promise<SmsSendJob[]> {
-  const staleThreshold = new Date(Date.now() - CLAIM_STALE_AFTER_MINUTES * 60 * 1000).toISOString();
-  const now = new Date().toISOString();
+  const { data, error } = await supabase.rpc('claim_sms_send_jobs', {
+    p_limit: limit,
+    p_worker_id: workerId,
+    p_claim_token: claimToken,
+    p_stale_minutes: CLAIM_STALE_AFTER_MINUTES,
+    p_max_attempts: MAX_JOB_ATTEMPTS,
+  });
 
-  // Step 1: Find eligible jobs with priority ordering
-  const { data: eligibleJobs, error: selectError } = await supabase
-    .from('sms_send_jobs')
-    .select('*')
-    .in('status', ['pending', 'in_progress'])
-    .lt('attempts', MAX_JOB_ATTEMPTS)
-    .is('dead_lettered_at', null)
-    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
-    .order('priority', { ascending: true })
-    .order('created_at', { ascending: true })
-    .limit(limit * 2);
-
-  if (selectError) {
-    console.error('[sms-queue-worker] Error selecting jobs:', selectError);
+  if (error) {
+    console.error('[sms-queue-worker] Atomic job claim failed:', error);
     return [];
   }
 
-  if (!eligibleJobs || eligibleJobs.length === 0) {
-    return [];
-  }
-
-  // Step 2: Filter for claimable jobs
-  const claimableJobs = eligibleJobs.filter((job: SmsSendJob) => {
-    if (!job.claimed_at) return true;
-    return new Date(job.claimed_at) < new Date(staleThreshold);
-  }).slice(0, limit);
-
-  if (claimableJobs.length === 0) {
-    return [];
-  }
-
-  // Step 3: Atomically claim each job
-  const claimedJobs: SmsSendJob[] = [];
-
-  for (const job of claimableJobs) {
-    const { data: claimed, error: claimError } = await supabase
-      .from('sms_send_jobs')
-      .update({
-        status: 'in_progress',
-        claimed_at: now,
-        claimed_by: workerId,
-        claim_token: claimToken,
-        attempts: job.attempts + 1,
-        updated_at: now,
-      })
-      .eq('id', job.id)
-      .in('status', ['pending', 'in_progress'])
-      .lt('attempts', MAX_JOB_ATTEMPTS)
-      .is('dead_lettered_at', null)
-      .select('*')
-      .maybeSingle();
-
-    if (claimError) {
-      console.log(`[sms-queue-worker] Failed to claim job ${job.id}:`, claimError.message);
-      continue;
-    }
-
-    if (claimed) {
-      if (claimed.claim_token === claimToken) {
-        claimedJobs.push(claimed);
-      } else {
-        console.log(`[sms-queue-worker] Job ${job.id} claimed by another worker`);
-      }
-    }
-
-    if (claimedJobs.length >= limit) break;
-  }
-
-  return claimedJobs;
+  return (data || []) as SmsSendJob[];
 }
 
 /**
@@ -463,7 +459,7 @@ async function handleMessageFailure(
   const complianceEventType = classifyErrorToComplianceType(classified.code);
   if (complianceEventType) {
     await logComplianceEvent(supabase, {
-      tenantId: msg.tenant_id,
+      tenantId: msg.tenant_id || undefined,
       customerId: msg.customer_id || undefined,
       phone: msg.phone,
       eventType: complianceEventType,
@@ -523,6 +519,9 @@ Deno.serve(async (req) => {
   // Handle CORS preflight
   const corsResponse = handleCorsPrelight(req);
   if (corsResponse) return corsResponse;
+
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   const claimToken = crypto.randomUUID();
@@ -646,6 +645,14 @@ Deno.serve(async (req) => {
             continue;
           }
 
+          const messageTenantId = msg.tenant_id || job.tenant_id;
+          if (await blockIfSmsIneligible(supabase, msg, messageTenantId)) {
+            jobFailed++;
+            stats.messagesFailed++;
+            stats.messagesDeadLettered++;
+            continue;
+          }
+
           // Increment attempts
           const currentAttempts = (msg.attempts || 0) + 1;
           await supabase
@@ -671,7 +678,6 @@ Deno.serve(async (req) => {
                 status: 'sent',
                 twilio_sid: result.messageId, // Reusing field for MTA message ID
                 sent_at: now,
-                billed_at: msg.billed_at ? undefined : now,
                 error_message: null,
                 error_code: null,
                 failure_type: null,
@@ -687,7 +693,7 @@ Deno.serve(async (req) => {
             // Bill the message if not already billed
             if (!msg.billed_at) {
               const billableUnits = msg.billable_units || 1;
-              const tenantId = msg.tenant_id || job.tenant_id;
+              const tenantId = messageTenantId;
               
               if (tenantId) {
                 const billed = await billMessage(supabase, tenantId, msg.id, billableUnits);
@@ -736,9 +742,11 @@ Deno.serve(async (req) => {
             stats.jobsClaimStolen++;
           }
         } else {
-          const jobStatus = (jobSent > 0 || jobSkipped === jobMessages.length) ? 'completed' : 'failed';
+          // Any terminal recipient failure makes the batch visibly failed. The
+          // campaign metrics still preserve how many recipients were sent.
+          const jobStatus = jobFailed > 0 ? 'failed' : 'completed';
           const jobErrorMessage = jobStatus === 'failed'
-            ? `All ${jobFailed} messages failed.`
+            ? `${jobFailed} recipient(s) failed; ${jobSent} sent.`
             : null;
 
           const updated = await updateJobWithGuard(supabase, job.id, claimToken, {
@@ -783,9 +791,7 @@ Deno.serve(async (req) => {
           continue;
         } else if (pendingOrInProgress.length > 0) {
           newCampaignStatus = 'sending';
-        } else if (completedJobs.length === allJobs.length) {
-          newCampaignStatus = 'sent';
-        } else if (failedJobs.length === allJobs.length) {
+        } else if (failedJobs.length > 0) {
           newCampaignStatus = 'failed';
         } else {
           newCampaignStatus = 'sent';
@@ -868,6 +874,12 @@ Deno.serve(async (req) => {
 
         stats.legacyMessagesProcessed++;
 
+        if (await blockIfSmsIneligible(supabase, msg, msg.tenant_id)) {
+          stats.messagesFailed++;
+          stats.messagesDeadLettered++;
+          continue;
+        }
+
         // Increment attempts
         const currentAttempts = (msg.attempts || 0) + 1;
         await supabase
@@ -891,7 +903,6 @@ Deno.serve(async (req) => {
               status: 'sent',
               twilio_sid: result.messageId,
               sent_at: now,
-              billed_at: msg.billed_at ? undefined : now,
               error_message: null,
               error_code: null,
               failure_type: null,

@@ -26,6 +26,7 @@ import {
 } from "../_shared/mergeTagEngine.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -914,6 +915,25 @@ async function sendSMS(
   canRetry?: boolean;
 }> {
   try {
+    // Consent can change after an automation step is queued. Re-check the
+    // canonical customer at the last possible boundary before provider send.
+    const smsEligibility = await checkSmsSendEligibility(supabase, {
+      tenantId: message.tenant_id,
+      customerId: message.customer_id,
+      recipient: message.recipient,
+    });
+    if (!smsEligibility.allowed) {
+      console.log(
+        `⏭️ [SendSMS] ${smsEligibility.code}: ${smsEligibility.reason}`,
+      );
+      return {
+        success: false,
+        error: `${smsEligibility.code}: ${smsEligibility.reason}`,
+        shouldSkip: true,
+        canRetry: false,
+      };
+    }
+
     // ── SMS Idempotency Check ──
     // Prevent duplicate SMS to the same customer for the same automation node
     if (message.automation_id) {
@@ -968,6 +988,9 @@ async function sendSMS(
       body: {
         to: message.recipient,
         body: smsBody,
+        purpose: "marketing",
+        tenantId: message.tenant_id,
+        customerId: message.customer_id,
       },
     });
 

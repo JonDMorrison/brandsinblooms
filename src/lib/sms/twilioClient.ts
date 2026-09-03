@@ -41,6 +41,7 @@ export class SMSClient {
           body: message.body,
           mediaUrl: message.mediaUrl,
           mediaUrls: message.mediaUrls,
+          purpose: "test",
         },
       });
 

@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { checkSMSAvailability } from "../_shared/channelAvailability.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -106,20 +108,24 @@ async function handler(req: Request): Promise<Response> {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // FIX: [issue #4] - Add JWT authentication to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-  const authToken = authHeader.replace('Bearer ', '');
-  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-  const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(authToken);
-  if (authError || !authUser) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  // Internal workers authenticate with the modern apikey header. Interactive
+  // test sends still require a real user JWT and are explicitly marked test.
+  const isInternal = requireInternalApiKey(req) === null;
+  if (!isInternal) {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const authToken = authHeader.replace('Bearer ', '');
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(authToken);
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls, skipOptOutCheck } = await req.json();
+    const { to, body, mediaUrl, mediaUrls, purpose, tenantId, customerId } = await req.json();
 
     if (!to || !body) {
       return new Response(
@@ -199,6 +205,32 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    if (!isInternal && purpose !== 'test') {
+      return new Response(
+        JSON.stringify({ error: 'Direct marketing SMS must use a consent-aware campaign or automation queue' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (purpose !== 'test') {
+      const eligibility = await checkSmsSendEligibility(supabase, {
+        tenantId,
+        customerId,
+        recipient: to,
+      });
+      if (!eligibility.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: eligibility.code,
+            message: eligibility.reason,
+            skipable: true,
+            canRetry: false,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Step 1: Validate recipient
     console.log(`📱 [MTA] Validating recipient: ${formattedTo}`);
@@ -379,14 +411,27 @@ async function handler(req: Request): Promise<Response> {
 
     // Log the SMS send
     try {
-      await supabase.from('sms_messages').insert({
+      const { data: loggedMessage } = await supabase.from('sms_messages').insert({
+        tenant_id: tenantId || null,
+        customer_id: customerId || null,
         phone: formattedTo,
         content: finalMessage,
         status: 'sent',
         twilio_sid: messageId, // Reusing field for MTA message ID
         media_urls: allMediaUrls.length > 0 ? allMediaUrls : null,
         sent_at: new Date().toISOString(),
-      });
+      }).select('id').maybeSingle();
+
+      if (purpose !== 'test' && tenantId && loggedMessage?.id) {
+        const { error: billingError } = await supabase.rpc('bill_sms_message', {
+          p_tenant_id: tenantId,
+          p_message_id: loggedMessage.id,
+          p_billable_units: 1,
+        });
+        if (billingError) {
+          console.warn('Failed to bill accepted SMS:', billingError.message);
+        }
+      }
     } catch (logError) {
       console.warn('Failed to log SMS send:', logError);
       // Don't fail the request if logging fails

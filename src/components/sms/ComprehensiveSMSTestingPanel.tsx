@@ -121,7 +121,8 @@ export const ComprehensiveSMSTestingPanel: React.FC<SMSTestingPanelProps> = ({
           body: directSMSMessage,
           skipOptOutCheck,
           skipQuietHours,
-          forceFooter
+          forceFooter,
+          purpose: 'test'
         }
       });
 
