@@ -81,10 +81,11 @@ serve(async (req) => {
           .from("pos_receipts")
           .upsert(rows, { onConflict: "tenant_id,pos_connection_id,external_receipt_id" });
         if (upsertErr) {
-          console.error(`vmx-sync-receipts: batch upsert error page ${page}:`, upsertErr.message);
-        } else {
-          totalProcessed += rows.length;
+          throw new Error(
+            `VMX receipt page ${page} failed to persist: ${upsertErr.message}`,
+          );
         }
+        totalProcessed += rows.length;
       }
 
       console.log(`vmx-sync-receipts: page ${page} — ${rows.length} rows`);
@@ -126,6 +127,24 @@ serve(async (req) => {
               .eq("external_id", custId);
           }
         }
+      }
+    }
+
+    // Rebuild exact per-store activity from the receipt ledger. Chunking keeps
+    // the RPC payload bounded while preserving idempotent aggregate results.
+    const affectedExternalIds = [...affectedCustomerIds];
+    for (let i = 0; i < affectedExternalIds.length; i += 500) {
+      const { error: locationError } = await supabase.rpc(
+        "recompute_vmx_customer_locations",
+        {
+          p_tenant_id: conn.tenant_id,
+          p_external_customer_ids: affectedExternalIds.slice(i, i + 500),
+        },
+      );
+      if (locationError) {
+        throw new Error(
+          `VMX location activity reconciliation failed: ${locationError.message}`,
+        );
       }
     }
 
