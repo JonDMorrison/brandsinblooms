@@ -991,6 +991,7 @@ async function sendSMS(
         purpose: "marketing",
         tenantId: message.tenant_id,
         customerId: message.customer_id,
+        idempotencyKey: message.id,
       },
     });
 

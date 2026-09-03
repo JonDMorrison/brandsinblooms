@@ -23,6 +23,11 @@ import { classifyTwilioError, calculateRetryDelay, type SmsFailureType } from '.
 import { logComplianceEvent, classifyErrorToComplianceType } from '../_shared/smsComplianceLogger.ts'
 import { checkSmsSendEligibility } from '../_shared/smsConsentGate.ts'
 import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
+import {
+  extractMtaRecipientValidation,
+  extractMtaSendAcceptance,
+  toMtaRequestId,
+} from '../_shared/mtaSendResponse.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
@@ -141,6 +146,7 @@ async function sendSMSViaMTA(
   body: string,
   options: {
     mediaUrls?: string[] | null
+    externalId?: string
   } = {}
 ): Promise<{ success: boolean; messageId?: string; error?: string; rawError?: unknown }> {
   try {
@@ -154,7 +160,7 @@ async function sendSMSViaMTA(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        recipients: [{ number: to, externalId: "bloomsuite_worker" }],
+        recipients: [{ number: to, externalId: options.externalId ?? "bloomsuite_worker" }],
         validateUnsubscribes: true,
       }),
     });
@@ -170,11 +176,8 @@ async function sendSMSViaMTA(
       };
     }
 
-    // Check for invalid/unsubscribed
-    const invalidList = Array.isArray(validateData?.invalid) ? validateData.invalid : [];
-    const unsubscribedList = Array.isArray(validateData?.unsubscribed) ? validateData.unsubscribed : [];
-
-    if (unsubscribedList.length > 0) {
+    const validation = extractMtaRecipientValidation(validateData);
+    if (validation.hasUnsubscribedRecipient) {
       return {
         success: false,
         error: "Recipient has opted out",
@@ -182,10 +185,12 @@ async function sendSMSViaMTA(
       };
     }
 
-    if (invalidList.length > 0) {
+    if (validation.invalidRecipients.length > 0) {
       return {
         success: false,
-        error: `Invalid phone number: ${invalidList.join(", ")}`,
+        error: validation.invalidRecipients
+          .map(({ recipient, error }) => [recipient, error].filter(Boolean).join(": "))
+          .join(", ") || "Recipient validation failed",
         rawError: { code: 21211, invalid: true },
       };
     }
@@ -195,6 +200,7 @@ async function sendSMSViaMTA(
       subscribers: [to],
       message: finalMessage,
     };
+    if (options.externalId) sendPayload.externalId = options.externalId;
 
     // Add longcodeId if configured
     if (config.longcodeId) {
@@ -212,6 +218,10 @@ async function sendSMSViaMTA(
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(options.externalId
+          ? { "X-Request-Id": toMtaRequestId(options.externalId) }
+          : {}),
       },
       body: JSON.stringify(sendPayload),
     });
@@ -220,6 +230,12 @@ async function sendSMSViaMTA(
     const sendData = sendParsed.json ?? {};
 
     if (!sendParsed.ok) {
+      if (sendParsed.status === 409 && options.externalId) {
+        return {
+          success: true,
+          error: "Provider previously accepted this idempotent request; awaiting delivery reconciliation",
+        };
+      }
       return {
         success: false,
         error: sendData?.message || sendData?.error || `Send failed (HTTP ${sendParsed.status})`,
@@ -227,10 +243,16 @@ async function sendSMSViaMTA(
       };
     }
 
-    const rawMessageId = sendData.messageId ?? sendData.id;
-    const messageId = typeof rawMessageId === "string" || typeof rawMessageId === "number"
-      ? String(rawMessageId)
-      : undefined;
+    if (sendData?.success === false) {
+      return {
+        success: false,
+        error: sendData?.message || sendData?.error || "Provider rejected the send",
+        rawError: sendParsed,
+      };
+    }
+
+    const acceptance = extractMtaSendAcceptance(sendData);
+    const messageId = acceptance.messageId ?? undefined;
     return {
       success: true,
       messageId,
@@ -675,6 +697,7 @@ Deno.serve(async (req) => {
           const formattedPhone = normalizePhone(msg.phone);
           const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
             mediaUrls: msg.media_urls,
+            externalId: msg.id,
           });
 
           if (result.success) {
@@ -906,6 +929,7 @@ Deno.serve(async (req) => {
         const formattedPhone = normalizePhone(msg.phone);
         const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
           mediaUrls: msg.media_urls,
+          externalId: msg.id,
         });
 
         if (result.success) {

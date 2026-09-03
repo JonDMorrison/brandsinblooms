@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   let pagesProcessed = 0;
   let rowsReceived = 0;
   let validDeliveries = 0;
-  const totals = { total: 0, applied: 0, unmatched: 0, duplicates: 0, ignored: 0 };
+  const totals = { total: 0, applied: 0, unmatched: 0, duplicates: 0, ignored: 0, correlated: 0 };
   const baseUrl = (Deno.env.get("MOBILE_TEXT_ALERTS_BASE_URL") || DEFAULT_BASE_URL).replace(/\/$/, "");
 
   try {
