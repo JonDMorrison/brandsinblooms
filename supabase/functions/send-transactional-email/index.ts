@@ -4,7 +4,8 @@ import { Resend } from "npm:resend@2.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 /**
@@ -18,25 +19,46 @@ serve(async (req) => {
   }
 
   // SECURITY: E1 - Add JWT authentication to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Authorization required' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: "Authorization required" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace("Bearer ", "");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    Deno.env.get("SUPABASE_URL") ?? "",
+    serviceRoleKey,
   );
-  const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  if (token !== serviceRoleKey) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const startTime = Date.now();
-  
+
   try {
     const body = await req.json();
-    const { to, subject, html_content, from_name, from_email, reply_to: explicit_reply_to, tags } = body;
+    const {
+      to,
+      subject,
+      html_content,
+      from_name,
+      from_email,
+      reply_to: explicit_reply_to,
+      tags,
+      unsubscribe_url,
+    } = body;
     // Reply-to: prefer explicit value, fallback to sender email
     const reply_to = explicit_reply_to || from_email;
 
@@ -44,11 +66,14 @@ serve(async (req) => {
     if (!to || !html_content) {
       console.error("❌ Missing required fields: to or html_content");
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Missing required fields: to and html_content are required" 
+        JSON.stringify({
+          success: false,
+          error: "Missing required fields: to and html_content are required",
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -56,27 +81,32 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const hasApiKey = !!resendApiKey;
     console.log(`📧 [TransactionalEmail] API key present: ${hasApiKey}`);
-    
+
     if (!resendApiKey) {
       console.error("❌ RESEND_API_KEY not configured");
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: "Email service not configured",
-          skipable: true 
+          skipable: true,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     const resend = new Resend(resendApiKey);
 
     // Build from address
-    const fromAddress = from_name 
-      ? `${from_name} <${from_email || "hello@notify.bloomsuite.app"}>` 
+    const fromAddress = from_name
+      ? `${from_name} <${from_email || "hello@notify.bloomsuite.app"}>`
       : from_email || "hello@notify.bloomsuite.app";
 
-    console.log(`📧 [TransactionalEmail] Sending to: ${to}, from: ${fromAddress}, subject: ${subject?.substring(0, 50)}...`);
+    console.log(
+      `📧 [TransactionalEmail] Sending to: ${to}, from: ${fromAddress}, subject: ${subject?.substring(0, 50)}...`,
+    );
 
     // Send email via Resend
     const emailPayload: any = {
@@ -94,50 +124,81 @@ serve(async (req) => {
       emailPayload.tags = tags;
     }
 
+    if (typeof unsubscribe_url === "string") {
+      const expectedBase = `${Deno.env.get("SUPABASE_URL") || ""}/functions/v1/handle-unsubscribe`;
+      const parsedUrl = new URL(unsubscribe_url);
+      if (`${parsedUrl.origin}${parsedUrl.pathname}` === expectedBase) {
+        emailPayload.headers = {
+          "List-Unsubscribe": `<${unsubscribe_url}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        };
+      }
+    }
+
     const response = await resend.emails.send(emailPayload);
     const duration = Date.now() - startTime;
 
     // Log full response for debugging
-    console.log(`📧 [TransactionalEmail] Resend response (${duration}ms):`, JSON.stringify(response));
+    console.log(
+      `📧 [TransactionalEmail] Resend response (${duration}ms):`,
+      JSON.stringify(response),
+    );
 
     // Check for errors
     if (response.error) {
-      console.error(`❌ [TransactionalEmail] Resend error:`, JSON.stringify(response.error));
+      console.error(
+        `❌ [TransactionalEmail] Resend error:`,
+        JSON.stringify(response.error),
+      );
       return new Response(
         JSON.stringify({
           success: false,
           error: response.error.message || "Email send failed",
           error_name: response.error.name,
-          duration_ms: duration
+          duration_ms: duration,
         }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     // Success - return the Resend message ID
     const messageId = response.data?.id || response.id;
-    console.log(`✅ [TransactionalEmail] Sent successfully. Message ID: ${messageId}`);
+    console.log(
+      `✅ [TransactionalEmail] Sent successfully. Message ID: ${messageId}`,
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
         external_id: messageId,
-        duration_ms: duration
+        duration_ms: duration,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
-
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    console.error(`❌ [TransactionalEmail] Exception (${duration}ms):`, error.message, error.stack);
-    
+    console.error(
+      `❌ [TransactionalEmail] Exception (${duration}ms):`,
+      error.message,
+      error.stack,
+    );
+
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message || "Unknown error",
-        duration_ms: duration
+        duration_ms: duration,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

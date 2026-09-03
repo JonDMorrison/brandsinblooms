@@ -214,7 +214,7 @@ const handler = async (req: Request): Promise<Response> => {
           : null;
 
         // Render email
-        const rendered = renderEmailForRecipient({
+        const rendered = await renderEmailForRecipient({
           tenantId: automation.tenant_id,
           html: content,
           subject,
@@ -236,6 +236,7 @@ const handler = async (req: Request): Promise<Response> => {
               from_name: companyProfile?.company_name || "Your Business",
               from_email: senderConfig.fromEmail,
               reply_to: senderConfig.replyTo || senderConfig.fromEmail,
+              unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
               tags: [
                 { name: "automation_id", value: automationId },
                 { name: "tenant_id", value: automation.tenant_id },

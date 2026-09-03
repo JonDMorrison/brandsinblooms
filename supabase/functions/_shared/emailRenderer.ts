@@ -30,13 +30,16 @@ import {
 } from "./campaignEmailContent.ts";
 import { sanitizeEmailHtmlImageSources } from "./emailImageUrl.ts";
 import type { ServerCompanyProfileShape } from "./resolveDesignSystem.ts";
+import {
+  resolveEmailPreferenceLinks,
+  type EmailPreferenceLinks,
+} from "./emailPreferenceLinks.ts";
 
 // Resolved at module load. Falls back to the production project URL
 // so the renderer keeps producing pixels even in environments where
 // SUPABASE_URL is not injected (preview / unit-test contexts).
 const TRACK_OPEN_BASE_URL = `${
-  Deno.env.get("SUPABASE_URL") ||
-  "https://udldmkqwnxhdeztyqcau.supabase.co"
+  Deno.env.get("SUPABASE_URL") || "https://udldmkqwnxhdeztyqcau.supabase.co"
 }/functions/v1/track-email-open`;
 
 function escapeUrlComponent(value: string | null | undefined): string {
@@ -130,6 +133,7 @@ export interface RenderEmailResult {
   renderedHtml: string;
   renderedSubject: string;
   diagnostics: RenderDiagnostics;
+  actionLinks: EmailPreferenceLinks;
 }
 
 // ============================================================================
@@ -271,9 +275,9 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
  * This is THE ONLY function that should render email content.
  * All code paths (preview, send, automation) MUST use this.
  */
-export function renderEmailForRecipient(
+export async function renderEmailForRecipient(
   params: RenderEmailParams,
-): RenderEmailResult {
+): Promise<RenderEmailResult> {
   const {
     tenantId,
     campaignId,
@@ -292,7 +296,11 @@ export function renderEmailForRecipient(
 
   const hasContentBlocks =
     Array.isArray(contentBlocks) && contentBlocks.length > 0;
-  const footerLinks = buildFooterLinks(customer, tenantId, footerLinkMode);
+  const footerLinks = await buildFooterLinks(
+    customer,
+    tenantId,
+    footerLinkMode,
+  );
   const sourceHtml = hasContentBlocks
     ? renderContentBlocksToEmailHtml(contentBlocks, {
         subject,
@@ -327,7 +335,7 @@ export function renderEmailForRecipient(
   ];
 
   // Step 5: Build merge data
-  const mergeData = buildMergeData(customer, companyProfile, tenantId);
+  const mergeData = buildMergeData(customer, companyProfile, footerLinks);
 
   // Step 6: Find diagnostic info
   const emptyResolvedTags = findEmptyResolvedTags(
@@ -346,8 +354,7 @@ export function renderEmailForRecipient(
       renderedHtml,
       customer,
       companyProfile,
-      tenantId,
-      footerLinkMode,
+      footerLinks,
     );
   }
 
@@ -403,6 +410,7 @@ export function renderEmailForRecipient(
       emptyResolvedTags,
       legacyTagsConverted,
     },
+    actionLinks: footerLinks,
   };
 }
 
@@ -412,17 +420,8 @@ export function renderEmailForRecipient(
 function buildMergeData(
   customer: CustomerShape | null,
   companyProfile: CompanyProfileShape | null | undefined,
-  tenantId: string,
+  footerLinks: EmailPreferenceLinks,
 ): MergeTagData {
-  // Base unsubscribe/preferences URLs (will be replaced with real ones during send)
-  const baseUnsubscribeUrl = customer?.email
-    ? `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}`
-    : "#";
-  const basePreferencesUrl = baseUnsubscribeUrl.replace(
-    "handle-unsubscribe",
-    "manage-preferences",
-  );
-
   if (customer) {
     const mergeData = createMergeTagDataFromCustomer(
       customer as unknown as Record<string, unknown>,
@@ -439,8 +438,8 @@ function buildMergeData(
     );
 
     mergeData.system = {
-      unsubscribe_url: baseUnsubscribeUrl,
-      preferences_url: basePreferencesUrl,
+      unsubscribe_url: footerLinks.unsubscribeUrl,
+      preferences_url: footerLinks.preferencesUrl,
       current_year: new Date().getFullYear().toString(),
       current_date: new Date().toLocaleDateString(),
     };
@@ -470,11 +469,11 @@ function buildMergeData(
   };
 }
 
-function buildFooterLinks(
+async function buildFooterLinks(
   customer: CustomerShape | null,
   tenantId: string,
   footerLinkMode: "preview" | "send",
-) {
+): Promise<EmailPreferenceLinks> {
   if (!customer?.email || footerLinkMode === "preview") {
     return {
       unsubscribeUrl: "#unsubscribe",
@@ -482,16 +481,7 @@ function buildFooterLinks(
     };
   }
 
-  const unsubscribeToken = btoa(`${customer.email}:${tenantId}`);
-  const unsubscribeUrl = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${tenantId}&token=${unsubscribeToken}`;
-
-  return {
-    unsubscribeUrl,
-    preferencesUrl: unsubscribeUrl.replace(
-      "handle-unsubscribe",
-      "manage-preferences",
-    ),
-  };
+  return resolveEmailPreferenceLinks(tenantId, customer);
 }
 
 /**
@@ -501,14 +491,11 @@ function appendFooter(
   html: string,
   customer: CustomerShape,
   companyProfile: CompanyProfileShape | null | undefined,
-  tenantId: string,
-  footerLinkMode: "preview" | "send",
+  footerLinks: EmailPreferenceLinks,
 ): string {
-  const footerLinks = buildFooterLinks(customer, tenantId, footerLinkMode);
   const footerColors = companyProfile?.feature_flags?.footer_colors;
   const footerColorsRecord = footerColors as
-    | Record<string, string | undefined>
-    | undefined;
+    Record<string, string | undefined> | undefined;
 
   // Build profile data for footer generator (include feature_flags for logo)
   const profileData: CompanyProfileData = {

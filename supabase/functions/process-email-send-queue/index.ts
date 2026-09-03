@@ -257,7 +257,7 @@ function toCustomerShape(customer: any): CustomerShape {
   };
 }
 
-function buildEmailPayloadOptimized(
+async function buildEmailPayloadOptimized(
   customer: any,
   campaign: any,
   companyProfile: CompanyProfileShape | null,
@@ -268,8 +268,8 @@ function buildEmailPayloadOptimized(
   activeDomainId: string | null,
   trackedLinkMap: Map<string, string> | null,
   replyToEmail?: string,
-): any {
-  const rendered = renderEmailForRecipient({
+): Promise<any> {
+  const rendered = await renderEmailForRecipient({
     tenantId: campaign.tenant_id,
     campaignId: campaign.id,
     subject: campaign.subject_line || "Newsletter from your Garden Center",
@@ -294,6 +294,8 @@ function buildEmailPayloadOptimized(
       "X-Campaign-Type": "bulk",
       "X-Tenant-ID": campaign.tenant_id,
       "X-Domain-ID": activeDomainId || "none",
+      "List-Unsubscribe": `<${rendered.actionLinks.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
     tags: [
       { name: "campaign_id", value: campaign.id },
@@ -1909,7 +1911,7 @@ serve((req: Request) => {
                           }
                         : null);
 
-                    const preflightRender = renderEmailForRecipient({
+                    const preflightRender = await renderEmailForRecipient({
                       tenantId: campaign.tenant_id,
                       campaignId,
                       subject:
@@ -1971,7 +1973,7 @@ serve((req: Request) => {
 
               // Send claimed messages using Resend batch endpoint.
               // Batch size adapts downward on provider rate limits and recovers upward after sustained success.
-              for (let i = 0; i < claimedForSend.length; ) {
+              for (let i = 0; i < claimedForSend.length;) {
                 const currentResendBatchSize = Math.max(
                   1,
                   Math.min(MAX_RESEND_BATCH_SIZE, dynamicResendBatchSize),
@@ -2087,7 +2089,7 @@ serve((req: Request) => {
                       id: msg.customer_id,
                       email: msg.email,
                     };
-                    payload = buildEmailPayloadOptimized(
+                    payload = await buildEmailPayloadOptimized(
                       customer,
                       campaign,
                       companyProfile as CompanyProfileShape,

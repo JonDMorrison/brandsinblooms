@@ -691,7 +691,7 @@ async function sendEmail(
         }
       : null;
 
-    const rendered = renderEmailForRecipient({
+    const rendered = await renderEmailForRecipient({
       tenantId: message.tenant_id,
       html: message.content,
       subject: message.subject || "Message from automation",
@@ -716,6 +716,7 @@ async function sendEmail(
           from_name: companyName,
           from_email: senderConfig.fromEmail,
           reply_to: senderConfig.replyTo,
+          unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
           tags: [
             { name: "automation_id", value: message.automation_id || "none" },
             { name: "tenant_id", value: message.tenant_id },
