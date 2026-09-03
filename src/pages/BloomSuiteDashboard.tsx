@@ -36,7 +36,6 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { CreateFlowDialog } from "@/components/create-flow/CreateFlowDialog";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
 import { POSInsightsCard } from "@/components/dashboard/POSInsightsCard";
@@ -349,7 +348,6 @@ export const BloomSuiteDashboard = () => {
   } = useOnboardingStatus();
   const [showLaunchpad, setShowLaunchpad] = useState(false);
   const [showQuickTour, setShowQuickTour] = useState(false);
-  const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
@@ -459,18 +457,18 @@ export const BloomSuiteDashboard = () => {
       },
     },
     {
-      id: "create-flow",
-      title: "Create Any Content",
+      id: "sms",
+      title: "Send an SMS Campaign",
       description:
-        "Generate newsletters, customer journeys, and campaign ideas without leaving the dashboard.",
+        "Create a targeted text campaign with consent-safe audience controls and delivery reporting.",
       icon: Sparkles,
       primaryAction: {
-        label: "Open assistant",
-        onClick: () => setShowCreateFlow(true),
+        label: "Create SMS",
+        onClick: () => navigate("/sms/new"),
       },
       secondaryAction: {
-        label: "Browse content",
-        onClick: () => navigate("/content/library"),
+        label: "View SMS campaigns",
+        onClick: () => navigate("/sms"),
       },
     },
     {
@@ -1258,11 +1256,6 @@ export const BloomSuiteDashboard = () => {
       <QuickStartTour
         isOpen={showQuickTour}
         onClose={() => setShowQuickTour(false)}
-      />
-
-      <CreateFlowDialog
-        open={showCreateFlow}
-        onOpenChange={setShowCreateFlow}
       />
 
       <DashboardSetupWizard

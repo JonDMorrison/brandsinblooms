@@ -8,7 +8,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import {
   getIntegrationSeeds,
   type IntegrationDefinition,
-  type IntegrationChildStatus,
 } from "@/components/integrations/integrationsHubConfig";
 
 function withPatchedItem(
@@ -21,24 +20,6 @@ function withPatchedItem(
   );
 }
 
-function buildMetaChildren(
-  facebookConnected: boolean,
-  instagramConnected: boolean,
-): IntegrationChildStatus[] {
-  return [
-    {
-      name: "Facebook",
-      status: facebookConnected ? "connected" : "available",
-      description: "Facebook Pages and publishing access",
-    },
-    {
-      name: "Instagram",
-      status: instagramConnected ? "connected" : "available",
-      description: "Instagram Business account access",
-    },
-  ];
-}
-
 type IntegrationsHubQueryData = {
   items: IntegrationDefinition[];
   connections: {
@@ -49,8 +30,6 @@ type IntegrationsHubQueryData = {
     mailchimpConnection: unknown;
     klaviyoConnection: unknown;
     constantContactConnection: unknown;
-    facebookConnection: unknown;
-    instagramConnection: unknown;
     googleAnalyticsConnection: unknown;
     managedDomain: unknown;
   };
@@ -220,7 +199,6 @@ export function useIntegrationsHubData() {
         lightspeedResult,
         mailchimpConnectionResult,
         marketingConnectionsResult,
-        socialConnectionsResult,
         googleAnalyticsResult,
         emailDomainsResult,
       ] = await Promise.all([
@@ -266,17 +244,6 @@ export function useIntegrationsHubData() {
         tenant?.id && user?.id
           ? loadUserScopedMarketingConnections(tenant.id, user.id)
           : Promise.resolve({ data: [], error: null }),
-        user?.id
-          ? supabase
-              .from("social_connections")
-              .select(
-                "id, platform, platform_account_name, is_active, created_at, user_id, deleted_at",
-              )
-              .eq("user_id", user.id)
-              .in("platform", ["facebook", "instagram"])
-              .eq("is_active", true)
-              .is("deleted_at", null)
-          : Promise.resolve({ data: [], error: null }),
         tenant?.id && user?.id
           ? loadGoogleAnalyticsConnection(tenant.id, user.id)
           : Promise.resolve({ data: null, error: null }),
@@ -298,7 +265,6 @@ export function useIntegrationsHubData() {
         lightspeedResult.error,
         mailchimpConnectionResult.error,
         marketingConnectionsResult.error,
-        socialConnectionsResult.error,
         googleAnalyticsResult.error,
         emailDomainsResult.error,
       ].filter(Boolean);
@@ -315,7 +281,6 @@ export function useIntegrationsHubData() {
         ...(mailchimpConnectionResult.data ?? []),
         ...(marketingConnectionsResult.data ?? []),
       ];
-      const socialConnections = socialConnectionsResult.data ?? [];
       const googleAnalyticsConnection = googleAnalyticsResult.data;
       const emailDomains = emailDomainsResult.data ?? [];
 
@@ -405,35 +370,6 @@ export function useIntegrationsHubData() {
         });
       }
 
-      const facebookConnection = socialConnections.find(
-        (connection) =>
-          connection.platform === "facebook" && connection.is_active,
-      );
-      const instagramConnection = socialConnections.find(
-        (connection) =>
-          connection.platform === "instagram" && connection.is_active,
-      );
-      const isMetaConnected = Boolean(
-        facebookConnection || instagramConnection,
-      );
-
-      items = withPatchedItem(items, "meta", {
-        status: isMetaConnected ? "connected" : "available",
-        connectedSince:
-          facebookConnection?.created_at ??
-          instagramConnection?.created_at ??
-          null,
-        metaLabel:
-          facebookConnection?.platform_account_name ??
-          instagramConnection?.platform_account_name ??
-          "Managed in Meta social connections",
-        actionLabel: isMetaConnected ? "Configure" : "Connect",
-        children: buildMetaChildren(
-          Boolean(facebookConnection),
-          Boolean(instagramConnection),
-        ),
-      });
-
       if (googleAnalyticsConnection?.connection_status === "connected") {
         items = withPatchedItem(items, "google-analytics", {
           status: "connected",
@@ -466,8 +402,6 @@ export function useIntegrationsHubData() {
           mailchimpConnection,
           klaviyoConnection,
           constantContactConnection,
-          facebookConnection,
-          instagramConnection,
           googleAnalyticsConnection,
           managedDomain,
         },

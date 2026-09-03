@@ -169,10 +169,6 @@ const WebsiteWaitlistPage = lazyNamed(
   () => import("@/pages/WebsiteWaitlistPage"),
   "WebsiteWaitlistPage",
 );
-const AuthCallbackPage = lazyNamed(
-  () => import("@/pages/AuthCallbackPage"),
-  "AuthCallbackPage",
-);
 const OAuthCallbackHandler = lazyNamed(
   () => import("@/components/migrations/OAuthCallbackHandler"),
   "OAuthCallbackHandler",
@@ -292,9 +288,6 @@ const SegmentBuilderPage = lazyRetry(
 );
 const SegmentMembersPage = lazyRetry(
   () => import("@/pages/crm/SegmentMembersPage"),
-);
-const ContentLibraryPage = lazyRetry(
-  () => import("@/pages/ContentLibraryPage"),
 );
 const TemplatesPage = lazyNamed(
   () => import("@/pages/TemplatesPage"),
@@ -649,19 +642,11 @@ function App() {
             />
             <Route
               path="/content"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/content/library"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/calendar"
@@ -981,11 +966,7 @@ function App() {
             />
             <Route
               path="/assets"
-              element={renderProtectedSidebarLazyPage(
-                <ContentLibraryPage />,
-                "table",
-                DASHBOARD_LAZY_PAGE_OPTIONS,
-              )}
+              element={<RedirectWithQuery to="/crm/campaigns" />}
             />
             <Route
               path="/settings"
@@ -1105,7 +1086,10 @@ function App() {
             />
             <Route element={<CallbackLazyBoundary />}>
               <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
-              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route
+                path="/auth/callback"
+                element={<RedirectWithQuery to="/integrations" />}
+              />
               <Route
                 path="/admin/impersonate/callback"
                 element={<ImpersonateCallbackPage />}

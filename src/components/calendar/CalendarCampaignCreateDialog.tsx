@@ -4,7 +4,7 @@ import Input from "@mui/joy/Input";
 import Stack from "@mui/joy/Stack";
 import Textarea from "@mui/joy/Textarea";
 import Typography from "@mui/joy/Typography";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { format, getISOWeek } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +16,6 @@ import {
   JoyDialogActions,
   JoyDialogContent,
 } from "@/components/joy/JoyDialog";
-import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
 interface CalendarCampaignCreateDialogProps {
   open: boolean;
@@ -37,8 +36,6 @@ export function CalendarCampaignCreateDialog({
   const [description, setDescription] = useState("");
   const [dateValue, setDateValue] = useState("");
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,11 +45,10 @@ export function CalendarCampaignCreateDialog({
     setTheme("");
     setDescription("");
     setDateValue(format(new Date(), "yyyy-MM-dd"));
-    setSuccess(false);
     setError(null);
   }, [open]);
 
-  const busy = loading || generating;
+  const busy = loading;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -70,9 +66,9 @@ export function CalendarCampaignCreateDialog({
 
     try {
       const startDate = new Date(`${dateValue}T12:00:00`);
-      const prompt = `Create a marketing campaign for \"${title.trim()}\" ${theme ? `with theme: ${theme}` : ""} ${description ? `- ${description}` : ""}. Generate engaging content that promotes this campaign effectively.`;
+      const prompt = `Plan an email and SMS campaign for \"${title.trim()}\" ${theme ? `with theme: ${theme}` : ""} ${description ? `- ${description}` : ""}.`;
 
-      const { data: insertedCampaign, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from("campaigns")
         .insert({
           title: title.trim(),
@@ -85,34 +81,19 @@ export function CalendarCampaignCreateDialog({
           user_id: user.id,
           created_by_user_id: user.id,
           ...(tenant?.id ? { tenant_id: tenant.id } : {}),
-        })
-        .select()
-        .single();
+        });
 
       if (insertError) throw insertError;
 
-      setLoading(false);
-      setGenerating(true);
-      await generateRequiredTasks(
-        insertedCampaign.id,
-        [insertedCampaign],
-        user.id,
-        onCampaignCreated,
-        tenant?.id,
-      );
-
-      setGenerating(false);
-      setSuccess(true);
       toast({
         title: "Campaign created",
-        description: "The campaign and starter content tasks are ready.",
+        description: "The campaign is ready for email and SMS authoring.",
       });
       onCampaignCreated();
-      window.setTimeout(() => onOpenChange(false), 1200);
+      onOpenChange(false);
     } catch (error: any) {
       console.error("Error creating campaign:", error);
       setError(error.message || "Failed to create campaign");
-      setGenerating(false);
     } finally {
       setLoading(false);
     }
@@ -125,19 +106,13 @@ export function CalendarCampaignCreateDialog({
         if (!busy) onOpenChange(false);
       }}
       title="Create Campaign"
-      description="Set a campaign theme and generate the required starter tasks"
+      description="Plan a coordinated email and SMS campaign"
       size="md"
       startDecorator={<Sparkles size={18} />}
     >
       <JoyDialogContent>
         <Stack component="form" spacing={1.25} onSubmit={handleSubmit}>
           {error ? <Alert color="danger">{error}</Alert> : null}
-          {success ? (
-            <Alert color="success" startDecorator={<CheckCircle2 size={16} />}>
-              Campaign created successfully.
-            </Alert>
-          ) : null}
-
           <Stack spacing={0.5}>
             <Typography
               level="body-xs"
@@ -217,11 +192,9 @@ export function CalendarCampaignCreateDialog({
               type="submit"
               color="primary"
               loading={busy}
-              startDecorator={
-                busy ? <Loader2 size={14} /> : <Sparkles size={14} />
-              }
+              startDecorator={<Sparkles size={14} />}
             >
-              {generating ? "Generating Tasks" : "Create Campaign"}
+              Create Campaign
             </JoyButton>
           </JoyDialogActions>
         </Stack>

@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
 export const createCompanyProfileFromOnboarding = async (
   onboardingData: any,
@@ -290,67 +289,8 @@ export const createCompanyProfileFromOnboarding = async (
       throw new Error(`Campaign creation failed: ${campaignError.message}`);
     }
 
-    // STEP 6: Generate content for the immediate campaign (only if no content exists)
-
-    try {
-      // Check if content already exists for this campaign
-      const { data: existingContent } = await supabase
-        .from("content_tasks")
-        .select("id")
-        .eq("campaign_id", immediateCampaign.id)
-        .eq("tenant_id", tenant.id)
-        .limit(1);
-
-      if (existingContent && existingContent.length > 0) {
-      } else {
-        const dummyTaskUpdate = () => {};
-
-        await generateRequiredTasks(
-          immediateCampaign.id,
-          [immediateCampaign],
-          userId,
-          dummyTaskUpdate,
-          tenant.id,
-        );
-
-        console.log(
-          "🎉 IMMEDIATE CONTENT GENERATED! User will see ready content on dashboard",
-        );
-
-        // Verify content was created
-        const { data: verifyContent, error: verifyError } = await supabase
-          .from("content_tasks")
-          .select("id, post_type, status, tenant_id")
-          .eq("campaign_id", immediateCampaign.id)
-          .eq("tenant_id", tenant.id);
-
-        if (verifyError) {
-          console.error("⚠️ Error verifying generated content:", verifyError);
-        } else {
-        }
-      }
-
-      // FIX: C4 - Set first_content_generated ONLY after content generation succeeds
-      const { error: flagError } = await supabase
-        .from("company_profiles")
-        .update({ first_content_generated: true })
-        .eq("user_id", userId);
-      if (flagError) {
-        console.error("⚠️ Error setting first_content_generated:", flagError);
-      } else {
-        console.log(
-          "✅ first_content_generated set to true after successful content generation",
-        );
-      }
-    } catch (contentError) {
-      console.error(
-        "⚠️ Error generating immediate content during onboarding:",
-        contentError,
-      );
-      // Don't throw here - profile creation was successful, content generation is secondary
-    }
-
-    // STEP 7: Generate 52-week collection (optional, non-blocking)
+    // STEP 6: Generate a 52-week email/SMS campaign calendar (optional,
+    // non-blocking). Content is authored deliberately in the campaign studio.
 
     try {
       const { data: themesData, error: themesError } =
