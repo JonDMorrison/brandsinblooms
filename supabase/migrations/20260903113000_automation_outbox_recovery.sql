@@ -186,33 +186,53 @@ GRANT EXECUTE ON FUNCTION public.claim_outbox_messages(uuid, integer, text)
 -- Modern sb_secret_ keys are opaque rather than JWTs. Supabase requires
 -- pg_net callers to send them in the apikey header; each worker validates the
 -- key in-handler while verify_jwt remains disabled.
-SELECT cron.alter_job(
-  76,
-  command := $cron$
-    SELECT net.http_post(
-      url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/automation-executor',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'apikey', public.get_service_role_key()
-      ),
-      body := '{}'::jsonb
-    )
-  $cron$
-);
+DO $migration$
+DECLARE
+  v_job_id bigint;
+BEGIN
+  SELECT jobid INTO STRICT v_job_id
+  FROM cron.job
+  WHERE jobname = 'process-automation-triggers-v2';
 
-SELECT cron.alter_job(
-  77,
-  command := $cron$
-    SELECT net.http_post(
-      url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/process-automation-outbox',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'apikey', public.get_service_role_key()
-      ),
-      body := '{}'::jsonb
-    )
-  $cron$
-);
+  PERFORM cron.alter_job(
+    v_job_id,
+    command := $cron$
+      SELECT net.http_post(
+        url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/automation-executor',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'apikey', public.get_service_role_key()
+        ),
+        body := '{}'::jsonb
+      )
+    $cron$
+  );
+END;
+$migration$;
+
+DO $migration$
+DECLARE
+  v_job_id bigint;
+BEGIN
+  SELECT jobid INTO STRICT v_job_id
+  FROM cron.job
+  WHERE jobname = 'process-automation-outbox-v2';
+
+  PERFORM cron.alter_job(
+    v_job_id,
+    command := $cron$
+      SELECT net.http_post(
+        url := 'https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/process-automation-outbox',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'apikey', public.get_service_role_key()
+        ),
+        body := '{}'::jsonb
+      )
+    $cron$
+  );
+END;
+$migration$;
 
 COMMENT ON FUNCTION public.expire_stale_automation_work(timestamptz, integer) IS
   'Expires overdue automation messages and terminally fails stranded runs without sending stale content.';
