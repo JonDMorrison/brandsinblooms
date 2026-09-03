@@ -7,6 +7,10 @@ const migration = readFileSync(
   "utf8",
 );
 const report = readFileSync("src/pages/crm/CRMCampaignReport.tsx", "utf8");
+const engagement = readFileSync(
+  "src/components/crm/campaigns/CampaignEngagementMetrics.tsx",
+  "utf8",
+);
 const metricsHook = readFileSync(
   "src/hooks/analytics/useCampaignDerivedMetrics.ts",
   "utf8",
@@ -47,6 +51,12 @@ describe("email campaign reporting release gate", () => {
     expect(report).toContain("Campaign delivery is not complete");
     expect(report).toContain("Top failures:");
     expect(report).toContain("metrics.totals.failed.toString()");
+    expect(report).toContain("adjustedUniqueOpens");
+    expect(report).toContain("adjustedTotalOpens");
+    expect(engagement).toContain("Clicks are more reliable");
+    expect(engagement.indexOf('key: "clicked"')).toBeLessThan(
+      engagement.indexOf('key: "opened"'),
+    );
   });
 
   it("normalizes totals above the PostgREST row cap without losing diagnostics", () => {

@@ -1464,6 +1464,8 @@ export default function CRMCampaignReport() {
           <CampaignEngagementMetrics
             uniqueOpens={report?.uniqueOpens ?? 0}
             totalOpens={report?.totalOpens ?? 0}
+            adjustedUniqueOpens={metrics?.totals.opens_non_mpp ?? 0}
+            adjustedTotalOpens={metrics?.totals.total_opens_non_mpp ?? 0}
             uniqueClicks={report?.uniqueClicks ?? 0}
             totalClicks={report?.totalClicks ?? 0}
             unsubscribes={report?.unsubscribes ?? 0}
