@@ -16431,6 +16431,10 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      get_customer_merge_review_queue: {
+        Args: { p_limit?: number; p_offset?: number };
+        Returns: Json;
+      };
       get_current_crm_access: {
         Args: Record<PropertyKey, never>;
         Returns: Json;
@@ -16954,6 +16958,20 @@ export type Database = {
       resolve_effective_subscription_tier: {
         Args: { p_tenant_id: string };
         Returns: string;
+      };
+      resolve_customer_merge_review: {
+        Args: {
+          p_action: string;
+          p_duplicate_customer_id: string | null;
+          p_reason: string;
+          p_suggestion_id: string;
+          p_survivor_customer_id: string | null;
+        };
+        Returns: Json;
+      };
+      scan_current_tenant_customer_duplicates: {
+        Args: { p_limit?: number };
+        Returns: Json;
       };
       restore_user_data: { Args: { target_user_id: string }; Returns: boolean };
       resume_email_campaign_sending: {

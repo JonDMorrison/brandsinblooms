@@ -19,6 +19,7 @@ import {
   DollarSign,
   Download,
   Eye,
+  GitMerge,
   Mail,
   MoreVertical,
   Phone,
@@ -37,6 +38,7 @@ import {
   CatalogStatsStripSkeleton,
 } from "@/components/crm/catalog/CatalogStatsStrip";
 import { SyncFromCRMModal } from "@/components/crm/customers/SyncFromCRMModal";
+import { CustomerMergeReviewDialog } from "@/components/crm/customers/CustomerMergeReviewDialog";
 import { EnhancedSegmentImportDialog } from "@/components/crm/segments/EnhancedSegmentImportDialog";
 import { JoyAlertDialog } from "@/components/joy/JoyAlertDialog";
 import { JoyButton } from "@/components/joy/JoyButton";
@@ -67,6 +69,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useCustomerExport } from "@/hooks/useCustomerExport";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 
 const CUSTOMER_CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
@@ -82,6 +85,7 @@ export const CRMCustomersPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
+  const [showMergeReview, setShowMergeReview] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -104,6 +108,7 @@ export const CRMCustomersPage: React.FC = () => {
     bulkDeleteCustomers,
   } = useBulkCustomerOperations();
   const { tenant, loading: isTenantLoading } = useTenant();
+  const { role: crmRole } = useUserRole();
 
   const {
     data: customers = [],
@@ -476,6 +481,14 @@ export const CRMCustomersPage: React.FC = () => {
                     ? `Exporting ${exportedCount.toLocaleString()}…`
                     : "Export All Customers"}
                 </JoyDropdownMenuItem>
+                {crmRole === "owner_admin" ? (
+                  <JoyDropdownMenuItem
+                    startDecorator={<GitMerge size={16} />}
+                    onClick={() => setShowMergeReview(true)}
+                  >
+                    Review Duplicate Customers
+                  </JoyDropdownMenuItem>
+                ) : null}
               </JoyDropdownMenuContent>
             </JoyDropdownMenu>
           </Stack>
@@ -896,6 +909,12 @@ export const CRMCustomersPage: React.FC = () => {
           open={showSyncFromCRM}
           onOpenChange={setShowSyncFromCRM}
           onSyncComplete={handleSyncComplete}
+        />
+
+        <CustomerMergeReviewDialog
+          open={showMergeReview}
+          onOpenChange={setShowMergeReview}
+          onCustomersChanged={handleImportComplete}
         />
 
         <JoyAlertDialog
