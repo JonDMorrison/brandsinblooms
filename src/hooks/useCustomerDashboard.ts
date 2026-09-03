@@ -101,6 +101,18 @@ export interface CustomerData {
   // Opt-in status
   email_opt_in?: boolean | null;
   sms_opt_in?: boolean | null;
+  email_consent?: boolean | null;
+  sms_consent?: boolean | null;
+  email_opt_in_at?: string | null;
+  email_opt_out_at?: string | null;
+  sms_opt_in_at?: string | null;
+  sms_opt_out_at?: string | null;
+  email_consent_source?: string | null;
+  email_consent_method?: string | null;
+  email_consent_details?: unknown;
+  sms_consent_source?: string | null;
+  sms_consent_method?: string | null;
+  sms_consent_details?: unknown;
 
   // Engagement summary
   engagement_overall_score?: number;
@@ -128,10 +140,12 @@ export const useCustomer360 = (customerId: string | undefined) => {
         .maybeSingle();
 
       if (!enrichedError && enriched) {
-        // customer_360_enriched does not include opt-in fields; merge from base table
+        // The enriched view omits consent evidence; merge it from the base row.
         const { data: baseCustomer } = await supabase
           .from("crm_customers")
-          .select("email_opt_in, sms_opt_in")
+          .select(
+            "email_opt_in, sms_opt_in, email_consent, sms_consent, email_opt_in_at, email_opt_out_at, sms_opt_in_at, sms_opt_out_at, email_consent_source, email_consent_method, email_consent_details, sms_consent_source, sms_consent_method, sms_consent_details",
+          )
           .eq("id", customerId)
           .maybeSingle();
 

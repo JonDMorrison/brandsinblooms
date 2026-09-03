@@ -22,6 +22,7 @@ import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsight
 import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
 import { CrossChannelIntelligence } from "@/components/crm/customer-dashboard/CrossChannelIntelligence";
 import { CustomerContactCard } from "@/components/crm/customer-dashboard/CustomerContactCard";
+import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
@@ -634,11 +635,14 @@ const CustomerDashboardPage: React.FC = () => {
                     last_name: displayCustomer.last_name,
                     email: displayCustomer.email,
                     phone: displayCustomer.phone,
-                    email_opt_in: displayCustomer.email_opt_in,
-                    sms_opt_in: displayCustomer.sms_opt_in,
                   }}
                   onCustomerPatched={handleCustomerPatched}
                   onOpenBatchEdit={() => setIsEditDialogOpen(true)}
+                />
+                <CustomerConsentCard
+                  customer={displayCustomer}
+                  customerLabel={customerName}
+                  onCustomerPatched={handleCustomerPatched}
                 />
                 <CustomerSegmentsCard customerId={displayCustomer.id} />
                 <CustomerSnapshot
@@ -805,8 +809,6 @@ const CustomerDashboardPage: React.FC = () => {
             last_name: displayCustomer.last_name,
             email: displayCustomer.email,
             phone: displayCustomer.phone,
-            email_opt_in: displayCustomer.email_opt_in,
-            sms_opt_in: displayCustomer.sms_opt_in,
           }}
           onSuccess={(updatedCustomer) => {
             handleCustomerPatched(updatedCustomer);
