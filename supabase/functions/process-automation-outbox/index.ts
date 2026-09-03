@@ -25,6 +25,7 @@ import {
   createMergeTagDataFromCustomer,
 } from "../_shared/mergeTagEngine.ts";
 import { COMPANY_PROFILE_WITH_DESIGN_SYSTEM_SELECT } from "../_shared/resolveDesignSystem.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,11 +68,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Auth gating handled at the platform level via verify_jwt — see
-  // queue-worker / process-email-send-queue for the same pattern.
-  // The previous in-handler check string-compared against the legacy
-  // SUPABASE_SERVICE_ROLE_KEY env and broke after the 2026-05-07
-  // sb_secret_ key migration (cron now sends the new key shape).
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   const startTime = Date.now();
   console.log(`📬 [${WORKER_ID}] Outbox processor starting...`);

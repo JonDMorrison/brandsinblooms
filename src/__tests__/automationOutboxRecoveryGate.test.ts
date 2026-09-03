@@ -9,6 +9,14 @@ const worker = readFileSync(
   "supabase/functions/process-automation-outbox/index.ts",
   "utf8",
 );
+const executor = readFileSync(
+  "supabase/functions/automation-executor/index.ts",
+  "utf8",
+);
+const internalAuth = readFileSync(
+  "supabase/functions/_shared/requireInternalApiKey.ts",
+  "utf8",
+);
 
 describe("automation outbox recovery release gate", () => {
   it("expires stale messages and stranded runs without sending them", () => {
@@ -45,5 +53,14 @@ describe("automation outbox recovery release gate", () => {
     expect(migration).not.toMatch(
       /GRANT EXECUTE ON FUNCTION public\.expire_stale_automation_work[\s\S]*TO authenticated/,
     );
+  });
+
+  it("authenticates modern secret-key cron calls in each worker", () => {
+    expect(worker).toContain("requireInternalApiKey(req)");
+    expect(executor).toContain("requireInternalApiKey(req)");
+    expect(internalAuth).toContain('req.headers.get("apikey")');
+    expect(internalAuth).toContain('Deno.env.get("SUPABASE_SECRET_KEYS")');
+    expect(migration).toContain("'apikey', public.get_service_role_key()");
+    expect(migration).not.toContain("'Authorization', 'Bearer '");
   });
 });
