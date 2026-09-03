@@ -28,6 +28,21 @@ describe("campaign revenue attribution release gate", () => {
     expect(migration).toContain("rebuild_campaign_revenue_attribution");
   });
 
+  it("uses individual SMS click events instead of aggregate first/last timestamps", () => {
+    const exactSmsMigration = readFileSync(
+      "supabase/migrations/20260903141000_exact_sms_click_event_attribution.sql",
+      "utf8",
+    );
+
+    expect(exactSmsMigration).toContain("CREATE TABLE public.sms_link_click_events");
+    expect(exactSmsMigration).toContain("INSERT INTO public.sms_link_click_events");
+    expect(exactSmsMigration).toContain("click_event.clicked_at AS touch_at");
+    expect(exactSmsMigration).toContain("attribute_orders_after_sms_click_event_change");
+    expect(exactSmsMigration).not.toContain(
+      "WHEN link.last_clicked_at <= v_order.order_date",
+    );
+  });
+
   it("keeps privileged writes internal while allowing tenant-scoped audit reads", () => {
     expect(migration).toContain("ENABLE ROW LEVEL SECURITY");
     expect(migration).toContain("TO authenticated\nUSING");
