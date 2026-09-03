@@ -16,7 +16,6 @@ import {
   JoyDialogActions,
   JoyDialogContent,
 } from "@/components/joy/JoyDialog";
-import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 
 interface CalendarEventDialogProps {
   open: boolean;
@@ -70,7 +69,7 @@ export function CalendarEventDialog({
       const startDate = new Date(`${dateValue}T12:00:00`);
       const prompt = `Promote the event "${eventName}" ${description ? `- ${description}` : ""} scheduled for ${dateValue}${instructions ? `. Important instructions: ${instructions}` : ""}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
-      const { data: insertedCampaign, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from("campaigns")
         .insert({
           title: eventName,
@@ -90,55 +89,13 @@ export function CalendarEventDialog({
       if (insertError) throw insertError;
 
       // Campaign row exists — close the modal and notify the parent so the
-      // calendar refreshes. Content generation runs in the background; we
-      // can't keep the modal open waiting for it because the edge function
-      // can take a long time (or hang) and we don't want to block the user.
+      // calendar refreshes with the new email/SMS planning event.
       toast({
         title: "Event created",
-        description: "Generating content in the background.",
+        description: "The event is ready for email and SMS campaign planning.",
       });
       onEventCreated();
       onOpenChange(false);
-
-      // Fire-and-forget content generation. Surface failures via toast so
-      // the user knows to retry from the campaign page, but never block.
-      void generateCampaignContent(
-        insertedCampaign.id,
-        insertedCampaign.theme || insertedCampaign.title,
-        insertedCampaign.description || "",
-        user.id,
-        insertedCampaign.week_number,
-        tenant?.id,
-      )
-        .then((result) => {
-          if (!result.success) {
-            toast({
-              title: "Content generation failed",
-              description: `Content generation failed for "${eventName}". Open the campaign to retry.`,
-              variant: "destructive",
-            });
-            return;
-          }
-          toast({
-            title: "Content ready",
-            description: `Generated ${result.tasks?.length || 5} content pieces for "${eventName}".`,
-          });
-          onEventCreated();
-        })
-        .catch((generationError) => {
-          console.error(
-            "Background content generation failed:",
-            generationError,
-          );
-          toast({
-            title: "Content generation failed",
-            description:
-              generationError instanceof Error
-                ? generationError.message
-                : `Content generation failed for "${eventName}". Open the campaign to retry.`,
-            variant: "destructive",
-          });
-        });
     } catch (createError: any) {
       console.error("Error creating event:", createError);
       setError(createError.message || "Failed to create event");
@@ -154,7 +111,7 @@ export function CalendarEventDialog({
         if (!loading) onOpenChange(false);
       }}
       title="Create Event"
-      description="Create a calendar event and generate a starter content pack"
+      description="Create a calendar event for coordinated email and SMS planning"
       size="md"
       startDecorator={<Sparkles size={18} />}
     >
