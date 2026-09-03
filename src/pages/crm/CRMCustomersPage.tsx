@@ -103,6 +103,7 @@ export const CRMCustomersPage: React.FC = () => {
     clearSelection,
     bulkDeleteCustomers,
   } = useBulkCustomerOperations();
+  const { tenant, loading: isTenantLoading } = useTenant();
 
   const {
     data: customers = [],
@@ -113,9 +114,10 @@ export const CRMCustomersPage: React.FC = () => {
     search: searchQuery,
     page: currentPage,
     pageSize,
+    tenantId: tenant?.id,
+    enabled: Boolean(tenant?.id) && !isTenantLoading,
   });
   const { personas } = useAllPersonas();
-  const { tenant, loading: isTenantLoading } = useTenant();
   const { segments: allSegments = [], loading: isSegmentsLoading } =
     useAllSegments();
 
@@ -154,39 +156,16 @@ export const CRMCustomersPage: React.FC = () => {
         };
       }
 
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase.rpc("get_customer_catalog_stats");
+      if (error) throw error;
 
-      const [{ data: spendRows, error: spendError }, { count, error: countError }] =
-        await Promise.all([
-          supabase
-            .from("crm_customers")
-            .select("total_spent")
-            .eq("tenant_id", tenant.id),
-          supabase
-            .from("crm_customers")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", tenant.id)
-            .gte("created_at", startOfMonth.toISOString()),
-        ]);
-
-      if (spendError) {
-        throw spendError;
-      }
-
-      if (countError) {
-        throw countError;
-      }
-
-      const totalSpent = (spendRows ?? []).reduce(
-        (sum, row) => sum + (Number(row.total_spent) || 0),
-        0,
-      );
+      const stats =
+        data && typeof data === "object" && !Array.isArray(data) ? data : {};
 
       return {
-        newThisMonth: count ?? 0,
-        totalSpent,
+        totalCustomers: Number(stats.totalCustomers) || 0,
+        newThisMonth: Number(stats.newThisMonth) || 0,
+        totalSpent: Number(stats.totalSpent) || 0,
       };
     },
     enabled: Boolean(tenant?.id),
@@ -204,7 +183,7 @@ export const CRMCustomersPage: React.FC = () => {
     () => [
       {
         label: "Total Customers",
-        value: totalCount.toLocaleString(),
+        value: (customerHeaderStats?.totalCustomers ?? 0).toLocaleString(),
         icon: <Users size={18} />,
       },
       {
@@ -225,7 +204,12 @@ export const CRMCustomersPage: React.FC = () => {
         icon: <Tags size={18} />,
       },
     ],
-    [activeSegmentCount, customerHeaderStats?.newThisMonth, customerHeaderStats?.totalSpent, totalCount],
+    [
+      activeSegmentCount,
+      customerHeaderStats?.newThisMonth,
+      customerHeaderStats?.totalCustomers,
+      customerHeaderStats?.totalSpent,
+    ],
   );
 
   const isHeaderStatsLoading =

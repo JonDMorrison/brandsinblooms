@@ -16410,6 +16410,10 @@ export type Database = {
         Args: { p_after_id?: string | null; p_limit?: number };
         Returns: Json;
       };
+      get_customer_catalog_stats: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {
