@@ -15935,6 +15935,10 @@ export type Database = {
         Args: { draft_id: string; template_key?: string };
         Returns: string;
       };
+      create_current_user_tenant: {
+        Args: { p_name: string };
+        Returns: Database["public"]["Tables"]["tenants"]["Row"][];
+      };
       delete_customers_except: {
         Args: { p_keep_email: string; p_tenant_id: string };
         Returns: {

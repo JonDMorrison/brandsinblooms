@@ -83,17 +83,12 @@ export const createCompanyProfileFromOnboarding = async (
           throw new Error("Failed to get authenticated user information");
         }
 
-        // Create a new tenant for this user
+        // Create and assign the tenant atomically. Browser clients never need
+        // broad INSERT/UPDATE access to tenant or user identity tables.
+        const tenantName =
+          onboardingData.aboutBusiness?.split(".")[0] || "My Garden Center";
         const { data: newTenant, error: tenantError } = await supabase
-          .from("tenants")
-          .insert({
-            name:
-              onboardingData.aboutBusiness?.split(".")[0] || "My Garden Center",
-            slug: `tenant-${userId.slice(0, 8)}`,
-            settings: {},
-            is_active: true,
-          })
-          .select()
+          .rpc("create_current_user_tenant", { p_name: tenantName })
           .single();
 
         if (tenantError) {
@@ -105,27 +100,6 @@ export const createCompanyProfileFromOnboarding = async (
             hint: tenantError.hint,
           });
           throw new Error(`Failed to create tenant: ${tenantError.message}`);
-        }
-
-        // Update/create user record in public.users table with tenant_id
-        const { error: updateUserError } = await supabase.from("users").upsert({
-          id: userId,
-          tenant_id: newTenant.id,
-          email: authUser.user.email || "",
-          name:
-            authUser.user.user_metadata?.full_name ||
-            authUser.user.email?.split("@")[0] ||
-            "User",
-        });
-
-        if (updateUserError) {
-          console.error(
-            "❌ Error updating user with tenant_id:",
-            updateUserError,
-          );
-          throw new Error(
-            `Failed to link user to tenant: ${updateUserError.message}`,
-          );
         }
 
         tenant = newTenant;
