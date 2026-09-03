@@ -28,6 +28,12 @@ const squareCustomerSync = readSource(
 const cloverCustomerSync = readSource(
   "supabase/functions/clover-sync-customers/index.ts",
 );
+const vmxCustomerSync = readSource(
+  "supabase/functions/vmx-sync-customers/index.ts",
+);
+const vmxBatchMigration = readSource(
+  "supabase/migrations/20260903103000_vmx_customer_identity_batch.sql",
+);
 const config = readSource("supabase/config.toml");
 
 describe("customer identity resolution release gate", () => {
@@ -145,5 +151,25 @@ describe("customer identity resolution release gate", () => {
     expect(cloverCustomerSync).not.toContain(".upsert(customerRecords");
     expect(cloverCustomerSync).not.toContain("email_opt_in:");
     expect(cloverCustomerSync).not.toContain("email_consent_source:");
+  });
+
+  it("resolves every VMX customer number without importing consent", () => {
+    expect(vmxBatchMigration).toContain(
+      "CREATE OR REPLACE FUNCTION public.resolve_vmx_customer_identity_batch",
+    );
+    expect(vmxBatchMigration).toContain("INSERT INTO public.pos_customers");
+    expect(vmxBatchMigration).toContain("crm_customer_identity_links");
+    expect(vmxBatchMigration).not.toMatch(/email_opt_in\s*=/i);
+    expect(vmxBatchMigration).not.toMatch(/sms_opt_in\s*=/i);
+
+    expect(vmxCustomerSync).toContain("byExternalId");
+    expect(vmxCustomerSync).toContain("resolve_vmx_customer_identity_batch");
+    expect(vmxCustomerSync).toContain('.eq("tenant_id", userData.tenant_id)');
+    expect(vmxCustomerSync).not.toContain("seenEmails");
+    expect(vmxCustomerSync).not.toContain("email_consent:");
+    expect(vmxCustomerSync).not.toContain("sms_consent:");
+    expect(config).toMatch(
+      /\[functions\.vmx-sync-customers\]\s*verify_jwt = true/,
+    );
   });
 });
