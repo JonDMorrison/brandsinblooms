@@ -3992,7 +3992,7 @@ export function useIntegrationDetailData(
 ) {
   const { user, loading: authLoading } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { hasRole } = useUserRole();
+  const { hasPermission } = useUserRole();
   const { data: isSuperAdmin = false } = useIsSuperAdmin();
   const queryClient = useQueryClient();
   const seed = slug ? getIntegrationSeed(slug) : null;
@@ -8531,7 +8531,7 @@ export function useIntegrationDetailData(
     requestPath: resolved?.requestPath,
     canUseActions:
       !isComingSoonIntegrationSlug(resolved?.item?.slug ?? null) &&
-      hasRole("member"),
+      hasPermission("integrations.manage"),
     canAccessLightspeedAdminFeatures:
       resolved?.item?.slug === "lightspeed" ? isSuperAdmin : false,
     canDisconnect: Boolean(
