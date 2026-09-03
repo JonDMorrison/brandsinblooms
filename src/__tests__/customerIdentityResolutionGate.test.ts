@@ -25,6 +25,9 @@ const linker = readSource("supabase/functions/pos-link-customers/index.ts");
 const squareCustomerSync = readSource(
   "supabase/functions/square-sync-customers/index.ts",
 );
+const cloverCustomerSync = readSource(
+  "supabase/functions/clover-sync-customers/index.ts",
+);
 const config = readSource("supabase/config.toml");
 
 describe("customer identity resolution release gate", () => {
@@ -129,5 +132,18 @@ describe("customer identity resolution release gate", () => {
     expect(squareCustomerSync).not.toContain(".upsert(customerRecords");
     expect(squareCustomerSync).not.toContain("email_opt_in:");
     expect(squareCustomerSync).not.toContain("email_consent_source:");
+  });
+
+  it("never skips, deduplicates, or upserts Clover customers by email", () => {
+    expect(cloverCustomerSync).toContain("deduplicatedMap.set(customer.id");
+    expect(cloverCustomerSync).toContain(
+      "resolve_provider_customer_identity_batch",
+    );
+    expect(cloverCustomerSync).toContain("p_provider: 'clover'");
+    expect(cloverCustomerSync).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(cloverCustomerSync).not.toContain("skippedNoEmail");
+    expect(cloverCustomerSync).not.toContain(".upsert(customerRecords");
+    expect(cloverCustomerSync).not.toContain("email_opt_in:");
+    expect(cloverCustomerSync).not.toContain("email_consent_source:");
   });
 });

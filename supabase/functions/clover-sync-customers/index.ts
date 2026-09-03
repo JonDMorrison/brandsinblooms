@@ -56,6 +56,14 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) throw new Error('Identity service is not configured');
+    const identityClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      serviceRoleKey,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
     // Parse request body for chain parameters
     let jobId: string | undefined;
     let pageOffset: number = 0;
@@ -202,30 +210,16 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     if (customers.length > 0) {
-      // DEDUPLICATE within batch - Clover may return same email multiple times
-      // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+      // Clover customer ID is immutable identity. Email is a secondary signal,
+      // and customers without email still need a canonical, non-sendable profile.
       const deduplicatedMap = new Map<string, CloverCustomer>();
-      let skippedNoEmail = 0;
 
       for (const customer of customers) {
-        const primaryEmail = customer.emailAddresses?.elements?.find(e => e.primaryEmail)?.emailAddress 
-          || customer.emailAddresses?.elements?.[0]?.emailAddress;
-        
-        if (!primaryEmail) {
-          skippedNoEmail++;
-          continue;
-        }
-
-        // Keep the most recent version (last occurrence wins)
-        deduplicatedMap.set(primaryEmail.toLowerCase(), customer);
-      }
-
-      if (skippedNoEmail > 0) {
-        console.log(`[CLOVER-SYNC] Skipped ${skippedNoEmail} customers without email`);
+        deduplicatedMap.set(customer.id, customer);
       }
 
       const deduplicatedCustomers = Array.from(deduplicatedMap.values());
-      console.log(`[CLOVER-SYNC] Deduplicated ${customers.length - skippedNoEmail} → ${deduplicatedCustomers.length} unique customers`);
+      console.log(`[CLOVER-SYNC] Deduplicated ${customers.length} → ${deduplicatedCustomers.length} unique customers`);
 
       const customerRecords = deduplicatedCustomers.map(customer => {
         const primaryEmail = customer.emailAddresses?.elements?.find(e => e.primaryEmail)?.emailAddress 
@@ -233,40 +227,45 @@ Deno.serve(async (req) => {
         const primaryPhone = customer.phoneNumbers?.elements?.[0]?.phoneNumber;
 
         return {
-          tenant_id: userData.tenant_id,
-          user_id: user.id,
-          email: primaryEmail!.toLowerCase(),
+          external_id: customer.id,
+          email: primaryEmail?.toLowerCase() || null,
+          phone: primaryPhone || null,
           first_name: customer.firstName || null,
           last_name: customer.lastName || null,
-          phone: primaryPhone || null,
-          pos_source: 'clover',
-          email_opt_in: customer.marketingAllowed ?? null,
-          email_consent_source: customer.marketingAllowed !== undefined ? 'clover_pos_import' : null,
-          clover_customer_id: customer.id,
-          clover_last_synced_at: new Date().toISOString(),
         };
       });
 
       if (customerRecords.length > 0) {
-        console.log(`[CLOVER-SYNC] Batch upserting ${customerRecords.length} customers...`);
+        console.log(`[CLOVER-SYNC] Resolving ${customerRecords.length} canonical identities...`);
         
         try {
-          const { error: upsertError } = await supabaseClient
-            .from('crm_customers')
-            .upsert(customerRecords, {
-              onConflict: 'tenant_id,email',
-              ignoreDuplicates: false,
-            });
+          const { data: identityResult, error: identityError } = await identityClient.rpc(
+            'resolve_provider_customer_identity_batch',
+            {
+              p_tenant_id: userData.tenant_id,
+              p_provider: 'clover',
+              p_user_id: user.id,
+              p_customers: customerRecords,
+            }
+          );
 
-          if (upsertError) {
-            console.error('[CLOVER-SYNC] Batch upsert error:', upsertError);
+          if (identityError) {
+            console.error('[CLOVER-SYNC] Identity batch error:', identityError);
             failed = customerRecords.length;
           } else {
-            synced = customerRecords.length;
-            console.log(`[CLOVER-SYNC] Successfully upserted ${synced} customers`);
+            const result = identityResult as {
+              resolved?: number;
+              ambiguous?: number;
+              failed?: number;
+            } | null;
+            synced = result?.resolved || 0;
+            failed = (result?.ambiguous || 0) + (result?.failed || 0);
+            console.log(
+              `[CLOVER-SYNC] Resolved ${synced} customers; ${failed} require attention`
+            );
           }
         } catch (upsertCatchError: any) {
-          console.error('[CLOVER-SYNC] Batch upsert exception:', upsertCatchError.message);
+          console.error('[CLOVER-SYNC] Identity batch exception:', upsertCatchError.message);
           failed = customerRecords.length;
         }
       }
