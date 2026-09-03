@@ -28,6 +28,8 @@ describe("Square location normalization", () => {
     );
     expect(migration).toContain("assign_pos_order_location_trigger");
     expect(migration).toContain("POS order tenant does not match its connection");
+    expect(migration).toContain("FROM public.pos_sync_jobs AS history");
+    expect(migration).toContain("count(DISTINCT history.tenant_id) = 1");
     expect(migration).toContain("pos_orders_location_select");
     expect(migration).toContain(
       "public.has_tenant_permission(tenant_id, 'customer.read', location_id)",

@@ -92,6 +92,17 @@ FROM (
     UNION ALL
     SELECT connection.id, connection.tenant_id, 'clover', 1
     FROM public.clover_connections AS connection
+    UNION ALL
+    SELECT history.connection_id,
+      (array_agg(history.tenant_id ORDER BY history.tenant_id))[1],
+      min(lower(history.connection_type)), 3
+    FROM public.pos_sync_jobs AS history
+    WHERE lower(history.connection_type) IN (
+      'square', 'clover', 'lightspeed', 'shopify', 'vmx', 'other'
+    )
+    GROUP BY history.connection_id
+    HAVING count(DISTINCT history.tenant_id) = 1
+       AND count(DISTINCT lower(history.connection_type)) = 1
   ) AS candidate
   ORDER BY candidate.id, candidate.priority
 ) AS source
@@ -109,19 +120,26 @@ SET external_location_id = coalesce(
       nullif(btrim(order_row.raw_data #>> '{payment,location_id}'), ''),
       nullif(btrim(order_row.raw_data #>> '{order,location_id}'), ''),
       nullif(btrim(order_row.raw_data #>> '{invoice,location_id}'), ''),
-      nullif(btrim(connection.location_id), '')
+      (
+        SELECT nullif(btrim(connection.location_id), '')
+        FROM public.square_connections AS connection
+        WHERE connection.id = order_row.pos_connection_id
+          AND connection.tenant_id = order_row.tenant_id
+      )
     ),
     updated_at = now()
-FROM public.square_connections AS connection
-WHERE order_row.pos_connection_id = connection.id
-  AND order_row.tenant_id = connection.tenant_id
-  AND order_row.provider = 'square'
+WHERE order_row.provider = 'square'
   AND order_row.external_location_id IS NULL
   AND coalesce(
     nullif(btrim(order_row.raw_data #>> '{payment,location_id}'), ''),
     nullif(btrim(order_row.raw_data #>> '{order,location_id}'), ''),
     nullif(btrim(order_row.raw_data #>> '{invoice,location_id}'), ''),
-    nullif(btrim(connection.location_id), '')
+    (
+      SELECT nullif(btrim(connection.location_id), '')
+      FROM public.square_connections AS connection
+      WHERE connection.id = order_row.pos_connection_id
+        AND connection.tenant_id = order_row.tenant_id
+    )
   ) IS NOT NULL;
 
 INSERT INTO public.tenant_locations(
@@ -130,7 +148,12 @@ INSERT INTO public.tenant_locations(
 SELECT DISTINCT
   order_row.tenant_id,
   coalesce(
-    nullif(btrim(connection.merchant_name), ''),
+    (
+      SELECT nullif(btrim(connection.merchant_name), '')
+      FROM public.square_connections AS connection
+      WHERE connection.id = order_row.pos_connection_id
+        AND connection.tenant_id = order_row.tenant_id
+    ),
     'Square Store ' || order_row.external_location_id
   ),
   order_row.external_location_id,
@@ -138,9 +161,6 @@ SELECT DISTINCT
   'UTC',
   true
 FROM public.pos_orders AS order_row
-JOIN public.square_connections AS connection
-  ON connection.id = order_row.pos_connection_id
- AND connection.tenant_id = order_row.tenant_id
 WHERE order_row.provider = 'square'
   AND order_row.external_location_id IS NOT NULL
 ON CONFLICT (tenant_id, source_system, external_location_id) DO NOTHING;
@@ -189,8 +209,24 @@ BEGIN
       connection.merchant_name
     FROM public.clover_connections AS connection
     WHERE connection.id = NEW.pos_connection_id
+    UNION ALL
+    SELECT
+      (array_agg(history.tenant_id ORDER BY history.tenant_id))[1],
+      min(lower(history.connection_type)), NULL::text, NULL::text
+    FROM public.pos_sync_jobs AS history
+    WHERE history.connection_id = NEW.pos_connection_id
+      AND lower(history.connection_type) IN (
+        'square', 'clover', 'lightspeed', 'shopify', 'vmx', 'other'
+      )
+    GROUP BY history.connection_id
+    HAVING count(DISTINCT history.tenant_id) = 1
+       AND count(DISTINCT lower(history.connection_type)) = 1
   ) AS source
-  ORDER BY CASE WHEN source.provider = 'square' THEN 0 ELSE 1 END
+  ORDER BY CASE
+    WHEN source.provider = 'square' AND source.location_id IS NOT NULL THEN 0
+    WHEN source.provider = 'square' THEN 1
+    ELSE 2
+  END
   LIMIT 1;
 
   IF v_tenant_id IS NULL THEN
