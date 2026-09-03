@@ -49,6 +49,8 @@ describe("Square location normalization", () => {
     expect(migration).toContain("count(*)::integer AS visit_count");
     expect(migration).toContain("coalesce(refund_amount, 0)");
     expect(migration).toContain("PARTITION BY activity.customer_id");
+    expect(migration).toContain("array_agg(customer_id ORDER BY customer_id)");
+    expect(migration).not.toContain("min(customer_id)");
     expect(migration).not.toContain("visit_count = activity.visit_count +");
   });
 
