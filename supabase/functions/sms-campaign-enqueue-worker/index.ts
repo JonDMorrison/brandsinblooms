@@ -14,6 +14,7 @@ import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } fr
 import { countSmsSegments } from '../_shared/smsSegmentCounter.ts'
 import { getSmsWarmupInfoByPhoneOrMessagingService, ensureSmsWarmupRowForMessagingServiceIfNeeded } from '../_shared/smsWarmup.ts'
 import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
+import { resolveSmsEnqueueOutcome } from '../_shared/smsCampaignOutcome.ts'
 
 // Configuration constants
 const ENQUEUE_PAGE_SIZE = Number(Deno.env.get("SMS_ENQUEUE_PAGE_SIZE") ?? "1000");
@@ -456,7 +457,7 @@ Deno.serve(async (req) => {
       // Update campaign progress
       await supabase.from('crm_sms_campaigns').update({
         enqueue_cursor_customer_id: cursorCustomerId,
-        total_enqueued: (campaign.total_enqueued || 0) + insertedMessageIds.length,
+        total_enqueued: (campaign.total_enqueued || 0) + stats.messagesCreated,
         updated_at: new Date().toISOString()
       }).eq('id', campaignId);
     }
@@ -464,19 +465,27 @@ Deno.serve(async (req) => {
     // Step 7: Check if enqueueing is complete
     if (!stats.hasMoreCustomers) {
       stats.enqueueComplete = true;
+      const outcome = resolveSmsEnqueueOutcome({
+        existingTotal: campaign.total_enqueued || 0,
+        messagesCreated: stats.messagesCreated,
+        hasMoreCustomers: false,
+      });
 
-      // Mark campaign as fully enqueued
+      // Zero-recipient campaigns are terminal failures, not indefinitely
+      // "sending" campaigns. This also gives the UI an unambiguous failure.
       await supabase.from('crm_sms_campaigns').update({
-        enqueue_status: 'enqueued',
+        enqueue_status: outcome.enqueueStatus,
         enqueue_completed_at: new Date().toISOString(),
-        status: 'sending',
-        sent_at: campaign.sent_at || new Date().toISOString(),
+        status: outcome.campaignStatus,
+        enqueued: outcome.success,
+        total_enqueued: outcome.totalEnqueued,
+        sent_at: outcome.success ? (campaign.sent_at || new Date().toISOString()) : null,
         enqueue_claimed_at: null,
         enqueue_claimed_by: null,
         updated_at: new Date().toISOString()
       }).eq('id', campaignId);
 
-      console.log(`[sms-enqueue-worker] Campaign ${campaignId} fully enqueued: ${stats.messagesCreated} messages, ${stats.jobsCreated} jobs`);
+      console.log(`[sms-enqueue-worker] ${outcome.message}`);
     } else {
       console.log(`[sms-enqueue-worker] Campaign ${campaignId} partially enqueued: ${stats.messagesCreated} messages this run, more customers remain`);
     }
@@ -484,13 +493,18 @@ Deno.serve(async (req) => {
     const duration = Date.now() - startTime;
     console.log(`[sms-enqueue-worker] Completed in ${duration}ms`, stats);
 
+    const outcome = resolveSmsEnqueueOutcome({
+      existingTotal: campaign.total_enqueued || 0,
+      messagesCreated: stats.messagesCreated,
+      hasMoreCustomers: stats.hasMoreCustomers,
+    });
+
     return corsJsonResponse({
-      success: true,
+      success: outcome.success,
+      error: outcome.code,
       duration_ms: duration,
       stats,
-      message: stats.enqueueComplete 
-        ? `Campaign fully prepared. ${stats.messagesCreated} messages ready for sending.`
-        : `Campaign preparation in progress. ${stats.messagesCreated} messages queued this run.`
+      message: outcome.message,
     });
 
   } catch (error) {
