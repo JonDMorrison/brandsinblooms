@@ -16438,6 +16438,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      get_sms_dashboard_stats: { Args: never; Returns: Json };
       get_sms_warmup_info: {
         Args: { p_messaging_service_sid?: string; p_phone_number?: string };
         Returns: {
