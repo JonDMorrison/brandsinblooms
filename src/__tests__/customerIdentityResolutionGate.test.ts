@@ -9,6 +9,9 @@ const readSource = (path: string) =>
 const migration = readSource(
   "supabase/migrations/20260903080000_customer_identity_resolution.sql",
 );
+const ingestionMigration = readSource(
+  "supabase/migrations/20260903083000_auto_resolve_pos_customer_identity.sql",
+);
 const linker = readSource("supabase/functions/pos-link-customers/index.ts");
 const config = readSource("supabase/config.toml");
 
@@ -47,5 +50,16 @@ describe("customer identity resolution release gate", () => {
     );
     expect(linker).toContain("supabase.auth.getUser(token)");
     expect(linker).toContain('.eq("tenant_id", userData.tenant_id)');
+  });
+
+  it("routes every pos_customers ingestion through the canonical resolver", () => {
+    expect(ingestionMigration).toContain(
+      "CREATE TRIGGER trg_auto_resolve_pos_customer_identity",
+    );
+    expect(ingestionMigration).toContain(
+      "PERFORM public.resolve_crm_customer_identity",
+    );
+    expect(ingestionMigration).toContain("crm_customer_identity_failures");
+    expect(ingestionMigration).toContain("EXCEPTION WHEN OTHERS");
   });
 });
