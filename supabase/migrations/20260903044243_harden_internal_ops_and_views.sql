@@ -67,14 +67,23 @@ GRANT SELECT ON TABLE public.admin_tenant_overview TO service_role;
 
 -- Remove legacy cron jobs that either contain a literal JWT or duplicate a
 -- healthy v2 job. Leaving them active generated a failed run every minute.
+-- Two jobs are owned by postgres and can be removed directly.
 SELECT cron.unschedule('watchdog-stuck-content');
+SELECT cron.unschedule('run-automation-executor-5m');
+
+-- Six legacy jobs were created by the old SQL-editor role. pg_cron only lets
+-- a job owner unschedule its jobs, so assume that role temporarily and remove
+-- the membership again in the same migration.
+GRANT supabase_read_only_user TO postgres;
+SET LOCAL ROLE supabase_read_only_user;
 SELECT cron.unschedule('nightly-suppression-checker');
 SELECT cron.unschedule('reset-daily-limits-nightly');
 SELECT cron.unschedule('sms-daily-warmup-reset');
 SELECT cron.unschedule('process-automation-triggers');
 SELECT cron.unschedule('process-automation-outbox');
 SELECT cron.unschedule('token-refresh-worker-daily');
-SELECT cron.unschedule('run-automation-executor-5m');
+RESET ROLE;
+REVOKE supabase_read_only_user FROM postgres;
 
 -- The watchdog has no v2 replacement, so recreate it using the Vault-backed
 -- key helper. jsonb_build_object avoids the string-concatenation bug that
