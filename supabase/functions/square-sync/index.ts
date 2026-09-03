@@ -4,7 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 // Square adapter implementation directly in edge function
 interface NormalizedCustomer {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
   pos_source: string;
   tags?: string[];
@@ -31,6 +31,7 @@ interface NormalizedOrder {
     price?: number;
   }>;
   external_customer_id?: string;
+  external_location_id?: string;
 }
 
 interface NormalizedData {
@@ -120,6 +121,7 @@ class SquareAdapter {
         total: payment.amount_money ? payment.amount_money.amount / 100 : 0, // Square uses cents
         currency: payment.amount_money?.currency || 'USD',
         external_customer_id: payment.customer_id,
+        external_location_id: payment.location_id,
         items: [
           {
             name: payment.note || 'Square Transaction',
@@ -217,38 +219,31 @@ serve(async (req) => {
       let customersImported = 0
       let ordersImported = 0
 
-      // Import customers
-      for (const customer of normalizedData.customers) {
-        const { data: insertedCustomer, error } = await supabase
-          .from('crm_customers')
-          .upsert({
-            email: customer.email,
-            first_name: customer.name.split(' ')[0],
-            last_name: customer.name.split(' ').slice(1).join(' '),
-            phone: customer.phone,
-            tags: customer.tags,
-            pos_source: 'square',
-            user_id: user.id,
-          }, {
-            onConflict: 'email,user_id'
-          })
-          .select()
-
-        if (!error) {
-          customersImported++
-          
-          // Trigger persona auto-assignment for new customers
-          if (insertedCustomer && insertedCustomer.length > 0) {
-            try {
-              await supabase.functions.invoke('persona-auto-assignment', {
-                body: { customer_id: insertedCustomer[0].id }
-              })
-            } catch (personaError) {
-              console.log('Persona auto-assignment failed:', personaError)
-              // Don't fail the sync if persona assignment fails
-            }
-          }
+      // Resolve immutable Square identities in one canonical, tenant-scoped
+      // batch. Email and phone are supporting signals, never the primary key.
+      if (normalizedData.customers.length > 0) {
+        const records = normalizedData.customers
+          .filter((customer) => customer.external_id)
+          .map((customer) => ({
+            external_id: customer.external_id,
+            email: customer.email?.trim().toLowerCase() || null,
+            first_name: customer.name.split(' ')[0] || null,
+            last_name: customer.name.split(' ').slice(1).join(' ') || null,
+            phone: customer.phone || null,
+          }));
+        const { data: identityResult, error: identityError } = await supabase.rpc(
+          'resolve_provider_customer_identity_batch',
+          {
+            p_tenant_id: connection.tenant_id,
+            p_provider: 'square',
+            p_user_id: user.id,
+            p_customers: records,
+          },
+        );
+        if (identityError) {
+          throw new Error(`Square identity batch failed: ${identityError.message}`);
         }
+        customersImported = identityResult?.resolved || 0;
       }
 
       // Import orders
@@ -258,6 +253,10 @@ serve(async (req) => {
           .upsert({
             external_id: order.order_id,
             pos_connection_id: connection_id,
+            tenant_id: connection.tenant_id,
+            provider: 'square',
+            external_location_id:
+              order.external_location_id || connection.settings?.location_id || null,
             order_date: order.date,
             total_amount: order.total,
             currency: order.currency,
@@ -267,7 +266,32 @@ serve(async (req) => {
             onConflict: 'external_id,pos_connection_id'
           })
 
-        if (!error) ordersImported++
+        if (error) {
+          throw new Error(
+            `Failed to persist Square order ${order.order_id}: ${error.message}`,
+          );
+        }
+        ordersImported++
+      }
+
+      const affectedCustomerIds = [...new Set(
+        normalizedData.orders
+          .map((order) => order.external_customer_id)
+          .filter((id): id is string => Boolean(id)),
+      )];
+      for (let index = 0; index < affectedCustomerIds.length; index += 500) {
+        const { error: locationError } = await supabase.rpc(
+          'recompute_square_customer_locations',
+          {
+            p_tenant_id: connection.tenant_id,
+            p_external_customer_ids: affectedCustomerIds.slice(index, index + 500),
+          },
+        );
+        if (locationError) {
+          throw new Error(
+            `Square location activity reconciliation failed: ${locationError.message}`,
+          );
+        }
       }
 
       // Update integration log
