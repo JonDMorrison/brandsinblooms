@@ -11,6 +11,8 @@ on:
       - 'src/lib/crm/htmlContent*.ts'
       - 'src/types/**'
       - 'src/config/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/deploy-edge-functions.yml'
       - 'src/components/crm/pos/adapters/**'
       - 'src/hooks/useCompanyInfo.ts'
       - 'src/integrations/supabase/types.ts'
@@ -99,7 +101,10 @@ jobs:
             count=$((count + 1))
             echo "[$count/$total] Deploying $fn..."
 
-            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID" --no-verify-jwt; then
+            # Respect each function's verify_jwt declaration in
+            # supabase/config.toml. A global --no-verify-jwt here silently
+            # disabled the gateway on functions explicitly configured true.
+            if supabase functions deploy "$fn" --project-ref "$PROJECT_ID"; then
               echo "  ✓ $fn deployed"
               succeeded=$((succeeded + 1))
             else
