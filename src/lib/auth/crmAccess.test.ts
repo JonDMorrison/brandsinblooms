@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { normalizeCrmAccess } from "./crmAccess";
+import {
+  CRM_ROLE_LABELS,
+  isLocationScopedCrmRole,
+  normalizeCrmAccess,
+  normalizeCrmRole,
+} from "./crmAccess";
 
 const migration = readFileSync(
   "supabase/migrations/20260903154054_tenant_crm_role_foundation.sql",
@@ -30,6 +35,16 @@ describe("tenant CRM access", () => {
       normalizeCrmAccess({ role: "superuser", permissions: ["*"] }),
     ).toEqual({ tenantId: null, role: null, locationIds: [], permissions: [] });
     expect(normalizeCrmAccess(null).permissions).toEqual([]);
+  });
+
+  it("normalizes database roles for the access-management UI", () => {
+    expect(normalizeCrmRole("owner")).toBe("owner_admin");
+    expect(normalizeCrmRole("admin")).toBe("owner_admin");
+    expect(normalizeCrmRole("team")).toBe("marketing");
+    expect(normalizeCrmRole("unknown")).toBe("staff");
+    expect(isLocationScopedCrmRole("store_manager")).toBe(true);
+    expect(isLocationScopedCrmRole("marketing")).toBe(false);
+    expect(CRM_ROLE_LABELS.owner_admin).toBe("Owner / Admin");
   });
 
   it("protects role assignment at the database boundary", () => {

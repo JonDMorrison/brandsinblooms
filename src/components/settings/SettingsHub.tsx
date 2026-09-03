@@ -16,12 +16,13 @@ import { AccountBillingSettings } from "./AccountBillingSettings";
 import { ComplianceSettings } from "./ComplianceSettings";
 import { DebugSettings } from "./DebugSettings";
 import { SupportSettings } from "./SupportSettings";
+import { OrganizationAccessSettings } from "./OrganizationAccessSettings";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
 
-type SettingsTabId = "connections" | "account" | "compliance" | "debug" | "support";
+type SettingsTabId = "connections" | "organization" | "account" | "compliance" | "debug" | "support";
 type StatusChipColor = "success" | "warning" | "neutral";
 type StatusChipVariant = "soft" | "outlined";
 
@@ -33,6 +34,7 @@ interface StatusDescriptor {
 
 const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
   { id: "connections", label: "Connections" },
+  { id: "organization", label: "Locations & Team" },
   { id: "account", label: "Account & Billing" },
   { id: "compliance", label: "Compliance" },
   { id: "debug", label: "Debug" },
@@ -274,7 +276,7 @@ export const SettingsHub = () => {
       <Box>
         <Typography level="h3">Settings</Typography>
         <Typography level="body-sm" sx={{ color: "text.secondary", mt: 0.5 }}>
-          Manage connections, billing, compliance, support, and diagnostics from one place.
+          Manage locations, team access, connections, billing, compliance, and support from one place.
         </Typography>
       </Box>
 
@@ -374,6 +376,10 @@ export const SettingsHub = () => {
 
         <TabPanel value="account" sx={{ p: 0, pt: 2.5 }}>
           <AccountBillingSettings />
+        </TabPanel>
+
+        <TabPanel value="organization" sx={{ p: 0, pt: 2.5 }}>
+          <OrganizationAccessSettings />
         </TabPanel>
 
         <TabPanel value="compliance" sx={{ p: 0, pt: 2.5 }}>
