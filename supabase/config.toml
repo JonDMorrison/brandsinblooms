@@ -403,9 +403,6 @@ verify_jwt = false
 [functions.clover-sync-customers]
 verify_jwt = true
 
-[functions.vmx-sync-customers]
-verify_jwt = true
-
 [functions.clover-sync-sales]
 verify_jwt = true
 
@@ -544,4 +541,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.pos-link-customers]
+verify_jwt = true
+
+[functions.vmx-sync-customers]
 verify_jwt = true
