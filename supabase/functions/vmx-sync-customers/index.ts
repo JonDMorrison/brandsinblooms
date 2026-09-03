@@ -15,9 +15,28 @@ serve(async (req) => {
   let connectionId = "";
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization header");
+
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) throw new Error("Unauthorized");
+
+    const { data: userData, error: tenantError } = await userClient
+      .from("users")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+    if (tenantError || !userData?.tenant_id) throw new Error("No tenant found");
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
     );
 
     const { connection_id, full_sync } = await req.json();
@@ -28,6 +47,7 @@ serve(async (req) => {
       .from("pos_connections")
       .select("*")
       .eq("id", connection_id)
+      .eq("tenant_id", userData.tenant_id)
       .single();
 
     if (connErr || !conn) throw new Error("Connection not found");
@@ -60,28 +80,16 @@ serve(async (req) => {
       const result = await client.listCustomers({ start, page });
       hasMore = result.hasMore;
 
-      // Batch upsert entire page at once
-      // Only sync customers with email — no-email customers can't receive campaigns
-      // Deduplicate by email within the page (keep first occurrence)
-      const seenEmails = new Set<string>();
-      const rows = result.data
-        .filter((c) => {
-          const email = c.email?.trim()?.toLowerCase();
-          if (!email || seenEmails.has(email)) return false;
-          seenEmails.add(email);
-          return true;
-        })
+      // Immutable VMX customer number is identity. Customers without email are
+      // retained as non-sendable profiles instead of being discarded.
+      const byExternalId = new Map(result.data.map((c) => [c.number, c]));
+      const rows = Array.from(byExternalId.values())
         .map((c) => ({
-          tenant_id: conn.tenant_id,
-          user_id: conn.user_id,
           external_id: c.number,
-          pos_source: "vmx",
           email: c.email?.trim() || null,
           first_name: c.firstName || null,
           last_name: c.lastName || null,
           phone: c.cellPhone?.trim() || c.phone?.trim() || null,
-          email_consent: c.wantsEMail === "1",
-          sms_consent: c.wantsTexts === "1",
           loyalty_member: c.isLoyalty === "1",
           loyalty_rewards_balance: parseFloat(c.rewardDollars || "0"),
           tags: c.isLoyalty === "1" ? ["loyalty"] : null,
@@ -93,19 +101,38 @@ serve(async (req) => {
             vmx_date_added: c.dateAdded,
             birthday: c.birthday,
             wants_pmail: c.wantsPMail === "1",
+            provider_wants_email: c.wantsEMail === "1",
+            provider_wants_sms: c.wantsTexts === "1",
           },
-          updated_at: new Date().toISOString(),
         }));
 
       if (rows.length > 0) {
-        const { error: upsertErr, count } = await supabase
-          .from("crm_customers")
-          .upsert(rows, { onConflict: "tenant_id,email", count: "exact" });
-        if (upsertErr) {
-          // Return the error in response for debugging
-          throw new Error(`Batch upsert failed on page ${page}: ${upsertErr.message} (code: ${upsertErr.code}, details: ${upsertErr.details})`);
+        const { data: identityResult, error: identityError } = await supabase.rpc(
+          "resolve_vmx_customer_identity_batch",
+          {
+            p_tenant_id: conn.tenant_id,
+            p_connection_id: conn.id,
+            p_user_id: conn.user_id,
+            p_customers: rows,
+          },
+        );
+        if (identityError) {
+          throw new Error(
+            `Identity batch failed on page ${page}: ${identityError.message}`,
+          );
         }
-        totalProcessed += count ?? rows.length;
+
+        const batch = identityResult as {
+          resolved?: number;
+          ambiguous?: number;
+          failed?: number;
+        } | null;
+        if ((batch?.ambiguous || 0) > 0 || (batch?.failed || 0) > 0) {
+          console.warn(
+            `vmx-sync-customers: page ${page} has ${batch?.ambiguous || 0} ambiguous and ${batch?.failed || 0} failed identities`,
+          );
+        }
+        totalProcessed += batch?.resolved || 0;
       }
 
       console.log(`vmx-sync-customers: page ${page} — ${rows.length} rows`);

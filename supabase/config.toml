@@ -539,3 +539,6 @@ verify_jwt = true
 
 [functions.pos-link-customers]
 verify_jwt = true
+
+[functions.vmx-sync-customers]
+verify_jwt = true
