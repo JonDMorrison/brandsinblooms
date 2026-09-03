@@ -21,6 +21,7 @@ import {
   PartyPopper,
   HeartHandshake,
   Sprout,
+  Gift,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -46,11 +47,36 @@ interface TokenData {
   email: string;
   purpose: string;
   preferences?: unknown;
+  loyalty?: LoyaltyWalletEntry[];
+}
+
+interface LoyaltyWalletEntry {
+  provider: string;
+  programName: string;
+  balance: number;
+  balanceUnit: "points" | "currency" | "unknown";
+  currency: string | null;
+  lastSyncedAt: string;
 }
 
 interface CompanyInfo {
   name: string;
   address?: string;
+}
+
+function formatLoyaltyBalance(entry: LoyaltyWalletEntry) {
+  if (entry.balanceUnit === "currency" && entry.currency) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: entry.currency,
+    }).format(entry.balance);
+  }
+
+  if (entry.balanceUnit === "points") {
+    return `${entry.balance.toLocaleString()} ${entry.balance === 1 ? "point" : "points"}`;
+  }
+
+  return `${entry.balance.toLocaleString()} available`;
 }
 
 export default function EmailPreferences() {
@@ -358,6 +384,38 @@ export default function EmailPreferences() {
               ))}
             </RadioGroup>
           </section>
+
+          {tokenData?.loyalty?.length ? (
+            <section
+              className="space-y-3 border-t pt-6"
+              aria-labelledby="rewards-heading"
+            >
+              <div className="flex items-center gap-2">
+                <Gift className="h-4 w-4 text-primary" />
+                <h2 id="rewards-heading" className="font-medium">
+                  Your rewards
+                </h2>
+              </div>
+              <div className="space-y-2">
+                {tokenData.loyalty.map((entry) => (
+                  <div
+                    key={`${entry.provider}-${entry.programName}`}
+                    className="flex items-center justify-between gap-4 rounded-lg border bg-primary/5 p-4"
+                  >
+                    <div>
+                      <p className="font-medium">{entry.programName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Updated from your loyalty account
+                      </p>
+                    </div>
+                    <p className="text-lg font-semibold text-primary">
+                      {formatLoyaltyBalance(entry)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section
             className="space-y-3 border-t pt-6"
