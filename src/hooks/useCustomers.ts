@@ -30,6 +30,7 @@ interface UseCustomersOptions {
   page?: number;
   pageSize?: number;
   enabled?: boolean;
+  tenantId?: string | null;
 }
 
 export const useCustomers = (options: UseCustomersOptions = {}) => {
@@ -38,19 +39,23 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
   const { page = 1, pageSize = 50 } = options;
 
   const query = useQuery({
-    queryKey: ["customers", options.search, page, pageSize],
+    queryKey: ["customers", options.tenantId, options.search, page, pageSize],
     enabled: options.enabled ?? true,
     queryFn: async () => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error("User not authenticated");
 
-      const { data: userRecord } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", user.user.id)
-        .single();
+      let effectiveTenantId = options.tenantId;
+      if (!effectiveTenantId) {
+        const { data: userRecord } = await supabase
+          .from("users")
+          .select("tenant_id")
+          .eq("id", user.user.id)
+          .single();
+        effectiveTenantId = userRecord?.tenant_id;
+      }
 
-      if (!userRecord?.tenant_id)
+      if (!effectiveTenantId)
         throw new Error(
           "You are not assigned to a tenant. Please contact support or create an organization to continue.",
         );
@@ -73,7 +78,9 @@ export const useCustomers = (options: UseCustomersOptions = {}) => {
         `,
           { count: "exact" },
         )
-        .eq("tenant_id", userRecord.tenant_id)
+        .eq("tenant_id", effectiveTenantId)
+        .is("deleted_at", null)
+        .is("merged_into_customer_id", null)
         .order("created_at", { ascending: false })
         .range(from, to);
 
