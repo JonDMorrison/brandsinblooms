@@ -1,107 +1,127 @@
 /**
- * SMS Link Wrapping Utility
- * 
- * Wraps URLs in SMS content for click tracking
+ * SMS link tracking utilities.
+ *
+ * Tracking rows are registered through a service-only RPC immediately before
+ * provider delivery. Retried messages reuse the rows already registered for
+ * their message ID, so a retry never changes a recipient's links.
  */
 
-export interface TrackingRecord {
-  trackingCode: string;
-  originalUrl: string;
-  messageId?: string;
-  customerId?: string;
-  campaignId?: string;
-  phone: string;
-  tenantId: string;
+export interface SmsTrackingLink {
+  link_index: number;
+  original_url: string;
+  tracking_code: string;
 }
 
-/**
- * Generate a unique tracking code
- */
-function generateTrackingCode(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+interface SmsTrackingRegistration {
+  link_index: number;
+  original_url: string;
+  tracking_code: string;
+}
+
+interface SmsMessageTrackingContext {
+  messageId: string;
+}
+
+interface SupabaseRpcClient {
+  rpc(
+    functionName: string,
+    args: Record<string, unknown>,
+  ): Promise<{ data: unknown; error: { message?: string } | null }>;
+}
+
+const URL_PATTERN = /https?:\/\/[^\s<>"{}|\\^\x60\x5b\x5d]+/gi;
+const TRAILING_PUNCTUATION = /[.,!?;:]+$/;
+
+function trimTrailingPunctuation(url: string): string {
+  return url.replace(TRAILING_PUNCTUATION, '');
+}
+
+/** Extract unique, trackable HTTP(S) links in first-seen order. */
+export function extractTrackableUrls(content: string): string[] {
+  const matches = content.match(URL_PATTERN) || [];
+  const unique = new Set<string>();
+
+  for (const match of matches) {
+    const candidate = trimTrailingPunctuation(match);
+    try {
+      const parsed = new URL(candidate);
+      if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && candidate.length <= 4096) {
+        unique.add(candidate);
+      }
+    } catch {
+      // Invalid URLs stay untouched in the recipient's message.
+    }
   }
-  return result;
+
+  return Array.from(unique).slice(0, 20);
 }
 
-/**
- * Extract URLs from text content
- */
-function extractUrls(text: string): string[] {
-  // Match URLs starting with http:// or https://
-  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi;
-  return text.match(urlRegex) || [];
+/** Generate a cryptographically secure, URL-safe 128-bit tracking code. */
+export function generateTrackingCode(): string {
+  return crypto.randomUUID().replaceAll('-', '');
 }
 
-/**
- * Wrap URLs in SMS content with tracking URLs
- */
-export function wrapLinksForTracking(
+export function replaceLinksWithTrackingUrls(
   content: string,
   baseRedirectUrl: string,
-  context: {
-    messageId?: string;
-    customerId?: string;
-    campaignId?: string;
-    phone: string;
-    tenantId: string;
-  }
-): { wrappedContent: string; trackingRecords: TrackingRecord[] } {
-  const urls = extractUrls(content);
-  const trackingRecords: TrackingRecord[] = [];
-  let wrappedContent = content;
+  links: SmsTrackingLink[],
+): string {
+  const base = baseRedirectUrl.replace(/\/+$/, '');
 
-  for (const originalUrl of urls) {
-    const trackingCode = generateTrackingCode();
-    const trackingUrl = `${baseRedirectUrl}/${trackingCode}`;
+  // Replace longer URLs first so a URL that prefixes another cannot corrupt it.
+  return [...links]
+    .sort((a, b) => b.original_url.length - a.original_url.length)
+    .reduce(
+      (rewritten, link) => rewritten.split(link.original_url).join(`${base}/${link.tracking_code}`),
+      content,
+    );
+}
 
-    // Replace the URL in content
-    wrappedContent = wrappedContent.replace(originalUrl, trackingUrl);
+/**
+ * Register and apply canonical tracking links for one queued SMS message.
+ * The database owns idempotency through (message_id, link_index).
+ */
+export async function prepareSmsContentForDelivery(
+  supabase: SupabaseRpcClient,
+  content: string,
+  baseRedirectUrl: string,
+  context: SmsMessageTrackingContext,
+): Promise<{ content: string; links: SmsTrackingLink[] }> {
+  const urls = extractTrackableUrls(content);
+  if (urls.length === 0) return { content, links: [] };
 
-    // Add to tracking records
-    trackingRecords.push({
-      trackingCode,
-      originalUrl,
-      messageId: context.messageId,
-      customerId: context.customerId,
-      campaignId: context.campaignId,
-      phone: context.phone,
-      tenantId: context.tenantId,
+  const registrations: SmsTrackingRegistration[] = urls.map((originalUrl, linkIndex) => ({
+    link_index: linkIndex,
+    original_url: originalUrl,
+    tracking_code: generateTrackingCode(),
+  }));
+
+  const { data, error } = await supabase.rpc('register_sms_tracking_links', {
+    p_message_id: context.messageId,
+    p_links: registrations,
+  });
+
+  if (error) {
+    throw Object.assign(new Error(`SMS link tracking registration failed: ${error.message || 'unknown error'}`), {
+      code: '54001',
     });
   }
 
-  return { wrappedContent, trackingRecords };
-}
+  const canonicalLinks = Array.isArray(data) ? data as SmsTrackingLink[] : [];
+  const linksByIndex = new Map(canonicalLinks.map(link => [Number(link.link_index), link]));
+  const complete = registrations.every((registration) => {
+    const stored = linksByIndex.get(registration.link_index);
+    return stored?.original_url === registration.original_url && /^[a-f0-9]{32}$/.test(stored.tracking_code);
+  });
 
-/**
- * Store tracking records in the database
- */
-export async function storeTrackingRecords(
-  supabase: any,
-  records: TrackingRecord[]
-): Promise<boolean> {
-  if (records.length === 0) return true;
-
-  const insertData = records.map(record => ({
-    tenant_id: record.tenantId,
-    customer_id: record.customerId || null,
-    message_id: record.messageId || null,
-    campaign_id: record.campaignId || null,
-    phone: record.phone,
-    original_url: record.originalUrl,
-    tracking_code: record.trackingCode,
-  }));
-
-  const { error } = await supabase
-    .from('sms_link_clicks')
-    .insert(insertData);
-
-  if (error) {
-    console.error('[smsLinkWrapper] Error storing tracking records:', error);
-    return false;
+  if (!complete) {
+    throw Object.assign(new Error('SMS link tracking registration returned an incomplete mapping'), {
+      code: '54001',
+    });
   }
 
-  return true;
+  return {
+    content: replaceLinksWithTrackingUrls(content, baseRedirectUrl, canonicalLinks),
+    links: canonicalLinks,
+  };
 }
