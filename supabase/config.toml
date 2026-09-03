@@ -431,7 +431,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.pos-sync-worker]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pos-sync-status]
 verify_jwt = false

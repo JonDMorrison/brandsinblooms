@@ -152,7 +152,11 @@ Deno.serve(async (req) => {
 
     // Kick off the worker to start processing
     console.log("[SQUARE-FULL-SYNC] Starting pos-sync-worker...");
-    const { error: workerError } = await supabaseClient.functions.invoke(
+    const workerClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
+    const { error: workerError } = await workerClient.functions.invoke(
       "pos-sync-worker",
       {
         body: { provider: "square" },
