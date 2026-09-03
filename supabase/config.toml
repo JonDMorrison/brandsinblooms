@@ -533,3 +533,6 @@ verify_jwt = true
 
 [functions.update-email-preference]
 verify_jwt = true
+
+[functions.recompute-segment-memberships]
+verify_jwt = true
