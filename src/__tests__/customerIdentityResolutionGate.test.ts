@@ -15,6 +15,9 @@ const ingestionMigration = readSource(
 const orderMigration = readSource(
   "supabase/migrations/20260903090000_pos_order_customer_resolution.sql",
 );
+const legacyOrderMigration = readSource(
+  "supabase/migrations/20260903093000_legacy_pos_order_identity_resolution.sql",
+);
 const linker = readSource("supabase/functions/pos-link-customers/index.ts");
 const config = readSource("supabase/config.toml");
 
@@ -74,5 +77,29 @@ describe("customer identity resolution release gate", () => {
     expect(orderMigration).toContain("customer_resolution_status");
     expect(orderMigration).toContain("'ambiguous'");
     expect(orderMigration).toContain("'unmatched'");
+  });
+
+  it("resolves legacy provider orders through tenant-scoped external IDs", () => {
+    expect(legacyOrderMigration).toContain("square_connections");
+    expect(legacyOrderMigration).toContain("clover_connections");
+    expect(legacyOrderMigration).toContain("pos_sync_jobs");
+    expect(legacyOrderMigration).toContain("c.square_customer_id");
+    expect(legacyOrderMigration).toContain("c.clover_customer_id");
+    expect(legacyOrderMigration).toContain("cardinality(v_tenant_ids) = 1");
+    expect(legacyOrderMigration).toContain("ambiguous_external_id");
+  });
+
+  it("re-evaluates orders when provider identities change", () => {
+    expect(legacyOrderMigration).toContain(
+      "CREATE TRIGGER trg_reconcile_provider_orders_from_crm_customer",
+    );
+    expect(legacyOrderMigration).toContain(
+      "UPDATE OF square_customer_id, clover_customer_id, deleted_at",
+    );
+    expect(legacyOrderMigration).toContain(
+      "SET external_customer_id = o.external_customer_id",
+    );
+    expect(legacyOrderMigration).not.toMatch(/email_opt_in\s*=/i);
+    expect(legacyOrderMigration).not.toMatch(/sms_opt_in\s*=/i);
   });
 });
