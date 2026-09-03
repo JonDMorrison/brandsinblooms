@@ -350,6 +350,8 @@ BEGIN
     WHERE link.tenant_id = p_tenant_id AND link.provider = 'square'
       AND (p_external_customer_ids IS NULL OR
         link.external_id = ANY(p_external_customer_ids))
+      AND (p_external_customer_ids IS NULL OR
+        link.external_id = ANY(p_external_customer_ids))
     UNION
     SELECT customer.id
     FROM public.crm_customers AS customer
@@ -390,6 +392,10 @@ BEGIN
       AND coalesce(customer.square_customer_id,
         CASE WHEN customer.pos_source = 'square' THEN customer.external_id END)
         IS NOT NULL
+      AND (p_external_customer_ids IS NULL OR
+        coalesce(customer.square_customer_id,
+          CASE WHEN customer.pos_source = 'square' THEN customer.external_id END)
+          = ANY(p_external_customer_ids))
   ),
   preferred_candidates AS (
     SELECT identity_candidates.*,
