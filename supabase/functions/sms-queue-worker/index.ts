@@ -28,6 +28,8 @@ import {
   extractMtaSendAcceptance,
   toMtaRequestId,
 } from '../_shared/mtaSendResponse.ts'
+import { prepareSmsContentForDelivery } from '../_shared/smsLinkWrapper.ts'
+import { calculateBillableUnits } from '../_shared/smsSegmentCounter.ts'
 
 // Configuration constants
 const SMS_BATCH_DELAY_MS = Number(Deno.env.get("SMS_BATCH_DELAY_MS") ?? "200");
@@ -36,6 +38,9 @@ const MAX_LEGACY_MESSAGES_PER_RUN = 100;
 const MAX_JOB_ATTEMPTS = Number(Deno.env.get("SMS_MAX_JOB_ATTEMPTS") ?? "3");
 const MAX_MESSAGE_ATTEMPTS = Number(Deno.env.get("SMS_MAX_MESSAGE_ATTEMPTS") ?? "3");
 const RETRY_BASE_DELAY_MS = Number(Deno.env.get("SMS_RETRY_BASE_DELAY_MS") ?? "2000");
+const DEFAULT_MMS_UNIT_COST = Number(Deno.env.get("SMS_MMS_UNIT_COST") ?? "3");
+const SMS_LINK_REDIRECT_BASE_URL = Deno.env.get("SMS_LINK_REDIRECT_BASE_URL") ||
+  `${Deno.env.get("SUPABASE_URL")}/functions/v1/sms-link-redirect`;
 
 // Stale claim timeout - jobs in_progress longer than this can be reclaimed
 const CLAIM_STALE_AFTER_MINUTES = Number(Deno.env.get("SMS_CLAIM_STALE_AFTER_MINUTES") ?? "15");
@@ -693,9 +698,49 @@ Deno.serve(async (req) => {
             })
             .eq('id', msg.id);
 
+          let deliveryContent: string;
+          let billableUnits: number;
+          try {
+            const compliantContent = ensureOptOutMessage(msg.content);
+            const prepared = await prepareSmsContentForDelivery(
+              supabase,
+              compliantContent,
+              SMS_LINK_REDIRECT_BASE_URL,
+              { messageId: msg.id },
+            );
+            deliveryContent = prepared.content;
+            billableUnits = calculateBillableUnits(
+              deliveryContent,
+              Boolean(msg.media_urls && msg.media_urls.length > 0),
+              DEFAULT_MMS_UNIT_COST,
+            );
+
+            await supabase
+              .from('sms_messages')
+              .update({ billable_units: billableUnits, updated_at: now })
+              .eq('id', msg.id)
+              .eq('status', 'queued');
+          } catch (trackingError) {
+            const failureResult = await handleMessageFailure(
+              supabase,
+              msg,
+              currentAttempts,
+              trackingError,
+            );
+            if (failureResult.retryScheduled) {
+              jobRetryScheduled++;
+              stats.messagesRetryScheduled++;
+            } else {
+              jobFailed++;
+              stats.messagesFailed++;
+              stats.messagesDeadLettered++;
+            }
+            continue;
+          }
+
           // Send via MTA
           const formattedPhone = normalizePhone(msg.phone);
-          const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
+          const result = await sendSMSViaMTA(mtaConfig, formattedPhone, deliveryContent, {
             mediaUrls: msg.media_urls,
             externalId: msg.id,
           });
@@ -727,7 +772,6 @@ Deno.serve(async (req) => {
 
             // Bill the message if not already billed
             if (!msg.billed_at) {
-              const billableUnits = msg.billable_units || 1;
               const tenantId = messageTenantId;
               
               if (tenantId) {
@@ -926,8 +970,46 @@ Deno.serve(async (req) => {
           })
           .eq('id', msg.id);
 
+        let deliveryContent: string;
+        let billableUnits: number;
+        try {
+          const compliantContent = ensureOptOutMessage(msg.content);
+          const prepared = await prepareSmsContentForDelivery(
+            supabase,
+            compliantContent,
+            SMS_LINK_REDIRECT_BASE_URL,
+            { messageId: msg.id },
+          );
+          deliveryContent = prepared.content;
+          billableUnits = calculateBillableUnits(
+            deliveryContent,
+            Boolean(msg.media_urls && msg.media_urls.length > 0),
+            DEFAULT_MMS_UNIT_COST,
+          );
+
+          await supabase
+            .from('sms_messages')
+            .update({ billable_units: billableUnits, updated_at: now })
+            .eq('id', msg.id)
+            .eq('status', 'queued');
+        } catch (trackingError) {
+          const failureResult = await handleMessageFailure(
+            supabase,
+            msg,
+            currentAttempts,
+            trackingError,
+          );
+          if (failureResult.retryScheduled) {
+            stats.messagesRetryScheduled++;
+          } else {
+            stats.messagesFailed++;
+            stats.messagesDeadLettered++;
+          }
+          continue;
+        }
+
         const formattedPhone = normalizePhone(msg.phone);
-        const result = await sendSMSViaMTA(mtaConfig, formattedPhone, msg.content, {
+        const result = await sendSMSViaMTA(mtaConfig, formattedPhone, deliveryContent, {
           mediaUrls: msg.media_urls,
           externalId: msg.id,
         });
@@ -956,7 +1038,6 @@ Deno.serve(async (req) => {
 
           // Bill legacy messages too
           if (!msg.billed_at && msg.tenant_id) {
-            const billableUnits = msg.billable_units || 1;
             const billed = await billMessage(supabase, msg.tenant_id, msg.id, billableUnits);
             if (billed) {
               stats.messagesBilled++;
