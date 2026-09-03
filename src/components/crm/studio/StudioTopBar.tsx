@@ -58,6 +58,10 @@ type StudioTopBarProps = {
   onReloadCampaign: () => void;
   onSave: () => void;
   onExit: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   lastSavedAt: string | null;
 };
 
@@ -131,6 +135,10 @@ export default function StudioTopBar({
   onReloadCampaign,
   onSave,
   onExit,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   lastSavedAt,
 }: StudioTopBarProps) {
   const [draftName, setDraftName] = React.useState(campaignName);
@@ -485,29 +493,31 @@ export default function StudioTopBar({
 
           <Box sx={studioDividerSx} />
 
-          <Tooltip title="Undo">
+          <Tooltip title="Undo (Ctrl/⌘ Z)">
             <span>
               <IconButton
                 variant="plain"
                 color="neutral"
                 size="sm"
-                disabled
+                disabled={!canUndo}
                 aria-label="Undo"
-                sx={{ opacity: 0.35, "&:hover": { opacity: 1 } }}
+                onClick={onUndo}
+                sx={{ opacity: canUndo ? 1 : 0.35 }}
               >
                 <Undo2 size={16} />
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title="Redo">
+          <Tooltip title="Redo (Ctrl/⌘ Shift Z)">
             <span>
               <IconButton
                 variant="plain"
                 color="neutral"
                 size="sm"
-                disabled
+                disabled={!canRedo}
                 aria-label="Redo"
-                sx={{ opacity: 0.35, "&:hover": { opacity: 1 } }}
+                onClick={onRedo}
+                sx={{ opacity: canRedo ? 1 : 0.35 }}
               >
                 <Redo2 size={16} />
               </IconButton>
