@@ -343,11 +343,12 @@ async function processAutomation(supabase: any, automation: any) {
           await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
 
           // Update run with next scheduled time
-          await supabase
+          const { error: scheduleError } = await supabase
             .from('automation_runs')
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
             .eq('id', runId)
             .eq('status', 'active');
+          if (scheduleError) throw scheduleError;
         } catch (enqueueError) {
           await failAutomationRunStart(supabase, runId, enqueueError);
           throw enqueueError;
@@ -402,30 +403,34 @@ async function createAutomationRun(
     return enrollment;
   }
 
-  await logActivityEvent(supabase, {
-    tenant_id: automation.tenant_id,
-    customer_id: customer.id,
-    actor_type: 'automation',
-    source: 'automation',
-    activity_type: 'automation.started',
-    status: 'success',
-    title: `Automation started: ${automation.name || 'Automation'}`,
-    description: { parts: [{ type: 'text', text: 'Automation run started.' }] },
-    metadata: {
-      automation_id: automation.id,
-      automation_run_id: enrollment.run_id,
-      run_sequence: enrollment.run_sequence,
-      trigger_type: automation.trigger_type,
-      customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
-      customer_first_name: customer.first_name ?? null,
-      customer_last_name: customer.last_name ?? null,
-    },
-    related_entities: {
-      automation_id: automation.id,
-      automation_run_id: enrollment.run_id,
+  try {
+    await logActivityEvent(supabase, {
+      tenant_id: automation.tenant_id,
       customer_id: customer.id,
-    },
-  });
+      actor_type: 'automation',
+      source: 'automation',
+      activity_type: 'automation.started',
+      status: 'success',
+      title: `Automation started: ${automation.name || 'Automation'}`,
+      description: { parts: [{ type: 'text', text: 'Automation run started.' }] },
+      metadata: {
+        automation_id: automation.id,
+        automation_run_id: enrollment.run_id,
+        run_sequence: enrollment.run_sequence,
+        trigger_type: automation.trigger_type,
+        customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
+        customer_first_name: customer.first_name ?? null,
+        customer_last_name: customer.last_name ?? null,
+      },
+      related_entities: {
+        automation_id: automation.id,
+        automation_run_id: enrollment.run_id,
+        customer_id: customer.id,
+      },
+    });
+  } catch (activityError) {
+    console.error('Failed to record automation.started activity:', activityError);
+  }
 
   console.log(
     `📝 Created automation run ${enrollment.run_id} for ${customer.email} (sequence: ${enrollment.run_sequence})`,
@@ -1004,11 +1009,12 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
 
           // Update run with next scheduled time
-          await supabase
+          const { error: scheduleError } = await supabase
             .from('automation_runs')
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
             .eq('id', runId)
             .eq('status', 'active');
+          if (scheduleError) throw scheduleError;
         } catch (enqueueError) {
           await failAutomationRunStart(supabase, runId, enqueueError);
           throw enqueueError;

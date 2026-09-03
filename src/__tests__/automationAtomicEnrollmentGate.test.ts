@@ -41,6 +41,9 @@ describe("automation atomic enrollment release gate", () => {
   it("fails a newly started run if its initial step cannot enqueue", () => {
     expect(executor.match(/failAutomationRunStart/g)?.length).toBe(3);
     expect(executor).toContain("Initial step enqueue failed:");
+    expect(executor.match(/if \(scheduleError\) throw scheduleError/g)?.length).toBe(
+      2,
+    );
   });
 
   it("keeps enrollment service-role only", () => {
