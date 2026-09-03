@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { readStoredCustomerPreferences } from "../_shared/customerPreferenceCenter.ts";
+import { buildCustomerLoyaltyWallet } from "./customerLoyaltyWallet.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +77,21 @@ serve(async (req) => {
       );
     }
 
+    const { data: loyaltyAccounts, error: loyaltyError } = await supabase
+      .from("loyalty_provider_accounts")
+      .select(
+        "provider, program_name, balance, balance_unit, currency, last_synced_at, status",
+      )
+      .eq("tenant_id", tokenData.tenant_id)
+      .eq("customer_id", tokenData.customer_id)
+      .eq("status", "active");
+
+    if (loyaltyError) {
+      throw new Error(
+        `Failed to load loyalty balance: ${loyaltyError.message}`,
+      );
+    }
+
     // Get company info for branding
     const { data: tenant } = await supabase
       .from("tenants")
@@ -113,6 +129,7 @@ serve(async (req) => {
             customer.email_opt_in,
             customer.custom_fields,
           ),
+          loyalty: buildCustomerLoyaltyWallet(loyaltyAccounts),
         },
         company: {
           name: companyProfile?.company_name || tenant?.name || "Our Company",

@@ -4,18 +4,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'supabase/functions/**'
+      - "supabase/functions/**"
       # src/ modules (email HTML generator, design system, POS adapters) are
       # bundled into functions, so a change there must redeploy them too.
-      - 'src/lib/studio/**'
-      - 'src/lib/crm/htmlContent*.ts'
-      - 'src/types/**'
-      - 'src/config/**'
-      - 'supabase/config.toml'
-      - '.github/workflows/deploy-edge-functions.yml'
-      - 'src/components/crm/pos/adapters/**'
-      - 'src/hooks/useCompanyInfo.ts'
-      - 'src/integrations/supabase/types.ts'
+      - "src/lib/studio/**"
+      - "src/lib/crm/htmlContent*.ts"
+      - "src/types/**"
+      - "src/config/**"
+      - "supabase/config.toml"
+      - ".github/workflows/deploy-edge-functions.yml"
+      - "src/components/crm/pos/adapters/**"
+      - "src/hooks/useCompanyInfo.ts"
+      - "src/integrations/supabase/types.ts"
 
 # A failed deploy must never pass silently: the job opens a tracking issue.
 permissions:
@@ -37,9 +37,10 @@ jobs:
         run: |
           changed_paths="$(git diff --name-only HEAD~1 HEAD)"
 
-          # A change to _shared, the import map, or a bundled src/ module can
-          # affect any function, so redeploy everything in those cases.
-          if printf '%s\n' "$changed_paths" | grep -qE '^supabase/functions/(_|deno\.json)|^src/'; then
+          # A change to _shared, the import map, or a source module that edge
+          # functions actually bundle can affect every function. UI and test
+          # files under src/ do not belong in this fallback.
+          if printf '%s\n' "$changed_paths" | grep -qE '^supabase/functions/(_|deno\.json)|^src/(lib/studio/|lib/crm/htmlContent[^/]*\.ts$|types/|config/|components/crm/pos/adapters/|hooks/useCompanyInfo\.ts$|integrations/supabase/types\.ts$)'; then
             echo "functions=" >> "$GITHUB_OUTPUT"
             echo "Shared code changed — deploying all functions."
             exit 0
