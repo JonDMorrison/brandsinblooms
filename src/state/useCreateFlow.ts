@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type CreatePath = 'seasonal' | 'holiday' | 'custom' | null;
 
-type Channel = 'newsletter'|'instagram'|'facebook'|'video'|'blog'|'instagram_carousel'|'facebook_carousel';
+type Channel = 'newsletter';
 
 interface CreateFlowState {
   dialogOpen: boolean;
@@ -20,13 +20,7 @@ interface CreateFlowState {
 }
 
 const defaultChannels: Record<Channel, boolean> = {
-  instagram: true,
-  facebook: true,
   newsletter: true,
-  video: true,
-  blog: true,
-  instagram_carousel: false,
-  facebook_carousel: false,
 };
 
 export const useCreateFlow = create<CreateFlowState>((set) => ({
