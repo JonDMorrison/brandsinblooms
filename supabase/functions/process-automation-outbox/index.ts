@@ -55,6 +55,8 @@ interface OutboxMessage {
 }
 
 const BATCH_SIZE = 50;
+const RECOVERY_BATCH_SIZE = 2000;
+const MAX_MESSAGE_AGE_MS = 24 * 60 * 60 * 1000;
 const WORKER_ID = `worker-${crypto.randomUUID().slice(0, 8)}`;
 
 // Soft failure mode: When enabled, failed steps don't block automation - it continues to next step
@@ -80,17 +82,38 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // FIX: [A19] - Also rediscover stuck 'processing' messages with expired locks (>10 min old)
-    // 1. Find all tenants with queued messages or stuck processing messages
-    const stuckCutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    // Expire old work before discovery. Releasing a months-old automation
+    // backlog can send irrelevant or non-consensual messages; only recent
+    // crashed work is eligible for reclamation.
+    const messageCutoff = new Date(
+      Date.now() - MAX_MESSAGE_AGE_MS,
+    ).toISOString();
+    const { data: recovery, error: recoveryError } = await supabase.rpc(
+      "expire_stale_automation_work",
+      { p_cutoff: messageCutoff, p_limit: RECOVERY_BATCH_SIZE },
+    );
+    if (recoveryError) {
+      console.error(
+        "❌ Failed to expire stale automation work:",
+        recoveryError,
+      );
+    } else if (
+      (recovery?.expired_outbox_count || 0) > 0 ||
+      (recovery?.failed_run_count || 0) > 0
+    ) {
+      console.log("🧹 Expired stale automation work:", recovery);
+    }
+
+    // 1. Find tenants with queued work or recent processing work whose lock
+    // expired. The claim RPC applies the same 24-hour safety window.
+    const now = new Date().toISOString();
     const { data: tenantRows, error: tenantError } = await supabase
       .from("crm_outbox")
       .select("tenant_id")
-      .or(
-        `status.eq.queued,and(status.eq.processing,updated_at.lt.${stuckCutoff})`,
-      )
-      .lte("scheduled_at", new Date().toISOString())
-      .or("locked_until.is.null,locked_until.lt." + new Date().toISOString())
+      .in("status", ["queued", "processing"])
+      .lte("scheduled_at", now)
+      .gte("scheduled_at", messageCutoff)
+      .or("locked_until.is.null,locked_until.lt." + now)
       .limit(100);
 
     if (tenantError) {
@@ -188,6 +211,24 @@ const handler = async (req: Request): Promise<Response> => {
           `🔒 Processing message ${message.id} (${message.message_type} to ${message.recipient})`,
         );
 
+        const eligibility = await checkAutomationEligibility(supabase, message);
+        if (!eligibility.allowed) {
+          await skipMessage(supabase, message, eligibility.reason);
+          if (eligibility.cancelRun && message.automation_run_id) {
+            await supabase
+              .from("automation_runs")
+              .update({
+                status: "cancelled",
+                completed_at: new Date().toISOString(),
+                error_message: eligibility.reason,
+              })
+              .eq("id", message.automation_run_id)
+              .eq("status", "active");
+          }
+          skipped++;
+          continue;
+        }
+
         // 3. Check channel availability before attempting to send
         const channelStatus = isChannelAvailable(message.message_type);
 
@@ -206,9 +247,6 @@ const handler = async (req: Request): Promise<Response> => {
           skipped++;
           continue;
         }
-
-        // FIX: [A20] - NOTE: Automations disabled after messages are queued will still send queued messages.
-        // To prevent this, add an is_active check on crm_automations here before sending if needed.
 
         // 4. Send the message based on type
         let sendResult: {
@@ -471,6 +509,54 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
+
+async function checkAutomationEligibility(
+  supabase: ReturnType<typeof createClient>,
+  message: OutboxMessage,
+): Promise<{ allowed: boolean; reason: string; cancelRun: boolean }> {
+  if (!message.automation_id) {
+    return { allowed: true, reason: "", cancelRun: false };
+  }
+
+  const { data: automation, error: automationError } = await supabase
+    .from("crm_automations")
+    .select("is_active")
+    .eq("id", message.automation_id)
+    .maybeSingle();
+
+  if (automationError || !automation) {
+    return {
+      allowed: false,
+      reason: "Automation no longer exists",
+      cancelRun: true,
+    };
+  }
+  if (!automation.is_active) {
+    return {
+      allowed: false,
+      reason: "Automation was disabled before this message sent",
+      cancelRun: true,
+    };
+  }
+
+  if (message.automation_run_id) {
+    const { data: run, error: runError } = await supabase
+      .from("automation_runs")
+      .select("status")
+      .eq("id", message.automation_run_id)
+      .maybeSingle();
+
+    if (runError || !run || run.status !== "active") {
+      return {
+        allowed: false,
+        reason: `Automation run is ${run?.status || "unavailable"}`,
+        cancelRun: false,
+      };
+    }
+  }
+
+  return { allowed: true, reason: "", cancelRun: false };
+}
 
 /**
  * Mark a message as skipped and log the skip reason
