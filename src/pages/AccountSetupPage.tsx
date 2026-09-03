@@ -14,11 +14,9 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
-  Share2,
   BarChart3,
   MessageSquare,
   Mail,
-  Send,
   Zap,
   Tags,
   Newspaper
@@ -56,11 +54,9 @@ const AccountSetupPage: React.FC = () => {
       pos: 'POS Integration',
       clients: 'Client Import',
       domain: 'Domain Setup',
-      social: 'Social Media',
       analytics: 'Google Analytics',
       sms: 'SMS Setup',
       'first-email': 'First Email Campaign',
-      'first-post': 'First Social Post',
       'first-automation': 'First Automation',
       segments: 'Customer Segments',
       newsletter: 'Newsletter',
@@ -273,22 +269,6 @@ const AccountSetupPage: React.FC = () => {
           </div>
         </SetupStepCard>
 
-        {/* Step 6: Social Media Connections */}
-        <SetupStepCard
-          icon={<Share2 className="w-6 h-6" />}
-          title="Connect Social Media"
-          description="Link your Facebook and Instagram accounts for one-click posting"
-          helpText="Once connected, you can create and schedule posts directly from BloomSuite."
-          completed={progress.socialConnected}
-          skipped={skippedSteps.includes('social')}
-          expanded={expandedStep === 'social'}
-          onToggle={() => toggleStep('social')}
-          onAction={() => navigate('/social-accounts')}
-          onSkip={() => skipStep('social')}
-          onUnskip={() => unskipStep('social')}
-          actionLabel="Connect Accounts"
-        />
-
         {/* Step 7: Google Analytics */}
         <SetupStepCard
           icon={<BarChart3 className="w-6 h-6" />}
@@ -335,22 +315,6 @@ const AccountSetupPage: React.FC = () => {
           onSkip={() => skipStep('first-email')}
           onUnskip={() => unskipStep('first-email')}
           actionLabel="Create Campaign"
-        />
-
-        {/* Step 10: First Social Post */}
-        <SetupStepCard
-          icon={<Send className="w-6 h-6" />}
-          title="Publish Your First Social Post"
-          description="Create and publish a post to your connected social accounts"
-          helpText="Our AI will help you write engaging content tailored to your business and audience."
-          completed={progress.firstSocialPostPublished}
-          skipped={skippedSteps.includes('first-post')}
-          expanded={expandedStep === 'first-post'}
-          onToggle={() => toggleStep('first-post')}
-          onAction={() => navigate('/publish')}
-          onSkip={() => skipStep('first-post')}
-          onUnskip={() => unskipStep('first-post')}
-          actionLabel="Create Post"
         />
 
         {/* Step 11: First Automation */}

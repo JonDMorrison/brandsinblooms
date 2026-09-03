@@ -34,8 +34,8 @@ describe('Automation System', () => {
   });
 
   describe('Trigger Catalog', () => {
-    it('should have 12 essential triggers', () => {
-      expect(triggerCatalog).toHaveLength(12);
+    it('should include every essential trigger', () => {
+      expect(triggerCatalog).toHaveLength(20);
       
       const expectedTriggers = [
         'loyalty_join', 'first_purchase', 'repeat_purchase_90d', 'plant_care_reminder',
@@ -52,7 +52,7 @@ describe('Automation System', () => {
     it('should find trigger by ID', () => {
       const trigger = getTriggerById('loyalty_join');
       expect(trigger).toBeDefined();
-      expect(trigger?.label).toBe('🧑‍🤝‍🧑 Loyalty Program Sign-up');
+      expect(trigger?.label).toBe('🎖️ Loyalty Program Enrollment');
       expect(trigger?.channels).toContain('sms');
       expect(trigger?.channels).toContain('email');
     });
@@ -233,22 +233,23 @@ describe('Automation System', () => {
       const supabase = {
         from: vi.fn((table: string) => {
           if (table === 'user_integrations') {
-            return {
-              select: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn(() => Promise.resolve({
-                    data: {
-                      credentials: {
-                        account_sid: 'AC123',
-                        auth_token: 'token123',
-                        phone_number: '+1555000000'
-                      },
-                      is_active: true
-                    },
-                    error: null
-                  }))
-                }))
+            const integrationQuery = {
+              eq: vi.fn(),
+              single: vi.fn(() => Promise.resolve({
+                data: {
+                  credentials: {
+                    account_sid: 'AC123',
+                    auth_token: 'token123',
+                    phone_number: '+1555000000'
+                  },
+                  is_active: true
+                },
+                error: null
               }))
+            };
+            integrationQuery.eq.mockReturnValue(integrationQuery);
+            return {
+              select: vi.fn(() => integrationQuery)
             };
           }
           if (table === 'crm_message_logs') {
@@ -316,15 +317,16 @@ describe('Automation System', () => {
       const supabase = {
         from: vi.fn((table: string) => {
           if (table === 'user_integrations') {
-            return {
-              select: vi.fn(() => ({
-                eq: vi.fn(() => ({
-                  single: vi.fn(() => Promise.resolve({
-                    data: null, // No Twilio integration
-                    error: null
-                  }))
-                }))
+            const integrationQuery = {
+              eq: vi.fn(),
+              single: vi.fn(() => Promise.resolve({
+                data: null, // No Twilio integration
+                error: null
               }))
+            };
+            integrationQuery.eq.mockReturnValue(integrationQuery);
+            return {
+              select: vi.fn(() => integrationQuery)
             };
           }
           if (table === 'crm_customers') {

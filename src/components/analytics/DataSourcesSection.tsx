@@ -1,11 +1,9 @@
-import { useState } from "react";
 import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useQuery } from "@tanstack/react-query";
-import { Globe, Mail, RefreshCw, Share2, Store } from "lucide-react";
+import { Globe, Mail, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -16,10 +14,8 @@ import {
   JoyCardHeader,
 } from "@/components/joy/JoyCard";
 import { JoyChip } from "@/components/joy/JoyChip";
-import { JoyTooltip } from "@/components/joy/JoyTooltip";
 import {
   formatRelativeTimestamp,
-  normalizePlatformLabel,
   normalizeProviderLabel,
 } from "@/components/analytics/analyticsUtils";
 
@@ -34,7 +30,6 @@ type DataSourcesSectionProps = {
   gaError?: string | null;
   gaLoading?: boolean;
   gaSettings?: GASettingsSnapshot | null;
-  onSyncComplete?: () => void | Promise<unknown>;
 };
 
 type DataSourceCard = {
@@ -53,12 +48,10 @@ export function DataSourcesSection({
   gaError,
   gaLoading = false,
   gaSettings,
-  onSyncComplete,
 }: DataSourcesSectionProps) {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const navigate = useNavigate();
-  const [syncing, setSyncing] = useState(false);
 
   const { data, error, isLoading, refetch } = useQuery<DataSourceCard[]>({
     queryKey: [
@@ -74,16 +67,10 @@ export function DataSourcesSection({
       }
 
       const [
-        socialConnections,
         providerConnections,
         squareConnections,
         cloverConnections,
       ] = await Promise.all([
-        supabase
-          .from("social_connections")
-          .select("platform, platform_account_name, updated_at")
-          .eq("user_id", user.id)
-          .eq("is_active", true),
         supabase
           .from("provider_connections")
           .select("provider, provider_account_name, updated_at")
@@ -106,25 +93,6 @@ export function DataSourcesSection({
 
       const activePosConnection =
         squareConnections.data?.[0] ?? cloverConnections.data?.[0] ?? null;
-      const socialPlatforms = Array.from(
-        new Set(
-          (socialConnections.data ?? []).map((connection) =>
-            normalizePlatformLabel(connection.platform),
-          ),
-        ),
-      );
-      const mostRecentSocialSync = (socialConnections.data ?? []).reduce<
-        string | null
-      >((latest, connection) => {
-        if (!latest) {
-          return connection.updated_at;
-        }
-
-        return new Date(connection.updated_at).getTime() >
-          new Date(latest).getTime()
-          ? connection.updated_at
-          : latest;
-      }, null);
       const mostRecentProviderSync = (providerConnections.data ?? []).reduce<
         string | null
       >((latest, connection) => {
@@ -173,19 +141,6 @@ export function DataSourcesSection({
           title: "Google Analytics",
         },
         {
-          actionLabel: socialPlatforms.length ? "Configure" : "Connect",
-          description: "Facebook, Instagram, and Google Business signals",
-          detail: socialPlatforms.length
-            ? socialPlatforms.join(", ")
-            : undefined,
-          icon: <Share2 size={20} />,
-          id: "social-media",
-          lastSync: mostRecentSocialSync,
-          route: "/social-accounts",
-          status: socialPlatforms.length ? "connected" : "not-connected",
-          title: "Social Media",
-        },
-        {
           actionLabel:
             (providerConnections.data?.length ?? 0) > 0
               ? "Configure"
@@ -209,34 +164,13 @@ export function DataSourcesSection({
     },
   });
 
-  const handleSyncSocialData = async () => {
-    setSyncing(true);
-
-    try {
-      const { error } = await supabase.functions.invoke("sync-analytics");
-
-      if (error) {
-        throw error;
-      }
-
-      toast.success("Social data synced successfully");
-      await refetch();
-      await onSyncComplete?.();
-    } catch (error) {
-      console.error("Failed to sync social data", error);
-      toast.error("Failed to sync social data");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   if (isLoading || gaLoading) {
     return (
       <JoyCard variant="outlined">
         <JoyCardHeader title="Data Sources" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            {Array.from({ length: 4 }).map((_, index) => (
+            {Array.from({ length: 3 }).map((_, index) => (
               <Sheet
                 key={index}
                 variant="outlined"
@@ -281,20 +215,6 @@ export function DataSourcesSection({
       <JoyCardHeader
         title="Data Sources"
         description="Connected platforms and sync status"
-        actions={
-          <JoyTooltip title="This action currently syncs social analytics from connected social accounts.">
-            <JoyButton
-              size="sm"
-              variant="soft"
-              color="neutral"
-              startDecorator={<RefreshCw size={14} />}
-              onClick={() => void handleSyncSocialData()}
-              loading={syncing}
-            >
-              Sync Social Data
-            </JoyButton>
-          </JoyTooltip>
-        }
       />
       <JoyCardContent sx={{ pt: 3 }}>
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>

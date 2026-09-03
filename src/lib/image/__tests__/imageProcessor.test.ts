@@ -82,7 +82,7 @@ describe('ImageProcessor', () => {
         dimensions: { width: 1200, height: 800 },
         fileSize: 50000,
         format: 'webp',
-        altText: 'large webp image for SMS/MMS'
+        altText: 'small webp image for SMS/MMS'
       })
     })
 

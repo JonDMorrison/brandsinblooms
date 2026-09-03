@@ -197,24 +197,6 @@ function getPrimaryPlaceholderChannel(bundle: ContentSummary) {
   return (channels[0] as Channel | "carousel" | undefined) || "carousel";
 }
 
-function getPublishChannel(
-  bundle: ContentSummary,
-): "instagram" | "facebook" | null {
-  if (bundle.approvedCount === 0) {
-    return null;
-  }
-
-  if (bundle.channels.includes("instagram")) {
-    return "instagram";
-  }
-
-  if (bundle.channels.includes("facebook")) {
-    return "facebook";
-  }
-
-  return null;
-}
-
 function replaceQueryParams(mutator: (params: URLSearchParams) => void) {
   const url = new URL(window.location.href);
   mutator(url.searchParams);
@@ -227,19 +209,16 @@ function BundleCard({
   bundle,
   isHighlighted,
   onOpen,
-  onPublish,
   onDelete,
 }: {
   bundle: ContentSummary;
   isHighlighted: boolean;
   onOpen: (bundle: ContentSummary) => void;
-  onPublish: (bundle: ContentSummary) => void;
   onDelete: (bundle: ContentSummary) => void;
 }) {
   const bundleTitle = getBundleDisplayName(bundle);
   const approval = getApprovalLabel(bundle);
   const bundleChannels = getBundleChannels(bundle);
-  const publishChannel = getPublishChannel(bundle);
   const PlaceholderIcon =
     CHANNEL_META[getPrimaryPlaceholderChannel(bundle)].icon;
   const imageJobs = useImageGenerationTracker((state) =>
@@ -429,14 +408,6 @@ function BundleCard({
                 >
                   Open
                 </JoyDropdownMenuItem>
-                {publishChannel ? (
-                  <JoyDropdownMenuItem
-                    startDecorator={<Sparkles size={16} />}
-                    onClick={() => onPublish(bundle)}
-                  >
-                    Publish
-                  </JoyDropdownMenuItem>
-                ) : null}
                 <JoyDropdownMenuItem
                   destructive
                   startDecorator={<Trash2 size={16} />}
@@ -756,15 +727,6 @@ export const BundleLibrary = () => {
         detail: { bundleId: bundle.bundleId },
       }),
     );
-  };
-
-  const openPublishPortal = (bundle: ContentSummary) => {
-    const publishChannel = getPublishChannel(bundle);
-    if (!publishChannel) {
-      return;
-    }
-
-    navigate(`/publish?bundleId=${bundle.bundleId}`);
   };
 
   const handleGenerationDismiss = () => {
@@ -1186,7 +1148,6 @@ export const BundleLibrary = () => {
                   bundle={bundle}
                   isHighlighted={highlightedBundles.has(bundle.bundleId)}
                   onOpen={(selectedBundle) => openBundle(selectedBundle)}
-                  onPublish={openPublishPortal}
                   onDelete={setBundleToDelete}
                 />
               ))}

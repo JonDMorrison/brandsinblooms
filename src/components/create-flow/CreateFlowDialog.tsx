@@ -30,11 +30,6 @@ import {
   ArrowRight,
   CalendarDays,
   ChevronLeft,
-  Clapperboard,
-  Facebook,
-  FileText,
-  Images,
-  Instagram,
   Leaf,
   Loader2,
   Mail,
@@ -136,53 +131,10 @@ const CUSTOM_IDEA_SUGGESTIONS = [
 
 const CHANNEL_OPTIONS: ChannelOption[] = [
   {
-    key: "instagram",
-    title: "Instagram",
-    description: "Generates an image-forward caption and post-ready draft.",
-    icon: Instagram,
-    platform: "instagram",
-  },
-  {
-    key: "facebook",
-    title: "Facebook",
-    description: "Creates a social post tailored for longer-form engagement.",
-    icon: Facebook,
-    platform: "facebook",
-  },
-  {
-    key: "blog",
-    title: "Blog",
-    description: "Builds an educational article draft with structured copy.",
-    icon: FileText,
-  },
-  {
     key: "newsletter",
     title: "Newsletter",
-    description: "Prepares a newsletter section ready for review and edits.",
+    description: "Prepares an email campaign draft ready for review and edits.",
     icon: Mail,
-  },
-  {
-    key: "instagram_carousel",
-    title: "Instagram Carousel",
-    description:
-      "Opens the carousel composer with a multi-image Instagram draft.",
-    icon: Images,
-    platform: "instagram",
-  },
-  {
-    key: "facebook_carousel",
-    title: "Facebook Carousel",
-    description:
-      "Opens the carousel composer with a multi-image Facebook draft.",
-    icon: Images,
-    platform: "facebook",
-  },
-  {
-    key: "video",
-    title: "Video",
-    description:
-      "Creates a short-form video script with a clear creative hook.",
-    icon: Clapperboard,
   },
 ];
 
@@ -212,12 +164,12 @@ const STEP_TRANSITIONS: Record<
 
 const SELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
   newsletter: true,
-  instagram: true,
-  facebook: true,
-  video: true,
-  blog: true,
-  instagram_carousel: true,
-  facebook_carousel: true,
+  instagram: false,
+  facebook: false,
+  video: false,
+  blog: false,
+  instagram_carousel: false,
+  facebook_carousel: false,
 };
 
 const DESELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
@@ -232,10 +184,11 @@ const DESELECT_ALL_CHANNELS: Record<ChannelKey, boolean> = {
 
 const IMAGE_GENERATION_CHANNEL_KEYS = new Set<ChannelKey>([
   "newsletter",
-  "instagram",
-  "facebook",
-  "blog",
 ]);
+
+const AVAILABLE_CHANNEL_KEYS = new Set(
+  CHANNEL_OPTIONS.map((channel) => channel.key),
+);
 
 const fmtLocalDate = (dateValue?: string) => {
   if (!dateValue) return "";
@@ -266,7 +219,9 @@ const formatHolidayProximity = (holidayDate: string) => {
 
 const getSelectedChannels = (channelState: Record<ChannelKey, boolean>) =>
   Object.entries(channelState)
-    .filter(([, isSelected]) => isSelected)
+    .filter(([channel, isSelected]) =>
+      isSelected && AVAILABLE_CHANNEL_KEYS.has(channel as ChannelKey),
+    )
     .map(([channel]) => channel as ChannelKey);
 
 const getStepCopy = (step: WizardStep, selectedPath: Mode | null): StepCopy => {

@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePersonaCustomerCounts } from '@/hooks/usePersonaCustomerCounts';
 import { useAllPersonas } from '@/hooks/useAllPersonas';
 
+const { fromMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(),
+}));
+
 // Mock dependencies
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(() => ({ user: { id: 'user-1' } }))
@@ -17,16 +21,23 @@ vi.mock('@/hooks/useAllPersonas');
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
-    from: vi.fn(() => ({
+    from: fromMock.mockImplementation(() => ({
       select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        }))
+        eq: vi.fn(() => ({
+          is: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        })),
       }))
     }))
   }
 }));
+
+const customerQuery = (data, error = null) => ({
+  select: vi.fn(() => ({
+    eq: vi.fn(() => ({
+      is: vi.fn(() => Promise.resolve({ data, error })),
+    })),
+  })),
+});
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -69,14 +80,7 @@ describe('contactsStore persona counts integration', () => {
     });
 
     // Mock Supabase response
-    vi.mocked(vi.importMock('@/integrations/supabase/client')).supabase.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({
-          data: mockCustomers,
-          error: null
-        }))
-      }))
-    });
+    fromMock.mockReturnValue(customerQuery(mockCustomers));
 
     const wrapper = createWrapper();
     const { result } = renderHook(() => usePersonaCustomerCounts(), { wrapper });
@@ -87,8 +91,8 @@ describe('contactsStore persona counts integration', () => {
 
     // Verify counts are calculated correctly
     const expectedCounts = {
-      'Plant Lover': 3, // 2 from persona_id + 1 from legacy persona field
-      'Garden Expert': 1
+      'persona-1': 3, // 2 from persona_id + 1 from legacy persona field
+      'persona-2': 1
     };
 
     expect(result.current.counts).toEqual(expectedCounts);
@@ -112,14 +116,7 @@ describe('contactsStore persona counts integration', () => {
       customPersonas: []
     });
 
-    vi.mocked(vi.importMock('@/integrations/supabase/client')).supabase.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({
-          data: mockCustomers,
-          error: null
-        }))
-      }))
-    });
+    fromMock.mockReturnValue(customerQuery(mockCustomers));
 
     const wrapper = createWrapper();
     const { result } = renderHook(() => usePersonaCustomerCounts(), { wrapper });
@@ -129,10 +126,10 @@ describe('contactsStore persona counts integration', () => {
     });
 
     // Should count both persona_id and matching legacy persona
-    expect(result.current.counts['Beginner Gardener']).toBe(2);
+    expect(result.current.counts['persona-1']).toBe(2);
   });
 
-  it('updates counts when personas are added or removed', async () => {
+  it('retains counts for orphaned assignments after a persona is removed', async () => {
     const mockPersonas = [
       { id: 'persona-1', persona_name: 'Test Persona', is_custom: true }
     ];
@@ -148,23 +145,18 @@ describe('contactsStore persona counts integration', () => {
       customPersonas: mockPersonas
     });
 
-    vi.mocked(vi.importMock('@/integrations/supabase/client')).supabase.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({
-          data: mockCustomers,
-          error: null
-        }))
-      }))
-    });
+    fromMock.mockReturnValue(customerQuery(mockCustomers));
 
     const wrapper = createWrapper();
-    const { result, rerender } = renderHook(() => usePersonaCustomerCounts(), { wrapper });
+    const { result, unmount } = renderHook(() => usePersonaCustomerCounts(), {
+      wrapper,
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.counts['Test Persona']).toBe(1);
+    expect(result.current.counts['persona-1']).toBe(1);
 
     // Simulate persona being removed
     vi.mocked(useAllPersonas).mockReturnValue({
@@ -174,10 +166,14 @@ describe('contactsStore persona counts integration', () => {
       customPersonas: []
     });
 
-    rerender();
+    unmount();
+    const { result: refreshedResult } = renderHook(
+      () => usePersonaCustomerCounts(),
+      { wrapper },
+    );
 
     await waitFor(() => {
-      expect(result.current.counts['Test Persona']).toBeUndefined();
+      expect(refreshedResult.current.counts['persona-1']).toBe(1);
     });
   });
 
@@ -190,14 +186,9 @@ describe('contactsStore persona counts integration', () => {
     });
 
     // Mock database error
-    vi.mocked(vi.importMock('@/integrations/supabase/client')).supabase.from.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({
-          data: null,
-          error: new Error('Database connection failed')
-        }))
-      }))
-    });
+    fromMock.mockReturnValue(
+      customerQuery(null, new Error('Database connection failed')),
+    );
 
     const wrapper = createWrapper();
     const { result } = renderHook(() => usePersonaCustomerCounts(), { wrapper });

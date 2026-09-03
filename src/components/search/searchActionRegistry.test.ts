@@ -29,6 +29,7 @@ describe("searchActionRegistry", () => {
     const results = getRouteAwareSuggestionItems("/crm/campaigns/camp_123");
 
     expect(results.map((item) => item.id)).toEqual([
+      "command:ask-bloom",
       "command:preview-campaign",
       "command:view-campaign-recipients",
       "command:send-test-email",

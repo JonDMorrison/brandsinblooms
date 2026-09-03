@@ -51,7 +51,6 @@ import { CalendarListView } from "./calendar/CalendarListView";
 import { CalendarPlanningPanel } from "./calendar/CalendarPlanningPanel";
 import { CalendarTaskDetailsDialog } from "./calendar/CalendarTaskDetailsDialog";
 import { QuickAddSheet } from "./calendar/QuickAddSheet";
-import { ScheduledPostDetailsDialog } from "./calendar/ScheduledPostDetailsDialog";
 import { CalendarToolbar } from "./calendar/CalendarToolbar";
 import { CalendarWeeklyThemesDialog } from "./calendar/CalendarWeeklyThemesDialog";
 
@@ -101,7 +100,6 @@ export const CalendarView = React.memo(function CalendarView({
     lastUpdated,
     newsletterActions,
     holidayActions,
-    scheduledPostActions,
   } = useUnifiedCalendarData();
 
   const { getState, updateState } = useRouteState(
@@ -151,9 +149,6 @@ export const CalendarView = React.memo(function CalendarView({
   );
   const [selectedDateForNewsletter, setSelectedDateForNewsletter] =
     useState<Date | null>(null);
-
-  const [selectedScheduledPost, setSelectedScheduledPost] = useState<any>(null);
-  const [scheduledPostDialogOpen, setScheduledPostDialogOpen] = useState(false);
 
   const [selectedDateForEvents, setSelectedDateForEvents] =
     useState<Date | null>(null);
@@ -475,12 +470,6 @@ export const CalendarView = React.memo(function CalendarView({
     if (event.type === "newsletter") {
       setSelectedNewsletter(event.meta);
       setNewsletterDrawerOpen(true);
-      return;
-    }
-
-    if (event.type === "scheduled_post") {
-      setSelectedScheduledPost(event.meta);
-      setScheduledPostDialogOpen(true);
       return;
     }
 
@@ -915,19 +904,6 @@ export const CalendarView = React.memo(function CalendarView({
           void handleDeleteNewsletter(newsletter);
         }}
         onViewInCRM={handleViewNewsletterInCRM}
-      />
-
-      <ScheduledPostDetailsDialog
-        post={selectedScheduledPost}
-        open={scheduledPostDialogOpen}
-        onClose={() => {
-          setScheduledPostDialogOpen(false);
-          setSelectedScheduledPost(null);
-        }}
-        onViewContent={(task) => {
-          setSelectedTaskForModal(task);
-          setContentModalOpen(true);
-        }}
       />
 
       {selectedTaskForModal ? (

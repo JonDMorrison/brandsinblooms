@@ -9,7 +9,7 @@ import TabList from "@mui/joy/TabList";
 import TabPanel from "@mui/joy/TabPanel";
 import Tabs from "@mui/joy/Tabs";
 import Typography from "@mui/joy/Typography";
-import { Globe, Mail, type LucideIcon, Share2, Store } from "lucide-react";
+import { Globe, Mail, type LucideIcon, Store } from "lucide-react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { ConnectionsSettings } from "./ConnectionsSettings";
 import { AccountBillingSettings } from "./AccountBillingSettings";
@@ -18,10 +18,8 @@ import { DebugSettings } from "./DebugSettings";
 import { SupportSettings } from "./SupportSettings";
 import { POSSetupWizard } from "@/components/crm/pos/POSSetupWizard";
 import { usePOSConnection } from "@/hooks/usePOSConnection";
-import { useConnectedAccounts } from "@/components/dashboard/ConnectedAccountChecker";
 import { useSenderConfiguration } from "@/hooks/useSenderConfiguration";
 import { useDomains } from "@/hooks/useDomains";
-import { SettingsInlineError } from "./SettingsSurface";
 
 type SettingsTabId = "connections" | "account" | "compliance" | "debug" | "support";
 type StatusChipColor = "success" | "warning" | "neutral";
@@ -113,7 +111,7 @@ const SettingsPageSkeleton = () => {
           gap: 3,
         }}
       >
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 3 }).map((_, index) => (
           <Skeleton
             key={index}
             variant="rectangular"
@@ -189,12 +187,6 @@ export const SettingsHub = () => {
   const tabParam = searchParams.get("tab");
 
   const { hasPOSConnection, loading: posLoading } = usePOSConnection();
-  const {
-    data: socialConnections = [],
-    isLoading: socialLoading,
-    error: socialError,
-    refetch: refetchSocial,
-  } = useConnectedAccounts();
   const { senderConfig, loading: senderLoading } = useSenderConfiguration();
   const { domains, emailSenders, loading: domainsLoading } = useDomains();
 
@@ -214,26 +206,6 @@ export const SettingsHub = () => {
     () => emailSenders.filter((sender) => !sender.verified),
     [emailSenders],
   );
-
-  const socialStatus = useMemo<StatusDescriptor>(() => {
-    if (socialError) {
-      return {
-        color: "warning",
-        label: "Unavailable",
-        variant: "soft",
-      };
-    }
-
-    if (socialConnections.length > 0) {
-      return {
-        color: "success",
-        label: `${socialConnections.length} connected`,
-        variant: "soft",
-      };
-    }
-
-    return getNeutralStatus("Not connected");
-  }, [socialConnections.length, socialError]);
 
   const domainStatus = useMemo<StatusDescriptor>(() => {
     if (senderConfig?.isVerified || verifiedDomains.length > 0 || verifiedSenders.length > 0) {
@@ -271,7 +243,7 @@ export const SettingsHub = () => {
     return getNeutralStatus("Not configured");
   }, [senderConfig?.isVerified, verifiedSenders.length]);
 
-  const isHubDataLoading = posLoading || socialLoading || domainsLoading || senderLoading;
+  const isHubDataLoading = posLoading || domainsLoading || senderLoading;
 
   useEffect(() => {
     if (tabParam && !validTabs.has(tabParam as SettingsTabId)) {
@@ -330,12 +302,6 @@ export const SettingsHub = () => {
             }
           />
           <SettingsStatusItem
-            icon={Share2}
-            label="Social"
-            onClick={() => handleTabChange("connections")}
-            status={socialStatus}
-          />
-          <SettingsStatusItem
             component={RouterLink}
             icon={Globe}
             label="Domains"
@@ -351,14 +317,6 @@ export const SettingsHub = () => {
           />
         </Sheet>
 
-        {socialError ? (
-          <SettingsInlineError
-            message="Social account status could not be loaded."
-            onRetry={() => {
-              void refetchSocial();
-            }}
-          />
-        ) : null}
       </Stack>
 
       <Tabs

@@ -20,11 +20,11 @@ export const CompetitorComparison = () => {
       competitorLogos: ["📱", "💬"]
     },
     {
-      service: "Social scheduling (Buffer/Hootsuite)",
-      typicalCost: "$1,200",
+      service: "Loyalty and rewards platform",
+      typicalCost: "$600–$1,200",
       included: true,
-      tooltip: "Multi-platform posting, content calendar, and engagement tracking",
-      competitorLogos: ["📅", "🔄"]
+      tooltip: "POS-connected points, tiers, rewards, and customer communications",
+      competitorLogos: ["⭐", "🎁"]
     },
     {
       service: "Website/blog hosting (Squarespace/Shopify)",

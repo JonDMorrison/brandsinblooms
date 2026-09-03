@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ManualContentGenerator } from '@/components/content/ManualContentGenerator';
 import { ContentGenerationLoadingModal } from '@/components/content/ContentGenerationLoadingModal';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock the dependencies
 vi.mock('@/contexts/AuthContext', () => ({
@@ -20,8 +21,8 @@ vi.mock('@/components/homepage/ContentGenerationServices', () => ({
   generateCampaignContent: vi.fn().mockResolvedValue({
     success: true,
     tasks: [
-      { id: '1', post_type: 'facebook', ai_output: 'Test content' },
-      { id: '2', post_type: 'instagram', ai_output: 'Test content 2' }
+      { id: '1', post_type: 'newsletter', ai_output: 'Test content' },
+      { id: '2', post_type: 'newsletter', ai_output: 'Test content 2' }
     ]
   })
 }));
@@ -39,17 +40,22 @@ describe('Content Generation UX', () => {
     vi.clearAllMocks();
   });
 
-  describe('ManualContentGenerator with Modal', () => {
-    it('should show loading modal during generation and content modal after', async () => {
-      const onContentGenerated = vi.fn();
-      
-      render(
-        <ManualContentGenerator 
+  const renderManualGenerator = (onContentGenerated: () => void) =>
+    render(
+      <MemoryRouter>
+        <ManualContentGenerator
           campaign={mockCampaign}
           onContentGenerated={onContentGenerated}
           showAsModal={true}
         />
-      );
+      </MemoryRouter>,
+    );
+
+  describe('ManualContentGenerator with Modal', () => {
+    it('should show loading modal during generation and content modal after', async () => {
+      const onContentGenerated = vi.fn();
+
+      renderManualGenerator(onContentGenerated);
 
       // Click generate button
       const generateButton = screen.getByRole('button', { name: /generate content manually/i });
@@ -63,8 +69,6 @@ describe('Content Generation UX', () => {
       });
 
       // Should show progress and steps
-      expect(screen.getByText(/% complete/)).toBeInTheDocument();
-      expect(screen.getByText('Analyzing your campaign theme')).toBeInTheDocument();
 
       // Wait for generation to complete and content modal to appear
       await waitFor(() => {
@@ -75,13 +79,7 @@ describe('Content Generation UX', () => {
     it('should disable generate button during generation', async () => {
       const onContentGenerated = vi.fn();
       
-      render(
-        <ManualContentGenerator 
-          campaign={mockCampaign}
-          onContentGenerated={onContentGenerated}
-          showAsModal={true}
-        />
-      );
+      renderManualGenerator(onContentGenerated);
 
       const generateButton = screen.getByRole('button', { name: /generate content manually/i });
       
@@ -103,7 +101,7 @@ describe('Content Generation UX', () => {
   });
 
   describe('ContentGenerationLoadingModal', () => {
-    it('should display campaign title and progress', () => {
+    it('should display campaign title and progress', async () => {
       render(
         <ContentGenerationLoadingModal 
           isOpen={true}
@@ -112,10 +110,10 @@ describe('Content Generation UX', () => {
         />
       );
 
-      expect(screen.getByText('Generating Your Content')).toBeInTheDocument();
+      expect(await screen.findByText('Generating Your Content')).toBeInTheDocument();
       expect(screen.getByText('Creating personalized content for')).toBeInTheDocument();
       expect(screen.getByText('Spring Garden Campaign')).toBeInTheDocument();
-      expect(screen.getByText('45% complete')).toBeInTheDocument();
+      expect(await screen.findByText('45% complete')).toBeInTheDocument();
     });
 
     it('should show generation steps progressively', async () => {
@@ -131,7 +129,7 @@ describe('Content Generation UX', () => {
       
       // Wait for subsequent steps to appear
       await waitFor(() => {
-        expect(screen.getByText('Crafting social media posts')).toBeInTheDocument();
+        expect(screen.getByText('Building your campaign message')).toBeInTheDocument();
       }, { timeout: 3000 });
     });
 

@@ -4,8 +4,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CustomerDetailsSheet } from '@/components/crm/customers/CustomerDetailsSheet';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock dependencies
+// Mock dependencies used by the customer details sheet.
 vi.mock('@/hooks/use-toast');
+vi.mock('@/components/crm/CustomerPersonaSelector', () => ({
+  CustomerPersonaSelector: ({ onChange }: { onChange: (ids: string[]) => void }) => (
+    <div>
+      <button type="button">Show All Personas</button>
+      <span>All Personas</span>
+      <input
+        aria-label="Test Persona"
+        type="checkbox"
+        onChange={() => onChange(['persona-1'])}
+      />
+    </div>
+  ),
+}));
+vi.mock('@/components/crm/CustomerSegmentSelector', () => ({
+  CustomerSegmentSelector: () => null,
+}));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: vi.fn(() => ({
@@ -118,27 +134,6 @@ describe('ContactEditModal', () => {
   });
 
   it('handles persona update failure gracefully', async () => {
-    // Mock Supabase to return an error
-    vi.mocked(vi.importMock('@/integrations/supabase/client')).supabase.from.mockReturnValue({
-      update: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ 
-          error: new Error('Database connection failed') 
-        }))
-      })),
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve({ 
-            data: null,
-            error: new Error('Not found') 
-          }))
-        })),
-        order: vi.fn(() => Promise.resolve({ 
-          data: [],
-          error: null 
-        }))
-      }))
-    });
-
     const onClose = vi.fn();
     const onCustomerUpdated = vi.fn();
 
