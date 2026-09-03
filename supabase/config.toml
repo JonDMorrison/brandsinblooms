@@ -400,9 +400,6 @@ verify_jwt = false
 [functions.clover-sync-customers]
 verify_jwt = true
 
-[functions.vmx-sync-customers]
-verify_jwt = true
-
 [functions.clover-sync-sales]
 verify_jwt = true
 
@@ -518,3 +515,30 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-form]
+verify_jwt = false
+
+[functions.process-form-submitted]
+verify_jwt = false
+
+[functions.serve-embed-assets]
+verify_jwt = false
+
+[functions.serve-embed-js]
+verify_jwt = false
+[functions.handle-unsubscribe]
+verify_jwt = false
+
+[functions.validate-preference-token]
+verify_jwt = true
+
+[functions.update-email-preference]
+verify_jwt = true
+
+[functions.recompute-segment-memberships]
+verify_jwt = true
+
+[functions.pos-link-customers]
+verify_jwt = true
+
+[functions.vmx-sync-customers]
+verify_jwt = true
