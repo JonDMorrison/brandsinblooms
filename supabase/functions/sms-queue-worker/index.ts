@@ -227,8 +227,15 @@ async function sendSMSViaMTA(
       };
     }
 
-    const messageId = sendData.messageId || sendData.id || crypto.randomUUID();
-    return { success: true, messageId };
+    const rawMessageId = sendData.messageId ?? sendData.id;
+    const messageId = typeof rawMessageId === "string" || typeof rawMessageId === "number"
+      ? String(rawMessageId)
+      : undefined;
+    return {
+      success: true,
+      messageId,
+      error: messageId ? undefined : "Provider accepted SMS without a message ID",
+    };
 
   } catch (error) {
     return { 
@@ -676,11 +683,16 @@ Deno.serve(async (req) => {
               .from('sms_messages')
               .update({
                 status: 'sent',
-                twilio_sid: result.messageId, // Reusing field for MTA message ID
+                twilio_sid: result.messageId ?? null, // Legacy compatibility field
+                provider: 'mobile_text_alerts',
+                provider_message_id: result.messageId ?? null,
+                provider_status: result.messageId ? 'sent' : 'accepted_untrackable',
+                provider_status_at: now,
+                provider_status_source: 'send',
                 sent_at: now,
-                error_message: null,
-                error_code: null,
-                failure_type: null,
+                error_message: result.error ?? null,
+                error_code: result.messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+                failure_type: result.messageId ? null : 'provider_tracking',
                 updated_at: now,
               })
               .eq('id', msg.id)
@@ -901,11 +913,16 @@ Deno.serve(async (req) => {
             .from('sms_messages')
             .update({
               status: 'sent',
-              twilio_sid: result.messageId,
+              twilio_sid: result.messageId ?? null,
+              provider: 'mobile_text_alerts',
+              provider_message_id: result.messageId ?? null,
+              provider_status: result.messageId ? 'sent' : 'accepted_untrackable',
+              provider_status_at: now,
+              provider_status_source: 'send',
               sent_at: now,
-              error_message: null,
-              error_code: null,
-              failure_type: null,
+              error_message: result.error ?? null,
+              error_code: result.messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+              failure_type: result.messageId ? null : 'provider_tracking',
               updated_at: now,
             })
             .eq('id', msg.id);

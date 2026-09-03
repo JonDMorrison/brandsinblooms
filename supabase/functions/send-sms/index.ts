@@ -406,8 +406,12 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const messageId = sendData.messageId || sendData.id || crypto.randomUUID();
-    console.log(`📱 SMS sent successfully via MTA: ${messageId}`);
+    const rawMessageId = sendData.messageId ?? sendData.id;
+    const messageId = typeof rawMessageId === 'string' || typeof rawMessageId === 'number'
+      ? String(rawMessageId)
+      : null;
+    const trackingError = messageId ? null : 'Provider accepted SMS without a message ID';
+    console.log(`📱 SMS accepted by MTA: ${messageId ?? 'tracking ID unavailable'}`);
 
     // Log the SMS send
     try {
@@ -418,6 +422,14 @@ async function handler(req: Request): Promise<Response> {
         content: finalMessage,
         status: 'sent',
         twilio_sid: messageId, // Reusing field for MTA message ID
+        provider: 'mobile_text_alerts',
+        provider_message_id: messageId,
+        provider_status: messageId ? 'sent' : 'accepted_untrackable',
+        provider_status_at: new Date().toISOString(),
+        provider_status_source: 'send',
+        error_code: messageId ? null : 'MTA_MESSAGE_ID_MISSING',
+        error_message: trackingError,
+        failure_type: messageId ? null : 'provider_tracking',
         media_urls: allMediaUrls.length > 0 ? allMediaUrls : null,
         sent_at: new Date().toISOString(),
       }).select('id').maybeSingle();
@@ -442,6 +454,7 @@ async function handler(req: Request): Promise<Response> {
         sid: messageId,
         status: 'sent',
         message: 'SMS sent successfully via Mobile Text Alerts',
+        trackingWarning: trackingError,
         skipable: false
       }),
       {

@@ -490,6 +490,9 @@ verify_jwt = true
 [functions.mta-debug-numbers]
 verify_jwt = true
 
+[functions.mta-delivery-reconciliation-worker]
+verify_jwt = false
+
 [functions.constant-contact-fetch-lists]
 verify_jwt = true
 
