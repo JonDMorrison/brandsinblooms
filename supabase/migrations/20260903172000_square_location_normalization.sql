@@ -360,7 +360,8 @@ BEGIN
     FROM identity_candidates
   ),
   identities AS (
-    SELECT external_id, min(customer_id) AS customer_id
+    SELECT external_id,
+      (array_agg(customer_id ORDER BY customer_id))[1] AS customer_id
     FROM preferred_candidates
     WHERE priority = preferred_priority
     GROUP BY external_id
