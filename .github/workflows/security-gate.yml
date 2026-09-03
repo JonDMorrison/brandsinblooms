@@ -22,6 +22,15 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Validate Supabase config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          tomllib.loads(Path("supabase/config.toml").read_text())
+          PY
+
       - name: Install locked dependencies
         run: npm ci
 
