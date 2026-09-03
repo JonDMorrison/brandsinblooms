@@ -22,6 +22,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function isServiceRequest(req: Request, serviceRoleKey: string): boolean {
+  if (!serviceRoleKey) return false;
+  return req.headers.get("Authorization") === `Bearer ${serviceRoleKey}`;
+}
+
 // Provider-specific sync handlers
 interface SyncResult {
   customers: number;
@@ -3416,40 +3421,78 @@ async function syncSquare(
     // Process each loyalty account
     for (const account of loyaltyAccounts) {
       // 1. Find the customer by square_customer_id
-      const { data: customer } = await supabase
+      const { data: customer, error: customerError } = await supabase
         .from("crm_customers")
-        .select("id, tags")
+        .select("id, tags, loyalty_member")
         .eq("tenant_id", connection.tenant_id)
         .eq("square_customer_id", account.customer_id)
-        .single();
+        .maybeSingle();
+
+      if (customerError) {
+        throw new Error(
+          `Square loyalty customer lookup failed: ${customerError.message}`,
+        );
+      }
 
       if (customer) {
         // 2. Add "Loyalty Member" tag if not present
         const existingTags = customer.tags || [];
-        if (!existingTags.includes("Loyalty Member")) {
-          await supabase
+        if (
+          !existingTags.includes("Loyalty Member") ||
+          customer.loyalty_member !== true
+        ) {
+          const { error: customerUpdateError } = await supabase
             .from("crm_customers")
             .update({
-              tags: [...existingTags, "Loyalty Member"],
+              tags: existingTags.includes("Loyalty Member")
+                ? existingTags
+                : [...existingTags, "Loyalty Member"],
+              loyalty_member: true,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", customer.id);
+            .eq("id", customer.id)
+            .eq("tenant_id", connection.tenant_id);
+
+          if (customerUpdateError) {
+            throw new Error(
+              `Square loyalty customer update failed: ${customerUpdateError.message}`,
+            );
+          }
         }
 
-        // 3. Upsert loyalty metrics
-        await supabase.from("customer_loyalty_metrics").upsert(
+        const balance = toFiniteNumber(account.balance, 0);
+        const lifetimePoints = toFiniteNumber(account.lifetime_points, 0);
+        const observedAt =
+          typeof account.updated_at === "string"
+            ? account.updated_at
+            : new Date().toISOString();
+
+        // 3. Persist the provider account and immutable balance snapshot.
+        // The RPC validates tenant/customer ownership and updates the current
+        // normalized points metrics atomically.
+        const { error: loyaltyError } = await supabase.rpc(
+          "sync_loyalty_account_snapshot",
           {
-            tenant_id: connection.tenant_id,
-            customer_id: customer.id,
-            program_name: "Square Loyalty",
-            points_balance: account.balance || 0,
-            lifetime_points: account.lifetime_points || 0,
-            enrolled_at: account.enrolled_at,
-            external_loyalty_id: account.id,
-            updated_at: new Date().toISOString(),
+            p_tenant_id: connection.tenant_id,
+            p_customer_id: customer.id,
+            p_provider: "square",
+            p_external_account_id: account.id,
+            p_external_program_id: account.program_id || null,
+            p_program_name: "Square Loyalty",
+            p_balance: balance,
+            p_lifetime_value: lifetimePoints,
+            p_balance_unit: "points",
+            p_currency: null,
+            p_enrolled_at: account.enrolled_at || null,
+            p_observed_at: observedAt,
           },
-          { onConflict: "external_loyalty_id" },
         );
+
+        if (loyaltyError) {
+          throw new Error(
+            `Square loyalty snapshot failed: ${loyaltyError.message}`,
+          );
+        }
 
         result.customers++;
       }
@@ -3644,9 +3687,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!isServiceRequest(req, serviceRoleKey)) {
+    return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    serviceRoleKey,
   );
 
   let job: any = null;
