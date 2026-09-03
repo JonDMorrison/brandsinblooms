@@ -3,6 +3,11 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { checkSMSAvailability } from "../_shared/channelAvailability.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 import { checkSmsSendEligibility } from "../_shared/smsConsentGate.ts";
+import {
+  extractMtaRecipientValidation,
+  extractMtaSendAcceptance,
+  toMtaRequestId,
+} from "../_shared/mtaSendResponse.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -125,7 +130,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const { to, body, mediaUrl, mediaUrls, purpose, tenantId, customerId } = await req.json();
+    const { to, body, mediaUrl, mediaUrls, purpose, tenantId, customerId, idempotencyKey } = await req.json();
 
     if (!to || !body) {
       return new Response(
@@ -205,6 +210,10 @@ async function handler(req: Request): Promise<Response> {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+    const messageCorrelationId = isInternal && typeof idempotencyKey === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)
+      ? idempotencyKey
+      : crypto.randomUUID();
 
     if (!isInternal && purpose !== 'test') {
       return new Response(
@@ -241,7 +250,7 @@ async function handler(req: Request): Promise<Response> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        recipients: [{ number: formattedTo, externalId: "bloomsuite" }],
+        recipients: [{ number: formattedTo, externalId: messageCorrelationId }],
         validateUnsubscribes: true,
       }),
     });
@@ -269,19 +278,17 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // Check if any recipients are invalid or unsubscribed
-    const invalidList = Array.isArray(validateData?.invalid) ? validateData.invalid : [];
-    const unsubscribedList = Array.isArray(validateData?.unsubscribed) ? validateData.unsubscribed : [];
-
-    if (invalidList.length > 0 || unsubscribedList.length > 0) {
+    // Check the documented data.invalidRecipients response shape.
+    const validation = extractMtaRecipientValidation(validateData);
+    if (validation.invalidRecipients.length > 0) {
       let errorMessage: string;
 
-      if (unsubscribedList.length > 0) {
+      if (validation.hasUnsubscribedRecipient) {
         errorMessage = "This number has opted out. They must text UNSTOP to opt back in.";
-      } else if (invalidList.length > 0) {
-        errorMessage = `Invalid phone number: ${invalidList.join(", ")}`;
       } else {
-        errorMessage = "Recipient validation failed";
+        errorMessage = validation.invalidRecipients
+          .map(({ recipient, error }) => [recipient, error].filter(Boolean).join(": "))
+          .join(", ") || "Recipient validation failed";
       }
 
       return new Response(
@@ -335,7 +342,7 @@ async function handler(req: Request): Promise<Response> {
     console.log(`📱 [MTA] Sending message to ${formattedTo}`);
 
     let sendPayload: Record<string, unknown>;
-    let sendEndpoint: string;
+    const sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
 
     // Build media URLs array
     const allMediaUrls: string[] = [];
@@ -343,19 +350,19 @@ async function handler(req: Request): Promise<Response> {
     if (mediaUrls && Array.isArray(mediaUrls)) allMediaUrls.push(...mediaUrls);
 
     if (templateId) {
-      // Use template endpoint for unverified accounts
-      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send/controlled-template`;
+      // The v3 send contract accepts templateId directly.
       sendPayload = {
         subscribers: [formattedTo],
         templateId: templateId,
+        externalId: messageCorrelationId,
       };
-      console.log(`📱 [MTA] Using controlled template endpoint with templateId: ${templateId}`);
+      console.log(`📱 [MTA] Using controlled template with templateId: ${templateId}`);
     } else {
       // Use regular send
-      sendEndpoint = `${MOBILE_TEXT_ALERTS_BASE_URL}/v3/send`;
       sendPayload = {
         subscribers: [formattedTo],
         message: finalMessage,
+        externalId: messageCorrelationId,
       };
 
       // Add longcodeId if configured (for multi-number accounts)
@@ -379,6 +386,8 @@ async function handler(req: Request): Promise<Response> {
       headers: {
         Authorization: `Bearer ${MOBILE_TEXT_ALERTS_API_KEY}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Request-Id": toMtaRequestId(messageCorrelationId),
       },
       body: JSON.stringify(sendPayload),
     });
@@ -388,7 +397,8 @@ async function handler(req: Request): Promise<Response> {
 
     console.log(`📱 [MTA] Send response (HTTP ${sendParsed.status}):`, JSON.stringify(sendData));
 
-    if (!sendParsed.ok) {
+    const duplicateAccepted = sendParsed.status === 409;
+    if ((!sendParsed.ok && !duplicateAccepted) || (sendData?.success === false && !duplicateAccepted)) {
       const errorMessage = sendData?.message || sendData?.error ||
         `Failed to send message (HTTP ${sendParsed.status})`;
 
@@ -406,16 +416,19 @@ async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const rawMessageId = sendData.messageId ?? sendData.id;
-    const messageId = typeof rawMessageId === 'string' || typeof rawMessageId === 'number'
-      ? String(rawMessageId)
-      : null;
-    const trackingError = messageId ? null : 'Provider accepted SMS without a message ID';
+    const acceptance = extractMtaSendAcceptance(sendData);
+    const messageId = acceptance.messageId;
+    const trackingError = messageId
+      ? null
+      : duplicateAccepted
+      ? 'Provider previously accepted this idempotent request; awaiting delivery reconciliation'
+      : 'Provider accepted SMS without a message ID';
     console.log(`📱 SMS accepted by MTA: ${messageId ?? 'tracking ID unavailable'}`);
 
     // Log the SMS send
     try {
       const { data: loggedMessage } = await supabase.from('sms_messages').insert({
+        id: messageCorrelationId,
         tenant_id: tenantId || null,
         customer_id: customerId || null,
         phone: formattedTo,

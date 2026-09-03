@@ -11,7 +11,15 @@ const worker = readFileSync(
 );
 const sendSms = readFileSync("supabase/functions/send-sms/index.ts", "utf8");
 const queueWorker = readFileSync("supabase/functions/sms-queue-worker/index.ts", "utf8");
+const automationOutbox = readFileSync(
+  "supabase/functions/process-automation-outbox/index.ts",
+  "utf8",
+);
 const functionConfig = readFileSync("supabase/config.toml", "utf8");
+const correlationMigration = readFileSync(
+  "supabase/migrations/20260903131500_mta_send_correlation.sql",
+  "utf8",
+);
 
 describe("MTA delivery reconciliation release gate", () => {
   it("keeps reconciliation RPCs service-only and delivery events idempotent", () => {
@@ -40,5 +48,19 @@ describe("MTA delivery reconciliation release gate", () => {
       expect(source).toContain("MTA_MESSAGE_ID_MISSING");
       expect(source).toContain("provider_message_id");
     }
+  });
+
+  it("uses the documented nested send ID and stable BloomSuite correlation IDs", () => {
+    for (const source of [sendSms, queueWorker]) {
+      expect(source).toContain("extractMtaSendAcceptance(sendData)");
+      expect(source).toContain("externalId");
+      expect(source).toContain('"X-Request-Id"');
+    }
+    expect(queueWorker).toContain("externalId: msg.id");
+    expect(automationOutbox).toContain("idempotencyKey: message.id");
+    expect(sendSms).toContain("duplicateAccepted = sendParsed.status === 409");
+    expect(correlationMigration).toContain("m.id::text = v_external_id");
+    expect(correlationMigration).toContain("provider_message_id = v_provider_message_id");
+    expect(correlationMigration).toMatch(/REVOKE ALL ON FUNCTION public\.apply_sms_delivery_status_batch[\s\S]*anon, authenticated/);
   });
 });
