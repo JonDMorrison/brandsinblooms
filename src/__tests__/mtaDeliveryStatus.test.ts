@@ -32,8 +32,26 @@ describe("Mobile Text Alerts delivery normalization", () => {
 
   it("normalizes provider status spelling and extracts only data.rows", () => {
     expect(normalizeMtaStatus("  Not-Delivered  ")).toBe("not_delivered");
+    expect(normalizeMtaStatus(4)).toBe("delivered");
+    expect(normalizeMtaStatus(11)).toBe("failed");
     const rows = [{ messageId: 1, status: "sent" }];
     expect(extractMtaDeliveryRows({ data: { rows } })).toBe(rows);
     expect(extractMtaDeliveryRows({ rows })).toEqual([]);
+  });
+
+  it("normalizes the documented v3 webhook field names", () => {
+    expect(normalizeMtaDelivery({
+      messageId: "mta-42",
+      externalId: "customer-message-id",
+      status: 4,
+      timestamp: "2026-09-03T12:00:00Z",
+      toNumber: "+15555550123",
+    })).toMatchObject({
+      providerMessageId: "mta-42",
+      externalId: "customer-message-id",
+      status: "delivered",
+      occurredAt: "2026-09-03T12:00:00.000Z",
+      destination: "+15555550123",
+    });
   });
 });
