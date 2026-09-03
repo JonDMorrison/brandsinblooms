@@ -96,6 +96,14 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!serviceRoleKey) throw new Error('Identity service is not configured');
+    const identityClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      serviceRoleKey,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+
     // Parse request body for chain parameters
     let jobId: string | undefined;
     let cursor: string | undefined;
@@ -241,65 +249,61 @@ Deno.serve(async (req) => {
     let failed = 0;
 
     if (customers.length > 0) {
-      // DEDUPLICATE within batch - Square may return same email multiple times
-      // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+      // A provider customer ID is immutable identity. Email is only a secondary
+      // signal and must never collapse two distinct Square customers.
       const deduplicatedMap = new Map<string, SquareCustomer>();
       for (const customer of customers) {
-        const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
-        // Keep the most recent version (last occurrence wins)
-        deduplicatedMap.set(customerEmail.toLowerCase(), customer);
+        deduplicatedMap.set(customer.id, customer);
       }
 
       const deduplicatedCustomers = Array.from(deduplicatedMap.values());
       console.log(`[SQUARE-SYNC] Deduplicated ${customers.length} → ${deduplicatedCustomers.length} unique customers`);
 
       const customerRecords = deduplicatedCustomers.map(customer => {
-        const customerEmail = customer.email_address || `square-${customer.id}@noemail.local`;
-        const emailOptIn = customer.preferences?.email_unsubscribed === true 
-          ? false 
-          : customer.preferences?.email_unsubscribed === false 
-            ? true 
-            : null;
         const tags = mapGroupIdsToNames(customer.group_ids, groupMap);
 
         return {
-          tenant_id: userData.tenant_id,
-          user_id: user.id,
-          email: customerEmail.toLowerCase(),
+          external_id: customer.id,
+          email: customer.email_address?.toLowerCase() || null,
+          phone: customer.phone_number || null,
           first_name: customer.given_name || null,
           last_name: customer.family_name || null,
-          phone: customer.phone_number || null,
-          pos_source: 'square',
-          email_opt_in: emailOptIn,
-          email_consent_source: emailOptIn !== null ? 'square_pos_import' : null,
-          tags: tags.length > 0 ? tags : null,
-          square_customer_id: customer.id,
-          square_group_ids: customer.group_ids || null,
-          square_last_synced_at: new Date().toISOString(),
-          created_at: customer.created_at || new Date().toISOString(),
-          updated_at: customer.updated_at || new Date().toISOString(),
+          tags,
+          created_at: customer.created_at || null,
+          updated_at: customer.updated_at || null,
         };
       });
 
-      console.log(`[SQUARE-SYNC] Batch upserting ${customerRecords.length} customers...`);
+      console.log(`[SQUARE-SYNC] Resolving ${customerRecords.length} canonical identities...`);
       
       try {
-        const { error: upsertError } = await supabaseClient
-          .from('crm_customers')
-          .upsert(customerRecords, {
-            onConflict: 'tenant_id,email',
-            ignoreDuplicates: false,
-          });
+        const { data: identityResult, error: identityError } = await identityClient.rpc(
+          'resolve_provider_customer_identity_batch',
+          {
+            p_tenant_id: userData.tenant_id,
+            p_provider: 'square',
+            p_user_id: user.id,
+            p_customers: customerRecords,
+          }
+        );
 
-        if (upsertError) {
-          console.error('[SQUARE-SYNC] Batch upsert error:', upsertError);
+        if (identityError) {
+          console.error('[SQUARE-SYNC] Identity batch error:', identityError);
           failed = customerRecords.length;
         } else {
-          synced = customerRecords.length;
-          console.log(`[SQUARE-SYNC] Successfully upserted ${synced} customers`);
+          const result = identityResult as {
+            resolved?: number;
+            ambiguous?: number;
+            failed?: number;
+          } | null;
+          synced = result?.resolved || 0;
+          failed = (result?.ambiguous || 0) + (result?.failed || 0);
+          console.log(
+            `[SQUARE-SYNC] Resolved ${synced} customers; ${failed} require attention`
+          );
         }
       } catch (upsertCatchError: any) {
-        console.error('[SQUARE-SYNC] Batch upsert exception:', upsertCatchError.message);
+        console.error('[SQUARE-SYNC] Identity batch exception:', upsertCatchError.message);
         failed = customerRecords.length;
       }
     }

@@ -18,7 +18,13 @@ const orderMigration = readSource(
 const legacyOrderMigration = readSource(
   "supabase/migrations/20260903093000_legacy_pos_order_identity_resolution.sql",
 );
+const providerBatchMigration = readSource(
+  "supabase/migrations/20260903100000_provider_customer_identity_batch.sql",
+);
 const linker = readSource("supabase/functions/pos-link-customers/index.ts");
+const squareCustomerSync = readSource(
+  "supabase/functions/square-sync-customers/index.ts",
+);
 const config = readSource("supabase/config.toml");
 
 describe("customer identity resolution release gate", () => {
@@ -101,5 +107,27 @@ describe("customer identity resolution release gate", () => {
     );
     expect(legacyOrderMigration).not.toMatch(/email_opt_in\s*=/i);
     expect(legacyOrderMigration).not.toMatch(/sms_opt_in\s*=/i);
+  });
+
+  it("routes provider-native customer batches through canonical identity", () => {
+    expect(providerBatchMigration).toContain(
+      "CREATE OR REPLACE FUNCTION public.resolve_provider_customer_identity",
+    );
+    expect(providerBatchMigration).toContain("provider_external_id");
+    expect(providerBatchMigration).toContain("ambiguous_external_id");
+    expect(providerBatchMigration).toContain("pg_advisory_xact_lock");
+    expect(providerBatchMigration).not.toMatch(/email_opt_in\s*=/i);
+    expect(providerBatchMigration).not.toMatch(/sms_opt_in\s*=/i);
+  });
+
+  it("never deduplicates or upserts Square customers by email", () => {
+    expect(squareCustomerSync).toContain("deduplicatedMap.set(customer.id");
+    expect(squareCustomerSync).toContain(
+      "resolve_provider_customer_identity_batch",
+    );
+    expect(squareCustomerSync).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(squareCustomerSync).not.toContain(".upsert(customerRecords");
+    expect(squareCustomerSync).not.toContain("email_opt_in:");
+    expect(squareCustomerSync).not.toContain("email_consent_source:");
   });
 });
