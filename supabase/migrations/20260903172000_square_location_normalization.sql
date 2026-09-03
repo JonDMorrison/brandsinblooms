@@ -518,21 +518,9 @@ REVOKE ALL ON FUNCTION public.recompute_square_customer_locations(uuid, text[])
 GRANT EXECUTE ON FUNCTION public.recompute_square_customer_locations(uuid, text[])
   TO authenticated, service_role;
 
-DO $backfill$
-DECLARE
-  v_tenant record;
-BEGIN
-  FOR v_tenant IN
-    SELECT DISTINCT order_row.tenant_id
-    FROM public.pos_orders AS order_row
-    WHERE order_row.provider = 'square'
-      AND order_row.tenant_id IS NOT NULL
-      AND order_row.location_id IS NOT NULL
-  LOOP
-    PERFORM public.recompute_square_customer_locations(v_tenant.tenant_id, NULL);
-  END LOOP;
-END;
-$backfill$;
+-- Historical customer/location activity is reconciled after this migration in
+-- bounded external-customer batches. Keeping that rebuild outside the schema
+-- transaction avoids holding DDL locks while a large customer ledger is ranked.
 
 COMMENT ON COLUMN public.pos_orders.tenant_id IS
   'Durable tenant boundary copied from the provider connection.';

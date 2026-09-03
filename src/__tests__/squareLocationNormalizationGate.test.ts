@@ -54,6 +54,8 @@ describe("Square location normalization", () => {
     expect(migration).toContain("array_agg(customer_id ORDER BY customer_id)");
     expect(migration).not.toContain("min(customer_id)");
     expect(migration).not.toContain("visit_count = activity.visit_count +");
+    expect(migration).not.toContain("DO $backfill$");
+    expect(migration).toContain("bounded external-customer batches");
   });
 
   it("fails syncs rather than reporting partial order writes as success", () => {
