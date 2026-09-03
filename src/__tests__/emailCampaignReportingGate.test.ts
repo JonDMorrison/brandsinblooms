@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeEmailCampaignReportingSnapshot } from "@/hooks/analytics/useCampaignDerivedMetrics";
 
 const migration = readFileSync(
-  "supabase/migrations/20260903135620_trustworthy_email_campaign_reporting.sql",
+  "supabase/migrations/20260903160000_email_reporting_unconfirmed_delivery.sql",
   "utf8",
 );
 const report = readFileSync("src/pages/crm/CRMCampaignReport.tsx", "utf8");
@@ -44,11 +44,16 @@ describe("email campaign reporting release gate", () => {
   it("reports terminal failures, pending delivery, and machine-adjusted engagement", () => {
     expect(migration).toContain("'failed', totals.failed");
     expect(migration).toContain("'pending', totals.pending");
+    expect(migration).toContain("'unconfirmed', totals.unconfirmed");
+    expect(migration).toContain(
+      "totals.pending = 0 AND totals.unconfirmed = 0",
+    );
     expect(migration).toContain("'partial_send'");
     expect(migration).toContain("'delivery_complete'");
     expect(migration).toContain("event.is_mpp_guess");
     expect(migration).toContain("opened_non_mpp OR clicked");
     expect(report).toContain("Campaign delivery is not complete");
+    expect(report).toContain("Campaign delivery is not fully confirmed");
     expect(report).toContain("Top failures:");
     expect(report).toContain("metrics.totals.failed.toString()");
     expect(report).toContain("adjustedUniqueOpens");
@@ -81,6 +86,7 @@ describe("email campaign reporting release gate", () => {
           failed: "12",
           skipped: "3",
           pending: "4",
+          unconfirmed: "2161",
         },
         diagnostics: {
           partial_send: true,
@@ -99,6 +105,7 @@ describe("email campaign reporting release gate", () => {
     expect(snapshot?.metrics.totals.total_clicks).toBe(6296);
     expect(snapshot?.metrics.totals.failed).toBe(12);
     expect(snapshot?.metrics.totals.pending).toBe(4);
+    expect(snapshot?.metrics.totals.unconfirmed).toBe(2161);
     expect(snapshot?.metrics.diagnostics.partial_send).toBe(true);
     expect(snapshot?.timeline).toEqual([
       { hour: 0, opens: 1500, clicks: 1200 },
