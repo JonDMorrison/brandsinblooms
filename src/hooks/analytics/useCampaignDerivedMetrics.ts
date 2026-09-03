@@ -34,6 +34,7 @@ export interface DerivedMetrics {
     skipped: number;
     failed: number;
     pending: number;
+    unconfirmed: number;
   };
   scores: {
     reach: number;
@@ -54,6 +55,7 @@ export interface DerivedMetrics {
     missing_send_ledger: boolean;
     partial_send: boolean;
     delivery_complete: boolean;
+    unconfirmed_delivery: number;
     source: string | null;
   };
   reconciliation: {
@@ -179,6 +181,7 @@ export const normalizeDerivedMetrics = (
       skipped: toNumber(totalsSource.skipped, 0),
       failed: toNumber(totalsSource.failed, 0),
       pending: toNumber(totalsSource.pending, 0),
+      unconfirmed: toNumber(totalsSource.unconfirmed, 0),
     },
     scores: {
       reach: toNumber(
@@ -240,6 +243,10 @@ export const normalizeDerivedMetrics = (
         diagnosticsSource.delivery_complete === undefined
           ? true
           : Boolean(diagnosticsSource.delivery_complete),
+      unconfirmed_delivery: toNumber(
+        diagnosticsSource.unconfirmed_delivery ?? totalsSource.unconfirmed,
+        0,
+      ),
       source:
         typeof diagnosticsSource.source === "string"
           ? diagnosticsSource.source

@@ -1210,6 +1210,7 @@ export default function CRMCampaignReport() {
       ["Failed", metrics.totals.failed.toString()],
       ["Skipped", metrics.totals.skipped.toString()],
       ["Pending", metrics.totals.pending.toString()],
+      ["Unconfirmed Delivery", metrics.totals.unconfirmed.toString()],
       ["Unique Opens", report.uniqueOpens.toString()],
       ["Total Opens", report.totalOpens.toString()],
       ["Unique Clicks", report.uniqueClicks.toString()],
@@ -1266,6 +1267,7 @@ export default function CRMCampaignReport() {
   const failed = metrics?.totals.failed ?? 0;
   const skipped = metrics?.totals.skipped ?? 0;
   const pending = metrics?.totals.pending ?? 0;
+  const unconfirmed = metrics?.totals.unconfirmed ?? 0;
   const displayCampaignName = report
     ? normalizeCampaignNameForDisplay(report.campaign.name)
     : "";
@@ -1424,7 +1426,8 @@ export default function CRMCampaignReport() {
           />
         )}
 
-        {!reportQuery.isLoading && failed + skipped + pending > 0 ? (
+        {!reportQuery.isLoading &&
+        failed + skipped + pending + unconfirmed > 0 ? (
           <Sheet
             variant="soft"
             color={failed > 0 ? "danger" : "warning"}
@@ -1436,11 +1439,15 @@ export default function CRMCampaignReport() {
                 <Typography level="title-sm">
                   {pending > 0
                     ? "Campaign delivery is not complete"
-                    : "Campaign did not reach every recipient"}
+                    : unconfirmed > 0
+                      ? "Campaign delivery is not fully confirmed"
+                      : "Campaign did not reach every recipient"}
                 </Typography>
                 <Typography level="body-sm">
                   {failed.toLocaleString()} failed, {skipped.toLocaleString()}{" "}
-                  skipped, and {pending.toLocaleString()} still pending.
+                  skipped, {pending.toLocaleString()} still pending, and{" "}
+                  {unconfirmed.toLocaleString()} awaiting provider delivery
+                  confirmation.
                 </Typography>
                 {report?.failureReasons.length ? (
                   <Typography level="body-xs">
