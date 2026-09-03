@@ -31,6 +31,8 @@ import { toast } from "sonner";
 import { BounceCleanupCard } from "@/components/crm/campaigns/BounceCleanupCard";
 import { CampaignDeliverySummary } from "@/components/crm/campaigns/CampaignDeliverySummary";
 import { CampaignEngagementMetrics } from "@/components/crm/campaigns/CampaignEngagementMetrics";
+import { CampaignRevenueAttribution } from "@/components/crm/campaigns/CampaignRevenueAttribution";
+import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
 import { JoyButton } from "@/components/joy/JoyButton";
 import {
   JoyCard,
@@ -1336,6 +1338,22 @@ export default function CRMCampaignReport() {
       ["Total Clicks", report.totalClicks.toString()],
       ["Unsubscribes", report.unsubscribes.toString()],
       ["Complaints", report.complaints.toString()],
+      [
+        "Attributed Revenue",
+        formatAttributedRevenue(report.campaign.revenueAttribution),
+      ],
+      [
+        "Attributed Orders",
+        report.campaign.revenueAttribution.orders.toString(),
+      ],
+      [
+        "Customers Purchased",
+        report.campaign.revenueAttribution.customers.toString(),
+      ],
+      [
+        "Attribution Method",
+        `${report.campaign.revenueAttribution.windowDays}-day last click`,
+      ],
     ];
 
     const csv = rows
@@ -1539,6 +1557,14 @@ export default function CRMCampaignReport() {
             totalDelivered={Math.max(delivered, 1)}
           />
         )}
+
+        {reportQuery.isLoading ? (
+          <StatsStripSkeleton cells={4} />
+        ) : report ? (
+          <CampaignRevenueAttribution
+            metrics={report.campaign.revenueAttribution}
+          />
+        ) : null}
 
         <Box
           sx={{

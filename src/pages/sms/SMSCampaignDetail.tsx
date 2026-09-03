@@ -34,6 +34,7 @@ import {
   resolveSmsCampaignMetrics,
   type SmsCampaignMetricSource,
 } from "@/lib/sms/smsCampaignMetrics";
+import { formatAttributedRevenue } from "@/lib/crm/campaignRevenueMetrics";
 
 const PAGE_SIZE = 20;
 const MOUNT_SKELETON_MS = 260;
@@ -392,7 +393,9 @@ export default function SMSCampaignDetail() {
   }
 
   const metrics = resolveSmsCampaignMetrics(
-    campaign.metrics && typeof campaign.metrics === "object" && !Array.isArray(campaign.metrics)
+    campaign.metrics &&
+      typeof campaign.metrics === "object" &&
+      !Array.isArray(campaign.metrics)
       ? (campaign.metrics as SmsCampaignMetricSource)
       : null,
   );
@@ -935,9 +938,24 @@ export default function SMSCampaignDetail() {
                     value={metrics.optOuts.toLocaleString()}
                   />
                   <SummaryRow
-                    label="Revenue"
-                    value={`$${metrics.revenue.toFixed(2)}`}
+                    label="Attributed revenue"
+                    value={formatAttributedRevenue(metrics.revenueAttribution)}
                   />
+                  <SummaryRow
+                    label="Customers purchased"
+                    value={metrics.attributedCustomers.toLocaleString()}
+                  />
+                  <SummaryRow
+                    label="Attributed orders"
+                    value={metrics.attributedOrders.toLocaleString()}
+                  />
+                  <SummaryRow
+                    label="Attribution method"
+                    value={`${metrics.attributionWindowDays}-day last click`}
+                  />
+                  <Typography level="body-xs" color="neutral">
+                    Resolved POS purchases after a verified SMS link click.
+                  </Typography>
                 </Stack>
               </Card>
             </Stack>

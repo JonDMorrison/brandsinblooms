@@ -7,6 +7,10 @@ import {
 } from "@/constants/campaignStatuses";
 import type { StudioBlock } from "@/types/studioBlocks";
 import {
+  resolveCampaignRevenueMetrics,
+  type CampaignRevenueMetrics,
+} from "@/lib/crm/campaignRevenueMetrics";
+import {
   persistCampaignRecord,
   type CampaignDraftConflictError,
 } from "@/lib/crm/campaignDraftPersistence";
@@ -70,6 +74,7 @@ export interface CampaignCatalogItem {
   senderEmail: string;
   sourceContentTaskId: string | null;
   syncedFrom: string | null;
+  revenueAttribution: CampaignRevenueMetrics;
 }
 
 export interface CampaignEditorRecord extends CampaignCatalogItem {
@@ -180,6 +185,7 @@ function extractSmsMessage(row: CampaignRow) {
 }
 
 export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
+  const metrics = toRecord(row.metrics);
   return {
     id: row.id,
     name: row.name,
@@ -198,21 +204,17 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
     createdAt: row.created_at,
     sendBlockedReason: row.send_blocked_reason,
     totalRecipients:
-      row.total_recipients ??
-      row.total_sent ??
-      coerceNumber(toRecord(row.metrics).sent),
+      row.total_recipients ?? row.total_sent ?? coerceNumber(metrics.sent),
     projectedRecipientCount:
       row.projected_recipient_count === null
         ? null
         : coerceNumber(row.projected_recipient_count),
     totalBatches: row.total_batches ?? 0,
     messagesSent: row.messages_sent ?? 0,
-    messagesFailed:
-      row.messages_failed ?? coerceNumber(toRecord(row.metrics).failed),
+    messagesFailed: row.messages_failed ?? coerceNumber(metrics.failed),
     messagesSkipped: row.messages_skipped ?? 0,
-    totalOpens: row.total_opens ?? coerceNumber(toRecord(row.metrics).opened),
-    totalClicks:
-      row.total_clicks ?? coerceNumber(toRecord(row.metrics).clicked),
+    totalOpens: row.total_opens ?? coerceNumber(metrics.opened),
+    totalClicks: row.total_clicks ?? coerceNumber(metrics.clicked),
     openRate: row.open_rate ?? 0,
     clickRate: row.click_rate ?? 0,
     workerHeartbeatAt: row.worker_heartbeat_at,
@@ -225,6 +227,7 @@ export function mapCampaignCatalogItem(row: CampaignRow): CampaignCatalogItem {
     senderEmail: row.actual_sender_email ?? row.sender_email ?? "",
     sourceContentTaskId: row.source_content_task_id,
     syncedFrom: row.synced_from,
+    revenueAttribution: resolveCampaignRevenueMetrics(metrics),
   };
 }
 
