@@ -21,6 +21,14 @@ const DEVICE_WIDTHS: Record<StudioDeviceMode, number> = {
   mobile: 375,
 };
 
+const HISTORY_LIMIT = 100;
+
+type BlockHistoryState = {
+  past: StudioBlock[][];
+  present: StudioBlock[];
+  future: StudioBlock[][];
+};
+
 function normalizeBlocks(
   blocks: StudioBlock[],
   designSystem: StudioDesignSystem | null,
@@ -190,7 +198,12 @@ export function useStudioState({
   initialCampaignName,
   designSystem,
 }: UseStudioStateOptions) {
-  const [blocks, setBlocks] = React.useState<StudioBlock[]>([]);
+  const [blockHistory, setBlockHistory] = React.useState<BlockHistoryState>({
+    past: [],
+    present: [],
+    future: [],
+  });
+  const blocks = blockHistory.present;
   const [selectedBlockId, setSelectedBlockId] = React.useState<string | null>(
     null,
   );
@@ -226,6 +239,26 @@ export function useStudioState({
   const addAnimationTimeoutRef = React.useRef<number | null>(null);
   const removalTimeoutsRef = React.useRef<Record<string, number>>({});
 
+  const setBlocks = React.useCallback(
+    (update: React.SetStateAction<StudioBlock[]>) => {
+      setBlockHistory((current) => {
+        const next =
+          typeof update === "function" ? update(current.present) : update;
+
+        if (areBlocksEqual(current.present, next)) {
+          return current;
+        }
+
+        return {
+          past: [...current.past, current.present].slice(-HISTORY_LIMIT),
+          present: next,
+          future: [],
+        };
+      });
+    },
+    [],
+  );
+
   const clearTransientCanvasState = React.useCallback(() => {
     if (addAnimationTimeoutRef.current !== null) {
       window.clearTimeout(addAnimationTimeoutRef.current);
@@ -255,12 +288,12 @@ export function useStudioState({
   }, [clearTransientCanvasState]);
 
   React.useEffect(() => {
-    setBlocks((current) => {
-      const normalizedBlocks = normalizeBlocks(current, designSystem);
+    setBlockHistory((current) => {
+      const normalizedBlocks = normalizeBlocks(current.present, designSystem);
 
-      return areBlocksEqual(current, normalizedBlocks)
+      return areBlocksEqual(current.present, normalizedBlocks)
         ? current
-        : normalizedBlocks;
+        : { ...current, present: normalizedBlocks };
     });
   }, [designSystem]);
 
@@ -286,14 +319,16 @@ export function useStudioState({
       setPreviewText(campaign.previewText);
       setSenderName(campaign.senderName);
       setSenderEmail(campaign.senderEmail);
-      setBlocks(
-        normalizeBlocks(
+      setBlockHistory({
+        past: [],
+        present: normalizeBlocks(
           campaign.blocks.map((block, index) =>
             normalizeLoadedBlock(block, index, designSystem),
           ),
           designSystem,
         ),
-      );
+        future: [],
+      });
     },
     [clearTransientCanvasState, designSystem, initialCampaignName],
   );
@@ -623,6 +658,42 @@ export function useStudioState({
     setIsDraggingOverCanvas(false);
   }, []);
 
+  const undo = React.useCallback(() => {
+    clearTransientCanvasState();
+    setSelectedBlockId(null);
+    setBlockHistory((current) => {
+      const previous = current.past.at(-1);
+
+      if (!previous) {
+        return current;
+      }
+
+      return {
+        past: current.past.slice(0, -1),
+        present: normalizeBlocks(previous, designSystem),
+        future: [current.present, ...current.future].slice(0, HISTORY_LIMIT),
+      };
+    });
+  }, [clearTransientCanvasState, designSystem]);
+
+  const redo = React.useCallback(() => {
+    clearTransientCanvasState();
+    setSelectedBlockId(null);
+    setBlockHistory((current) => {
+      const [next, ...remainingFuture] = current.future;
+
+      if (!next) {
+        return current;
+      }
+
+      return {
+        past: [...current.past, current.present].slice(-HISTORY_LIMIT),
+        present: normalizeBlocks(next, designSystem),
+        future: remainingFuture,
+      };
+    });
+  }, [clearTransientCanvasState, designSystem]);
+
   const beginSidebarDrag = React.useCallback((blockType: StudioBlockType) => {
     setActiveSidebarDragBlock({
       type: blockType,
@@ -663,6 +734,8 @@ export function useStudioState({
     removingBlockIds,
     campaignImageGallery,
     campaignImageFieldSources,
+    canUndo: blockHistory.past.length > 0,
+    canRedo: blockHistory.future.length > 0,
     addBlock,
     removeBlock,
     duplicateBlock,
@@ -686,6 +759,8 @@ export function useStudioState({
     setActiveDropIndex,
     setIsDraggingOverCanvas,
     clearSidebarDragState,
+    undo,
+    redo,
     logFocusFirstPropertyField,
   };
 }

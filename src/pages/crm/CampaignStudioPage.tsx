@@ -2045,9 +2045,9 @@ function CampaignStudioPageContent() {
         event.preventDefault();
 
         if (event.shiftKey) {
-          console.log("Campaign Studio redo shortcut triggered");
+          studio.redo();
         } else {
-          console.log("Campaign Studio undo shortcut triggered");
+          studio.undo();
         }
 
         return;
@@ -2230,6 +2230,10 @@ function CampaignStudioPageContent() {
             onExit={() => {
               void handleExit();
             }}
+            onUndo={studio.undo}
+            onRedo={studio.redo}
+            canUndo={studio.canUndo}
+            canRedo={studio.canRedo}
             lastSavedAt={lastSavedAt}
           />
         </Box>
