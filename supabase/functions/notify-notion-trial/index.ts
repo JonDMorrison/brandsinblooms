@@ -5,6 +5,7 @@ import {
   updateNotionRecord,
   createNotionRecord,
 } from "../_shared/notion-client.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 /**
  * notify-notion-trial
@@ -27,6 +28,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const unauthorized = requireInternalApiKey(req);
+  if (unauthorized) return unauthorized;
 
   try {
     const payload = await req.json();
