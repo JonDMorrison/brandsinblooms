@@ -10,7 +10,6 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
-import { GenerationProgressBanner } from "@/components/generation/GenerationProgressBanner";
 import { ContentGenerationSkeleton } from "@/components/generation/ContentGenerationSkeleton";
 import { PageContainer } from "@/components/joy/PageContainer";
 import { PlanSuccessModal } from "@/components/plan/PlanSuccessModal";
@@ -188,8 +187,6 @@ const CalendarPage = () => {
             campaignOverview={campaignOverview}
             headerSupplement={
               <>
-                <GenerationProgressBanner />
-
                 {activeGenerationJobs > 0 ? (
                   <ContentGenerationSkeleton
                     type="campaign"
