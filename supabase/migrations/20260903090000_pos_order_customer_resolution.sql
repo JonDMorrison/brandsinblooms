@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS pos_orders_resolution_status_idx
 WITH deterministic AS (
   SELECT
     o.id AS order_id,
-    min(pc.id) AS pos_customer_id
+    (array_agg(pc.id ORDER BY pc.created_at, pc.id))[1] AS pos_customer_id
   FROM public.pos_orders o
   JOIN public.pos_customers pc
     ON pc.pos_connection_id = o.pos_connection_id

@@ -69,6 +69,7 @@ describe("customer identity resolution release gate", () => {
   it("attaches POS orders only when canonical identity is deterministic", () => {
     expect(orderMigration).toContain("crm_customer_id uuid");
     expect(orderMigration).toContain("HAVING count(*) = 1");
+    expect(orderMigration).not.toContain("min(pc.id)");
     expect(orderMigration).toContain("crm_customer_identity_links");
     expect(orderMigration).toContain("customer_resolution_status");
     expect(orderMigration).toContain("'ambiguous'");
