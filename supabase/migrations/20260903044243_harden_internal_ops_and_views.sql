@@ -67,18 +67,14 @@ GRANT SELECT ON TABLE public.admin_tenant_overview TO service_role;
 
 -- Remove legacy cron jobs that either contain a literal JWT or duplicate a
 -- healthy v2 job. Leaving them active generated a failed run every minute.
-SELECT cron.unschedule(jobid)
-FROM cron.job
-WHERE jobname IN (
-  'watchdog-stuck-content',
-  'nightly-suppression-checker',
-  'reset-daily-limits-nightly',
-  'sms-daily-warmup-reset',
-  'process-automation-triggers',
-  'process-automation-outbox',
-  'token-refresh-worker-daily',
-  'run-automation-executor-5m'
-);
+SELECT cron.unschedule('watchdog-stuck-content');
+SELECT cron.unschedule('nightly-suppression-checker');
+SELECT cron.unschedule('reset-daily-limits-nightly');
+SELECT cron.unschedule('sms-daily-warmup-reset');
+SELECT cron.unschedule('process-automation-triggers');
+SELECT cron.unschedule('process-automation-outbox');
+SELECT cron.unschedule('token-refresh-worker-daily');
+SELECT cron.unschedule('run-automation-executor-5m');
 
 -- The watchdog has no v2 replacement, so recreate it using the Vault-backed
 -- key helper. jsonb_build_object avoids the string-concatenation bug that
