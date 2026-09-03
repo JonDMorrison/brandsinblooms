@@ -27,6 +27,14 @@ interface WorkflowStep {
   text: string;
 }
 
+interface AutomationEnrollment {
+  decision: 'started' | 'ignored' | 'queued' | 'cooldown' | 'inactive' | 'invalid_customer';
+  reason?: string;
+  run_id?: string;
+  run_sequence?: number;
+  queued_until?: string;
+}
+
 // Parse delay string like "1 day", "2 hours", "30 minutes" to minutes
 function parseDelayToMinutes(delay: string | number): number {
   if (typeof delay === 'number') return delay;
@@ -313,113 +321,37 @@ async function processAutomation(supabase: any, automation: any) {
 
     for (const customer of eligibleCustomers) {
       try {
-        // Check if this customer already has an active OR recently completed automation run
-        const { data: existingRun } = await supabase
-          .from('automation_runs')
-          .select('id, status, run_sequence, next_step_scheduled_at, completed_at')
-          .eq('automation_id', automation.id)
-          .eq('customer_id', customer.id)
-          .in('status', ['active', 'paused'])
-          .order('run_sequence', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        // Also check for recently completed runs (within 24h) to prevent cron re-triggering
-        if (!existingRun) {
-          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          const { data: recentlyCompleted } = await supabase
-            .from('automation_runs')
-            .select('id')
-            .eq('automation_id', automation.id)
-            .eq('customer_id', customer.id)
-            .eq('status', 'completed')
-            .gte('completed_at', oneDayAgo)
-            .limit(1)
-            .maybeSingle();
-
-          if (recentlyCompleted) {
-            console.log(`⏭️ Skipping customer ${customer.email} - automation already completed within 24h (cooldown)`);
-            continue;
-          }
-        }
-
-        // Always compute a safe next run sequence number (even if no active run)
-        // to avoid unique violations when re-triggering after a completed run.
-        const { data: maxSeqData } = await supabase
-          .from('automation_runs')
-          .select('run_sequence')
-          .eq('automation_id', automation.id)
-          .eq('customer_id', customer.id)
-          .order('run_sequence', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        // Handle overlapping automations based on overlap_behavior setting
-        const overlapBehavior = automation.overlap_behavior || 'ignore';
-        let nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
-
-        if (existingRun) {
-          switch (overlapBehavior) {
-            case 'ignore':
-              console.log(`⏭️ Skipping customer ${customer.email} - already has active run (ignore mode)`);
-              continue;
-
-            case 'restart':
-              console.log(`🔄 Restarting automation for ${customer.email} (cancelling existing run)`);
-              // Cancel the existing run
-              await supabase
-                .from('automation_runs')
-                .update({
-                  status: 'cancelled',
-                  error_message: 'Cancelled due to re-trigger (restart mode)',
-                  completed_at: new Date().toISOString()
-                })
-                .eq('id', existingRun.id);
-              // Skip any pending messages for the cancelled run
-              await supabase
-                .from('crm_outbox')
-                .update({
-                  status: 'skipped',
-                  skip_reason: 'Run restarted',
-                  skipped_at: new Date().toISOString()
-                })
-                .eq('automation_run_id', existingRun.id)
-                .eq('status', 'queued');
-              break;
-
-            case 'parallel':
-              console.log(`🔀 Creating parallel run for ${customer.email} (sequence: ${nextRunSequence})`);
-              break;
-
-            case 'queue':
-              // Queue mode not supported for batch processing - skip
-              console.log(`⏭️ Skipping customer ${customer.email} - queue mode not supported for batch processing`);
-              continue;
-
-            default:
-              console.log(`⏭️ Skipping customer ${customer.email} - already has active run`);
-              continue;
-          }
-        }
-
-        // Create new automation run with sequence number
-        const runId = await createAutomationRun(supabase, automation, customer, workflowSteps.length, undefined, nextRunSequence);
-        if (!runId) {
-          console.error(`❌ Failed to create automation run for customer ${customer.id}`);
+        const enrollment = await createAutomationRun(
+          supabase,
+          automation,
+          customer,
+          workflowSteps.length,
+        );
+        if (enrollment.decision !== 'started' || !enrollment.run_id) {
+          console.log(
+            `⏭️ Did not start automation for ${customer.email}: ${enrollment.reason || enrollment.decision}`,
+          );
           continue;
         }
+        const runId = enrollment.run_id;
 
         // Schedule the first step
         const firstStep = workflowSteps[0];
         const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
 
-        await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
+        try {
+          await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
 
-        // Update run with next scheduled time
-        await supabase
-          .from('automation_runs')
-          .update({ next_step_scheduled_at: scheduledAt.toISOString() })
-          .eq('id', runId);
+          // Update run with next scheduled time
+          await supabase
+            .from('automation_runs')
+            .update({ next_step_scheduled_at: scheduledAt.toISOString() })
+            .eq('id', runId)
+            .eq('status', 'active');
+        } catch (enqueueError) {
+          await failAutomationRunStart(supabase, runId, enqueueError);
+          throw enqueueError;
+        }
 
         enqueued++;
         processed++;
@@ -442,105 +374,81 @@ async function createAutomationRun(
   customer: any,
   totalSteps: number,
   channelAvailability?: ChannelAvailability,
-  runSequence: number = 1
-): Promise<string | null> {
+): Promise<AutomationEnrollment> {
   const channels = channelAvailability || checkChannelAvailability();
+  const { data, error } = await supabase.rpc('begin_automation_run', {
+    p_automation_id: automation.id,
+    p_customer_id: customer.id,
+    p_total_steps: totalSteps,
+    p_trigger_data: {
+      trigger_type: automation.trigger_type,
+      triggered_at: new Date().toISOString(),
+      customer_email: customer.email,
+    },
+    p_metadata: {
+      automation_name: automation.name,
+      automation_version: automation.version,
+    },
+    p_channel_availability: {
+      email: { available: channels.email.available, reason: channels.email.reason },
+      sms: { available: channels.sms.available, reason: channels.sms.reason },
+    },
+    p_cooldown_minutes: 1440,
+  });
+  if (error) throw error;
 
-  async function tryInsert(sequence: number): Promise<{ id: string } | null> {
-    const { data: inserted, error } = await supabase
-      .from('automation_runs')
-      .insert({
-        automation_id: automation.id,
-        customer_id: customer.id,
-        tenant_id: automation.tenant_id,
-        status: 'active',
-        current_step_index: 0,
-        total_steps: totalSteps,
-        run_sequence: sequence,
-        trigger_data: {
-          trigger_type: automation.trigger_type,
-          triggered_at: new Date().toISOString(),
-          customer_email: customer.email,
-        },
-        metadata: {
-          automation_name: automation.name,
-          automation_version: automation.version,
-          overlap_behavior: automation.overlap_behavior || 'ignore',
-        },
-        channel_availability: {
-          email: { available: channels.email.available, reason: channels.email.reason },
-          sms: { available: channels.sms.available, reason: channels.sms.reason },
-        },
-      })
-      .select('id')
-      .single();
+  const enrollment = data as AutomationEnrollment;
+  if (enrollment.decision !== 'started' || !enrollment.run_id) {
+    return enrollment;
+  }
 
-    if (error) {
-      // Surface unique violation so we can retry with a new sequence
-      if (error.code === '23505') return null;
-      throw error;
-    }
-
-    await logActivityEvent(supabase, {
-      tenant_id: automation.tenant_id,
+  await logActivityEvent(supabase, {
+    tenant_id: automation.tenant_id,
+    customer_id: customer.id,
+    actor_type: 'automation',
+    source: 'automation',
+    activity_type: 'automation.started',
+    status: 'success',
+    title: `Automation started: ${automation.name || 'Automation'}`,
+    description: { parts: [{ type: 'text', text: 'Automation run started.' }] },
+    metadata: {
+      automation_id: automation.id,
+      automation_run_id: enrollment.run_id,
+      run_sequence: enrollment.run_sequence,
+      trigger_type: automation.trigger_type,
+      customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
+      customer_first_name: customer.first_name ?? null,
+      customer_last_name: customer.last_name ?? null,
+    },
+    related_entities: {
+      automation_id: automation.id,
+      automation_run_id: enrollment.run_id,
       customer_id: customer.id,
-      actor_type: 'automation',
-      source: 'automation',
-      activity_type: 'automation.started',
-      status: 'success',
-      title: `Automation started: ${automation.name || 'Automation'}`,
-      description: {
-        parts: [
-          { type: 'text', text: 'Automation run started.' },
-        ],
-      },
-      metadata: {
-        automation_id: automation.id,
-        automation_run_id: inserted.id,
-        run_sequence: sequence,
-        trigger_type: automation.trigger_type,
-        customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
-        customer_first_name: customer.first_name ?? null,
-        customer_last_name: customer.last_name ?? null,
-      },
-      related_entities: {
-        automation_id: automation.id,
-        automation_run_id: inserted.id,
-        customer_id: customer.id,
-      },
-    });
+    },
+  });
 
-    return inserted;
-  }
+  console.log(
+    `📝 Created automation run ${enrollment.run_id} for ${customer.email} (sequence: ${enrollment.run_sequence})`,
+  );
+  return enrollment;
+}
 
-  let run: { id: string } | null = null;
-  try {
-    run = await tryInsert(runSequence);
-    if (!run) {
-      // Unique violation: choose next available sequence and retry once.
-      const { data: maxSeqData } = await supabase
-        .from('automation_runs')
-        .select('run_sequence')
-        .eq('automation_id', automation.id)
-        .eq('customer_id', customer.id)
-        .order('run_sequence', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const nextSequence = (maxSeqData?.run_sequence || 0) + 1;
-      run = await tryInsert(nextSequence);
-    }
-  } catch (error) {
-    console.error('❌ Failed to create automation run:', error);
-    return null;
-  }
-
-  if (!run) {
-    console.log(`⏭️ Customer ${customer.id} already has a run for automation ${automation.id} (sequence conflict)`);
-    return null;
-  }
-
-  console.log(`📝 Created automation run ${run.id} for customer ${customer.email} (sequence: ${runSequence}, channels: email=${channels.email.available}, sms=${channels.sms.available})`);
-  return run.id;
+async function failAutomationRunStart(
+  supabase: any,
+  runId: string,
+  error: unknown,
+) {
+  const message = error instanceof Error ? error.message : 'Unknown enqueue error';
+  await supabase
+    .from('automation_runs')
+    .update({
+      status: 'failed',
+      completed_at: new Date().toISOString(),
+      next_step_scheduled_at: null,
+      error_message: `Initial step enqueue failed: ${message}`,
+    })
+    .eq('id', runId)
+    .eq('status', 'active');
 }
 
 function calculateScheduledTime(delayMin: number, automation: any, customer: any): Date {
@@ -1059,103 +967,6 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           continue;
         }
 
-        // Check for existing active run
-        const { data: existingRun } = await supabase
-          .from('automation_runs')
-          .select('id, current_step_index, next_step_scheduled_at, run_sequence')
-          .eq('automation_id', automation.id)
-          .eq('customer_id', customer.id)
-          .in('status', ['active', 'paused'])
-          .maybeSingle();
-
-        // Also check for recently completed runs (within 24h) to prevent re-triggering
-        if (!existingRun) {
-          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          const { data: recentlyCompleted } = await supabase
-            .from('automation_runs')
-            .select('id')
-            .eq('automation_id', automation.id)
-            .eq('customer_id', customer.id)
-            .eq('status', 'completed')
-            .gte('completed_at', oneDayAgo)
-            .limit(1)
-            .maybeSingle();
-
-          if (recentlyCompleted) {
-            console.log(`⏭️ Customer ${customer.email} - automation already completed within 24h (cooldown)`);
-            await markEventProcessed(supabase, event.id, 'Automation completed within 24h cooldown');
-            continue;
-          }
-        }
-
-        // Always compute a safe next run sequence number (even if no active run)
-        const { data: maxSeqData } = await supabase
-          .from('automation_runs')
-          .select('run_sequence')
-          .eq('automation_id', automation.id)
-          .eq('customer_id', customer.id)
-          .order('run_sequence', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        // Handle overlapping automations based on overlap_behavior setting
-        const overlapBehavior = automation.overlap_behavior || 'ignore';
-        let nextRunSequence = (maxSeqData?.run_sequence || 0) + 1;
-
-        if (existingRun) {
-          switch (overlapBehavior) {
-            case 'ignore':
-              // Current behavior - skip new trigger
-              console.log(`⏭️ Customer ${customer.email} already in active run (mode: ignore)`);
-              await markEventProcessed(supabase, event.id, 'Customer already in active run (ignore mode)');
-              continue;
-
-            case 'restart':
-              // Cancel existing run and proceed with new one
-              console.log(`🔄 Restarting automation for ${customer.email} (cancelling existing run)`);
-              await supabase
-                .from('automation_runs')
-                .update({
-                  status: 'cancelled',
-                  error_message: 'Cancelled due to re-trigger (restart mode)',
-                  completed_at: new Date().toISOString()
-                })
-                .eq('id', existingRun.id);
-              // Also cancel any pending outbox messages for this run
-              await supabase
-                .from('crm_outbox')
-                .update({
-                  status: 'skipped',
-                  skip_reason: 'Run restarted',
-                  skipped_at: new Date().toISOString()
-                })
-                .eq('automation_run_id', existingRun.id)
-                .eq('status', 'queued');
-              break;
-
-            case 'parallel':
-              console.log(`🔀 Parallel run for ${customer.email} (sequence: ${nextRunSequence})`);
-              break;
-
-            case 'queue':
-              // Queue the trigger to fire after current run completes
-              console.log(`📋 Queueing trigger for ${customer.email} (existing run in progress)`);
-              // Set queued_until to the next scheduled step time + buffer
-              const queuedUntil = existingRun.next_step_scheduled_at
-                ? new Date(new Date(existingRun.next_step_scheduled_at).getTime() + 5 * 60 * 1000).toISOString()
-                : new Date(Date.now() + 60 * 60 * 1000).toISOString(); // Default 1 hour if no scheduled time
-              await deferTriggerEvent(supabase, event.id, queuedUntil);
-              // Skip processing now - will be picked up later when queued_until passes
-              continue;
-
-            default:
-              // Unknown mode - default to ignore
-              console.log(`⏭️ Customer ${customer.email} already in active run (unknown mode: ${overlapBehavior})`);
-              await markEventProcessed(supabase, event.id, 'Customer already in active run');
-              continue;
-          }
-        }
-
         // Process the automation for this customer (handles both array and React Flow formats)
         const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
         if (workflowSteps.length === 0) {
@@ -1164,24 +975,44 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           continue;
         }
 
-        // Create automation run with the determined sequence number
-        const runId = await createAutomationRun(supabase, automation, customer, workflowSteps.length, undefined, nextRunSequence);
-        if (!runId) {
-          await markEventProcessed(supabase, event.id, 'Failed to create automation run');
+        const enrollment = await createAutomationRun(
+          supabase,
+          automation,
+          customer,
+          workflowSteps.length,
+          providerCheck.channelAvailability,
+        );
+        if (enrollment.decision === 'queued' && enrollment.queued_until) {
+          await deferTriggerEvent(supabase, event.id, enrollment.queued_until);
           continue;
         }
+        if (enrollment.decision !== 'started' || !enrollment.run_id) {
+          await markEventProcessed(
+            supabase,
+            event.id,
+            enrollment.reason || `Automation enrollment ${enrollment.decision}`,
+          );
+          continue;
+        }
+        const runId = enrollment.run_id;
 
         // Schedule the first step
         const firstStep = workflowSteps[0];
         const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
 
-        await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
+        try {
+          await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
 
-        // Update run with next scheduled time
-        await supabase
-          .from('automation_runs')
-          .update({ next_step_scheduled_at: scheduledAt.toISOString() })
-          .eq('id', runId);
+          // Update run with next scheduled time
+          await supabase
+            .from('automation_runs')
+            .update({ next_step_scheduled_at: scheduledAt.toISOString() })
+            .eq('id', runId)
+            .eq('status', 'active');
+        } catch (enqueueError) {
+          await failAutomationRunStart(supabase, runId, enqueueError);
+          throw enqueueError;
+        }
 
         // Mark event as processed
         await markEventProcessed(supabase, event.id);
