@@ -180,6 +180,12 @@ REVOKE ALL ON FUNCTION public.defer_automation_trigger_event(uuid, text, timesta
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.fail_automation_trigger_event(uuid, text, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.claim_trigger_events(text, integer)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.release_stale_claims(integer)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.increment_trigger_event_retry(uuid, text)
+  FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.claim_due_automation_trigger_events(integer, text, integer)
   TO service_role;
@@ -188,6 +194,12 @@ GRANT EXECUTE ON FUNCTION public.complete_automation_trigger_event(uuid, text, t
 GRANT EXECUTE ON FUNCTION public.defer_automation_trigger_event(uuid, text, timestamptz)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.fail_automation_trigger_event(uuid, text, text)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_trigger_events(text, integer)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.release_stale_claims(integer)
+  TO service_role;
+GRANT EXECUTE ON FUNCTION public.increment_trigger_event_retry(uuid, text)
   TO service_role;
 
 COMMENT ON COLUMN public.automation_trigger_events.claimed_by IS

@@ -40,5 +40,11 @@ describe("automation trigger claiming release gate", () => {
     expect(migration).not.toMatch(
       /GRANT EXECUTE ON FUNCTION public\.(claim_due|complete|defer|fail)_automation_trigger_event[\s\S]*TO authenticated/,
     );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION public.claim_trigger_events(text, integer)",
+    );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION public.release_stale_claims(integer)",
+    );
   });
 });
