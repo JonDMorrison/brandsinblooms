@@ -165,7 +165,7 @@ async function loadUserScopedMarketingConnections(
 export function useIntegrationsHubData() {
   const { user, loading: authLoading } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { hasRole } = useUserRole();
+  const { hasPermission } = useUserRole();
   const queryClient = useQueryClient();
 
   const isHubBootstrapPending = authLoading || tenantLoading;
@@ -504,7 +504,7 @@ export function useIntegrationsHubData() {
     connections: query.data?.connections ?? cachedQueryData?.connections,
     tenant,
     user,
-    canUseActions: hasRole("member"),
+    canUseActions: hasPermission("integrations.manage"),
     isLoading,
     isFetching: query.isFetching,
     isRefreshing,

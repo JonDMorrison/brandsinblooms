@@ -23,7 +23,7 @@ vi.mock("@/hooks/useTenant", () => ({
 
 vi.mock("@/hooks/useUserRole", () => ({
   useUserRole: () => ({
-    hasRole: () => true,
+    hasPermission: () => true,
   }),
 }));
 

@@ -15335,6 +15335,14 @@ export type Database = {
       };
     };
     Functions: {
+      crm_has_permission: {
+        Args: {
+          p_location_id?: string | null;
+          p_permission: string;
+          p_tenant_id?: string | null;
+        };
+        Returns: boolean;
+      };
       acquire_provider_send_slot: {
         Args: { p_min_interval_ms?: number; p_provider: string };
         Returns: number;
@@ -16414,6 +16422,10 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      get_current_crm_access: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {
@@ -16979,6 +16991,14 @@ export type Database = {
       set_tenant_default_from_email_domain: {
         Args: { p_domain_id: string };
         Returns: undefined;
+      };
+      set_tenant_user_crm_access: {
+        Args: {
+          p_location_ids?: string[];
+          p_role: string;
+          p_user_id: string;
+        };
+        Returns: Json;
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
