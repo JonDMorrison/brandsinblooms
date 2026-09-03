@@ -39,5 +39,15 @@ describe("purchase metrics ledger repair", () => {
     expect(migration).toContain("SECURITY INVOKER");
     expect(migration.match(/SET search_path = ''/g)).toHaveLength(4);
     expect(migration.match(/FROM PUBLIC, anon/g)).toHaveLength(4);
+    expect(migration).toContain("customer_purchase_metrics_location_select");
+    expect(migration).toContain(
+      "'customer.read',\n        customer.primary_location_id",
+    );
+    expect(migration).toContain(
+      "'customer.write',\n        customer.primary_location_id",
+    );
+    expect(migration).not.toContain(
+      "CREATE POLICY \"Service role full access to purchase metrics\"",
+    );
   });
 });

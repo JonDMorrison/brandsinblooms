@@ -7,6 +7,75 @@ CREATE INDEX IF NOT EXISTS pos_orders_tenant_crm_customer_date_idx
   ON public.pos_orders(tenant_id, crm_customer_id, order_date)
   WHERE crm_customer_id IS NOT NULL;
 
+DROP POLICY IF EXISTS "Service role full access to purchase metrics"
+  ON public.customer_purchase_metrics;
+DROP POLICY IF EXISTS "Users can insert purchase metrics for their tenant"
+  ON public.customer_purchase_metrics;
+DROP POLICY IF EXISTS "Users can update purchase metrics for their tenant"
+  ON public.customer_purchase_metrics;
+DROP POLICY IF EXISTS "Users can view purchase metrics for their tenant"
+  ON public.customer_purchase_metrics;
+
+CREATE POLICY customer_purchase_metrics_location_select
+ON public.customer_purchase_metrics
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.crm_customers AS customer
+    WHERE customer.id = customer_purchase_metrics.customer_id
+      AND customer.tenant_id = customer_purchase_metrics.tenant_id
+      AND public.has_tenant_permission(
+        customer_purchase_metrics.tenant_id,
+        'customer.read',
+        customer.primary_location_id
+      )
+  )
+);
+
+CREATE POLICY customer_purchase_metrics_location_insert
+ON public.customer_purchase_metrics
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.crm_customers AS customer
+    WHERE customer.id = customer_purchase_metrics.customer_id
+      AND customer.tenant_id = customer_purchase_metrics.tenant_id
+      AND public.has_tenant_permission(
+        customer_purchase_metrics.tenant_id,
+        'customer.write',
+        customer.primary_location_id
+      )
+  )
+);
+
+CREATE POLICY customer_purchase_metrics_location_update
+ON public.customer_purchase_metrics
+FOR UPDATE TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.crm_customers AS customer
+    WHERE customer.id = customer_purchase_metrics.customer_id
+      AND customer.tenant_id = customer_purchase_metrics.tenant_id
+      AND public.has_tenant_permission(
+        customer_purchase_metrics.tenant_id,
+        'customer.write',
+        customer.primary_location_id
+      )
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.crm_customers AS customer
+    WHERE customer.id = customer_purchase_metrics.customer_id
+      AND customer.tenant_id = customer_purchase_metrics.tenant_id
+      AND public.has_tenant_permission(
+        customer_purchase_metrics.tenant_id,
+        'customer.write',
+        customer.primary_location_id
+      )
+  )
+);
+
 CREATE OR REPLACE FUNCTION public.recalculate_purchase_metrics(
   p_customer_id uuid
 )
