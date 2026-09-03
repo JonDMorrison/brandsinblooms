@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface SquarePayment {
   id: string;
+  location_id?: string;
   status: string;
   created_at: string;
   order_id?: string;
@@ -29,6 +30,7 @@ interface SquareOrderLineItem {
 
 interface SquareOrder {
   id: string;
+  location_id?: string;
   line_items?: SquareOrderLineItem[];
   customer_id?: string;
 }
@@ -101,7 +103,7 @@ async function updateCustomerPurchaseData(
   if (customerEmail && !isPlaceholderEmail) {
     const { data: customerByEmail } = await supabase
       .from('crm_customers')
-      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id')
+      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id, pos_source')
       .eq('tenant_id', tenantId)
       .eq('email', customerEmail)
       .single();
@@ -117,7 +119,7 @@ async function updateCustomerPurchaseData(
   if (!customer && squareCustomerId) {
     const { data: customerBySquareId } = await supabase
       .from('crm_customers')
-      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id')
+      .select('id, product_tags, order_history, lifetime_value, first_purchase_date, last_purchase_date, square_customer_id, pos_source')
       .eq('tenant_id', tenantId)
       .eq('square_customer_id', squareCustomerId)
       .single();
@@ -144,8 +146,12 @@ async function updateCustomerPurchaseData(
   const newOrders = metrics.orderHistory.filter(o => !existingIds.has(o.id));
   const mergedHistory = [...existingHistory, ...newOrders];
 
-  // Calculate cumulative lifetime value
-  const cumulativeLifetimeValue = (customer.lifetime_value || 0) + metrics.totalSpent;
+  // This endpoint scans Square's complete payment ledger. Reusing the exact
+  // provider total is idempotent; incrementing the existing value would add
+  // the same historical payments again on every sync.
+  const exactSquareValue = Math.round(metrics.totalSpent * 100) / 100;
+  const ownsSquareValue = customer.pos_source === 'square' ||
+    customer.square_customer_id === squareCustomerId;
 
   // Determine first and last purchase dates
   const firstPurchaseDate = customer.first_purchase_date || metrics.firstPurchaseDate;
@@ -155,23 +161,27 @@ async function updateCustomerPurchaseData(
         : metrics.lastPurchaseDate)
     : customer.last_purchase_date;
 
+  const customerUpdate: Record<string, unknown> = {
+    product_tags: mergedTags,
+    order_history: mergedHistory,
+    first_purchase_date: firstPurchaseDate,
+    last_purchase_date: lastPurchaseDate,
+    updated_at: new Date().toISOString(),
+  };
+  if (ownsSquareValue) {
+    customerUpdate.lifetime_value = exactSquareValue;
+    customerUpdate.total_spent = exactSquareValue;
+  }
+
   const { error: updateError } = await supabase
     .from('crm_customers')
-    .update({ 
-      product_tags: mergedTags,
-      order_history: mergedHistory,
-      lifetime_value: cumulativeLifetimeValue,
-      total_spent: cumulativeLifetimeValue,
-      first_purchase_date: firstPurchaseDate,
-      last_purchase_date: lastPurchaseDate,
-      updated_at: new Date().toISOString()
-    })
+    .update(customerUpdate)
     .eq('id', customer.id);
 
   if (updateError) {
     console.error(`[SQUARE-SYNC-SALES] Failed to update customer ${customer.id}:`, updateError);
   } else {
-    console.log(`[SQUARE-SYNC-SALES] Updated customer (matched_by=${matchedBy}): LTV=$${cumulativeLifetimeValue}, orders=${mergedHistory.length}, tags=${mergedTags.length}`);
+    console.log(`[SQUARE-SYNC-SALES] Updated customer (matched_by=${matchedBy}): square_total=$${exactSquareValue}, orders=${mergedHistory.length}, tags=${mergedTags.length}`);
     
     // Trigger purchase metrics recalculation
     const { error: metricsError } = await supabase.rpc('recalculate_purchase_metrics', {
@@ -318,6 +328,10 @@ Deno.serve(async (req) => {
               .from('pos_orders')
               .upsert({
                 pos_connection_id: connection.id,
+                tenant_id: userData.tenant_id,
+                provider: 'square',
+                external_location_id:
+                  payment.location_id || orderData?.location_id || connection.location_id || null,
                 external_id: payment.id,
                 external_customer_id: payment.customer_id,
                 order_date: payment.created_at,
@@ -335,10 +349,11 @@ Deno.serve(async (req) => {
               });
 
             if (orderError) {
-              console.error(`[SQUARE-SYNC-SALES] Failed to upsert order ${payment.id}:`, orderError);
-            } else {
-              salesSynced++;
+              throw new Error(
+                `Failed to persist Square payment ${payment.id}: ${orderError.message}`,
+              );
             }
+            salesSynced++;
           }
         }
       }
@@ -375,6 +390,26 @@ Deno.serve(async (req) => {
     }
     
     console.log(`[SQUARE-SYNC-SALES] Customer matching: ${matchedByEmail} by email, ${matchedBySquareId} by square_customer_id`);
+
+    const squareCustomerIds = [...new Set(
+      [...customerMetricsMap.values()]
+        .map((metrics) => (metrics as any).squareCustomerId as string | undefined)
+        .filter((id): id is string => Boolean(id)),
+    )];
+    for (let index = 0; index < squareCustomerIds.length; index += 500) {
+      const { error: locationError } = await supabaseClient.rpc(
+        'recompute_square_customer_locations',
+        {
+          p_tenant_id: userData.tenant_id,
+          p_external_customer_ids: squareCustomerIds.slice(index, index + 500),
+        },
+      );
+      if (locationError) {
+        throw new Error(
+          `Square location activity reconciliation failed: ${locationError.message}`,
+        );
+      }
+    }
 
     await supabaseClient
       .from('square_connections')

@@ -207,6 +207,33 @@ function extractProductNames(order: any): string[] {
     .filter(Boolean);
 }
 
+async function calculateSquareCustomerSpend(
+  supabase: any,
+  tenantId: string,
+  squareCustomerId: string | undefined,
+): Promise<number> {
+  if (!squareCustomerId) return 0;
+  const { data: orders, error } = await supabase
+    .from("pos_orders")
+    .select("total_amount, refund_amount, status")
+    .eq("tenant_id", tenantId)
+    .eq("provider", "square")
+    .eq("external_customer_id", squareCustomerId)
+    .in("status", ["COMPLETED", "REFUNDED", "PAID"]);
+  if (error) {
+    throw new Error(
+      `Failed to reconcile Square spend for ${squareCustomerId}: ${error.message}`,
+    );
+  }
+  return Math.round((orders || []).reduce(
+    (sum: number, order: any) => sum + Math.max(
+      0,
+      Number(order.total_amount || 0) - Number(order.refund_amount || 0),
+    ),
+    0,
+  ) * 100) / 100;
+}
+
 function checkPersonaTargeting(customer: any, personaTargeting: any): boolean {
   if (!personaTargeting || Object.keys(personaTargeting).length === 0)
     return true;
@@ -485,16 +512,31 @@ async function processPaymentEvent(
     .select("id")
     .eq("merchant_id", merchantId)
     .single();
+  let priorOrder: { raw_data?: Record<string, unknown> } | null = null;
   if (posConn) {
-    await supabase.from("pos_orders").upsert(
+    const { data: existingOrder, error: existingOrderError } = await supabase
+      .from("pos_orders")
+      .select("raw_data")
+      .eq("external_id", paymentId)
+      .eq("pos_connection_id", posConn.id)
+      .maybeSingle();
+    if (existingOrderError) {
+      throw new Error(
+        `Failed to inspect Square payment ${paymentId}: ${existingOrderError.message}`,
+      );
+    }
+    priorOrder = existingOrder;
+
+    const { error: orderWriteError } = await supabase.from("pos_orders").upsert(
       {
         tenant_id: tenantId,
+        provider: "square",
+        external_location_id:
+          paymentData.location_id || orderData?.location_id || connection?.location_id || null,
         pos_connection_id: posConn.id,
         external_id: paymentId,
-        order_number: paymentData.receipt_number || paymentId,
         total_amount: amount,
         currency: paymentData.amount_money?.currency || "USD",
-        customer_external_id: squareCustomerId,
         external_customer_id: squareCustomerId,
         order_date: paymentData.created_at || new Date().toISOString(),
         status: paymentStatus,
@@ -505,6 +547,7 @@ async function processPaymentEvent(
             catalog_object_id: li.catalog_object_id,
           })) || [],
         raw_data: {
+          ...(priorOrder?.raw_data || {}),
           payment: paymentData,
           order: orderData,
           square_event_type: squareEventType,
@@ -512,6 +555,11 @@ async function processPaymentEvent(
       },
       { onConflict: "external_id,pos_connection_id" },
     );
+    if (orderWriteError) {
+      throw new Error(
+        `Failed to persist Square payment ${paymentId}: ${orderWriteError.message}`,
+      );
+    }
   }
 
   // Only fire triggers when payment is COMPLETED
@@ -529,13 +577,7 @@ async function processPaymentEvent(
 
   // Idempotency check: see if triggers were already fired for this payment
   if (posConn) {
-    const { data: existingOrder } = await supabase
-      .from("pos_orders")
-      .select("raw_data")
-      .eq("external_id", paymentId)
-      .eq("pos_connection_id", posConn.id)
-      .single();
-    if (existingOrder?.raw_data?.triggers_fired) {
+    if (priorOrder?.raw_data?.triggers_fired) {
       console.log(
         `[WEBHOOK] Payment ${paymentId} triggers already fired — idempotency skip`,
       );
@@ -548,6 +590,11 @@ async function processPaymentEvent(
     isFirstPurchase = false;
   let matchedBy: string | null = null;
   const currentDate = new Date().toISOString().split("T")[0];
+  const exactCustomerSpend = await calculateSquareCustomerSpend(
+    supabase,
+    tenantId,
+    squareCustomerId,
+  );
 
   // Strategy 1: Match by email
   if (receiptEmail) {
@@ -564,14 +611,6 @@ async function processPaymentEvent(
       const mergedTags = [
         ...new Set([...(existing.product_tags || []), ...productNames]),
       ];
-      // FIX: [P16] - Recalculate total_spent from pos_orders instead of read-then-write increment
-      const { data: allOrders } = await supabase
-        .from('pos_orders')
-        .select('total_amount')
-        .eq('customer_external_id', squareCustomerId)
-        .eq('pos_connection_id', posConn?.id)
-        .eq('status', 'COMPLETED');
-      const totalSpent = (allOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
       const { data: upserted } = await supabase
         .from("crm_customers")
         .upsert(
@@ -584,8 +623,8 @@ async function processPaymentEvent(
               ? currentDate
               : existing.first_purchase_date,
             last_purchase_date: currentDate,
-            total_spent: totalSpent,
-            lifetime_value: totalSpent,
+            total_spent: exactCustomerSpend,
+            lifetime_value: exactCustomerSpend,
             product_tags: mergedTags.length > 0 ? mergedTags : null,
             pos_source: "square",
             square_customer_id: squareCustomerId || existing.square_customer_id,
@@ -613,14 +652,6 @@ async function processPaymentEvent(
       const mergedTags = [
         ...new Set([...(existing.product_tags || []), ...productNames]),
       ];
-      // FIX: [P16] - Recalculate total_spent from pos_orders instead of read-then-write increment
-      const { data: allOrders2 } = await supabase
-        .from('pos_orders')
-        .select('total_amount')
-        .eq('customer_external_id', squareCustomerId)
-        .eq('pos_connection_id', posConn?.id)
-        .eq('status', 'COMPLETED');
-      const totalSpent2 = (allOrders2 || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
       await supabase
         .from("crm_customers")
         .update({
@@ -628,8 +659,8 @@ async function processPaymentEvent(
             ? currentDate
             : existing.first_purchase_date,
           last_purchase_date: currentDate,
-          total_spent: totalSpent2,
-          lifetime_value: totalSpent2,
+          total_spent: exactCustomerSpend,
+          lifetime_value: exactCustomerSpend,
           product_tags: mergedTags.length > 0 ? mergedTags : null,
           phone: receiptPhone || existing.phone,
           updated_at: new Date().toISOString(),
@@ -695,8 +726,8 @@ async function processPaymentEvent(
                 square_customer_id: squareCustomerId,
                 first_purchase_date: currentDate,
                 last_purchase_date: currentDate,
-                total_spent: amount,
-                lifetime_value: amount,
+                total_spent: exactCustomerSpend,
+                lifetime_value: exactCustomerSpend,
               },
               { onConflict: "tenant_id,email" },
             )
@@ -716,6 +747,21 @@ async function processPaymentEvent(
       console.warn(
         `[WEBHOOK] Square customer API lookup failed for ${squareCustomerId}:`,
         e,
+      );
+    }
+  }
+
+  if (squareCustomerId) {
+    const { error: locationError } = await supabase.rpc(
+      "recompute_square_customer_locations",
+      {
+        p_tenant_id: tenantId,
+        p_external_customer_ids: [squareCustomerId],
+      },
+    );
+    if (locationError) {
+      throw new Error(
+        `Square location activity reconciliation failed: ${locationError.message}`,
       );
     }
   }
@@ -829,17 +875,17 @@ async function processInvoicePaymentMade(
     }
 
     // THEN do the upsert (after idempotency check)
-    await supabase.from("pos_orders").upsert(
+    const { error: invoiceWriteError } = await supabase.from("pos_orders").upsert(
       {
         tenant_id: tenantId,
+        provider: "square",
+        external_location_id: invoice.location_id || connection?.location_id || null,
         pos_connection_id: posConn.id,
         external_id: invoiceId,
-        order_number: invoice.invoice_number || invoiceId,
         total_amount: totalAmount,
         currency:
           invoice.payment_requests?.[0]?.computed_amount_money?.currency ||
           "USD",
-        customer_external_id: squareCustomerId,
         external_customer_id: squareCustomerId,
         order_date: invoice.created_at || new Date().toISOString(),
         status: invoiceStatus,
@@ -848,6 +894,11 @@ async function processInvoicePaymentMade(
       },
       { onConflict: "external_id,pos_connection_id" },
     );
+    if (invoiceWriteError) {
+      throw new Error(
+        `Failed to persist Square invoice ${invoiceId}: ${invoiceWriteError.message}`,
+      );
+    }
   }
 
   // Customer matching
@@ -855,6 +906,11 @@ async function processInvoicePaymentMade(
     isFirstPurchase = false;
   let matchedBy: string | null = null;
   const currentDate = new Date().toISOString().split("T")[0];
+  const exactCustomerSpend = await calculateSquareCustomerSpend(
+    supabase,
+    tenantId,
+    squareCustomerId,
+  );
 
   // Strategy 1: Match by email
   if (recipientEmail) {
@@ -875,8 +931,8 @@ async function processInvoicePaymentMade(
             ? currentDate
             : existing.first_purchase_date,
           last_purchase_date: currentDate,
-          total_spent: (existing.total_spent || 0) + totalAmount,
-          lifetime_value: (existing.lifetime_value || 0) + totalAmount,
+          total_spent: exactCustomerSpend,
+          lifetime_value: exactCustomerSpend,
           square_customer_id: squareCustomerId || existing.square_customer_id,
           updated_at: new Date().toISOString(),
         })
@@ -909,8 +965,8 @@ async function processInvoicePaymentMade(
             ? currentDate
             : existing.first_purchase_date,
           last_purchase_date: currentDate,
-          total_spent: (existing.total_spent || 0) + totalAmount,
-          lifetime_value: (existing.lifetime_value || 0) + totalAmount,
+          total_spent: exactCustomerSpend,
+          lifetime_value: exactCustomerSpend,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
@@ -954,8 +1010,8 @@ async function processInvoicePaymentMade(
           square_customer_id: squareCustomerId,
           first_purchase_date: currentDate,
           last_purchase_date: currentDate,
-          total_spent: totalAmount,
-          lifetime_value: totalAmount,
+          total_spent: exactCustomerSpend,
+          lifetime_value: exactCustomerSpend,
         },
         { onConflict: "tenant_id,email" },
       )
@@ -967,6 +1023,21 @@ async function processInvoicePaymentMade(
       isFirstPurchase = true;
       console.log(
         `[WEBHOOK] Auto-created customer from invoice recipient: ${recipientEmail}`,
+      );
+    }
+  }
+
+  if (squareCustomerId) {
+    const { error: locationError } = await supabase.rpc(
+      "recompute_square_customer_locations",
+      {
+        p_tenant_id: tenantId,
+        p_external_customer_ids: [squareCustomerId],
+      },
+    );
+    if (locationError) {
+      throw new Error(
+        `Square invoice location reconciliation failed: ${locationError.message}`,
       );
     }
   }
@@ -1285,16 +1356,16 @@ async function processFulfillmentUpdated(
     .eq("tenant_id", tenantId);
   const { data: order } = await supabase
     .from("pos_orders")
-    .select("customer_external_id")
+    .select("external_customer_id")
     .eq("external_id", orderId)
     .eq("tenant_id", tenantId)
     .single();
-  if (!order?.customer_external_id) return { success: true };
+  if (!order?.external_customer_id) return { success: true };
   const { data: customer } = await supabase
     .from("crm_customers")
     .select("id")
     .eq("tenant_id", tenantId)
-    .eq("square_customer_id", order.customer_external_id)
+    .eq("square_customer_id", order.external_customer_id)
     .single();
   if (!customer) return { success: true };
   const triggers: string[] = [];
@@ -1323,12 +1394,12 @@ async function processRefundCreated(
   const refundAmount = (refund.amount_money?.amount || 0) / 100;
   const { data: order } = await supabase
     .from("pos_orders")
-    .select("id, customer_external_id")
+    .select("id, external_customer_id")
     .eq("external_id", refund.payment_id)
     .eq("tenant_id", tenantId)
     .single();
   if (!order) return { success: false, error: "Order not found" };
-  await supabase
+  const { error: refundWriteError } = await supabase
     .from("pos_orders")
     .update({
       status: "REFUNDED",
@@ -1338,25 +1409,48 @@ async function processRefundCreated(
       updated_at: new Date().toISOString(),
     })
     .eq("id", order.id);
-  if (order.customer_external_id) {
+  if (refundWriteError) {
+    throw new Error(`Failed to persist Square refund: ${refundWriteError.message}`);
+  }
+  if (order.external_customer_id) {
+    const { error: locationError } = await supabase.rpc(
+      "recompute_square_customer_locations",
+      {
+        p_tenant_id: tenantId,
+        p_external_customer_ids: [order.external_customer_id],
+      },
+    );
+    if (locationError) {
+      throw new Error(
+        `Square refund reconciliation failed: ${locationError.message}`,
+      );
+    }
     const { data: customer } = await supabase
       .from("crm_customers")
-      .select("id, lifetime_value, total_spent")
+      .select("id")
       .eq("tenant_id", tenantId)
-      .eq("square_customer_id", order.customer_external_id)
+      .eq("square_customer_id", order.external_customer_id)
       .single();
     if (customer) {
-      await supabase
+      const exactCustomerSpend = await calculateSquareCustomerSpend(
+        supabase,
+        tenantId,
+        order.external_customer_id,
+      );
+      const { error: spendUpdateError } = await supabase
         .from("crm_customers")
         .update({
-          lifetime_value: Math.max(
-            0,
-            (customer.lifetime_value || 0) - refundAmount,
-          ),
-          total_spent: Math.max(0, (customer.total_spent || 0) - refundAmount),
+          total_spent: exactCustomerSpend,
+          lifetime_value: exactCustomerSpend,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", customer.id);
+        .eq("id", customer.id)
+        .eq("tenant_id", tenantId);
+      if (spendUpdateError) {
+        throw new Error(
+          `Failed to apply reconciled Square spend: ${spendUpdateError.message}`,
+        );
+      }
       await fireAutomationTriggers(
         supabase,
         tenantId,
