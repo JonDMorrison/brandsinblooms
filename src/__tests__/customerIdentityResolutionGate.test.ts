@@ -34,6 +34,16 @@ const vmxCustomerSync = readSource(
 const vmxBatchMigration = readSource(
   "supabase/migrations/20260903103000_vmx_customer_identity_batch.sql",
 );
+const externalProviderMigration = readSource(
+  "supabase/migrations/20260903104500_shopify_lightspeed_customer_identity.sql",
+);
+const lightspeedCustomerSync = readSource(
+  "supabase/functions/lightspeed-sync-customers/index.ts",
+);
+const posSyncWorker = readSource("supabase/functions/pos-sync-worker/index.ts");
+const shopifyWebhookHandler = readSource(
+  "supabase/functions/shopify-webhook-handler/index.ts",
+);
 const config = readSource("supabase/config.toml");
 
 describe("customer identity resolution release gate", () => {
@@ -170,6 +180,49 @@ describe("customer identity resolution release gate", () => {
     expect(vmxCustomerSync).not.toContain("sms_consent:");
     expect(config).toMatch(
       /\[functions\.vmx-sync-customers\]\s*verify_jwt = true/,
+    );
+  });
+
+  it("uses provider-scoped identities for Shopify and Lightspeed", () => {
+    expect(externalProviderMigration).toContain(
+      "CREATE OR REPLACE FUNCTION public.resolve_external_provider_customer_identity",
+    );
+    expect(externalProviderMigration).toContain(
+      "resolve_external_provider_customer_identity_batch",
+    );
+    expect(externalProviderMigration).toContain("ambiguous_external_id");
+    expect(externalProviderMigration).toContain(
+      "shopify_orders_attach_identity",
+    );
+    expect(externalProviderMigration).toContain(
+      "lightspeed_sales_attach_identity",
+    );
+    expect(externalProviderMigration).not.toMatch(/email_opt_in\s*=/i);
+    expect(externalProviderMigration).not.toMatch(/sms_opt_in\s*=/i);
+  });
+
+  it("routes every active Shopify and Lightspeed customer importer through the ledger", () => {
+    expect(lightspeedCustomerSync).toContain(
+      "resolve_external_provider_customer_identity_batch",
+    );
+    expect(
+      posSyncWorker.match(/resolve_external_provider_customer_identity_batch/g),
+    ).toHaveLength(2);
+    expect(
+      posSyncWorker.match(/resolve_provider_customer_identity_batch/g),
+    ).toHaveLength(2);
+    expect(shopifyWebhookHandler).toContain(
+      '"resolve_external_provider_customer_identity"',
+    );
+
+    expect(lightspeedCustomerSync).not.toMatch(
+      /from\("crm_customers"\)[\s\S]{0,180}upsert/i,
+    );
+    expect(posSyncWorker).not.toContain("mapShopifyCustomerToCRM");
+    expect(posSyncWorker).not.toContain('onConflict: "tenant_id,email"');
+    expect(shopifyWebhookHandler).not.toContain("email_opt_in:");
+    expect(shopifyWebhookHandler).not.toContain(
+      "upsertCrmCustomerFromShopifyCustomer",
     );
   });
 });

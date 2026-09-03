@@ -168,59 +168,36 @@ async function resolveCrmCustomerByEmail(
   return data ?? null;
 }
 
-async function upsertCrmCustomerFromShopifyCustomer(
+async function resolveShopifyCustomerIdentity(
   supabase: any,
   connection: ShopifyConnection,
-  payload: JsonRecord,
+  externalId: string,
 ) {
-  const email =
-    typeof payload.email === "string"
-      ? payload.email.trim().toLowerCase()
-      : null;
-  if (!email) {
-    return null;
-  }
-
-  const existing = await resolveCrmCustomerByEmail(
-    supabase,
-    connection.tenant_id,
-    email,
+  const { data: identity, error } = await supabase.rpc(
+    "resolve_external_provider_customer_identity",
+    {
+      p_tenant_id: connection.tenant_id,
+      p_provider: "shopify",
+      p_external_id: externalId,
+      p_user_id: connection.user_id,
+    },
   );
-  const tags = normalizeTags(payload.tags);
-  const totalSpent = toNumber(payload.total_spent, existing?.total_spent || 0);
-
-  const { data, error } = await supabase
-    .from("crm_customers")
-    .upsert(
-      {
-        tenant_id: connection.tenant_id,
-        user_id: connection.user_id,
-        email,
-        phone: payload.phone || existing?.phone || null,
-        first_name: payload.first_name || existing?.first_name || null,
-        last_name: payload.last_name || existing?.last_name || null,
-        pos_source: "shopify",
-        total_spent: totalSpent,
-        lifetime_value: totalSpent,
-        email_opt_in:
-          typeof payload.accepts_marketing === "boolean"
-            ? payload.accepts_marketing
-            : existing?.email_opt_in,
-        tags:
-          tags.length > 0
-            ? [...new Set([...(existing?.tags || []), ...tags])]
-            : existing?.tags,
-      },
-      { onConflict: "tenant_id,email" },
-    )
-    .select("*")
-    .single();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  const customerId = identity?.customer_id;
+  if (!customerId) return null;
+
+  const { data: customer, error: customerError } = await supabase
+    .from("crm_customers")
+    .select("*")
+    .eq("id", customerId)
+    .eq("tenant_id", connection.tenant_id)
+    .single();
+  if (customerError) throw customerError;
+  return customer;
 }
 
 async function upsertShopifyCustomer(
@@ -254,7 +231,7 @@ async function upsertShopifyCustomer(
         first_order_date: toIsoDate(payload.first_order_date),
         last_order_date: toIsoDate(payload.last_order_date),
         default_address: payload.default_address ?? null,
-        contact_id: contactId,
+        ...(contactId ? { contact_id: contactId } : {}),
         raw_data: payload,
         synced_at: new Date().toISOString(),
       },
@@ -275,18 +252,19 @@ async function handleCustomerEvent(
   connection: ShopifyConnection,
   supabase: any,
 ) {
-  const crmCustomer = await upsertCrmCustomerFromShopifyCustomer(
+  const providerCustomer = await upsertShopifyCustomer(
     supabase,
     connection,
     payload,
+    null,
   );
-
-  await upsertShopifyCustomer(
-    supabase,
-    connection,
-    payload,
-    crmCustomer?.id ?? null,
-  );
+  if (providerCustomer?.shopify_customer_id) {
+    await resolveShopifyCustomerIdentity(
+      supabase,
+      connection,
+      providerCustomer.shopify_customer_id,
+    );
+  }
 }
 
 async function handleOrderEvent(
@@ -334,16 +312,51 @@ async function handleOrderEvent(
       ? existingOrder.raw_data
       : {};
 
-  const crmCustomer = email
-    ? await resolveCrmCustomerByEmail(supabase, connection.tenant_id, email)
+  let crmCustomer = null;
+  const shopifyCustomerId = payload.customer?.id
+    ? String(payload.customer.id)
     : null;
+  if (shopifyCustomerId) {
+    const { data: existingProvider, error: providerLookupError } =
+      await supabase
+        .from("shopify_customers")
+        .select("id")
+        .eq("tenant_id", connection.tenant_id)
+        .eq("shopify_customer_id", shopifyCustomerId)
+        .maybeSingle();
+    if (providerLookupError) throw providerLookupError;
+    if (!existingProvider) {
+      await upsertShopifyCustomer(
+        supabase,
+        connection,
+        {
+          ...(payload.customer || {}),
+          id: shopifyCustomerId,
+          email: payload.customer?.email || email,
+        },
+        null,
+      );
+    }
+    crmCustomer = await resolveShopifyCustomerIdentity(
+      supabase,
+      connection,
+      shopifyCustomerId,
+    );
+  } else if (email) {
+    // Guest checkouts have no provider customer identity. Email is the only
+    // available signal, so retain the tenant-scoped fallback without creating
+    // or changing any consent state.
+    crmCustomer = await resolveCrmCustomerByEmail(
+      supabase,
+      connection.tenant_id,
+      email,
+    );
+  }
 
   const upsertPayload = {
     tenant_id: connection.tenant_id,
     shopify_order_id: orderId,
-    shopify_customer_id: payload.customer?.id
-      ? String(payload.customer.id)
-      : null,
+    shopify_customer_id: shopifyCustomerId,
     contact_id: crmCustomer?.id ?? existingOrder?.contact_id ?? null,
     email,
     order_number:

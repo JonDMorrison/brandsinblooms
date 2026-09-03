@@ -436,35 +436,6 @@ function normalizeOptionalString(value: unknown) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function buildLightspeedCrmCustomerPayload(
-  row: ReturnType<typeof mapLightspeedCustomer>,
-) {
-  const payload: Record<string, unknown> = {
-    tenant_id: row.tenant_id,
-    updated_at: new Date().toISOString(),
-    pos_source: "lightspeed",
-    external_id: row.lightspeed_customer_id,
-  };
-
-  if (row.email) {
-    payload.email = row.email;
-  }
-
-  if (row.phone) {
-    payload.phone = row.phone;
-  }
-
-  if (row.first_name) {
-    payload.first_name = row.first_name;
-  }
-
-  if (row.last_name) {
-    payload.last_name = row.last_name;
-  }
-
-  return payload;
-}
-
 type LightspeedProductLookups = {
   productTypesById: Map<string, string>;
   tagNamesById: Map<string, string>;
@@ -1848,133 +1819,7 @@ async function syncLightspeedCustomers(
   for (const row of mappedRows) {
     try {
       await upsertLightspeedCustomerProfile(supabase, row);
-
       insertedRows += 1;
-
-      if (row.email || row.phone) {
-        const crmPayload = buildLightspeedCrmCustomerPayload(row);
-        let crmFailureRecorded = false;
-        const recordCrmFailure = () => {
-          if (!crmFailureRecorded) {
-            failedRows += 1;
-            crmFailureRecorded = true;
-          }
-        };
-        const { data: linkedContact, error: linkedContactError } =
-          await supabase
-            .from("crm_customers")
-            .select("id,email,phone")
-            .eq("tenant_id", connection.tenant_id)
-            .eq("pos_source", "lightspeed")
-            .eq("external_id", row.lightspeed_customer_id)
-            .maybeSingle();
-
-        if (linkedContactError) {
-          recordCrmFailure();
-          console.error(
-            "[POS-SYNC-WORKER] Failed to look up CRM customer by Lightspeed external_id:",
-            linkedContactError.message,
-          );
-          continue;
-        }
-
-        const filters = [];
-        if (row.email) filters.push(`email.eq.${row.email}`);
-        if (row.phone) filters.push(`phone.eq.${row.phone}`);
-
-        const { data: matchingContacts, error: matchingContactsError } =
-          linkedContact
-            ? { data: [linkedContact], error: null }
-            : filters.length > 0
-              ? await supabase
-                  .from("crm_customers")
-                  .select("id,email,phone")
-                  .eq("tenant_id", connection.tenant_id)
-                  .or(filters.join(","))
-                  .limit(10)
-              : { data: [], error: null };
-
-        if (matchingContactsError) {
-          recordCrmFailure();
-          console.error(
-            "[POS-SYNC-WORKER] Failed to look up CRM customer for Lightspeed customer:",
-            matchingContactsError.message,
-          );
-        } else {
-          const matchedByEmail = row.email
-            ? (matchingContacts ?? []).find(
-                (contact: { email?: string | null }) =>
-                  contact.email === row.email,
-              )
-            : null;
-          const matchedByPhone =
-            !matchedByEmail && row.phone
-              ? (matchingContacts ?? []).find(
-                  (contact: { phone?: string | null }) =>
-                    contact.phone === row.phone,
-                )
-              : null;
-
-          let contactId =
-            linkedContact?.id ??
-            matchedByEmail?.id ??
-            matchedByPhone?.id ??
-            row.contact_id ??
-            null;
-
-          if (contactId) {
-            const crmUpdatePayload = { ...crmPayload };
-            if (!matchedByEmail) {
-              delete crmUpdatePayload.email;
-            }
-
-            const { error: updateCrmError } = await supabase
-              .from("crm_customers")
-              .update(crmUpdatePayload)
-              .eq("id", contactId);
-
-            if (updateCrmError) {
-              recordCrmFailure();
-              console.error(
-                "[POS-SYNC-WORKER] Failed to update CRM customer for Lightspeed customer:",
-                updateCrmError.message,
-              );
-            }
-          } else if (row.email) {
-            const { data: newContact, error: createError } = await supabase
-              .from("crm_customers")
-              .upsert(crmPayload, { onConflict: "tenant_id,email" })
-              .select("id")
-              .single();
-
-            if (createError) {
-              recordCrmFailure();
-              console.error(
-                "[POS-SYNC-WORKER] Failed to create CRM customer for Lightspeed customer:",
-                createError.message,
-              );
-            } else {
-              contactId = newContact?.id ?? null;
-            }
-          }
-
-          if (contactId) {
-            const { error: linkError } = await supabase
-              .from("lightspeed_customers")
-              .update({ contact_id: contactId })
-              .eq("tenant_id", connection.tenant_id)
-              .eq("lightspeed_customer_id", row.lightspeed_customer_id);
-
-            if (linkError) {
-              recordCrmFailure();
-              console.error(
-                "[POS-SYNC-WORKER] Failed to link Lightspeed customer to CRM customer:",
-                linkError.message,
-              );
-            }
-          }
-        }
-      }
     } catch (error: any) {
       failedRows += 1;
       console.error(
@@ -1982,6 +1827,30 @@ async function syncLightspeedCustomers(
         error?.message ?? error,
       );
     }
+  }
+
+  if (mappedRows.length > 0) {
+    const { data: identityResult, error: identityError } = await supabase.rpc(
+      "resolve_external_provider_customer_identity_batch",
+      {
+        p_tenant_id: connection.tenant_id,
+        p_provider: "lightspeed",
+        p_user_id: connection.user_id,
+        p_external_ids: mappedRows.map((row) => row.lightspeed_customer_id),
+      },
+    );
+
+    if (identityError) {
+      throw new Error(
+        `Lightspeed identity batch failed: ${identityError.message}`,
+      );
+    }
+
+    const identity = identityResult as {
+      ambiguous?: number;
+      failed?: number;
+    } | null;
+    failedRows += (identity?.ambiguous || 0) + (identity?.failed || 0);
   }
 
   const skippedRows = Math.max(0, fetchedRows - insertedRows - failedRows);
@@ -2760,25 +2629,6 @@ function mapShopifyCustomer(customer: any, connection: any) {
   };
 }
 
-function mapShopifyCustomerToCRM(customer: any, connection: any) {
-  return {
-    tenant_id: connection.tenant_id,
-    email: customer.email,
-    first_name: customer.first_name ?? null,
-    last_name: customer.last_name ?? null,
-    phone: customer.phone ?? null,
-    pos_source: "shopify",
-    total_spent: customer.total_spent
-      ? Number.parseFloat(String(customer.total_spent))
-      : null,
-    lifetime_value: customer.total_spent
-      ? Number.parseFloat(String(customer.total_spent))
-      : null,
-    tags: splitShopifyTags(customer.tags),
-    updated_at: new Date().toISOString(),
-  };
-}
-
 function mapShopifyOrder(order: any, connection: any) {
   return {
     tenant_id: connection.tenant_id,
@@ -3059,24 +2909,27 @@ async function syncShopifyCustomers(
       );
     }
 
-    const crmRows = customers
-      .filter(
-        (customer: any) =>
-          typeof customer.email === "string" && customer.email.length > 0,
-      )
-      .map((customer: any) => mapShopifyCustomerToCRM(customer, connection));
+    const { data: identityResult, error: identityError } = await supabase.rpc(
+      "resolve_external_provider_customer_identity_batch",
+      {
+        p_tenant_id: connection.tenant_id,
+        p_provider: "shopify",
+        p_user_id: connection.user_id,
+        p_external_ids: shopifyRows.map((row) => row.shopify_customer_id),
+      },
+    );
 
-    if (crmRows.length > 0) {
-      const { error: crmError } = await supabase
-        .from("crm_customers")
-        .upsert(crmRows, { onConflict: "tenant_id,email" });
-
-      if (crmError) {
-        throw new Error(
-          `Failed to upsert Shopify CRM customers: ${crmError.message}`,
-        );
-      }
+    if (identityError) {
+      throw new Error(
+        `Shopify identity batch failed: ${identityError.message}`,
+      );
     }
+
+    const identity = identityResult as {
+      ambiguous?: number;
+      failed?: number;
+    } | null;
+    failedRows += (identity?.ambiguous || 0) + (identity?.failed || 0);
 
     insertedRows = customers.length;
   }
@@ -3496,34 +3349,36 @@ async function syncSquare(
     result.cursor = data.cursor || null;
     result.rows = customers.length;
 
-    // Batch upsert with deduplication
+    // Immutable Square ID is the identity key. Keep no-email customers and
+    // let the canonical resolver quarantine ambiguous contact signals.
     if (customers.length > 0) {
-      const deduped = new Map();
+      const deduped = new Map<string, any>();
       for (const c of customers) {
-        const email = (
-          c.email_address || `square-${c.id}@noemail.local`
-        ).toLowerCase();
-        deduped.set(email, c);
+        if (c.id) deduped.set(c.id, c);
       }
 
       const records = Array.from(deduped.values()).map((c) => ({
-        tenant_id: connection.tenant_id,
-        email: (
-          c.email_address || `square-${c.id}@noemail.local`
-        ).toLowerCase(),
+        external_id: c.id,
+        email: c.email_address?.trim().toLowerCase() || null,
         first_name: c.given_name || null,
         last_name: c.family_name || null,
         phone: c.phone_number || null,
-        pos_source: "square",
-        square_customer_id: c.id,
-        square_last_synced_at: new Date().toISOString(),
+        created_at: c.created_at || null,
+        updated_at: c.updated_at || null,
       }));
 
-      const { error } = await supabase
-        .from("crm_customers")
-        .upsert(records, { onConflict: "tenant_id,email" });
-
-      if (!error) result.customers = records.length;
+      const { data: identityResult, error } = await supabase.rpc(
+        "resolve_provider_customer_identity_batch",
+        {
+          p_tenant_id: connection.tenant_id,
+          p_provider: "square",
+          p_user_id: connection.user_id,
+          p_customers: records,
+        },
+      );
+      if (error)
+        throw new Error(`Square identity batch failed: ${error.message}`);
+      result.customers = identityResult?.resolved || 0;
     }
   }
 
@@ -3651,28 +3506,33 @@ async function syncClover(
     result.cursor = customers.length >= 100 ? String(offset + 100) : null;
 
     if (customers.length > 0) {
-      const deduped = new Map();
+      const deduped = new Map<string, any>();
       for (const c of customers) {
-        const email = c.emailAddresses?.elements?.[0]?.emailAddress;
-        if (email) deduped.set(email.toLowerCase(), c);
+        if (c.id) deduped.set(c.id, c);
       }
 
       const records = Array.from(deduped.values()).map((c) => ({
-        tenant_id: connection.tenant_id,
-        email: c.emailAddresses.elements[0].emailAddress.toLowerCase(),
+        external_id: c.id,
+        email:
+          c.emailAddresses?.elements?.[0]?.emailAddress?.trim().toLowerCase() ||
+          null,
         first_name: c.firstName || null,
         last_name: c.lastName || null,
         phone: c.phoneNumbers?.elements?.[0]?.phoneNumber || null,
-        pos_source: "clover",
-        clover_customer_id: c.id,
-        clover_last_synced_at: new Date().toISOString(),
       }));
 
-      const { error } = await supabase
-        .from("crm_customers")
-        .upsert(records, { onConflict: "tenant_id,email" });
-
-      if (!error) result.customers = records.length;
+      const { data: identityResult, error } = await supabase.rpc(
+        "resolve_provider_customer_identity_batch",
+        {
+          p_tenant_id: connection.tenant_id,
+          p_provider: "clover",
+          p_user_id: connection.user_id,
+          p_customers: records,
+        },
+      );
+      if (error)
+        throw new Error(`Clover identity batch failed: ${error.message}`);
+      result.customers = identityResult?.resolved || 0;
     }
   }
 

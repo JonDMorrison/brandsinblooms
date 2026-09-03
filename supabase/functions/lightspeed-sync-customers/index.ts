@@ -125,36 +125,6 @@ function mapLightspeedCustomerRow(
   return providerRow;
 }
 
-function buildCrmCustomerUpsert(
-  row: ReturnType<typeof mapLightspeedCustomerRow>,
-) {
-  if (!row.email) {
-    return null;
-  }
-
-  const crmRow: Record<string, unknown> = {
-    tenant_id: row.tenant_id,
-    email: row.email,
-    pos_source: "lightspeed",
-    external_id: row.lightspeed_customer_id,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (row.first_name) {
-    crmRow.first_name = row.first_name;
-  }
-
-  if (row.last_name) {
-    crmRow.last_name = row.last_name;
-  }
-
-  if (row.phone) {
-    crmRow.phone = row.phone;
-  }
-
-  return crmRow;
-}
-
 function toFiniteNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -493,64 +463,29 @@ Deno.serve(async (req) => {
         syncedCount++;
       }
 
-      const crmRowsByEmail = new Map<string, Record<string, unknown>>();
-      for (const providerRow of pageProviderRows) {
-        const crmRow = buildCrmCustomerUpsert(providerRow);
-        if (crmRow && typeof crmRow.email === "string") {
-          crmRowsByEmail.set(crmRow.email, crmRow);
-        }
-      }
+      if (pageProviderRows.length > 0) {
+        const { data: identityResult, error: identityError } =
+          await supabaseAdmin.rpc(
+            "resolve_external_provider_customer_identity_batch",
+            {
+              p_tenant_id: tenantId,
+              p_provider: "lightspeed",
+              p_user_id: user.id,
+              p_external_ids: pageProviderRows.map(
+                (row) => row.lightspeed_customer_id,
+              ),
+            },
+          );
 
-      if (crmRowsByEmail.size > 0) {
-        const crmRows = Array.from(crmRowsByEmail.values());
-        const { error: crmUpsertError } = await supabaseAdmin
-          .from("crm_customers")
-          .upsert(crmRows, {
-            onConflict: "tenant_id,email",
-          });
-
-        if (crmUpsertError) {
-          throw crmUpsertError;
+        if (identityError) {
+          throw new Error(`Identity batch failed: ${identityError.message}`);
         }
 
-        const { data: crmContacts, error: crmContactsError } =
-          await supabaseAdmin
-            .from("crm_customers")
-            .select("id,email")
-            .eq("tenant_id", tenantId)
-            .in("email", Array.from(crmRowsByEmail.keys()));
-
-        if (crmContactsError) {
-          throw crmContactsError;
-        }
-
-        const crmIdByEmail = new Map<string, string>();
-        for (const crmContact of crmContacts || []) {
-          if (crmContact.email) {
-            crmIdByEmail.set(crmContact.email, crmContact.id);
-          }
-        }
-
-        for (const providerRow of pageProviderRows) {
-          if (!providerRow.email) {
-            continue;
-          }
-
-          const contactId = crmIdByEmail.get(providerRow.email as string);
-          if (!contactId) {
-            continue;
-          }
-
-          const { error: linkError } = await supabaseAdmin
-            .from("lightspeed_customers")
-            .update({ contact_id: contactId })
-            .eq("tenant_id", tenantId)
-            .eq("lightspeed_customer_id", providerRow.lightspeed_customer_id);
-
-          if (linkError) {
-            throw linkError;
-          }
-        }
+        const identity = identityResult as {
+          ambiguous?: number;
+          failed?: number;
+        } | null;
+        pageFailed += (identity?.ambiguous || 0) + (identity?.failed || 0);
       }
 
       const pageSkipped = Math.max(
