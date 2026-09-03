@@ -1,29 +1,18 @@
 
 import { Button } from "@/components/ui-legacy/button";
-import { Badge } from "@/components/ui-legacy/badge";
 import { Edit2, FileText, Lightbulb } from "lucide-react";
-import { GenerateContentPackButton } from "@/components/content/GenerateContentPackButton";
 
 interface ThemeDisplayProps {
-  campaignId: string;
   currentTheme: string;
   currentDescription?: string;
-  weekNumber?: number;
   onEdit: () => void;
-  onContentGenerated?: () => void;
 }
 
 export const ThemeDisplay = ({
-  campaignId,
   currentTheme,
   currentDescription,
-  weekNumber,
   onEdit,
-  onContentGenerated
 }: ThemeDisplayProps) => {
-  const hasTheme = currentTheme && currentTheme.trim() !== "";
-  const hasDescription = currentDescription && currentDescription.trim() !== "";
-
   return (
     <div className="space-y-4">
       {currentTheme ? (
