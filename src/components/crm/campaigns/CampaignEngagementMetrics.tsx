@@ -10,6 +10,8 @@ import { Eye, Flag, MousePointerClick, UserMinus } from "lucide-react";
 export interface CampaignEngagementMetricsProps {
   uniqueOpens: number;
   totalOpens: number;
+  adjustedUniqueOpens: number;
+  adjustedTotalOpens: number;
   uniqueClicks: number;
   totalClicks: number;
   unsubscribes: number;
@@ -59,6 +61,8 @@ function EngagementCell({
 export function CampaignEngagementMetrics({
   uniqueOpens,
   totalOpens,
+  adjustedUniqueOpens,
+  adjustedTotalOpens,
   uniqueClicks,
   totalClicks,
   unsubscribes,
@@ -68,16 +72,16 @@ export function CampaignEngagementMetrics({
   const complaintRate = totalDelivered > 0 ? complaints / totalDelivered : 0;
   const items = [
     {
-      key: "opened",
-      icon: Eye,
-      label: "Opened",
-      value: `${uniqueOpens.toLocaleString()} unique / ${totalOpens.toLocaleString()} total (${formatPercent(uniqueOpens, totalDelivered)})`,
-    },
-    {
       key: "clicked",
       icon: MousePointerClick,
       label: "Clicked",
       value: `${uniqueClicks.toLocaleString()} unique / ${totalClicks.toLocaleString()} total (${formatPercent(uniqueClicks, totalDelivered)})`,
+    },
+    {
+      key: "opened",
+      icon: Eye,
+      label: "Opened (reported)",
+      value: `${uniqueOpens.toLocaleString()} unique / ${totalOpens.toLocaleString()} total (${formatPercent(uniqueOpens, totalDelivered)})`,
     },
     {
       key: "unsubscribed",
@@ -95,29 +99,36 @@ export function CampaignEngagementMetrics({
   ] as const;
 
   return (
-    <Sheet
-      variant="outlined"
-      sx={{
-        borderRadius: "lg",
-        display: "flex",
-        flexDirection: { xs: "column", lg: "row" },
-        overflow: "hidden",
-      }}
-    >
-      {items.map(({ key, ...item }, index) => (
-        <React.Fragment key={key}>
-          <EngagementCell {...item} />
-          {index < items.length - 1 ? (
-            <>
-              <Divider sx={{ display: { xs: "block", lg: "none" } }} />
-              <Divider
-                orientation="vertical"
-                sx={{ display: { xs: "none", lg: "block" } }}
-              />
-            </>
-          ) : null}
-        </React.Fragment>
-      ))}
-    </Sheet>
+    <Stack spacing={0.75}>
+      <Sheet
+        variant="outlined"
+        sx={{
+          borderRadius: "lg",
+          display: "flex",
+          flexDirection: { xs: "column", lg: "row" },
+          overflow: "hidden",
+        }}
+      >
+        {items.map(({ key, ...item }, index) => (
+          <React.Fragment key={key}>
+            <EngagementCell {...item} />
+            {index < items.length - 1 ? (
+              <>
+                <Divider sx={{ display: { xs: "block", lg: "none" } }} />
+                <Divider
+                  orientation="vertical"
+                  sx={{ display: { xs: "none", lg: "block" } }}
+                />
+              </>
+            ) : null}
+          </React.Fragment>
+        ))}
+      </Sheet>
+      <Typography level="body-xs" color="neutral" sx={{ px: 0.5 }}>
+        Open tracking can be inflated by mail privacy features. Estimated
+        non-privacy opens: {adjustedUniqueOpens.toLocaleString()} unique /{" "}
+        {adjustedTotalOpens.toLocaleString()} total. Clicks are more reliable.
+      </Typography>
+    </Stack>
   );
 }

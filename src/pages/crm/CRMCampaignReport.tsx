@@ -18,6 +18,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertTriangle,
   ChevronLeft,
   Copy,
   FileDown,
@@ -54,8 +55,8 @@ import {
 import { PageContainer } from "@/components/joy/PageContainer";
 import { useCampaignBounces } from "@/hooks/useCampaignBounces";
 import {
+  normalizeEmailCampaignReportingSnapshot,
   normalizeDerivedMetrics,
-  useCampaignDerivedMetrics,
 } from "@/hooks/analytics/useCampaignDerivedMetrics";
 import { useCampaignCloning } from "@/hooks/useCampaignCloning";
 import {
@@ -69,12 +70,6 @@ import {
   type CampaignCatalogItem,
   type CampaignEditorRecord,
 } from "@/lib/crm/campaignEditor";
-
-type TrackingEventRow = {
-  event_type: string;
-  customer_email: string | null;
-  created_at: string;
-};
 
 type ReportTimelinePoint = {
   hour: number;
@@ -127,6 +122,7 @@ type ReportSummary = {
   totalClicks: number;
   complaints: number;
   unsubscribes: number;
+  failureReasons: Array<{ reason: string; count: number }>;
 };
 
 type RenderedEmailPreview = {
@@ -311,10 +307,6 @@ function normalizeCampaignNameForDisplay(name: string) {
   return name.replace(/(?:\s*\(Resend\))+$/i, " (Resend)").trim();
 }
 
-function sanitizeEmailAddress(email: string | null | undefined) {
-  return (email || "").trim().toLowerCase();
-}
-
 function toRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -391,119 +383,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   }
 
   return fallback;
-}
-
-function buildTimeline(
-  events: TrackingEventRow[],
-  sentAt: string | null,
-): {
-  timeline: ReportTimelinePoint[];
-  uniqueOpens: number;
-  totalOpens: number;
-  uniqueClicks: number;
-  totalClicks: number;
-  complaints: number;
-  unsubscribes: number;
-} {
-  const baseDate = sentAt ? new Date(sentAt) : null;
-  const points = Array.from({ length: 72 }, (_, hour) => ({
-    hour,
-    opens: 0,
-    clicks: 0,
-  }));
-  const openRecipients = new Set<string>();
-  const clickRecipients = new Set<string>();
-  let totalOpens = 0;
-  let totalClicks = 0;
-  let complaints = 0;
-  let unsubscribes = 0;
-
-  const openEvents = events
-    .filter((event) => ["open", "opened"].includes(event.event_type))
-    .sort(
-      (left, right) =>
-        new Date(left.created_at).getTime() -
-        new Date(right.created_at).getTime(),
-    );
-  const clickEvents = events
-    .filter((event) => ["click", "clicked"].includes(event.event_type))
-    .sort(
-      (left, right) =>
-        new Date(left.created_at).getTime() -
-        new Date(right.created_at).getTime(),
-    );
-
-  for (const event of events) {
-    if (["complained", "complaint"].includes(event.event_type)) {
-      complaints += 1;
-    }
-    if (["unsubscribed", "unsubscribe"].includes(event.event_type)) {
-      unsubscribes += 1;
-    }
-  }
-
-  let cumulativeOpens = 0;
-  let cumulativeClicks = 0;
-  let openIndex = 0;
-  let clickIndex = 0;
-
-  for (let hour = 0; hour < points.length; hour += 1) {
-    const windowEnd = baseDate
-      ? new Date(baseDate.getTime() + (hour + 1) * 60 * 60 * 1000)
-      : null;
-
-    while (openIndex < openEvents.length) {
-      const event = openEvents[openIndex];
-      if (
-        windowEnd &&
-        new Date(event.created_at).getTime() > windowEnd.getTime()
-      ) {
-        break;
-      }
-
-      const recipientKey = sanitizeEmailAddress(event.customer_email);
-      totalOpens += 1;
-      if (recipientKey && !openRecipients.has(recipientKey)) {
-        openRecipients.add(recipientKey);
-        cumulativeOpens += 1;
-      }
-      openIndex += 1;
-    }
-
-    while (clickIndex < clickEvents.length) {
-      const event = clickEvents[clickIndex];
-      if (
-        windowEnd &&
-        new Date(event.created_at).getTime() > windowEnd.getTime()
-      ) {
-        break;
-      }
-
-      const recipientKey = sanitizeEmailAddress(event.customer_email);
-      totalClicks += 1;
-      if (recipientKey && !clickRecipients.has(recipientKey)) {
-        clickRecipients.add(recipientKey);
-        cumulativeClicks += 1;
-      }
-      clickIndex += 1;
-    }
-
-    points[hour] = {
-      hour,
-      opens: cumulativeOpens,
-      clicks: cumulativeClicks,
-    };
-  }
-
-  return {
-    timeline: points,
-    uniqueOpens: openRecipients.size,
-    totalOpens,
-    uniqueClicks: clickRecipients.size,
-    totalClicks,
-    complaints,
-    unsubscribes,
-  };
 }
 
 function ChartCard({
@@ -910,7 +789,6 @@ export default function CRMCampaignReport() {
   const queryClient = useQueryClient();
   const { cloneCampaign, isCloning } = useCampaignCloning();
   const { bouncedEmails } = useCampaignBounces(campaignId ?? "");
-  const derivedMetricsQuery = useCampaignDerivedMetrics(campaignId);
   const lastStatusRef = React.useRef<string | null>(null);
   const [previewViewport, setPreviewViewport] =
     React.useState<PreviewViewport>("desktop");
@@ -928,7 +806,7 @@ export default function CRMCampaignReport() {
       // every recent campaign. email_messages (below) is the live source.
       const [
         { data: campaignRow, error: campaignError },
-        { data: trackingEvents, error: eventsError },
+        reportingSnapshotResult,
         editorRecord,
         { data: firstMessageRow, error: firstMessageError },
       ] = await Promise.all([
@@ -937,20 +815,9 @@ export default function CRMCampaignReport() {
           .select("*")
           .eq("id", campaignId)
           .single(),
-        supabase
-          .from("email_tracking_events")
-          .select("event_type, customer_email, created_at")
-          .eq("campaign_id", campaignId)
-          .in("event_type", [
-            "open",
-            "opened",
-            "click",
-            "clicked",
-            "complained",
-            "complaint",
-            "unsubscribed",
-            "unsubscribe",
-          ]),
+        supabase.rpc("get_email_campaign_reporting_snapshot", {
+          p_campaign_id: campaignId!,
+        }),
         fetchCampaignEditorRecord(campaignId!),
         supabase
           .from("email_messages")
@@ -963,14 +830,17 @@ export default function CRMCampaignReport() {
       ]);
 
       if (campaignError) throw campaignError;
-      if (eventsError) throw eventsError;
+      if (reportingSnapshotResult.error) throw reportingSnapshotResult.error;
       if (firstMessageError) throw firstMessageError;
 
       const campaign = mapCampaignCatalogItem(campaignRow);
-      const timeline = buildTimeline(
-        (trackingEvents ?? []) as TrackingEventRow[],
-        campaignRow.sent_at,
+      const reportingSnapshot = normalizeEmailCampaignReportingSnapshot(
+        reportingSnapshotResult.data,
       );
+      if (!reportingSnapshot) {
+        throw new Error("Campaign reporting snapshot is invalid");
+      }
+      const snapshotMetrics = reportingSnapshot.metrics;
       const rawContent = editorRecord.content || campaignRow.content || "";
       const previewSnapshot = buildPreviewSnapshot(
         (firstMessageRow ?? null) as EmailMessagePreviewRow | null,
@@ -1029,7 +899,7 @@ export default function CRMCampaignReport() {
       return {
         campaign,
         tenantId: campaignRow.tenant_id ?? null,
-        sentAt: campaignRow.sent_at,
+        sentAt: reportingSnapshot.sentAt ?? campaignRow.sent_at,
         subjectLine: campaign.subjectLine,
         preheaderText: campaign.preheaderText,
         rawContent,
@@ -1037,14 +907,21 @@ export default function CRMCampaignReport() {
         previewSnapshot,
         previewRecipient,
         smsMessage: editorRecord.smsMessage || campaignRow.content || "",
-        metrics: normalizeDerivedMetrics(campaignRow.metrics),
-        ...timeline,
+        metrics: snapshotMetrics,
+        timeline: reportingSnapshot.timeline,
+        uniqueOpens: snapshotMetrics.totals.opens,
+        totalOpens: snapshotMetrics.totals.total_opens,
+        uniqueClicks: snapshotMetrics.totals.clicks,
+        totalClicks: snapshotMetrics.totals.total_clicks,
+        complaints: snapshotMetrics.totals.complaints,
+        unsubscribes: snapshotMetrics.totals.unsubscribes,
+        failureReasons: reportingSnapshot.failureReasons,
       };
     },
   });
 
   const report = reportQuery.data;
-  const metrics = derivedMetricsQuery.metrics ?? report?.metrics;
+  const metrics = report?.metrics;
   const previewQueryKey = React.useMemo(
     () =>
       [
@@ -1324,14 +1201,15 @@ export default function CRMCampaignReport() {
       ["Status", report.campaign.status],
       ["Queued At", formatDateTime(report.campaign.queuedAt)],
       ["Sent At", formatDateTime(report.sentAt)],
-      ["Recipients", report.campaign.totalRecipients.toString()],
+      ["Recipients", metrics.totals.recipients.toString()],
       ["Delivered", metrics.totals.delivered.toString()],
       [
         "Bounced",
         String(metrics.totals.bounces || metrics.totals.hard_bounces),
       ],
-      ["Failed", "0"],
+      ["Failed", metrics.totals.failed.toString()],
       ["Skipped", metrics.totals.skipped.toString()],
+      ["Pending", metrics.totals.pending.toString()],
       ["Unique Opens", report.uniqueOpens.toString()],
       ["Total Opens", report.totalOpens.toString()],
       ["Unique Clicks", report.uniqueClicks.toString()],
@@ -1385,8 +1263,9 @@ export default function CRMCampaignReport() {
   const sent = metrics?.totals.sent ?? report?.campaign.totalRecipients ?? 0;
   const delivered = metrics?.totals.delivered ?? 0;
   const bounced = metrics?.totals.bounces ?? metrics?.totals.hard_bounces ?? 0;
-  const failed = 0;
+  const failed = metrics?.totals.failed ?? 0;
   const skipped = metrics?.totals.skipped ?? 0;
+  const pending = metrics?.totals.pending ?? 0;
   const displayCampaignName = report
     ? normalizeCampaignNameForDisplay(report.campaign.name)
     : "";
@@ -1533,7 +1412,7 @@ export default function CRMCampaignReport() {
         </Sheet>
 
         {reportQuery.isLoading ? (
-          <StatsStripSkeleton cells={5} />
+          <StatsStripSkeleton cells={6} />
         ) : (
           <CampaignDeliverySummary
             sent={sent}
@@ -1541,8 +1420,43 @@ export default function CRMCampaignReport() {
             bounced={bounced}
             failed={failed}
             skipped={skipped}
+            pending={pending}
           />
         )}
+
+        {!reportQuery.isLoading && failed + skipped + pending > 0 ? (
+          <Sheet
+            variant="soft"
+            color={failed > 0 ? "danger" : "warning"}
+            sx={{ borderRadius: "lg", p: 2.25 }}
+          >
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+              <AlertTriangle size={20} />
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography level="title-sm">
+                  {pending > 0
+                    ? "Campaign delivery is not complete"
+                    : "Campaign did not reach every recipient"}
+                </Typography>
+                <Typography level="body-sm">
+                  {failed.toLocaleString()} failed, {skipped.toLocaleString()}{" "}
+                  skipped, and {pending.toLocaleString()} still pending.
+                </Typography>
+                {report?.failureReasons.length ? (
+                  <Typography level="body-xs">
+                    Top failures:{" "}
+                    {report.failureReasons
+                      .map(
+                        ({ reason, count }) =>
+                          `${reason} (${count.toLocaleString()})`,
+                      )
+                      .join("; ")}
+                  </Typography>
+                ) : null}
+              </Stack>
+            </Stack>
+          </Sheet>
+        ) : null}
 
         {reportQuery.isLoading ? (
           <StatsStripSkeleton cells={4} />
@@ -1550,6 +1464,8 @@ export default function CRMCampaignReport() {
           <CampaignEngagementMetrics
             uniqueOpens={report?.uniqueOpens ?? 0}
             totalOpens={report?.totalOpens ?? 0}
+            adjustedUniqueOpens={metrics?.totals.opens_non_mpp ?? 0}
+            adjustedTotalOpens={metrics?.totals.total_opens_non_mpp ?? 0}
             uniqueClicks={report?.uniqueClicks ?? 0}
             totalClicks={report?.totalClicks ?? 0}
             unsubscribes={report?.unsubscribes ?? 0}
