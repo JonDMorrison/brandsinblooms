@@ -16406,6 +16406,10 @@ export type Database = {
           sms_events: number;
         }[];
       };
+      get_customer_export_page: {
+        Args: { p_after_id?: string | null; p_limit?: number };
+        Returns: Json;
+      };
       get_customer_purchase_timeline: {
         Args: { p_customer_id: string; p_months?: number };
         Returns: {

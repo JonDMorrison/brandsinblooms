@@ -17,6 +17,7 @@ import {
   Calendar,
   ChevronDown,
   DollarSign,
+  Download,
   Eye,
   Mail,
   MoreVertical,
@@ -64,6 +65,7 @@ import { useAllSegments } from "@/hooks/useAllSegments";
 import { useBulkCustomerOperations } from "@/hooks/useBulkCustomerOperations";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
+import { useCustomerExport } from "@/hooks/useCustomerExport";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -91,6 +93,7 @@ export const CRMCustomersPage: React.FC = () => {
   const pageSize = 15;
 
   const deleteCustomer = useDeleteCustomer();
+  const { exportAllCustomers, isExporting, exportedCount } = useCustomerExport();
   const {
     selectedIds,
     isProcessing,
@@ -477,6 +480,17 @@ export const CRMCustomersPage: React.FC = () => {
                   onClick={() => setShowImportDialog(true)}
                 >
                   Upload List
+                </JoyDropdownMenuItem>
+                <JoyDropdownMenuItem
+                  startDecorator={
+                    isExporting ? <CircularProgress size="sm" /> : <Download size={16} />
+                  }
+                  disabled={isExporting || isTenantLoading}
+                  onClick={() => void exportAllCustomers(tenant?.name)}
+                >
+                  {isExporting
+                    ? `Exporting ${exportedCount.toLocaleString()}…`
+                    : "Export All Customers"}
                 </JoyDropdownMenuItem>
               </JoyDropdownMenuContent>
             </JoyDropdownMenu>
