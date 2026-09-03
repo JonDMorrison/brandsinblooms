@@ -9,13 +9,14 @@ const workflow = readFileSync(
 describe("edge deployment scope gate", () => {
   it("does not redeploy every function for unrelated UI or test files", () => {
     expect(workflow).not.toContain("|^src/'; then");
-    expect(workflow).toContain("^src/(lib/studio/");
-    expect(workflow).toContain("hooks/useCompanyInfo\\.ts$");
-    expect(workflow).toContain("integrations/supabase/types\\.ts$");
+    expect(workflow).toContain("scripts/find-affected-edge-functions.mjs");
+    expect(workflow).toContain('elif [[ -z "$functions" ]]');
+    expect(workflow).toContain("Nothing to deploy");
   });
 
   it("still deploys the directly changed function directory", () => {
-    expect(workflow).toContain("grep -oP '^supabase/functions/\\K[^/]+'");
-    expect(workflow).toContain('[[ -d "supabase/functions/$fn" ]]');
+    expect(workflow).toContain("steps.changed.outputs.functions");
+    expect(workflow).toContain("for fn in $functions");
+    expect(workflow).toContain('supabase functions deploy "$fn"');
   });
 });
