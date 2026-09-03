@@ -8,6 +8,9 @@ major_version = 15
 [functions.process-automation-outbox]
 verify_jwt = false
 
+[functions.automation-executor]
+verify_jwt = false
+
 [functions.seed-demo-customers]
 verify_jwt = false
 

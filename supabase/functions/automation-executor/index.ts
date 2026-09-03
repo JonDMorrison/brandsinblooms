@@ -4,6 +4,7 @@ import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLO
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
 import { checkChannelAvailability, isChannelAvailable, type ChannelAvailability } from "../_shared/channelAvailability.ts";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -137,12 +138,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Auth gating handled at the platform level via verify_jwt — see
-    // queue-worker / process-email-send-queue for the same pattern.
-    // The previous in-handler check string-compared against the
-    // legacy SUPABASE_SERVICE_ROLE_KEY env, which broke after the
-    // 2026-05-07 sb_secret_ key migration (cron now sends the new
-    // key shape).
+    const unauthorized = requireInternalApiKey(req);
+    if (unauthorized) return unauthorized;
+
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
