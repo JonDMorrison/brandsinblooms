@@ -42,7 +42,20 @@ import type {
   DatabaseField,
   AIAnalysisResult,
 } from "@/types/import";
-import { CUSTOMER_FIELDS, applyField } from "@/lib/crm/customerImportSchema";
+import {
+  CUSTOMER_FIELDS,
+  applyCustomImportField,
+  applyField,
+  inferCustomFieldType,
+  mergeImportedCustomerWithExisting,
+  normalizeCustomFieldKey,
+  parseValue,
+  customerFieldByKey,
+} from "@/lib/crm/customerImportSchema";
+import {
+  getRememberedImportField,
+  rememberImportField,
+} from "@/lib/crm/customerImportMappings";
 import {
   applyAttestationToCustomer,
   DEFAULT_ATTESTATION_CHOICE,
@@ -58,6 +71,35 @@ interface EnhancedSegmentImportDialogProps {
   segmentId?: string;
   segmentName?: string;
   onImportComplete?: () => void;
+}
+
+const IMPORT_FIELD_ALIASES: Record<string, DatabaseField> = {
+  email_address: "email",
+  e_mail: "email",
+  firstname: "first_name",
+  first: "first_name",
+  lastname: "last_name",
+  last: "last_name",
+  mobile: "phone",
+  phone_number: "phone",
+  interests: "tags",
+  labels: "tags",
+  text_opt_in: "sms_opt_in",
+  sms_consent: "sms_opt_in",
+};
+
+function getDefaultImportField(header: string): DatabaseField {
+  const key = normalizeCustomFieldKey(header);
+  const known = CUSTOMER_FIELDS.find(
+    (field) =>
+      field.key === key || normalizeCustomFieldKey(field.label) === key,
+  );
+
+  return (
+    (known?.key as DatabaseField) ||
+    IMPORT_FIELD_ALIASES[key] ||
+    `custom:${key}`
+  );
 }
 
 export const EnhancedSegmentImportDialog: React.FC<
@@ -80,7 +122,7 @@ export const EnhancedSegmentImportDialog: React.FC<
     useState<ImportAttestationChoice>(DEFAULT_ATTESTATION_CHOICE);
 
   // Build field options from CUSTOMER_FIELDS schema
-  const fieldOptions = [
+  const standardFieldOptions = [
     { value: "skip", label: "-- Skip Column --" },
     ...CUSTOMER_FIELDS.map((field) => ({
       value: field.key,
@@ -92,6 +134,14 @@ export const EnhancedSegmentImportDialog: React.FC<
     { value: "tags", label: "Tags (comma-separated)" },
     { value: "persona", label: "Persona" },
     { value: "notes", label: "Notes/Memo" },
+  ];
+
+  const getFieldOptions = (mapping: ColumnMapping) => [
+    ...standardFieldOptions,
+    {
+      value: `custom:${normalizeCustomFieldKey(mapping.csvHeader)}`,
+      label: `Custom field: ${mapping.csvHeader}`,
+    },
   ];
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -157,8 +207,11 @@ export const EnhancedSegmentImportDialog: React.FC<
         // Fallback: Use generic column names
         mappings = parsed.headers.map((header, index) => ({
           csvHeader: header,
-          databaseField: "skip" as DatabaseField,
+          databaseField:
+            getRememberedImportField(window.localStorage, header) ||
+            getDefaultImportField(header),
           sampleData: parsed.sampleData[index].samples,
+          sourceIndex: index,
         }));
       } else {
         // Success: Use AI suggestions
@@ -167,10 +220,18 @@ export const EnhancedSegmentImportDialog: React.FC<
         mappings = analysisResult.analysis.suggestedMappings.map(
           (suggestion) => ({
             csvHeader: suggestion.columnName,
-            databaseField: suggestion.suggestedField,
+            databaseField:
+              getRememberedImportField(
+                window.localStorage,
+                suggestion.columnName,
+              ) ||
+              (suggestion.suggestedField === "skip"
+                ? `custom:${normalizeCustomFieldKey(suggestion.columnName)}`
+                : suggestion.suggestedField),
             sampleData: parsed.firstFiveRows.map(
               (row) => row[suggestion.columnIndex] || "",
             ),
+            sourceIndex: suggestion.columnIndex,
             aiConfidence: suggestion.confidence,
             aiReasoning: suggestion.reasoning,
           }),
@@ -220,6 +281,11 @@ export const EnhancedSegmentImportDialog: React.FC<
         ...updated[index],
         databaseField: value as DatabaseField,
       };
+      rememberImportField(
+        window.localStorage,
+        updated[index].csvHeader,
+        updated[index].databaseField,
+      );
       return updated;
     });
     setValidationErrors([]);
@@ -251,6 +317,60 @@ export const EnhancedSegmentImportDialog: React.FC<
       );
     }
 
+    const emailMapping = columnMappings.find(
+      (mapping) => mapping.databaseField === "email",
+    );
+    if (emailMapping) {
+      const emailIndex =
+        emailMapping.sourceIndex ?? columnMappings.indexOf(emailMapping);
+      const invalidEmailRows = dataRows
+        .map((row, index) => ({
+          value: String(row[emailIndex] ?? "").trim(),
+          row: index + 2,
+        }))
+        .filter(({ value }) => !value || !isValidEmail(value));
+      if (invalidEmailRows.length > 0) {
+        const examples = invalidEmailRows
+          .slice(0, 5)
+          .map(({ row }) => row)
+          .join(", ");
+        errors.push(
+          `${invalidEmailRows.length} row(s) have a missing or invalid email (CSV row${invalidEmailRows.length === 1 ? "" : "s"} ${examples}${invalidEmailRows.length > 5 ? ", …" : ""}).`,
+        );
+      }
+    }
+
+    for (const [mappingIndex, mapping] of columnMappings.entries()) {
+      if (
+        mapping.databaseField === "skip" ||
+        mapping.databaseField === "email"
+      ) {
+        continue;
+      }
+
+      const custom = mapping.databaseField.startsWith("custom:");
+      const schemaField = custom
+        ? null
+        : customerFieldByKey[mapping.databaseField];
+      const type = custom
+        ? inferCustomFieldType(mapping.csvHeader, mapping.sampleData)
+        : schemaField?.type;
+      if (!type) continue;
+
+      const sourceIndex = mapping.sourceIndex ?? mappingIndex;
+      const invalidValues = dataRows
+        .map((row, index) => ({ value: row[sourceIndex], row: index + 2 }))
+        .filter(
+          ({ value }) =>
+            String(value ?? "").trim() && parseValue(type, value) === null,
+        );
+      if (invalidValues.length > 0) {
+        errors.push(
+          `${mapping.csvHeader} has ${invalidValues.length} value(s) that are not valid ${type} data (first at CSV row ${invalidValues[0].row}).`,
+        );
+      }
+    }
+
     return { isValid: errors.length === 0, errors };
   };
 
@@ -259,6 +379,7 @@ export const EnhancedSegmentImportDialog: React.FC<
   ): Promise<{
     result: ImportResult;
     insertedContacts: Array<{ id: string; email: string }>;
+    affectedCustomerIds: string[];
     tenantId: string;
     userId: string;
   }> => {
@@ -310,11 +431,21 @@ export const EnhancedSegmentImportDialog: React.FC<
 
       // Apply all mapped fields using the shared schema
       columnMappings.forEach((mapping, index) => {
-        const raw = row[index];
+        const raw = row[mapping.sourceIndex ?? index];
         const fieldKey = mapping.databaseField;
 
         if (fieldKey === "skip" || fieldKey === "email") {
           // Skip already handled or explicitly skipped
+          return;
+        }
+
+        if (fieldKey.startsWith("custom:")) {
+          applyCustomImportField(
+            customer,
+            fieldKey.slice("custom:".length),
+            raw,
+            inferCustomFieldType(mapping.csvHeader, mapping.sampleData),
+          );
           return;
         }
 
@@ -410,6 +541,8 @@ export const EnhancedSegmentImportDialog: React.FC<
     };
 
     const insertedContacts: Array<{ id: string; email: string }> = [];
+    const affectedCustomerIds: string[] = [];
+    const consentProtectedEmails = new Set<string>();
 
     for (let i = 0; i < deduplicatedCustomers.length; i += BATCH_SIZE) {
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
@@ -424,9 +557,64 @@ export const EnhancedSegmentImportDialog: React.FC<
       });
 
       try {
+        const batchEmails = batch.map((customer) => customer.email);
+        const [
+          { data: existingRows, error: existingError },
+          { data: suppressions, error: suppressionError },
+        ] = await Promise.all([
+          supabase
+            .from("crm_customers")
+            .select(
+              "email, custom_fields, email_opt_in, email_opt_out_at, sms_opt_in, sms_opt_out_at",
+            )
+            .eq("tenant_id", tenantId)
+            .in("email", batchEmails),
+          supabase
+            .from("suppression_list")
+            .select("email")
+            .eq("tenant_id", tenantId)
+            .eq("channel", "email")
+            .eq("suppression_type", "unsubscribed")
+            .is("lifted_at", null)
+            .in("email", batchEmails),
+        ]);
+
+        if (existingError) throw existingError;
+        if (suppressionError) throw suppressionError;
+
+        const existingByEmail = new Map(
+          (existingRows ?? []).map((customer) => [
+            customer.email.toLowerCase(),
+            customer,
+          ]),
+        );
+        const unsubscribedEmails = new Set(
+          (suppressions ?? [])
+            .map((row) => row.email?.toLowerCase())
+            .filter((email): email is string => Boolean(email)),
+        );
+        const consentSafeBatch = batch.map((customer) => {
+          const normalizedEmail = String(customer.email).toLowerCase();
+          const existing = existingByEmail.get(normalizedEmail);
+          if (
+            existing &&
+            (unsubscribedEmails.has(normalizedEmail) ||
+              Boolean(existing.email_opt_out_at))
+          ) {
+            consentProtectedEmails.add(normalizedEmail);
+          }
+          return existing
+            ? mergeImportedCustomerWithExisting(
+                customer,
+                existing,
+                unsubscribedEmails.has(normalizedEmail),
+              )
+            : customer;
+        });
+
         const { data, error } = await supabase
           .from("crm_customers")
-          .upsert(batch, {
+          .upsert(consentSafeBatch, {
             onConflict: "tenant_id,email",
             ignoreDuplicates: false,
           })
@@ -436,7 +624,15 @@ export const EnhancedSegmentImportDialog: React.FC<
 
         results.imported += data.length;
         for (const row of data) {
-          if (row && typeof row.id === "string" && typeof row.email === "string") {
+          if (row && typeof row.id === "string") {
+            affectedCustomerIds.push(row.id);
+          }
+          if (
+            row &&
+            typeof row.id === "string" &&
+            typeof row.email === "string" &&
+            !consentProtectedEmails.has(row.email.toLowerCase())
+          ) {
             insertedContacts.push({ id: row.id, email: row.email });
           }
         }
@@ -468,7 +664,13 @@ export const EnhancedSegmentImportDialog: React.FC<
       }
     }
 
-    return { result: results, insertedContacts, tenantId, userId };
+    return {
+      result: results,
+      insertedContacts,
+      affectedCustomerIds,
+      tenantId,
+      userId,
+    };
   };
 
   // From the mapping step, "Import N Customers" advances to the consent
@@ -501,8 +703,30 @@ export const EnhancedSegmentImportDialog: React.FC<
     });
 
     try {
-      const { result, insertedContacts, tenantId, userId } =
-        await processImport(attestationChoice);
+      const {
+        result,
+        insertedContacts,
+        affectedCustomerIds,
+        tenantId,
+        userId,
+      } = await processImport(attestationChoice);
+
+      if (affectedCustomerIds.length > 0) {
+        const { error: segmentRefreshError } = await supabase.functions.invoke(
+          "recompute-segment-memberships",
+          {
+            body: {
+              tenant_id: tenantId,
+              customer_ids: affectedCustomerIds,
+            },
+          },
+        );
+        if (segmentRefreshError) {
+          result.errors.push(
+            `Customers imported, but automatic segment refresh failed: ${segmentRefreshError.message}`,
+          );
+        }
+      }
 
       // Record the owner's attestation as an auditable header BEFORE the
       // per-contact events so the events can reference its id. If the audit
@@ -818,7 +1042,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                           onChange={(e) =>
                             handleFieldMappingChange(index, e.target.value)
                           }
-                          options={fieldOptions}
+                          options={getFieldOptions(mapping)}
                           className="w-full"
                         />
                       </TableCell>
@@ -930,11 +1154,11 @@ export const EnhancedSegmentImportDialog: React.FC<
                   </p>
                   <p className="text-sm text-muted-foreground">
                     You marked consent as unsure, so we&apos;ve held{" "}
-                    {importResult.imported} contacts back from marketing
-                    sends. Send a one-time permission campaign asking them
-                    to opt in — only the people who confirm will become
-                    sendable. Open the campaigns page when you&apos;re ready;
-                    we won&apos;t auto-send anything on your behalf.
+                    {importResult.imported} contacts back from marketing sends.
+                    Send a one-time permission campaign asking them to opt in —
+                    only the people who confirm will become sendable. Open the
+                    campaigns page when you&apos;re ready; we won&apos;t
+                    auto-send anything on your behalf.
                   </p>
                 </AlertDescription>
               </Alert>

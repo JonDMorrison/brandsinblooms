@@ -3,6 +3,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { evaluateConditions } from "../_shared/segments/evaluator.ts";
 import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudience.ts";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
 /**
  * recompute-segment-memberships
  *
@@ -12,6 +18,10 @@ import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudienc
  */
 
 serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   const startTime = Date.now();
 
   try {
@@ -26,6 +36,42 @@ serve(async (req) => {
 
     const { tenant_id, segment_ids, customer_ids } = await req.json();
     if (!tenant_id) throw new Error("tenant_id is required");
+
+    const authHeader = req.headers.get("Authorization");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.slice("Bearer ".length);
+    if (token !== serviceRoleKey) {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser(token);
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: membership } = await supabase
+        .from("users")
+        .select("tenant_id")
+        .eq("id", user.id)
+        .eq("tenant_id", tenant_id)
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // 1. Load target segments
     let segQuery = supabase
