@@ -15,6 +15,7 @@ export interface SegmentRuleGroup {
   logic?: "AND" | "OR";
   children?: SegmentRuleNode[];
   conditions?: SegmentRuleCondition[];
+  rules?: SegmentRuleCondition[];
 }
 
 export type SegmentRuleNode = SegmentRuleCondition | SegmentRuleGroup;
@@ -222,6 +223,17 @@ function getCustomerComparableValue(
     return customFields?.[key] ?? null;
   }
 
+  // Older saved segments used dotted JSON paths. Keep those records working
+  // while the current builder stores custom fields as `custom:<key>`.
+  if (fieldId.includes(".")) {
+    return fieldId
+      .split(".")
+      .reduce<unknown>((value, key) => {
+        if (!value || typeof value !== "object") return null;
+        return (value as Record<string, unknown>)[key] ?? null;
+      }, customer);
+  }
+
   switch (fieldId) {
     case "customer_since":
       return customer.created_at ?? null;
@@ -323,13 +335,19 @@ export function normalizeSegmentRuleGroup(
     };
   }
 
-  if (Array.isArray(source.conditions)) {
+  const legacyRules = Array.isArray(source.conditions)
+    ? source.conditions
+    : Array.isArray(source.rules)
+      ? source.rules
+      : null;
+
+  if (legacyRules) {
     return {
       id: typeof source.id === "string" ? source.id : undefined,
       kind: "group",
       operator:
         source.logic === "OR" || source.operator === "OR" ? "OR" : "AND",
-      children: source.conditions.map((condition) =>
+      children: legacyRules.map((condition) =>
         normalizeCondition(condition),
       ),
     };
@@ -362,6 +380,16 @@ function evaluateCondition(
 
   if (operator === "is_not_empty") {
     return hasValue(customerValue);
+  }
+
+  if (operator === "within_days" || operator === "older_than_days") {
+    const customerDate = parseDate(customerValue);
+    const days = toNumber(condition.value);
+    if (!customerDate || days === null || days < 0) return false;
+    const threshold = new Date(Date.now() - days * 86400000);
+    return operator === "within_days"
+      ? customerDate >= threshold
+      : customerDate < threshold;
   }
 
   if (operator === "within_last" || operator === "not_within_last") {
@@ -405,6 +433,8 @@ function evaluateCondition(
   if (
     operator === "is_one_of" ||
     operator === "is_none_of" ||
+    operator === "in" ||
+    operator === "not_in" ||
     fieldId === "segment_membership" ||
     fieldId === "tag_membership"
   ) {
@@ -417,7 +447,9 @@ function evaluateCondition(
     const matches = expectedValues.some((value) =>
       currentValues.includes(value),
     );
-    return operator === "is_none_of" ? !matches : matches;
+    return operator === "is_none_of" || operator === "not_in"
+      ? !matches
+      : matches;
   }
 
   if (operator === "before" || operator === "after") {
@@ -435,11 +467,18 @@ function evaluateCondition(
     operator === "equals" ||
     operator === "not_equals" ||
     operator === "is" ||
-    operator === "is_not"
+    operator === "is_not" ||
+    operator === "=" ||
+    operator === "eq" ||
+    operator === "!=" ||
+    operator === "neq"
   ) {
     const exactMatch =
       normalizeString(customerValue) === normalizeString(condition.value);
-    return operator === "not_equals" || operator === "is_not"
+    return operator === "not_equals" ||
+      operator === "is_not" ||
+      operator === "!=" ||
+      operator === "neq"
       ? !exactMatch
       : exactMatch;
   }
@@ -469,12 +508,28 @@ function evaluateCondition(
     return false;
   }
 
-  if (operator === "greater_than") {
+  if (operator === "greater_than" || operator === ">" || operator === "gt") {
     return numericValue > ruleNumber;
   }
 
-  if (operator === "less_than") {
+  if (operator === "less_than" || operator === "<" || operator === "lt") {
     return numericValue < ruleNumber;
+  }
+
+  if (
+    operator === "greater_than_or_equal" ||
+    operator === ">=" ||
+    operator === "gte"
+  ) {
+    return numericValue >= ruleNumber;
+  }
+
+  if (
+    operator === "less_than_or_equal" ||
+    operator === "<=" ||
+    operator === "lte"
+  ) {
+    return numericValue <= ruleNumber;
   }
 
   return false;
