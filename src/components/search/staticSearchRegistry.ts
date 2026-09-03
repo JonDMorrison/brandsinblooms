@@ -39,17 +39,6 @@ const PAGE_ENTRIES: SearchResultItem[] = [
     group: "pages",
   }),
   createStaticItem({
-    id: "static:page:content-library",
-    type: "page",
-    title: "Content Library",
-    subtitle: "Manage reusable content, assets, and creative ideas.",
-    route: "/content",
-    icon: "pages",
-    metadata: "Page",
-    keywords: ["content", "library", "assets", "creative"],
-    group: "pages",
-  }),
-  createStaticItem({
     id: "static:page:newsletters",
     type: "page",
     title: "Newsletters",
@@ -1258,7 +1247,6 @@ const DEFAULT_JUMP_TO_IDS = [
   "static:page:dashboard",
   "static:page:analytics",
   "static:page:calendar",
-  "static:page:content-library",
   "static:page:settings",
 ] as const;
 
@@ -1281,7 +1269,6 @@ const INTEGRATIONS_JUMP_TO_IDS = [
 ] as const;
 
 const MESSAGING_JUMP_TO_IDS = [
-  "static:page:content-library",
   "static:page:calendar",
   "static:page:newsletters",
   "static:page:sms",
@@ -1301,7 +1288,6 @@ const COMMERCE_JUMP_TO_IDS = [
   "static:page:products",
   "static:page:website",
   "static:page:analytics",
-  "static:page:content-library",
 ] as const;
 
 function normalizeSearchText(value: string) {
