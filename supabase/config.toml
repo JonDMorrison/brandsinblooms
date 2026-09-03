@@ -536,3 +536,6 @@ verify_jwt = true
 
 [functions.recompute-segment-memberships]
 verify_jwt = true
+
+[functions.pos-link-customers]
+verify_jwt = true
