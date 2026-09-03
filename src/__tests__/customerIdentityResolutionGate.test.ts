@@ -12,6 +12,9 @@ const migration = readSource(
 const ingestionMigration = readSource(
   "supabase/migrations/20260903083000_auto_resolve_pos_customer_identity.sql",
 );
+const orderMigration = readSource(
+  "supabase/migrations/20260903090000_pos_order_customer_resolution.sql",
+);
 const linker = readSource("supabase/functions/pos-link-customers/index.ts");
 const config = readSource("supabase/config.toml");
 
@@ -61,5 +64,14 @@ describe("customer identity resolution release gate", () => {
     );
     expect(ingestionMigration).toContain("crm_customer_identity_failures");
     expect(ingestionMigration).toContain("EXCEPTION WHEN OTHERS");
+  });
+
+  it("attaches POS orders only when canonical identity is deterministic", () => {
+    expect(orderMigration).toContain("crm_customer_id uuid");
+    expect(orderMigration).toContain("HAVING count(*) = 1");
+    expect(orderMigration).toContain("crm_customer_identity_links");
+    expect(orderMigration).toContain("customer_resolution_status");
+    expect(orderMigration).toContain("'ambiguous'");
+    expect(orderMigration).toContain("'unmatched'");
   });
 });
