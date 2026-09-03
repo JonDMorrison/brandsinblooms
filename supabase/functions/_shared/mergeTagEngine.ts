@@ -221,9 +221,16 @@ export function convertLegacyTags(template: string): string {
   
   let result = template;
   
-  // Handle {single_curly} patterns
+  // Handle {single_curly} patterns.
+  //
+  // The lookarounds are load-bearing. Without them this pass matches the
+  // INNER braces of an already-modern {{first_name}} tag (which contains the
+  // substring "{first_name}"), rewrites just that inner part, and leaves the
+  // outer braces stranded — so the send renders "Hi {Jeff O'Brien}," instead
+  // of "Hi Jeff O'Brien,". Spaced tags like "{{ first_name }}" happened to be
+  // immune, which is why this only showed up on some campaigns.
   result = result.replace(
-    /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
+    /(?<!\{)\{([a-zA-Z_][a-zA-Z0-9_]*)\}(?!\})/g,
     (match, key) => {
       const modernKey = convertTagKey(key);
       const fallback = GLOBAL_FALLBACKS[modernKey] || '';
