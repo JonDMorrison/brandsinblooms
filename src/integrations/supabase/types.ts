@@ -1865,6 +1865,122 @@ export type Database = {
         };
         Relationships: [];
       };
+      campaign_revenue_attributions: {
+        Row: {
+          attributed_revenue: number;
+          attribution_model: string;
+          attribution_window_days: number;
+          channel: string;
+          created_at: string;
+          currency: string;
+          customer_id: string;
+          email_campaign_id: string | null;
+          gross_revenue: number;
+          id: string;
+          order_at: string;
+          order_id: string;
+          refund_amount: number;
+          sms_campaign_id: string | null;
+          tenant_id: string;
+          touch_at: string;
+          touch_event_id: string;
+          touch_source: string;
+          updated_at: string;
+        };
+        Insert: {
+          attributed_revenue?: number;
+          attribution_model?: string;
+          attribution_window_days?: number;
+          channel: string;
+          created_at?: string;
+          currency?: string;
+          customer_id: string;
+          email_campaign_id?: string | null;
+          gross_revenue?: number;
+          id?: string;
+          order_at: string;
+          order_id: string;
+          refund_amount?: number;
+          sms_campaign_id?: string | null;
+          tenant_id: string;
+          touch_at: string;
+          touch_event_id: string;
+          touch_source: string;
+          updated_at?: string;
+        };
+        Update: {
+          attributed_revenue?: number;
+          attribution_model?: string;
+          attribution_window_days?: number;
+          channel?: string;
+          created_at?: string;
+          currency?: string;
+          customer_id?: string;
+          email_campaign_id?: string | null;
+          gross_revenue?: number;
+          id?: string;
+          order_at?: string;
+          order_id?: string;
+          refund_amount?: number;
+          sms_campaign_id?: string | null;
+          tenant_id?: string;
+          touch_at?: string;
+          touch_event_id?: string;
+          touch_source?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_revenue_attributions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_email_campaign_id_fkey";
+            columns: ["email_campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "pos_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_sms_campaign_id_fkey";
+            columns: ["sms_campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_sms_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "campaign_revenue_attributions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       campaign_segments: {
         Row: {
           campaign_id: string;
@@ -15927,6 +16043,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      compute_pos_order_revenue_attribution: {
+        Args: { p_order_id: string; p_window_days?: number };
+        Returns: Json;
+      };
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string };
         Returns: number;
@@ -16357,6 +16477,10 @@ export type Database = {
           total: number;
         }[];
       };
+      get_email_campaign_reporting_snapshot: {
+        Args: { p_campaign_id: string };
+        Returns: Json;
+      };
       get_email_consent_stats: {
         Args: { p_tenant_id: string };
         Returns: {
@@ -16695,6 +16819,16 @@ export type Database = {
         Args: { p_tokens?: number; p_user_id: string };
         Returns: boolean;
       };
+      rebuild_campaign_revenue_attribution: {
+        Args: {
+          p_after_order_id?: string;
+          p_from: string;
+          p_limit?: number;
+          p_to: string;
+          p_window_days?: number;
+        };
+        Returns: Json;
+      };
       refresh_all_content_intent_metrics: {
         Args: { p_tenant_id: string };
         Returns: number;
@@ -16723,9 +16857,17 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: number;
       };
+      refresh_email_campaign_revenue_metrics: {
+        Args: { p_campaign_id: string };
+        Returns: undefined;
+      };
       refresh_email_governance_tenant_reputation_score: {
         Args: { p_as_of?: string; p_tenant_id: string };
         Returns: Json;
+      };
+      refresh_sms_campaign_revenue_metrics: {
+        Args: { p_campaign_id: string };
+        Returns: undefined;
       };
       release_stale_claims: {
         Args: { p_stale_threshold_minutes?: number };

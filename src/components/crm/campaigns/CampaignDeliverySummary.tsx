@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Mail,
   MinusCircle,
+  Clock3,
   XCircle,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ export interface CampaignDeliverySummaryProps {
   bounced: number;
   failed: number;
   skipped: number;
+  pending: number;
 }
 
 function formatPercent(value: number, total: number) {
@@ -73,6 +75,7 @@ export function CampaignDeliverySummary({
   bounced,
   failed,
   skipped,
+  pending,
 }: CampaignDeliverySummaryProps) {
   const bounceRate = sent > 0 ? bounced / sent : 0;
   const bounceTone = bounceRate > 0.05 ? "danger" : "neutral";
@@ -112,6 +115,14 @@ export function CampaignDeliverySummary({
       label: "Skipped",
       value: skipped.toLocaleString(),
       detail: formatPercent(skipped, sent),
+    },
+    {
+      key: "pending",
+      icon: Clock3,
+      label: "Pending",
+      value: pending.toLocaleString(),
+      detail: formatPercent(pending, sent),
+      valueColor: pending > 0 ? "warning" : "neutral",
     },
   ] as const;
 

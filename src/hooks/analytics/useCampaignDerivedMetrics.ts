@@ -14,13 +14,17 @@ function getErrorMessage(err: unknown) {
 
 export interface DerivedMetrics {
   totals: {
+    recipients: number;
     sent: number;
     sent_events: number;
     observed_recipients: number;
     delivered: number;
     successful_reach: number;
     opens: number;
+    total_opens: number;
+    total_opens_non_mpp: number;
     clicks: number;
+    total_clicks: number;
     bounces: number;
     hard_bounces: number;
     complaints: number;
@@ -28,6 +32,8 @@ export interface DerivedMetrics {
     opens_non_mpp: number;
     unique_engaged: number;
     skipped: number;
+    failed: number;
+    pending: number;
   };
   scores: {
     reach: number;
@@ -46,6 +52,9 @@ export interface DerivedMetrics {
     opens_without_delivery: number;
     clicks_without_delivery: number;
     missing_send_ledger: boolean;
+    partial_send: boolean;
+    delivery_complete: boolean;
+    source: string | null;
   };
   reconciliation: {
     backfill_applied: boolean;
@@ -58,6 +67,14 @@ export interface DerivedMetrics {
     clicks: number;
   }>;
   computed_at: string;
+}
+
+export interface EmailCampaignReportingSnapshot {
+  metrics: DerivedMetrics;
+  timeline: Array<{ hour: number; opens: number; clicks: number }>;
+  failureReasons: Array<{ reason: string; count: number }>;
+  sentAt: string | null;
+  latestEventAt: string | null;
 }
 
 interface UseCampaignDerivedMetricsResult {
@@ -133,13 +150,20 @@ export const normalizeDerivedMetrics = (
 
   return {
     totals: {
+      recipients: toNumber(totalsSource.recipients, sent),
       sent,
       sent_events: toNumber(totalsSource.sent_events, 0),
       observed_recipients: toNumber(totalsSource.observed_recipients, 0),
       delivered,
       successful_reach: successfulReach,
       opens,
+      total_opens: toNumber(totalsSource.total_opens, opens),
+      total_opens_non_mpp: toNumber(
+        totalsSource.total_opens_non_mpp,
+        opensNonMpp,
+      ),
       clicks,
+      total_clicks: toNumber(totalsSource.total_clicks, clicks),
       bounces: toNumber(totalsSource.bounces ?? totalsSource.bounced, 0),
       hard_bounces: hardBounces,
       complaints: toNumber(
@@ -153,6 +177,8 @@ export const normalizeDerivedMetrics = (
       opens_non_mpp: opensNonMpp,
       unique_engaged: uniqueEngaged,
       skipped: toNumber(totalsSource.skipped, 0),
+      failed: toNumber(totalsSource.failed, 0),
+      pending: toNumber(totalsSource.pending, 0),
     },
     scores: {
       reach: toNumber(
@@ -209,6 +235,15 @@ export const normalizeDerivedMetrics = (
         0,
       ),
       missing_send_ledger: Boolean(diagnosticsSource.missing_send_ledger),
+      partial_send: Boolean(diagnosticsSource.partial_send),
+      delivery_complete:
+        diagnosticsSource.delivery_complete === undefined
+          ? true
+          : Boolean(diagnosticsSource.delivery_complete),
+      source:
+        typeof diagnosticsSource.source === "string"
+          ? diagnosticsSource.source
+          : null,
     },
     reconciliation: {
       backfill_applied: Boolean(reconciliationSource.backfill_applied),
@@ -231,6 +266,54 @@ export const normalizeDerivedMetrics = (
         : new Date().toISOString(),
   };
 };
+
+export function normalizeEmailCampaignReportingSnapshot(
+  value: unknown,
+): EmailCampaignReportingSnapshot | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const source = value as Record<string, unknown>;
+  const metrics = normalizeDerivedMetrics(source.metrics);
+  if (!metrics) return null;
+
+  const timeline = Array.isArray(source.timeline)
+    ? source.timeline.map((point, index) => {
+        const row =
+          point && typeof point === "object"
+            ? (point as Record<string, unknown>)
+            : {};
+        return {
+          hour: toNumber(row.hour, index),
+          opens: toNumber(row.opens, 0),
+          clicks: toNumber(row.clicks, 0),
+        };
+      })
+    : [];
+  const failureReasons = Array.isArray(source.failure_reasons)
+    ? source.failure_reasons.map((item) => {
+        const row =
+          item && typeof item === "object"
+            ? (item as Record<string, unknown>)
+            : {};
+        return {
+          reason:
+            typeof row.reason === "string" ? row.reason : "Unknown failure",
+          count: toNumber(row.count, 0),
+        };
+      })
+    : [];
+
+  return {
+    metrics,
+    timeline,
+    failureReasons,
+    sentAt: typeof source.sent_at === "string" ? source.sent_at : null,
+    latestEventAt:
+      typeof source.latest_event_at === "string"
+        ? source.latest_event_at
+        : null,
+  };
+}
 
 export const useCampaignDerivedMetrics = (
   campaignId: string | undefined,
@@ -263,34 +346,34 @@ export const useCampaignDerivedMetrics = (
       setLoading(true);
       setError(null);
 
-      // Fetch campaign with metrics
-      const { data: campaign, error: campaignError } = await supabase
-        .from("crm_campaigns")
-        .select("metrics, rollup_refreshed_at")
-        .eq("id", campaignId)
-        .single();
+      const [{ data: campaign, error: campaignError }, snapshotResult] =
+        await Promise.all([
+          supabase
+            .from("crm_campaigns")
+            .select("rollup_refreshed_at")
+            .eq("id", campaignId)
+            .single(),
+          supabase.rpc("get_email_campaign_reporting_snapshot", {
+            p_campaign_id: campaignId,
+          }),
+        ]);
 
       if (campaignError) throw campaignError;
+      if (snapshotResult.error) throw snapshotResult.error;
 
-      // Get latest event timestamp to check staleness
-      const { data: latestEvent } = await supabase
-        .from("email_tracking_events")
-        .select("created_at")
-        .eq("campaign_id", campaignId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      const snapshot = normalizeEmailCampaignReportingSnapshot(
+        snapshotResult.data,
+      );
+      if (!snapshot) throw new Error("Campaign reporting snapshot is invalid");
 
-      if (campaign?.metrics && typeof campaign.metrics === "object") {
-        setMetrics(normalizeDerivedMetrics(campaign.metrics));
-      }
+      setMetrics(snapshot.metrics);
 
       if (campaign?.rollup_refreshed_at) {
         setRollupRefreshedAt(new Date(campaign.rollup_refreshed_at));
       }
 
-      if (latestEvent?.created_at) {
-        setLastEventAt(new Date(latestEvent.created_at));
+      if (snapshot.latestEventAt) {
+        setLastEventAt(new Date(snapshot.latestEventAt));
       }
 
       setLastRefreshed(new Date());
@@ -318,7 +401,7 @@ export const useCampaignDerivedMetrics = (
       if (rpcError) throw rpcError;
 
       if (data) {
-        setMetrics(normalizeDerivedMetrics(data));
+        await fetchMetrics();
         setRollupRefreshedAt(new Date());
         setLastRefreshed(new Date());
         toast.success("Metrics recalculated");
@@ -330,7 +413,7 @@ export const useCampaignDerivedMetrics = (
     } finally {
       setLoading(false);
     }
-  }, [campaignId]);
+  }, [campaignId, fetchMetrics]);
 
   // Initial fetch
   useEffect(() => {
