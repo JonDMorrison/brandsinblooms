@@ -111,7 +111,7 @@ async function buildTrackedLinkMap({
     return map;
   }
 
-  const preflightRender = renderEmailForRecipient({
+  const preflightRender = await renderEmailForRecipient({
     tenantId,
     campaignId,
     subject,
@@ -326,7 +326,7 @@ serve(async (req) => {
       : null;
 
     // Render using the unified renderer
-    const result = renderEmailForRecipient({
+    const result = await renderEmailForRecipient({
       tenantId,
       campaignId,
       html,

@@ -267,7 +267,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Render using unified renderer
-    const renderResult = renderEmailForRecipient({
+    const renderResult = await renderEmailForRecipient({
       tenantId,
       campaignId,
       subject: resolvedSubject,
@@ -321,6 +321,12 @@ const handler = async (req: Request): Promise<Response> => {
       to: [toEmail],
       subject: `[TEST] ${renderResult.renderedSubject}`,
       html: renderResult.renderedHtml,
+      headers: customer?.id
+        ? {
+            "List-Unsubscribe": `<${renderResult.actionLinks.unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          }
+        : undefined,
     });
 
     if (emailResponse.error) {

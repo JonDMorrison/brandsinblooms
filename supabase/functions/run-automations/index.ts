@@ -1,12 +1,23 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from "../_shared/mergeTagEngine.ts";
-import { checkSMSAvailability, isChannelAvailable } from "../_shared/channelAvailability.ts";
-import { renderEmailForRecipient, normalizeMergeTokens } from "../_shared/emailRenderer.ts";
+import {
+  renderMergeTags,
+  convertLegacyTags,
+  createMergeTagDataFromCustomer,
+} from "../_shared/mergeTagEngine.ts";
+import {
+  checkSMSAvailability,
+  isChannelAvailable,
+} from "../_shared/channelAvailability.ts";
+import {
+  renderEmailForRecipient,
+  normalizeMergeTokens,
+} from "../_shared/emailRenderer.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface AutomationRule {
@@ -31,46 +42,56 @@ interface Customer {
 
 interface WorkflowStep {
   id: string;
-  type: 'email' | 'sms';
+  type: "email" | "sms";
   delay: number;
   subject?: string;
   content: string;
 }
 
 const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
 );
 
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   // FIX: [issue #19] - Add auth check to prevent unauthenticated access
-  const authHeader = req.headers.get('Authorization');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authHeader || (authHeader !== `Bearer ${serviceRoleKey}` && !authHeader.startsWith('Bearer '))) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (
+    !authHeader ||
+    (authHeader !== `Bearer ${serviceRoleKey}` &&
+      !authHeader.startsWith("Bearer "))
+  ) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
   if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace("Bearer ", "");
     const { error: authErr } = await supabase.auth.getUser(token);
     if (authErr) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
   }
 
   try {
-    console.log('🚀 Starting automation runner...');
+    console.log("🚀 Starting automation runner...");
 
     // Get all active automations
     const { data: automations, error: automationsError } = await supabase
-      .from('crm_automations')
-      .select('*')
-      .eq('is_active', true)
-      .in('trigger_type', ['welcome', 'segment_joined', 'purchase_delay']);
+      .from("crm_automations")
+      .select("*")
+      .eq("is_active", true)
+      .in("trigger_type", ["welcome", "segment_joined", "purchase_delay"]);
 
     if (automationsError) {
       throw automationsError;
@@ -85,51 +106,65 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const automation of automations || []) {
       try {
-        console.log(`Processing automation: ${automation.name} (${automation.trigger_type})`);
-        
-        const { processed, sent, skipped, stepErrors } = await processAutomation(automation);
+        console.log(
+          `Processing automation: ${automation.name} (${automation.trigger_type})`,
+        );
+
+        const { processed, sent, skipped, stepErrors } =
+          await processAutomation(automation);
         totalProcessed += processed;
         totalSent += sent;
         totalSkipped += skipped;
         errors.push(...stepErrors);
-        
-        console.log(`Automation ${automation.name}: ${processed} customers processed, ${sent} messages sent, ${skipped} skipped`);
+
+        console.log(
+          `Automation ${automation.name}: ${processed} customers processed, ${sent} messages sent, ${skipped} skipped`,
+        );
       } catch (error) {
         console.error(`Error processing automation ${automation.name}:`, error);
         errors.push(`Automation ${automation.name}: ${error.message}`);
       }
     }
 
-    console.log(`✅ Automation runner complete. Total: ${totalProcessed} processed, ${totalSent} sent, ${totalSkipped} skipped`);
+    console.log(
+      `✅ Automation runner complete. Total: ${totalProcessed} processed, ${totalSent} sent, ${totalSkipped} skipped`,
+    );
 
-    return new Response(JSON.stringify({
-      success: true,
-      automations_processed: automations?.length || 0,
-      customers_processed: totalProcessed,
-      messages_sent: totalSent,
-      messages_skipped: totalSkipped,
-      errors: errors
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        automations_processed: automations?.length || 0,
+        customers_processed: totalProcessed,
+        messages_sent: totalSent,
+        messages_skipped: totalSkipped,
+        errors: errors,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   } catch (error) {
-    console.error('Error in automation runner:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    console.error("Error in automation runner:", error);
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
   }
 };
 
 async function processAutomation(automation: AutomationRule) {
   const qualifyingCustomers = await getQualifyingCustomers(automation);
-  console.log(`Found ${qualifyingCustomers.length} qualifying customers for ${automation.name}`);
-  
+  console.log(
+    `Found ${qualifyingCustomers.length} qualifying customers for ${automation.name}`,
+  );
+
   let processed = 0;
   let sent = 0;
   let skipped = 0;
@@ -138,75 +173,82 @@ async function processAutomation(automation: AutomationRule) {
   for (const customer of qualifyingCustomers) {
     try {
       const steps = await getCustomerSteps(automation, customer);
-      
+
       for (const { step, stepIndex } of steps) {
         try {
           // FIX: [A8] - Use maybeSingle() instead of single() to handle potential duplicate log entries gracefully
           const { data: existingLog } = await supabase
-            .from('crm_automation_logs')
-            .select('id, status')
-            .eq('automation_id', automation.id)
-            .eq('customer_id', customer.id)
-            .eq('step_index', stepIndex)
-            .in('status', ['sent', 'skipped_no_channel', 'skipped_no_recipient'])
+            .from("crm_automation_logs")
+            .select("id, status")
+            .eq("automation_id", automation.id)
+            .eq("customer_id", customer.id)
+            .eq("step_index", stepIndex)
+            .in("status", [
+              "sent",
+              "skipped_no_channel",
+              "skipped_no_recipient",
+            ])
             .maybeSingle();
 
           if (existingLog) {
-            console.log(`Step ${stepIndex} already processed (${existingLog.status}) for customer ${customer.email}`);
+            console.log(
+              `Step ${stepIndex} already processed (${existingLog.status}) for customer ${customer.email}`,
+            );
             continue;
           }
 
           // Check channel availability
           const channelStatus = isChannelAvailable(step.type);
-          
+
           if (!channelStatus.available) {
             // Skip this step and log it
-            console.log(`⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: ${channelStatus.reason}`);
-            
-            await supabase
-              .from('crm_automation_logs')
-              .insert({
-                automation_id: automation.id,
-                customer_id: customer.id,
-                step_index: stepIndex,
-                message_type: step.type,
-                status: 'skipped_no_channel',
-                skip_reason: channelStatus.reason
-              });
-            
+            console.log(
+              `⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: ${channelStatus.reason}`,
+            );
+
+            await supabase.from("crm_automation_logs").insert({
+              automation_id: automation.id,
+              customer_id: customer.id,
+              step_index: stepIndex,
+              message_type: step.type,
+              status: "skipped_no_channel",
+              skip_reason: channelStatus.reason,
+            });
+
             skipped++;
             continue;
           }
 
           // Check if recipient exists
-          const recipient = step.type === 'sms' ? customer.phone : customer.email;
+          const recipient =
+            step.type === "sms" ? customer.phone : customer.email;
           if (!recipient) {
-            console.log(`⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: No recipient`);
-            
-            await supabase
-              .from('crm_automation_logs')
-              .insert({
-                automation_id: automation.id,
-                customer_id: customer.id,
-                step_index: stepIndex,
-                message_type: step.type,
-                status: 'skipped_no_recipient',
-                skip_reason: `No ${step.type} recipient available`
-              });
-            
+            console.log(
+              `⏭️ Skipping ${step.type} step ${stepIndex} for ${customer.email}: No recipient`,
+            );
+
+            await supabase.from("crm_automation_logs").insert({
+              automation_id: automation.id,
+              customer_id: customer.id,
+              step_index: stepIndex,
+              message_type: step.type,
+              status: "skipped_no_recipient",
+              skip_reason: `No ${step.type} recipient available`,
+            });
+
             skipped++;
             continue;
           }
 
           // Create log entry
           const { data: logEntry, error: logError } = await supabase
-            .from('crm_automation_logs')
+            .from("crm_automation_logs")
             .insert({
               automation_id: automation.id,
               customer_id: customer.id,
               step_index: stepIndex,
               message_type: step.type,
-              status: 'queued'
+              status: "queued",
             })
             .select()
             .single();
@@ -216,38 +258,44 @@ async function processAutomation(automation: AutomationRule) {
           }
 
           // Send the message
-          if (step.type === 'email') {
+          if (step.type === "email") {
             await sendAutomationEmail(customer, step, automation);
-          } else if (step.type === 'sms') {
+          } else if (step.type === "sms") {
             await sendAutomationSms(customer, step, automation);
           }
 
           // Update log to sent
           await supabase
-            .from('crm_automation_logs')
-            .update({ 
-              status: 'sent', 
-              sent_at: new Date().toISOString() 
+            .from("crm_automation_logs")
+            .update({
+              status: "sent",
+              sent_at: new Date().toISOString(),
             })
-            .eq('id', logEntry.id);
+            .eq("id", logEntry.id);
 
           sent++;
-          console.log(`✅ Sent ${step.type} step ${stepIndex} to ${customer.email}`);
-
+          console.log(
+            `✅ Sent ${step.type} step ${stepIndex} to ${customer.email}`,
+          );
         } catch (error) {
-          console.error(`Error sending step ${stepIndex} to ${customer.email}:`, error);
-          stepErrors.push(`Step ${stepIndex} to ${customer.email}: ${error.message}`);
-          
+          console.error(
+            `Error sending step ${stepIndex} to ${customer.email}:`,
+            error,
+          );
+          stepErrors.push(
+            `Step ${stepIndex} to ${customer.email}: ${error.message}`,
+          );
+
           // Update log to failed
           await supabase
-            .from('crm_automation_logs')
-            .update({ 
-              status: 'failed', 
-              error_message: error.message 
+            .from("crm_automation_logs")
+            .update({
+              status: "failed",
+              error_message: error.message,
             })
-            .eq('automation_id', automation.id)
-            .eq('customer_id', customer.id)
-            .eq('step_index', stepIndex);
+            .eq("automation_id", automation.id)
+            .eq("customer_id", customer.id)
+            .eq("step_index", stepIndex);
         }
       }
       processed++;
@@ -260,41 +308,51 @@ async function processAutomation(automation: AutomationRule) {
   return { processed, sent, skipped, stepErrors };
 }
 
-async function getQualifyingCustomers(automation: AutomationRule): Promise<Customer[]> {
+async function getQualifyingCustomers(
+  automation: AutomationRule,
+): Promise<Customer[]> {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
   let query = supabase
-    .from('crm_customers')
-    .select('*')
-    .eq('tenant_id', automation.tenant_id);
+    .from("crm_customers")
+    .select("*")
+    .eq("tenant_id", automation.tenant_id);
 
   switch (automation.trigger_type) {
-    case 'welcome':
+    case "welcome":
       // Customers who joined yesterday (1 day ago)
       query = query
-        .gte('created_at', yesterday.toISOString().split('T')[0])
-        .lt('created_at', today.toISOString().split('T')[0]);
+        .gte("created_at", yesterday.toISOString().split("T")[0])
+        .lt("created_at", today.toISOString().split("T")[0]);
       break;
 
-    case 'segment_joined':
+    case "segment_joined":
       // For now, get all customers in the target segment
       // In a real implementation, you'd track when customers joined segments
       if (automation.trigger_conditions?.segment_id) {
-        query = query.eq('segment_id', automation.trigger_conditions.segment_id);
+        query = query.eq(
+          "segment_id",
+          automation.trigger_conditions.segment_id,
+        );
       }
       break;
 
-    case 'purchase_delay':
+    case "purchase_delay":
       // Customers whose last purchase was X days ago
       const delayDays = automation.trigger_conditions?.delay_days || 7;
       const targetDate = new Date(today);
       targetDate.setDate(today.getDate() - delayDays);
-      
+
       query = query
-        .gte('last_purchase_date', targetDate.toISOString().split('T')[0])
-        .lt('last_purchase_date', new Date(targetDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        .gte("last_purchase_date", targetDate.toISOString().split("T")[0])
+        .lt(
+          "last_purchase_date",
+          new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+        );
       break;
 
     default:
@@ -304,18 +362,23 @@ async function getQualifyingCustomers(automation: AutomationRule): Promise<Custo
   const { data, error } = await query;
   if (error) {
     // FIX: [A9] - Rethrow customer query errors instead of returning empty array to surface failures
-    console.error('Error fetching qualifying customers:', error);
+    console.error("Error fetching qualifying customers:", error);
     throw error;
   }
 
   return data || [];
 }
 
-async function getCustomerSteps(automation: AutomationRule, customer: Customer) {
+async function getCustomerSteps(
+  automation: AutomationRule,
+  customer: Customer,
+) {
   const steps: { step: WorkflowStep; stepIndex: number }[] = [];
   const customerDate = new Date(customer.created_at);
   const today = new Date();
-  const daysSinceCreated = Math.floor((today.getTime() - customerDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysSinceCreated = Math.floor(
+    (today.getTime() - customerDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   if (!automation.workflow_steps || !Array.isArray(automation.workflow_steps)) {
     return steps;
@@ -331,17 +394,21 @@ async function getCustomerSteps(automation: AutomationRule, customer: Customer) 
   return steps;
 }
 
-async function sendAutomationEmail(customer: Customer, step: WorkflowStep, automation: AutomationRule) {
+async function sendAutomationEmail(
+  customer: Customer,
+  step: WorkflowStep,
+  automation: AutomationRule,
+) {
   // FIX: [A17] - TODO: These campaign records should be cleaned up after 30 days - consider a scheduled cleanup job
   // Create a temporary email campaign for this automation step
   const { data: campaign, error: campaignError } = await supabase
-    .from('crm_campaigns')
+    .from("crm_campaigns")
     .insert({
       tenant_id: automation.tenant_id,
       name: `${automation.name} - Step ${step.id}`,
       subject_line: step.subject || `Message from ${automation.name}`,
-      content: personalizeContent(step.content, customer),
-      status: 'sent'
+      content: await personalizeContent(step.content, customer),
+      status: "sent",
     })
     .select()
     .single();
@@ -351,11 +418,11 @@ async function sendAutomationEmail(customer: Customer, step: WorkflowStep, autom
   }
 
   // Call the existing email sending function
-  const response = await supabase.functions.invoke('send-email-campaign', {
+  const response = await supabase.functions.invoke("send-email-campaign", {
     body: {
       campaignId: campaign.id,
-      customerEmails: [customer.email]
-    }
+      customerEmails: [customer.email],
+    },
   });
 
   if (response.error) {
@@ -363,7 +430,11 @@ async function sendAutomationEmail(customer: Customer, step: WorkflowStep, autom
   }
 }
 
-async function sendAutomationSms(customer: Customer, step: WorkflowStep, automation: AutomationRule) {
+async function sendAutomationSms(
+  customer: Customer,
+  step: WorkflowStep,
+  automation: AutomationRule,
+) {
   // Double-check SMS availability before calling
   const smsStatus = checkSMSAvailability();
   if (!smsStatus.available) {
@@ -373,12 +444,12 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
   // FIX: [A17] - TODO: These campaign records should be cleaned up after 30 days - consider a scheduled cleanup job
   // Create a temporary SMS campaign for this automation step
   const { data: campaign, error: campaignError } = await supabase
-    .from('crm_sms_campaigns')
+    .from("crm_sms_campaigns")
     .insert({
       tenant_id: automation.tenant_id,
       name: `${automation.name} - Step ${step.id}`,
-      message: personalizeContent(step.content, customer),
-      status: 'sent'
+      message: await personalizeContent(step.content, customer),
+      status: "sent",
     })
     .select()
     .single();
@@ -388,11 +459,11 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
   }
 
   // Call the existing SMS sending function
-  const response = await supabase.functions.invoke('send-sms-campaign', {
+  const response = await supabase.functions.invoke("send-sms-campaign", {
     body: {
       campaignId: campaign.id,
-      customerIds: [customer.id]
-    }
+      customerIds: [customer.id],
+    },
   });
 
   if (response.error) {
@@ -400,13 +471,16 @@ async function sendAutomationSms(customer: Customer, step: WorkflowStep, automat
   }
 }
 
-function personalizeContent(content: string, customer: Customer): string {
+async function personalizeContent(
+  content: string,
+  customer: Customer,
+): Promise<string> {
   // Use unified email renderer for consistency with campaign sends
   // This ensures automation emails render identically to campaign emails
-  const result = renderEmailForRecipient({
-    tenantId: customer.tenant_id || '',
+  const result = await renderEmailForRecipient({
+    tenantId: customer.tenant_id || "",
     html: content,
-    subject: '',
+    subject: "",
     customer: {
       email: customer.email,
       first_name: customer.first_name,
@@ -414,10 +488,10 @@ function personalizeContent(content: string, customer: Customer): string {
       phone: customer.phone,
     },
     companyProfile: null,
-    mode: 'send',
+    mode: "send",
     includeFooter: false, // Footer handled separately in automation
   });
-  
+
   return result.renderedHtml;
 }
 

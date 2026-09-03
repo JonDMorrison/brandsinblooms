@@ -45,8 +45,7 @@ type CampaignReputationPolicy = {
 type TenantSuppressionBypassState = {
   suppression_bypass_active: boolean;
   suppression_bypass_automation_mode:
-    | "campaign_only"
-    | "campaign_and_automation";
+    "campaign_only" | "campaign_and_automation";
 };
 
 type CampaignInterventionState = {
@@ -154,8 +153,7 @@ function normalizeAcknowledgedWarnings(value: unknown) {
       }
 
       const record = toRecord(entry);
-      const label =
-        typeof record.label === "string" ? record.label.trim() : "";
+      const label = typeof record.label === "string" ? record.label.trim() : "";
 
       if (!label) {
         return null;
@@ -484,9 +482,7 @@ serve(async (req: Request) => {
   try {
     const requestBody = toRecord(await req.json());
     const campaignId =
-      typeof requestBody.campaignId === "string"
-        ? requestBody.campaignId
-        : "";
+      typeof requestBody.campaignId === "string" ? requestBody.campaignId : "";
     const includeSuppressed = requestBody.includeSuppressed === true;
     const forceBypassConsent = requestBody.forceBypassConsent === true;
     const forceBypassSoftSuppression =
@@ -1632,16 +1628,15 @@ serve(async (req: Request) => {
             recipient_count: recipientCount,
             audience_config: {
               include_all_customers: includeAllCustomers,
-              uses_legacy_all_customers_fallback: usesLegacyAllCustomersFallback,
+              uses_legacy_all_customers_fallback:
+                usesLegacyAllCustomersFallback,
               segment_ids: segmentIds,
               persona_ids: personaIdList,
               additional_customer_ids_count: additionalCustomerIds.length,
               raw_include_all_customers: rawIncludeAllCustomers,
             },
             single_recipient_email:
-              recipientCount === 1
-                ? (customers[0]?.email ?? null)
-                : null,
+              recipientCount === 1 ? (customers[0]?.email ?? null) : null,
             requester_user_id: requesterUserId ?? null,
             force_bypass_consent: forceBypassConsent,
             force_bypass_soft_suppression: forceBypassSoftSuppression,
@@ -1693,7 +1688,8 @@ serve(async (req: Request) => {
             Number.isFinite(previousCampaign.total_recipients) &&
             previousCampaign.total_recipients > 0
               ? previousCampaign.total_recipients
-              : typeof previousCampaign.projected_recipient_count === "number" &&
+              : typeof previousCampaign.projected_recipient_count ===
+                    "number" &&
                   Number.isFinite(previousCampaign.projected_recipient_count) &&
                   previousCampaign.projected_recipient_count > 0
                 ? previousCampaign.projected_recipient_count
@@ -2056,7 +2052,7 @@ serve(async (req: Request) => {
         );
       }) || null;
 
-    const preflightRender = renderEmailForRecipient({
+    const preflightRender = await renderEmailForRecipient({
       tenantId: campaignTenantId,
       campaignId,
       subject: campaign.subject_line || campaign.subject || "",
@@ -2391,7 +2387,7 @@ serve(async (req: Request) => {
       attemptedQueuedRecipientCount += batchMessageUpserts.length;
       let actualInsertedThisBatch = 0;
 
-      for (let offset = 0; offset < batchMessageUpserts.length; ) {
+      for (let offset = 0; offset < batchMessageUpserts.length;) {
         const chunk = batchMessageUpserts.slice(offset, offset + dbChunkSize);
         try {
           const resp = await supabase
