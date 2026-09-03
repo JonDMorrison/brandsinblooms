@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { readStoredCustomerPreferences } from "../_shared/customerPreferenceCenter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, traceparent, tracestate",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, traceparent, tracestate",
 };
 
 serve(async (req) => {
@@ -14,7 +16,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { token } = await req.json();
@@ -22,7 +24,10 @@ serve(async (req) => {
     if (!token) {
       return new Response(
         JSON.stringify({ valid: false, error: "Token is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -36,7 +41,10 @@ serve(async (req) => {
     if (tokenError || !tokenData) {
       return new Response(
         JSON.stringify({ valid: false, error: "Token not found" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -44,7 +52,27 @@ serve(async (req) => {
     if (new Date(tokenData.expires_at) < new Date()) {
       return new Response(
         JSON.stringify({ valid: false, error: "Token expired" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const { data: customer, error: customerError } = await supabase
+      .from("crm_customers")
+      .select("id, tenant_id, email, email_opt_in, custom_fields")
+      .eq("id", tokenData.customer_id)
+      .eq("tenant_id", tokenData.tenant_id)
+      .single();
+
+    if (customerError || !customer) {
+      return new Response(
+        JSON.stringify({ valid: false, error: "Customer not found" }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -59,14 +87,17 @@ serve(async (req) => {
     const { data: companyProfile } = await supabase
       .from("company_profiles")
       .select("company_name, location_info")
-      .eq("user_id", (
-        await supabase
-          .from("users")
-          .select("id")
-          .eq("tenant_id", tokenData.tenant_id)
-          .limit(1)
-          .single()
-      ).data?.id)
+      .eq(
+        "user_id",
+        (
+          await supabase
+            .from("users")
+            .select("id")
+            .eq("tenant_id", tokenData.tenant_id)
+            .limit(1)
+            .single()
+        ).data?.id,
+      )
       .single();
 
     return new Response(
@@ -76,21 +107,31 @@ serve(async (req) => {
           id: tokenData.id,
           tenant_id: tokenData.tenant_id,
           customer_id: tokenData.customer_id,
-          email: tokenData.email,
+          email: customer.email || tokenData.email,
           purpose: tokenData.purpose,
+          preferences: readStoredCustomerPreferences(
+            customer.email_opt_in,
+            customer.custom_fields,
+          ),
         },
         company: {
           name: companyProfile?.company_name || tenant?.name || "Our Company",
           address: companyProfile?.location_info || "",
         },
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   } catch (error) {
     console.error("Error validating token:", error);
     return new Response(
       JSON.stringify({ valid: false, error: "Validation failed" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });
