@@ -1,206 +1,234 @@
-import { describe, it, expect } from 'vitest';
-import { 
-  sanitizeDnsRecords, 
-  validateCanonicalRecords, 
+import { describe, expect, it } from "vitest";
+
+import {
+  type DnsRecord,
   prepareRecordsForEntri,
-  DnsRecord 
-} from '../dnsRecordSanitizer';
+  sanitizeDnsRecords,
+  validateCanonicalRecords,
+} from "../dnsRecordSanitizer";
 
-describe('dnsRecordSanitizer', () => {
-  const testDomain = 'example.com';
+describe("dnsRecordSanitizer", () => {
+  const domain = "example.com";
+  const currentResendRecords: DnsRecord[] = [
+    {
+      type: "TXT",
+      host: "resend._domainkey",
+      value: "p=MIIB...",
+      ttl: 3600,
+    },
+    {
+      type: "MX",
+      host: "send",
+      value: "feedback-smtp.us-east-1.amazonses.com",
+      priority: 10,
+      ttl: 3600,
+    },
+    {
+      type: "TXT",
+      host: "send",
+      value: "v=spf1 include:amazonses.com ~all",
+      ttl: 3600,
+    },
+  ];
 
-  describe('sanitizeDnsRecords', () => {
-    it('should keep DKIM CNAME and drop DKIM TXT when both exist', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: 'resend._domainkey', value: 'v=DKIM1; k=rsa; p=MIIB...', ttl: 3600 }
-      ];
+  describe("sanitizeDnsRecords", () => {
+    it("preserves provider-generated TXT DKIM, MX priority, and SPF", () => {
+      const result = sanitizeDnsRecords(currentResendRecords, domain);
 
-      const result = sanitizeDnsRecords(records, testDomain);
-
-      expect(result.records).toHaveLength(1);
-      expect(result.records[0].type).toBe('CNAME');
-      expect(result.dropped).toHaveLength(1);
-      expect(result.dropped[0].type).toBe('TXT');
-      expect(result.warnings).toContain('Found both DKIM CNAME and TXT records. Keeping CNAME only (Resend canonical).');
+      expect(result.records).toEqual(currentResendRecords);
+      expect(result.dropped).toEqual([]);
     });
 
-    it('should keep only one SPF record', () => {
+    it("preserves provider-generated CNAME DKIM", () => {
       const records: DnsRecord[] = [
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'TXT', host: 'example.com', value: 'v=spf1 include:other.com ~all', ttl: 3600 }
+        {
+          type: "CNAME",
+          host: "selector._domainkey",
+          value: "selector.provider.example",
+        },
+        ...currentResendRecords.slice(1),
       ];
 
-      const result = sanitizeDnsRecords(records, testDomain);
-
-      const spfRecords = result.records.filter(r => r.value.includes('spf'));
-      expect(spfRecords).toHaveLength(1);
-      expect(spfRecords[0].host).toBe('@');
+      expect(sanitizeDnsRecords(records, domain).records).toEqual(records);
     });
 
-    it('should keep Return-Path CNAME for send subdomain', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 },
-        { type: 'MX', host: 'send', value: 'feedback-smtp.us-east-1.amazonses.com', ttl: 3600 }
-      ];
+    it("normalizes FQDN hosts to relative labels", () => {
+      const records = currentResendRecords.map((record) => ({
+        ...record,
+        host: `${record.host}.${domain}.`,
+      }));
 
-      const result = sanitizeDnsRecords(records, testDomain);
-
-      expect(result.records).toHaveLength(2);
-      expect(result.records.find(r => r.type === 'CNAME' && r.host === 'send')).toBeDefined();
-      expect(result.records.find(r => r.type === 'MX' && r.host === 'send')).toBeDefined();
+      expect(sanitizeDnsRecords(records, domain).records).toEqual(
+        currentResendRecords,
+      );
     });
 
-    it('should normalize domain suffixes to relative hosts', () => {
-      const records: DnsRecord[] = [
-        { type: 'TXT', host: 'example.com', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'resend._domainkey.example.com', value: 'resend._domainkey.resend.com', ttl: 3600 }
+    it("excludes DMARC and root-domain records from automatic setup", () => {
+      const protectedRecords: DnsRecord[] = [
+        {
+          type: "TXT",
+          host: "_dmarc.example.com",
+          value: "v=DMARC1; p=quarantine",
+        },
+        {
+          type: "TXT",
+          host: "example.com",
+          value: "v=spf1 include:legacy.example ~all",
+        },
       ];
 
-      const result = sanitizeDnsRecords(records, testDomain);
+      const result = sanitizeDnsRecords(
+        [...currentResendRecords, ...protectedRecords],
+        domain,
+      );
 
-      expect(result.records.find(r => r.host === '@')).toBeDefined();
-      expect(result.records.find(r => r.host === 'resend._domainkey')).toBeDefined();
+      expect(result.records).toEqual(currentResendRecords);
+      expect(result.dropped).toHaveLength(2);
+      expect(result.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("DMARC records excluded"),
+          expect.stringContaining("Root-domain records excluded"),
+        ]),
+      );
     });
 
-    it('should keep only single DKIM selector', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'CNAME', host: 'selector2._domainkey', value: 'selector2._domainkey.resend.com', ttl: 3600 }
-      ];
+    it("drops only exact duplicate records", () => {
+      const duplicate = { ...currentResendRecords[2] };
+      const result = sanitizeDnsRecords(
+        [...currentResendRecords, duplicate],
+        domain,
+      );
 
-      const result = sanitizeDnsRecords(records, testDomain);
-
-      const dkimRecords = result.records.filter(r => r.host.includes('domainkey'));
-      expect(dkimRecords).toHaveLength(1);
-    });
-  });
-
-  describe('validateCanonicalRecords', () => {
-    it('should pass validation with all required records', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 },
-        { type: 'TXT', host: '_dmarc', value: 'v=DMARC1; p=quarantine', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-      expect(result.details.hasDkim).toBe(true);
-      expect(result.details.dkimType).toBe('CNAME');
-      expect(result.details.hasSpf).toBe(true);
-      expect(result.details.hasMx).toBe(true);
-      expect(result.details.hasDmarc).toBe(true);
-    });
-
-    it('should fail if DKIM is missing', () => {
-      const records: DnsRecord[] = [
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Missing DKIM record (required for email signing)');
-    });
-
-    it('should fail if SPF is missing', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Missing SPF record (required for sender verification)');
-    });
-
-    it('should fail if Return-Path is missing', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Missing Return-Path CNAME (send → send.resend.com). Required for bounce handling.');
-    });
-
-    it('should fail if DKIM has both CNAME and TXT', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: 'resend._domainkey', value: 'v=DKIM1; k=rsa; p=MIIB...', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors).toContain('Conflicting DKIM records: both CNAME and TXT present. Use CNAME only.');
-    });
-
-    it('should fail if multiple SPF records exist', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:other.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('Multiple SPF records'))).toBe(true);
-    });
-
-    it('should warn but not fail if DMARC is missing', () => {
-      const records: DnsRecord[] = [
-        { type: 'CNAME', host: 'resend._domainkey', value: 'resend._domainkey.resend.com', ttl: 3600 },
-        { type: 'TXT', host: '@', value: 'v=spf1 include:_spf.resend.com ~all', ttl: 3600 },
-        { type: 'CNAME', host: 'send', value: 'send.resend.com', ttl: 3600 }
-      ];
-
-      const result = validateCanonicalRecords(records);
-
-      expect(result.valid).toBe(true);
-      expect(result.warnings).toContain('No DMARC record found. Recommended for email policy enforcement.');
+      expect(result.records).toEqual(currentResendRecords);
+      expect(result.dropped).toEqual([duplicate]);
     });
   });
 
-  describe('prepareRecordsForEntri', () => {
-    it('should sanitize and validate backend records', () => {
-      const backendRecords = [
-        { name: 'resend._domainkey.example.com', type: 'CNAME', value: 'resend._domainkey.resend.com' },
-        { name: 'resend._domainkey.example.com', type: 'TXT', value: 'v=DKIM1; k=rsa; p=MIIB...' },
-        { name: 'example.com', type: 'TXT', value: 'v=spf1 include:_spf.resend.com ~all' },
-        { name: 'send.example.com', type: 'CNAME', value: 'send.resend.com' },
-        { name: '_dmarc.example.com', type: 'TXT', value: 'v=DMARC1; p=quarantine' }
+  describe("validateCanonicalRecords", () => {
+    it("accepts the provider's current TXT DKIM + aligned SPF/MX model", () => {
+      const result = validateCanonicalRecords(currentResendRecords);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.details).toMatchObject({
+        hasDkim: true,
+        dkimType: "TXT",
+        hasSpf: true,
+        hasMx: true,
+        mxHasPriority: true,
+      });
+      expect(result.warnings).toContain(
+        "No DMARC record found. Configure DMARC manually for email policy enforcement.",
+      );
+    });
+
+    it.each([
+      ["DKIM", currentResendRecords.slice(1), "Missing DKIM record"],
+      [
+        "SPF",
+        currentResendRecords.filter((record) => !record.value.includes("spf1")),
+        "Missing SPF record",
+      ],
+      [
+        "MX",
+        currentResendRecords.filter((record) => record.type !== "MX"),
+        "Missing MX record",
+      ],
+    ])("rejects a missing %s record", (_label, records, message) => {
+      const result = validateCanonicalRecords(records as DnsRecord[]);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((error) => error.includes(message))).toBe(true);
+    });
+
+    it("rejects an MX record without a priority instead of inventing one", () => {
+      const records = currentResendRecords.map((record) =>
+        record.type === "MX" ? { ...record, priority: undefined } : record,
+      );
+
+      expect(validateCanonicalRecords(records).errors).toContain(
+        "MX record missing priority (required for DNS)",
+      );
+    });
+
+    it("rejects SPF and MX records on different envelope subdomains", () => {
+      const records = currentResendRecords.map((record) =>
+        record.type === "TXT" && record.value.includes("spf1")
+          ? { ...record, host: "mail" }
+          : record,
+      );
+
+      expect(validateCanonicalRecords(records).errors).toContain(
+        "SPF and MX records must use the same envelope subdomain for bounce handling.",
+      );
+    });
+
+    it("rejects multiple SPF records on one host", () => {
+      const records = [
+        ...currentResendRecords,
+        {
+          type: "TXT" as const,
+          host: "send",
+          value: "v=spf1 include:other.example ~all",
+        },
       ];
 
-      const result = prepareRecordsForEntri(testDomain, backendRecords);
+      expect(
+        validateCanonicalRecords(records).errors.some((error) =>
+          error.includes("Multiple SPF records"),
+        ),
+      ).toBe(true);
+    });
 
-      // Should have dropped the DKIM TXT
-      expect(result.records).toHaveLength(4);
-      expect(result.records.find(r => r.type === 'TXT' && r.host.includes('domainkey'))).toBeUndefined();
+    it("rejects a CNAME that coexists with another record at one host", () => {
+      const records = [
+        ...currentResendRecords,
+        {
+          type: "CNAME" as const,
+          host: "send",
+          value: "send.provider.example",
+        },
+      ];
+
+      expect(
+        validateCanonicalRecords(records).errors.some((error) =>
+          error.includes('Conflicting DNS records at "send"'),
+        ),
+      ).toBe(true);
+    });
+  });
+
+  describe("prepareRecordsForEntri", () => {
+    it("converts provider records without changing their authentication data", () => {
+      const backendRecords = currentResendRecords.map((record) => ({
+        name: `${record.host}.${domain}`,
+        type: record.type,
+        value: record.value,
+        priority: record.priority,
+      }));
+
+      const result = prepareRecordsForEntri(domain, backendRecords);
+
+      expect(result.records).toEqual(currentResendRecords);
       expect(result.validation.valid).toBe(true);
     });
 
-    it('should fail validation if backend records are incomplete', () => {
-      const backendRecords = [
-        { name: 'example.com', type: 'TXT', value: 'v=spf1 include:_spf.resend.com ~all' }
-      ];
-
-      const result = prepareRecordsForEntri(testDomain, backendRecords);
+    it("blocks incomplete backend data", () => {
+      const result = prepareRecordsForEntri(domain, [
+        {
+          name: `send.${domain}`,
+          type: "TXT",
+          value: "v=spf1 include:amazonses.com ~all",
+        },
+      ]);
 
       expect(result.validation.valid).toBe(false);
-      expect(result.validation.errors.length).toBeGreaterThan(0);
+      expect(result.validation.errors).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("Missing DKIM"),
+          expect.stringContaining("Missing MX"),
+        ]),
+      );
     });
   });
 });
