@@ -78,6 +78,7 @@ describe("Square location normalization", () => {
   it("authorizes browser-triggered reconciliation inside the RPC", () => {
     expect(migration).toContain("public.get_current_crm_access()");
     expect(migration).toContain("('owner_admin', 'marketing')");
+    expect(migration).toContain("session_user <> 'postgres'");
     expect(migration).toContain("TO authenticated, service_role");
     expect(migration).toContain("FROM PUBLIC, anon");
   });

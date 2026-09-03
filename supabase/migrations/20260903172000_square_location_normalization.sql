@@ -328,7 +328,8 @@ BEGIN
       RAISE EXCEPTION 'Square reconciliation requires owner or marketing access'
         USING ERRCODE = '42501';
     END IF;
-  ELSIF auth.role() IS DISTINCT FROM 'service_role' THEN
+  ELSIF auth.role() IS DISTINCT FROM 'service_role'
+        AND session_user <> 'postgres' THEN
     RAISE EXCEPTION 'Square reconciliation requires authorization'
       USING ERRCODE = '42501';
   END IF;
