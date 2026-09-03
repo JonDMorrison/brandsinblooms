@@ -22,6 +22,23 @@ function cleanString(value: unknown): string | null {
 export function normalizeMtaStatus(value: unknown): string | null {
   const status = cleanString(value);
   if (!status) return null;
+  const numericStatuses: Record<string, string> = {
+    "1": "queued",
+    "2": "sending",
+    "3": "sent",
+    "4": "delivered",
+    "5": "failed",
+    "6": "delivery_failed",
+    "7": "unknown",
+    "8": "rejected",
+    "9": "undelivered",
+    "10": "failed",
+    "11": "failed",
+    "12": "failed",
+    "13": "rejected",
+    "14": "failed",
+  };
+  if (numericStatuses[status]) return numericStatuses[status];
   return status.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
@@ -33,7 +50,7 @@ export function normalizeMtaDelivery(value: unknown): MtaDelivery | null {
   const status = normalizeMtaStatus(row.status);
   if (!providerMessageId || !status) return null;
 
-  const rawDate = cleanString(row.date ?? row.statusDate ?? row.updatedAt);
+  const rawDate = cleanString(row.timestamp ?? row.date ?? row.statusDate ?? row.updatedAt);
   const parsedDate = rawDate ? new Date(rawDate) : null;
   const occurredAt = parsedDate && !Number.isNaN(parsedDate.getTime())
     ? parsedDate.toISOString()
@@ -44,7 +61,7 @@ export function normalizeMtaDelivery(value: unknown): MtaDelivery | null {
     status,
     occurredAt,
     carrier: cleanString(row.carrier),
-    destination: cleanString(row.to ?? row.destinationNumber),
+    destination: cleanString(row.toNumber ?? row.to ?? row.destinationNumber),
     externalId: cleanString(row.externalId),
   };
 }
