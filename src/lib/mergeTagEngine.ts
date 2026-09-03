@@ -138,6 +138,15 @@ function formatValue(value: unknown): string {
 }
 
 /**
+ * Merge tags are text placeholders. Structured JSON values cannot be rendered
+ * safely and must be treated as missing so an explicit/default fallback is
+ * used instead of silently producing an empty string.
+ */
+function isRenderableValue(value: unknown): boolean {
+  return value instanceof Date || typeof value !== 'object';
+}
+
+/**
  * Add days to a date and return the result
  */
 function addDays(date: Date, days: number): Date {
@@ -174,10 +183,18 @@ export function renderMergeTags(template: string, data: MergeTagData): string {
   
   return template.replace(MERGE_TAG_REGEX, (match, fieldPath: string, explicitDefault?: string) => {
     // Try to get the value from the data
-    let value = getNestedValue(enrichedData as Record<string, unknown>, fieldPath);
+    const value = getNestedValue(
+      enrichedData as Record<string, unknown>,
+      fieldPath,
+    );
     
     // If value is empty/null/undefined, use fallbacks
-    if (value === null || value === undefined || value === '') {
+    if (
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      !isRenderableValue(value)
+    ) {
       // First try explicit default from tag
       if (explicitDefault !== undefined) {
         return explicitDefault;
