@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures/auth.fixture';
+import { test, expect } from '@playwright/test';
 
 const routes = [
   '/dashboard',
@@ -47,13 +47,16 @@ for (const route of routes) {
     });
 
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle').catch(() => undefined);
+    // BloomSuite maintains live connections on several CRM screens, so networkidle
+    // is not a reliable readiness signal. Give the SPA a short render window instead.
+    await page.waitForTimeout(1200);
 
     await expect(page.locator('body')).toBeVisible();
     await expect(page).not.toHaveURL(/\/auth(?:$|\?)/);
     await expect(page.locator('body')).not.toContainText(/Something went wrong|Application error|Security Violation/i);
 
-    // Click visible tabs and safe disclosure controls to exercise secondary views.
+    // Click visible tabs and safe disclosure controls to exercise secondary views
+    // without sending messages, creating records, or changing customer data.
     const tabs = page.getByRole('tab');
     const tabCount = await tabs.count();
     for (let i = 0; i < Math.min(tabCount, 8); i += 1) {
