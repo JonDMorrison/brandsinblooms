@@ -49,6 +49,10 @@ describe("AdminProvider tenant context hydration", () => {
       data: { email: "admin@example.com" },
       error: null,
     });
+    mocks.contextMaybeSingle.mockResolvedValue({
+      data: { active_tenant_id: "tenant-greenfield" },
+      error: null,
+    });
     mocks.contextUpsert.mockResolvedValue({ error: null });
     mocks.tenantsOrder.mockResolvedValue({ data: [], error: null });
 
@@ -84,7 +88,7 @@ describe("AdminProvider tenant context hydration", () => {
     });
   });
 
-  it("does not overwrite a persisted tenant with null while master-admin context is still hydrating", async () => {
+  it("does not write null while the persisted master-admin tenant is hydrating", async () => {
     const deferred = makeDeferred<ContextResult>();
     mocks.contextMaybeSingle.mockImplementation(() => deferred.promise);
 
@@ -100,11 +104,7 @@ describe("AdminProvider tenant context hydration", () => {
       await Promise.resolve();
     });
 
-    expect(
-      mocks.contextUpsert.mock.calls.some(
-        ([payload]) => payload?.active_tenant_id === null,
-      ),
-    ).toBe(false);
+    expect(mocks.contextUpsert).not.toHaveBeenCalled();
 
     await act(async () => {
       deferred.resolve({
@@ -119,19 +119,47 @@ describe("AdminProvider tenant context hydration", () => {
       expect(result.current.activeTenantId).toBe("tenant-greenfield");
     });
 
+    expect(mocks.contextUpsert).not.toHaveBeenCalled();
+  });
+
+  it("persists a tenant switch before exposing the new tenant to consumers", async () => {
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+
     await waitFor(() => {
-      expect(mocks.contextUpsert).toHaveBeenCalled();
+      expect(result.current.isMasterAdmin).toBe(true);
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+      expect(result.current.activeTenantId).toBe("tenant-greenfield");
     });
 
-    const payloads = mocks.contextUpsert.mock.calls.map(([payload]) => payload);
-    expect(payloads).not.toContainEqual(
-      expect.objectContaining({ active_tenant_id: null }),
-    );
-    expect(payloads.at(-1)).toEqual(
-      expect.objectContaining({
-        admin_user_id: "admin-1",
-        active_tenant_id: "tenant-greenfield",
-      }),
-    );
+    const deferredWrite = makeDeferred<{ error: unknown }>();
+    mocks.contextUpsert.mockImplementationOnce(() => deferredWrite.promise);
+
+    let switchPromise!: Promise<void>;
+    act(() => {
+      switchPromise = result.current.setActiveTenantId("tenant-bluebird");
+    });
+
+    await waitFor(() => {
+      expect(mocks.contextUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          admin_user_id: "admin-1",
+          active_tenant_id: "tenant-bluebird",
+        }),
+        { onConflict: "admin_user_id" },
+      );
+      expect(result.current.hasHydratedTenantContext).toBe(false);
+    });
+
+    expect(result.current.activeTenantId).toBe("tenant-greenfield");
+
+    await act(async () => {
+      deferredWrite.resolve({ error: null });
+      await switchPromise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeTenantId).toBe("tenant-bluebird");
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+    });
   });
 });
