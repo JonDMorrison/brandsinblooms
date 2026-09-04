@@ -36,7 +36,7 @@ jobs:
 
     - name: Run production CRM release click-through
       if: github.event_name == 'push'
-      run: npx playwright test e2e/release/crm-release-clickthrough.spec.ts --config=playwright.prod.config.ts --project=chromium
+      run: npx playwright test e2e/release/crm-release-clickthrough-v2.spec.ts --config=playwright.prod.config.ts --project=chromium
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
