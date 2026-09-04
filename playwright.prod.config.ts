@@ -9,6 +9,10 @@ const BASE_URL =
  * artifact before it is merged; the post-merge workflow leaves it unset and
  * therefore still verifies https://www.bloomsuite.app.
  *
+ * The authenticated release suites share one persisted master-admin tenant
+ * context. Keep execution serial so one spec cannot restore/clear that context
+ * while another spec is still navigating the tenant workspace.
+ *
  * Usage:
  *   E2E_EMAIL=you@example.com E2E_PASSWORD=secret \
  *     npx playwright test --config=playwright.prod.config.ts
@@ -21,6 +25,7 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30000,
   retries: 0,
+  workers: 1,
   use: {
     baseURL: BASE_URL,
     headless: true,
