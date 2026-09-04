@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Browser, type Page } from '@playwright/test';
 
 const BASE_URL = 'https://www.bloomsuite.app';
 const DEMO_TENANT = 'Greenfield Garden Centre';
@@ -35,7 +35,7 @@ function isIgnoredConsoleError(message: string) {
   return ignoredConsolePatterns.some((pattern) => pattern.test(message));
 }
 
-async function openAdminManage(browser: Parameters<typeof test.beforeAll>[0] extends never ? never : any) {
+async function openAdminManage(browser: Browser) {
   const context = await browser.newContext({
     baseURL: BASE_URL,
     storageState: 'e2e/.auth/user.json',
@@ -46,7 +46,7 @@ async function openAdminManage(browser: Parameters<typeof test.beforeAll>[0] ext
   return { context, page };
 }
 
-async function selectTenant(page: any, tenantName: string) {
+async function selectTenant(page: Page, tenantName: string) {
   const search = page.getByPlaceholder('Search by tenant name or ID...');
   await search.fill(tenantName);
   const row = page.getByRole('row').filter({ hasText: tenantName }).first();
