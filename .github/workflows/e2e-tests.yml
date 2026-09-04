@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - qa/crm-release-clickthrough
+      - qa/crm-expanded-certification
       - main
 
 jobs:
@@ -33,20 +34,41 @@ jobs:
       run: npm ci
 
     - name: Run admin tenant access regression tests
-      if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
+      if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
       run: npx vitest run src/contexts/__tests__/AdminContext.test.tsx src/hooks/__tests__/useUserRole.adminContext.test.tsx
 
     - name: Build QA branch
-      if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
+      if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
       run: npm run build
 
+    - name: Start built QA app
+      if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
+      run: |
+        nohup npx vite preview --host 127.0.0.1 --port 4173 > /tmp/bloomsuite-preview.log 2>&1 &
+        for i in {1..30}; do
+          if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then
+            exit 0
+          fi
+          sleep 1
+        done
+        cat /tmp/bloomsuite-preview.log
+        exit 1
+
     - name: Install Playwright Chromium
-      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
+      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification'))
       run: npx playwright install chromium --with-deps
+
+    - name: Run expanded CRM click-through against QA build
+      if: github.event_name == 'push' && (github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')
+      run: npx playwright test e2e/release/crm-expanded-clickthrough.spec.ts --config=playwright.prod.config.ts --project=chromium
+      env:
+        PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
+        E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
 
     - name: Verify CRM release against production after merge
       if: github.event_name == 'push' && github.ref_name == 'main'
-      run: npx playwright test e2e/release/crm-release-clickthrough-v2.spec.ts --config=playwright.prod.config.ts --project=chromium
+      run: npx playwright test e2e/release/crm-release-clickthrough-v2.spec.ts e2e/release/crm-expanded-clickthrough.spec.ts --config=playwright.prod.config.ts --project=chromium
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
@@ -59,14 +81,14 @@ jobs:
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
 
     - uses: actions/upload-artifact@v4
-      if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main'))
+      if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')))
       with:
         name: playwright-report
         path: playwright-report/
         retention-days: 30
 
     - uses: actions/upload-artifact@v4
-      if: failure() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main'))
+      if: failure() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'qa/crm-release-clickthrough' || github.ref_name == 'qa/crm-expanded-certification')))
       with:
         name: test-results
         path: test-results/
