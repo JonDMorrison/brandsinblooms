@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   contextMaybeSingle: vi.fn(),
   contextUpsert: vi.fn(),
   tenantsOrder: vi.fn(),
+  user: { id: "admin-1", email: "admin@example.com" },
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -18,9 +19,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: { id: "admin-1", email: "admin@example.com" },
-  }),
+  useAuth: () => ({ user: mocks.user }),
 }));
 
 import { AdminProvider, useAdmin } from "@/contexts/AdminContext";
