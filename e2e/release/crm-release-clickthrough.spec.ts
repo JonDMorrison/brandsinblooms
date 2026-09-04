@@ -22,6 +22,9 @@ const ignoredConsolePatterns = [
   /favicon/i,
   /ResizeObserver loop/i,
   /third[- ]party cookie/i,
+  // Chromium emits this generic message without the request URL. We separately
+  // capture every 403 response below so failures contain actionable endpoints.
+  /Failed to load resource: the server responded with a status of 403/i,
 ];
 
 function isIgnoredConsoleError(message: string) {
@@ -33,6 +36,7 @@ for (const route of routes) {
     const pageErrors: string[] = [];
     const consoleErrors: string[] = [];
     const serverErrors: string[] = [];
+    const forbiddenResponses: string[] = [];
 
     page.on('pageerror', (error) => pageErrors.push(error.message));
     page.on('console', (message) => {
@@ -41,8 +45,12 @@ for (const route of routes) {
       }
     });
     page.on('response', (response) => {
-      if (response.status() >= 500) {
-        serverErrors.push(`${response.status()} ${response.url()}`);
+      const status = response.status();
+      if (status >= 500) {
+        serverErrors.push(`${status} ${response.request().method()} ${response.url()}`);
+      }
+      if (status === 403) {
+        forbiddenResponses.push(`${status} ${response.request().method()} ${response.url()}`);
       }
     });
 
@@ -82,5 +90,6 @@ for (const route of routes) {
     expect(serverErrors, `5xx responses on ${route}`).toEqual([]);
     expect(pageErrors, `page errors on ${route}`).toEqual([]);
     expect(consoleErrors, `console errors on ${route}`).toEqual([]);
+    expect(forbiddenResponses, `403 responses on ${route}`).toEqual([]);
   });
 }
