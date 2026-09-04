@@ -180,6 +180,8 @@ export const EnhancedSegmentImportDialog: React.FC<
     }
 
     setFile(selectedFile);
+    setIsAnalyzing(true);
+    setValidationErrors([]);
     setProgress({
       stage: "upload",
       progress: 30,
@@ -199,7 +201,7 @@ export const EnhancedSegmentImportDialog: React.FC<
       const { data: analysisResult, error: analysisError } =
         await supabase.functions.invoke("analyze-csv-intelligent", {
           body: {
-            csvRows: parsed.firstFiveRows,
+            csvRows: [parsed.headers, ...parsed.firstFiveRows],
             delimiter: parsed.delimiter,
             columnCount: parsed.columnCount,
           },
@@ -238,25 +240,28 @@ export const EnhancedSegmentImportDialog: React.FC<
         // Success: Use AI suggestions
         setAiAnalysis(analysisResult);
 
-        mappings = analysisResult.analysis.suggestedMappings.map(
-          (suggestion) => ({
-            csvHeader: suggestion.columnName,
+        // The parsed file remains authoritative. AI can suggest a mapping, but
+        // an omitted or malformed suggestion must never drop a CSV column.
+        mappings = parsed.headers.map((header, columnIndex) => {
+          const suggestion =
+            analysisResult.analysis.suggestedMappings.find(
+              (candidate) => candidate.columnIndex === columnIndex,
+            );
+          const suggestedField = suggestion?.suggestedField;
+
+          return {
+            csvHeader: header,
             databaseField:
-              getRememberedImportField(
-                window.localStorage,
-                suggestion.columnName,
-              ) ||
-              (suggestion.suggestedField === "skip"
-                ? `custom:${normalizeCustomFieldKey(suggestion.columnName)}`
-                : suggestion.suggestedField),
-            sampleData: parsed.firstFiveRows.map(
-              (row) => row[suggestion.columnIndex] || "",
-            ),
-            sourceIndex: suggestion.columnIndex,
-            aiConfidence: suggestion.confidence,
-            aiReasoning: suggestion.reasoning,
-          }),
-        );
+              getRememberedImportField(window.localStorage, header) ||
+              (!suggestedField || suggestedField === "skip"
+                ? `custom:${normalizeCustomFieldKey(header)}`
+                : suggestedField),
+            sampleData: parsed.sampleData[columnIndex].samples,
+            sourceIndex: columnIndex,
+            aiConfidence: suggestion?.confidence,
+            aiReasoning: suggestion?.reasoning,
+          };
+        });
 
         // Show warnings if data is inconsistent
         if (!analysisResult.analysis.dataConsistency.isConsistent) {
@@ -279,7 +284,7 @@ export const EnhancedSegmentImportDialog: React.FC<
       setProgress({
         stage: "mapping",
         progress: 0,
-        message: `Loaded ${parsed.dataRows.length} rows. ${aiAnalysis ? "AI analysis complete." : "Please verify mappings."}`,
+        message: `Loaded ${parsed.dataRows.length} rows. Please verify mappings.`,
       });
     } catch (error) {
       console.error("Error analyzing CSV:", error);

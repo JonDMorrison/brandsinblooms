@@ -3,6 +3,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { ImagePlus } from "lucide-react";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 
 type GraphicHeroRendererProps = {
   block: StudioBlock;
@@ -212,6 +213,10 @@ export default function GraphicHeroRenderer({
                 height: "100%",
                 maxHeight: `${maxHeight}px`,
                 objectFit: block.imageFit ?? "cover",
+                objectPosition: getImageObjectPosition(
+                  block.imageFocalX,
+                  block.imageFocalY,
+                ),
                 display: "block",
                 bgcolor: backgroundColor,
               }}

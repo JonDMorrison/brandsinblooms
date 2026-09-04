@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
-  getFacebookCredentials,
   getSquareCredentials,
   getLightspeedCredentials,
 } from "../_shared/environment.ts";
@@ -62,35 +61,6 @@ async function logLightspeedTokenRefreshActivity(
   } catch (error) {
     console.error("[LS-REFRESH] Failed to log activity event:", error);
   }
-}
-
-async function refreshFacebookToken(connection: any) {
-  // Use production credentials for token refresh (backend operation)
-  const { clientId, clientSecret } = getFacebookCredentials("production");
-  const finalClientId = clientId || Deno.env.get("FB_CLIENT_ID");
-  const finalClientSecret = clientSecret || Deno.env.get("FB_CLIENT_SECRET");
-
-  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${finalClientId}&client_secret=${finalClientSecret}&fb_exchange_token=${connection.access_token}`;
-
-  const response = await fetch(refreshUrl);
-  const data = await response.json();
-
-  if (!response.ok || !data.access_token) {
-    throw new Error(data.error?.message || "Failed to refresh Facebook token");
-  }
-
-  const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000);
-
-  await supabaseAdmin
-    .from("social_connections")
-    .update({
-      access_token: data.access_token,
-      expires_at: newExpiresAt.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", connection.id);
-
-  return { success: true, newExpiresAt };
 }
 
 /**
@@ -191,56 +161,7 @@ serve(async (req) => {
     let totalErrors = 0;
 
     // ============================================
-    // 1. REFRESH FACEBOOK/INSTAGRAM TOKENS
-    // ============================================
-    const thirtyDaysFromNow = new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-
-    const { data: socialConnections, error: socialFetchError } =
-      await supabaseAdmin
-        .from("social_connections")
-        .select("id, user_id, platform, access_token, expires_at")
-        .eq("is_active", true)
-        .not("expires_at", "is", null)
-        .lt("expires_at", thirtyDaysFromNow)
-        .in("platform", ["facebook", "instagram"]);
-
-    if (socialFetchError) {
-      console.error("Error fetching social connections:", socialFetchError);
-    } else {
-      console.log(
-        `Found ${socialConnections?.length || 0} social connections to refresh`,
-      );
-
-      for (const connection of socialConnections || []) {
-        try {
-          console.log(
-            `Refreshing token for social connection ${connection.id} (${connection.platform})`,
-          );
-          await refreshFacebookToken(connection);
-          totalSuccess++;
-          console.log(
-            `Successfully refreshed token for social connection ${connection.id}`,
-          );
-        } catch (error) {
-          console.error(
-            `Error refreshing token for social connection ${connection.id}:`,
-            error,
-          );
-          totalErrors++;
-          // FIX: [SH5] - Mark connection as expired on refresh failure so users are notified
-          await supabaseAdmin
-            .from("social_connections")
-            .update({ is_active: false })
-            .eq("id", connection.id);
-          // TODO: Add user notification mechanism (email or in-app alert) when social tokens expire
-        }
-      }
-    }
-
-    // ============================================
-    // 2. REFRESH SQUARE TOKENS
+    // 1. REFRESH SQUARE TOKENS
     // FIX: [P9] - Add Square token refresh (tokens expire after 30 days)
     // Refresh tokens expiring within 7 days
     // ============================================
@@ -301,7 +222,7 @@ serve(async (req) => {
     }
 
     // ============================================
-    // 3. REFRESH LIGHTSPEED TOKENS
+    // 2. REFRESH LIGHTSPEED TOKENS
     // FIX: [P4] - Add Lightspeed token refresh support
     // TODO: Confirm Lightspeed X-Series token refresh endpoint URL
     // Refresh tokens expiring within 30 minutes
@@ -439,30 +360,6 @@ serve(async (req) => {
           }
         }
       }
-    }
-
-    // ============================================
-    // 4. REFRESH CLOVER TOKENS (if applicable)
-    // ============================================
-    const { data: cloverConnections, error: cloverFetchError } =
-      await supabaseAdmin
-        .from("clover_connections")
-        .select(
-          "id, tenant_id, encrypted_access_token, encrypted_refresh_token, expires_at, environment, status",
-        )
-        .eq("status", "connected")
-        .not("expires_at", "is", null)
-        .not("encrypted_refresh_token", "is", null)
-        .lt("expires_at", sevenDaysFromNow);
-
-    if (cloverFetchError) {
-      console.error("Error fetching Clover connections:", cloverFetchError);
-    } else {
-      console.log(
-        `Found ${cloverConnections?.length || 0} Clover connections to refresh`,
-      );
-      // Note: Clover refresh implementation would go here if needed
-      // Clover typically requires re-authentication
     }
 
     const summary = `Token refresh complete: ${totalSuccess} success, ${totalErrors} errors`;

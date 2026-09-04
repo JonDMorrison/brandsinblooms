@@ -258,7 +258,7 @@ export const SMSCampaignComposer: React.FC = () => {
         name: campaignData.name,
         message: messageWithFooter,
         segment_id: campaignData.segment_id,
-        status: sendNow ? 'sent' : (scheduled_at ? 'scheduled' : 'draft'),
+        status: scheduled_at ? 'scheduled' : 'draft',
         scheduled_at,
         tenant_id: userData.tenant_id,
         user_id: user?.id,
@@ -276,16 +276,16 @@ export const SMSCampaignComposer: React.FC = () => {
       // If sending now, call the send function
       if (sendNow) {
         const { error: sendError } = await supabase.functions.invoke('send-sms-campaign', {
-          body: { campaign_id: savedCampaign.id }
+          body: { campaignId: savedCampaign.id }
         });
 
         if (sendError) throw sendError;
       }
 
       toast({
-        title: sendNow ? "SMS Campaign Sent!" : "Campaign Saved!",
+        title: sendNow ? "SMS Campaign Queued!" : "Campaign Saved!",
         description: sendNow 
-          ? `Your SMS has been sent to ${smsEligibleCount} recipients` 
+          ? `Your SMS is queued for ${smsEligibleCount} recipients`
           : "Your campaign has been saved and can be sent later"
       });
 

@@ -1,12 +1,29 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+interface ResendEmailPayload {
+  from: string;
+  to: string[];
+  subject: string;
+  html: string;
+  reply_to?: string;
+  tags?: unknown[];
+  headers?: Record<string, string>;
+}
+
+interface ResendApiResult {
+  id?: string;
+  data?: { id?: string };
+  error?: { message?: string; name?: string };
+  message?: string;
+  name?: string;
+}
 
 /**
  * Transactional email sender for automation outbox.
@@ -43,6 +60,20 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // This low-level sender accepts arbitrary recipients and sender fields.
+    // Tenant campaign sends use their governed workers; the only browser
+    // caller here is the platform-admin outreach tool.
+    const { data: isMasterAdmin, error: roleError } = await supabaseClient.rpc(
+      "is_master_admin",
+      { _user_id: user.id },
+    );
+    if (roleError || !isMasterAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const startTime = Date.now();
@@ -58,6 +89,7 @@ serve(async (req) => {
       reply_to: explicit_reply_to,
       tags,
       unsubscribe_url,
+      idempotency_key,
     } = body;
     // Reply-to: prefer explicit value, fallback to sender email
     const reply_to = explicit_reply_to || from_email;
@@ -97,8 +129,6 @@ serve(async (req) => {
       );
     }
 
-    const resend = new Resend(resendApiKey);
-
     // Build from address
     const fromAddress = from_name
       ? `${from_name} <${from_email || "hello@notify.bloomsuite.app"}>`
@@ -109,7 +139,7 @@ serve(async (req) => {
     );
 
     // Send email via Resend
-    const emailPayload: any = {
+    const emailPayload: ResendEmailPayload = {
       from: fromAddress,
       to: Array.isArray(to) ? to : [to],
       subject: subject || "Message from automation",
@@ -135,7 +165,40 @@ serve(async (req) => {
       }
     }
 
-    const response = await resend.emails.send(emailPayload);
+    const normalizedIdempotencyKey =
+      typeof idempotency_key === "string" ? idempotency_key.trim() : "";
+    if (normalizedIdempotencyKey.length > 256) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Idempotency key must not exceed 256 characters",
+          canRetry: false,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Call the API directly so the provider idempotency header is guaranteed
+    // even when the bundled SDK version changes. A stable outbox key makes a
+    // retry safe when the provider accepted the message but our database
+    // acknowledgement failed.
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+        ...(normalizedIdempotencyKey
+          ? { "Idempotency-Key": normalizedIdempotencyKey }
+          : {}),
+      },
+      body: JSON.stringify(emailPayload),
+    });
+    const response = (await resendResponse
+      .json()
+      .catch(() => ({}))) as ResendApiResult;
     const duration = Date.now() - startTime;
 
     // Log full response for debugging
@@ -145,16 +208,21 @@ serve(async (req) => {
     );
 
     // Check for errors
-    if (response.error) {
+    if (!resendResponse.ok || response.error) {
+      const providerError = response.error || response;
+      const canRetry =
+        resendResponse.status === 429 || resendResponse.status >= 500;
       console.error(
         `❌ [TransactionalEmail] Resend error:`,
-        JSON.stringify(response.error),
+        JSON.stringify(providerError),
       );
       return new Response(
         JSON.stringify({
           success: false,
-          error: response.error.message || "Email send failed",
-          error_name: response.error.name,
+          error: providerError.message || "Email send failed",
+          error_name: providerError.name,
+          provider_status: resendResponse.status,
+          canRetry,
           duration_ms: duration,
         }),
         {
@@ -181,18 +249,21 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime;
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error(
       `❌ [TransactionalEmail] Exception (${duration}ms):`,
-      error.message,
-      error.stack,
+      errorMessage,
+      errorStack,
     );
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || "Unknown error",
+        error: errorMessage,
         duration_ms: duration,
       }),
       {

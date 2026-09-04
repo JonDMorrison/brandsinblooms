@@ -1,3 +1,5 @@
+import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
+
 /**
  * clover-manage-webhooks
  * 
@@ -20,6 +22,8 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  const approvalResponse = requireCloverApproval(req);
+  if (approvalResponse) return approvalResponse;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

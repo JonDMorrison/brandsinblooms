@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -54,5 +54,24 @@ describe("OAuthCallbackHandler server-redirect flow", () => {
       message: "Connected successfully",
     });
     expect(targetOrigin).toBe(window.location.origin);
+  });
+
+  it("does not exchange raw OAuth codes in the browser", async () => {
+    render(
+      <MemoryRouter initialEntries={["/oauth/callback?code=raw&state=opaque"]}>
+        <Routes>
+          <Route path="/oauth/callback" element={<OAuthCallbackHandler />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    expect(openerPostMessage).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Close Window" }),
+    ).toBeInTheDocument();
   });
 });

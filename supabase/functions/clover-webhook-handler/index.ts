@@ -1,8 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { fireAutomationTriggers } from "../_shared/automation/fireAutomationTriggers.ts";
-import { logSignatureFailed, logSignatureOK } from "../_shared/webhooks/types.ts";
+import {
+  logSignatureFailed,
+  logSignatureOK,
+} from "../_shared/webhooks/types.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,11 +28,12 @@ function constantTimeEqual(left: string, right: string) {
 }
 
 function verifyCloverAuth(request: Request) {
-  const expected = Deno.env.get("CLOVER_AUTH_CODE") ||
-    Deno.env.get("CLOVER_WEBHOOK_SECRET");
+  const expected =
+    Deno.env.get("CLOVER_AUTH_CODE") || Deno.env.get("CLOVER_WEBHOOK_SECRET");
   const received = request.headers.get("x-clover-auth");
-  const valid = Boolean(expected && received &&
-    constantTimeEqual(received!, expected!));
+  const valid = Boolean(
+    expected && received && constantTimeEqual(received!, expected!),
+  );
   if (!valid) logSignatureFailed("clover", "Invalid Clover auth code");
   return valid;
 }
@@ -64,23 +69,25 @@ function firstElement(value: any) {
 
 async function resolveCustomer(supabase: any, connection: any, customer: any) {
   if (!customer?.id) return null;
-  const email = firstElement(customer.emailAddresses)?.emailAddress ||
-    customer.email;
-  const phone = firstElement(customer.phoneNumbers)?.phoneNumber ||
-    customer.phone;
+  const email =
+    firstElement(customer.emailAddresses)?.emailAddress || customer.email;
+  const phone =
+    firstElement(customer.phoneNumbers)?.phoneNumber || customer.phone;
   const { error } = await supabase.rpc(
     "resolve_provider_customer_identity_batch",
     {
       p_tenant_id: connection.tenant_id,
       p_provider: "clover",
       p_user_id: connection.user_id,
-      p_customers: [{
-        external_id: customer.id,
-        email: email?.toLowerCase() || null,
-        phone: phone || null,
-        first_name: customer.firstName || null,
-        last_name: customer.lastName || null,
-      }],
+      p_customers: [
+        {
+          external_id: customer.id,
+          email: email?.toLowerCase() || null,
+          phone: phone || null,
+          first_name: customer.firstName || null,
+          last_name: customer.lastName || null,
+        },
+      ],
     },
   );
   if (error) throw error;
@@ -116,8 +123,9 @@ function refundTotal(order: any, payment: any) {
     ...(order?.refunds?.elements || []),
     ...(payment?.refunds?.elements || []),
   ];
-  const unique = new Map(refunds.map((refund: any) =>
-    [refund.id || JSON.stringify(refund), refund]));
+  const unique = new Map(
+    refunds.map((refund: any) => [refund.id || JSON.stringify(refund), refund]),
+  );
   return Array.from(unique.values()).reduce(
     (sum: number, refund: any) => sum + Number(refund.amount || 0) / 100,
     0,
@@ -133,35 +141,55 @@ async function saveOrder(
 ) {
   const externalId = order?.id || payment?.order?.id || payment?.id;
   if (!externalId) throw new Error("Clover order has no stable ID");
-  const externalCustomerId = firstElement(order?.customers)?.id ||
-    payment?.customer?.id || payment?.customerId || null;
+  const externalCustomerId =
+    firstElement(order?.customers)?.id ||
+    payment?.customer?.id ||
+    payment?.customerId ||
+    null;
   const total = Number(order?.total ?? payment?.amount ?? 0) / 100;
   const refunded = refundTotal(order, payment);
-  const status = refunded > 0 ? "REFUNDED" : String(
-    order?.paymentState || payment?.result || order?.state || "PAID",
-  ).toUpperCase();
+  const items = order?.lineItems?.elements || [];
+  const productNames = items
+    .map((item: any) => item?.name || item?.item?.name)
+    .filter(
+      (value: unknown): value is string =>
+        typeof value === "string" && value.trim().length > 0,
+    );
+  const status =
+    refunded > 0
+      ? "REFUNDED"
+      : String(
+          order?.paymentState || payment?.result || order?.state || "PAID",
+        ).toUpperCase();
 
-  const { data: stored, error } = await supabase.from("pos_orders").upsert({
-    tenant_id: connection.tenant_id,
-    pos_connection_id: connection.id,
-    provider: "clover",
-    external_id: externalId,
-    external_customer_id: externalCustomerId,
-    crm_customer_id: customerId,
-    external_location_id: connection.merchant_id,
-    order_date: new Date(
-      order?.createdTime || payment?.createdTime || Date.now(),
-    ).toISOString(),
-    total_amount: total,
-    refund_amount: refunded,
-    refunded_at: refunded > 0 ? new Date().toISOString() : null,
-    currency: order?.currency || payment?.currency || "USD",
-    status,
-    items: order?.lineItems?.elements || [],
-    raw_data: { order, payment },
-  }, { onConflict: "pos_connection_id,external_id" })
-    .select("crm_customer_id").single();
-  if (error) throw new Error(`Failed to persist Clover order: ${error.message}`);
+  const { data: stored, error } = await supabase
+    .from("pos_orders")
+    .upsert(
+      {
+        tenant_id: connection.tenant_id,
+        pos_connection_id: connection.id,
+        provider: "clover",
+        external_id: externalId,
+        external_customer_id: externalCustomerId,
+        crm_customer_id: customerId,
+        external_location_id: connection.merchant_id,
+        order_date: new Date(
+          order?.createdTime || payment?.createdTime || Date.now(),
+        ).toISOString(),
+        total_amount: total,
+        refund_amount: refunded,
+        refunded_at: refunded > 0 ? new Date().toISOString() : null,
+        currency: order?.currency || payment?.currency || "USD",
+        status,
+        items,
+        raw_data: { order, payment },
+      },
+      { onConflict: "pos_connection_id,external_id" },
+    )
+    .select("crm_customer_id")
+    .single();
+  if (error)
+    throw new Error(`Failed to persist Clover order: ${error.message}`);
 
   const resolved = stored?.crm_customer_id || customerId;
   if (resolved) {
@@ -170,26 +198,40 @@ async function saveOrder(
       { p_customer_id: resolved },
     );
     if (metricsError) throw metricsError;
-    const { data: metrics } = await supabase.from("customer_purchase_metrics")
-      .select("total_purchases,lifetime_value,first_purchase_date,last_purchase_date")
-      .eq("customer_id", resolved).single();
-    const { data: customer } = await supabase.from("crm_customers")
-      .select("pos_source,clover_customer_id").eq("id", resolved).single();
-    if (metrics && (customer?.pos_source === "clover" ||
-      customer?.clover_customer_id === externalCustomerId)) {
-      await supabase.from("crm_customers").update({
-        total_spent: metrics.lifetime_value,
-        lifetime_value: metrics.lifetime_value,
-        pos_total_spent: metrics.lifetime_value,
-        pos_order_count: metrics.total_purchases,
-        first_purchase_date: metrics.first_purchase_date,
-        last_purchase_date: metrics.last_purchase_date,
-        updated_at: new Date().toISOString(),
-      }).eq("id", resolved);
+    const { data: metrics } = await supabase
+      .from("customer_purchase_metrics")
+      .select(
+        "total_purchases,lifetime_value,first_purchase_date,last_purchase_date",
+      )
+      .eq("customer_id", resolved)
+      .single();
+    const { data: customer } = await supabase
+      .from("crm_customers")
+      .select("pos_source,clover_customer_id")
+      .eq("id", resolved)
+      .single();
+    if (
+      metrics &&
+      (customer?.pos_source === "clover" ||
+        customer?.clover_customer_id === externalCustomerId)
+    ) {
+      await supabase
+        .from("crm_customers")
+        .update({
+          total_spent: metrics.lifetime_value,
+          lifetime_value: metrics.lifetime_value,
+          pos_total_spent: metrics.lifetime_value,
+          pos_order_count: metrics.total_purchases,
+          first_purchase_date: metrics.first_purchase_date,
+          last_purchase_date: metrics.last_purchase_date,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", resolved);
     }
-    const triggers = refunded > 0
-      ? ["refund.created"]
-      : ["payment.completed", "review_request"];
+    const triggers =
+      refunded > 0
+        ? ["refund.created"]
+        : ["payment.completed", "review_request"];
     if (!refunded && metrics?.total_purchases === 1) {
       triggers.push("first_purchase");
     }
@@ -204,6 +246,9 @@ async function saveOrder(
         refund_amount: refunded,
         merchant_id: connection.merchant_id,
         pos_source: "clover",
+        products: productNames.join(", "),
+        product_names: productNames,
+        items,
       },
     );
   }
@@ -226,7 +271,9 @@ async function processUpdate(supabase: any, connection: any, update: Update) {
       `/v3/merchants/${merchant}/customers/${object}?expand=emailAddresses,phoneNumbers`,
       token,
     );
-    return { customerId: await resolveCustomer(supabase, connection, customer) };
+    return {
+      customerId: await resolveCustomer(supabase, connection, customer),
+    };
   }
   if (kind === "I") {
     const item = await fetchClover(
@@ -234,11 +281,15 @@ async function processUpdate(supabase: any, connection: any, update: Update) {
       `/v3/merchants/${merchant}/items/${object}`,
       token,
     );
-    const { error } = await supabase.from("products").update({
-      name: item.name,
-      price: item.price == null ? undefined : Number(item.price) / 100,
-      updated_at: new Date().toISOString(),
-    }).eq("tenant_id", connection.tenant_id).eq("external_id", id);
+    const { error } = await supabase
+      .from("products")
+      .update({
+        name: item.name,
+        price: item.price == null ? undefined : Number(item.price) / 100,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", connection.tenant_id)
+      .eq("external_id", id);
     if (error) throw error;
     return { itemId: id };
   }
@@ -267,8 +318,11 @@ async function processUpdate(supabase: any, connection: any, update: Update) {
   } else {
     return { ignoredObjectType: kind };
   }
-  const externalCustomerId = firstElement(order?.customers)?.id ||
-    payment?.customer?.id || payment?.customerId || null;
+  const externalCustomerId =
+    firstElement(order?.customers)?.id ||
+    payment?.customer?.id ||
+    payment?.customerId ||
+    null;
   const customerId = await resolveCustomerId(
     supabase,
     connection,
@@ -280,6 +334,8 @@ async function processUpdate(supabase: any, connection: any, update: Update) {
 }
 
 serve(async (request: Request) => {
+  const approvalResponse = requireCloverApproval(request);
+  if (approvalResponse) return approvalResponse;
   if (request.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -311,10 +367,13 @@ serve(async (request: Request) => {
     });
   }
   if (!payload.merchants || typeof payload.merchants !== "object") {
-    return new Response(JSON.stringify({ error: "Missing merchants payload" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Missing merchants payload" }),
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const supabase = createClient(
@@ -323,27 +382,38 @@ serve(async (request: Request) => {
   );
   const results: Record<string, unknown>[] = [];
   for (const [merchantId, updates] of Object.entries(payload.merchants)) {
-    const { data: connection } = await supabase.from("clover_connections")
-      .select("id,tenant_id,user_id,merchant_id,environment,region,encrypted_access_token")
-      .eq("merchant_id", merchantId).eq("status", "connected").maybeSingle();
+    const { data: connection } = await supabase
+      .from("clover_connections")
+      .select(
+        "id,tenant_id,user_id,merchant_id,environment,region,encrypted_access_token",
+      )
+      .eq("merchant_id", merchantId)
+      .eq("status", "connected")
+      .maybeSingle();
     if (!connection) {
       results.push({ merchantId, ignored: "merchant_not_connected" });
       continue;
     }
-    await supabase.from("clover_connections").update({
-      last_webhook_received_at: new Date().toISOString(),
-      webhook_last_error: null,
-      webhooks_subscribed: true,
-    }).eq("id", connection.id);
+    await supabase
+      .from("clover_connections")
+      .update({
+        last_webhook_received_at: new Date().toISOString(),
+        webhook_last_error: null,
+        webhooks_subscribed: true,
+      })
+      .eq("id", connection.id);
 
     for (const update of Array.isArray(updates) ? updates : []) {
       const eventId = [
-        merchantId, update.objectId || "unknown",
-        update.type || "unknown", update.ts || 0,
+        merchantId,
+        update.objectId || "unknown",
+        update.type || "unknown",
+        update.ts || 0,
       ].join(":");
       logSignatureOK("clover", eventId, update.type || "unknown", merchantId);
       const { data: event, error: eventError } = await supabase
-        .from("pos_webhook_events").insert({
+        .from("pos_webhook_events")
+        .insert({
           tenant_id: connection.tenant_id,
           provider: "clover",
           connection_id: connection.id,
@@ -351,7 +421,9 @@ serve(async (request: Request) => {
           event_type: update.objectId?.split(":")[0] || "unknown",
           payload: update,
           status: "processing",
-        }).select("id").single();
+        })
+        .select("id")
+        .single();
       if (eventError?.code === "23505") {
         results.push({ eventId, duplicate: true });
         continue;
@@ -359,19 +431,29 @@ serve(async (request: Request) => {
       if (eventError) throw eventError;
       try {
         const result = await processUpdate(supabase, connection, update);
-        await supabase.from("pos_webhook_events").update({
-          status: "processed", processed_at: new Date().toISOString(),
-        }).eq("id", event.id);
+        await supabase
+          .from("pos_webhook_events")
+          .update({
+            status: "processed",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", event.id);
         results.push({ eventId, ...result });
       } catch (error: any) {
-        await supabase.from("pos_webhook_events").update({
-          status: "failed",
-          error_message: error.message,
-          processed_at: new Date().toISOString(),
-        }).eq("id", event.id);
-        await supabase.from("clover_connections").update({
-          webhook_last_error: error.message,
-        }).eq("id", connection.id);
+        await supabase
+          .from("pos_webhook_events")
+          .update({
+            status: "failed",
+            error_message: error.message,
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", event.id);
+        await supabase
+          .from("clover_connections")
+          .update({
+            webhook_last_error: error.message,
+          })
+          .eq("id", connection.id);
         results.push({ eventId, error: error.message });
       }
     }

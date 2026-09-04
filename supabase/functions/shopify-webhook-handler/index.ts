@@ -495,6 +495,8 @@ async function handleOrderEvent(
       order_amount: totalPrice,
       order_id: orderId,
       products: productNames,
+      product_names: productNames,
+      items: lineItems,
       payment_status: payload.financial_status,
       shop_domain: connection.shop_domain,
       shopify_topic: topic,
@@ -720,6 +722,7 @@ async function handleRefundEvent(
     crmCustomer.id,
     ["refund.created"],
     {
+      refund_id: payload.id ? String(payload.id) : undefined,
       refund_amount: refundAmount,
       refund_reason: payload.note || payload.reason || "Not specified",
       original_order_id: orderRow.shopify_order_id,

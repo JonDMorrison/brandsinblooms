@@ -465,6 +465,47 @@ function ButtonSizeVisual({ width }: { width: number }) {
   );
 }
 
+function ImageCropControls({
+  block,
+  updateField,
+}: {
+  block: StudioBlock;
+  updateField: UpdateField;
+}) {
+  if ((block.imageFit ?? "cover") !== "cover") {
+    return null;
+  }
+
+  return (
+    <Stack spacing={0.75}>
+      <Typography
+        level="body-xs"
+        sx={{ color: "neutral.500", fontSize: "11px" }}
+      >
+        Crop focus keeps the important part of the image visible.
+      </Typography>
+      <StudioSliderField
+        label="Horizontal Focus"
+        min={0}
+        max={100}
+        step={5}
+        defaultValue={50}
+        value={block.imageFocalX ?? 50}
+        onChange={(value) => updateField("imageFocalX", value)}
+      />
+      <StudioSliderField
+        label="Vertical Focus"
+        min={0}
+        max={100}
+        step={5}
+        defaultValue={50}
+        value={block.imageFocalY ?? 50}
+        onChange={(value) => updateField("imageFocalY", value)}
+      />
+    </Stack>
+  );
+}
+
 const IMAGE_POSITION_TO_LAYOUT = {
   left: "image-left",
   right: "image-right",
@@ -2243,6 +2284,10 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
+                    />
                     <StudioSliderField
                       label="Image Border Radius"
                       min={0}
@@ -2939,6 +2984,10 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
+                    />
                     <Stack
                       spacing={0.5}
                       sx={{ width: "100%", maxWidth: "100%", minWidth: 0 }}
@@ -3288,6 +3337,10 @@ function PanelContent({
                           value as StudioBlock["imageFit"],
                         )
                       }
+                    />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
                     />
                     <StudioSliderField
                       label="Max Height"
@@ -4091,8 +4144,10 @@ function PanelContent({
                       min={24}
                       max={80}
                       step={4}
-                      defaultValue={40}
-                      value={block.logoSize ?? 40}
+                      defaultValue={64}
+                      value={
+                        block.logoSize === 40 ? 64 : (block.logoSize ?? 64)
+                      }
                       onChange={(value) => updateField("logoSize", value)}
                     />
                     <StudioAlignmentToggle
@@ -4296,8 +4351,10 @@ function PanelContent({
                       min={24}
                       max={80}
                       step={4}
-                      defaultValue={40}
-                      value={block.logoSize ?? 40}
+                      defaultValue={56}
+                      value={
+                        block.logoSize === 40 ? 56 : (block.logoSize ?? 56)
+                      }
                       onChange={(value) => updateField("logoSize", value)}
                     />
                     <StudioAlignmentToggle
@@ -4680,6 +4737,10 @@ function PanelContent({
                         )
                       }
                     />
+                    <ImageCropControls
+                      block={block}
+                      updateField={updateField}
+                    />
                     <StudioSliderField
                       label="Image Border Radius"
                       min={0}
@@ -4830,8 +4891,7 @@ function PanelContent({
                         sx={{ flexWrap: "wrap", rowGap: 0.5 }}
                       >
                         {[8, 16, 24, 32, 48, 64].map((preset) => {
-                          const active =
-                            (block.spacerHeight ?? 32) === preset;
+                          const active = (block.spacerHeight ?? 32) === preset;
                           return (
                             <Chip
                               key={preset}

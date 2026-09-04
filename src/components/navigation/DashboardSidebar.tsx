@@ -24,6 +24,7 @@ import { useDashboardShell } from "@/components/layout/DashboardShell";
 import {
   getActiveBranchIds,
   getDashboardSidebarGroups,
+  filterTenantSidebarGroups,
   isDashboardSidebarItemActive,
   matchesNavigationPatterns,
   type DashboardShellMode,
@@ -36,6 +37,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBloomInsightNotifications } from "@/hooks/bloom/useBloomInsightNotifications";
 import { useIsSuperAdmin } from "@/hooks/useIsSuperAdmin";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const EXPANDED_BRANCHES_STORAGE_KEY = "dashboard-sidebar:expanded-branches";
 const SIDEBAR_TOUCH_TARGET = 48;
@@ -282,7 +284,7 @@ const getItemFrameSx = (active: boolean, compact: boolean) => ({
   alignItems: "center",
   justifyContent: compact ? "center" : "stretch",
   "&::before": {
-    content: '\"\"',
+    content: '""',
     position: "absolute",
     top: 4,
     bottom: 4,
@@ -385,14 +387,23 @@ export function DashboardSidebar({
     user?.email,
   );
   const { unreadCount } = useBloomInsightNotifications(tenant?.id);
+  const { hasPermission } = useUserRole();
   const userInitials = getInitials(displayName);
   const sidebarGroups = useMemo(
     () =>
-      getDashboardSidebarGroups({
-        mode,
-        isSuperAdmin: !isLoadingSuperAdmin && Boolean(isSuperAdmin),
-      }),
-    [isLoadingSuperAdmin, isSuperAdmin, mode],
+      mode === "tenant"
+        ? filterTenantSidebarGroups(
+            getDashboardSidebarGroups({
+              mode,
+              isSuperAdmin: !isLoadingSuperAdmin && Boolean(isSuperAdmin),
+            }),
+            hasPermission,
+          )
+        : getDashboardSidebarGroups({
+            mode,
+            isSuperAdmin: !isLoadingSuperAdmin && Boolean(isSuperAdmin),
+          }),
+    [hasPermission, isLoadingSuperAdmin, isSuperAdmin, mode],
   );
   const { navigationGroups, footerSettingsItem } = useMemo(() => {
     if (mode !== "tenant") {

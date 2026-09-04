@@ -7,7 +7,7 @@ import {
 } from "./customerExport";
 
 const migration = readFileSync(
-  "supabase/migrations/20260903145720_complete_customer_data_export.sql",
+  "supabase/migrations/20260903234000_owner_authorized_customer_export.sql",
   "utf8",
 );
 const customersPage = readFileSync(
@@ -73,9 +73,10 @@ describe("complete customer data export", () => {
     expect(migration).toContain("LIMIT p_limit + 1");
     expect(migration).toContain("customer.id > p_after_id");
     expect(migration).toContain("SET search_path = ''");
-    expect(migration).toContain("app_user.id = v_user_id");
-    expect(migration).toContain("v_user_role IS DISTINCT FROM 'admin'");
-    expect(migration).toContain("admin_context.active_tenant_id");
+    expect(migration).toContain("public.get_current_crm_access()");
+    expect(migration).toContain(
+      "v_access->>'role' IS DISTINCT FROM 'owner_admin'",
+    );
     expect(migration).toContain("FROM PUBLIC, anon");
     expect(exportHook).toContain("supabase.rpc");
     expect(exportHook).toContain('"get_customer_export_page"');

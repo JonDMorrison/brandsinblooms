@@ -5,6 +5,10 @@ const migration = readFileSync(
   "supabase/migrations/20260903142617_atomic_channel_consent_management.sql",
   "utf8",
 );
+const authorizationMigration = readFileSync(
+  "supabase/migrations/20260903235000_authorize_staff_consent_changes.sql",
+  "utf8",
+);
 const contactCard = readFileSync(
   "src/components/crm/customer-dashboard/CustomerContactCard.tsx",
   "utf8",
@@ -66,7 +70,9 @@ describe("atomic channel consent release gate", () => {
     expect(editDialog).not.toContain("sms_opt_in");
     expect(updateHook).not.toContain("email_opt_in?:");
     expect(updateHook).not.toContain("sms_opt_in?:");
-    expect(consentHook).toContain('"set_customer_marketing_consent"');
+    expect(consentHook).toContain(
+      '"set_customer_marketing_consent_authorized"',
+    );
   });
 
   it("keeps email opt-out state out of SMS audience decisions", () => {
@@ -91,5 +97,21 @@ describe("atomic channel consent release gate", () => {
     expect(migration).toContain("app_user.tenant_id = customer.tenant_id");
     expect(migration).toContain("SET search_path = ''");
     expect(migration).toContain("FROM PUBLIC, anon");
+  });
+
+  it("enforces role and assigned-location access before invoking the writer", () => {
+    expect(authorizationMigration).toContain("public.get_current_crm_access()");
+    expect(authorizationMigration).toContain(
+      "v_role NOT IN ('owner_admin', 'marketing', 'store_manager')",
+    );
+    expect(authorizationMigration).toContain(
+      "public.customer_location_activity",
+    );
+    expect(authorizationMigration).toContain(
+      "FROM PUBLIC, anon, authenticated",
+    );
+    expect(authorizationMigration).toContain(
+      "set_customer_marketing_consent_authorized",
+    );
   });
 });

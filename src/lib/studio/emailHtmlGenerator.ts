@@ -8,6 +8,7 @@ import type {
 // supabase/functions/_shared/* and must resolve under the Deno bundler,
 // which does not apply the app's "@/" path alias.
 import { formatDraftRichText } from "../crm/htmlContent.ts";
+import { getImageObjectPosition } from "./imageFocalPoint.ts";
 import type { StudioDesignSystem } from "./designSystem.ts";
 
 export type EmailFooterLinks = {
@@ -347,9 +348,7 @@ function parseRgbChannels(
     };
   }
 
-  const rgbMatch = trimmed.match(
-    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i,
-  );
+  const rgbMatch = trimmed.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
   if (rgbMatch) {
     return {
       r: Math.max(0, Math.min(255, parseInt(rgbMatch[1], 10))),
@@ -409,67 +408,114 @@ function hasRenderableRichText(value: unknown) {
   );
 }
 
+function mergeEmailSafeAttributes(
+  tag: string,
+  attributes: string | undefined,
+  defaultStyles: string,
+) {
+  const rawAttributes = attributes ?? "";
+  const styleMatch = rawAttributes.match(/\sstyle=("([^"]*)"|'([^']*)')/i);
+  const existingStyles = styleMatch?.[2] ?? styleMatch?.[3] ?? "";
+  const normalizedDefaults = defaultStyles.trim().replace(/;?$/, ";");
+  const normalizedExisting = existingStyles.trim()
+    ? `${existingStyles.trim().replace(/;?$/, ";")}`
+    : "";
+  const remainingAttributes = styleMatch
+    ? rawAttributes.replace(styleMatch[0], "")
+    : rawAttributes;
+
+  return `<${tag}${remainingAttributes} style="${normalizedDefaults}${normalizedExisting}">`;
+}
+
 function sanitizeRichHtml(
   html: string,
   designSystem?: StudioDesignSystem | null,
+  options: { bodyLineHeight?: number } = {},
 ) {
   const headlineFont = getFontStack(designSystem, "headline");
   const subheadingFont = getFontStack(designSystem, "subheading");
   const bodyFont = getFontStack(designSystem, "body");
+  const bodyLineHeight = Math.max(
+    1,
+    Math.min(2.5, numberValue(options.bodyLineHeight, 1.6)),
+  );
   const stripped = formatDraftRichText(html).replace(
     /<\/?(?:html|head|body)[^>]*>/gi,
     "",
   );
 
-  return stripped
-    .replace(
-      /<p(\s[^>]*)?>/gi,
-      `<p style="margin:0 0 12px;font-family:${bodyFont};">`,
-    )
-    .replace(
-      /<h1(\s[^>]*)?>/gi,
-      `<h1 style="margin:0 0 12px;font-family:${headlineFont};font-size:26px;line-height:1.2;">`,
-    )
-    .replace(
-      /<h2(\s[^>]*)?>/gi,
-      `<h2 style="margin:0 0 12px;font-family:${subheadingFont};font-size:22px;line-height:1.25;">`,
-    )
-    .replace(
-      /<h3(\s[^>]*)?>/gi,
-      `<h3 style="margin:0 0 10px;font-family:${subheadingFont};font-size:18px;line-height:1.3;">`,
-    )
-    // Lists: use padding-left for indentation (Outlook + Gmail mobile render
-    // padding-left on UL/OL more reliably than margin-left). Explicit
-    // list-style-position:outside avoids hidden bullets on dark email modes.
-    .replace(
-      /<ul(\s[^>]*)?>/gi,
-      `<ul style="margin:0 0 12px;padding-left:24px;font-family:${bodyFont};list-style-type:disc;list-style-position:outside;">`,
-    )
-    .replace(
-      /<ol(\s[^>]*)?>/gi,
-      `<ol style="margin:0 0 12px;padding-left:24px;font-family:${bodyFont};list-style-type:decimal;list-style-position:outside;">`,
-    )
-    .replace(
-      /<li(\s[^>]*)?>/gi,
-      `<li style="margin:0 0 4px;font-family:${bodyFont};">`,
-    )
-    // Soft line breaks: self-close so XHTML-strict email clients (older
-    // Outlook + several mobile webmail viewers) render them as a real line
-    // break instead of swallowing the tag.
-    .replace(/<br\s*\/?>/gi, "<br />")
-    .replace(/<a(\s[^>]*)?>/gi, (_match, attrs: string = "") => {
-      const styleMatch = attrs.match(/\sstyle=("([^"]*)"|'([^']*)')/i);
+  return (
+    stripped
+      .replace(/<p(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "p",
+          attrs,
+          `margin:0 0 12px;font-family:${bodyFont};line-height:${bodyLineHeight}`,
+        ),
+      )
+      .replace(/<h1(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "h1",
+          attrs,
+          `margin:0 0 12px;font-family:${headlineFont};font-size:26px;line-height:1.2`,
+        ),
+      )
+      .replace(/<h2(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "h2",
+          attrs,
+          `margin:0 0 12px;font-family:${subheadingFont};font-size:22px;line-height:1.25`,
+        ),
+      )
+      .replace(/<h3(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "h3",
+          attrs,
+          `margin:0 0 10px;font-family:${subheadingFont};font-size:18px;line-height:1.3`,
+        ),
+      )
+      // Lists: use padding-left for indentation (Outlook + Gmail mobile render
+      // padding-left on UL/OL more reliably than margin-left). Explicit
+      // list-style-position:outside avoids hidden bullets on dark email modes.
+      .replace(/<ul(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "ul",
+          attrs,
+          `margin:0 0 12px;padding-left:24px;font-family:${bodyFont};line-height:${bodyLineHeight};list-style-type:disc;list-style-position:outside`,
+        ),
+      )
+      .replace(/<ol(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "ol",
+          attrs,
+          `margin:0 0 12px;padding-left:24px;font-family:${bodyFont};line-height:${bodyLineHeight};list-style-type:decimal;list-style-position:outside`,
+        ),
+      )
+      .replace(/<li(\s[^>]*)?>/gi, (_match, attrs: string | undefined) =>
+        mergeEmailSafeAttributes(
+          "li",
+          attrs,
+          `margin:0 0 4px;font-family:${bodyFont};line-height:${bodyLineHeight}`,
+        ),
+      )
+      // Soft line breaks: self-close so XHTML-strict email clients (older
+      // Outlook + several mobile webmail viewers) render them as a real line
+      // break instead of swallowing the tag.
+      .replace(/<br\s*\/?>/gi, "<br />")
+      .replace(/<a(\s[^>]*)?>/gi, (_match, attrs: string = "") => {
+        const styleMatch = attrs.match(/\sstyle=("([^"]*)"|'([^']*)')/i);
 
-      if (!styleMatch) {
-        return `<a${attrs} style="color:inherit;text-decoration:underline;">`;
-      }
+        if (!styleMatch) {
+          return `<a${attrs} style="color:inherit;text-decoration:underline;">`;
+        }
 
-      const existingStyles = styleMatch[2] ?? styleMatch[3] ?? "";
-      const quote = styleMatch[1][0];
-      const mergedStyles = `${existingStyles}${existingStyles.trim().endsWith(";") || !existingStyles ? "" : ";"}color:inherit;text-decoration:underline;`;
+        const existingStyles = styleMatch[2] ?? styleMatch[3] ?? "";
+        const quote = styleMatch[1][0];
+        const mergedStyles = `${existingStyles}${existingStyles.trim().endsWith(";") || !existingStyles ? "" : ";"}color:inherit;text-decoration:underline;`;
 
-      return `<a${attrs.replace(styleMatch[0], ` style=${quote}${mergedStyles}${quote}`)}>`;
-    });
+        return `<a${attrs.replace(styleMatch[0], ` style=${quote}${mergedStyles}${quote}`)}>`;
+      })
+  );
 }
 
 function textBlock(value: unknown) {
@@ -642,6 +688,22 @@ function getImageTextSplit(columnSplit: StudioBlock["columnSplit"]) {
       return { image: 60, text: 40 };
     default:
       return { image: 50, text: 50 };
+  }
+}
+
+function getImageHeightForRatio(
+  width: number,
+  ratio: StudioBlock["imageRatio"],
+) {
+  switch (ratio) {
+    case "1:1":
+      return Math.round(width);
+    case "4:3":
+      return Math.round((width * 3) / 4);
+    case "16:9":
+      return Math.round((width * 9) / 16);
+    default:
+      return null;
   }
 }
 
@@ -832,7 +894,15 @@ function renderGraphicImageBlock(
     const backgroundColor = safeColor(block.backgroundColor, "#ffffff");
     const radius = numberValue(block.borderRadius, 0);
     const padding = block.imagePadding ? 16 : 0;
-    const image = `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}" style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
+    const maxHeight = Math.max(
+      150,
+      Math.min(600, numberValue(block.maxHeight, 400)),
+    );
+    const objectPosition = getImageObjectPosition(
+      block.imageFocalX,
+      block.imageFocalY,
+    );
+    const image = `<img class="responsive-image responsive-crop-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.caption || "Campaign image")}" width="${EMAIL_WIDTH - padding * 2}" height="${maxHeight}" style="display:block;width:100%;max-width:${EMAIL_WIDTH - padding * 2}px;height:${maxHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`;
     const linked = safeUrl(block.linkUrl)
       ? `<a href="${escapeAttribute(safeUrl(block.linkUrl))}" target="_blank" style="text-decoration:none;">${image}</a>`
       : image;
@@ -862,7 +932,11 @@ function renderGraphicImageBlock(
   const imageRadius = showCaptionBar
     ? `${radius}px ${radius}px 0 0`
     : `${radius}px`;
-  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:center center;background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
+  const objectPosition = getImageObjectPosition(
+    block.imageFocalX,
+    block.imageFocalY,
+  );
+  const imageCellBackground = `background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:${objectPosition};background-size:${getGraphicHeroBackgroundSize(block.imageFit)};background-repeat:no-repeat;`;
   const overlayStyle = block.showOverlay
     ? getGraphicHeroOverlayStyle(block)
     : "";
@@ -924,7 +998,9 @@ function renderNewsletterHeaderLogoHtml(
   options: { showPlaceholder?: boolean; size?: number } = {},
 ) {
   const showPlaceholder = options.showPlaceholder ?? true;
-  const size = Math.max(24, numberValue(block.logoSize, options.size ?? 40));
+  const defaultSize = options.size ?? 56;
+  const requestedSize = numberValue(block.logoSize, defaultSize);
+  const size = Math.max(24, requestedSize === 40 ? defaultSize : requestedSize);
   const logoUrl = safeUrl(block.logoUrl, { image: true });
   const isCircle = block.logoShape === "circle";
   const placeholderWidth = isCircle ? size : Math.max(size, 52);
@@ -988,7 +1064,7 @@ function renderNewsletterHeaderBlock(
     designSystem,
     {
       showPlaceholder: layout !== "banner",
-      size: layout === "banner" ? 36 : 40,
+      size: layout === "banner" ? 48 : 56,
     },
   );
   const dividerRow = showDivider
@@ -1016,7 +1092,11 @@ function renderNewsletterHeaderBlock(
   const contentHtml = `<div style="font-family:${titleFont};font-size:${layout === "banner" ? 18 : 20}px;line-height:1.2;font-weight:700;color:${titleColor};margin:0;">${textBlock(title)}</div><div style="font-family:${subheadingFont};font-size:${layout === "banner" ? 12 : 13}px;line-height:${layout === "banner" ? 1.35 : 1.3};color:${subtitleColor};margin-top:4px;">${textBlock(tagline)}</div>`;
   const logoCellWidth = Math.max(
     48,
-    numberValue(block.logoSize, layout === "banner" ? 36 : 40) + 12,
+    (numberValue(block.logoSize, layout === "banner" ? 48 : 56) === 40
+      ? layout === "banner"
+        ? 48
+        : 56
+      : numberValue(block.logoSize, layout === "banner" ? 48 : 56)) + 12,
   );
   const leadingContent = logoHtml
     ? block.logoAlignment === "right"
@@ -1050,7 +1130,9 @@ function renderPlainTextBlock(
       ? "background-color:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:20px;"
       : "";
   const body = stringValue(block.body)
-    ? sanitizeRichHtml(block.body || "", designSystem)
+    ? sanitizeRichHtml(block.body || "", designSystem, {
+        bodyLineHeight: lineHeight,
+      })
     : `<p style="margin:0;color:${textColor};opacity:0.5;">Add text content...</p>`;
 
   return renderSection(
@@ -1071,6 +1153,10 @@ function renderImageTextBlock(
   const layout = resolveImageTextLayout(block);
   const align = getAlignment(block.textAlign, "left");
   const split = getImageTextSplit(block.columnSplit);
+  const objectPosition = getImageObjectPosition(
+    block.imageFocalX,
+    block.imageFocalY,
+  );
   const content = `${renderTextContent({ ...block, textColor }, designSystem)}${renderButton(block, designSystem, { align })}`;
 
   if (layout === "image-overlay" && imageUrl) {
@@ -1079,14 +1165,22 @@ function renderImageTextBlock(
     const overlayColor = safeColor(block.overlayColor, "#000000");
     return renderSection(
       backgroundColor,
-      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:center center;background-size:${block.imageFit === "contain" ? "contain" : "cover"};background-repeat:no-repeat;border-radius:${radius}px;overflow:hidden;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding}px;"><div style="max-width:420px;">${content}</div></div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`,
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;background-color:${backgroundColor};"><tr><td background="${escapeAttribute(imageUrl)}" bgcolor="${escapeAttribute(backgroundColor)}" style="background-color:${backgroundColor};background-image:url('${escapeAttribute(imageUrl)}');background-position:${objectPosition};background-size:${block.imageFit === "contain" ? "contain" : "cover"};background-repeat:no-repeat;border-radius:${radius}px;overflow:hidden;"><!--[if gte mso 9]><v:rect xmlns:v="urn:schemas-microsoft-com:vml" fill="true" stroke="false" style="width:${EMAIL_WIDTH}px;"><v:fill type="frame" src="${escapeAttribute(imageUrl)}" color="${escapeAttribute(backgroundColor)}" /><v:textbox inset="0,0,0,0"><![endif]--><div style="background-color:${colorWithOpacity(overlayColor, overlayOpacity)};padding:${padding}px;"><div style="max-width:420px;">${content}</div></div><!--[if gte mso 9]></v:textbox></v:rect><![endif]--></td></tr></table>`,
     );
   }
 
   if (layout === "image-top" || layout === "minimal-card") {
     const isMinimal = layout === "minimal-card";
+    const renderedWidth = isMinimal ? 420 : EMAIL_WIDTH - padding * 2;
+    const renderedHeight = getImageHeightForRatio(
+      renderedWidth,
+      block.imageRatio,
+    );
+    const cropDimensions = renderedHeight
+      ? ` height="${renderedHeight}" style="display:block;width:100%;height:${renderedHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`
+      : ` style="display:block;width:100%;height:auto;object-position:${objectPosition};border:0;outline:none;text-decoration:none;border-radius:${radius}px;"`;
     const imageHtml = imageUrl
-      ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${EMAIL_WIDTH - padding * 2}" style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />`
+      ? `<img class="responsive-image${renderedHeight ? " responsive-crop-image" : ""}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${renderedWidth}"${cropDimensions} />`
       : "";
 
     return renderSection(
@@ -1097,13 +1191,20 @@ function renderImageTextBlock(
 
   const availableWidth = EMAIL_WIDTH - padding * 2 - 24;
   const imageWidth = Math.floor(availableWidth * (split.image / 100));
-  const imageCell = `<td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
+  const imageHeight = getImageHeightForRatio(imageWidth, block.imageRatio);
+  const imageStyle = imageHeight
+    ? `height:${imageHeight}px;object-fit:${block.imageFit ?? "cover"};object-position:${objectPosition};`
+    : `height:auto;object-position:${objectPosition};`;
+  const imageClass = imageHeight
+    ? "responsive-image responsive-crop-image"
+    : "responsive-image";
+  const imageCell = `<td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-right:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>`;
   const textCell = `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-left:12px;">${content}</td>`;
   const reverse = layout === "image-right";
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}" style="display:block;width:100%;max-width:${imageWidth}px;height:auto;border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
+    `<div class="mobile-padding" style="padding:${padding}px;background-color:${backgroundColor};"><table role="presentation" class="image-text-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${reverse ? `<td class="responsive-column image-text-content" width="${split.text}%" valign="middle" style="width:${split.text}%;vertical-align:middle;padding-right:12px;">${content}</td><td class="responsive-column image-text-image" width="${split.image}%" valign="top" style="width:${split.image}%;vertical-align:top;padding-left:12px;">${imageUrl ? `<img class="${imageClass}" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || block.headline || "Image")}" width="${imageWidth}"${imageHeight ? ` height="${imageHeight}"` : ""} style="display:block;width:100%;max-width:${imageWidth}px;${imageStyle}border:0;outline:none;text-decoration:none;border-radius:${radius}px;" />` : ""}</td>` : imageCell + textCell}</tr></table></div>`,
   );
 }
 
@@ -1168,10 +1269,14 @@ function renderProductCardBlock(
   const badge = stringValue(block.badgeText)
     ? `<div style="display:inline-block;background-color:${safeColor(block.badgeColor, "#111827")};color:#ffffff;border-radius:999px;padding:5px 10px;font-family:${getFontStack(designSystem, "button")};font-size:11px;line-height:1;font-weight:700;margin-bottom:10px;">${textBlock(block.badgeText)}</div>`
     : "";
+  const imagePosition = getImageObjectPosition(
+    block.imageFocalX,
+    block.imageFocalY,
+  );
 
   return renderSection(
     backgroundColor,
-    `<div class="mobile-padding" style="padding:24px;background-color:${backgroundColor};"><table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${backgroundColor};"><tr>${imageUrl ? `<td class="responsive-column product-card-image" width="46%" valign="top" style="width:46%;vertical-align:top;padding:24px 12px 24px 24px;"><img class="responsive-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || productName)}" width="260" style="display:block;width:100%;max-width:260px;height:auto;border:0;outline:none;text-decoration:none;border-radius:10px;" /></td>` : ""}<td class="responsive-column product-card-details" width="${imageUrl ? "54" : "100"}%" valign="middle" style="width:${imageUrl ? "54" : "100"}%;vertical-align:middle;padding:${imageUrl ? "24px 24px 24px 12px" : "24px"};">${badge}<h2 style="font-family:${getFontStack(designSystem, "headline")};font-size:22px;line-height:1.25;color:${textColor};margin:0 0 8px;">${escapeHtml(productName)}</h2>${price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:16px;line-height:1.4;color:${textColor};font-weight:700;margin-bottom:8px;">${escapeHtml(price)}</div>` : ""}${descriptionHtml ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.6;color:${textColor};opacity:0.74;">${descriptionHtml}</div>` : ""}${renderButton(block, designSystem, { align: "left", marginTop: 18 })}</td></tr></table></div>`,
+    `<div class="mobile-padding" style="padding:24px;background-color:${backgroundColor};"><table role="presentation" class="product-card-row" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;${border}border-radius:12px;background-color:${backgroundColor};"><tr>${imageUrl ? `<td class="responsive-column product-card-image" width="46%" valign="top" style="width:46%;vertical-align:top;padding:24px 12px 24px 24px;"><img class="responsive-image responsive-crop-image" src="${escapeAttribute(imageUrl)}" alt="${escapeAttribute(block.imageAlt || productName)}" width="260" height="220" style="display:block;width:100%;max-width:260px;height:220px;object-fit:${block.imageFit ?? "cover"};object-position:${imagePosition};border:0;outline:none;text-decoration:none;border-radius:10px;" /></td>` : ""}<td class="responsive-column product-card-details" width="${imageUrl ? "54" : "100"}%" valign="middle" style="width:${imageUrl ? "54" : "100"}%;vertical-align:middle;padding:${imageUrl ? "24px 24px 24px 12px" : "24px"};">${badge}<h2 style="font-family:${getFontStack(designSystem, "headline")};font-size:22px;line-height:1.25;color:${textColor};margin:0 0 8px;">${escapeHtml(productName)}</h2>${price ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:16px;line-height:1.4;color:${textColor};font-weight:700;margin-bottom:8px;">${escapeHtml(price)}</div>` : ""}${descriptionHtml ? `<div style="font-family:${getFontStack(designSystem, "body")};font-size:14px;line-height:1.6;color:${textColor};opacity:0.74;">${descriptionHtml}</div>` : ""}${renderButton(block, designSystem, { align: "left", marginTop: 18 })}</td></tr></table></div>`,
   );
 }
 
@@ -1535,7 +1640,8 @@ function renderFooterLogo(
   const businessName = stringValue(block.businessName, "Your Business");
   // 40px read as undersized next to the business name in real inboxes; 56 is
   // the common footer logo height. An explicit block.logoSize still wins.
-  const size = Math.max(24, numberValue(block.logoSize, 56));
+  const requestedSize = numberValue(block.logoSize, 64);
+  const size = Math.max(24, requestedSize === 40 ? 64 : requestedSize);
   if (logoUrl) {
     return `<img src="${escapeAttribute(logoUrl)}" alt="${escapeAttribute(businessName)} logo" width="${Math.round(size * 2.6)}" height="${size}" style="display:block;width:auto;max-width:${Math.round(size * 2.6)}px;height:${size}px;object-fit:contain;border:0;outline:none;text-decoration:none;" />`;
   }
@@ -1741,8 +1847,9 @@ export function renderFooterBlockToEmailHtml(
   // strings will lose them too — that is intentional; nothing legitimate
   // says "Your Company" in a campaign footer.
   const storedCopyright = stringValue(block.copyright || block.copyrightText);
-  const copyrightHasPlaceholder =
-    /Your Company|Your Business/i.test(storedCopyright);
+  const copyrightHasPlaceholder = /Your Company|Your Business/i.test(
+    storedCopyright,
+  );
   const copyrightText =
     !storedCopyright || copyrightHasPlaceholder
       ? `© ${new Date().getFullYear()} ${businessName}`
@@ -1794,7 +1901,7 @@ export function createFooterBlockFromDesignSystem(
       designSystem.company.footerLegalText || DEFAULT_COMPLIANCE_TEXT,
     logoUrl: designSystem.company.logoUrl || "",
     logoAlignment: "left",
-    logoSize: 40,
+    logoSize: 64,
     showUnsubscribe: true,
     showManagePreferences: true,
     showWebsiteLink: Boolean(designSystem.company.websiteUrl),
@@ -2002,6 +2109,7 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .responsive-column { display:block !important; width:100% !important; max-width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
       .responsive-column + .responsive-column { padding-top:16px !important; }
       .responsive-image { width:100% !important; max-width:100% !important; height:auto !important; }
+      .responsive-crop-image { height:240px !important; }
       .mobile-padding { padding:16px !important; }
       .gallery-grid,
       .product-grid,
@@ -2036,6 +2144,8 @@ ${buildFontLinks(designSystem)}  <!--[if !mso]><!-->
       .feature-grid-side img,
       .product-card-image img,
       .image-text-image img { width:100% !important; max-width:100% !important; height:auto !important; }
+      .product-card-image img.responsive-crop-image,
+      .image-text-image img.responsive-crop-image { height:240px !important; }
       .gallery-grid-placeholder,
       .product-grid-placeholder { display:none !important; padding:0 !important; height:0 !important; }
     }

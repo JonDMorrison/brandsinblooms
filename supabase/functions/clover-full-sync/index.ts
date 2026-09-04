@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireCloverApproval } from "../_shared/cloverApprovalGate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,8 @@ function parseEnqueueOutcome(payload: unknown): EnqueueOutcome {
 }
 
 Deno.serve(async (req) => {
+  const approvalResponse = requireCloverApproval(req);
+  if (approvalResponse) return approvalResponse;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

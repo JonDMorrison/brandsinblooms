@@ -86,9 +86,9 @@ export default function EmailPreferences() {
   const [state, setState] = useState<PageState>("loading");
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [preference, setPreference] = useState<"subscribe" | "unsubscribe">(
-    "subscribe",
-  );
+  const [preference, setPreference] = useState<
+    "subscribe" | "unsubscribe" | null
+  >(null);
   const [interests, setInterests] = useState<CustomerInterestId[]>([]);
   const [gardeningExperience, setGardeningExperience] =
     useState<GardeningExperience | null>(null);
@@ -120,7 +120,11 @@ export default function EmailPreferences() {
         setTokenData(data.data);
         setCompanyInfo(data.company || { name: "Our Company" });
         setPreference(
-          initialPreferences.emailOptIn === false ? "unsubscribe" : "subscribe",
+          initialPreferences.emailOptIn === true
+            ? "subscribe"
+            : initialPreferences.emailOptIn === false
+              ? "unsubscribe"
+              : null,
         );
         setInterests(initialPreferences.interests);
         setGardeningExperience(initialPreferences.gardeningExperience);
@@ -135,7 +139,7 @@ export default function EmailPreferences() {
   }, [token]);
 
   const handleSubmit = async () => {
-    if (!token || !tokenData) return;
+    if (!token || !tokenData || preference === null) return;
 
     setSubmitting(true);
     try {
@@ -428,7 +432,7 @@ export default function EmailPreferences() {
               </h2>
             </div>
             <RadioGroup
-              value={preference}
+              value={preference ?? ""}
               onValueChange={(v) =>
                 setPreference(v as "subscribe" | "unsubscribe")
               }
@@ -468,12 +472,17 @@ export default function EmailPreferences() {
                 </Label>
               </div>
             </RadioGroup>
+            {preference === null ? (
+              <p className="text-sm text-muted-foreground" role="status">
+                Choose whether you want marketing emails before saving.
+              </p>
+            ) : null}
           </section>
 
           <Button
             onClick={handleSubmit}
             className="w-full"
-            disabled={submitting}
+            disabled={submitting || preference === null}
           >
             {submitting ? (
               <>

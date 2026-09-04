@@ -15,6 +15,8 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  IndentDecrease,
+  IndentIncrease,
   Italic,
   Link as LinkIcon,
   List,
@@ -23,6 +25,7 @@ import {
   Sparkles,
   Underline as UnderlineIcon,
 } from "lucide-react";
+import { normalizePastedRichText } from "@/lib/studio/richTextPaste";
 
 type StudioRichTextFieldProps = {
   label: string;
@@ -125,6 +128,7 @@ export default function StudioRichTextField({
       attributes: {
         class: "studio-rich-text-prosemirror",
       },
+      transformPastedHTML: normalizePastedRichText,
     },
   });
 
@@ -334,6 +338,22 @@ export default function StudioRichTextField({
           >
             <ListOrdered />
           </ToolbarIconButton>
+          <ToolbarIconButton
+            label="Decrease indent"
+            onClick={() =>
+              editor.chain().focus().liftListItem("listItem").run()
+            }
+          >
+            <IndentDecrease />
+          </ToolbarIconButton>
+          <ToolbarIconButton
+            label="Increase indent"
+            onClick={() =>
+              editor.chain().focus().sinkListItem("listItem").run()
+            }
+          >
+            <IndentIncrease />
+          </ToolbarIconButton>
           <ToolbarDivider />
           <ToolbarIconButton
             label="Insert link"
@@ -495,8 +515,8 @@ export default function StudioRichTextField({
             userSelect: "none",
           }}
         >
-          Enter for a new paragraph · Shift + Enter for a soft line break ·
-          use the list buttons in the toolbar for bullets
+          Enter for a new paragraph · Shift + Enter for a soft line break · use
+          the list buttons in the toolbar for bullets
         </Typography>
       </Sheet>
     </Stack>

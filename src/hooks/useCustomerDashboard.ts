@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCustomerCrossChannelMetrics } from "@/hooks/useCrossChannelMetrics";
 import { useCustomerPurchaseMetrics } from "@/hooks/usePurchaseMetrics";
 import { useCustomerPostPurchaseMetrics } from "@/hooks/usePostPurchaseMetrics";
-import { useCustomerLoyaltyMetrics } from "@/hooks/useLoyaltyMetrics";
+import {
+  useCustomerLoyaltyAccounts,
+  useCustomerLoyaltyMetrics,
+} from "@/hooks/useLoyaltyMetrics";
 import { useCustomerLifecycleMetrics } from "@/hooks/useLifecycleMetrics";
 import { useCustomerContentIntentMetrics } from "@/hooks/useContentIntentMetrics";
 import {
@@ -121,6 +124,13 @@ export interface CustomerData {
   engagement_purchase_score?: number;
   engagement_tier?: string | null;
   engagement_last_calculated_at?: string | null;
+
+  // Profile attributes and imported custom data
+  tags?: string[] | null;
+  product_tags?: string[] | null;
+  custom_fields?: unknown;
+  persona?: string | null;
+  is_vip?: boolean;
 }
 
 /**
@@ -144,7 +154,7 @@ export const useCustomer360 = (customerId: string | undefined) => {
         const { data: baseCustomer } = await supabase
           .from("crm_customers")
           .select(
-            "email_opt_in, sms_opt_in, email_consent, sms_consent, email_opt_in_at, email_opt_out_at, sms_opt_in_at, sms_opt_out_at, email_consent_source, email_consent_method, email_consent_details, sms_consent_source, sms_consent_method, sms_consent_details",
+            "email_opt_in, sms_opt_in, email_consent, sms_consent, email_opt_in_at, email_opt_out_at, sms_opt_in_at, sms_opt_out_at, email_consent_source, email_consent_method, email_consent_details, sms_consent_source, sms_consent_method, sms_consent_details, tags, product_tags, custom_fields, persona, is_vip",
           )
           .eq("id", customerId)
           .maybeSingle();
@@ -186,6 +196,7 @@ export interface CustomerDashboardData {
     typeof useCustomerPostPurchaseMetrics
   >["data"];
   loyaltyMetrics: ReturnType<typeof useCustomerLoyaltyMetrics>["data"];
+  loyaltyAccounts: ReturnType<typeof useCustomerLoyaltyAccounts>["data"];
   lifecycleMetrics: ReturnType<typeof useCustomerLifecycleMetrics>["data"];
   contentIntentMetrics: ReturnType<
     typeof useCustomerContentIntentMetrics
@@ -261,6 +272,7 @@ export const useCustomerDashboard = (
 
   // Loyalty
   const loyaltyQuery = useCustomerLoyaltyMetrics(customerId);
+  const loyaltyAccountsQuery = useCustomerLoyaltyAccounts(customerId);
 
   // Lifecycle
   const lifecycleQuery = useCustomerLifecycleMetrics(customerId);
@@ -304,6 +316,7 @@ export const useCustomerDashboard = (
     purchaseQuery.isLoading ||
     postPurchaseQuery.isLoading ||
     loyaltyQuery.isLoading ||
+    loyaltyAccountsQuery.isLoading ||
     lifecycleQuery.isLoading ||
     contentIntentQuery.isLoading ||
     riskQuery.isLoading ||
@@ -327,6 +340,7 @@ export const useCustomerDashboard = (
     purchaseQuery.error,
     postPurchaseQuery.error,
     loyaltyQuery.error,
+    loyaltyAccountsQuery.error,
     lifecycleQuery.error,
     contentIntentQuery.error,
     riskQuery.error,
@@ -344,6 +358,7 @@ export const useCustomerDashboard = (
       purchaseQuery.refetch(),
       postPurchaseQuery.refetch(),
       loyaltyQuery.refetch(),
+      loyaltyAccountsQuery.refetch(),
       lifecycleQuery.refetch(),
       contentIntentQuery.refetch(),
       riskQuery.refetch(),
@@ -365,6 +380,7 @@ export const useCustomerDashboard = (
     purchaseMetrics: purchaseQuery.data,
     postPurchaseMetrics: postPurchaseQuery.data,
     loyaltyMetrics: loyaltyQuery.data,
+    loyaltyAccounts: loyaltyAccountsQuery.data ?? [],
     lifecycleMetrics: lifecycleQuery.data,
     contentIntentMetrics: contentIntentQuery.data,
     riskSignals: riskQuery.data,

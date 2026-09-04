@@ -9,6 +9,10 @@ const importDialog = readFileSync(
   "src/components/crm/segments/EnhancedSegmentImportDialog.tsx",
   "utf8",
 );
+const csvAnalyzer = readFileSync(
+  "supabase/functions/analyze-csv-intelligent/index.ts",
+  "utf8",
+);
 
 describe("identity-safe customer CSV imports", () => {
   it("uses normalized email and phone identity resolution", () => {
@@ -50,5 +54,25 @@ describe("identity-safe customer CSV imports", () => {
     );
     expect(importDialog).not.toContain('.from("crm_customers").upsert');
     expect(importDialog).not.toContain("recordImportConsentEvents");
+  });
+
+  it("keeps the parsed headers authoritative when AI suggestions are incomplete", () => {
+    expect(importDialog).toContain("parsed.headers.map");
+    expect(importDialog).toContain(
+      "candidate.columnIndex === columnIndex",
+    );
+    expect(importDialog).toContain("csvHeader: header");
+    expect(importDialog).toContain("sourceIndex: columnIndex");
+    expect(importDialog).toContain(
+      "parsed.sampleData[columnIndex].samples",
+    );
+  });
+
+  it("validates the user session before spending AI quota", () => {
+    expect(csvAnalyzer).toContain("supabaseAuth.auth.getUser(token)");
+    expect(csvAnalyzer).toContain("Invalid or expired session");
+    expect(csvAnalyzer).not.toMatch(
+      /if \(!authHeader\)[\s\S]{0,250}const \{ csvRows/,
+    );
   });
 });

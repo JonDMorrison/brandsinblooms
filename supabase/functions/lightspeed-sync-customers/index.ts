@@ -5,6 +5,7 @@ import { decryptToken, encryptToken } from "../_shared/crypto/tokens.ts";
 import { recalculateLightspeedCustomerSpend } from "../_shared/lightspeed/recalculateCustomerSpend.ts";
 import { upsertLightspeedCustomerProfile } from "../_shared/lightspeed/upsertCustomerProfile.ts";
 import { getAdaptiveCooldown as getAdaptiveCooldownMs } from "../_shared/syncThrottling.ts";
+import { syncProviderLoyaltyBalances } from "../_shared/loyalty/syncProviderBalances.ts";
 
 console.log("[LS-SYNC-CUSTOMERS] Edge function starting");
 
@@ -484,8 +485,26 @@ Deno.serve(async (req) => {
         const identity = identityResult as {
           ambiguous?: number;
           failed?: number;
+          results?: unknown[];
         } | null;
         pageFailed += (identity?.ambiguous || 0) + (identity?.failed || 0);
+
+        await syncProviderLoyaltyBalances({
+          supabase: supabaseAdmin,
+          tenantId,
+          provider: "lightspeed",
+          programName: "Lightspeed Loyalty",
+          identityResult: identity,
+          candidates: pageProviderRows.map((row) => ({
+            externalId: String(row.lightspeed_customer_id),
+            balance:
+              typeof row.loyalty_balance === "number"
+                ? row.loyalty_balance
+                : null,
+            hasAccount: typeof row.loyalty_balance === "number",
+            observedAt: String(row.synced_at),
+          })),
+        });
       }
 
       const pageSkipped = Math.max(
