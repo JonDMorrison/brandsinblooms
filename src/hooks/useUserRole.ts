@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/contexts/AdminContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   normalizeCrmAccess,
@@ -26,9 +27,29 @@ const REQUIRED_LEGACY_LEVEL: Record<UserRole, number> = {
 
 export const useUserRole = () => {
   const { user } = useAuth();
+  const {
+    isMasterAdmin,
+    isLoading: isAdminStatusLoading,
+    activeTenantId,
+    hasHydratedTenantContext,
+  } = useAdmin();
+
+  // Master admins have no tenant-scoped CRM access until their persisted tenant
+  // context has hydrated and a tenant is selected. Waiting here prevents a
+  // transient 403 during app startup and ensures switching tenants invalidates
+  // the prior access result instead of reusing a user-only cache entry.
+  const canResolveAccess =
+    Boolean(user?.id) &&
+    !isAdminStatusLoading &&
+    (!isMasterAdmin ||
+      (hasHydratedTenantContext && Boolean(activeTenantId)));
+  const accessScope = isMasterAdmin
+    ? activeTenantId ?? "no-admin-tenant"
+    : "assigned-tenant";
+
   const query = useQuery({
-    queryKey: ["current-crm-access", user?.id],
-    enabled: Boolean(user?.id),
+    queryKey: ["current-crm-access", user?.id, accessScope],
+    enabled: canResolveAccess,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_current_crm_access");
       if (error) throw error;
@@ -67,7 +88,10 @@ export const useUserRole = () => {
     hasRole,
     canEditImages: hasPermission("content.design"),
     canUseCanva: hasPermission("content.design"),
-    isLoading: query.isLoading,
+    isLoading:
+      isAdminStatusLoading ||
+      (isMasterAdmin && !hasHydratedTenantContext) ||
+      query.isLoading,
     isError: query.isError,
     error: query.error,
     refetch: query.refetch,
