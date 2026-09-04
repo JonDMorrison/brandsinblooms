@@ -71,12 +71,21 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user]);
 
   // Hydrate the persisted master-admin tenant context before exposing it as
-  // usable. The user-scoped marker prevents the initial non-admin render from
-  // being mistaken for a completed master-admin hydration.
+  // usable. Do not mark the context hydrated while the admin-status lookup is
+  // still pending: isMasterAdmin starts false, and treating that initial value
+  // as authoritative creates a render where tenant-scoped access appears ready
+  // before the persisted master-admin tenant has been loaded.
   useEffect(() => {
     let cancelled = false;
 
     async function loadActiveTenantContext() {
+      if (isLoading) {
+        setActiveTenantIdState(null);
+        setHydratedAdminUserId(null);
+        setHasHydratedTenantContext(false);
+        return;
+      }
+
       if (!user || !isMasterAdmin) {
         setActiveTenantIdState(null);
         setHydratedAdminUserId(null);
@@ -119,7 +128,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [isMasterAdmin, user]);
+  }, [isLoading, isMasterAdmin, user]);
 
   useEffect(() => {
     async function loadTenants() {
