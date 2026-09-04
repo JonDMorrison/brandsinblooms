@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
   contextMaybeSingle: vi.fn(),
   contextUpsert: vi.fn(),
   tenantsOrder: vi.fn(),
-  user: { id: "admin-1", email: "admin@example.com" },
+  user: { id: "admin-1", email: "admin@example.com" } as {
+    id: string;
+    email: string;
+  } | null,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
@@ -44,6 +47,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe("AdminProvider tenant context hydration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.user = { id: "admin-1", email: "admin@example.com" };
 
     mocks.adminMaybeSingle.mockResolvedValue({
       data: { email: "admin@example.com" },
@@ -126,6 +130,64 @@ describe("AdminProvider tenant context hydration", () => {
 
     expect(result.current.hasHydratedTenantContext).toBe(false);
     expect(result.current.activeTenantId).toBeNull();
+
+    await act(async () => {
+      deferredContext.resolve({
+        data: { active_tenant_id: "tenant-greenfield" },
+        error: null,
+      });
+      await deferredContext.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+      expect(result.current.activeTenantId).toBe("tenant-greenfield");
+    });
+  });
+
+  it("keeps access loading while an authenticated admin session replaces the anonymous bootstrap render", async () => {
+    mocks.user = null;
+    const deferredAdmin = makeDeferred<{
+      data: { email: string } | null;
+      error: unknown;
+    }>();
+    const deferredContext = makeDeferred<ContextResult>();
+    mocks.adminMaybeSingle.mockImplementation(() => deferredAdmin.promise);
+    mocks.contextMaybeSingle.mockImplementation(() => deferredContext.promise);
+
+    const { result, rerender } = renderHook(() => useAdmin(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+    });
+
+    act(() => {
+      mocks.user = { id: "admin-1", email: "admin@example.com" };
+      rerender();
+    });
+
+    // The old anonymous status must never make tenant access look resolved for
+    // the newly authenticated user, even before the admin lookup effect settles.
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.hasHydratedTenantContext).toBe(false);
+    expect(result.current.activeTenantId).toBeNull();
+
+    await act(async () => {
+      deferredAdmin.resolve({
+        data: { email: "admin@example.com" },
+        error: null,
+      });
+      await deferredAdmin.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMasterAdmin).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(mocks.contextMaybeSingle).toHaveBeenCalledTimes(1);
+    });
+
+    expect(result.current.hasHydratedTenantContext).toBe(false);
 
     await act(async () => {
       deferredContext.resolve({
