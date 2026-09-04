@@ -1,6 +1,5 @@
 name: E2E Tests
 
-# Manual trigger only — prevents failure notification spam on every push
 on:
   workflow_dispatch:
     inputs:
@@ -12,10 +11,14 @@ on:
         options:
           - chromium
           - setup
+  push:
+    branches:
+      - qa/crm-release-clickthrough
+      - main
 
 jobs:
   test:
-    timeout-minutes: 10
+    timeout-minutes: 25
     runs-on: ubuntu-latest
 
     steps:
@@ -29,24 +32,41 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Run admin tenant access regression tests
+      if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
+      run: npx vitest run src/contexts/__tests__/AdminContext.test.tsx src/hooks/__tests__/useUserRole.adminContext.test.tsx
+
+    - name: Build QA branch
+      if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
+      run: npm run build
+
     - name: Install Playwright Chromium
+      if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
       run: npx playwright install chromium --with-deps
 
-    - name: Run E2E tests against production
+    - name: Verify CRM release against production after merge
+      if: github.event_name == 'push' && github.ref_name == 'main'
+      run: npx playwright test e2e/release/crm-release-clickthrough-v2.spec.ts --config=playwright.prod.config.ts --project=chromium
+      env:
+        E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+        E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+
+    - name: Run requested E2E tests against production
+      if: github.event_name == 'workflow_dispatch'
       run: npx playwright test --config=playwright.prod.config.ts --project=${{ inputs.project }}
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
 
     - uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main'))
       with:
         name: playwright-report
         path: playwright-report/
         retention-days: 30
 
     - uses: actions/upload-artifact@v4
-      if: failure()
+      if: failure() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main'))
       with:
         name: test-results
         path: test-results/
