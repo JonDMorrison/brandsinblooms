@@ -40,6 +40,57 @@ const handler = async (req: Request): Promise<Response> => {
   const startTime = Date.now();
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const isServiceRequest = token === serviceRoleKey;
+    let callerTenantId: string | null = null;
+
+    if (!isServiceRequest) {
+      const supabaseAuthed = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: `Bearer ${token}` } } },
+      );
+      const {
+        data: { user },
+        error: authError,
+      } = await supabaseAuthed.auth.getUser(token);
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      const { data: access, error: accessError } = await supabaseAuthed.rpc(
+        "get_current_crm_access",
+      );
+      const permissions = Array.isArray(access?.permissions)
+        ? access.permissions
+        : [];
+      callerTenantId =
+        typeof access?.tenantId === "string" ? access.tenantId : null;
+      if (
+        accessError ||
+        !callerTenantId ||
+        !permissions.includes("automations.manage")
+      ) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    }
+
     const { automationId, automationNodeId }: RetryRequest = await req.json();
 
     if (!automationId || !automationNodeId) {
@@ -55,8 +106,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      supabaseUrl,
+      serviceRoleKey,
     );
 
     console.log(
@@ -71,6 +122,13 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (automationError || !automation) {
+      return new Response(JSON.stringify({ error: "Automation not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    if (!isServiceRequest && automation.tenant_id !== callerTenantId) {
       return new Response(JSON.stringify({ error: "Automation not found" }), {
         status: 404,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -237,6 +295,7 @@ const handler = async (req: Request): Promise<Response> => {
               from_email: senderConfig.fromEmail,
               reply_to: senderConfig.replyTo || senderConfig.fromEmail,
               unsubscribe_url: rendered.actionLinks.unsubscribeUrl,
+              idempotency_key: `automation-retry/${execution.id}`,
               tags: [
                 { name: "automation_id", value: automationId },
                 { name: "tenant_id", value: automation.tenant_id },

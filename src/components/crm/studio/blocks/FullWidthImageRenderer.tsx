@@ -3,6 +3,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { ImagePlus } from "lucide-react";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 
 type FullWidthImageRendererProps = {
   block: StudioBlock;
@@ -68,6 +69,10 @@ export default function FullWidthImageRenderer({
         maxHeight: `${maxHeight}px`,
         display: "block",
         objectFit: block.imageFit ?? "cover",
+        objectPosition: getImageObjectPosition(
+          block.imageFocalX,
+          block.imageFocalY,
+        ),
         bgcolor: backgroundColor,
       }}
     />

@@ -42,6 +42,7 @@ import { ensureCampaignStudioImageUrl } from "@/components/crm/studio/fields/Stu
 import StudioBottomBar from "@/components/crm/studio/StudioBottomBar";
 import StudioCanvas from "@/components/crm/studio/StudioCanvas";
 import StudioTopBar from "@/components/crm/studio/StudioTopBar";
+import { SaveAsTemplateModal } from "@/components/crm/campaign-editor/SaveAsTemplateModal";
 import { STUDIO_BLOCK_LOOKUP } from "@/components/crm/studio/blockLibraryData";
 import {
   DesignSystemProvider,
@@ -50,6 +51,7 @@ import {
 import { useAIImageStudio } from "@/hooks/useAIImageStudio";
 import { useGoogleFontsLoader } from "@/hooks/useGoogleFontsLoader";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
+import { useSavedTemplates } from "@/hooks/useSavedTemplates";
 import type {
   CampaignEditorRecord,
   EditorCampaignType,
@@ -81,6 +83,7 @@ import {
   type StudioCampaignStatus,
   useStudioState,
 } from "@/components/crm/studio/useStudioState";
+import { toast } from "@/utils/toast";
 
 const AUTO_SAVE_DELAY_MS = 3000;
 const SAVE_FEEDBACK_RESET_MS = 2000;
@@ -90,12 +93,7 @@ const STUDIO_AI_PANEL_COLLAPSE_MS = 250;
 const STUDIO_AI_SEQUENCE_CLEANUP_MS = 500;
 
 type StudioSaveStatus =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "error"
-  | "conflict"
-  | "failed";
+  "idle" | "saving" | "saved" | "error" | "conflict" | "failed";
 
 const LEGACY_TO_STUDIO_BLOCK_TYPE: Record<string, StudioBlock["type"]> = {
   header: "email-safe-hero",
@@ -647,6 +645,7 @@ function CampaignStudioPageContent() {
   useGoogleFontsLoader(designSystem.fontUrls);
 
   const studio = useStudioState({ initialCampaignName, designSystem });
+  const { saveTemplate, isSaving: isSavingTemplate } = useSavedTemplates();
   const editorPath = campaignId
     ? `/crm/campaigns/${campaignId}/edit`
     : "/crm/campaigns";
@@ -682,6 +681,7 @@ function CampaignStudioPageContent() {
     number | null
   >(null);
   const [loadRevision, setLoadRevision] = React.useState(0);
+  const [saveTemplateOpen, setSaveTemplateOpen] = React.useState(false);
   const loadStudioCampaignRef = React.useRef(studio.loadCampaign);
   const isLoadingRef = React.useRef(isLoading);
   const saveStatusRef = React.useRef(saveStatus);
@@ -1904,8 +1904,7 @@ function CampaignStudioPageContent() {
   const handleDragStart = React.useCallback(
     (event: DragStartEvent) => {
       const activeData = event.active.data.current as
-        | StudioDragData
-        | undefined;
+        StudioDragData | undefined;
 
       if (activeData?.kind === "library-block") {
         setActiveCanvasDragBlockId(null);
@@ -1927,8 +1926,7 @@ function CampaignStudioPageContent() {
   const handleDragOver = React.useCallback(
     (event: DragOverEvent) => {
       const activeData = event.active.data.current as
-        | StudioDragData
-        | undefined;
+        StudioDragData | undefined;
 
       if (activeData?.kind !== "library-block") {
         return;
@@ -1960,8 +1958,7 @@ function CampaignStudioPageContent() {
   const handleDragEnd = React.useCallback(
     (event: DragEndEvent) => {
       const activeData = event.active.data.current as
-        | StudioDragData
-        | undefined;
+        StudioDragData | undefined;
       const overId = event.over?.id;
 
       if (activeData?.kind === "library-block") {
@@ -2227,6 +2224,7 @@ function CampaignStudioPageContent() {
               setLoadRevision((revision) => revision + 1);
             }}
             onSave={handleSave}
+            onSaveAsTemplate={() => setSaveTemplateOpen(true)}
             onExit={() => {
               void handleExit();
             }}
@@ -2349,6 +2347,20 @@ function CampaignStudioPageContent() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      <SaveAsTemplateModal
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        saving={isSavingTemplate}
+        onSave={async ({ name, description }) => {
+          await saveTemplate({
+            name,
+            description: description || null,
+            contentBlocks: studio.blocks,
+          });
+          toast.success("Saved to My templates");
+          setSaveTemplateOpen(false);
+        }}
+      />
     </Sheet>
   );
 }

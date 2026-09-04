@@ -26,6 +26,7 @@ import {
   Tablet,
   Undo2,
   AlertTriangle,
+  BookmarkPlus,
   X,
 } from "lucide-react";
 import StudioPreviewDialog from "@/components/crm/studio/StudioPreviewDialog";
@@ -57,6 +58,7 @@ type StudioTopBarProps = {
   onDismissExternalUpdate: () => void;
   onReloadCampaign: () => void;
   onSave: () => void;
+  onSaveAsTemplate: () => void;
   onExit: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -67,12 +69,7 @@ type StudioTopBarProps = {
 
 type CampaignStatus = "Draft" | "Scheduled" | "Sending" | "Sent";
 type StudioSaveStatus =
-  | "idle"
-  | "saving"
-  | "saved"
-  | "error"
-  | "conflict"
-  | "failed";
+  "idle" | "saving" | "saved" | "error" | "conflict" | "failed";
 
 const STATUS_COLOR: Record<
   CampaignStatus,
@@ -134,6 +131,7 @@ export default function StudioTopBar({
   onDismissExternalUpdate,
   onReloadCampaign,
   onSave,
+  onSaveAsTemplate,
   onExit,
   onUndo,
   onRedo,
@@ -540,107 +538,133 @@ export default function StudioTopBar({
           spacing={1}
           justifyContent="flex-end"
         >
-          {externalUpdateNotice ? (() => {
-            const isInfo = externalUpdateNotice.severity === "info";
-            const color = isInfo ? "primary" : "warning";
-            const textColor = isInfo ? "primary.700" : "warning.700";
-            const Icon = isInfo ? Info : AlertTriangle;
-            const reloadLabel = externalUpdateNotice.localChangesAtRisk
-              ? "Reload anyway"
-              : "Reload";
-            return (
-              <Sheet
-                variant="soft"
-                color={color}
-                sx={{
-                  px: 1.25,
-                  py: 0.75,
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  maxWidth: 480,
-                }}
-                role={isInfo ? "status" : "alert"}
-              >
-                <Icon size={14} />
-                <Stack
-                  spacing={0.25}
-                  sx={{
-                    minWidth: 0,
-                    flex: "1 1 auto",
-                  }}
-                >
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: textColor,
-                      fontWeight: 600,
-                      whiteSpace: "normal",
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {externalUpdateNotice.message}
-                  </Typography>
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      color: textColor,
-                      opacity: 0.8,
-                      whiteSpace: "normal",
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {externalUpdateNotice.detail}
-                  </Typography>
-                </Stack>
-                <Button
-                  variant="soft"
-                  color={color}
-                  size="sm"
-                  startDecorator={<RefreshCw size={12} />}
-                  onClick={onReloadCampaign}
-                  sx={{
-                    height: 26,
-                    minHeight: 26,
-                    fontSize: "12px",
-                    px: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  {reloadLabel}
-                </Button>
-                {externalUpdateNotice.localChangesAtRisk ? (
-                  <Button
-                    variant="plain"
-                    color="neutral"
-                    size="sm"
-                    onClick={onDismissExternalUpdate}
-                    sx={{
-                      height: 26,
-                      minHeight: 26,
-                      fontSize: "12px",
-                      px: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    Keep my version
-                  </Button>
-                ) : (
-                  <IconButton
-                    variant="plain"
+          {externalUpdateNotice
+            ? (() => {
+                const isInfo = externalUpdateNotice.severity === "info";
+                const color = isInfo ? "primary" : "warning";
+                const textColor = isInfo ? "primary.700" : "warning.700";
+                const Icon = isInfo ? Info : AlertTriangle;
+                const reloadLabel = externalUpdateNotice.localChangesAtRisk
+                  ? "Reload anyway"
+                  : "Reload";
+                return (
+                  <Sheet
+                    variant="soft"
                     color={color}
-                    size="sm"
-                    aria-label="Dismiss notification"
-                    onClick={onDismissExternalUpdate}
-                    sx={{ minWidth: 20, minHeight: 20, borderRadius: "6px" }}
+                    sx={{
+                      px: 1.25,
+                      py: 0.75,
+                      borderRadius: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      maxWidth: 480,
+                    }}
+                    role={isInfo ? "status" : "alert"}
                   >
-                    <X size={12} />
-                  </IconButton>
-                )}
-              </Sheet>
-            );
-          })() : null}
+                    <Icon size={14} />
+                    <Stack
+                      spacing={0.25}
+                      sx={{
+                        minWidth: 0,
+                        flex: "1 1 auto",
+                      }}
+                    >
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: textColor,
+                          fontWeight: 600,
+                          whiteSpace: "normal",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {externalUpdateNotice.message}
+                      </Typography>
+                      <Typography
+                        level="body-xs"
+                        sx={{
+                          color: textColor,
+                          opacity: 0.8,
+                          whiteSpace: "normal",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {externalUpdateNotice.detail}
+                      </Typography>
+                    </Stack>
+                    <Button
+                      variant="soft"
+                      color={color}
+                      size="sm"
+                      startDecorator={<RefreshCw size={12} />}
+                      onClick={onReloadCampaign}
+                      sx={{
+                        height: 26,
+                        minHeight: 26,
+                        fontSize: "12px",
+                        px: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {reloadLabel}
+                    </Button>
+                    {externalUpdateNotice.localChangesAtRisk ? (
+                      <Button
+                        variant="plain"
+                        color="neutral"
+                        size="sm"
+                        onClick={onDismissExternalUpdate}
+                        sx={{
+                          height: 26,
+                          minHeight: 26,
+                          fontSize: "12px",
+                          px: 1,
+                          flexShrink: 0,
+                        }}
+                      >
+                        Keep my version
+                      </Button>
+                    ) : (
+                      <IconButton
+                        variant="plain"
+                        color={color}
+                        size="sm"
+                        aria-label="Dismiss notification"
+                        onClick={onDismissExternalUpdate}
+                        sx={{
+                          minWidth: 20,
+                          minHeight: 20,
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <X size={12} />
+                      </IconButton>
+                    )}
+                  </Sheet>
+                );
+              })()
+            : null}
+
+          <Button
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            startDecorator={<BookmarkPlus size={16} />}
+            onClick={onSaveAsTemplate}
+            disabled={blockCount === 0}
+            sx={{
+              height: 32,
+              minHeight: 32,
+              borderColor: "neutral.300",
+              borderRadius: "8px",
+              fontWeight: 500,
+              fontSize: "13px",
+              "&:hover": { bgcolor: "neutral.50" },
+            }}
+          >
+            Save template
+          </Button>
 
           <Button
             variant="outlined"

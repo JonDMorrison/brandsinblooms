@@ -15,7 +15,6 @@ import {
   Package,
   PlugZap,
   Search,
-  SendHorizontal,
   Settings,
   Sparkles,
   Target,
@@ -44,8 +43,7 @@ export type SearchEntityType =
   | "sms_automation"
   | "ticket"
   | "activity"
-  | "community_story"
-  | "publish_item";
+  | "community_story";
 
 export type SearchGroupKey =
   | "actions"
@@ -65,7 +63,6 @@ export type SearchGroupKey =
   | "tickets"
   | "integrations"
   | "community"
-  | "publish"
   | "settings"
   | "setup"
   | "help";
@@ -108,7 +105,6 @@ export const SEARCH_GROUP_ORDER: SearchGroupKey[] = [
   "tickets",
   "integrations",
   "community",
-  "publish",
   "settings",
   "setup",
   "help",
@@ -135,7 +131,6 @@ export const SEARCH_GROUP_METADATA: Record<
   tickets: { title: "Tickets", icon: "support" },
   integrations: { title: "Integrations", icon: "integrations" },
   community: { title: "Community", icon: "community" },
-  publish: { title: "Publish", icon: "publish" },
   settings: { title: "Settings", icon: "settings" },
   setup: { title: "Setup", icon: "setup" },
   help: { title: "Help", icon: "help" },
@@ -159,7 +154,6 @@ const SEARCH_ICON_MAP: Record<string, LucideIcon> = {
   pages: LayoutDashboard,
   personas: UserCircle2,
   products: Package,
-  publish: SendHorizontal,
   "saved-block": Sparkles,
   search: Search,
   segments: Target,

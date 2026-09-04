@@ -41,17 +41,6 @@ export default function POSIntegrationsHub() {
         case "lightspeed":
           navigate("/integrations/lightspeed/connect");
           break;
-        case "clover": {
-          const { data, error } = await supabase.functions.invoke(
-            "clover-oauth-start",
-          );
-          if (error) {
-            toast({ title: "Error", description: error.message, variant: "destructive" });
-            return;
-          }
-          if (data?.url) window.location.href = data.url;
-          break;
-        }
         case "vmx":
           setVmxDialogOpen(true);
           break;
@@ -71,9 +60,6 @@ export default function POSIntegrationsHub() {
           break;
         case "lightspeed":
           navigate("/integrations/lightspeed/connect");
-          break;
-        case "clover":
-          navigate("/integrations/clover/guide");
           break;
         case "vmx":
           // For now, open the connect dialog to see status

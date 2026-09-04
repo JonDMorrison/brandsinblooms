@@ -4,6 +4,7 @@ import Typography from "@mui/joy/Typography";
 import { ImagePlus } from "lucide-react";
 import { formatDraftRichText } from "@/lib/crm/htmlContent";
 import type { StudioBlock } from "@/types/studioBlocks";
+import { getImageObjectPosition } from "@/lib/studio/imageFocalPoint";
 
 type ImageTextRendererProps = {
   block: StudioBlock;
@@ -139,6 +140,10 @@ function ImageFrame({
           minHeight,
           display: "block",
           objectFit: block.imageFit ?? "cover",
+          objectPosition: getImageObjectPosition(
+            block.imageFocalX,
+            block.imageFocalY,
+          ),
           bgcolor: "neutral.100",
         }}
       />
@@ -354,7 +359,10 @@ export default function ImageTextRenderer({ block }: ImageTextRendererProps) {
               : "linear-gradient(135deg, #6b7280, #111827)",
             backgroundSize: block.imageFit === "contain" ? "contain" : "cover",
             backgroundRepeat: "no-repeat",
-            backgroundPosition: "center",
+            backgroundPosition: getImageObjectPosition(
+              block.imageFocalX,
+              block.imageFocalY,
+            ),
           }}
         >
           {overlayEnabled ? (

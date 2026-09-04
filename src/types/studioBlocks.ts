@@ -21,18 +21,13 @@ export type StudioFontSize = "sm" | "md" | "lg";
 export type StudioFontStyle = "italic" | "normal";
 export type StudioFontWeightPreset = "normal" | "medium";
 export type StudioHeroStyle =
-  | "solid"
-  | "gradient"
-  | "image-overlay"
-  | "image-bottom";
+  "solid" | "gradient" | "image-overlay" | "image-bottom";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioImagePosition = "left" | "right" | "top" | "overlay";
 export type StudioImageRatio = "auto" | "1:1" | "4:3" | "16:9";
 export type StudioColumnSplit = "40/60" | "50/50" | "60/40";
 export type StudioOverlayGradientDirection =
-  | "uniform"
-  | "top-to-bottom"
-  | "bottom-to-top";
+  "uniform" | "top-to-bottom" | "bottom-to-top";
 export type StudioTextPosition = "top" | "center" | "bottom";
 export type StudioDividerLineStyle = "solid" | "dashed" | "dotted";
 export type StudioDividerLineType = "solid" | "dashed" | "dotted";
@@ -40,10 +35,7 @@ export type StudioOrnamentSymbol = "✦" | "●" | "◆" | "★" | "─";
 export type StudioSocialColorMode = "brand" | "monochrome" | "custom";
 export type StudioIconColorMode = "brand" | "mono" | "custom";
 export type StudioSocialIconStyle =
-  | "filled"
-  | "outlined"
-  | "square"
-  | "minimal";
+  "filled" | "outlined" | "square" | "minimal";
 export type StudioIconStyle = "filled" | "outlined" | "square" | "minimal";
 export type StudioSocialPlatform =
   | "facebook"
@@ -148,6 +140,8 @@ export interface StudioBlock {
   contentPadding?: number;
   verticalPadding?: number;
   imageFit?: StudioImageFit;
+  imageFocalX?: number;
+  imageFocalY?: number;
   imagePosition?: StudioImagePosition;
   imageRatio?: StudioImageRatio;
   imagePadding?: boolean;

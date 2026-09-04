@@ -108,7 +108,13 @@ export const CRMCustomersPage: React.FC = () => {
     bulkDeleteCustomers,
   } = useBulkCustomerOperations();
   const { tenant, loading: isTenantLoading } = useTenant();
-  const { role: crmRole } = useUserRole();
+  const { role: crmRole, hasPermission } = useUserRole();
+  const canWriteCustomers = hasPermission("customers.write");
+  const canImportCustomers =
+    crmRole === "owner_admin" || crmRole === "marketing";
+  const canExportCustomers = crmRole === "owner_admin";
+  const canManageIntegrations = hasPermission("integrations.manage");
+  const canDeleteCustomers = crmRole === "owner_admin";
 
   const {
     data: customers = [],
@@ -127,10 +133,10 @@ export const CRMCustomersPage: React.FC = () => {
     useAllSegments();
 
   useEffect(() => {
-    if (searchParams.get("import") === "1") {
+    if (searchParams.get("import") === "1" && canImportCustomers) {
       setShowImportDialog(true);
     }
-  }, [searchParams]);
+  }, [canImportCustomers, searchParams]);
 
   const handleImportDialogOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -404,19 +410,21 @@ export const CRMCustomersPage: React.FC = () => {
             justifyContent={{ xs: "flex-start", md: "flex-end" }}
             sx={{ flexShrink: 0 }}
           >
-            <Tooltip title="Sync From CRM">
-              <IconButton
-                variant="outlined"
-                color="neutral"
-                size="sm"
-                onClick={() => setShowSyncFromCRM(true)}
-                aria-label="Sync From CRM"
-              >
-                <RefreshCw size={16} />
-              </IconButton>
-            </Tooltip>
+            {canManageIntegrations ? (
+              <Tooltip title="Sync From CRM">
+                <IconButton
+                  variant="outlined"
+                  color="neutral"
+                  size="sm"
+                  onClick={() => setShowSyncFromCRM(true)}
+                  aria-label="Sync From CRM"
+                >
+                  <RefreshCw size={16} />
+                </IconButton>
+              </Tooltip>
+            ) : null}
 
-            <JoyDropdownMenu>
+            {canWriteCustomers ? <JoyDropdownMenu>
               <ButtonGroup
                 variant="solid"
                 color="primary"
@@ -464,23 +472,31 @@ export const CRMCustomersPage: React.FC = () => {
               </ButtonGroup>
 
               <JoyDropdownMenuContent placement="bottom-end" sx={{ minWidth: 220 }}>
-                <JoyDropdownMenuItem
-                  startDecorator={<Upload size={16} />}
-                  onClick={() => setShowImportDialog(true)}
-                >
-                  Upload List
-                </JoyDropdownMenuItem>
-                <JoyDropdownMenuItem
-                  startDecorator={
-                    isExporting ? <CircularProgress size="sm" /> : <Download size={16} />
-                  }
-                  disabled={isExporting || isTenantLoading}
-                  onClick={() => void exportAllCustomers(tenant?.name)}
-                >
-                  {isExporting
-                    ? `Exporting ${exportedCount.toLocaleString()}…`
-                    : "Export All Customers"}
-                </JoyDropdownMenuItem>
+                {canImportCustomers ? (
+                  <JoyDropdownMenuItem
+                    startDecorator={<Upload size={16} />}
+                    onClick={() => setShowImportDialog(true)}
+                  >
+                    Upload List
+                  </JoyDropdownMenuItem>
+                ) : null}
+                {canExportCustomers ? (
+                  <JoyDropdownMenuItem
+                    startDecorator={
+                      isExporting ? (
+                        <CircularProgress size="sm" />
+                      ) : (
+                        <Download size={16} />
+                      )
+                    }
+                    disabled={isExporting || isTenantLoading}
+                    onClick={() => void exportAllCustomers(tenant?.name)}
+                  >
+                    {isExporting
+                      ? `Exporting ${exportedCount.toLocaleString()}…`
+                      : "Export All Customers"}
+                  </JoyDropdownMenuItem>
+                ) : null}
                 {crmRole === "owner_admin" ? (
                   <JoyDropdownMenuItem
                     startDecorator={<GitMerge size={16} />}
@@ -490,7 +506,7 @@ export const CRMCustomersPage: React.FC = () => {
                   </JoyDropdownMenuItem>
                 ) : null}
               </JoyDropdownMenuContent>
-            </JoyDropdownMenu>
+            </JoyDropdownMenu> : null}
           </Stack>
         </Stack>
 
@@ -527,7 +543,7 @@ export const CRMCustomersPage: React.FC = () => {
                 justifyContent: { xs: "flex-start", lg: "flex-end" },
               }}
             >
-              {selectedIds.size > 0 ? (
+              {canDeleteCustomers && selectedIds.size > 0 ? (
                 <Sheet
                   variant="soft"
                   color="warning"
@@ -586,19 +602,23 @@ export const CRMCustomersPage: React.FC = () => {
                 ? "Try adjusting your search or add a new customer record."
                 : "Add your first customer or import a list to start building segments and personas."
             }
-            primaryAction={{
-              label: "Add Customer",
-              size: "sm",
-              onClick: () => navigate("/crm/customers/new"),
-              startDecorator: <Plus />,
-            }}
+            primaryAction={
+              canWriteCustomers
+                ? {
+                    label: "Add Customer",
+                    size: "sm",
+                    onClick: () => navigate("/crm/customers/new"),
+                    startDecorator: <Plus />,
+                  }
+                : undefined
+            }
           />
         ) : (
           <>
             <JoyTable stickyHeader data-testid="customers-table">
               <JoyTableHead>
                 <JoyTableRow>
-                  <JoyTableHeaderCell sx={{ width: 56 }}>
+                  {canDeleteCustomers ? <JoyTableHeaderCell sx={{ width: 56 }}>
                     <Checkbox
                       size="sm"
                       color="primary"
@@ -611,7 +631,7 @@ export const CRMCustomersPage: React.FC = () => {
                         }
                       }}
                     />
-                  </JoyTableHeaderCell>
+                  </JoyTableHeaderCell> : null}
                   <JoyTableHeaderCell>Customer</JoyTableHeaderCell>
                   <JoyTableHeaderCell>Contact</JoyTableHeaderCell>
                   <JoyTableHeaderCell>Persona</JoyTableHeaderCell>
@@ -652,14 +672,14 @@ export const CRMCustomersPage: React.FC = () => {
                           : undefined
                       }
                     >
-                      <JoyTableCell
+                      {canDeleteCustomers ? <JoyTableCell
                         onClick={(event) => event.stopPropagation()}
                       >
                         <Checkbox
                           checked={selectedIds.has(customer.id)}
                           onChange={() => toggleSelection(customer.id)}
                         />
-                      </JoyTableCell>
+                      </JoyTableCell> : null}
                       <JoyTableCell sx={{ minWidth: 0 }}>
                         <Stack spacing={0.35} sx={{ minWidth: 0 }}>
                           <Typography level="title-sm">
@@ -863,23 +883,25 @@ export const CRMCustomersPage: React.FC = () => {
                             >
                               View Customer
                             </JoyDropdownMenuItem>
-                            <JoyDropdownMenuItem
-                              destructive
-                              startDecorator={<Trash2 className="h-4 w-4" />}
-                              onClick={() => {
-                                setCustomerToDelete({
-                                  id: customer.id,
-                                  name:
-                                    customerName === "No name"
-                                      ? "This customer"
-                                      : customerName,
-                                  email: customer.email,
-                                });
-                                setDeleteDialogOpen(true);
-                              }}
-                            >
-                              Delete Customer
-                            </JoyDropdownMenuItem>
+                            {canDeleteCustomers ? (
+                              <JoyDropdownMenuItem
+                                destructive
+                                startDecorator={<Trash2 className="h-4 w-4" />}
+                                onClick={() => {
+                                  setCustomerToDelete({
+                                    id: customer.id,
+                                    name:
+                                      customerName === "No name"
+                                        ? "This customer"
+                                        : customerName,
+                                    email: customer.email,
+                                  });
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                Delete Customer
+                              </JoyDropdownMenuItem>
+                            ) : null}
                           </JoyDropdownMenuContent>
                         </JoyDropdownMenu>
                       </JoyTableCell>

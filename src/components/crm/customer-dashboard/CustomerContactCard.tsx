@@ -29,6 +29,7 @@ interface CustomerContactCardProps {
   >;
   onCustomerPatched: (patch: Partial<CustomerData>) => void;
   onOpenBatchEdit?: () => void;
+  canEdit?: boolean;
 }
 
 const textFieldLabels: Array<{
@@ -66,6 +67,7 @@ export function CustomerContactCard({
   customer,
   onCustomerPatched,
   onOpenBatchEdit,
+  canEdit = true,
 }: CustomerContactCardProps) {
   const updateCustomer = useUpdateCustomer();
   const { toast } = useToast();
@@ -134,9 +136,13 @@ export function CustomerContactCard({
     <JoyCard variant="outlined">
       <JoyCardHeader
         title="Contact information"
-        description="Edit core profile fields inline without leaving the customer record."
+        description={
+          canEdit
+            ? "Edit core profile fields inline without leaving the customer record."
+            : "Customer contact details."
+        }
         actions={
-          onOpenBatchEdit ? (
+          canEdit && onOpenBatchEdit ? (
             <JoyButton
               color="neutral"
               variant="plain"
@@ -240,7 +246,7 @@ export function CustomerContactCard({
                           <X size={14} />
                         </IconButton>
                       </Stack>
-                    ) : (
+                    ) : canEdit ? (
                       <IconButton
                         size="sm"
                         variant="plain"
@@ -249,7 +255,7 @@ export function CustomerContactCard({
                       >
                         <Pencil size={14} />
                       </IconButton>
-                    )}
+                    ) : null}
                   </Stack>
                 </Stack>
               </React.Fragment>

@@ -36,7 +36,7 @@ export function useCustomerMarketingConsent() {
   return useMutation({
     mutationFn: async (input: SetCustomerMarketingConsentInput) => {
       const { data, error } = await supabase.rpc(
-        "set_customer_marketing_consent",
+        "set_customer_marketing_consent_authorized",
         {
           p_customer_id: input.customerId,
           p_channel: input.channel,

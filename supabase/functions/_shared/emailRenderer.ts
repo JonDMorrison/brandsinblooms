@@ -105,6 +105,8 @@ export interface RenderEmailParams {
   /** If true, rewrites links for click tracking. Default: true for send, false for preview */
   enableLinkTracking?: boolean;
   trackedLinkMap?: Map<string, string> | null;
+  /** Event-specific values, such as order_amount or purchased products. */
+  supplementalData?: Record<string, unknown> | null;
 }
 
 export interface CustomerShape {
@@ -335,7 +337,12 @@ export async function renderEmailForRecipient(
   ];
 
   // Step 5: Build merge data
-  const mergeData = buildMergeData(customer, companyProfile, footerLinks);
+  const mergeData = buildMergeData(
+    customer,
+    companyProfile,
+    footerLinks,
+    params.supplementalData,
+  );
 
   // Step 6: Find diagnostic info
   const emptyResolvedTags = findEmptyResolvedTags(
@@ -421,6 +428,7 @@ function buildMergeData(
   customer: CustomerShape | null,
   companyProfile: CompanyProfileShape | null | undefined,
   footerLinks: EmailPreferenceLinks,
+  supplementalData?: Record<string, unknown> | null,
 ): MergeTagData {
   if (customer) {
     const mergeData = createMergeTagDataFromCustomer(
@@ -443,6 +451,21 @@ function buildMergeData(
       current_year: new Date().getFullYear().toString(),
       current_date: new Date().toLocaleDateString(),
     };
+
+    if (supplementalData) {
+      Object.assign(mergeData, supplementalData, {
+        first_name: mergeData.first_name,
+        last_name: mergeData.last_name,
+        email: mergeData.email,
+        phone: mergeData.phone,
+        company: mergeData.company,
+        system: mergeData.system,
+        custom: {
+          ...(mergeData.custom || {}),
+          ...supplementalData,
+        },
+      });
+    }
 
     return mergeData;
   }

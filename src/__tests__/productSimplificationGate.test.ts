@@ -87,8 +87,16 @@ describe("BloomSuite product simplification release gate", () => {
     const retiredFunctions = [
       "connect-facebook",
       "connect-meta",
+      "connect-google-business",
       "exchange-oauth-code",
+      "ai-schedule-recommendations",
+      "fetch-content-images",
+      "generate-campaign-content",
+      "generate-image-keywords",
       "generate-social-content",
+      "insights-worker",
+      "oauth-cleanup-stale",
+      "optimize-content",
       "generate_campaign_content",
       "post-to-facebook",
       "post-to-instagram",
@@ -97,7 +105,9 @@ describe("BloomSuite product simplification release gate", () => {
       "publish-reschedule",
       "publish-schedule",
       "publish-task",
+      "queue-worker",
       "schedule-optimal-posts",
+      "sync-analytics",
       "upload-social-icons",
     ];
 
@@ -106,6 +116,53 @@ describe("BloomSuite product simplification release gate", () => {
       expect(source).toContain("retiredSocialFeatureResponse");
       expect(source).not.toContain("graph.facebook.com");
     }
+  });
+
+  it("does not expose the retired Meta OAuth exchange from an active route", () => {
+    const callback = readSource(
+      "src/components/migrations/OAuthCallbackHandler.tsx",
+    );
+
+    expect(callback).not.toContain("exchange-oauth-code");
+    expect(callback).not.toContain("social-accounts");
+    expect(callback).not.toContain('provider: "meta"');
+    expect(callback).toContain("Return to Integrations");
+  });
+
+  it("removes retired social data from global search and token maintenance", () => {
+    const searchTypes = readSource("src/components/search/types.ts");
+    const searchFilters = readSource("src/components/search/searchFilters.ts");
+    const searchWorker = readSource("supabase/functions/search-entities/index.ts");
+    const tokenWorker = readSource("supabase/functions/token-refresh-worker/index.ts");
+    const hardDelete = readSource("supabase/functions/delete-user-hard/index.ts");
+
+    for (const source of [searchTypes, searchFilters, searchWorker]) {
+      expect(source).not.toContain("publish_item");
+    }
+    expect(searchWorker).not.toContain('from("social_connections")');
+    expect(tokenWorker).not.toContain("getFacebookCredentials");
+    expect(tokenWorker).not.toContain("graph.facebook.com");
+    expect(tokenWorker).not.toContain('from("social_connections")');
+    expect(tokenWorker).not.toContain('from("clover_connections")');
+    expect(hardDelete).not.toContain("graph.facebook.com");
+  });
+
+  it("stops scheduled retired workers", () => {
+    const migration = readSource(
+      "supabase/migrations/20260903233000_stop_retired_social_workers.sql",
+    );
+
+    expect(migration).toContain("cron.unschedule('queue-worker-scheduler')");
+    expect(migration).toContain("cron.unschedule('insights-worker-scheduler')");
+  });
+
+  it("labels Clover as pending formal approval", () => {
+    const registry = readSource("src/components/search/staticSearchRegistry.ts");
+
+    expect(registry).toContain(
+      "Clover is awaiting formal API approval and final integration details.",
+    );
+    expect(registry).toContain('metadata: "Coming soon"');
   });
 
   it("archives social data and blocks new social tasks", () => {

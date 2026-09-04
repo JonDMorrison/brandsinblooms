@@ -27,7 +27,9 @@ describe("Square location normalization", () => {
       "REFERENCES public.tenant_locations(tenant_id, id) ON DELETE RESTRICT",
     );
     expect(migration).toContain("assign_pos_order_location_trigger");
-    expect(migration).toContain("POS order tenant does not match its connection");
+    expect(migration).toContain(
+      "POS order tenant does not match its connection",
+    );
     expect(migration).toContain("FROM public.pos_sync_jobs AS history");
     expect(migration).toContain("count(DISTINCT history.tenant_id) = 1");
     expect(migration).toContain("pos_orders_location_select");
@@ -42,8 +44,11 @@ describe("Square location normalization", () => {
       expect(source).toContain("provider");
       expect(source).toContain("square");
     }
-    expect(salesSync).toContain("payment.location_id || orderData?.location_id");
-    expect(webhook).toContain("paymentData.location_id || orderData?.location_id");
+    expect(salesSync).toContain(
+      "payment.location_id || orderData?.location_id",
+    );
+    expect(webhook).toContain("paymentData.location_id ||");
+    expect(webhook).toContain("orderData?.location_id ||");
   });
 
   it("rebuilds activity and net spend exactly from the order ledger", () => {
@@ -75,7 +80,8 @@ describe("Square location normalization", () => {
     expect(salesSync).not.toContain(
       "(customer.lifetime_value || 0) + metrics.totalSpent",
     );
-    expect(webhook).toContain("calculateSquareCustomerSpend");
+    expect(webhook).toContain('"recalculate_purchase_metrics"');
+    expect(webhook).toContain("pos_total_spent: metrics.lifetime_value");
     expect(webhook).not.toContain("(existing.total_spent || 0) + totalAmount");
     expect(webhook).not.toContain("customer_external_id");
   });

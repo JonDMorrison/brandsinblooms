@@ -62,12 +62,14 @@ interface CustomerConsentCardProps {
   customer: CustomerData;
   customerLabel: string;
   onCustomerPatched: (patch: Partial<CustomerData>) => void;
+  canManage?: boolean;
 }
 
 export function CustomerConsentCard({
   customer,
   customerLabel,
   onCustomerPatched,
+  canManage = true,
 }: CustomerConsentCardProps) {
   const mutation = useCustomerMarketingConsent();
   const [channel, setChannel] = React.useState<MarketingChannel | null>(null);
@@ -219,14 +221,14 @@ export function CustomerConsentCard({
                     <Typography level="body-xs" color="neutral">
                       {formatLabel(row.source)} · {formatDate(row.date)}
                     </Typography>
-                    <JoyButton
+                    {canManage ? <JoyButton
                       size="sm"
                       color={row.optedIn ? "danger" : "primary"}
                       variant="soft"
                       onClick={() => setChannel(row.channel)}
                     >
                       {row.optedIn ? "Record opt-out" : "Document opt-in"}
-                    </JoyButton>
+                    </JoyButton> : null}
                   </Stack>
                 </React.Fragment>
               );
@@ -260,7 +262,7 @@ export function CustomerConsentCard({
         </JoyCardContent>
       </JoyCard>
 
-      <JoyDialog
+      {canManage ? <JoyDialog
         open={channel !== null}
         onClose={resetDialog}
         title={optedIn ? `Record ${channel?.toUpperCase()} opt-out` : `Document ${channel?.toUpperCase()} opt-in`}
@@ -319,7 +321,7 @@ export function CustomerConsentCard({
             {optedIn ? "Confirm opt-out" : "Save documented opt-in"}
           </JoyButton>
         </JoyDialogActions>
-      </JoyDialog>
+      </JoyDialog> : null}
     </>
   );
 }

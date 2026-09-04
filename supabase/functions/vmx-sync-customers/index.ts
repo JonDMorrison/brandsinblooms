@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decryptToken } from "../_shared/crypto/tokens.ts";
 import { createVmxClient } from "../_shared/vmx/client.ts";
+import { syncProviderLoyaltyBalances } from "../_shared/loyalty/syncProviderBalances.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,12 +127,28 @@ serve(async (req) => {
           resolved?: number;
           ambiguous?: number;
           failed?: number;
+          results?: unknown[];
         } | null;
         if ((batch?.ambiguous || 0) > 0 || (batch?.failed || 0) > 0) {
           console.warn(
             `vmx-sync-customers: page ${page} has ${batch?.ambiguous || 0} ambiguous and ${batch?.failed || 0} failed identities`,
           );
         }
+
+        await syncProviderLoyaltyBalances({
+          supabase,
+          tenantId: conn.tenant_id,
+          provider: "vmx",
+          programName: "VMX Rewards",
+          identityResult: batch,
+          candidates: rows.map((row) => ({
+            externalId: row.external_id,
+            balance: row.loyalty_rewards_balance,
+            hasAccount:
+              row.loyalty_member || row.loyalty_rewards_balance > 0,
+            observedAt: new Date().toISOString(),
+          })),
+        });
         totalProcessed += batch?.resolved || 0;
       }
 

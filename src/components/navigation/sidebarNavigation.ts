@@ -32,6 +32,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import type { CrmPermission } from "@/lib/auth/crmAccess";
 
 export type DashboardShellContentWidth = "contained" | "full";
 export type DashboardShellMode = "tenant" | "admin";
@@ -81,6 +82,50 @@ export interface DashboardSidebarGroup {
   id: string;
   label: string;
   items: DashboardSidebarItem[];
+}
+
+const TENANT_ITEM_PERMISSIONS: Partial<Record<string, CrmPermission>> = {
+  bloom: "content.design",
+  analytics: "reports.read",
+  "activity-center": "campaigns.read",
+  calendar: "campaigns.read",
+  customers: "customers.read",
+  segments: "segments.manage",
+  personas: "segments.manage",
+  forms: "content.design",
+  campaigns: "campaigns.read",
+  automations: "automations.manage",
+  newsletter: "campaigns.read",
+  "sms-campaigns": "campaigns.write",
+  products: "reports.read",
+  "manage-domains": "integrations.manage",
+  integrations: "integrations.manage",
+  settings: "access.manage",
+};
+
+export function filterTenantSidebarGroups(
+  groups: DashboardSidebarGroup[],
+  hasPermission: (permission: CrmPermission) => boolean,
+): DashboardSidebarGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .map((item) => {
+          if (item.kind === "link") {
+            const permission = TENANT_ITEM_PERMISSIONS[item.id];
+            return !permission || hasPermission(permission) ? item : null;
+          }
+
+          const children = item.children.filter((child) => {
+            const permission = TENANT_ITEM_PERMISSIONS[child.id];
+            return !permission || hasPermission(permission);
+          });
+          return children.length > 0 ? { ...item, children } : null;
+        })
+        .filter((item): item is DashboardSidebarItem => item !== null),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 interface DashboardRouteDescriptor {

@@ -1,14 +1,19 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer, GLOBAL_FALLBACKS } from "../_shared/mergeTagEngine.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveSender, type SenderConfig } from "../_shared/senderResolver.ts";
-import { checkChannelAvailability, isChannelAvailable, type ChannelAvailability } from "../_shared/channelAvailability.ts";
+import {
+  checkChannelAvailability,
+  isChannelAvailable,
+  type ChannelAvailability,
+} from "../_shared/channelAvailability.ts";
 import { logActivityEvent } from "../_shared/activityLogger.ts";
 import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { matchesAutomationTriggerConditions } from "../_shared/automation/triggerConditions.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const WORKER_ID = `automation-executor-${crypto.randomUUID().slice(0, 8)}`;
@@ -21,14 +26,20 @@ interface AutomationTriggerEvent {
 }
 
 interface WorkflowStep {
-  type: 'email' | 'sms';
+  type: "email" | "sms";
   delayMin: number;
   subject?: string;
   text: string;
 }
 
 interface AutomationEnrollment {
-  decision: 'started' | 'ignored' | 'queued' | 'cooldown' | 'inactive' | 'invalid_customer';
+  decision:
+    | "started"
+    | "ignored"
+    | "queued"
+    | "cooldown"
+    | "inactive"
+    | "invalid_customer";
   reason?: string;
   run_id?: string;
   run_sequence?: number;
@@ -37,8 +48,8 @@ interface AutomationEnrollment {
 
 // Parse delay string like "1 day", "2 hours", "30 minutes" to minutes
 function parseDelayToMinutes(delay: string | number): number {
-  if (typeof delay === 'number') return delay;
-  if (!delay || delay === 'Immediate') return 0;
+  if (typeof delay === "number") return delay;
+  if (!delay || delay === "Immediate") return 0;
 
   const lower = delay.toLowerCase();
   const match = lower.match(/(\d+)\s*(minute|hour|day|week)/);
@@ -48,18 +59,23 @@ function parseDelayToMinutes(delay: string | number): number {
   const unit = match[2];
 
   switch (unit) {
-    case 'minute': return value;
-    case 'hour': return value * 60;
-    case 'day': return value * 60 * 24;
-    case 'week': return value * 60 * 24 * 7;
-    default: return 0;
+    case "minute":
+      return value;
+    case "hour":
+      return value * 60;
+    case "day":
+      return value * 60 * 24;
+    case "week":
+      return value * 60 * 24 * 7;
+    default:
+      return 0;
   }
 }
 
 // Parse delay from various step formats to minutes
 function parseStepDelay(step: any): number {
   // If delayMin already exists as a number, use it
-  if (typeof step.delayMin === 'number' && !isNaN(step.delayMin)) {
+  if (typeof step.delayMin === "number" && !isNaN(step.delayMin)) {
     return step.delayMin;
   }
 
@@ -67,11 +83,16 @@ function parseStepDelay(step: any): number {
   if (step.delayValue !== undefined && step.delayUnit) {
     const value = parseInt(step.delayValue, 10) || 0;
     switch (step.delayUnit) {
-      case 'minutes': return value;
-      case 'hours': return value * 60;
-      case 'days': return value * 60 * 24;
-      case 'weeks': return value * 60 * 24 * 7;
-      default: return 0;
+      case "minutes":
+        return value;
+      case "hours":
+        return value * 60;
+      case "days":
+        return value * 60 * 24;
+      case "weeks":
+        return value * 60 * 24 * 7;
+      default:
+        return 0;
     }
   }
 
@@ -95,21 +116,21 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
 
     for (const step of workflowSteps) {
       // If this is a delay-type node, accumulate it for the next message step
-      if (step.type === 'delay') {
+      if (step.type === "delay") {
         cumulativeDelayFromDelayNodes += parseStepDelay(step);
         continue;
       }
 
       // Only process email and sms steps
-      if (step.type === 'email' || step.type === 'sms') {
+      if (step.type === "email" || step.type === "sms") {
         const stepDelay = parseStepDelay(step);
         const totalDelay = stepDelay + cumulativeDelayFromDelayNodes;
 
         normalizedSteps.push({
-          type: step.type as 'email' | 'sms',
+          type: step.type as "email" | "sms",
           delayMin: totalDelay,
-          subject: step.subject || '',
-          text: step.content || step.text || ''
+          subject: step.subject || "",
+          text: step.content || step.text || "",
         });
 
         // Reset cumulative delay after applying to a message step
@@ -117,22 +138,32 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
       }
     }
 
-    console.log(`📋 Normalized ${normalizedSteps.length} message steps from array`);
+    console.log(
+      `📋 Normalized ${normalizedSteps.length} message steps from array`,
+    );
     return normalizedSteps;
   }
 
   // If it's React Flow format with nodes/edges
-  if (workflowSteps && typeof workflowSteps === 'object' && Array.isArray(workflowSteps.nodes)) {
-    console.log(`🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`);
+  if (
+    workflowSteps &&
+    typeof workflowSteps === "object" &&
+    Array.isArray(workflowSteps.nodes)
+  ) {
+    console.log(
+      `🔄 Converting React Flow format (${workflowSteps.nodes.length} nodes)`,
+    );
     return workflowSteps.nodes
-      .filter((node: any) => node.type === 'email' || node.type === 'sms')
+      .filter((node: any) => node.type === "email" || node.type === "sms")
       .map((node: any) => {
-        const delayMin = node.data?.delay ? parseDelayToMinutes(node.data.delay) : 0;
+        const delayMin = node.data?.delay
+          ? parseDelayToMinutes(node.data.delay)
+          : 0;
         return {
-          type: node.type as 'email' | 'sms',
+          type: node.type as "email" | "sms",
           delayMin,
-          subject: node.data?.subject || '',
-          text: node.data?.content || node.data?.text || ''
+          subject: node.data?.subject || "",
+          text: node.data?.content || node.data?.text || "",
         };
       });
   }
@@ -143,7 +174,7 @@ function normalizeWorkflowSteps(workflowSteps: any): WorkflowStep[] {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
@@ -151,18 +182,19 @@ const handler = async (req: Request): Promise<Response> => {
     const unauthorized = requireInternalApiKey(req);
     if (unauthorized) return unauthorized;
 
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      serviceRoleKey
+      Deno.env.get("SUPABASE_URL") ?? "",
+      serviceRoleKey,
     );
 
-    console.log('🤖 Automation Executor starting...');
+    console.log("🤖 Automation Executor starting...");
 
     // 1. Query active automations with workflow_steps
     const { data: activeAutomations, error: automationsError } = await supabase
-      .from('crm_automations')
-      .select(`
+      .from("crm_automations")
+      .select(
+        `
         id,
         tenant_id,
         user_id,
@@ -172,21 +204,25 @@ const handler = async (req: Request): Promise<Response> => {
         name,
         version,
         overlap_behavior
-      `)
-      .eq('is_active', true);
+      `,
+      )
+      .eq("is_active", true);
 
     if (automationsError) {
-      console.error('❌ Failed to fetch active automations:', automationsError);
+      console.error("❌ Failed to fetch active automations:", automationsError);
       throw automationsError;
     }
 
-    console.log(`📋 Found ${activeAutomations?.length || 0} active automations`);
+    console.log(
+      `📋 Found ${activeAutomations?.length || 0} active automations`,
+    );
 
     let totalProcessed = 0;
     let totalEnqueued = 0;
 
     // 1.5. Process pending trigger events from the queue (real-time segment/persona triggers)
-    const { eventsProcessed, eventsEnqueued } = await processPendingTriggerEvents(supabase);
+    const { eventsProcessed, eventsEnqueued } =
+      await processPendingTriggerEvents(supabase);
     totalProcessed += eventsProcessed;
     totalEnqueued += eventsEnqueued;
 
@@ -194,71 +230,109 @@ const handler = async (req: Request): Promise<Response> => {
     for (const automation of activeAutomations || []) {
       // Skip event-driven triggers - they're handled by webhooks or the event queue, NOT cron
       const eventDrivenTriggers = [
-        'segment.added', 'segment_added',
-        'persona.assigned', 'persona_assigned',
-        'payment.completed', 'first_purchase',
-        'contact.created',
+        "segment.added",
+        "segment_added",
+        "persona.assigned",
+        "persona_assigned",
+        "payment.completed",
+        "first_purchase",
+        "contact.created",
       ];
       if (eventDrivenTriggers.includes(automation.trigger_type)) {
         continue;
       }
 
-      console.log(`🔄 Processing automation: ${automation.name} (${automation.trigger_type})`);
+      console.log(
+        `🔄 Processing automation: ${automation.name} (${automation.trigger_type})`,
+      );
 
       try {
         // Check provider readiness before processing
-        const providerCheck = await checkProviderReadiness(supabase, automation);
+        const providerCheck = await checkProviderReadiness(
+          supabase,
+          automation,
+        );
         if (!providerCheck.canProcess) {
-          console.log(`⚠️ Skipping automation ${automation.name}: ${providerCheck.reason}`);
+          console.log(
+            `⚠️ Skipping automation ${automation.name}: ${providerCheck.reason}`,
+          );
           continue;
         }
 
-        const { processed, enqueued } = await processAutomation(supabase, automation);
+        const { processed, enqueued } = await processAutomation(
+          supabase,
+          automation,
+        );
         totalProcessed += processed;
         totalEnqueued += enqueued;
       } catch (error) {
-        console.error(`❌ Error processing automation ${automation.id}:`, error);
+        console.error(
+          `❌ Error processing automation ${automation.id}:`,
+          error,
+        );
       }
     }
 
-    console.log(`✅ Automation execution complete. Processed: ${totalProcessed}, Enqueued: ${totalEnqueued}`);
+    console.log(
+      `✅ Automation execution complete. Processed: ${totalProcessed}, Enqueued: ${totalEnqueued}`,
+    );
 
     return new Response(
       JSON.stringify({
         success: true,
         processed: totalProcessed,
         enqueued: totalEnqueued,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }),
       {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
-
   } catch (error) {
-    console.error('💥 Automation executor error:', error);
+    console.error("💥 Automation executor error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      }
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
   }
 };
 
-async function checkProviderReadiness(supabase: any, automation: any): Promise<{ canProcess: boolean; reason?: string; senderConfig?: SenderConfig; channelAvailability?: ChannelAvailability }> {
-  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
-  const hasEmailSteps = workflowSteps.some(step => step.type === 'email');
-  const hasSMSSteps = workflowSteps.some(step => step.type === 'sms');
+async function checkProviderReadiness(
+  supabase: any,
+  automation: any,
+): Promise<{
+  canProcess: boolean;
+  reason?: string;
+  retryable?: boolean;
+  senderConfig?: SenderConfig;
+  channelAvailability?: ChannelAvailability;
+}> {
+  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(
+    automation.workflow_steps,
+  );
+  const hasEmailSteps = workflowSteps.some((step) => step.type === "email");
+  const hasSMSSteps = workflowSteps.some((step) => step.type === "sms");
 
   // Check channel availability
-  const channels = checkChannelAvailability();
-  console.log(`📊 [ProviderCheck] Channel availability: Email=${channels.email.available}, SMS=${channels.sms.available}`);
+  const detectedChannels = checkChannelAvailability();
+  const channels: ChannelAvailability = {
+    email: { ...detectedChannels.email },
+    sms: { ...detectedChannels.sms },
+  };
+  console.log(
+    `📊 [ProviderCheck] Channel availability: Email=${channels.email.available}, SMS=${channels.sms.available}`,
+  );
 
   if (hasSMSSteps && !channels.sms.available) {
-    console.log(`⚠️ Automation has SMS steps but SMS is not configured (${channels.sms.reason}). SMS steps will be skipped.`);
+    console.log(
+      `⚠️ Automation has SMS steps but SMS is not configured (${channels.sms.reason}). SMS steps will be skipped.`,
+    );
   }
 
   // Check company profile (legacy flags)
@@ -266,40 +340,76 @@ async function checkProviderReadiness(supabase: any, automation: any): Promise<{
   let companyProfile: any = null;
   if (automation.user_id) {
     const { data, error: profileError } = await supabase
-      .from('company_profiles')
-      .select('feature_flags')
-      .eq('user_id', automation.user_id)
+      .from("company_profiles")
+      .select("feature_flags")
+      .eq("user_id", automation.user_id)
       .maybeSingle();
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error(`❌ Error fetching company profile for user ${automation.user_id}:`, profileError);
+    if (profileError && profileError.code !== "PGRST116") {
+      console.error(
+        `❌ Error fetching company profile for user ${automation.user_id}:`,
+        profileError,
+      );
     } else {
       companyProfile = data;
     }
   }
 
-  // Check Email provider readiness using senderResolver (always available with fallback)
+  // Email requires both its provider key and an authenticated tenant domain.
+  // Mixed-channel journeys may continue through whichever channel is ready.
   let senderConfig: SenderConfig | undefined;
-  if (hasEmailSteps) {
+  if (hasEmailSteps && channels.email.available) {
     try {
       senderConfig = await resolveSender(supabase, automation.tenant_id, {});
-      console.log(`📧 [ProviderCheck] Email sender resolved: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
-      // Email is always ready because we have fallback senders
+      console.log(
+        `📧 [ProviderCheck] Email sender resolved: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`,
+      );
     } catch (error) {
-      console.error(`❌ Error resolving sender for tenant ${automation.tenant_id}:`, error);
-      return { canProcess: false, reason: 'Failed to resolve email sender' };
+      console.error(
+        `❌ Error resolving sender for tenant ${automation.tenant_id}:`,
+        error,
+      );
+      channels.email = {
+        available: false,
+        reason: "No authenticated sending domain is available",
+      };
     }
   }
 
   // Check POS cart events for abandoned_cart trigger - this IS blocking
-  if (automation.trigger_type === 'abandoned_cart') {
-    const posCartEnabled = companyProfile?.feature_flags?.['pos']?.['cart']?.['enabled'] === true;
+  if (automation.trigger_type === "abandoned_cart") {
+    const posCartEnabled =
+      companyProfile?.feature_flags?.["pos"]?.["cart"]?.["enabled"] === true;
     if (!posCartEnabled) {
-      return { canProcess: false, reason: 'POS cart events not enabled' };
+      return {
+        canProcess: false,
+        retryable: false,
+        reason: "POS cart events not enabled",
+        channelAvailability: channels,
+      };
     }
   }
 
-  // Always allow processing - unconfigured channels will be skipped at runtime
+  const requiredChannelStates = [
+    ...(hasEmailSteps ? [channels.email] : []),
+    ...(hasSMSSteps ? [channels.sms] : []),
+  ];
+  if (
+    requiredChannelStates.length > 0 &&
+    requiredChannelStates.every((channel) => !channel.available)
+  ) {
+    return {
+      canProcess: false,
+      retryable: true,
+      reason:
+        requiredChannelStates
+          .map((channel) => channel.reason)
+          .filter(Boolean)
+          .join("; ") || "No configured delivery channel is available",
+      channelAvailability: channels,
+    };
+  }
+
   return { canProcess: true, senderConfig, channelAvailability: channels };
 }
 
@@ -309,15 +419,21 @@ async function processAutomation(supabase: any, automation: any) {
 
   try {
     // Get workflow steps (handles both array and React Flow formats)
-    const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
+    const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(
+      automation.workflow_steps,
+    );
     if (workflowSteps.length === 0) {
-      console.log(`⚠️ No workflow steps defined for automation ${automation.id}`);
+      console.log(
+        `⚠️ No workflow steps defined for automation ${automation.id}`,
+      );
       return { processed: 0, enqueued: 0 };
     }
 
     // Get eligible customers based on trigger type
     const eligibleCustomers = await getEligibleCustomers(supabase, automation);
-    console.log(`👥 Found ${eligibleCustomers.length} eligible customers for ${automation.trigger_type}`);
+    console.log(
+      `👥 Found ${eligibleCustomers.length} eligible customers for ${automation.trigger_type}`,
+    );
 
     for (const customer of eligibleCustomers) {
       try {
@@ -327,7 +443,7 @@ async function processAutomation(supabase: any, automation: any) {
           customer,
           workflowSteps.length,
         );
-        if (enrollment.decision !== 'started' || !enrollment.run_id) {
+        if (enrollment.decision !== "started" || !enrollment.run_id) {
           console.log(
             `⏭️ Did not start automation for ${customer.email}: ${enrollment.reason || enrollment.decision}`,
           );
@@ -337,17 +453,29 @@ async function processAutomation(supabase: any, automation: any) {
 
         // Schedule the first step
         const firstStep = workflowSteps[0];
-        const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
+        const scheduledAt = calculateScheduledTime(
+          firstStep.delayMin,
+          automation,
+          customer,
+        );
 
         try {
-          await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
+          await enqueueMessage(
+            supabase,
+            automation,
+            customer,
+            firstStep,
+            0,
+            runId,
+            scheduledAt,
+          );
 
           // Update run with next scheduled time
           const { error: scheduleError } = await supabase
-            .from('automation_runs')
+            .from("automation_runs")
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
-            .eq('id', runId)
-            .eq('status', 'active');
+            .eq("id", runId)
+            .eq("status", "active");
           if (scheduleError) throw scheduleError;
         } catch (enqueueError) {
           await failAutomationRunStart(supabase, runId, enqueueError);
@@ -356,12 +484,13 @@ async function processAutomation(supabase: any, automation: any) {
 
         enqueued++;
         processed++;
-
       } catch (customerError) {
-        console.error(`❌ Error processing customer ${customer.id}:`, customerError);
+        console.error(
+          `❌ Error processing customer ${customer.id}:`,
+          customerError,
+        );
       }
     }
-
   } catch (error) {
     console.error(`❌ Error in processAutomation for ${automation.id}:`, error);
   }
@@ -375,13 +504,15 @@ async function createAutomationRun(
   customer: any,
   totalSteps: number,
   channelAvailability?: ChannelAvailability,
+  triggerContext: Record<string, unknown> = {},
 ): Promise<AutomationEnrollment> {
   const channels = channelAvailability || checkChannelAvailability();
-  const { data, error } = await supabase.rpc('begin_automation_run', {
+  const { data, error } = await supabase.rpc("begin_automation_run", {
     p_automation_id: automation.id,
     p_customer_id: customer.id,
     p_total_steps: totalSteps,
     p_trigger_data: {
+      ...triggerContext,
       trigger_type: automation.trigger_type,
       triggered_at: new Date().toISOString(),
       customer_email: customer.email,
@@ -391,7 +522,10 @@ async function createAutomationRun(
       automation_version: automation.version,
     },
     p_channel_availability: {
-      email: { available: channels.email.available, reason: channels.email.reason },
+      email: {
+        available: channels.email.available,
+        reason: channels.email.reason,
+      },
       sms: { available: channels.sms.available, reason: channels.sms.reason },
     },
     p_cooldown_minutes: 1440,
@@ -399,7 +533,7 @@ async function createAutomationRun(
   if (error) throw error;
 
   const enrollment = data as AutomationEnrollment;
-  if (enrollment.decision !== 'started' || !enrollment.run_id) {
+  if (enrollment.decision !== "started" || !enrollment.run_id) {
     return enrollment;
   }
 
@@ -407,18 +541,23 @@ async function createAutomationRun(
     await logActivityEvent(supabase, {
       tenant_id: automation.tenant_id,
       customer_id: customer.id,
-      actor_type: 'automation',
-      source: 'automation',
-      activity_type: 'automation.started',
-      status: 'success',
-      title: `Automation started: ${automation.name || 'Automation'}`,
-      description: { parts: [{ type: 'text', text: 'Automation run started.' }] },
+      actor_type: "automation",
+      source: "automation",
+      activity_type: "automation.started",
+      status: "success",
+      title: `Automation started: ${automation.name || "Automation"}`,
+      description: {
+        parts: [{ type: "text", text: "Automation run started." }],
+      },
       metadata: {
         automation_id: automation.id,
         automation_run_id: enrollment.run_id,
         run_sequence: enrollment.run_sequence,
         trigger_type: automation.trigger_type,
-        customer_name: `${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim() || customer.email || 'Customer',
+        customer_name:
+          `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() ||
+          customer.email ||
+          "Customer",
         customer_first_name: customer.first_name ?? null,
         customer_last_name: customer.last_name ?? null,
       },
@@ -429,7 +568,10 @@ async function createAutomationRun(
       },
     });
   } catch (activityError) {
-    console.error('Failed to record automation.started activity:', activityError);
+    console.error(
+      "Failed to record automation.started activity:",
+      activityError,
+    );
   }
 
   console.log(
@@ -443,30 +585,43 @@ async function failAutomationRunStart(
   runId: string,
   error: unknown,
 ) {
-  const message = error instanceof Error ? error.message : 'Unknown enqueue error';
+  const message =
+    error instanceof Error ? error.message : "Unknown enqueue error";
   await supabase
-    .from('automation_runs')
+    .from("automation_runs")
     .update({
-      status: 'failed',
+      status: "failed",
       completed_at: new Date().toISOString(),
       next_step_scheduled_at: null,
       error_message: `Initial step enqueue failed: ${message}`,
     })
-    .eq('id', runId)
-    .eq('status', 'active');
+    .eq("id", runId)
+    .eq("status", "active");
 }
 
-function calculateScheduledTime(delayMin: number, automation: any, customer: any): Date {
+function calculateScheduledTime(
+  delayMin: number,
+  automation: any,
+  customer: any,
+): Date {
   // Ensure delayMin is a valid number to prevent Invalid Date errors
-  const safeDelayMin = typeof delayMin === 'number' && !isNaN(delayMin) ? delayMin : 0;
+  const safeDelayMin =
+    typeof delayMin === "number" && !isNaN(delayMin) ? delayMin : 0;
 
   const baseTime = new Date();
 
   // Handle special trigger types with different base times
-  if (automation.trigger_type === 'birthday' && customer.custom_fields?.date_of_birth) {
+  if (
+    automation.trigger_type === "birthday" &&
+    customer.custom_fields?.date_of_birth
+  ) {
     const birthday = new Date(customer.custom_fields.date_of_birth);
     const currentYear = new Date().getFullYear();
-    const thisYearBirthday = new Date(currentYear, birthday.getMonth(), birthday.getDate());
+    const thisYearBirthday = new Date(
+      currentYear,
+      birthday.getMonth(),
+      birthday.getDate(),
+    );
 
     // If birthday has passed this year, schedule for next year
     if (thisYearBirthday < new Date()) {
@@ -484,74 +639,93 @@ async function getEligibleCustomers(supabase: any, automation: any) {
   const { trigger_type, tenant_id } = automation;
 
   let query = supabase
-    .from('crm_customers')
-    .select('*')
-    .eq('tenant_id', tenant_id);
+    .from("crm_customers")
+    .select("*")
+    .eq("tenant_id", tenant_id);
 
   // Apply trigger-specific filters using canonical trigger IDs
   switch (trigger_type) {
-    case 'loyalty_join':
-    case 'loyalty.signup':
+    case "loyalty_join":
+    case "loyalty.signup":
       // Customers who joined loyalty program in last 24 hours
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      query = query.gte('created_at', oneDayAgo);
+      const oneDayAgo = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("created_at", oneDayAgo);
       break;
 
-    case 'first_purchase':
-    case 'payment.completed':
+    case "first_purchase":
+    case "payment.completed":
       // Customers with recent purchase activity
-      const purchaseWindow = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      query = query.gte('last_purchase_date', purchaseWindow.split('T')[0]);
+      const purchaseWindow = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("last_purchase_date", purchaseWindow.split("T")[0]);
       break;
 
-    case 'repeat_purchase_90d':
+    case "repeat_purchase_90d":
       // FIX: [A2] - DISABLED: This trigger type is handled exclusively by lapsed-customer-checker to prevent duplicate sends
-      if (false) { // disabled - see comment above
-      // Customers who haven't purchased in 90 days
-      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-      query = query.lt('last_purchase_date', ninetyDaysAgo);
+      if (false) {
+        // disabled - see comment above
+        // Customers who haven't purchased in 90 days
+        const ninetyDaysAgo = new Date(
+          Date.now() - 90 * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        query = query.lt("last_purchase_date", ninetyDaysAgo);
       }
       return [];
       break;
 
-    case 'birthday':
-    case 'purchase.anniversary':
+    case "birthday":
+    case "purchase.anniversary":
       // FIX: [A2] - DISABLED: This trigger type is handled exclusively by birthday-automation-checker to prevent duplicate sends
       // FIX: [A12] - Birthday matching via SQL LIKE is inconsistent with birthday-automation-checker's JS date parsing
       // This block is disabled (see A2) - if re-enabled, replace LIKE with JS date parsing to match birthday-automation-checker
-      if (false) { // disabled - see comment above
-      // Customers with birthday/anniversary today
-      const today = new Date().toISOString().split('T')[0];
-      query = query.like('custom_fields->date_of_birth', `%${today.slice(5)}%`);
+      if (false) {
+        // disabled - see comment above
+        // Customers with birthday/anniversary today
+        const today = new Date().toISOString().split("T")[0];
+        query = query.like(
+          "custom_fields->date_of_birth",
+          `%${today.slice(5)}%`,
+        );
       }
       return [];
       break;
 
-    case 'abandoned_cart':
+    case "abandoned_cart":
       // Customers with abandoned carts
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      query = query.gte('last_cart_abandoned_at', twoHoursAgo);
+      const twoHoursAgo = new Date(
+        Date.now() - 2 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("last_cart_abandoned_at", twoHoursAgo);
       break;
 
-    case 'review_request':
+    case "review_request":
       // Customers with purchase 5 days ago
-      const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      query = query.eq('last_purchase_date', fiveDaysAgo);
+      const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      query = query.eq("last_purchase_date", fiveDaysAgo);
       break;
 
-    case 'contact.created':
+    case "contact.created":
       // New contacts created in last 24 hours
-      const contactOneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      query = query.gte('created_at', contactOneDayAgo);
+      const contactOneDayAgo = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("created_at", contactOneDayAgo);
       break;
 
-    case 'contact.updated':
+    case "contact.updated":
       // Contacts updated in last 24 hours
-      const updateOneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      query = query.gte('updated_at', updateOneDayAgo);
+      const updateOneDayAgo = new Date(
+        Date.now() - 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("updated_at", updateOneDayAgo);
       break;
 
-    case 'segment.added':
+    case "segment.added":
       // Handle segment-based triggers
       // Get the target segment ID from trigger_conditions
       const targetSegmentId = automation.trigger_conditions?.segment_id;
@@ -560,9 +734,13 @@ async function getEligibleCustomers(supabase: any, automation: any) {
         return [];
       }
       // Query customers who were added to this segment recently
-      return await getCustomersAddedToSegment(supabase, tenant_id, targetSegmentId);
+      return await getCustomersAddedToSegment(
+        supabase,
+        tenant_id,
+        targetSegmentId,
+      );
 
-    case 'persona.assigned':
+    case "persona.assigned":
       // Handle persona-based triggers
       const targetPersonaId = automation.trigger_conditions?.persona_id;
       if (!targetPersonaId) {
@@ -570,7 +748,11 @@ async function getEligibleCustomers(supabase: any, automation: any) {
         return [];
       }
       // Query customers who were assigned this persona recently
-      return await getCustomersAssignedToPersona(supabase, tenant_id, targetPersonaId);
+      return await getCustomersAssignedToPersona(
+        supabase,
+        tenant_id,
+        targetPersonaId,
+      );
 
     default:
       console.log(`⚠️ Trigger type ${trigger_type} not implemented yet`);
@@ -594,73 +776,98 @@ async function enqueueMessage(
   step: WorkflowStep,
   stepIndex: number,
   runId: string,
-  scheduledAt: Date
+  scheduledAt: Date,
+  triggerContext: Record<string, unknown> = {},
 ) {
-  const recipient = step.type === 'sms' ? customer.phone : customer.email;
+  const recipient = step.type === "sms" ? customer.phone : customer.email;
 
   // Check if recipient is missing
   if (!recipient) {
-    console.log(`⚠️ No ${step.type} recipient for customer ${customer.email}, skipping step`);
-    await skipStep(supabase, automation, customer, step, stepIndex, runId, `No ${step.type} recipient available`);
+    console.log(
+      `⚠️ No ${step.type} recipient for customer ${customer.email}, skipping step`,
+    );
+    await skipStep(
+      supabase,
+      automation,
+      customer,
+      step,
+      stepIndex,
+      runId,
+      `No ${step.type} recipient available`,
+      triggerContext,
+    );
     return;
   }
 
   // Check if channel is available
   const channelStatus = isChannelAvailable(step.type);
   if (!channelStatus.available) {
-    console.log(`⚠️ Channel ${step.type} not available: ${channelStatus.reason}, skipping step`);
-    await skipStep(supabase, automation, customer, step, stepIndex, runId, channelStatus.reason || 'Channel not configured');
+    console.log(
+      `⚠️ Channel ${step.type} not available: ${channelStatus.reason}, skipping step`,
+    );
+    await skipStep(
+      supabase,
+      automation,
+      customer,
+      step,
+      stepIndex,
+      runId,
+      channelStatus.reason || "Channel not configured",
+      triggerContext,
+    );
     return;
   }
 
-  // Personalize message content
-  const personalizedContent = personalizeMessage(step.text, customer, automation);
-  const personalizedSubject = step.subject ? personalizeMessage(step.subject, customer, automation) : undefined;
-
   // Resolve sender for email steps
   let senderConfig: SenderConfig | null = null;
-  if (step.type === 'email') {
+  if (step.type === "email") {
     try {
       senderConfig = await resolveSender(supabase, automation.tenant_id, {});
-      console.log(`📧 [Enqueue] Resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`);
+      console.log(
+        `📧 [Enqueue] Resolved sender: ${senderConfig.deliveryMethod} (${senderConfig.fromEmail})`,
+      );
     } catch (error) {
-      console.error(`❌ Failed to resolve sender for tenant ${automation.tenant_id}:`, error);
+      console.error(
+        `❌ Failed to resolve sender for tenant ${automation.tenant_id}:`,
+        error,
+      );
     }
   }
 
   // Insert into outbox with automation_run_id and sender config
-  const { error: outboxError } = await supabase
-    .from('crm_outbox')
-    .insert({
-      tenant_id: automation.tenant_id,
-      automation_id: automation.id,
-      automation_run_id: runId,
-      automation_node_id: step.id || step.node_id || `step-${stepIndex}`,
-      customer_id: customer.id,
-      message_type: step.type,
-      recipient,
-      content: personalizedContent,
-      subject: personalizedSubject,
+  const { error: outboxError } = await supabase.from("crm_outbox").insert({
+    tenant_id: automation.tenant_id,
+    automation_id: automation.id,
+    automation_run_id: runId,
+    automation_node_id: step.id || step.node_id || `step-${stepIndex}`,
+    customer_id: customer.id,
+    message_type: step.type,
+    recipient,
+    content: step.text,
+    subject: step.subject || undefined,
+    step_index: stepIndex,
+    template_data: {
+      automation_name: automation.name,
       step_index: stepIndex,
-      template_data: {
-        automation_name: automation.name,
-        step_index: stepIndex,
-        customer_data: customer,
-        step_type: step.type,
-        trigger_type: automation.trigger_type,
-        // Include sender configuration for email processing
-        sender_config: senderConfig ? {
-          from_email: senderConfig.fromEmail,
-          from_name: senderConfig.fromName,
-          delivery_method: senderConfig.deliveryMethod,
-          domain_id: senderConfig.domainId || null,
-          reply_to: senderConfig.replyTo || senderConfig.fromEmail  // Include reply-to with sender fallback
-        } : null
-      },
-      scheduled_at: scheduledAt.toISOString(),
-      status: 'queued',  // Standardized: always use queued, scheduled_at determines when to process
-      priority: 100,
-    });
+      customer_data: customer,
+      step_type: step.type,
+      trigger_type: automation.trigger_type,
+      trigger_data: triggerContext,
+      // Include sender configuration for email processing
+      sender_config: senderConfig
+        ? {
+            from_email: senderConfig.fromEmail,
+            from_name: senderConfig.fromName,
+            delivery_method: senderConfig.deliveryMethod,
+            domain_id: senderConfig.domainId || null,
+            reply_to: senderConfig.replyTo || senderConfig.fromEmail, // Include reply-to with sender fallback
+          }
+        : null,
+    },
+    scheduled_at: scheduledAt.toISOString(),
+    status: "queued", // Standardized: always use queued, scheduled_at determines when to process
+    priority: 100,
+  });
 
   if (outboxError) {
     console.error(`❌ Failed to enqueue message:`, {
@@ -674,26 +881,28 @@ async function enqueueMessage(
         customer_id: customer.id,
         message_type: step.type,
         recipient,
-      }
+      },
     });
     throw outboxError;
   }
 
-  console.log(`📬 [OUTBOX] Successfully inserted for customer ${customer.email}, type: ${step.type}`);
+  console.log(
+    `📬 [OUTBOX] Successfully inserted for customer ${customer.email}, type: ${step.type}`,
+  );
 
   // Log the automation step
-  await supabase
-    .from('crm_automation_logs')
-    .insert({
-      automation_id: automation.id,
-      customer_id: customer.id,
-      step_index: stepIndex,
-      message_type: step.type,
-      status: 'queued',
-      created_at: new Date().toISOString()
-    });
+  await supabase.from("crm_automation_logs").insert({
+    automation_id: automation.id,
+    customer_id: customer.id,
+    step_index: stepIndex,
+    message_type: step.type,
+    status: "queued",
+    created_at: new Date().toISOString(),
+  });
 
-  console.log(`✅ Enqueued ${step.type} for ${customer.email} (step ${stepIndex + 1}, scheduled: ${scheduledAt.toISOString()}, sender: ${senderConfig?.deliveryMethod || 'sms'})`);
+  console.log(
+    `✅ Enqueued ${step.type} for ${customer.email} (step ${stepIndex + 1}, scheduled: ${scheduledAt.toISOString()}, sender: ${senderConfig?.deliveryMethod || "sms"})`,
+  );
 }
 
 /**
@@ -706,48 +915,55 @@ async function skipStep(
   step: WorkflowStep,
   stepIndex: number,
   runId: string,
-  reason: string
+  reason: string,
+  triggerContext: Record<string, unknown> = {},
 ) {
   const now = new Date().toISOString();
 
   // Insert skipped entry into outbox for tracking
-  await supabase
-    .from('crm_outbox')
-    .insert({
-      tenant_id: automation.tenant_id,
-      automation_id: automation.id,
-      automation_run_id: runId,
-      automation_node_id: step.id || step.node_id || `step-${stepIndex}`,
-      customer_id: customer.id,
-      message_type: step.type,
-      recipient: step.type === 'sms' ? customer.phone : customer.email,
-      content: step.text,
-      subject: step.subject,
-      step_index: stepIndex,
-      scheduled_at: now,
-      status: 'skipped',
-      skip_reason: reason,
-      skipped_at: now,
-      priority: 100,
-    });
+  await supabase.from("crm_outbox").insert({
+    tenant_id: automation.tenant_id,
+    automation_id: automation.id,
+    automation_run_id: runId,
+    automation_node_id: step.id || step.node_id || `step-${stepIndex}`,
+    customer_id: customer.id,
+    message_type: step.type,
+    recipient: step.type === "sms" ? customer.phone : customer.email,
+    content: step.text,
+    subject: step.subject,
+    step_index: stepIndex,
+    scheduled_at: now,
+    status: "skipped",
+    skip_reason: reason,
+    skipped_at: now,
+    priority: 100,
+    template_data: { trigger_data: triggerContext },
+  });
 
   // Log the skip in automation logs
-  await supabase
-    .from('crm_automation_logs')
-    .insert({
-      automation_id: automation.id,
-      customer_id: customer.id,
-      step_index: stepIndex,
-      message_type: step.type,
-      status: reason.includes('recipient') ? 'skipped_no_recipient' : 'skipped_no_channel',
-      skip_reason: reason,
-      created_at: now
-    });
+  await supabase.from("crm_automation_logs").insert({
+    automation_id: automation.id,
+    customer_id: customer.id,
+    step_index: stepIndex,
+    message_type: step.type,
+    status: reason.includes("recipient")
+      ? "skipped_no_recipient"
+      : "skipped_no_channel",
+    skip_reason: reason,
+    created_at: now,
+  });
 
   console.log(`⏭️ Skipped step ${stepIndex + 1} (${step.type}): ${reason}`);
 
   // Advance to next step
-  await advanceAfterSkip(supabase, automation, customer, stepIndex, runId);
+  await advanceAfterSkip(
+    supabase,
+    automation,
+    customer,
+    stepIndex,
+    runId,
+    triggerContext,
+  );
 }
 
 /**
@@ -758,23 +974,26 @@ async function advanceAfterSkip(
   automation: any,
   customer: any,
   currentStepIndex: number,
-  runId: string
+  runId: string,
+  triggerContext: Record<string, unknown> = {},
 ) {
   // Get workflow steps
-  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
+  const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(
+    automation.workflow_steps,
+  );
   const nextStepIndex = currentStepIndex + 1;
 
   if (nextStepIndex >= workflowSteps.length) {
     // All steps completed (or skipped)
     await supabase
-      .from('automation_runs')
+      .from("automation_runs")
       .update({
-        status: 'completed',
+        status: "completed",
         current_step_index: workflowSteps.length,
         completed_at: new Date().toISOString(),
         next_step_scheduled_at: null,
       })
-      .eq('id', runId);
+      .eq("id", runId);
 
     console.log(`🎉 Automation run ${runId} completed (after skips)`);
     return;
@@ -782,66 +1001,48 @@ async function advanceAfterSkip(
 
   // Schedule next step
   const nextStep = workflowSteps[nextStepIndex];
-  const scheduledAt = calculateScheduledTime(nextStep.delayMin, automation, customer);
+  const scheduledAt = calculateScheduledTime(
+    nextStep.delayMin,
+    automation,
+    customer,
+  );
 
   // Update run state
   await supabase
-    .from('automation_runs')
+    .from("automation_runs")
     .update({
       current_step_index: nextStepIndex,
       next_step_scheduled_at: scheduledAt.toISOString(),
     })
-    .eq('id', runId);
+    .eq("id", runId);
 
   // Enqueue the next step (this will recursively skip if needed)
-  await enqueueMessage(supabase, automation, customer, nextStep, nextStepIndex, runId, scheduledAt);
-}
-
-function personalizeMessage(template: string, customer: any, automation: any): string {
-  // Convert legacy tags first
-  let normalized = convertLegacyTags(template);
-
-  // Create merge tag data from customer
-  const mergeTagData = createMergeTagDataFromCustomer(customer, {
-    company_name: 'Your Garden Center'
-  });
-
-  // Add automation-specific placeholders to system
-  mergeTagData.system = {
-    ...mergeTagData.system,
-    unsubscribe_url: '#',
-    preferences_url: '#',
-    current_year: new Date().getFullYear().toString(),
-    current_date: new Date().toLocaleDateString()
-  };
-
-  // Add custom automation data
-  mergeTagData.custom = {
-    ...mergeTagData.custom,
-    points: String(customer.loyalty_points || 0),
-    offer: '20% off your next purchase',
-    expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    discount_code: 'WELCOME10',
-    shop_url: 'https://example.com/shop',
-    cart_url: `https://example.com/cart?restore=${customer.id}`,
-    review_url: 'https://example.com/review',
-    workshop_link: 'https://example.com/workshops'
-  };
-
-  // Render with unified engine
-  return renderMergeTags(normalized, mergeTagData);
+  await enqueueMessage(
+    supabase,
+    automation,
+    customer,
+    nextStep,
+    nextStepIndex,
+    runId,
+    scheduledAt,
+    triggerContext,
+  );
 }
 
 // Helper function to get customers recently added to a segment
-async function getCustomersAddedToSegment(supabase: any, tenantId: string, segmentId: string) {
+async function getCustomersAddedToSegment(
+  supabase: any,
+  tenantId: string,
+  segmentId: string,
+) {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   // Query customer_segments junction table for recent additions
   const { data: segmentMembers, error: segmentError } = await supabase
-    .from('customer_segments')
-    .select('customer_id, created_at')
-    .eq('segment_id', segmentId)
-    .gte('created_at', oneDayAgo);
+    .from("customer_segments")
+    .select("customer_id, created_at")
+    .eq("segment_id", segmentId)
+    .gte("created_at", oneDayAgo);
 
   if (segmentError) {
     console.error(`❌ Error fetching segment members:`, segmentError);
@@ -855,30 +1056,36 @@ async function getCustomersAddedToSegment(supabase: any, tenantId: string, segme
   // Get full customer data for matched customers
   const customerIds = segmentMembers.map((m: any) => m.customer_id);
   const { data: customers, error: customersError } = await supabase
-    .from('crm_customers')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .in('id', customerIds);
+    .from("crm_customers")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .in("id", customerIds);
 
   if (customersError) {
     console.error(`❌ Error fetching customers for segment:`, customersError);
     return [];
   }
 
-  console.log(`📊 Found ${customers?.length || 0} customers added to segment ${segmentId} in last 24h`);
+  console.log(
+    `📊 Found ${customers?.length || 0} customers added to segment ${segmentId} in last 24h`,
+  );
   return customers || [];
 }
 
 // Helper function to get customers recently assigned to a persona
-async function getCustomersAssignedToPersona(supabase: any, tenantId: string, personaId: string) {
+async function getCustomersAssignedToPersona(
+  supabase: any,
+  tenantId: string,
+  personaId: string,
+) {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   // Query customer_personas junction table for recent assignments
   const { data: personaMembers, error: personaError } = await supabase
-    .from('customer_personas')
-    .select('customer_id, created_at')
-    .eq('persona_id', personaId)
-    .gte('created_at', oneDayAgo);
+    .from("customer_personas")
+    .select("customer_id, created_at")
+    .eq("persona_id", personaId)
+    .gte("created_at", oneDayAgo);
 
   if (personaError) {
     console.error(`❌ Error fetching persona members:`, personaError);
@@ -892,22 +1099,26 @@ async function getCustomersAssignedToPersona(supabase: any, tenantId: string, pe
   // Get full customer data for matched customers
   const customerIds = personaMembers.map((m: any) => m.customer_id);
   const { data: customers, error: customersError } = await supabase
-    .from('crm_customers')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .in('id', customerIds);
+    .from("crm_customers")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .in("id", customerIds);
 
   if (customersError) {
     console.error(`❌ Error fetching customers for persona:`, customersError);
     return [];
   }
 
-  console.log(`👤 Found ${customers?.length || 0} customers assigned to persona ${personaId} in last 24h`);
+  console.log(
+    `👤 Found ${customers?.length || 0} customers assigned to persona ${personaId} in last 24h`,
+  );
   return customers || [];
 }
 
 // Process pending trigger events from the automation_trigger_events queue
-async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProcessed: number; eventsEnqueued: number }> {
+async function processPendingTriggerEvents(
+  supabase: any,
+): Promise<{ eventsProcessed: number; eventsEnqueued: number }> {
   let eventsProcessed = 0;
   let eventsEnqueued = 0;
 
@@ -915,7 +1126,7 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
     // Claim due events atomically. Direct SELECTs let concurrent cron/manual
     // invocations process the same event more than once.
     const { data: events, error: eventsError } = await supabase.rpc(
-      'claim_due_automation_trigger_events',
+      "claim_due_automation_trigger_events",
       {
         p_limit: 100,
         p_worker_id: WORKER_ID,
@@ -924,12 +1135,12 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
     );
 
     if (eventsError) {
-      console.error('❌ Failed to fetch trigger events:', eventsError);
+      console.error("❌ Failed to fetch trigger events:", eventsError);
       return { eventsProcessed: 0, eventsEnqueued: 0 };
     }
 
     if (!events || events.length === 0) {
-      console.log('📭 No pending trigger events to process');
+      console.log("📭 No pending trigger events to process");
       return { eventsProcessed: 0, eventsEnqueued: 0 };
     }
 
@@ -939,44 +1150,91 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
       try {
         // Fetch the automation
         const { data: automation, error: automationError } = await supabase
-          .from('crm_automations')
-          .select('*')
-          .eq('id', event.automation_id)
-          .eq('is_active', true)
+          .from("crm_automations")
+          .select("*")
+          .eq("id", event.automation_id)
+          .eq("is_active", true)
           .single();
 
         if (automationError || !automation) {
-          console.log(`⚠️ Automation ${event.automation_id} not found or inactive, marking event as processed`);
-          await markEventProcessed(supabase, event.id, 'Automation not found or inactive');
+          console.log(
+            `⚠️ Automation ${event.automation_id} not found or inactive, marking event as processed`,
+          );
+          await markEventProcessed(
+            supabase,
+            event.id,
+            "Automation not found or inactive",
+          );
           continue;
         }
 
         // Fetch the customer
         const { data: customer, error: customerError } = await supabase
-          .from('crm_customers')
-          .select('*')
-          .eq('id', event.customer_id)
+          .from("crm_customers")
+          .select("*")
+          .eq("id", event.customer_id)
           .single();
 
         if (customerError || !customer) {
-          console.log(`⚠️ Customer ${event.customer_id} not found, marking event as processed`);
-          await markEventProcessed(supabase, event.id, 'Customer not found');
+          console.log(
+            `⚠️ Customer ${event.customer_id} not found, marking event as processed`,
+          );
+          await markEventProcessed(supabase, event.id, "Customer not found");
           continue;
         }
 
         // Check provider readiness
-        const providerCheck = await checkProviderReadiness(supabase, automation);
+        const providerCheck = await checkProviderReadiness(
+          supabase,
+          automation,
+        );
         if (!providerCheck.canProcess) {
-          console.log(`⚠️ Provider not ready for automation ${automation.name}: ${providerCheck.reason}`);
-          await markEventProcessed(supabase, event.id, providerCheck.reason);
+          console.log(
+            `⚠️ Provider not ready for automation ${automation.name}: ${providerCheck.reason}`,
+          );
+          if (providerCheck.retryable) {
+            const retryAt = new Date(
+              Date.now() + 60 * 60 * 1000,
+            ).toISOString();
+            await deferTriggerEvent(supabase, event.id, retryAt);
+          } else {
+            await markEventProcessed(supabase, event.id, providerCheck.reason);
+          }
           continue;
         }
 
         // Process the automation for this customer (handles both array and React Flow formats)
-        const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(automation.workflow_steps);
+        const workflowSteps: WorkflowStep[] = normalizeWorkflowSteps(
+          automation.workflow_steps,
+        );
         if (workflowSteps.length === 0) {
           console.log(`⚠️ No workflow steps for automation ${automation.id}`);
-          await markEventProcessed(supabase, event.id, 'No workflow steps defined');
+          await markEventProcessed(
+            supabase,
+            event.id,
+            "No workflow steps defined",
+          );
+          continue;
+        }
+
+        const triggerContext = {
+          ...(event.metadata?.provider_event ?? event.metadata ?? {}),
+          ...(event.segment_id ? { segment_id: event.segment_id } : {}),
+          ...(event.persona_id ? { persona_id: event.persona_id } : {}),
+          ...(event.form_id ? { form_id: event.form_id } : {}),
+        };
+
+        if (
+          !matchesAutomationTriggerConditions(
+            automation.trigger_conditions,
+            triggerContext,
+          )
+        ) {
+          await markEventProcessed(
+            supabase,
+            event.id,
+            "Trigger conditions did not match provider event",
+          );
           continue;
         }
 
@@ -986,12 +1244,13 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
           customer,
           workflowSteps.length,
           providerCheck.channelAvailability,
+          triggerContext,
         );
         if (enrollment.decision === 'queued' && enrollment.queued_until) {
           await deferTriggerEvent(supabase, event.id, enrollment.queued_until);
           continue;
         }
-        if (enrollment.decision !== 'started' || !enrollment.run_id) {
+        if (enrollment.decision !== "started" || !enrollment.run_id) {
           await markEventProcessed(
             supabase,
             event.id,
@@ -1003,17 +1262,30 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
 
         // Schedule the first step
         const firstStep = workflowSteps[0];
-        const scheduledAt = calculateScheduledTime(firstStep.delayMin, automation, customer);
+        const scheduledAt = calculateScheduledTime(
+          firstStep.delayMin,
+          automation,
+          customer,
+        );
 
         try {
-          await enqueueMessage(supabase, automation, customer, firstStep, 0, runId, scheduledAt);
+          await enqueueMessage(
+            supabase,
+            automation,
+            customer,
+            firstStep,
+            0,
+            runId,
+            scheduledAt,
+            triggerContext,
+          );
 
           // Update run with next scheduled time
           const { error: scheduleError } = await supabase
-            .from('automation_runs')
+            .from("automation_runs")
             .update({ next_step_scheduled_at: scheduledAt.toISOString() })
-            .eq('id', runId)
-            .eq('status', 'active');
+            .eq("id", runId)
+            .eq("status", "active");
           if (scheduleError) throw scheduleError;
         } catch (enqueueError) {
           await failAutomationRunStart(supabase, runId, enqueueError);
@@ -1026,28 +1298,35 @@ async function processPendingTriggerEvents(supabase: any): Promise<{ eventsProce
         eventsProcessed++;
         eventsEnqueued++;
 
-        console.log(`✅ Processed trigger event for customer ${customer.email} in automation ${automation.name}`);
-
+        console.log(
+          `✅ Processed trigger event for customer ${customer.email} in automation ${automation.name}`,
+        );
       } catch (eventError) {
-        console.error(`❌ Error processing trigger event ${event.id}:`, eventError);
+        console.error(
+          `❌ Error processing trigger event ${event.id}:`,
+          eventError,
+        );
         await failTriggerEvent(
           supabase,
           event.id,
-          eventError instanceof Error ? eventError.message : 'Unknown error',
+          eventError instanceof Error ? eventError.message : "Unknown error",
         );
       }
     }
-
   } catch (error) {
-    console.error('❌ Error in processPendingTriggerEvents:', error);
+    console.error("❌ Error in processPendingTriggerEvents:", error);
   }
 
   return { eventsProcessed, eventsEnqueued };
 }
 
-async function markEventProcessed(supabase: any, eventId: string, errorMessage?: string) {
+async function markEventProcessed(
+  supabase: any,
+  eventId: string,
+  errorMessage?: string,
+) {
   const { data: completed, error } = await supabase.rpc(
-    'complete_automation_trigger_event',
+    "complete_automation_trigger_event",
     {
       p_event_id: eventId,
       p_worker_id: WORKER_ID,
@@ -1064,7 +1343,7 @@ async function deferTriggerEvent(
   queuedUntil: string,
 ) {
   const { data: deferred, error } = await supabase.rpc(
-    'defer_automation_trigger_event',
+    "defer_automation_trigger_event",
     {
       p_event_id: eventId,
       p_worker_id: WORKER_ID,
@@ -1080,12 +1359,13 @@ async function failTriggerEvent(
   eventId: string,
   errorMessage: string,
 ) {
-  const { data, error } = await supabase.rpc('fail_automation_trigger_event', {
+  const { data, error } = await supabase.rpc("fail_automation_trigger_event", {
     p_event_id: eventId,
     p_worker_id: WORKER_ID,
     p_error_message: errorMessage,
   });
-  if (error) console.error(`Failed to release trigger event ${eventId}:`, error);
+  if (error)
+    console.error(`Failed to release trigger event ${eventId}:`, error);
   else console.log(`Trigger event ${eventId} retry state:`, data);
 }
 

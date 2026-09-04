@@ -5,7 +5,7 @@ import { CRMAccessGate } from '@/components/crm/CRMAccessGate';
 
 const CRMAnalytics: React.FC = () => {
   return (
-    <CRMAccessGate>
+    <CRMAccessGate requiredPermission="reports.read">
       <div className="py-6">
         <CampaignAnalyticsDashboard />
       </div>

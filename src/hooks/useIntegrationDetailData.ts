@@ -67,6 +67,7 @@ const META_OAUTH_SCOPE =
   "pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_manage_insights,read_insights";
 
 const COMING_SOON_INTEGRATION_SLUGS = [
+  "clover",
   "hubspot",
   "zapier",
   "slack",
@@ -107,6 +108,34 @@ const COMING_SOON_CONTENT: Record<
   ComingSoonIntegrationSlug,
   ComingSoonContent
 > = {
+  clover: {
+    statusLabel: "Awaiting Clover approval",
+    statusTone: "warning",
+    availabilityLabel: "Vendor approval pending",
+    description:
+      "BloomSuite's Clover adapter is staged but disabled while we wait for formal API approval and the final production contract from Clover.",
+    metadata: [
+      "Category: POS Systems",
+      "Scope: Customers, products, sales, loyalty, and webhooks",
+      "Availability: Blocked on Clover approval",
+    ],
+    capabilities: [
+      "Sync resolved Clover customers into one BloomSuite profile",
+      "Import products and transaction history for segmentation",
+      "Receive approved real-time sales and refund webhooks",
+      "Reconcile Clover loyalty data without duplicating customers",
+    ],
+    callout: {
+      tone: "warning",
+      title: "Clover is not available for connection yet.",
+      description:
+        "OAuth, synchronization, tests, and webhooks remain server-side disabled until formal vendor approval is recorded.",
+    },
+    notifyLabel: "Notify me when Clover is approved",
+    notifyConfirmation:
+      "You're on the list. We'll notify you when Clover is approved and available.",
+    requestLabel: "Ask about Clover availability →",
+  },
   shopify: {
     statusLabel: "Coming soon",
     statusTone: "warning",
@@ -4029,6 +4058,10 @@ export function useIntegrationDetailData(
         return null;
       }
 
+      if (seed.defaultStatus === "coming-soon") {
+        return fallback;
+      }
+
       switch (seed.slug) {
         case "square": {
           if (!tenant?.id || !user?.id) {
@@ -4731,6 +4764,10 @@ export function useIntegrationDetailData(
     const base = query.data ?? buildFallbackResult(seed);
     if (!base) {
       return null;
+    }
+
+    if (seed?.defaultStatus === "coming-soon") {
+      return base;
     }
 
     if (seed?.slug === "square") {

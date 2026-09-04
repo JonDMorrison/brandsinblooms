@@ -99,95 +99,47 @@ export async function recordSMSConsentEvent(params: {
 }
 
 /**
- * Calculate the preferred channel based on opt-in status
- */
-function calculatePreferredChannel(customer: {
-  email_opt_in: boolean | null;
-  sms_opt_in: boolean | null;
-}): "email" | "sms" | "both" | "none" {
-  const hasEmail = customer.email_opt_in === true;
-  const hasSMS = customer.sms_opt_in === true;
-
-  if (hasEmail && hasSMS) return "both";
-  if (hasEmail) return "email";
-  if (hasSMS) return "sms";
-  return "none";
-}
-
-/**
  * Update a customer's SMS consent status and record the event
  */
-// FIX: [issue #51] - TODO: Wrap SMS consent update in a database transaction (RPC) to ensure atomicity
 export async function updateCustomerSMSConsent(params: {
   tenantId: string;
   customerId: string;
   phone: string;
   optIn: boolean;
   source: string;
+  consentBasis?: "express" | "implied";
+  evidence?: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const now = new Date().toISOString();
-
-    // Build update data with opt-in/opt-out timestamps
-    const updateData: Record<string, any> = {
-      sms_opt_in: params.optIn,
-      sms_consent_source: params.source,
-      opt_out: !params.optIn,
-      updated_at: now,
-    };
-
-    if (params.optIn) {
-      updateData.sms_opt_in_at = now;
-      updateData.sms_opt_out_at = null; // Clear opt-out timestamp
-    } else {
-      updateData.sms_opt_out_at = now;
-      // Keep sms_opt_in_at for historical purposes
+    if (
+      params.optIn &&
+      (!params.consentBasis || (params.evidence?.trim().length ?? 0) < 10)
+    ) {
+      return {
+        success: false,
+        error:
+          "Opt-in requires a lawful basis and at least 10 characters of evidence",
+      };
     }
 
-    // Update the customer record
-    const { error: updateError } = await supabase
-      .from("crm_customers")
-      .update(updateData)
-      .eq("id", params.customerId);
-
-    if (updateError) {
-      console.error("Failed to update customer SMS consent:", updateError);
-      return { success: false, error: updateError.message };
-    }
-
-    // Also update preferred_channel based on new consent status
-    try {
-      const { data: customer } = await supabase
-        .from("crm_customers")
-        .select("email_opt_in, sms_opt_in")
-        .eq("id", params.customerId)
-        .single();
-
-      if (customer) {
-        const preferredChannel = calculatePreferredChannel({
-          email_opt_in: customer.email_opt_in,
-          sms_opt_in: params.optIn, // Use the new value
-        });
-
-        await supabase
-          .from("crm_customers")
-          .update({ preferred_channel: preferredChannel })
-          .eq("id", params.customerId);
-      }
-    } catch (channelError) {}
-
-    // Record the consent event
-    await recordSMSConsentEvent({
-      tenantId: params.tenantId,
-      customerId: params.customerId,
-      phone: params.phone,
-      eventType: params.optIn ? "opt_in" : "opt_out",
-      source: params.source,
-      ipAddress: params.ipAddress,
-      userAgent: params.userAgent,
-    });
+    const source =
+      params.source === "admin_panel" ? "admin_correction" : params.source;
+    const { error } = await supabase.rpc(
+      "set_customer_marketing_consent_authorized",
+      {
+        p_customer_id: params.customerId,
+        p_channel: "sms",
+        p_opt_in: params.optIn,
+        p_source: source,
+        p_consent_basis: params.optIn ? params.consentBasis : null,
+        p_evidence: params.evidence?.trim() || null,
+        p_ip_address: params.ipAddress ?? null,
+        p_user_agent: params.userAgent ?? null,
+      },
+    );
+    if (error) return { success: false, error: error.message };
 
     return { success: true };
   } catch (err) {

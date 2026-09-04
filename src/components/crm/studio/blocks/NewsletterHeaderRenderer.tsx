@@ -128,7 +128,10 @@ export default function NewsletterHeaderRenderer({
   const paddingY = block.verticalPadding ?? getDefaultPaddingY(layout);
   const showDivider = block.showDividerBelow ?? block.showDivider ?? true;
   const dividerColor = block.dividerBelowColor || "#e2e8f0";
-  const logoSize = block.logoSize ?? (layout === "banner" ? 36 : 40);
+  const defaultLogoSize = layout === "banner" ? 48 : 56;
+  const requestedLogoSize = block.logoSize ?? defaultLogoSize;
+  const logoSize =
+    requestedLogoSize === 40 ? defaultLogoSize : requestedLogoSize;
   const logoDirection = block.logoAlignment === "right" ? "row-reverse" : "row";
   const title = block.headline?.trim() ? block.headline : "Newsletter Title";
   const tagline = block.tagline?.trim()

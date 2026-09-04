@@ -26,6 +26,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { assessDomainAuthentication } from "@/lib/email/domainAuthentication";
 
 // =========================================================
 // Readiness Status Types (matches edge function)
@@ -35,6 +36,7 @@ type ReadinessStatus =
   | "CONNECTED_READY" // DNS verified, domain is working - primary success state
   | "ACTION_REQUIRED_DNS_MISSING"
   | "ACTION_REQUIRED_DNS_CONFLICT"
+  | "ACTION_REQUIRED_AUTHENTICATION"
   | "DOMAIN_NOT_CONNECTED"
   // Legacy statuses (for backward compatibility)
   | "READY_TO_SEND"
@@ -230,6 +232,14 @@ export const EmailDomainsList = ({
           ctaAction: "fix_conflict",
           showForceCheck: false,
         };
+      case "ACTION_REQUIRED_AUTHENTICATION":
+        return {
+          status,
+          badge: { text: "Authentication Required", variant: "red" },
+          message,
+          subMessage,
+          showForceCheck: true,
+        };
       case "DOMAIN_NOT_CONNECTED":
       default:
         return {
@@ -254,6 +264,7 @@ export const EmailDomainsList = ({
       records.every((r: any) => r.dns_verified || r.status === "verified");
     const resendVerified =
       resendStatus?.status === "verified" || resendStatus?.dkim_verified;
+    const authentication = assessDomainAuthentication(resendStatus);
 
     // Check for paused status (reputation issues) - show connected but with warning
     if (domain.status === "paused") {
@@ -273,6 +284,13 @@ export const EmailDomainsList = ({
       domain.status === "active" ||
       resendStatus?.verification_phase === "dns_present_waiting_provider"
     ) {
+      if (!authentication.ready) {
+        return mapReadinessToDisplay(
+          "ACTION_REQUIRED_AUTHENTICATION",
+          authentication.message,
+          "Marketing campaigns stay blocked until every authentication check passes.",
+        );
+      }
       return mapReadinessToDisplay(
         "CONNECTED_READY",
         "Your email domain is connected and ready to use.",
@@ -506,6 +524,11 @@ export const EmailDomainsList = ({
           icon: AlertTriangle,
         };
       case "ACTION_REQUIRED_DNS_CONFLICT":
+        return {
+          color: "danger" as const,
+          icon: AlertTriangle,
+        };
+      case "ACTION_REQUIRED_AUTHENTICATION":
         return {
           color: "danger" as const,
           icon: AlertTriangle,

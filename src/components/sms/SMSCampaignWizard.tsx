@@ -885,6 +885,17 @@ export function SMSCampaignWizard() {
           (audienceMode === "persona" && Boolean(selectedPersona)),
       },
       {
+        key: "recipients",
+        label: "Eligible recipients",
+        detail: isAudienceLoading
+          ? "BloomSuite is confirming current SMS consent and suppression status."
+          : "At least one currently consented, unsuppressed recipient is required.",
+        passed:
+          !isAudienceLoading &&
+          recipientEstimate !== null &&
+          recipientEstimate > 0,
+      },
+      {
         key: "message",
         label: "Message ready",
         detail: "Write the SMS copy before continuing to launch.",
@@ -919,7 +930,9 @@ export function SMSCampaignWizard() {
     campaignName,
     compliancePassed,
     complianceWarningsAcknowledged,
+    isAudienceLoading,
     message,
+    recipientEstimate,
     scheduleMode,
     scheduledAt,
     selectedPersona,
@@ -1116,6 +1129,18 @@ export function SMSCampaignWizard() {
     try {
       setIsCreating(true);
       const scheduleValue = scheduleMode === "later" ? scheduledAt : null;
+      const sendImmediately = scheduleMode === "now";
+      const segmentFilter = {
+        type:
+          audienceMode === "segment"
+            ? "custom"
+            : audienceMode === "persona"
+              ? "persona"
+              : "all",
+        segment_id:
+          audienceMode === "segment" ? (selectedSegment?.id ?? null) : null,
+        system_segment_type: null,
+      };
       const { data, error } = await supabase
         .from("crm_sms_campaigns")
         .insert({
@@ -1138,6 +1163,7 @@ export function SMSCampaignWizard() {
               : null,
           targeting_logic: audienceMode === "persona" ? "any" : null,
           total_recipients_estimate: recipientEstimate,
+          metrics: { segment_filter: segmentFilter },
           source: "wizard",
         })
         .select("id")
@@ -1147,10 +1173,25 @@ export function SMSCampaignWizard() {
         throw error;
       }
 
+      if (sendImmediately) {
+        const { data: sendResult, error: sendError } =
+          await supabase.functions.invoke("send-sms-campaign", {
+            body: { campaignId: data.id },
+          });
+
+        if (sendError || sendResult?.error) {
+          throw new Error(
+            sendResult?.error ||
+              sendError?.message ||
+              "Unable to start the SMS campaign.",
+          );
+        }
+      }
+
       toast.success(
         scheduleValue
           ? "SMS campaign scheduled"
-          : "SMS campaign saved as draft",
+          : "SMS campaign queued for sending",
       );
       navigate(data?.id ? `/sms/${data.id}` : "/sms");
     } catch (error) {

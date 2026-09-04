@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CustomerActivityPanel } from "@/components/activity/CustomerActivityPanel";
+import { CustomerAutomationsCard } from "@/components/crm/customer-dashboard/CustomerAutomationsCard";
 import { AskBloomResourceTrigger } from "@/components/askBloom/AskBloomResourceTrigger";
 import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsightsActions";
 import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
@@ -25,6 +26,7 @@ import { CustomerContactCard } from "@/components/crm/customer-dashboard/Custome
 import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
+import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
@@ -52,6 +54,7 @@ import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   transformToCrossChannelMetrics,
   transformToEmailMetrics,
@@ -198,6 +201,11 @@ const CustomerDashboardPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { role: crmRole, hasPermission } = useUserRole();
+  const canEditCustomer = hasPermission("customers.write");
+  const canManageSegments = hasPermission("segments.manage");
+  const canRegenerateInsights = hasPermission("content.design");
+  const canDeleteCustomer = crmRole === "owner_admin";
   const [searchParams, setSearchParams] = useSearchParams();
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [localCustomer, setLocalCustomer] = React.useState<CustomerData | null>(
@@ -225,6 +233,7 @@ const CustomerDashboardPage: React.FC = () => {
     purchaseMetrics,
     postPurchaseMetrics,
     loyaltyMetrics,
+    loyaltyAccounts,
     lifecycleMetrics,
     contentIntentMetrics,
     riskSignals,
@@ -344,8 +353,9 @@ const CustomerDashboardPage: React.FC = () => {
       transformToLoyaltyMetrics(
         loyaltyMetrics ?? null,
         purchaseMetrics ?? null,
+        loyaltyAccounts,
       ),
-    [loyaltyMetrics, purchaseMetrics],
+    [loyaltyAccounts, loyaltyMetrics, purchaseMetrics],
   );
   const riskDisplayMetrics = React.useMemo(
     () => transformToRiskMetrics(riskSignals ?? null),
@@ -516,13 +526,17 @@ const CustomerDashboardPage: React.FC = () => {
             segmentLabels={segmentLabels}
             isVip={isVip}
             isDeleting={deleteCustomer.isPending}
+            canEdit={canEditCustomer}
+            canDelete={canDeleteCustomer}
             headerActions={
-              <AskBloomResourceTrigger
-                resourceType="customer"
-                resourceId={displayCustomer.id}
-                resourceLabel={customerName}
-                buildContext={buildCustomerResourceFocus}
-              />
+              canRegenerateInsights ? (
+                <AskBloomResourceTrigger
+                  resourceType="customer"
+                  resourceId={displayCustomer.id}
+                  resourceLabel={customerName}
+                  buildContext={buildCustomerResourceFocus}
+                />
+              ) : null
             }
             onBack={() => navigate("/crm/customers")}
             onEdit={() => setIsEditDialogOpen(true)}
@@ -637,14 +651,24 @@ const CustomerDashboardPage: React.FC = () => {
                     phone: displayCustomer.phone,
                   }}
                   onCustomerPatched={handleCustomerPatched}
-                  onOpenBatchEdit={() => setIsEditDialogOpen(true)}
+                  onOpenBatchEdit={
+                    canEditCustomer
+                      ? () => setIsEditDialogOpen(true)
+                      : undefined
+                  }
+                  canEdit={canEditCustomer}
                 />
                 <CustomerConsentCard
                   customer={displayCustomer}
                   customerLabel={customerName}
                   onCustomerPatched={handleCustomerPatched}
+                  canManage={canEditCustomer}
                 />
-                <CustomerSegmentsCard customerId={displayCustomer.id} />
+                <CustomerProfileAttributesCard customer={displayCustomer} />
+                <CustomerSegmentsCard
+                  customerId={displayCustomer.id}
+                  canManage={canManageSegments}
+                />
                 <CustomerSnapshot
                   customer={{
                     name: customerName,
@@ -661,6 +685,7 @@ const CustomerDashboardPage: React.FC = () => {
               </Stack>
 
               <Stack spacing={2}>
+                <CustomerAutomationsCard customerId={displayCustomer.id} />
                 <CustomerEventTimeline
                   events={timelineDisplayEvents}
                   compact
@@ -792,14 +817,16 @@ const CustomerDashboardPage: React.FC = () => {
                 loading={isAILoading}
                 regenerating={isAIRegenerating}
                 errorMessage={aiError?.message ?? null}
-                onRegenerate={regenerateAIInsights}
+                onRegenerate={
+                  canRegenerateInsights ? regenerateAIInsights : undefined
+                }
               />
             </Stack>
           ) : null}
         </Stack>
       </PageContainer>
 
-      {customerId ? (
+      {customerId && canEditCustomer ? (
         <EditCustomerDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}

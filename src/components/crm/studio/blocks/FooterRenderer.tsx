@@ -115,7 +115,8 @@ function LogoMark({
 }) {
   const businessName =
     block.businessName || designSystem?.company.name || "Your Business";
-  const size = block.logoSize ?? 40;
+  const requestedSize = block.logoSize ?? 64;
+  const size = requestedSize === 40 ? 64 : requestedSize;
 
   if (block.logoUrl) {
     return (

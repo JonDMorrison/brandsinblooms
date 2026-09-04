@@ -1335,6 +1335,7 @@ export type Database = {
         Row: {
           automation_id: string | null;
           claimed_at: string | null;
+          claimed_by: string | null;
           created_at: string | null;
           customer_id: string | null;
           error_message: string | null;
@@ -1349,12 +1350,14 @@ export type Database = {
           queued_until: string | null;
           retry_count: number | null;
           segment_id: string | null;
+          source_event_key: string | null;
           submission_id: string | null;
           tenant_id: string;
         };
         Insert: {
           automation_id?: string | null;
           claimed_at?: string | null;
+          claimed_by?: string | null;
           created_at?: string | null;
           customer_id?: string | null;
           error_message?: string | null;
@@ -1369,12 +1372,14 @@ export type Database = {
           queued_until?: string | null;
           retry_count?: number | null;
           segment_id?: string | null;
+          source_event_key?: string | null;
           submission_id?: string | null;
           tenant_id: string;
         };
         Update: {
           automation_id?: string | null;
           claimed_at?: string | null;
+          claimed_by?: string | null;
           created_at?: string | null;
           customer_id?: string | null;
           error_message?: string | null;
@@ -1389,6 +1394,7 @@ export type Database = {
           queued_until?: string | null;
           retry_count?: number | null;
           segment_id?: string | null;
+          source_event_key?: string | null;
           submission_id?: string | null;
           tenant_id?: string;
         };
@@ -10467,6 +10473,92 @@ export type Database = {
           },
         ];
       };
+      loyalty_provider_accounts: {
+        Row: {
+          balance: number;
+          balance_unit: string;
+          created_at: string;
+          currency: string | null;
+          customer_id: string;
+          enrolled_at: string | null;
+          external_account_id: string;
+          external_program_id: string | null;
+          id: string;
+          last_synced_at: string;
+          lifetime_value: number;
+          program_name: string | null;
+          provider: string;
+          status: string;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          balance?: number;
+          balance_unit: string;
+          created_at?: string;
+          currency?: string | null;
+          customer_id: string;
+          enrolled_at?: string | null;
+          external_account_id: string;
+          external_program_id?: string | null;
+          id?: string;
+          last_synced_at: string;
+          lifetime_value?: number;
+          program_name?: string | null;
+          provider: string;
+          status?: string;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          balance?: number;
+          balance_unit?: string;
+          created_at?: string;
+          currency?: string | null;
+          customer_id?: string;
+          enrolled_at?: string | null;
+          external_account_id?: string;
+          external_program_id?: string | null;
+          id?: string;
+          last_synced_at?: string;
+          lifetime_value?: number;
+          program_name?: string | null;
+          provider?: string;
+          status?: string;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_provider_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "crm_customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_360_enriched";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "admin_tenant_overview";
+            referencedColumns: ["tenant_id"];
+          },
+          {
+            foreignKeyName: "loyalty_provider_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       loyalty_points_transactions: {
         Row: {
           created_at: string | null;
@@ -16533,6 +16625,19 @@ export type Database = {
         Returns: Json;
       };
       set_customer_marketing_consent: {
+        Args: {
+          p_channel: string;
+          p_consent_basis?: string | null;
+          p_customer_id: string;
+          p_evidence?: string | null;
+          p_ip_address?: string | null;
+          p_opt_in: boolean;
+          p_source: string;
+          p_user_agent?: string | null;
+        };
+        Returns: Json;
+      };
+      set_customer_marketing_consent_authorized: {
         Args: {
           p_channel: string;
           p_consent_basis?: string | null;

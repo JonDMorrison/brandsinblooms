@@ -1,54 +1,69 @@
 /**
  * SMS Campaign Enqueue Worker
- * 
+ *
  * Takes a campaign in enqueue_status='not_started' or 'enqueuing' (stale)
  * and incrementally creates sms_messages and sms_send_jobs in batches.
- * 
+ *
  * Designed to be called repeatedly until campaign is fully enqueued.
  * Safe to run multiple times - uses atomic claiming and cursor-based paging.
  */
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
-import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts'
-import { renderMergeTags, convertLegacyTags, createMergeTagDataFromCustomer } from '../_shared/mergeTagEngine.ts'
-import { countSmsSegments } from '../_shared/smsSegmentCounter.ts'
-import { getSmsWarmupInfoByPhoneOrMessagingService, ensureSmsWarmupRowForMessagingServiceIfNeeded } from '../_shared/smsWarmup.ts'
-import { requireInternalApiKey } from '../_shared/requireInternalApiKey.ts'
-import { resolveSmsEnqueueOutcome } from '../_shared/smsCampaignOutcome.ts'
+import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  corsHeaders,
+  handleCorsPrelight,
+  corsJsonResponse,
+} from "../_shared/cors.ts";
+import {
+  renderMergeTags,
+  convertLegacyTags,
+  createMergeTagDataFromCustomer,
+} from "../_shared/mergeTagEngine.ts";
+import { countSmsSegments } from "../_shared/smsSegmentCounter.ts";
+import {
+  getSmsWarmupInfoByPhoneOrMessagingService,
+  ensureSmsWarmupRowForMessagingServiceIfNeeded,
+} from "../_shared/smsWarmup.ts";
+import { requireInternalApiKey } from "../_shared/requireInternalApiKey.ts";
+import { resolveSmsEnqueueOutcome } from "../_shared/smsCampaignOutcome.ts";
 
 // Configuration constants
-const ENQUEUE_PAGE_SIZE = Number(Deno.env.get("SMS_ENQUEUE_PAGE_SIZE") ?? "1000");
+const ENQUEUE_PAGE_SIZE = Number(
+  Deno.env.get("SMS_ENQUEUE_PAGE_SIZE") ?? "1000",
+);
 const JOB_BATCH_SIZE = Number(Deno.env.get("SMS_JOB_BATCH_SIZE") ?? "200");
-const MAX_ENQUEUE_PAGES_PER_RUN = Number(Deno.env.get("SMS_MAX_ENQUEUE_PAGES_PER_RUN") ?? "3");
+const MAX_ENQUEUE_PAGES_PER_RUN = Number(
+  Deno.env.get("SMS_MAX_ENQUEUE_PAGES_PER_RUN") ?? "3",
+);
 const DEFAULT_MMS_UNIT_COST = 3;
 const STALE_CLAIM_MINUTES = 15;
 
 const WORKER_ID = `enqueue-worker-${crypto.randomUUID().slice(0, 8)}`;
 
 interface EnqueueStats {
-  workerId: string
-  campaignId: string
-  pagesProcessed: number
-  customersProcessed: number
-  messagesCreated: number
-  jobsCreated: number
-  hasMoreCustomers: boolean
-  enqueueComplete: boolean
+  workerId: string;
+  campaignId: string;
+  pagesProcessed: number;
+  customersProcessed: number;
+  messagesCreated: number;
+  jobsCreated: number;
+  hasMoreCustomers: boolean;
+  enqueueComplete: boolean;
 }
 
 /**
  * Format phone number to E.164 format
  */
 function formatPhoneForTwilio(phone: string): string {
-  if (!phone) return '';
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\D/g, "");
+  if (cleaned.length === 11 && cleaned.startsWith("1")) {
     return `+${cleaned}`;
   }
   if (cleaned.length === 10) {
     return `+1${cleaned}`;
   }
-  if (phone.startsWith('+') && cleaned.length >= 10) {
+  if (phone.startsWith("+") && cleaned.length >= 10) {
     return phone;
   }
   return `+1${cleaned}`;
@@ -80,84 +95,137 @@ Deno.serve(async (req) => {
     const forceStart = requestBody.forceStart === true;
 
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // Cron invokes the worker without a campaign ID. Pick one unfinished
-    // campaign so large audiences continue across bounded invocations.
+    // Cron invokes the worker without a campaign ID. Atomically move one due
+    // scheduled campaign into the queue before resuming unfinished campaigns.
+    // The RPC uses SKIP LOCKED and expires excessively late schedules, so
+    // overlapping cron runs cannot double-send or surprise customers later.
+    if (!campaignId) {
+      const { data: dueCampaignId, error: dueCampaignError } =
+        await supabase.rpc("claim_due_sms_campaign_for_enqueue", {
+          p_worker_id: WORKER_ID,
+        });
+
+      if (dueCampaignError) {
+        console.error(
+          "[sms-enqueue-worker] Failed to claim due scheduled campaign:",
+          dueCampaignError,
+        );
+        return corsJsonResponse(
+          { error: "Failed to claim due scheduled campaigns" },
+          { status: 500 },
+        );
+      }
+
+      campaignId = dueCampaignId || undefined;
+    }
+
+    // Pick one unfinished campaign so large audiences continue across bounded
+    // invocations, or so a claimed schedule recovers after a worker crash.
     if (!campaignId) {
       const { data: pendingCampaign, error: pendingError } = await supabase
-        .from('crm_sms_campaigns')
-        .select('id')
-        .in('enqueue_status', ['not_started', 'enqueuing'])
-        .in('status', ['queued', 'sending'])
-        .order('updated_at', { ascending: true })
+        .from("crm_sms_campaigns")
+        .select("id")
+        .in("enqueue_status", ["not_started", "enqueuing"])
+        .in("status", ["queued", "sending"])
+        .order("updated_at", { ascending: true })
         .limit(1)
         .maybeSingle();
 
       if (pendingError) {
-        console.error('[sms-enqueue-worker] Failed to discover pending campaign:', pendingError);
-        return corsJsonResponse({ error: 'Failed to discover pending campaigns' }, { status: 500 });
+        console.error(
+          "[sms-enqueue-worker] Failed to discover pending campaign:",
+          pendingError,
+        );
+        return corsJsonResponse(
+          { error: "Failed to discover pending campaigns" },
+          { status: 500 },
+        );
       }
       if (!pendingCampaign) {
-        return corsJsonResponse({ success: true, processed: 0, message: 'No campaigns need enqueueing.' });
+        return corsJsonResponse({
+          success: true,
+          processed: 0,
+          message: "No campaigns need enqueueing.",
+        });
       }
       campaignId = pendingCampaign.id;
     }
 
-    console.log(`[sms-enqueue-worker] Starting for campaign ${campaignId}, worker=${WORKER_ID}`);
+    console.log(
+      `[sms-enqueue-worker] Starting for campaign ${campaignId}, worker=${WORKER_ID}`,
+    );
 
     // Step 1: Load campaign
     const { data: campaign, error: campaignError } = await supabase
-      .from('crm_sms_campaigns')
-      .select('*')
-      .eq('id', campaignId)
+      .from("crm_sms_campaigns")
+      .select("*")
+      .eq("id", campaignId)
       .single();
 
     if (campaignError || !campaign) {
-      console.error('[sms-enqueue-worker] Campaign not found:', campaignError);
-      return corsJsonResponse({ error: 'Campaign not found' }, { status: 404 });
+      console.error("[sms-enqueue-worker] Campaign not found:", campaignError);
+      return corsJsonResponse({ error: "Campaign not found" }, { status: 404 });
     }
 
     // Step 2: Check if already enqueued
-    if (campaign.enqueue_status === 'enqueued') {
-      console.log(`[sms-enqueue-worker] Campaign ${campaignId} already fully enqueued`);
+    if (campaign.enqueue_status === "enqueued") {
+      console.log(
+        `[sms-enqueue-worker] Campaign ${campaignId} already fully enqueued`,
+      );
       return corsJsonResponse({
         success: true,
         alreadyEnqueued: true,
-        message: 'Campaign is already fully enqueued.'
+        message: "Campaign is already fully enqueued.",
       });
     }
 
     // Step 3: Atomic claim
-    const { data: claimed, error: claimError } = await supabase.rpc('claim_sms_campaign_enqueue', {
-      p_campaign_id: campaignId,
-      p_worker_id: WORKER_ID,
-      p_stale_minutes: STALE_CLAIM_MINUTES
-    });
+    const { data: claimed, error: claimError } = await supabase.rpc(
+      "claim_sms_campaign_enqueue",
+      {
+        p_campaign_id: campaignId,
+        p_worker_id: WORKER_ID,
+        p_stale_minutes: STALE_CLAIM_MINUTES,
+      },
+    );
 
     if (claimError) {
-      console.error('[sms-enqueue-worker] Claim error:', claimError);
-      return corsJsonResponse({ error: 'Failed to claim campaign for enqueueing' }, { status: 500 });
+      console.error("[sms-enqueue-worker] Claim error:", claimError);
+      return corsJsonResponse(
+        { error: "Failed to claim campaign for enqueueing" },
+        { status: 500 },
+      );
     }
 
     if (!claimed && !forceStart) {
-      console.log(`[sms-enqueue-worker] Campaign ${campaignId} is being enqueued by another worker`);
-      return corsJsonResponse({
-        success: false,
-        message: 'Campaign is already being prepared by another process.'
-      }, { status: 409 });
+      console.log(
+        `[sms-enqueue-worker] Campaign ${campaignId} is being enqueued by another worker`,
+      );
+      return corsJsonResponse(
+        {
+          success: false,
+          message: "Campaign is already being prepared by another process.",
+        },
+        { status: 409 },
+      );
     }
 
     // Step 4: Resolve sending identity
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
-    const twilioMessagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
-    
-    const fromPhone = campaign.from_phone 
-      ? formatPhoneForTwilio(campaign.from_phone) 
-      : (twilioPhoneNumber ? formatPhoneForTwilio(twilioPhoneNumber) : null);
-    
+    const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+    const twilioMessagingServiceSid = Deno.env.get(
+      "TWILIO_MESSAGING_SERVICE_SID",
+    );
+
+    const fromPhone = campaign.from_phone
+      ? formatPhoneForTwilio(campaign.from_phone)
+      : twilioPhoneNumber
+        ? formatPhoneForTwilio(twilioPhoneNumber)
+        : null;
+
     const messagingServiceSid = twilioMessagingServiceSid || null;
 
     // Get warmup info
@@ -167,34 +235,47 @@ Deno.serve(async (req) => {
         warmupInfo = await ensureSmsWarmupRowForMessagingServiceIfNeeded(
           supabase,
           messagingServiceSid,
-          campaign.tenant_id
+          campaign.tenant_id,
         );
       } else if (fromPhone) {
-        warmupInfo = await getSmsWarmupInfoByPhoneOrMessagingService(supabase, { fromPhone });
+        warmupInfo = await getSmsWarmupInfoByPhoneOrMessagingService(supabase, {
+          fromPhone,
+        });
       } else {
-        throw new Error('No sending identity configured');
+        throw new Error("No sending identity configured");
       }
     } catch (warmupError) {
-      console.error('[sms-enqueue-worker] Warmup lookup failed:', warmupError);
-      await supabase.from('crm_sms_campaigns').update({
-        enqueue_status: 'failed',
-        updated_at: new Date().toISOString()
-      }).eq('id', campaignId);
-      return corsJsonResponse({ error: 'SMS sending identity not configured' }, { status: 500 });
+      console.error("[sms-enqueue-worker] Warmup lookup failed:", warmupError);
+      await supabase
+        .from("crm_sms_campaigns")
+        .update({
+          enqueue_status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId);
+      return corsJsonResponse(
+        { error: "SMS sending identity not configured" },
+        { status: 500 },
+      );
     }
 
     // Step 5: Get company profile for merge tags
     const { data: companyProfile } = await supabase
-      .from('company_profiles')
-      .select('company_name, company_phone, company_email, compliance_settings')
-      .eq('user_id', campaign.user_id)
+      .from("company_profiles")
+      .select("company_name, company_phone, company_email, compliance_settings")
+      .eq("user_id", campaign.user_id)
       .maybeSingle();
 
     const companyInfo = companyProfile || {};
-    const messageTemplate = convertLegacyTags(campaign.message || '');
-    const isMms = !!(campaign.image_url || (campaign.media_urls && campaign.media_urls.length > 0));
-    const smsBillingSettings = (companyProfile?.compliance_settings as any)?.sms_billing || {};
-    const mmsUnitCost = smsBillingSettings.mms_unit_cost ?? DEFAULT_MMS_UNIT_COST;
+    const messageTemplate = convertLegacyTags(campaign.message || "");
+    const isMms = !!(
+      campaign.image_url ||
+      (campaign.media_urls && campaign.media_urls.length > 0)
+    );
+    const smsBillingSettings =
+      (companyProfile?.compliance_settings as any)?.sms_billing || {};
+    const mmsUnitCost =
+      smsBillingSettings.mms_unit_cost ?? DEFAULT_MMS_UNIT_COST;
 
     // Determine hour bucket for partition key
     const hourBucket = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
@@ -208,7 +289,7 @@ Deno.serve(async (req) => {
       messagesCreated: 0,
       jobsCreated: 0,
       hasMoreCustomers: true,
-      enqueueComplete: false
+      enqueueComplete: false,
     };
 
     let cursorCustomerId = campaign.enqueue_cursor_customer_id || null;
@@ -216,14 +297,28 @@ Deno.serve(async (req) => {
     // Step 6: Process pages of customers
     // Get segment filter info from campaign metrics
     const segmentFilter = (campaign.metrics as any)?.segment_filter || null;
-    const isSystemSegment = segmentFilter?.type === 'system';
+    const isSystemSegment = segmentFilter?.type === "system";
     const systemSegmentType = segmentFilter?.system_segment_type;
     const customSegmentId = campaign.segment_id || segmentFilter?.segment_id;
+    const personaIds = Array.isArray(campaign.targeting_persona_ids)
+      ? campaign.targeting_persona_ids.filter(Boolean)
+      : [];
+    const targetsPersonas = personaIds.length > 0;
 
-    console.log(`[sms-enqueue-worker] Segment filter:`, { isSystemSegment, systemSegmentType, customSegmentId });
+    console.log(`[sms-enqueue-worker] Segment filter:`, {
+      isSystemSegment,
+      systemSegmentType,
+      customSegmentId,
+    });
 
-    for (let page = 0; page < MAX_ENQUEUE_PAGES_PER_RUN && stats.hasMoreCustomers; page++) {
-      console.log(`[sms-enqueue-worker] Processing page ${page + 1}, cursor=${cursorCustomerId || 'start'}`);
+    for (
+      let page = 0;
+      page < MAX_ENQUEUE_PAGES_PER_RUN && stats.hasMoreCustomers;
+      page++
+    ) {
+      console.log(
+        `[sms-enqueue-worker] Processing page ${page + 1}, cursor=${cursorCustomerId || "start"}`,
+      );
 
       let customers: any[] = [];
       let customersError: any = null;
@@ -231,39 +326,41 @@ Deno.serve(async (req) => {
       if (isSystemSegment) {
         // Build system segment query
         let query = supabase
-          .from('crm_customers')
-          .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip')
-          .eq('tenant_id', campaign.tenant_id)
-          .eq('sms_opt_in', true)
-          .not('sms_opt_in_at', 'is', null)
-          .not('sms_consent_source', 'is', null)
-          .not('sms_consent_source', 'eq', '')
-          .not('phone', 'is', null)
-          .not('phone', 'eq', '');
+          .from("crm_customers")
+          .select(
+            "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
+          )
+          .eq("tenant_id", campaign.tenant_id)
+          .eq("sms_opt_in", true)
+          .not("sms_opt_in_at", "is", null)
+          .not("sms_consent_source", "is", null)
+          .not("sms_consent_source", "eq", "")
+          .not("phone", "is", null)
+          .not("phone", "eq", "");
 
         // Apply system segment-specific filters
         switch (systemSegmentType) {
-          case 'high-value':
-            query = query.gte('total_spent', 500);
+          case "high-value":
+            query = query.gte("total_spent", 500);
             break;
-          case 'new-customers':
+          case "new-customers":
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            query = query.gte('created_at', thirtyDaysAgo.toISOString());
+            query = query.gte("created_at", thirtyDaysAgo.toISOString());
             break;
-          case 'frequent-buyers':
-            query = query.gte('order_count', 3);
+          case "frequent-buyers":
+            query = query.gte("order_count", 3);
             break;
-          case 'perks-members':
+          case "perks-members":
             // Special handling for perks members - need to get IDs first
             const { data: perksCustomerIds } = await supabase
-              .from('customer_loyalty_metrics')
-              .select('customer_id')
-              .eq('is_perks_member', true);
-            
+              .from("customer_loyalty_metrics")
+              .select("customer_id")
+              .eq("is_perks_member", true);
+
             if (perksCustomerIds && perksCustomerIds.length > 0) {
-              const ids = perksCustomerIds.map(p => p.customer_id);
-              query = query.in('id', ids);
+              const ids = perksCustomerIds.map((p) => p.customer_id);
+              query = query.in("id", ids);
             } else {
               customers = [];
               break;
@@ -273,71 +370,96 @@ Deno.serve(async (req) => {
         }
 
         // Apply ordering and cursor
-        if (campaign.priority_mode === 'vip_first') {
-          query = query.order('is_vip', { ascending: false }).order('id', { ascending: true });
+        if (campaign.priority_mode === "vip_first") {
+          query = query
+            .order("is_vip", { ascending: false })
+            .order("id", { ascending: true });
         } else {
-          query = query.order('id', { ascending: true });
+          query = query.order("id", { ascending: true });
         }
 
         if (cursorCustomerId) {
-          query = query.gt('id', cursorCustomerId);
+          query = query.gt("id", cursorCustomerId);
         }
 
         query = query.limit(ENQUEUE_PAGE_SIZE);
         const result = await query;
         customers = result.data || [];
         customersError = result.error;
-
       } else if (customSegmentId) {
         // Custom segment - get customer IDs from customer_segments join
         const { data: segmentCustomers, error: segError } = await supabase
-          .from('customer_segments')
-          .select(`
+          .from("customer_segments")
+          .select(
+            `
             customer_id,
             crm_customers!inner(id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip)
-          `)
-          .eq('segment_id', customSegmentId)
-          .eq('crm_customers.tenant_id', campaign.tenant_id)
-          .eq('crm_customers.sms_opt_in', true)
-          .not('crm_customers.sms_opt_in_at', 'is', null)
-          .not('crm_customers.sms_consent_source', 'is', null)
-          .not('crm_customers.sms_consent_source', 'eq', '')
-          .not('crm_customers.phone', 'is', null)
-          .not('crm_customers.phone', 'eq', '')
-          .order('customer_id', { ascending: true })
-          .gt('customer_id', cursorCustomerId || '00000000-0000-0000-0000-000000000000')
+          `,
+          )
+          .eq("segment_id", customSegmentId)
+          .eq("crm_customers.tenant_id", campaign.tenant_id)
+          .eq("crm_customers.sms_opt_in", true)
+          .not("crm_customers.sms_opt_in_at", "is", null)
+          .not("crm_customers.sms_consent_source", "is", null)
+          .not("crm_customers.sms_consent_source", "eq", "")
+          .not("crm_customers.phone", "is", null)
+          .not("crm_customers.phone", "eq", "")
+          .order("customer_id", { ascending: true })
+          .gt(
+            "customer_id",
+            cursorCustomerId || "00000000-0000-0000-0000-000000000000",
+          )
           .limit(ENQUEUE_PAGE_SIZE);
 
         if (segError) {
           customersError = segError;
         } else {
           // Flatten the nested structure
-          customers = (segmentCustomers || []).map(sc => ({
+          customers = (segmentCustomers || []).map((sc) => ({
             ...(sc.crm_customers as any),
-            id: sc.customer_id
+            id: sc.customer_id,
           }));
+        }
+      } else if (targetsPersonas) {
+        // Persona campaigns must use the same audience saved by the wizard.
+        // Never fall through to all subscribers when a persona was selected.
+        const { data: personaCustomers, error: personaError } =
+          await supabase.rpc("get_sms_persona_recipient_page", {
+            p_campaign_id: campaign.id,
+            p_after_customer_id: cursorCustomerId,
+            p_limit: ENQUEUE_PAGE_SIZE,
+          });
+
+        if (personaError) {
+          customersError = personaError;
+        } else {
+          customers = personaCustomers || [];
         }
       } else {
         // Fallback: all SMS-enabled customers (legacy behavior)
         let query = supabase
-          .from('crm_customers')
-          .select('id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip')
-          .eq('tenant_id', campaign.tenant_id)
-          .eq('sms_opt_in', true)
-          .not('sms_opt_in_at', 'is', null)
-          .not('sms_consent_source', 'is', null)
-          .not('sms_consent_source', 'eq', '')
-          .not('phone', 'is', null)
-          .not('phone', 'eq', '');
+          .from("crm_customers")
+          .select(
+            "id, first_name, last_name, phone, email, custom_fields, lifetime_value, total_spent, tags, is_vip",
+          )
+          .eq("tenant_id", campaign.tenant_id)
+          .eq("sms_opt_in", true)
+          .not("sms_opt_in_at", "is", null)
+          .not("sms_consent_source", "is", null)
+          .not("sms_consent_source", "eq", "")
+          .not("phone", "is", null)
+          .not("phone", "eq", "");
 
-        if (campaign.priority_mode === 'vip_first') {
-          query = query.order('is_vip', { ascending: false }).order('id', { ascending: true });
+        if (campaign.priority_mode === "vip_first") {
+          query = query
+            .order("is_vip", { ascending: false })
+            .order("id", { ascending: true });
         } else {
-          query = query.order('id', { ascending: true });
+          query = query.order("id", { ascending: true });
         }
 
         if (cursorCustomerId) {
-          query = query.gt('id', cursorCustomerId);
+          query = query.gt("id", cursorCustomerId);
         }
 
         query = query.limit(ENQUEUE_PAGE_SIZE);
@@ -347,13 +469,16 @@ Deno.serve(async (req) => {
       }
 
       if (customersError) {
-        console.error('[sms-enqueue-worker] Error fetching customers:', customersError);
+        console.error(
+          "[sms-enqueue-worker] Error fetching customers:",
+          customersError,
+        );
         break;
       }
 
       // Filter valid phone numbers
-      const eligibleCustomers = (customers || []).filter(c => {
-        const phone = c.phone?.replace(/\D/g, '');
+      const eligibleCustomers = (customers || []).filter((c) => {
+        const phone = c.phone?.replace(/\D/g, "");
         return phone && phone.length >= 10;
       });
 
@@ -370,14 +495,19 @@ Deno.serve(async (req) => {
       let pageHasVip = false;
 
       for (const customer of eligibleCustomers) {
-        const mergeTagData = createMergeTagDataFromCustomer(customer, companyInfo);
+        const mergeTagData = createMergeTagDataFromCustomer(
+          customer,
+          companyInfo,
+        );
         const renderedContent = renderMergeTags(messageTemplate, mergeTagData);
         const formattedPhone = formatPhoneForTwilio(customer.phone);
 
         if (customer.is_vip) pageHasVip = true;
 
         // Build media_urls array if there's an image
-        const mediaUrls = campaign.image_url ? [campaign.image_url] : (campaign.media_urls || null);
+        const mediaUrls = campaign.image_url
+          ? [campaign.image_url]
+          : campaign.media_urls || null;
 
         messageRows.push({
           tenant_id: campaign.tenant_id,
@@ -385,10 +515,10 @@ Deno.serve(async (req) => {
           customer_id: customer.id,
           phone: formattedPhone,
           content: renderedContent,
-          status: 'queued',
+          status: "queued",
           from_phone: fromPhone,
           media_urls: mediaUrls,
-          attempts: 0
+          attempts: 0,
         });
       }
 
@@ -398,16 +528,19 @@ Deno.serve(async (req) => {
 
       for (const chunk of messageChunks) {
         const { data: insertedMessages, error: insertError } = await supabase
-          .from('sms_messages')
+          .from("sms_messages")
           .insert(chunk)
-          .select('id');
+          .select("id");
 
         if (insertError) {
-          console.error('[sms-enqueue-worker] Failed to insert messages:', insertError);
+          console.error(
+            "[sms-enqueue-worker] Failed to insert messages:",
+            insertError,
+          );
           continue;
         }
 
-        insertedMessageIds.push(...(insertedMessages || []).map(m => m.id));
+        insertedMessageIds.push(...(insertedMessages || []).map((m) => m.id));
       }
 
       stats.messagesCreated += insertedMessageIds.length;
@@ -419,22 +552,26 @@ Deno.serve(async (req) => {
         campaign_id: campaign.id,
         from_phone: fromPhone,
         messaging_service_sid: messagingServiceSid,
-        status: 'pending',
+        status: "pending",
         recipient_message_ids: batchIds,
         batch_index: stats.jobsCreated + index,
         attempts: 0,
-        priority: pageHasVip && campaign.priority_mode === 'vip_first' ? 10 : 100,
+        priority:
+          pageHasVip && campaign.priority_mode === "vip_first" ? 10 : 100,
         partition_key: partitionKey,
-        scheduled_at: null
+        scheduled_at: null,
       }));
 
       if (jobRows.length > 0) {
         const { error: jobsError } = await supabase
-          .from('sms_send_jobs')
+          .from("sms_send_jobs")
           .insert(jobRows);
 
         if (jobsError) {
-          console.error('[sms-enqueue-worker] Failed to create jobs:', jobsError);
+          console.error(
+            "[sms-enqueue-worker] Failed to create jobs:",
+            jobsError,
+          );
         } else {
           stats.jobsCreated += jobRows.length;
         }
@@ -449,11 +586,15 @@ Deno.serve(async (req) => {
       stats.customersProcessed += eligibleCustomers.length;
 
       // Update campaign progress
-      await supabase.from('crm_sms_campaigns').update({
-        enqueue_cursor_customer_id: cursorCustomerId,
-        total_enqueued: (campaign.total_enqueued || 0) + stats.messagesCreated,
-        updated_at: new Date().toISOString()
-      }).eq('id', campaignId);
+      await supabase
+        .from("crm_sms_campaigns")
+        .update({
+          enqueue_cursor_customer_id: cursorCustomerId,
+          total_enqueued:
+            (campaign.total_enqueued || 0) + stats.messagesCreated,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId);
     }
 
     // Step 7: Check if enqueueing is complete
@@ -467,21 +608,28 @@ Deno.serve(async (req) => {
 
       // Zero-recipient campaigns are terminal failures, not indefinitely
       // "sending" campaigns. This also gives the UI an unambiguous failure.
-      await supabase.from('crm_sms_campaigns').update({
-        enqueue_status: outcome.enqueueStatus,
-        enqueue_completed_at: new Date().toISOString(),
-        status: outcome.campaignStatus,
-        enqueued: outcome.success,
-        total_enqueued: outcome.totalEnqueued,
-        sent_at: outcome.success ? (campaign.sent_at || new Date().toISOString()) : null,
-        enqueue_claimed_at: null,
-        enqueue_claimed_by: null,
-        updated_at: new Date().toISOString()
-      }).eq('id', campaignId);
+      await supabase
+        .from("crm_sms_campaigns")
+        .update({
+          enqueue_status: outcome.enqueueStatus,
+          enqueue_completed_at: new Date().toISOString(),
+          status: outcome.campaignStatus,
+          enqueued: outcome.success,
+          total_enqueued: outcome.totalEnqueued,
+          sent_at: outcome.success
+            ? campaign.sent_at || new Date().toISOString()
+            : null,
+          enqueue_claimed_at: null,
+          enqueue_claimed_by: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", campaignId);
 
       console.log(`[sms-enqueue-worker] ${outcome.message}`);
     } else {
-      console.log(`[sms-enqueue-worker] Campaign ${campaignId} partially enqueued: ${stats.messagesCreated} messages this run, more customers remain`);
+      console.log(
+        `[sms-enqueue-worker] Campaign ${campaignId} partially enqueued: ${stats.messagesCreated} messages this run, more customers remain`,
+      );
     }
 
     const duration = Date.now() - startTime;
@@ -500,9 +648,8 @@ Deno.serve(async (req) => {
       stats,
       message: outcome.message,
     });
-
   } catch (error) {
-    console.error('[sms-enqueue-worker] Fatal error:', error);
+    console.error("[sms-enqueue-worker] Fatal error:", error);
     return corsJsonResponse({ error: error.message }, { status: 500 });
   }
 });
