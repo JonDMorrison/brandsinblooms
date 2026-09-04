@@ -27,6 +27,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const { user } = useAuth();
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [resolvedAdminUserId, setResolvedAdminUserId] = useState<string | null>(
+    null,
+  );
   const [activeTenantId, setActiveTenantIdState] = useState<string | null>(null);
   const [hasHydratedTenantContext, setHasHydratedTenantContext] =
     useState(false);
@@ -37,14 +40,25 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const contextWriteVersionRef = useRef(0);
 
-  // Check if user is master admin
+  // A Supabase session commonly renders once without a user before the cached
+  // session is restored. Track which authenticated user the admin lookup
+  // belongs to so that a stale "not loading / not admin" result from that
+  // anonymous render can never be mistaken for the authenticated user's final
+  // admin status.
   useEffect(() => {
+    let cancelled = false;
+
     async function checkAdminStatus() {
-      if (!user?.email) {
+      if (!user?.id || !user.email) {
         setIsMasterAdmin(false);
+        setResolvedAdminUserId(null);
         setIsLoading(false);
         return;
       }
+
+      const userId = user.id;
+      setIsLoading(true);
+      setResolvedAdminUserId(null);
 
       try {
         const { data, error } = await supabase
@@ -53,6 +67,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
           .eq("email", user.email)
           .maybeSingle();
 
+        if (cancelled) return;
+
         if (error) {
           console.error("Error checking admin status:", error);
           setIsMasterAdmin(false);
@@ -60,26 +76,39 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsMasterAdmin(!!data);
         }
       } catch (error) {
-        console.error("Error checking admin status:", error);
-        setIsMasterAdmin(false);
+        if (!cancelled) {
+          console.error("Error checking admin status:", error);
+          setIsMasterAdmin(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setResolvedAdminUserId(userId);
+          setIsLoading(false);
+        }
       }
     }
 
     checkAdminStatus();
-  }, [user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email, user?.id]);
+
+  const hasResolvedAdminStatus =
+    !user?.id || resolvedAdminUserId === user.id;
+  const isAdminStatusLoading = isLoading || !hasResolvedAdminStatus;
+  const effectiveHasHydratedTenantContext =
+    hasResolvedAdminStatus && hasHydratedTenantContext;
 
   // Hydrate the persisted master-admin tenant context before exposing it as
-  // usable. Do not mark the context hydrated while the admin-status lookup is
-  // still pending: isMasterAdmin starts false, and treating that initial value
-  // as authoritative creates a render where tenant-scoped access appears ready
-  // before the persisted master-admin tenant has been loaded.
+  // usable. The admin-status result must belong to the current authenticated
+  // user; a previous anonymous/user render is not authoritative.
   useEffect(() => {
     let cancelled = false;
 
     async function loadActiveTenantContext() {
-      if (isLoading) {
+      if (isAdminStatusLoading) {
         setActiveTenantIdState(null);
         setHydratedAdminUserId(null);
         setHasHydratedTenantContext(false);
@@ -128,7 +157,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [isLoading, isMasterAdmin, user]);
+  }, [isAdminStatusLoading, isMasterAdmin, user]);
 
   useEffect(() => {
     async function loadTenants() {
@@ -227,9 +256,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     <AdminContext.Provider
       value={{
         isMasterAdmin,
-        isLoading,
+        isLoading: isAdminStatusLoading,
         activeTenantId,
-        hasHydratedTenantContext,
+        hasHydratedTenantContext: effectiveHasHydratedTenantContext,
         setActiveTenantId,
         availableTenants,
         refreshTenants,
