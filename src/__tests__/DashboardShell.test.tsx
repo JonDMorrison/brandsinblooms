@@ -43,6 +43,37 @@ vi.mock("@/hooks/useIsSuperAdmin", () => ({
   }),
 }));
 
+// DashboardShell tests exercise layout/navigation behavior, not tenant CRM access.
+// Keep this suite isolated from AdminProvider hydration so new CRM permission reads
+// in DashboardSidebar do not turn an unrelated shell test into an integration test.
+vi.mock("@/hooks/useUserRole", () => ({
+  useUserRole: () => ({
+    tenantId: "tenant-1",
+    role: "owner_admin",
+    locationIds: [],
+    permissions: [
+      "customers.read",
+      "customers.write",
+      "segments.manage",
+      "campaigns.read",
+      "campaigns.write",
+      "automations.manage",
+      "content.design",
+      "reports.read",
+      "integrations.manage",
+      "access.manage",
+    ],
+    hasPermission: () => true,
+    hasRole: () => true,
+    canEditImages: true,
+    canUseCanva: true,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({ tenant: { id: "tenant-1", name: "Bloom Flowers" } }),
 }));
