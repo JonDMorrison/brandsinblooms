@@ -32,9 +32,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Run admin tenant hydration regression test
+    - name: Run admin tenant access regression tests
       if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
-      run: npx vitest run src/contexts/__tests__/AdminContext.test.tsx
+      run: npx vitest run src/contexts/__tests__/AdminContext.test.tsx src/hooks/__tests__/useUserRole.adminContext.test.tsx
 
     - name: Build QA branch
       if: github.event_name == 'push' && github.ref_name == 'qa/crm-release-clickthrough'
