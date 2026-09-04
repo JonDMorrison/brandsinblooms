@@ -88,6 +88,59 @@ describe("AdminProvider tenant context hydration", () => {
     });
   });
 
+  it("does not claim tenant context hydration before admin status resolves", async () => {
+    const deferredAdmin = makeDeferred<{
+      data: { email: string } | null;
+      error: unknown;
+    }>();
+    const deferredContext = makeDeferred<ContextResult>();
+    mocks.adminMaybeSingle.mockImplementation(() => deferredAdmin.promise);
+    mocks.contextMaybeSingle.mockImplementation(() => deferredContext.promise);
+
+    const { result } = renderHook(() => useAdmin(), { wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isMasterAdmin).toBe(false);
+    expect(result.current.hasHydratedTenantContext).toBe(false);
+    expect(result.current.activeTenantId).toBeNull();
+    expect(mocks.contextMaybeSingle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deferredAdmin.resolve({
+        data: { email: "admin@example.com" },
+        error: null,
+      });
+      await deferredAdmin.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMasterAdmin).toBe(true);
+      expect(result.current.isLoading).toBe(false);
+      expect(mocks.contextMaybeSingle).toHaveBeenCalledTimes(1);
+    });
+
+    expect(result.current.hasHydratedTenantContext).toBe(false);
+    expect(result.current.activeTenantId).toBeNull();
+
+    await act(async () => {
+      deferredContext.resolve({
+        data: { active_tenant_id: "tenant-greenfield" },
+        error: null,
+      });
+      await deferredContext.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.hasHydratedTenantContext).toBe(true);
+      expect(result.current.activeTenantId).toBe("tenant-greenfield");
+    });
+  });
+
   it("does not write null while the persisted master-admin tenant is hydrating", async () => {
     const deferred = makeDeferred<ContextResult>();
     mocks.contextMaybeSingle.mockImplementation(() => deferred.promise);
