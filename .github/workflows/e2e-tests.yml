@@ -1,6 +1,5 @@
 name: E2E Tests
 
-# Manual trigger only — prevents failure notification spam on every push
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +11,9 @@ on:
         options:
           - chromium
           - setup
+  push:
+    branches:
+      - qa/crm-release-clickthrough
 
 jobs:
   test:
@@ -33,7 +35,7 @@ jobs:
       run: npx playwright install chromium --with-deps
 
     - name: Run E2E tests against production
-      run: npx playwright test --config=playwright.prod.config.ts --project=${{ inputs.project }}
+      run: npx playwright test --config=playwright.prod.config.ts --project=${{ github.event_name == 'workflow_dispatch' && inputs.project || 'chromium' }}
       env:
         E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
         E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
