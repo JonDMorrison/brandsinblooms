@@ -9,6 +9,9 @@
 -- any data query, normal users remain restricted to their own tenant, and master
 -- admins may only request the tenant currently selected in admin_session_context.
 -- Explicit EXECUTE grants avoid PUBLIC access to the definer routine.
+--
+-- This migration is intentionally idempotent because the production function was
+-- repaired during release QA before the repository migration record was restored.
 
 do $migration$
 declare
@@ -62,17 +65,23 @@ begin
     'public.get_crm_dashboard_snapshot(uuid,uuid)'::regprocedure
   ) into v_definition;
 
-  if position(v_old_auth in v_definition) = 0 then
+  v_patched := v_definition;
+
+  if position(v_old_auth in v_patched) > 0 then
+    v_patched := replace(v_patched, v_old_auth, v_new_auth);
+  elsif position(v_new_auth in v_patched) = 0 then
     raise exception 'Expected dashboard authorization block was not found';
   end if;
 
-  if position(v_old_header in v_definition) = 0 then
+  if position(v_old_header in v_patched) > 0 then
+    v_patched := replace(v_patched, v_old_header, v_new_header);
+  elsif position(v_new_header in v_patched) = 0 then
     raise exception 'Expected dashboard function header was not found';
   end if;
 
-  v_patched := replace(v_definition, v_old_auth, v_new_auth);
-  v_patched := replace(v_patched, v_old_header, v_new_header);
-  execute v_patched;
+  if v_patched is distinct from v_definition then
+    execute v_patched;
+  end if;
 end;
 $migration$;
 
