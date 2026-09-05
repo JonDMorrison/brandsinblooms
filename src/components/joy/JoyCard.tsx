@@ -34,25 +34,29 @@ export type JoyCardFooterProps = JoyBaseCardActionsProps & {
 };
 
 const baseCardSx: SxProps = {
-  borderRadius: "var(--joy-radius-lg)",
+  borderRadius: "var(--joy-radius-2xl)",
   borderColor: "neutral.200",
   backgroundColor: "background.surface",
-  boxShadow: "var(--joy-shadow-xs)",
+  boxShadow: "var(--joy-shadow-sm)",
   overflow: "hidden",
   p: 0,
+  transition:
+    "border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
 };
 
 const interactiveCardSx: SxProps = {
   cursor: "pointer",
-  transition:
-    "background-color 200ms ease, color 150ms ease, box-shadow 200ms ease, transform 200ms ease",
   "&:hover": {
-    transform: "translateY(-1px)",
-    boxShadow: "var(--joy-shadow-sm)",
+    transform: "translateY(-2px)",
+    borderColor: "neutral.300",
+    boxShadow: "var(--joy-shadow-md)",
+  },
+  "&:active": {
+    transform: "translateY(0)",
   },
   "&:focus-visible": {
-    outline: "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.45)",
-    outlineOffset: "2px",
+    outline: "2px solid rgba(var(--joy-palette-primary-mainChannel) / 0.38)",
+    outlineOffset: "3px",
   },
 };
 
@@ -128,7 +132,7 @@ export const JoyCardHeader = React.forwardRef<
       <Stack
         ref={ref}
         spacing={spacing}
-        sx={mergeSx({ px: 4, pt: 4, pb: 0 }, sx)}
+        sx={mergeSx({ px: { xs: 4, md: 5 }, pt: { xs: 4, md: 5 }, pb: 0 }, sx)}
         {...props}
       >
         {hasStructuredHeader ? (
@@ -138,19 +142,30 @@ export const JoyCardHeader = React.forwardRef<
             alignItems="flex-start"
             justifyContent="space-between"
           >
-            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <Stack direction="row" spacing={1.75} alignItems="flex-start">
               {startDecorator ? (
-                <Box sx={{ display: "inline-flex", flexShrink: 0 }}>
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    flexShrink: 0,
+                    mt: 0.25,
+                  }}
+                >
                   {startDecorator}
                 </Box>
               ) : null}
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+              <Stack spacing={0.75} sx={{ minWidth: 0 }}>
                 {renderHeaderContent(title, titleProps, {
                   level: "title-md",
+                  sx: {
+                    fontWeight: "var(--joy-fontWeight-semibold)",
+                    letterSpacing: "-0.012em",
+                  },
                 })}
                 {renderHeaderContent(description, descriptionProps, {
                   level: "body-sm",
                   color: "neutral",
+                  sx: { lineHeight: 1.55 },
                 })}
               </Stack>
             </Stack>
@@ -173,7 +188,18 @@ export const JoyCardContent = React.forwardRef<
   HTMLDivElement,
   JoyCardContentProps
 >(({ sx, ...props }, ref) => (
-  <CardContent ref={ref} sx={mergeSx({ px: 4, pb: 4, pt: 0 }, sx)} {...props} />
+  <CardContent
+    ref={ref}
+    sx={mergeSx(
+      {
+        px: { xs: 4, md: 5 },
+        pb: { xs: 4, md: 5 },
+        pt: 0,
+      },
+      sx,
+    )}
+    {...props}
+  />
 ));
 
 JoyCardContent.displayName = "JoyCardContent";
@@ -183,11 +209,17 @@ export const JoyCardFooter = React.forwardRef<
   JoyCardFooterProps
 >(({ divider = true, sx, ...props }, ref) => (
   <Box>
-    {divider ? <Divider /> : null}
+    {divider ? <Divider sx={{ "--Divider-lineColor": "var(--joy-palette-neutral-100)" }} /> : null}
     <CardActions
       ref={ref}
       sx={mergeSx(
-        { px: 4, pb: 4, pt: 4, gap: 2, justifyContent: "flex-end" },
+        {
+          px: { xs: 4, md: 5 },
+          pb: { xs: 4, md: 5 },
+          pt: { xs: 3.5, md: 4 },
+          gap: 2,
+          justifyContent: "flex-end",
+        },
         sx,
       )}
       {...props}
