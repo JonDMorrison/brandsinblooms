@@ -85,33 +85,36 @@ const resolveNativeVariant = (
 };
 
 const baseInputSx: SxProps = {
-  minHeight: 36,
-  borderRadius: "var(--joy-radius-lg)",
-  borderColor: "neutral.300",
-  boxShadow: "none",
-  backgroundColor: "#FFFFFF",
+  minHeight: 40,
+  borderRadius: "12px",
+  borderColor: "neutral.200",
+  boxShadow: "var(--joy-shadow-xs)",
+  backgroundColor: "background.surface",
   color: "var(--joy-palette-neutral-800)",
   transition:
-    "border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-  "--Input-paddingInline": "0.75rem",
+    "border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease",
+  "--Input-paddingInline": "0.875rem",
   "--Input-gap": "0.625rem",
   "--Input-focusedThickness": "0px",
   "--Input-placeholderColor": "var(--joy-palette-neutral-400)",
   "--Input-placeholderOpacity": "1",
   "--Input-decoratorColor": "var(--joy-palette-neutral-400)",
   "&:hover:not([data-disabled='true'])": {
-    backgroundColor: "#FFFFFF",
-    borderColor: "neutral.400",
+    backgroundColor: "background.surface",
+    borderColor: "neutral.300",
   },
   "&:focus-within": {
     borderColor: "primary.400",
+    boxShadow:
+      "0 0 0 3px rgba(var(--joy-palette-primary-mainChannel) / 0.10)",
   },
   "&.Mui-focusVisible, &:focus-visible": {
-    borderColor: "transparent",
+    borderColor: "primary.400",
   },
   "&[data-disabled='true'], &[aria-disabled='true']": {
     borderColor: "neutral.200",
     backgroundColor: "neutral.50",
+    boxShadow: "none",
     color: "neutral.400",
     cursor: "not-allowed",
     "& .MuiInput-input": {
@@ -141,6 +144,7 @@ const labelSx: SxProps = {
   fontSize: "0.8125rem",
   fontWeight: "var(--joy-fontWeight-medium)",
   lineHeight: 1.4,
+  letterSpacing: "0.005em",
   "&[data-disabled='true'], &.Mui-disabled": {
     color: "var(--joy-palette-neutral-400)",
   },
@@ -222,6 +226,8 @@ export const JoyInput = React.forwardRef<HTMLInputElement, JoyInputProps>(
           },
           "&:focus-within": {
             borderColor: "danger.400",
+            boxShadow:
+              "0 0 0 3px rgba(var(--joy-palette-danger-mainChannel) / 0.10)",
           },
           "&.Mui-focusVisible, &:focus-visible": {
             outline: "none",
@@ -238,6 +244,8 @@ export const JoyInput = React.forwardRef<HTMLInputElement, JoyInputProps>(
             },
             "&:focus-within": {
               borderColor: "success.400",
+              boxShadow:
+                "0 0 0 3px rgba(var(--joy-palette-success-mainChannel) / 0.10)",
             },
           }
         : undefined;
@@ -271,7 +279,7 @@ export const JoyInput = React.forwardRef<HTMLInputElement, JoyInputProps>(
         required={required}
         error={isError}
         disabled={disabled}
-        sx={mergeSx({ width: "100%", gap: 0.5 }, formControlSx)}
+        sx={mergeSx({ width: "100%", gap: 0.75 }, formControlSx)}
       >
         {label ? (
           <FormLabel htmlFor={inputId} sx={labelSx}>
