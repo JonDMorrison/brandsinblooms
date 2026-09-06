@@ -33,6 +33,11 @@ import {
 const INSIGHT_EXPIRY_HOURS = 6;
 const RECENT_CAMPAIGN_WINDOW_DAYS = 35;
 
+type GardenImage = {
+  url: string;
+  alt: string;
+};
+
 async function fetchRecentCampaigns(
   tenantId: string,
 ): Promise<RecentCampaignLite[]> {
@@ -59,6 +64,49 @@ async function fetchRecentCampaigns(
   }));
 }
 
+async function fetchGardenImages(tenantId: string): Promise<GardenImage[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("name, image_url, thumbnail_url")
+    .eq("tenant_id", tenantId)
+    .limit(18);
+
+  if (error) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const images: GardenImage[] = [];
+
+  for (const row of data ?? []) {
+    const imageUrl =
+      typeof row.image_url === "string" && row.image_url.trim()
+        ? row.image_url.trim()
+        : typeof row.thumbnail_url === "string" && row.thumbnail_url.trim()
+          ? row.thumbnail_url.trim()
+          : null;
+
+    if (!imageUrl || seen.has(imageUrl)) {
+      continue;
+    }
+
+    seen.add(imageUrl);
+    images.push({
+      url: imageUrl,
+      alt:
+        typeof row.name === "string" && row.name.trim()
+          ? row.name.trim()
+          : "Garden centre product",
+    });
+
+    if (images.length === 3) {
+      break;
+    }
+  }
+
+  return images;
+}
+
 function SkeletonRow() {
   return (
     <Stack
@@ -83,6 +131,7 @@ export function BloomWeeklySuggestionsCard() {
   const [recentCampaigns, setRecentCampaigns] = React.useState<
     RecentCampaignLite[]
   >([]);
+  const [gardenImages, setGardenImages] = React.useState<GardenImage[]>([]);
   const [recentLoading, setRecentLoading] = React.useState(true);
   const [openingId, setOpeningId] = React.useState<string | null>(null);
 
@@ -90,15 +139,20 @@ export function BloomWeeklySuggestionsCard() {
     let cancelled = false;
     if (!tenant?.id) {
       setRecentCampaigns([]);
+      setGardenImages([]);
       setRecentLoading(false);
       return () => {
         cancelled = true;
       };
     }
     setRecentLoading(true);
-    void fetchRecentCampaigns(tenant.id).then((rows) => {
+    void Promise.all([
+      fetchRecentCampaigns(tenant.id),
+      fetchGardenImages(tenant.id),
+    ]).then(([campaignRows, imageRows]) => {
       if (cancelled) return;
-      setRecentCampaigns(rows);
+      setRecentCampaigns(campaignRows);
+      setGardenImages(imageRows);
       setRecentLoading(false);
     });
     return () => {
@@ -163,9 +217,53 @@ export function BloomWeeklySuggestionsCard() {
     <Sheet
       variant="outlined"
       data-testid="bloom-weekly-suggestions-card"
-      sx={{ borderRadius: "12px", p: 2, backgroundColor: "#FFFFFF" }}
+      sx={{
+        borderRadius: "16px",
+        p: 0,
+        overflow: "hidden",
+        backgroundColor: "#FFFFFF",
+      }}
     >
-      <Stack spacing={1.5}>
+      {gardenImages.length > 0 ? (
+        <Box
+          aria-label="Store product imagery"
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: gardenImages.length === 1 ? "1fr" : "1fr 1fr",
+              md:
+                gardenImages.length === 1
+                  ? "1fr"
+                  : gardenImages.length === 2
+                    ? "1.4fr 1fr"
+                    : "1.5fr 1fr 1fr",
+            },
+            gap: "2px",
+            height: { xs: 96, md: 118 },
+            backgroundColor: "neutral.100",
+          }}
+        >
+          {gardenImages.map((image, index) => (
+            <Box
+              key={image.url}
+              component="img"
+              src={image.url}
+              alt={image.alt}
+              loading="lazy"
+              sx={{
+                width: "100%",
+                height: "100%",
+                display: index > 1 ? { xs: "none", md: "block" } : "block",
+                objectFit: "cover",
+                objectPosition: "center",
+                filter: "saturate(0.92) contrast(0.96)",
+              }}
+            />
+          ))}
+        </Box>
+      ) : null}
+
+      <Stack spacing={1.5} sx={{ p: 2 }}>
         <Stack
           direction="row"
           spacing={1}
@@ -222,7 +320,7 @@ export function BloomWeeklySuggestionsCard() {
                   textAlign: "left",
                   width: "100%",
                   p: 1.25,
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   border: "1px solid",
                   borderColor: "neutral.200",
                   backgroundColor: "background.body",
