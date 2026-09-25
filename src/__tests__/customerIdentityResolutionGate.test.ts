@@ -37,6 +37,15 @@ const vmxBatchMigration = readSource(
 const externalProviderMigration = readSource(
   "supabase/migrations/20260903104500_shopify_lightspeed_customer_identity.sql",
 );
+const posCheckoutSmsConsentMigration = readSource(
+  "supabase/migrations/20260925180000_pos_checkout_sms_consent_onboarding.sql",
+);
+const posCheckoutSmsConsentFunction = readSource(
+  "supabase/functions/configure-pos-sms-consent/index.ts",
+);
+const posIntegrationsHub = readSource(
+  "src/pages/integrations/POSIntegrationsHub.tsx",
+);
 const lightspeedCustomerSync = readSource(
   "supabase/functions/lightspeed-sync-customers/index.ts",
 );
@@ -224,5 +233,38 @@ describe("customer identity resolution release gate", () => {
     expect(shopifyWebhookHandler).not.toContain(
       "upsertCrmCustomerFromShopifyCustomer",
     );
+  });
+
+  it("applies an attested checkout SMS policy only to new POS identity links", () => {
+    expect(posCheckoutSmsConsentMigration).toContain(
+      "pos_sms_checkout_policies",
+    );
+    expect(posCheckoutSmsConsentMigration).toContain(
+      "after insert on public.crm_customer_identity_links",
+    );
+    expect(posCheckoutSmsConsentMigration).toContain(
+      "trg_apply_pos_checkout_sms_consent",
+    );
+    expect(posCheckoutSmsConsentMigration).toContain(
+      "pos_checkout_attestation",
+    );
+    expect(posCheckoutSmsConsentMigration).toContain(
+      "checkout_phone_disclosure",
+    );
+    expect(posCheckoutSmsConsentMigration).toContain("attestation_id");
+    expect(posCheckoutSmsConsentMigration).toContain("sms_opt_out_at is not null");
+    expect(posCheckoutSmsConsentMigration).toContain("v_sms_status in ('opted_out', 'suppressed')");
+  });
+
+  it("requires a checkout disclosure confirmation before POS connection", () => {
+    expect(config).toMatch(
+      /\[functions\.configure-pos-sms-consent\]\s*verify_jwt = true/,
+    );
+    expect(posCheckoutSmsConsentFunction).toContain("checkout_phone_consent !== true");
+    expect(posCheckoutSmsConsentFunction).toContain(
+      "configure_pos_sms_checkout_policy",
+    );
+    expect(posIntegrationsHub).toContain("configure-pos-sms-consent");
+    expect(posIntegrationsHub).toContain("POSCheckoutSmsConsentDialog");
   });
 });

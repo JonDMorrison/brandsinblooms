@@ -554,3 +554,6 @@ verify_jwt = true
 
 [functions.vmx-sync-customers]
 verify_jwt = true
+
+[functions.configure-pos-sms-consent]
+verify_jwt = true
