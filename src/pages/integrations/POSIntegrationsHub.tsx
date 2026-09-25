@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PROVIDERS } from "@/components/integrations/pos/providers";
 import { ProviderCard } from "@/components/integrations/pos/ProviderCard";
 import { VmxConnectDialog } from "@/components/integrations/pos/VmxConnectDialog";
+import { POSCheckoutSmsConsentDialog } from "@/components/integrations/pos/POSCheckoutSmsConsentDialog";
 import { VMXUploader } from "@/components/crm/pos/VMXUploader";
 import {
   Dialog,
@@ -22,8 +23,10 @@ export default function POSIntegrationsHub() {
 
   const [vmxDialogOpen, setVmxDialogOpen] = useState(false);
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [pendingConsentProvider, setPendingConsentProvider] = useState<string | null>(null);
+  const [isSavingConsent, setIsSavingConsent] = useState(false);
 
-  const handleConnect = useCallback(
+  const beginConnection = useCallback(
     async (providerId: string) => {
       switch (providerId) {
         case "square": {
@@ -50,6 +53,45 @@ export default function POSIntegrationsHub() {
     },
     [navigate, toast],
   );
+
+  const handleConnect = useCallback((providerId: string) => {
+    if (["square", "lightspeed", "vmx"].includes(providerId)) {
+      setPendingConsentProvider(providerId);
+      return;
+    }
+
+    void beginConnection(providerId);
+  }, [beginConnection]);
+
+  const handleConsentConfirm = useCallback(async () => {
+    if (!pendingConsentProvider) return;
+
+    setIsSavingConsent(true);
+    const { error } = await supabase.functions.invoke("configure-pos-sms-consent", {
+      body: {
+        provider: pendingConsentProvider,
+        checkout_phone_consent: true,
+      },
+    });
+    setIsSavingConsent(false);
+
+    if (error) {
+      toast({
+        title: "Could not save SMS policy",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const providerId = pendingConsentProvider;
+    setPendingConsentProvider(null);
+    await beginConnection(providerId);
+  }, [beginConnection, pendingConsentProvider, toast]);
+
+  const pendingProviderName = PROVIDERS.find(
+    (provider) => provider.id === pendingConsentProvider,
+  )?.name ?? "this POS";
 
   const handleManage = useCallback(
     (providerId: string) => {
@@ -108,6 +150,14 @@ export default function POSIntegrationsHub() {
         onOpenChange={setVmxDialogOpen}
         onSuccess={refetch}
         onSwitchToCsv={() => setCsvDialogOpen(true)}
+      />
+
+      <POSCheckoutSmsConsentDialog
+        open={pendingConsentProvider !== null}
+        providerName={pendingProviderName}
+        isSaving={isSavingConsent}
+        onClose={() => setPendingConsentProvider(null)}
+        onConfirm={handleConsentConfirm}
       />
 
       {/* VMX CSV Upload Dialog (fallback) */}
