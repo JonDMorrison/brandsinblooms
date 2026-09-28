@@ -23,6 +23,7 @@ import { AIInsightsActions } from "@/components/crm/customer-dashboard/AIInsight
 import { ChannelDeepDive } from "@/components/crm/customer-dashboard/ChannelDeepDive";
 import { CrossChannelIntelligence } from "@/components/crm/customer-dashboard/CrossChannelIntelligence";
 import { CustomerContactCard } from "@/components/crm/customer-dashboard/CustomerContactCard";
+import { CustomerIntelligenceStory } from "@/components/crm/customer-dashboard/CustomerIntelligenceStory";
 import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
@@ -50,6 +51,7 @@ import {
   type CustomerData,
 } from "@/hooks/useCustomerDashboard";
 import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
+import { useCustomerIntelligenceDetail } from "@/hooks/useCustomerIntelligenceDetail";
 import { useCustomerSegments } from "@/hooks/useCustomerSegments";
 import { useDeleteCustomer } from "@/hooks/useDeleteCustomer";
 import { useAuth } from "@/hooks/useAuth";
@@ -266,6 +268,7 @@ const CustomerDashboardPage: React.FC = () => {
   const { personas: allPersonas } = useAllPersonas();
   const { assignments } = useCustomerPersonas(customerId ?? "");
   const { customerSegments } = useCustomerSegments(customerId);
+  const { data: customerIntelligence } = useCustomerIntelligenceDetail(customerId);
 
   React.useEffect(() => {
     setLocalCustomer(customer ?? null);
@@ -791,6 +794,10 @@ const CustomerDashboardPage: React.FC = () => {
 
           {activeTab === "purchase" ? (
             <Stack spacing={2}>
+              <CustomerIntelligenceStory
+                intelligence={customerIntelligence}
+                onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
+              />
               <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}

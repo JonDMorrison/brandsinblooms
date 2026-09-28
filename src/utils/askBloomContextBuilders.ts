@@ -18,6 +18,13 @@ interface CustomerLike extends UnknownRecord {
   notes?: string | null;
   email_opt_in?: boolean | null;
   sms_opt_in?: boolean | null;
+  purchase_velocity?: number | null;
+  customer_tier?: string | null;
+  days_since_last_purchase?: number | null;
+  top_product_categories?: string[] | null;
+  category_spend?: Record<string, number> | null;
+  department_spend?: Record<string, number> | null;
+  departments_shopped?: number | null;
 }
 
 interface CustomerOrderLike extends UnknownRecord {
@@ -417,6 +424,13 @@ export function buildCustomerFocus(
     `Lifetime Value: ${formatMoney(customer.lifetime_value)}`,
     `Total Orders: ${readNumber(customer.order_count) ?? 0}`,
     `Average Order Value: ${formatMoney(customer.avg_order_value)}`,
+    `Customer Tier: ${sanitizeText(customer.customer_tier) || "Not available"}`,
+    `Purchase Momentum: ${readNumber(customer.purchase_velocity) === null ? "Not available" : `${readNumber(customer.purchase_velocity)?.toFixed(1)}%`}`,
+    `Days Since Last Purchase: ${readNumber(customer.days_since_last_purchase) ?? "Not available"}`,
+    `Top Product Categories: ${readStringArray(customer.top_product_categories).join(", ") || "Not available"}`,
+    `Departments Shopped: ${readNumber(customer.departments_shopped) ?? "Not available"}`,
+    `Category Spend: ${stringifyGenericValue(customer.category_spend) || "Not available"}`,
+    `Department Spend: ${stringifyGenericValue(customer.department_spend) || "Not available"}`,
     `Last Order: ${lastOrderDate}`,
     ...maybeSection("Recent Orders (last 5):", ordersSection),
     ...maybeSection("Campaign Engagement (last 5):", campaignSection),
