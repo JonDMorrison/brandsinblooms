@@ -17,6 +17,7 @@ import {
   getRevenueAnalytics,
 } from "./implementations/analytics-tools.ts";
 import { getCampaignAnalytics } from "./implementations/campaign-analytics.ts";
+import { findCustomerOpportunities, rankCustomersByIntelligence } from "./implementations/customer-intelligence.ts";
 import {
   getCustomerInsights,
   getCustomerTimeline,
@@ -901,6 +902,10 @@ function getToolImplementation(toolName: ToolName): ToolImplementation {
       return getIntegrationStatus;
     case "get_customer_insights":
       return getCustomerInsights;
+    case "rank_customers_by_intelligence":
+      return rankCustomersByIntelligence;
+    case "find_customer_opportunities":
+      return findCustomerOpportunities;
     case "generate_content":
       return generateContent;
     case "generate_image":

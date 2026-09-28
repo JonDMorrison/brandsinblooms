@@ -1241,6 +1241,46 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     allowedModes: QUERY_MODES,
   }),
 
+
+  defineTool({
+    name: "rank_customers_by_intelligence",
+    description:
+      "Rank customers using explainable purchase intelligence. Use for top customers, best prospects, VIP rankings, category or department audiences, and requests such as the best 300 hydrangea or Nursery customers. Returns source values, normalized components, and weights for every score.",
+    parameters: objectSchema({
+      dimension: stringSchema("Ranking focus.", { enum: ["overall", "category", "department"] }),
+      dimension_value: stringSchema("Category or department name when the ranking has a focused dimension.", { maxLength: 180 }),
+      limit: integerSchema("Maximum customers to rank.", { minimum: 1, maximum: 500 }),
+      weights: objectSchema({
+        value: numberSchema("Focused spend weight.", { minimum: 0, maximum: 100 }),
+        quantity: numberSchema("Quantity purchased weight.", { minimum: 0, maximum: 100 }),
+        breadth: numberSchema("Department breadth weight.", { minimum: 0, maximum: 100 }),
+        frequency: numberSchema("Purchase frequency weight.", { minimum: 0, maximum: 100 }),
+        overall: numberSchema("Overall lifetime value weight.", { minimum: 0, maximum: 100 }),
+        recency: numberSchema("Recency weight; fewer days since purchase scores higher.", { minimum: 0, maximum: 100 }),
+        trend: numberSchema("Recent purchase velocity weight.", { minimum: 0, maximum: 100 }),
+      }),
+    }),
+    category: "analytics",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+  defineTool({
+    name: "find_customer_opportunities",
+    description:
+      "Find valuable customers whose recent purchasing has declined. Use for at-risk customers, win-back opportunities, lapsed behavior, or questions about customers spending materially less than before.",
+    parameters: objectSchema({
+      minimum_decline_percent: numberSchema("Minimum decline percentage, expressed as a positive number.", { minimum: 1, maximum: 100 }),
+      limit: integerSchema("Maximum customers to return.", { minimum: 1, maximum: 500 }),
+    }),
+    category: "analytics",
+    riskLevel: "safe",
+    requiresConfirmation: false,
+    allowedRoles: ALL_ROLES,
+    allowedModes: QUERY_MODES,
+  }),
+
   defineTool({
     name: "generate_content",
     description:

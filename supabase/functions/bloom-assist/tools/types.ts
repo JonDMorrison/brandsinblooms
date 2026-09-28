@@ -234,6 +234,8 @@ export type ToolName =
   | "get_campaign_analytics"
   | "get_integration_status"
   | "get_customer_insights"
+  | "rank_customers_by_intelligence"
+  | "find_customer_opportunities"
   | "generate_content"
   | "generate_image"
   | "navigate_to"
