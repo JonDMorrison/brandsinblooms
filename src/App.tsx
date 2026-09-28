@@ -204,6 +204,9 @@ const AddCustomer = lazyRetry(() => import("@/pages/crm/AddCustomer"));
 const CustomerDashboardPage = lazyRetry(
   () => import("@/pages/crm/CustomerDashboardPage"),
 );
+const CustomerIntelligencePage = lazyRetry(
+  () => import("@/pages/crm/CustomerIntelligencePage"),
+);
 const CRMCampaignsPage = lazyNamed(
   () => import("@/pages/crm/CRMCampaignsPage"),
   "CRMCampaignsPage",
@@ -740,6 +743,14 @@ function App() {
                 <CRMCustomersPage />,
                 "table",
                 "customers.read",
+              )}
+            />
+            <Route
+              path="/crm/intelligence"
+              element={renderProtectedSidebarLazyPage(
+                <CustomerIntelligencePage />,
+                "table",
+                "reports.read",
               )}
             />
             <Route
