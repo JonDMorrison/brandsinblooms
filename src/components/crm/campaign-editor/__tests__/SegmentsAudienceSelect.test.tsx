@@ -155,12 +155,20 @@ describe("SegmentsAudienceSelect", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("real segment options are disabled while All Contacts is selected", async () => {
+  it("selecting a real segment while All Contacts is selected replaces All Contacts in one click", async () => {
     const user = userEvent.setup();
+    let latestState: {
+      selectedSegments: CampaignSegmentSummary[];
+      includeAllCustomers: boolean;
+    } | null = null;
+
     render(
       <Harness
         initialSelectedSegments={[]}
         initialIncludeAllCustomers={true}
+        onAudienceStateChange={(state) => {
+          latestState = state;
+        }}
       />,
     );
 
@@ -168,7 +176,22 @@ describe("SegmentsAudienceSelect", () => {
 
     const summerOption = await screen.findByText("Summer Bloomers");
     const optionEl = summerOption.closest("[role='option']");
-    expect(optionEl).toHaveAttribute("aria-disabled", "true");
+    expect(optionEl).not.toHaveAttribute("aria-disabled", "true");
+    await user.click(summerOption);
+
+    await waitFor(() => {
+      expect(latestState).toEqual({
+        selectedSegments: [SEGMENT_SUMMER],
+        includeAllCustomers: false,
+      });
+    });
+
+    expect(
+      screen.getByTestId("segment-pill-segment-summer"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("segment-pill-all-contacts"),
+    ).not.toBeInTheDocument();
   });
 
   it("exports a stable sentinel id", () => {
