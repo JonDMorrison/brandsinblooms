@@ -673,6 +673,8 @@ function CampaignEditorScreen() {
         .from("crm_segments")
         .select("id, name, description, customer_count")
         .eq("tenant_id", tenant?.id)
+        .is("deleted_at", null)
+        .in("status", ["active", "draft", "paused"])
         .order("name", { ascending: true });
 
       if (error) {
