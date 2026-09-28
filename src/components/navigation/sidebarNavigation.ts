@@ -90,6 +90,7 @@ const TENANT_ITEM_PERMISSIONS: Partial<Record<string, CrmPermission>> = {
   "activity-center": "campaigns.read",
   calendar: "campaigns.read",
   customers: "customers.read",
+  "customer-intelligence": "reports.read",
   segments: "segments.manage",
   personas: "segments.manage",
   forms: "content.design",
@@ -171,6 +172,12 @@ const legacyActivityItem = createLegacyItem(
 const legacyCalendarItem = createLegacyItem("Calendar", "/calendar", Calendar, [
   { path: "/calendar", end: false },
 ]);
+const legacyIntelligenceItem = createLegacyItem(
+  "Intelligence",
+  "/crm/intelligence",
+  Sparkles,
+  [{ path: "/crm/intelligence", end: false }],
+);
 const legacyCustomersItem = createLegacyItem(
   "Customers",
   "/crm/customers",
@@ -471,6 +478,9 @@ const tenantSidebarGroups: DashboardSidebarGroup[] = [
       createDashboardLinkItem("customers", legacyCustomersItem, {
         contentWidth: "full",
       }),
+      createDashboardLinkItem("customer-intelligence", legacyIntelligenceItem, {
+        contentWidth: "full",
+      }),
       createDashboardLinkItem("segments", legacySegmentsItem, {
         contentWidth: "full",
       }),
@@ -567,6 +577,7 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
   createRouteDescriptor("Activity Center", legacyActivityItem.patterns, "full"),
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),
   createRouteDescriptor("Customers", legacyCustomersItem.patterns, "full"),
+  createRouteDescriptor("Customer Intelligence", legacyIntelligenceItem.patterns, "full"),
   createRouteDescriptor("Campaigns", legacyCampaignsItem.patterns, "full"),
   createRouteDescriptor("Automations", legacyAutomationsItem.patterns, "full"),
   createRouteDescriptor("Segments", legacySegmentsItem.patterns, "full"),
