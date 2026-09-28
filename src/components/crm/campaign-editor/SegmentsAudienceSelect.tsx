@@ -59,12 +59,11 @@ export function SegmentsAudienceSelect({
         (option) => !isAllContactsSegmentOption(option),
       );
 
-      if (wantsAll) {
-        onChange({ selectedSegments: [], includeAllCustomers: true });
-        return;
-      }
-
-      if (includeAllCustomers && !wantsAll) {
+      // "All Contacts" is an exclusive audience shortcut, not a lock.
+      // If a user picks a real segment while All Contacts is selected,
+      // switch to that segment in one click instead of forcing a separate
+      // deselect step first.
+      if (includeAllCustomers && realSegments.length > 0) {
         onChange({
           selectedSegments: realSegments,
           includeAllCustomers: false,
@@ -72,7 +71,15 @@ export function SegmentsAudienceSelect({
         return;
       }
 
-      onChange({ selectedSegments: realSegments });
+      if (wantsAll) {
+        onChange({ selectedSegments: [], includeAllCustomers: true });
+        return;
+      }
+
+      onChange({
+        selectedSegments: realSegments,
+        includeAllCustomers: false,
+      });
     },
     [includeAllCustomers, onChange],
   );
@@ -97,9 +104,6 @@ export function SegmentsAudienceSelect({
         );
         return [ALL_CONTACTS_SEGMENT_OPTION, ...filtered];
       }}
-      getOptionDisabled={(option) =>
-        includeAllCustomers && !isAllContactsSegmentOption(option)
-      }
       renderOption={(optionProps, option) => {
         const { key, ...liProps } = optionProps as React.HTMLAttributes<
           HTMLLIElement
@@ -137,22 +141,8 @@ export function SegmentsAudienceSelect({
             </AutocompleteOption>
           );
         }
-        const disabledByAll = includeAllCustomers;
         return (
-          <AutocompleteOption
-            {...liProps}
-            key={key ?? option.id}
-            title={
-              disabledByAll
-                ? "Deselect All Contacts first to pick specific segments"
-                : undefined
-            }
-            sx={
-              disabledByAll
-                ? { opacity: 0.45, cursor: "not-allowed" }
-                : undefined
-            }
-          >
+          <AutocompleteOption {...liProps} key={key ?? option.id}>
             {option.name}
           </AutocompleteOption>
         );
