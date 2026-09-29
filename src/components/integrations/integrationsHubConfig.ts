@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
+  Database,
   Globe,
   Mail,
   MessageSquare,
@@ -97,6 +98,24 @@ const INTEGRATION_SEEDS: IntegrationSeed[] = [
     detailActionLabel: "Open Square setup",
     detailSummary:
       "Square keeps BloomSuite aligned with your live customer and order activity.",
+  },
+  {
+    slug: "ideal",
+    name: "Ideal",
+    description:
+      "Connect Ideal to Customer Intelligence through partner API access when available, with secure report sync as the supported fallback.",
+    category: "pos-systems",
+    categoryLabel: "POS Systems",
+    defaultStatus: "available",
+    icon: Database,
+    keywords: ["ideal", "ideal computer systems", "pos", "api", "customer intelligence", "reports"],
+    syncScopeLabel: "Customers + Sales + Loyalty + Coupons",
+    canDisconnect: true,
+    targetPath: "/integrations/pos",
+    actionLabel: "Set up",
+    detailActionLabel: "Set up Customer Intelligence",
+    detailSummary:
+      "BloomSuite prefers Ideal API access when the account supports the required customer and sales data, and falls back to idempotent report sync when it does not.",
   },
   {
     slug: "clover",
