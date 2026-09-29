@@ -1667,7 +1667,7 @@ function CampaignEditorScreen() {
                       letterSpacing: "0.06em",
                     }}
                   >
-                    Who can receive email from you
+                    Who can receive this campaign
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {audienceHealthQuery.data.total.toLocaleString()} total
