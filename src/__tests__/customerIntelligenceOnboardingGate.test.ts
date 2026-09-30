@@ -11,8 +11,9 @@ describe("Customer Intelligence onboarding",()=>{
  it("supports native, connected, Ideal API, and Ideal import paths",()=>{
   const wizard=read("src/components/integrations/CustomerIntelligenceSetupWizard.tsx");
   for(const source of ["bloomsuite-pos","connected-pos","ideal-api","ideal-import"]) expect(wizard).toContain(source);
-  expect(wizard).toContain("six Ideal report families");
-  expect(wizard).toContain("Deduplicate transactions");
+  for(const report of ["Customer Sales","Customer Sales by Sales Category","Customer Spending","Customer Points","Coupons Issued","Coupons Redeemed"]) expect(wizard).toContain(report);
+  expect(wizard).toContain("Process & reconcile");
+  expect(wizard).toContain("duplicates");
  });
  it("adds Ideal to the existing integration catalog",()=>{
   const config=read("src/components/integrations/integrationsHubConfig.ts");
