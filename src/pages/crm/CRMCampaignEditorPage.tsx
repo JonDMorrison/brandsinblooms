@@ -97,7 +97,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { classifySender } from "@/lib/crm/senderSeverity";
 import type { SenderClassification } from "@/lib/crm/senderSeverity";
 import { useTenant } from "@/hooks/useTenant";
-import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import { useCampaignAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { supabase } from "@/integrations/supabase/client";
 import {
   applyCampaignTemplate,
@@ -527,7 +527,6 @@ function CampaignEditorScreen() {
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { emailDomains, loading: emailDomainsLoading } = useEmailDomains();
-  const audienceHealthQuery = useTenantAudienceHealth(tenant?.id);
   const { designSystem, isLoading: isDesignSystemLoading } = useDesignSystem();
   const {
     campaignId,
@@ -560,6 +559,15 @@ function CampaignEditorScreen() {
     updateSchedule,
     saveDraft,
   } = useCampaignEditor();
+
+  const audienceHealthQuery = useCampaignAudienceHealth({
+    tenantId: tenant?.id,
+    includeAllCustomers,
+    additionalCustomerIds,
+    segmentIds: selectedSegments.map((segment) => segment.id),
+    personaIds: selectedPersonas.map((persona) => persona.id),
+    enabled: campaignType === "email",
+  });
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [sendConfirmOpen, setSendConfirmOpen] = React.useState(false);
@@ -1659,7 +1667,7 @@ function CampaignEditorScreen() {
                       letterSpacing: "0.06em",
                     }}
                   >
-                    Who can receive email from you
+                    Who can receive this campaign
                   </Typography>
                   <Typography level="body-xs" sx={{ color: "neutral.500" }}>
                     {audienceHealthQuery.data.total.toLocaleString()} total
