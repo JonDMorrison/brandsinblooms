@@ -84,7 +84,7 @@ export default function CustomerIntelligencePage(){
        {title:"Strong customers have gone quiet",count:dormant.length,value:dormant.reduce((s,r)=>s+Number(r.lifetime_value??0),0),copy:"Historically valuable customers with no purchase in at least 120 days.",prompt:"Show me valuable customers who have not purchased in at least 120 days. Rank them by opportunity and explain what they used to buy."},
       ].map(card=><Sheet key={card.title} variant="soft" color="neutral" sx={{borderRadius:"xl",p:{xs:2.5,md:3}}}>
        <Stack direction={{xs:"column",md:"row"}} spacing={2} justifyContent="space-between" alignItems={{md:"center"}}>
-        <Stack spacing=.65>
+        <Stack spacing={0.65}>
          <Typography level="title-lg">{card.title}</Typography>
          <Typography level="body-sm" color="neutral">{card.copy}</Typography>
          <Stack direction="row" spacing={1} alignItems="center"><JoyChip size="sm" variant="soft">{card.count} customers</JoyChip><Typography level="body-sm" fontWeight="lg">{cad(card.value)} historical value</Typography></Stack>
