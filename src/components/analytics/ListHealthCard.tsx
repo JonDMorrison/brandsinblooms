@@ -115,20 +115,20 @@ export const ListHealthCard: React.FC = () => {
         ? "warning"
         : "danger";
 
-  if (error) {
+  if (error || health.error) {
     return (
       <JoyCard variant="soft" color="danger">
         <JoyCardHeader title="List Health" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
             <Typography level="body-sm">
-              Failed to load suppression details.
+              {health.error ? "List health is unavailable. No healthy score has been substituted." : "Failed to load suppression details."}
             </Typography>
             <JoyButton
               size="sm"
               variant="soft"
               color="danger"
-              onClick={() => void refetch()}
+              onClick={() => { void refetch(); void health.refetch(); }}
             >
               Retry
             </JoyButton>
