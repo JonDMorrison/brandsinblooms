@@ -20,9 +20,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = 'a703c9b54fe155cc46e9158d55c48e8fafd2ecb6'
+          test "$(git rev-parse HEAD^)" = '02e3d2609102996a35e32ff871378ce9d4cf71cf'
           curl --fail --silent --show-error --retry 2 'https://sb-387hw3e9aar3.vercel.run/reporting.patch' -o /tmp/reporting.patch
-          echo 'ed1682e0495fb037bce95a3f683bd9b305c2e88d124acb040b8c54a98b57c871  /tmp/reporting.patch' | sha256sum --check --strict
+          echo '4cd1ef373a50e46929b5af77b89987b215c54ac4de77a09e7e4708db7f37913c  /tmp/reporting.patch' | sha256sum --check --strict
           git apply --check /tmp/reporting.patch
           git apply --index /tmp/reporting.patch
           git rm --cached .github/workflows/publish-reviewed-reporting-fix.yml
