@@ -900,6 +900,7 @@ export default function SegmentBuilderPage() {
                       { value: "dynamic", label: "Dynamic" },
                       { value: "static", label: "Static" },
                     ]}
+                    helperText={type === "dynamic" ? "Saved rules: membership updates as customer data changes." : "Saved people: a fixed list until you edit its membership."}
                     value={type}
                   />
                   <JoySelect

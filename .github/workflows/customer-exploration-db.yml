@@ -1,0 +1,38 @@
+name: Customer Exploration Database
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*bloom_customer_exploration*'
+      - 'scripts/tests/customer-exploration-db.sql'
+      - '.github/workflows/customer-exploration-db.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*bloom_customer_exploration*'
+      - 'scripts/tests/customer-exploration-db.sql'
+permissions:
+  contents: read
+jobs:
+  database-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bloom_analysis_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify migration, tenant isolation and frozen audience writes
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_analysis_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/customer-exploration-db.sql

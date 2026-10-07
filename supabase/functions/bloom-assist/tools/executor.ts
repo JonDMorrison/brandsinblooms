@@ -1,3 +1,4 @@
+import { exploreCustomerPurchases, inspectCustomerSet, explainCustomerSetMember, analyzeCustomerBasket, compareCustomerGrowthTool, saveCustomerSetSegment, prepareCustomerSetSave } from "./implementations/customer-exploration.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../types.ts";
 import { cacheGet, cacheInvalidate, cacheSet } from "../cache.ts";
 import {
@@ -660,6 +661,7 @@ function mutationEntityType(toolName: ToolName): string | null {
     case "pause_resume_campaign":
       return "campaign";
     case "create_segment":
+    case "save_customer_set_segment":
     case "update_segment":
     case "assign_segment":
       return "segment";
@@ -791,7 +793,7 @@ function unknownToolResult(toolName: string): ToolResult {
 }
 
 function isCacheableTool(toolName: ToolName): boolean {
-  return toolName !== "export_data";
+  return !["explore_customer_purchases", "inspect_customer_set", "explain_customer_set_member", "analyze_customer_basket", "compare_customer_growth", "save_customer_set_segment", "export_data", "rank_customers_by_intelligence", "find_customer_opportunities"].includes(toolName);
 }
 
 async function logCrossTenantAttempt(
@@ -834,6 +836,12 @@ function notImplementedResult(toolName: ToolName): ToolResult {
 }
 
 function getToolImplementation(toolName: ToolName): ToolImplementation {
+  const analysisTools: Partial<Record<ToolName, ToolImplementation>> = {
+    explore_customer_purchases: exploreCustomerPurchases, inspect_customer_set: inspectCustomerSet,
+    explain_customer_set_member: explainCustomerSetMember, analyze_customer_basket: analyzeCustomerBasket,
+    compare_customer_growth: compareCustomerGrowthTool, save_customer_set_segment: saveCustomerSetSegment,
+  };
+  if (analysisTools[toolName]) return analysisTools[toolName]!;
   const navigateTo = navigateToImplementation(toolName);
   if (navigateTo) {
     return navigateTo;
@@ -993,13 +1001,19 @@ export async function executeTool(
   }
 
   if (tool.requires_confirmation && context.approved !== true) {
-    result = createConfirmationResult(tool, validation.value);
+    try {
+      result = tool.function.name === "save_customer_set_segment"
+        ? await prepareCustomerSetSave(validation.value, context)
+        : createConfirmationResult(tool, validation.value);
+    } catch (error) {
+      result = createResult({ success: false, message: error instanceof Error ? error.message : "Unable to prepare the audience.", error: "analysis_confirmation_failed", blockType: "text" });
+    }
     await logToolExecution(context, {
       toolName: tool.function.name,
       input: logInput,
       output: resultToJsonObject(result),
-      status: "completed",
-      errorMessage: null,
+      status: statusForResult(result),
+      errorMessage: result.error,
       executionTimeMs: Date.now() - startedAt,
     });
     return result;

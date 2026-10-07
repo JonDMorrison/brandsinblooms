@@ -25,12 +25,22 @@ const isUuid = (value: string) =>
   );
 
 function BloomPageParamHandler() {
-  const { createConversation, sendMessage } = useBloom();
+  const { createConversation, sendMessage, setComposerDraft } = useBloom();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { tenant, loading: tenantLoading } = useTenant();
   const isProcessingRef = useRef(false);
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (!prompt || tenantLoading || !tenant?.id) return;
+    // Prefill only: a link must never silently send a message or run a mutation.
+    setComposerDraft(prompt.slice(0, 4000));
+    const remaining = new URLSearchParams(searchParams);
+    remaining.delete("prompt");
+    navigate({ pathname: location.pathname, search: remaining.toString() ? `?${remaining}` : "" }, { replace: true });
+  }, [location.pathname, navigate, searchParams, setComposerDraft, tenant?.id, tenantLoading]);
+
 
   useEffect(() => {
     const insightId = searchParams.get("insight")?.trim() ?? "";
