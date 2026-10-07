@@ -145,8 +145,32 @@ INSERT INTO public.crm_customers SELECT ('40000000-0000-4000-8000-'||lpad(n::tex
  CASE WHEN n<5 THEN '10000000-0000-4000-8000-000000000001'::uuid ELSE '10000000-0000-4000-8000-000000000002'::uuid END,
  CASE WHEN n=2 THEN '30000000-0000-4000-8000-000000000001'::uuid WHEN n=3 THEN '30000000-0000-4000-8000-000000000002'::uuid ELSE NULL END FROM generate_series(1,6)n;
 INSERT INTO public.customer_location_activity VALUES('40000000-0000-4000-8000-000000000004','10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001');
-CREATE TEMP TABLE expected(user_id uuid,active_tenant uuid,customer_ids uuid[]);
-DO $$DECLARE actor uuid; target uuid; ids uuid[]; n integer; BEGIN
+CREATE TABLE public.crm_segments(id uuid PRIMARY KEY,tenant_id uuid,location_scope text,primary_location_id uuid);
+CREATE TABLE public.segment_location_targets(segment_id uuid,tenant_id uuid,location_id uuid);
+CREATE TABLE public.customer_segments(customer_id uuid,segment_id uuid);
+ALTER TABLE public.crm_segments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.segment_location_targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_segments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY crm_segments_manage_by_scope ON public.crm_segments FOR ALL TO authenticated USING(public.has_tenant_permission(tenant_id,'segment.write',primary_location_id)) WITH CHECK(public.has_tenant_permission(tenant_id,'segment.write',primary_location_id));
+CREATE POLICY crm_segments_select_by_scope ON public.crm_segments FOR SELECT TO authenticated USING (
+ (location_scope='all_locations' AND public.has_tenant_permission(tenant_id,'segment.read',NULL)) OR
+ (location_scope='one_location' AND public.has_tenant_permission(tenant_id,'segment.read',primary_location_id)) OR
+ (location_scope='selected_locations' AND EXISTS(SELECT 1 FROM public.segment_location_targets t WHERE t.segment_id=crm_segments.id AND t.tenant_id=crm_segments.tenant_id AND public.has_tenant_permission(t.tenant_id,'segment.read',t.location_id)))
+);
+CREATE POLICY targets_read ON public.segment_location_targets FOR SELECT TO authenticated USING(public.has_tenant_permission(tenant_id,'segment.read',location_id) OR public.has_tenant_permission(tenant_id,'segment.write',location_id));
+CREATE POLICY customer_segments_select_by_scope ON public.customer_segments FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM public.crm_customers customer JOIN public.crm_segments segment ON segment.tenant_id=customer.tenant_id WHERE customer.id=customer_segments.customer_id AND segment.id=customer_segments.segment_id));
+GRANT SELECT ON public.crm_segments,public.segment_location_targets,public.customer_segments TO authenticated;
+INSERT INTO public.crm_segments SELECT ('50000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
+ CASE WHEN n=7 THEN '10000000-0000-4000-8000-000000000002'::uuid ELSE '10000000-0000-4000-8000-000000000001'::uuid END,
+ CASE WHEN n IN(1,7) THEN 'all_locations' WHEN n IN(2,3) THEN 'one_location' ELSE 'selected_locations' END,
+ CASE WHEN n=2 THEN '30000000-0000-4000-8000-000000000001'::uuid WHEN n=3 THEN '30000000-0000-4000-8000-000000000002'::uuid ELSE NULL END FROM generate_series(1,7)n;
+INSERT INTO public.segment_location_targets VALUES
+ ('50000000-0000-4000-8000-000000000004','10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001'),
+ ('50000000-0000-4000-8000-000000000005','10000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000002');
+-- Include mismatched-company membership pairs to prove they stay invisible.
+INSERT INTO public.customer_segments SELECT c.id,s.id FROM public.crm_customers c CROSS JOIN public.crm_segments s;
+CREATE TEMP TABLE expected(user_id uuid,active_tenant uuid,customer_ids uuid[],segment_ids uuid[],membership_pairs text[]);
+DO $$DECLARE actor uuid; target uuid; ids uuid[]; segments uuid[]; pairs text[]; n integer; BEGIN
  FOR n IN 1..11 LOOP
   actor:=('20000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid;
   FOREACH target IN ARRAY ARRAY[NULL::uuid,'10000000-0000-4000-8000-000000000001'::uuid,'10000000-0000-4000-8000-000000000002'::uuid] LOOP
@@ -154,8 +178,10 @@ DO $$DECLARE actor uuid; target uuid; ids uuid[]; n integer; BEGIN
    PERFORM set_config('request.jwt.claim.sub',actor::text,true);
    SET LOCAL ROLE authenticated;
    SELECT coalesce(array_agg(id ORDER BY id),'{}'::uuid[]) INTO ids FROM public.crm_customers;
+   SELECT coalesce(array_agg(id ORDER BY id),'{}'::uuid[]) INTO segments FROM public.crm_segments;
+   SELECT coalesce(array_agg(customer_id::text||':'||segment_id::text ORDER BY customer_id,segment_id),'{}'::text[]) INTO pairs FROM public.customer_segments;
    RESET ROLE;
-   INSERT INTO expected VALUES(actor,target,ids);
+   INSERT INTO expected VALUES(actor,target,ids,segments,pairs);
   END LOOP;
  END LOOP;
 END $$;
@@ -164,13 +190,24 @@ ALTER TABLE public.crm_customers ADD COLUMN created_at timestamptz DEFAULT now()
 \ir ../../supabase/migrations/20261007222658_crm_customer_page_index.sql
 \ir ../../supabase/migrations/20261007223053_crm_customer_read_once.sql
 \ir ../../supabase/migrations/20261007223053_crm_customer_read_once.sql
-DO $$DECLARE test record; ids uuid[]; BEGIN
+\ir ../../supabase/migrations/20261007224331_crm_segment_read_once.sql
+\ir ../../supabase/migrations/20261007224331_crm_segment_read_once.sql
+\ir ../../supabase/migrations/20261007224534_crm_membership_read_maps.sql
+\ir ../../supabase/migrations/20261007224534_crm_membership_read_maps.sql
+\ir ../../supabase/migrations/20261007224709_crm_membership_candidate_scope.sql
+\ir ../../supabase/migrations/20261007224709_crm_membership_candidate_scope.sql
+\ir ../../supabase/migrations/20261007224846_crm_membership_effective_scope.sql
+\ir ../../supabase/migrations/20261007224846_crm_membership_effective_scope.sql
+DO $$DECLARE test record; ids uuid[]; segments uuid[]; pairs text[]; BEGIN
  FOR test IN SELECT * FROM expected LOOP
    INSERT INTO public.admin_session_context VALUES(test.user_id,test.active_tenant) ON CONFLICT(admin_user_id) DO UPDATE SET active_tenant_id=excluded.active_tenant_id;
    PERFORM set_config('request.jwt.claim.sub',test.user_id::text,true);
    SET LOCAL ROLE authenticated;
    SELECT coalesce(array_agg(id ORDER BY id),'{}'::uuid[]) INTO ids FROM public.crm_customers;
+   SELECT coalesce(array_agg(id ORDER BY id),'{}'::uuid[]) INTO segments FROM public.crm_segments;
+   SELECT coalesce(array_agg(customer_id::text||':'||segment_id::text ORDER BY customer_id,segment_id),'{}'::text[]) INTO pairs FROM public.customer_segments;
    RESET ROLE;
+   IF segments IS DISTINCT FROM test.segment_ids OR pairs IS DISTINCT FROM test.membership_pairs THEN RAISE EXCEPTION 'Segment/membership access changed for %, context %',test.user_id,test.active_tenant; END IF;
    IF ids IS DISTINCT FROM test.customer_ids THEN RAISE EXCEPTION 'Authorization changed for user %, context %: expected %, got %',test.user_id,test.active_tenant,test.customer_ids,ids;END IF;
  END LOOP;
  PERFORM set_config('request.jwt.claim.sub','',true);
@@ -183,4 +220,4 @@ DO $$DECLARE test record; ids uuid[]; BEGIN
  IF (SELECT cardinality(customer_ids) FROM expected WHERE user_id='20000000-0000-4000-8000-000000000008' AND active_tenant IS NULL)<>0 THEN RAISE EXCEPTION 'Inactive location fixture ineffective';END IF;
 END $$;
 ROLLBACK;
-\echo 'PASS: all 33 role/context combinations unchanged, including active/inactive locations, unknown users, cross-tenant context and unauthenticated denial'
+\echo 'PASS: all 33 role/context combinations preserve customers, segments and membership pairs, including active/inactive locations, unknown users, cross-tenant context and unauthenticated denial'
