@@ -277,4 +277,30 @@ describe("AdminProvider tenant context hydration", () => {
       expect(result.current.hasHydratedTenantContext).toBe(true);
     });
   });
+  it("keeps an already hydrated company when the same user's session object refreshes", async () => {
+    const {result,rerender}=renderHook(()=>useAdmin(),{wrapper});
+    await waitFor(()=>expect(result.current.hasHydratedTenantContext).toBe(true));
+    const calls=mocks.contextMaybeSingle.mock.calls.length;
+    mocks.contextMaybeSingle.mockImplementation(()=>new Promise(()=>{}));
+    act(()=>{mocks.user={id:"admin-1",email:"admin@example.com"};rerender();});
+    await act(async()=>{await Promise.resolve();});
+    expect(mocks.contextMaybeSingle).toHaveBeenCalledTimes(calls);
+    expect(result.current.hasHydratedTenantContext).toBe(true);
+    expect(result.current.activeTenantId).toBe("tenant-greenfield");
+  });
+
+  it("does not restart an in-flight company lookup for the same authenticated identity", async () => {
+    const deferred=makeDeferred<ContextResult>();
+    mocks.contextMaybeSingle.mockImplementation(()=>deferred.promise);
+    const {result,rerender}=renderHook(()=>useAdmin(),{wrapper});
+    await waitFor(()=>expect(mocks.contextMaybeSingle).toHaveBeenCalledTimes(1));
+    act(()=>{mocks.user={id:"admin-1",email:"admin@example.com"};rerender();});
+    await act(async()=>{await Promise.resolve();});
+    expect(mocks.contextMaybeSingle).toHaveBeenCalledTimes(1);
+    expect(result.current.hasHydratedTenantContext).toBe(false);
+    await act(async()=>{deferred.resolve({data:{active_tenant_id:"tenant-greenfield"},error:null});await deferred.promise;});
+    await waitFor(()=>expect(result.current.hasHydratedTenantContext).toBe(true));
+    expect(result.current.activeTenantId).toBe("tenant-greenfield");
+  });
+
 });

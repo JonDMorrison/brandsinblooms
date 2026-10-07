@@ -9,13 +9,19 @@ import React, {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 
+interface AdminTenant {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 interface AdminContextType {
   isMasterAdmin: boolean;
   isLoading: boolean;
   activeTenantId: string | null;
   hasHydratedTenantContext: boolean;
   setActiveTenantId: (tenantId: string | null) => Promise<void>;
-  availableTenants: any[];
+  availableTenants: AdminTenant[];
   refreshTenants: () => Promise<void>;
 }
 
@@ -25,6 +31,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [isMasterAdmin, setIsMasterAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [resolvedAdminUserId, setResolvedAdminUserId] = useState<string | null>(
@@ -36,7 +43,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const [hydratedAdminUserId, setHydratedAdminUserId] = useState<string | null>(
     null,
   );
-  const [availableTenants, setAvailableTenants] = useState<any[]>([]);
+  const [availableTenants, setAvailableTenants] = useState<AdminTenant[]>([]);
   const contextWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const contextWriteVersionRef = useRef(0);
 
@@ -104,6 +111,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   // Hydrate the persisted master-admin tenant context before exposing it as
   // usable. The admin-status result must belong to the current authenticated
   // user; a previous anonymous/user render is not authoritative.
+  // Token refreshes can replace the user object without changing its identity.
+  // Do not reset verified context or restart an in-flight read for that event.
   useEffect(() => {
     let cancelled = false;
 
@@ -115,7 +124,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      if (!user || !isMasterAdmin) {
+      if (!userId || !isMasterAdmin) {
         setActiveTenantIdState(null);
         setHydratedAdminUserId(null);
         setHasHydratedTenantContext(true);
@@ -129,7 +138,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         const { data, error } = await supabase
           .from("admin_session_context")
           .select("active_tenant_id")
-          .eq("admin_user_id", user.id)
+          .eq("admin_user_id", userId)
           .maybeSingle();
 
         if (error) {
@@ -146,7 +155,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       } finally {
         if (!cancelled) {
-          setHydratedAdminUserId(user.id);
+          setHydratedAdminUserId(userId);
           setHasHydratedTenantContext(true);
         }
       }
@@ -157,7 +166,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       cancelled = true;
     };
-  }, [isAdminStatusLoading, isMasterAdmin, user]);
+  }, [isAdminStatusLoading, isMasterAdmin, userId]);
 
   useEffect(() => {
     async function loadTenants() {

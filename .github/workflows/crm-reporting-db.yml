@@ -3,12 +3,26 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/*crm_reporting*'
+      - 'supabase/migrations/*crm_customer_page_index*'
+      - 'supabase/migrations/*crm_customer_read_once*'
+      - 'supabase/migrations/*crm_segment_read_once*'
+      - 'supabase/migrations/*crm_membership_read_maps*'
+      - 'supabase/migrations/*crm_membership_candidate_scope*'
+      - 'supabase/migrations/*crm_membership_effective_scope*'
+      - 'scripts/tests/crm-customer-read-once.sql'
       - 'scripts/tests/crm-reporting-query-scope.sql'
       - '.github/workflows/crm-reporting-db.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/*crm_reporting*'
+      - 'supabase/migrations/*crm_customer_page_index*'
+      - 'supabase/migrations/*crm_customer_read_once*'
+      - 'supabase/migrations/*crm_segment_read_once*'
+      - 'supabase/migrations/*crm_membership_read_maps*'
+      - 'supabase/migrations/*crm_membership_candidate_scope*'
+      - 'supabase/migrations/*crm_membership_effective_scope*'
+      - 'scripts/tests/crm-customer-read-once.sql'
       - 'scripts/tests/crm-reporting-query-scope.sql'
 permissions:
   contents: read
@@ -36,3 +50,10 @@ jobs:
           PGUSER: postgres
           PGDATABASE: bloom_reporting_test
         run: psql -v ON_ERROR_STOP=1 -f scripts/tests/crm-reporting-query-scope.sql
+      - name: Verify cached customer read authorization parity
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_reporting_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/crm-customer-read-once.sql
