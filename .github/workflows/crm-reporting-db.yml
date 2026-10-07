@@ -1,0 +1,38 @@
+name: CRM Reporting Database
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*crm_reporting_query_scope*'
+      - 'scripts/tests/crm-reporting-query-scope.sql'
+      - '.github/workflows/crm-reporting-db.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*crm_reporting_query_scope*'
+      - 'scripts/tests/crm-reporting-query-scope.sql'
+permissions:
+  contents: read
+jobs:
+  database-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bloom_reporting_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify reporting result parity and unchanged authorization
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_reporting_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/crm-reporting-query-scope.sql
