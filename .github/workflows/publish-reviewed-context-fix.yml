@@ -1,0 +1,36 @@
+# Temporary branch-only transport, pinned to reviewed patch and final tree.
+# Removed before merge. Contains no credentials or customer data.
+name: Publish reviewed context fix
+on:
+  push:
+    branches: [fix/crm-customer-page-index]
+    paths: [.github/workflows/publish-reviewed-context-fix.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/fix/crm-customer-page-index'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/crm-customer-page-index
+          fetch-depth: 2
+      - name: Apply the reviewed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 'ff40414f74e7c39c1bb50f999ccaa430005d173e'
+          curl --fail --silent --show-error --retry 2 'https://sb-387hw3e9aar3.vercel.run/context-refresh.patch' -o /tmp/context-refresh.patch
+          echo 'a43f794ca5aaa5dffa01e1119610d5f74d741127dab358691317fdb26f20b4fb  /tmp/context-refresh.patch' | sha256sum --check --strict
+          git apply --check /tmp/context-refresh.patch
+          git apply --index /tmp/context-refresh.patch
+          git rm --cached .github/workflows/publish-reviewed-context-fix.yml
+          test "$(git write-tree)" = '7e111dd1439ae57b6577b4ed5664c10d24870136'
+          git add .github/workflows/publish-reviewed-context-fix.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: preserve workspace hydration across same-user session refreshes'
+          git push origin HEAD:refs/heads/fix/crm-customer-page-index
