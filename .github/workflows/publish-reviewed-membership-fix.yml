@@ -1,0 +1,36 @@
+# Temporary branch-only transport; exact patch and output tree are pinned.
+# Removed before merge. No customer data or credentials are in this patch.
+name: Publish reviewed membership fix
+on:
+  push:
+    branches: [fix/crm-customer-page-index]
+    paths: [.github/workflows/publish-reviewed-membership-fix.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.repository == 'JonDMorrison/brandsinblooms' && github.ref == 'refs/heads/fix/crm-customer-page-index'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/crm-customer-page-index
+          fetch-depth: 2
+      - name: Apply the reviewed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = '722f94972251eaffb2ad05c808eec0af89c4f7c7'
+          curl --fail --silent --show-error --retry 2 'https://sb-387hw3e9aar3.vercel.run/membership.patch' -o /tmp/membership.patch
+          echo 'c5745944cac62e04ec57e4963c0e38eb494221b09cca01bffb910617b8a401f2  /tmp/membership.patch' | sha256sum --check --strict
+          git apply --check /tmp/membership.patch
+          git apply --index /tmp/membership.patch
+          git rm --cached .github/workflows/publish-reviewed-membership-fix.yml
+          test "$(git write-tree)" = '94f0d0d03c68def8f2ced6ace8c7027d599ba3b6'
+          git add .github/workflows/publish-reviewed-membership-fix.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: reuse tenant-scoped parent visibility for segment membership reads'
+          git push origin HEAD:refs/heads/fix/crm-customer-page-index
