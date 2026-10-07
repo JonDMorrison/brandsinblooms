@@ -112,7 +112,7 @@ export async function prepareCustomerSetSave(params: JsonObject,context: ToolExe
   publicSet(set,await loadAnalysisCustomers(context));
   const segmentName=String(params.name??'').trim();if(!segmentName||segmentName.length>120)throw new Error('Give the segment a name of up to 120 characters.');
   if(!set.included_ids.length)throw new Error('There are no included customers to save.');
-  const details={action:`Save ${set.included_ids.length} customers as the static segment “${segmentName}”`,affected_count:set.included_ids.length,reversible:true,risk_level:'moderate' as const,tool_name:'save_customer_set_segment' as const};
+  const details={action:`Save ${set.included_ids.length} customers as the static segment “${segmentName}”`,affected_count:set.included_ids.length,reversible:true,risk_level:'medium' as const,tool_name:'save_customer_set_segment' as const};
   return {success:true,error:null,count:set.included_ids.length,message:details.action,block_type:'confirmation',confirmation_required:true,confirmation_details:details,
     data:{tool_name:'save_customer_set_segment',tool_params:{set_id:set.id,name:segmentName},confirmation_details:details,
       excluded_count:set.excluded_ids.length,unknown_count:set.unknown_ids.length,notice:'This saves a fixed list. It does not send messages or change consent. You can edit membership later; the original search remains available.'}};

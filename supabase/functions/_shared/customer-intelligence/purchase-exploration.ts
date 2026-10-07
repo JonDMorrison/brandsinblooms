@@ -80,7 +80,10 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
     else {
       const query = normalized(rule.product);
       const found = available.some((value) => rule.product_match === 'contains' || !rule.product_match ? normalized(value).includes(query) : normalized(value) === query);
-      if (!found) return false;
+      if (!found) {
+        if (rule.product_match !== 'sku' && !fact.product_name?.trim()) missing = true;
+        else return false;
+      }
     }
   }
   for (const [expected, actual] of [[rule.category, fact.sales_category], [rule.department, fact.department]]) {

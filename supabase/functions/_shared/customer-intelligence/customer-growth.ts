@@ -52,6 +52,7 @@ export function compareCustomerGrowth(orders: GrowthOrder[], customerIds: string
     if (date > settings.baseline_end && date < settings.current_start) continue;
     if (!order.currency) { row.missing++; continue; }
     if (order.currency.toUpperCase() !== settings.currency) { row.foreign++; continue; }
+    if (['refunded', 'partially_refunded'].includes(status!) && order.refund_amount === null) { row.missing++; continue; }
     const gross = moneyMinorUnits(order.total_amount), refund = order.refund_amount === null ? 0 : moneyMinorUnits(order.refund_amount);
     if (gross === null || refund === null || refund < 0 || gross < 0 || refund > gross) { row.missing++; continue; }
     if (gross === 0) continue;

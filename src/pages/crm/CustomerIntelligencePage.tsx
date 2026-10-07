@@ -1,3 +1,5 @@
+import {readAllPages} from '../../../supabase/functions/_shared/customer-intelligence/query-pages';
+import { CustomerGrowthWorkspace } from "@/components/crm/customer-intelligence/CustomerGrowthWorkspace";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Sheet from "@mui/joy/Sheet";
@@ -33,11 +35,9 @@ export default function CustomerIntelligencePage(){
   enabled:Boolean(tenantId),
   staleTime:120000,
   queryFn:async()=>{
-   const {data,error}=await supabase.from("customer_purchase_intelligence")
-    .select("customer_id,first_name,last_name,email,lifetime_value,purchase_velocity,days_since_last_purchase,customer_tier,top_product_categories,total_quantity,departments_shopped,categories_shopped")
-    .eq("tenant_id",tenantId!).order("lifetime_value",{ascending:false}).limit(5000);
-   if(error) throw error;
-   return (data??[]) as IntelligenceRow[];
+   return readAllPages<IntelligenceRow>((from,to)=>supabase.from("customer_purchase_intelligence")
+     .select("customer_id,first_name,last_name,email,lifetime_value,purchase_velocity,days_since_last_purchase,customer_tier,top_product_categories,total_quantity,departments_shopped,categories_shopped")
+     .eq("tenant_id",tenantId!).order("customer_id").range(from,to));
   }
  });
  const rows=query.data??[];
@@ -51,6 +51,8 @@ export default function CustomerIntelligencePage(){
 
  const askBloom=(prompt:string)=>navigate(`/bloom?prompt=${encodeURIComponent(prompt)}`);
  if(query.isLoading) return <PageContainer sx={{py:3}}><Stack spacing={2}><Skeleton variant="rectangular" sx={{height:180,borderRadius:"2xl"}}/><Skeleton variant="rectangular" sx={{height:420,borderRadius:"2xl"}}/></Stack></PageContainer>;
+
+ if(query.error) return <PageContainer sx={{py:3}}><Stack spacing={2}><Typography role="alert" level="title-lg">Customer intelligence could not be loaded.</Typography><Typography level="body-md">No totals have been substituted for the unavailable data.</Typography><JoyButton onClick={()=>void query.refetch()}>Try again</JoyButton><CustomerGrowthWorkspace /></Stack></PageContainer>;
 
  return <PageContainer sx={{py:{xs:2,md:3}}}>
   <Stack spacing={3}>
@@ -75,6 +77,7 @@ export default function CustomerIntelligencePage(){
     <JoyStatCard icon={<Brain/>} label="Win-back opportunities" value={dormant.length} iconColor="primary"/>
    </Box>
 
+   <CustomerGrowthWorkspace />
    <JoyCard variant="outlined">
     <JoyCardHeader title="Opportunities worth your attention" description="These signals come from actual customer purchase behavior. Bloom can explain the evidence and help turn any insight into an audience or campaign." actions={<JoyButton size="sm" variant="plain" onClick={()=>askBloom("Find my strongest customer opportunities. Prioritize by historical customer value and explain why each group matters.")}>Explore with Bloom</JoyButton>}/>
     <JoyCardContent>

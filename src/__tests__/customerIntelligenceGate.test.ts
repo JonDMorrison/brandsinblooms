@@ -24,7 +24,7 @@ describe("customer intelligence foundation",()=>{
   it("exposes explainable intelligence through Bloom",()=>{
     const registry=read("supabase/functions/bloom-assist/tools/registry.ts");
     const executor=read("supabase/functions/bloom-assist/tools/executor.ts");
-    const implementation=read("supabase/functions/bloom-assist/tools/implementations/customer-intelligence.ts");
+    const implementation=read("supabase/functions/_shared/customer-intelligence/customer-ranking.ts");
     expect(registry).toContain('name: "rank_customers_by_intelligence"');
     expect(registry).toContain('name: "find_customer_opportunities"');
     expect(executor).toContain("rankCustomersByIntelligence");

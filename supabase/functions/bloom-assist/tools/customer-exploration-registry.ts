@@ -5,10 +5,10 @@ const integer = (description: string, minimum=1, maximum=10000): JsonObject => (
 const object = (properties: JsonObject, required: string[] = []): JsonObject => ({type:'object',properties,required,additionalProperties:false});
 const setId = string('Exact saved result ID returned by Bloom. Never invent an ID.',{format:'uuid'});
 const scope = {scope:string('Explicit starting population.',{enum:['all_customers','previous_result','saved_result']}),set_id:setId};
-const roles: ToolRole[] = ['owner_admin','marketing','store_manager'];
+const roles: ToolRole[] = ['admin','staff','viewer'];
 function tool(name: ToolName, description: string, parameters: JsonObject, mutation=false): ToolDefinition {
-  return {type:'function',function:{name,description,parameters},category:mutation?'mutation':'analytics',risk_level:mutation?'moderate':'safe',requires_confirmation:mutation,
-    allowed_roles:mutation?['owner_admin','marketing']:roles,allowed_modes:['standard','reasoning','research']};
+  return {type:'function',function:{name,description,parameters},category:mutation?'mutation':'query',risk_level:mutation?'medium':'safe',requires_confirmation:mutation,
+    allowed_roles:mutation?['admin','staff']:roles,allowed_modes:['standard','reasoning','research']};
 }
 export const customerExplorationTools: ToolDefinition[] = [
   tool('explore_customer_purchases', 'Find customers from their actual purchase records. For follow-ups such as “of those people”, use previous_result to preserve the exact customer group. Can intersect purchases, find recorded non-buyers, or start over explicitly. Returns included/excluded/unknown counts, saved result ID, and the rule trail. Do not silently apply consent or persona filters.', object({...scope,
@@ -26,5 +26,5 @@ export const customerExplorationTools: ToolDefinition[] = [
 export const CUSTOMER_EXPLORATION_TOOL_NAMES = customerExplorationTools.map(t=>t.function.name);
 export function addIntelligenceScopeParameters(registry: ToolDefinition[]): void {
   const ranking=registry.find(t=>t.function.name==='rank_customers_by_intelligence');
-  if(ranking){const properties=ranking.function.parameters.properties as JsonObject;Object.assign(properties,{...scope,bucket:string('ranked or unranked; missing values are never treated as zero.',{enum:['ranked','unranked']}),page:integer('Unranked results page, 50 per page.')});ranking.function.description += ' For a follow-up audience, specify scope=previous_result or saved_result. Explicit weights replace defaults; inspect unranked customers to see missing factors.';}
+  if(ranking){ranking.category='query';const properties=ranking.function.parameters.properties as JsonObject;Object.assign(properties,{...scope,bucket:string('ranked or unranked; missing values are never treated as zero.',{enum:['ranked','unranked']}),page:integer('Unranked results page, 50 per page.')});ranking.function.description += ' For a follow-up audience, specify scope=previous_result or saved_result. Explicit weights replace defaults; inspect unranked customers to see missing factors.';}
 }

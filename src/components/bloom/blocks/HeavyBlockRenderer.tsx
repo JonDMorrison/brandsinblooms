@@ -1,3 +1,5 @@
+import { CustomerAnalysisBlock } from "./CustomerAnalysisBlock";
+import { customerAnalysisPayload } from "@/lib/customer-intelligence/presentation";
 import * as React from "react";
 import Stack from "@mui/joy/Stack";
 import Sheet from "@mui/joy/Sheet";
@@ -230,6 +232,8 @@ export default function HeavyBlockRenderer({
 }: HeavyBlockRendererProps) {
   switch (blockType) {
     case "data_table": {
+      const analysis = customerAnalysisPayload(payload);
+      if (analysis) return <CustomerAnalysisBlock data={analysis} onAction={(prompt) => onAction(prompt, { blockType })} />;
       const tablePayload = readDataTablePayload(payload);
       return (
         <DataTableBlock

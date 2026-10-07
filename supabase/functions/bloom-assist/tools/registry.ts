@@ -1,3 +1,4 @@
+import { customerExplorationTools, addIntelligenceScopeParameters } from "./customer-exploration-registry.ts";
 import type { BloomMode, JsonArray, JsonObject } from "../types.ts";
 import type {
   IntentClassification,
@@ -516,6 +517,7 @@ const segmentWriteFields = {
 };
 
 export const TOOL_REGISTRY: ToolDefinition[] = [
+  ...customerExplorationTools,
   defineTool({
     name: "query_customers",
     description:
@@ -1546,6 +1548,8 @@ const INTENT_CATEGORY_MAP: Record<IntentClassification, ToolCategory[] | null> =
     navigation: ["navigation"],
     general: null,
   };
+
+addIntelligenceScopeParameters(TOOL_REGISTRY);
 
 export function normalizeToolRole(userRole: string): ToolRole {
   const normalized = userRole.trim().toLowerCase();
