@@ -35,11 +35,14 @@ CREATE TEMP TABLE expected AS SELECT public.get_crm_dashboard_snapshot('10000000
 CREATE TEMP TABLE original_security AS SELECT prosecdef,proacl,proconfig,split_part(prosrc,'WITH bounds AS',1) as guard FROM pg_proc WHERE oid='public.get_crm_dashboard_snapshot(uuid,uuid)'::regprocedure;
 \ir ../../supabase/migrations/20261007214817_crm_reporting_query_scope.sql
 \ir ../../supabase/migrations/20261007214817_crm_reporting_query_scope.sql
+\ir ../../supabase/migrations/20261007220945_crm_reporting_user_scope_indexes.sql
+\ir ../../supabase/migrations/20261007220945_crm_reporting_user_scope_indexes.sql
 DO $$DECLARE tenant_result jsonb;user_result jsonb;BEGIN
  tenant_result:=public.get_crm_dashboard_snapshot('10000000-0000-4000-8000-000000000001',NULL)::jsonb;
  user_result:=public.get_crm_dashboard_snapshot(NULL,'20000000-0000-4000-8000-000000000001')::jsonb;
  IF tenant_result IS DISTINCT FROM (SELECT e.tenant_result FROM expected e) OR user_result IS DISTINCT FROM (SELECT e.user_result FROM expected e) THEN RAISE EXCEPTION 'Reporting results changed'; END IF;
  IF tenant_result->>'total_customers'<>'100' OR tenant_result->'segment_counts'->>'high-value'<>'100' OR tenant_result->'segment_counts'->>'seasonal-shoppers'<>'1' THEN RAISE EXCEPTION 'Fixture counts are incorrect';END IF;
+ IF (SELECT count(*) FROM pg_index WHERE indisvalid AND indexrelid IN ('public.idx_crm_customers_reporting_user'::regclass,'public.idx_crm_campaigns_reporting_user'::regclass,'public.idx_crm_personas_reporting_user'::regclass))<>3 THEN RAISE EXCEPTION 'User-scope indexes missing or invalid'; END IF;
  IF EXISTS(SELECT 1 FROM original_security o CROSS JOIN pg_proc p WHERE p.oid='public.get_crm_dashboard_snapshot(uuid,uuid)'::regprocedure AND (p.prosecdef IS DISTINCT FROM o.prosecdef OR p.proacl IS DISTINCT FROM o.proacl OR p.proconfig IS DISTINCT FROM o.proconfig OR split_part(p.prosrc,'WITH bounds AS',1) IS DISTINCT FROM o.guard)) THEN RAISE EXCEPTION 'Security configuration changed'; END IF;
  BEGIN PERFORM public.get_crm_dashboard_snapshot('10000000-0000-4000-8000-000000000999',NULL);RAISE EXCEPTION 'Unauthorized tenant read succeeded';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  PERFORM set_config('request.jwt.claim.sub','',true);
