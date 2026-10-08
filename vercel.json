@@ -2,12 +2,37 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.bloomsuite.app" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.bloomsuite.app"
+        }
+      ],
       "destination": "https://bloomsuite.app/$1",
       "permanent": true
+    },
+    {
+      "source": "/pos/login",
+      "destination": "https://bloomsuite-pos.vercel.app/",
+      "permanent": false
     }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/pos",
+      "destination": "/pos-marketing.html"
+    },
+    {
+      "source": "/pos/",
+      "destination": "/pos-marketing.html"
+    },
+    {
+      "source": "/suite",
+      "destination": "/suite-portal.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
