@@ -1,3 +1,4 @@
+import { SuiteProductsSection } from "@/components/suite/SuiteProductsSection";
 import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -143,6 +144,7 @@ export const HomepagePresentation = () => {
           <HomepageHeroSection isActive motionEnabled />
         </section>
 
+      <SuiteProductsSection />
         <section
           id="problem"
           className="hp-scroll-section"
@@ -216,3 +218,4 @@ export const HomepagePresentation = () => {
 };
 
 export default HomepagePresentation;
+

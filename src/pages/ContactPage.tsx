@@ -9,10 +9,10 @@ import { Textarea } from "@/components/ui-legacy/textarea";
 import { Checkbox } from "@/components/ui-legacy/checkbox";
 import { Label } from "@/components/ui-legacy/label";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, MessageCircle, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle } from "lucide-react";
 
 const contactFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters"),
@@ -25,6 +25,8 @@ type ContactFormData = z.infer<typeof contactFormSchema>;
 
 const ContactPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPosDemo = searchParams.get("product") === "pos";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -40,12 +42,13 @@ const ContactPage = () => {
     defaultValues: {
       name: "",
       email: "",
-      inquiryTypes: [],
-      message: ""
+      inquiryTypes: isPosDemo ? ["pos"] : [],
+      message: isPosDemo ? "I would like a BloomSuite POS demonstration for my garden centre." : ""
     }
   });
 
   const inquiryOptions = [
+    { id: "pos", label: "BloomSuite POS Demonstration" },
     { id: "support", label: "Support & Technical Help" },
     { id: "signup", label: "Signing Up & Getting Started" },
     { id: "general", label: "General Inquiry" },
@@ -66,12 +69,12 @@ const ContactPage = () => {
     try {
       setIsSubmitting(true);
       
-      const { error } = await supabase.functions.invoke('send-contact-form', {
+      const { data: response, error } = await supabase.functions.invoke('send-contact-form', {
         body: data
       });
 
-      if (error) {
-        throw error;
+      if (error || response?.error || response?.success !== true) {
+        throw error || new Error("The message could not be delivered.");
       }
 
       setIsSubmitted(true);
@@ -125,10 +128,10 @@ const ContactPage = () => {
       <section className="py-16 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold text-accent mb-6">
-            Contact Us
+            {isPosDemo ? "See BloomSuite POS in action" : "Contact Us"}
           </h1>
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            Have questions about BloomSuite? We'd love to help.
+            {isPosDemo ? "Tell us about your store. We’ll tailor a demonstration to your checkout, catalogue, and team." : "Have questions about BloomSuite? We’d love to help."}
           </p>
         </div>
       </section>
