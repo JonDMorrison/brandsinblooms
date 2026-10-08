@@ -1,8 +1,8 @@
 export const HOMEPAGE_SEO = {
   title:
-    "BloomSuite — AI-Powered CRM for Garden Centres, Florists & Green Businesses",
+    "BloomSuite — CRM, POS & Websites for Garden Centres",
   description:
-    "BloomSuite unites AI CRM, campaigns, automation and integrations for garden centres, florists and green businesses.",
+    "Explore BloomSuite CRM, BloomSuite POS, and BloomSites: customer marketing, in-store operations, websites, and online selling for independent garden centres.",
   url: "https://bloomsuite.app/",
   imageUrl: "https://bloomsuite.app/og-image.png",
   imageAlt:
@@ -41,15 +41,10 @@ export const HOMEPAGE_STRUCTURED_DATA = [
     operatingSystem: "Web",
     url: HOMEPAGE_SEO.url,
     description: HOMEPAGE_SEO.description,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      category: "FreeTrial",
-    },
     audience: {
       "@type": "Audience",
       audienceType: "Garden centres, florists and green businesses",
     },
   },
 ];
+

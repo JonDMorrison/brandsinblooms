@@ -133,6 +133,8 @@ const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
 const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
 const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
 const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
+const SuitePage = lazyNamed(() => import("@/pages/SuitePage"), "SuitePage");
+const PosMarketingPage = lazyNamed(() => import("@/pages/PosMarketingPage"), "PosMarketingPage");
 const AboutPage = lazyNamed(() => import("@/pages/AboutPage"), "AboutPage");
 const SmsPage = lazyNamed(() => import("@/pages/public/SmsPage"), "SmsPage");
 const LightspeedLandingPage = lazyNamed(
@@ -581,6 +583,8 @@ function App() {
               <Route path="/faq" element={<FAQPage />} />
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/pos" element={<PosMarketingPage />} />
+              <Route path="/suite" element={<SuitePage />} />
 
               {/* Public compliance pages */}
               <Route path="/sms-program" element={<SmsPage />} />
@@ -1394,3 +1398,4 @@ function App() {
 }
 
 export default App;
+

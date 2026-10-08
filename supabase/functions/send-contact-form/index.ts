@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.1.0";
-import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+import { handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+
+const escapeHtml = (value: string) => value.replace(/[&<>"\']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "\'": "&#39;" }[character]!));
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -20,7 +22,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { name, email, inquiryTypes, message }: ContactFormRequest = await req.json();
 
     // Validate required fields
-    if (!name || !email || !inquiryTypes?.length || !message) {
+    if (typeof name !== "string" || name.trim().length < 2 || name.length > 100 || typeof email !== "string" || email.length > 255 || !Array.isArray(inquiryTypes) || !inquiryTypes.length || inquiryTypes.some(type => typeof type !== "string" || !["pos", "support", "signup", "general", "other"].includes(type)) || typeof message !== "string" || message.trim().length < 10 || message.length > 1000) {
       return corsJsonResponse(
         { error: "Missing required fields" },
         { status: 400 }
@@ -38,6 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Map inquiry types to readable labels
     const inquiryLabels = {
+      pos: "BloomSuite POS Demonstration",
       support: "Support & Technical Help",
       signup: "Signing Up & Getting Started", 
       general: "General Inquiry",
@@ -56,14 +59,14 @@ const handler = async (req: Request): Promise<Response> => {
       
       <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin-top: 0; color: #2563eb;">Contact Information</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Inquiry Type(s):</strong> ${selectedInquiries}</p>
+        <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+        <p><strong>Inquiry Type(s):</strong> ${escapeHtml(selectedInquiries)}</p>
       </div>
       
       <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h3 style="margin-top: 0; color: #2563eb;">Message</h3>
-        <p style="white-space: pre-wrap; line-height: 1.6;">${message}</p>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${escapeHtml(message)}</p>
       </div>
       
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
@@ -88,7 +91,10 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
-    console.log("Contact form email sent successfully:", emailResponse);
+    if (emailResponse.error || !emailResponse.data?.id) {
+      console.error("Contact email delivery was rejected");
+      return corsJsonResponse({ error: "Your message could not be delivered. Please try again." }, { status: 502 });
+    }
 
     return corsJsonResponse({
       success: true,
@@ -98,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-contact-form function:", error);
     return corsJsonResponse(
-      { error: error.message || "Internal server error" },
+      { error: "Your message could not be delivered. Please try again." },
       { status: 500 }
     );
   }

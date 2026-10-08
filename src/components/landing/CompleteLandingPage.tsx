@@ -1,3 +1,4 @@
+import { SuiteProductsSection } from "@/components/suite/SuiteProductsSection";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { LandingPageHeader } from "./LandingPageHeader";
@@ -31,6 +32,7 @@ export const CompleteLandingPage = () => {
     <div className="w-full min-h-screen theme-core-home bg-offwhite">
       <LandingPageHeader onLogin={handleLogin} />
       <HeroSection onGetStarted={handleGetStarted} />
+      <SuiteProductsSection />
       <VideoShowcaseSection />
       <ProblemAgitationSection />
       <GuideSection />
@@ -43,3 +45,4 @@ export const CompleteLandingPage = () => {
     </div>
   );
 };
+
