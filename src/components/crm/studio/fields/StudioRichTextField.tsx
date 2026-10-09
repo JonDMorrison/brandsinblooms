@@ -200,8 +200,8 @@ export default function StudioRichTextField({
           {label}
         </Typography>
         <Button
-          variant="plain"
-          color="neutral"
+          variant="soft"
+          color="primary"
           size="sm"
           startDecorator={<Tags size={13} />}
           aria-expanded={personalizeOpen}
@@ -260,6 +260,9 @@ export default function StudioRichTextField({
           </IconButton>
         ) : null}
       </Stack>
+      <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+        Use Personalize to add first name (FNAME), email, and more.
+      </Typography>
       <Sheet
         variant="plain"
         sx={{
