@@ -1,3 +1,4 @@
+import { CustomerJourneySection } from "@/components/suite/CustomerJourneySection";
 import { SuiteProductsSection } from "@/components/suite/SuiteProductsSection";
 import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
@@ -144,7 +145,8 @@ export const HomepagePresentation = () => {
           <HomepageHeroSection isActive motionEnabled />
         </section>
 
-      <SuiteProductsSection />
+        <CustomerJourneySection />
+        <SuiteProductsSection />
         <section
           id="problem"
           className="hp-scroll-section"
