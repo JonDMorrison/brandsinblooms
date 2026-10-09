@@ -13,7 +13,7 @@
     },
     {
       "source": "/pos/login",
-      "destination": "https://bloomsuite-pos.vercel.app/",
+      "destination": "https://pos.bloomsuite.app/",
       "permanent": false
     }
   ],
