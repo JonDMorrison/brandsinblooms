@@ -1,8 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import StudioRichTextField from "./StudioRichTextField";
 
 describe("newsletter body personalization", () => {
+  const originalRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+  const originalBounds = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+  beforeAll(() => {
+    // ProseMirror scrolls the selection after focus. jsdom has no layout or
+    // Range geometry, so provide it just for this real-editor test.
+    Object.defineProperties(Range.prototype, {
+      getClientRects: { configurable: true, value: () => [] },
+      getBoundingClientRect: { configurable: true, value: () => new DOMRect() },
+    });
+  });
+  afterAll(() => {
+    for (const [key, original] of [["getClientRects", originalRects], ["getBoundingClientRect", originalBounds]] as const) {
+      if (original) Object.defineProperty(Range.prototype, key, original);
+      else delete (Range.prototype as unknown as Record<string, unknown>)[key];
+    }
+  });
   it("keeps personalization outside the scrolling toolbar and inserts FNAME into body HTML", async () => {
     const onChange = vi.fn();
     const { container } = render(
@@ -22,5 +38,6 @@ describe("newsletter body personalization", () => {
     expect(onChange.mock.calls.at(-1)?.[0]).toContain("{{first_name}}");
     expect(container.querySelector(".tiptap")?.textContent).toContain("{{first_name}}");
     expect(personalize).toHaveAttribute("aria-expanded", "false");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   });
 });
