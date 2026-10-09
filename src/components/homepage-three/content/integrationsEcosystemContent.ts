@@ -30,11 +30,11 @@ const getProviderLogo = (integrationId: string) => {
 export const INTEGRATIONS_SECTION_HEADER = {
   eyebrow: "Integrations",
   headline: "Connects to what you already use.",
-  subtext: "Two-way sync with the tools your store already runs on.",
+  subtext: "Bring the tools your store already uses into your BloomSuite setup.",
 };
 
 export const INTEGRATION_COUNT_COPY = {
-  headline: "9+ integrations and growing",
+  headline: "10+ integrations and growing",
   cta: "Don't see yours? We'll build it.",
   ctaHref: "#contact",
 };
@@ -96,6 +96,15 @@ export const INTEGRATION_CARDS: IntegrationCardConfig[] = [
       "Transactions, customer data, and receipt-level history syncing into BloomSuite live.",
     size: "standard",
     delayMs: 240,
+  },
+  {
+    id: "counterpoint",
+    name: "CounterPoint",
+    logo: { src: getProviderLogo("counterpoint"), alt: "CounterPoint logo" },
+    category: "POS",
+    description: "Connect your store’s inventory through assisted setup.",
+    size: "standard",
+    delayMs: 280,
   },
   {
     id: "shopify",
