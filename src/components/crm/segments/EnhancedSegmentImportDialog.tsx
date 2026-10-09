@@ -62,6 +62,8 @@ import {
 } from "@/lib/crm/importConsent";
 import { ImportConsentAttestationStep } from "@/components/crm/segments/ImportConsentAttestationStep";
 
+import { CUSTOMER_IMPORT_BATCH_SIZE, importCustomerBatch, getCustomerImportOutcome } from "@/lib/crm/customerImportBatch";
+
 interface EnhancedSegmentImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -536,7 +538,7 @@ export const EnhancedSegmentImportDialog: React.FC<
 
     const deduplicatedCustomers = Array.from(customerMap.values());
     const duplicatesMerged = customers.length - deduplicatedCustomers.length;
-    const BATCH_SIZE = 500;
+    const BATCH_SIZE = CUSTOMER_IMPORT_BATCH_SIZE;
     const totalBatches = Math.ceil(deduplicatedCustomers.length / BATCH_SIZE);
     const results: ImportResult = {
       total: dataRows.length,
@@ -579,53 +581,55 @@ export const EnhancedSegmentImportDialog: React.FC<
         totalBatches,
       });
 
-      try {
-        const { data, error } = await supabase.rpc(
-          "import_crm_customer_batch",
-          {
-            p_customers: batch,
-            p_attestation_id: beginImport.attestationId,
-          },
-        );
-        if (error) throw error;
+      const outcomes = await importCustomerBatch(
+        batch,
+        async (rows) => {
+          const { data, error } = await supabase.rpc(
+            "import_crm_customer_batch",
+            { p_customers: rows, p_attestation_id: beginImport.attestationId },
+          );
+          if (error) throw error;
+          return data as unknown as CustomerImportBatchResponse;
+        },
+        i,
+      );
 
-        const batchResult = data as unknown as CustomerImportBatchResponse;
+      for (const outcome of outcomes) {
+        if (!outcome.result) {
+          results.failed += outcome.count;
+          results.errors.push(getImportErrorMessage(outcome.error));
+          continue;
+        }
+        const batchResult = outcome.result;
         results.imported += batchResult.imported;
         results.failed += batchResult.errors.length;
         results.errors.push(
           ...batchResult.errors.map(
             (rowError) =>
-              `CSV row ${i + rowError.row + 1}${rowError.email ? ` (${rowError.email})` : ""}: ${rowError.message}`,
+              `CSV row ${outcome.offset + rowError.row + 1}${rowError.email ? ` (${rowError.email})` : ""}: ${rowError.message}`,
           ),
         );
         for (const customer of batchResult.customers) {
           affectedCustomerIds.push(customer.id);
         }
 
-        // If segment is specified, add customers to segment
         if (segmentId && batchResult.customers.length > 0) {
           const segmentAssignments = batchResult.customers.map((customer) => ({
             customer_id: customer.id,
             segment_id: segmentId,
             assigned_by_user_id: userId,
           }));
-
-          const { error: assignmentError } = await supabase
-            .from("customer_segments")
-            .upsert(segmentAssignments, {
-              onConflict: "customer_id,segment_id",
-            });
-          if (assignmentError) {
+          try {
+            const { error: assignmentError } = await supabase
+              .from("customer_segments")
+              .upsert(segmentAssignments, { onConflict: "customer_id,segment_id" });
+            if (assignmentError) throw assignmentError;
+          } catch (assignmentError) {
             results.errors.push(
-              `Customers imported, but segment assignment failed: ${assignmentError.message}`,
+              `Customers imported, but segment assignment failed: ${getImportErrorMessage(assignmentError)}`,
             );
           }
         }
-      } catch (error) {
-        console.error("Batch import error:", error);
-        results.failed += batch.length;
-        // Extract actual error message from Supabase error object
-        results.errors.push(getImportErrorMessage(error));
       }
     }
 
@@ -690,15 +694,16 @@ export const EnhancedSegmentImportDialog: React.FC<
       setProgress({
         stage: "complete",
         progress: 100,
-        message: "Import completed",
+        message: getCustomerImportOutcome(result),
       });
 
       toast({
-        title: "Import completed",
+        title: getCustomerImportOutcome(result),
+        variant: getCustomerImportOutcome(result) === "Import Complete" ? "default" : "destructive",
         description: `Successfully imported ${result.imported} customers${result.duplicatesMerged ? `, ${result.duplicatesMerged} duplicates merged` : ""}${result.failed > 0 ? `, ${result.failed} failed` : ""}${result.skipped > 0 ? `, ${result.skipped} skipped` : ""}`,
       });
 
-      if (onImportComplete) {
+      if (result.imported > 0 && onImportComplete) {
         onImportComplete();
       }
     } catch (error) {
@@ -1019,9 +1024,15 @@ export const EnhancedSegmentImportDialog: React.FC<
         {/* Stage 4: Complete */}
         {progress.stage === "complete" && importResult && (
           <div className="space-y-4">
-            <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-500">
-              <CheckCircle className="w-8 h-8" />
-              <h3 className="text-xl font-semibold">Import Complete</h3>
+            <div className={`flex items-center justify-center gap-2 ${
+              getCustomerImportOutcome(importResult) === "Import Complete"
+                ? "text-green-600 dark:text-green-500"
+                : "text-destructive"
+            }`}>
+              {getCustomerImportOutcome(importResult) === "Import Complete"
+                ? <CheckCircle className="w-8 h-8" />
+                : <AlertCircle className="w-8 h-8" />}
+              <h3 className="text-xl font-semibold">{getCustomerImportOutcome(importResult)}</h3>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1037,8 +1048,7 @@ export const EnhancedSegmentImportDialog: React.FC<
                   {importResult.imported}
                 </p>
               </div>
-              {importResult.duplicatesMerged &&
-                importResult.duplicatesMerged > 0 && (
+              {(importResult.duplicatesMerged ?? 0) > 0 && (
                   <div className="border rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">
                       Duplicates Merged

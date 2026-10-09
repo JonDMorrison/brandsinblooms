@@ -15,6 +15,7 @@ import {
   AlertCircle,
   BarChart3,
   Clock3,
+  CheckCircle,
   Copy,
   Download,
   Edit3,
@@ -282,7 +283,7 @@ function matchesStatusFilter(
   }
 }
 
-function StatusChip({
+export function StatusChip({
   campaign,
   compactOnNarrow = true,
 }: {
@@ -335,12 +336,15 @@ function StatusChip({
     case CAMPAIGN_STATUS.SENT:
       label = "Sent";
       color = "success";
-      icon = <BarChart3 size={13} />;
+      icon = <CheckCircle size={13} />;
       break;
     case CAMPAIGN_STATUS.SENT_WITH_ERRORS:
-      label = `Sent - ${Number(campaign.messagesFailed || 0).toLocaleString()} errors`;
-      color = "warning";
-      icon = <AlertCircle size={13} />;
+      // Sending is complete; recipient errors remain in the campaign report.
+      label = Number(campaign.messagesSent || 0) > 0 ? "Sent" : "Failed";
+      color = Number(campaign.messagesSent || 0) > 0 ? "success" : "danger";
+      icon = Number(campaign.messagesSent || 0) > 0
+        ? <CheckCircle size={13} />
+        : <XCircle size={13} />;
       break;
     case CAMPAIGN_STATUS.FAILED:
       label = "Failed";
