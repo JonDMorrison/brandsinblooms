@@ -16,11 +16,6 @@ export const HOMEPAGE_STRUCTURED_DATA = [
     name: "BloomSuite",
     url: HOMEPAGE_SEO.url,
     logo: "https://bloomsuite.app/favicon.png",
-    sameAs: [
-      "https://www.linkedin.com/",
-      "https://x.com/",
-      "https://www.instagram.com/",
-    ],
   },
   {
     "@context": "https://schema.org",

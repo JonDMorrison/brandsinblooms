@@ -516,6 +516,7 @@ export function DashboardTopBar({
                         (loading ? "Loading profile..." : "Signed in")}
                     </Typography>
                   </Box>
+                  <MenuItem onClick={() => navigate("/suite")} sx={menuItemSx}>BloomSuite products</MenuItem>
                   <MenuItem
                     onClick={() => navigate("/profile")}
                     sx={menuItemSx}
@@ -572,3 +573,4 @@ export function DashboardTopBar({
     </>
   );
 }
+

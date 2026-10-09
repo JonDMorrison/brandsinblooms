@@ -8,4 +8,4 @@ export const POS_DEMO_HREF = "/contact?product=pos";
 // The public application address is activated only after its deployment and
 // tenant routing have passed release checks. Keep the marketing path useful
 // throughout rollout without linking customers to a protected demo deployment.
-export const POS_LOGIN_HREF = "/suite?product=pos";
+export const POS_LOGIN_HREF = "/pos/login";
