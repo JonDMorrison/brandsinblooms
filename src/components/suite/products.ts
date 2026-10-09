@@ -5,4 +5,7 @@ export const SUITE_PRODUCTS = [
 ] as const;
 
 export const POS_DEMO_HREF = "/contact?product=pos";
-export const POS_LOGIN_HREF = "https://pos.bloomsuite.app/";
+// Keep account entry usable independently of the custom POS hostname.
+export const POS_LOGIN_HREF = "/suite?product=pos";
+export const POS_MANAGER_HREF = "https://bloomtill-backoffice-demo.vercel.app/";
+export const POS_REGISTER_HREF = "https://bloomtill-till-demo.vercel.app/";

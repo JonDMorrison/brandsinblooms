@@ -13,7 +13,7 @@
     },
     {
       "source": "/pos/login",
-      "destination": "https://pos.bloomsuite.app/",
+      "destination": "/suite?product=pos",
       "permanent": false
     }
   ],
