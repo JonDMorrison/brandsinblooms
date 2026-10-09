@@ -1,14 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { TourTooltip } from "./TourTooltip";
 import { useQuickTour } from "@/contexts/QuickTourContext";
 import { useNavigate } from "react-router-dom";
 
-// Dynamic imports for animations (will be loaded at runtime)
-const loadAnimation = async (path: string) => {
+const loadAnimation = async (path: string, signal: AbortSignal) => {
   try {
-    const response = await fetch(path);
+    const response = await fetch(path, { signal });
+    if (!response.ok) return null;
     return await response.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -18,95 +18,73 @@ export function TourSteps() {
   const navigate = useNavigate();
   const [animations, setAnimations] = useState<Record<string, any>>({});
 
-  // Load animations on mount
   React.useEffect(() => {
-    const loadAnimations = async () => {
-      const [tourSwirl, posPlug, confetti] = await Promise.all([
-        loadAnimation("/lottie/tour-swirl.json"),
-        loadAnimation("/lottie/pos-plug.json"),
-        loadAnimation("/lottie/confetti.json"),
-      ]);
+    if (!tourProgress.isActive) return;
+    const controller = new AbortController();
+    void Promise.all([
+      loadAnimation("/lottie/tour-swirl.json", controller.signal),
+      loadAnimation("/lottie/pos-plug.json", controller.signal),
+      loadAnimation("/lottie/confetti.json", controller.signal),
+    ]).then(([tourSwirl, posPlug, confetti]) => {
+      if (!controller.signal.aborted) setAnimations({ tourSwirl, posPlug, confetti });
+    });
+    return () => controller.abort();
+  }, [tourProgress.isActive]);
 
-      setAnimations({
-        tourSwirl,
-        posPlug,
-        confetti,
-      });
-    };
-
-    loadAnimations();
-  }, []);
-
-  if (!tourProgress.isActive) {
-    return null;
-  }
-
-  const handlePOSConnect = () => {
-    navigate("/integrations/pos");
-  };
+  if (!tourProgress.isActive) return null;
 
   return (
     <>
-      {/* Step 1: Dashboard Overview */}
       <TourTooltip
         targetSelector="[data-tour='dashboard-overview']"
         step="dashboard"
-        title="Welcome to Your Garden Center Dashboard!"
-        description="This is your command center. Monitor sales, track customers, and manage your garden center operations all in one place."
-        highlight="Check out your latest metrics and quick actions here."
+        title="Welcome to Your Garden Centre Dashboard"
+        description="See your customer activity, marketing results, and next steps in one place."
+        highlight="Start with the latest metrics and quick actions."
         animation={animations.tourSwirl}
         side="bottom"
         align="start"
       />
-
-      {/* Step 2: Connect POS */}
       <TourTooltip
         targetSelector="[data-tour='pos-connect']"
         step="pos"
         title="Connect Your POS System"
-        description="Link your Shopify, Square, or import CSV data to automatically sync customers and orders."
-        highlight="Click here to connect your POS system and unlock powerful customer insights."
+        description="Choose a supported POS connection or import customer reports. The setup flow explains which records can sync and what needs review."
+        highlight="Open integrations to use the secure setup for your system."
         cta="Connect POS"
-        onCta={handlePOSConnect}
+        onCta={() => navigate("/integrations/pos")}
         animation={animations.posPlug}
         side="right"
         align="start"
       />
-
-      {/* Step 3: Customer Management */}
       <TourTooltip
         targetSelector="[data-tour='customers']"
         step="customers"
         title="Customer Management"
-        description="View and segment your customers based on purchase history, preferences, and behavior."
-        highlight="Build targeted segments for more effective marketing campaigns."
+        description="View and segment your customers based on purchase history, preferences, and behaviour."
+        highlight="Build focused audiences for more relevant marketing."
         side="bottom"
         align="center"
       />
-
-      {/* Step 4: AI Composer */}
       <TourTooltip
         targetSelector="[data-tour='composer']"
         step="composer"
         title="AI Content Composer"
-        description="Create engaging email and SMS campaigns with AI assistance tailored to your garden center."
-        highlight="Generate personalized content that resonates with your customers."
+        description="Draft email and SMS campaigns with AI assistance tailored to your garden centre."
+        highlight="Review and approve the content before you send."
         side="left"
         align="center"
       />
-
-      {/* Step 5: Automation Builder */}
       <TourTooltip
         targetSelector="[data-tour='automation']"
         step="automation"
         title="Marketing Automation"
-        description="Set up automated workflows to nurture customers and drive repeat purchases."
-        highlight="Build automated sequences that work while you focus on your business. 🎉 You're all set! Start building amazing customer relationships."
+        description="Set up follow-up workflows for customers who have agreed to hear from you."
+        highlight="Choose the audience, review the messages, and enable the workflow when it is ready."
         animation={animations.confetti}
         side="bottom"
         align="center"
       />
-
     </>
   );
 }
