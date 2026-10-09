@@ -74,6 +74,7 @@ function ToolbarIconButton({
       onClick={onClick}
       sx={{
         width: 24,
+        flexShrink: 0,
         height: 24,
         minWidth: 24,
         minHeight: 24,
@@ -198,6 +199,18 @@ export default function StudioRichTextField({
         >
           {label}
         </Typography>
+        <Button
+          variant="plain"
+          color="neutral"
+          size="sm"
+          startDecorator={<Tags size={13} />}
+          aria-expanded={personalizeOpen}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setPersonalizeOpen((open) => !open)}
+          sx={{ flexShrink: 0, minHeight: 28, fontSize: "12px" }}
+        >
+          Personalize
+        </Button>
         {aiDecorator ? (
           <IconButton
             variant="plain"
@@ -362,38 +375,14 @@ export default function StudioRichTextField({
           >
             <LinkIcon />
           </ToolbarIconButton>
-          <ToolbarDivider />
-          <Button
-            variant="plain"
-            color="neutral"
-            size="sm"
-            startDecorator={<Tags size={13} />}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => setPersonalizeOpen((open) => !open)}
-            sx={{
-              minHeight: 24,
-              borderRadius: "4px",
-              px: 0.75,
-              fontSize: "11px",
-              fontWeight: 600,
-              color: personalizeOpen ? "neutral.900" : "neutral.500",
-              bgcolor: personalizeOpen ? "neutral.200" : "transparent",
-              "&:hover": { bgcolor: "neutral.100" },
-            }}
-          >
-            Personalize
-          </Button>
         </Sheet>
 
         {personalizeOpen ? (
           <Sheet
             variant="outlined"
             sx={{
-              position: "absolute",
-              zIndex: 3,
-              top: 34,
-              right: 0,
-              width: 168,
+              width: "100%",
+              boxSizing: "border-box",
               p: 0.5,
               borderRadius: "8px",
               bgcolor: "background.surface",
@@ -420,7 +409,10 @@ export default function StudioRichTextField({
                   fontWeight: 500,
                 }}
               >
-                <Box component="span">{tag.label}</Box>
+                <Box component="span">
+                  {tag.label}
+                  {tag.value === "{{first_name}}" ? " (FNAME)" : ""}
+                </Box>
                 <Typography
                   component="span"
                   level="body-xs"
