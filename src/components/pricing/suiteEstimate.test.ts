@@ -52,6 +52,11 @@ describe("draft suite price book", () => {
     expect(estimate({...defaults, current: 0}).recurringOrders).toBe(13);
     expect(estimate({...defaults, current: 1000}).recurringOrders).toBe(0);
   });
+  it("separates extra platform fees from payment processing", () => {
+    const e = estimate({...defaults, current: 249, platformVolume: 20000, oldPlatform: 5, newPlatform: 0});
+    expect(e.difference).toBe(-100000); expect(e.payments).toBe(0);
+    expect(estimate({...defaults, platformVolume: 20000, newPlatform: 5}).payments).toBe(100000);
+  });
   it("exports an editable versioned inquiry below the contact form limit", () => {
     const s = suiteEstimateSummary({...defaults, contacts: 50000, pos: "replace", locations: 100, registers: 20});
     expect(s).toContain("suite-exploration-2026-10-09-v1"); expect(s).toContain("not a purchase");

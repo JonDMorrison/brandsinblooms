@@ -14,6 +14,7 @@ export interface SuiteConfiguration {
   retained: number; current: number; setup: number; hardware: number;
   cardVolume: number; transactions: number; oldRate: number; newRate: number;
   oldFixed: number; newFixed: number; orderValue: number; grossMargin: number;
+  platformVolume: number; oldPlatform: number; newPlatform: number;
 }
 export const DEFAULT_SUITE_CONFIGURATION: SuiteConfiguration = {
   site: true, commerce: false, crm: true, pos: "keep", provider: "CounterPoint",
@@ -21,6 +22,7 @@ export const DEFAULT_SUITE_CONFIGURATION: SuiteConfiguration = {
   emails: 20000, sms: 0, segments: 1, retained: 0, current: 0, setup: 0, hardware: 0,
   cardVolume: 0, transactions: 0, oldRate: 2.5, newRate: 2.5,
   oldFixed: 0.1, newFixed: 0.1, orderValue: 50, grossMargin: 40,
+  platformVolume: 0, oldPlatform: 0, newPlatform: 0,
 };
 const bounded = (value: number, max: number, min = 0) => Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 const integer = (value: number, max: number, min = 0) => Math.floor(bounded(value, max, min));
@@ -39,6 +41,7 @@ export function normalizeConfiguration(c: SuiteConfiguration): SuiteConfiguratio
     oldRate: bounded(c.oldRate, 20), newRate: bounded(c.newRate, 20),
     oldFixed: bounded(c.oldFixed, 10), newFixed: bounded(c.newFixed, 10),
     orderValue: bounded(c.orderValue, 1000000), grossMargin: bounded(c.grossMargin, 100),
+    platformVolume: bounded(c.platformVolume, 100000000), oldPlatform: bounded(c.oldPlatform, 20), newPlatform: bounded(c.newPlatform, 20),
   };
 }
 
@@ -55,8 +58,8 @@ export function calculateSuiteEstimate(raw: SuiteConfiguration) {
   const email = c.crm ? Math.round(Math.max(0, c.emails - allowance) * p.emailOverage) : 0;
   const segments = c.crm ? c.sms * c.segments : 0, sms = segments * p.smsSegment;
   const bloom = software + email + sms;
-  const payments = Math.round(c.cardVolume * c.newRate + c.transactions * c.newFixed * 100);
-  const oldPayments = Math.round(c.cardVolume * c.oldRate + c.transactions * c.oldFixed * 100);
+  const payments = Math.round(c.cardVolume * c.newRate + c.transactions * c.newFixed * 100 + c.platformVolume * c.newPlatform);
+  const oldPayments = Math.round(c.cardVolume * c.oldRate + c.transactions * c.oldFixed * 100 + c.platformVolume * c.oldPlatform);
   const total = bloom + cents(c.retained) + payments;
   const firstYear = total * 12 + cents(c.setup) + cents(c.hardware);
   const difference = total - cents(c.current) - oldPayments;
@@ -88,6 +91,8 @@ export function suiteEstimateSummary(c: SuiteConfiguration) {
     `POS: ${e.c.pos}${e.c.pos === "keep" ? ` (${e.c.provider})` : e.c.pos === "replace" ? `, ${e.c.locations} locations / ${e.c.registers} registers each` : ""}.`,
     `Billing: ${e.c.annual ? "annual software" : "monthly"}; BloomSuite + entered messaging: ${usd(e.bloom)}/month${e.quoteRequired ? " budget floor; contact quote needed" : ""}.`,
     `Monthly usage: ${e.c.crm ? e.c.emails : 0} emails / ${e.segments} SMS segments.`,
+    `Entered retained tools: ${usd(e.c.retained * 100)}/mo; payments/platform fees: ${usd(e.payments)}/mo.`,
+    `Total budget: ${usd(e.total)}/mo; first year ${usd(e.firstYear)} with ${usd((e.c.setup + e.c.hardware) * 100)} entered setup/hardware.`,
     "Please confirm regional pricing, integrations, setup, hardware and payment costs.",
   ].join("\n");
 }
