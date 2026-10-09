@@ -560,3 +560,8 @@ verify_jwt = true
 
 [functions.bloomsuite-pos-inbound]
 verify_jwt = false
+
+# Storefront OAuth state is validated against a short-lived site-owner-bound record.
+# Signed read requests are authenticated by the grant's per-site ECDSA proof.
+[functions.lightspeed-storefront-bridge]
+verify_jwt = false
