@@ -29,7 +29,7 @@ jobs:
       - name: Apply private schema and test CAS, replay and RLS
         run: |
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role LOGIN BYPASSRLS;"
-          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261009160000_lightspeed_storefront_authority.sql
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261009161000_lightspeed_storefront_authority.sql
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f tests/lightspeed-storefront-authority.sql
   deno-check:
     runs-on: ubuntu-latest
