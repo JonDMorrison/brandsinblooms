@@ -8,3 +8,24 @@
 @media(max-width:1023px){.suite-products-menu-panel{position:static;box-shadow:none;min-width:0;margin-top:8px}.suite-products-menu summary{width:100%;justify-content:space-between}}
 
 .suite-launcher{min-height:100vh;background:var(--suite-paper)}.suite-launcher .suite-section-heading h1{font-size:clamp(2.5rem,5vw,4rem)}.suite-launcher .pos-connect-grid article{background:#fff;border-color:var(--suite-line)}.suite-launcher .pos-connect-grid h2{font-size:1.5rem}.suite-launcher .pos-connect-grid p,.suite-launcher .pos-connect-note{color:var(--suite-muted)}.suite-launcher .suite-button{margin-top:24px}.suite-launcher .suite-text-link{margin-left:8px}
+
+/* Premium BloomSuite POS marketing finish */
+.pos-marketing{--suite-ink:#12283a;--suite-muted:#536271;--suite-accent:#2f6f69;--suite-line:#d9e1de;--suite-paper:#f6f3ea;background:#fffdf8}
+.pos-marketing .pos-hero{background:
+ radial-gradient(circle at 83% 12%,rgba(47,111,105,.13),transparent 30%),
+ linear-gradient(145deg,#f6f3ea,#fffdf8 62%)}
+.pos-marketing .suite-button--primary{background:#2f6f69;border-color:#2f6f69;box-shadow:0 9px 24px rgba(47,111,105,.18)}
+.pos-marketing .suite-button--primary:hover{box-shadow:0 12px 30px rgba(47,111,105,.24)}
+.pos-marketing .pos-feature{background:#fffdf8;box-shadow:0 10px 30px rgba(18,40,58,.04)}
+.pos-journey{background:#fffdf8}
+.pos-cycle{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:40px;position:relative}
+.pos-cycle:before{content:"";position:absolute;left:8%;right:8%;top:31px;height:1px;background:linear-gradient(90deg,transparent,#9cb8b4 12%,#9cb8b4 88%,transparent)}
+.pos-cycle article{position:relative;z-index:1;padding:24px 22px 26px;border:1px solid var(--suite-line);border-radius:22px;background:#fff;box-shadow:0 14px 36px rgba(18,40,58,.055)}
+.pos-cycle-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#e7f0ed;color:#245d58;border:6px solid #fff;margin-bottom:20px;box-shadow:0 0 0 1px #bfd0cd}
+.pos-cycle-step{text-transform:uppercase;letter-spacing:.1em;font-size:.75rem;font-weight:800;color:#53716e;margin-bottom:8px!important}
+.pos-cycle h3{font-size:1.25rem;margin-bottom:10px}
+.pos-cycle article>p:last-child{color:var(--suite-muted);font-size:.95rem}
+.pos-connect-grid article>svg{color:#9bd1c9;margin-bottom:18px}
+.pos-connect .suite-button--light{background:#fff;color:#12283a!important;border-color:#ffffff45}
+@media(max-width:900px){.pos-cycle{grid-template-columns:repeat(2,minmax(0,1fr))}.pos-cycle:before{display:none}}
+@media(max-width:600px){.pos-cycle{grid-template-columns:1fr}.pos-cycle article{padding:22px}}
