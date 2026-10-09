@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { TourTooltip } from "./TourTooltip";
 import { useQuickTour } from "@/contexts/QuickTourContext";
-import { POSConnectionModal } from "./POSConnectionModal";
+import { useNavigate } from "react-router-dom";
 
 // Dynamic imports for animations (will be loaded at runtime)
 const loadAnimation = async (path: string) => {
@@ -15,7 +15,7 @@ const loadAnimation = async (path: string) => {
 
 export function TourSteps() {
   const { tourProgress } = useQuickTour();
-  const [showPOSModal, setShowPOSModal] = useState(false);
+  const navigate = useNavigate();
   const [animations, setAnimations] = useState<Record<string, any>>({});
 
   // Load animations on mount
@@ -42,7 +42,7 @@ export function TourSteps() {
   }
 
   const handlePOSConnect = () => {
-    setShowPOSModal(true);
+    navigate("/integrations/pos");
   };
 
   return (
@@ -107,15 +107,6 @@ export function TourSteps() {
         align="center"
       />
 
-      {/* POS Connection Modal */}
-      <POSConnectionModal
-        isOpen={showPOSModal}
-        onClose={() => setShowPOSModal(false)}
-        onSuccess={() => {
-          setShowPOSModal(false);
-          // Move to next step after successful connection
-        }}
-      />
     </>
   );
 }
