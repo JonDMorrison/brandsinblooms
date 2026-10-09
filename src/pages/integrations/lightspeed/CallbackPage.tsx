@@ -102,6 +102,47 @@ const CallbackPage = () => {
           setTimeout(() => window.close(), 3000);
           return;
         }
+        // BloomSites storefront authorizations use the credential-owning CRM
+        // bridge, never the legacy CRM OAuth callback. Keep both flows isolated.
+        if (state.startsWith("bs_")) {
+          const domainPrefix = searchParams.get("domain_prefix") ||
+            searchParams.get("domainPrefix") || "";
+          if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/i.test(domainPrefix)) {
+            clearTimeout(timeoutId);
+            setStatus("error");
+            setMessage("Store identification missing");
+            setStep("Please reconnect from your BloomSites dashboard.");
+            return;
+          }
+          setStep("Securing your BloomSites connection...");
+          const bridgeResponse = await fetch(
+            "https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/lightspeed-storefront-bridge",
+            { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "callback", code, state, domainPrefix }) },
+          );
+          const bridgeResult = await bridgeResponse.json().catch(() => null);
+          if (!bridgeResponse.ok || bridgeResult?.ok !== true ||
+              typeof bridgeResult.returnUrl !== "string") {
+            clearTimeout(timeoutId);
+            setStatus("error");
+            setMessage("Lightspeed authorization could not be completed");
+            setStep("Please return to BloomSites and try connecting again.");
+            return;
+          }
+          const returnUrl = new URL(bridgeResult.returnUrl);
+          if (returnUrl.origin !== "https://bloomsites.app" ||
+              returnUrl.pathname !== "/api/integrations/lightspeed/callback") {
+            clearTimeout(timeoutId);
+            setStatus("error");
+            setMessage("Invalid connection return address");
+            setStep("Please return to BloomSites and retry.");
+            return;
+          }
+          clearTimeout(timeoutId);
+          window.location.replace(returnUrl.toString());
+          return;
+        }
+
         setStep("Exchanging authorization code for access tokens...");
 
         // Get the current origin for redirect URI
