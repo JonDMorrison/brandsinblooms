@@ -26,4 +26,10 @@ describe("customer suite configurator", () => {
     expect(screen.getByText(/Contact pricing above 25,000 is excluded/)).toBeInTheDocument();
     expect(screen.queryByRole("button", {name: /checkout|buy now/i})).not.toBeInTheDocument();
   });
+  it("does not block a new pathway because an inactive product had an invalid count", () => {
+    setup(); fireEvent.change(screen.getByLabelText(/Websites/), {target: {value: "0"}});
+    expect(screen.getByRole("link", {name: /Ask us to review/})).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(screen.getByRole("checkbox", {name: /Get discovered/}));
+    expect(screen.getByRole("link", {name: /Ask us to review/})).toHaveAttribute("aria-disabled", "false");
+  });
 });

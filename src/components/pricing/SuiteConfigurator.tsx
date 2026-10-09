@@ -30,7 +30,12 @@ export function SuiteConfigurator() {
     try { await navigator.clipboard.writeText(suiteEstimateSummary(config)); setCopyStatus("Estimate copied. You can paste it into a message."); }
     catch { setCopyStatus("Copy is unavailable here. Use Print estimate or Ask us to review this setup."); }
   };
-  const formError = Object.entries(config).some(([key, value]) => typeof value === "number" && value !== estimate.c[key as NumericKey]);
+  const formError = Object.entries(config).some(([key, value]) => {
+    if (key === "websites" && !config.site) return false;
+    if (["locations", "registers"].includes(key) && config.pos !== "replace") return false;
+    if (["contacts", "emails", "sms", "segments"].includes(key) && !config.crm) return false;
+    return typeof value === "number" && value !== estimate.c[key as NumericKey];
+  });
   const contactLink = `/contact?product=suite&suiteEstimate=${encodeURIComponent(suiteEstimateSummary(config))}`;
   const review = config.pos === "replace" ? "POS fit, hardware and migration need a review before activation." : config.pos === "keep" ? `${config.provider} stays in your setup. Compatibility, data direction and integration fees need review.` : config.pos === "unsure" ? "POS replacement is excluded until we assess your needs." : "No in-store POS subscription is included.";
   return <div className="suite-configurator">
