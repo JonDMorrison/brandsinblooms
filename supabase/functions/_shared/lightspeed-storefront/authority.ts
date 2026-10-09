@@ -191,9 +191,9 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         if(!grant)throw new AuthorityError("authorization_expired",410);
         assertFresh(grant,now);
         const codeHash=await sha256(body.code);
-        // The provider gives the actual authorized prefix; reject a different store
-        // before sending a code to an endpoint. This field is never used as a URL.
-        if(normalizeStorePrefix(body.domainPrefix)!==grant.prefix)throw new AuthorityError("wrong_retailer",409);
+        // X-Series returns code and state. A site-owner-minted, stored state
+        // binds the retailer prefix before OAuth, so request data cannot switch
+        // which store receives the code. The callback needs no prefix field.
         if((grant.status==="authorized"||grant.status==="active")&&grant.codeHash===codeHash) {
           return json({ok:true,returnUrl:await callbackUrl(grant,state,deps)});
         }
