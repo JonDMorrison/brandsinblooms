@@ -190,6 +190,7 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         const grant=await deps.repository.findByState(await sha256(state));
         if(!grant)throw new AuthorityError("authorization_expired",410);
         assertFresh(grant,now);
+        if(body.domainPrefix != null && normalizeStorePrefix(body.domainPrefix)!==grant.prefix)throw new AuthorityError("wrong_retailer",409);
         const codeHash=await sha256(body.code);
         // X-Series returns code and state. A site-owner-minted, stored state
         // binds the retailer prefix before OAuth, so request data cannot switch
