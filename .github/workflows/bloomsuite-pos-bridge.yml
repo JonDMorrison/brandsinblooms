@@ -1,0 +1,57 @@
+name: BloomSuite POS bridge integrity
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*bloomsuite_pos*'
+      - 'supabase/functions/_shared/bloomsuite-pos*'
+      - 'supabase/functions/_shared/__tests__/bloomsuite-pos*'
+      - 'supabase/functions/bloomsuite-pos-inbound/**'
+      - 'supabase/tests/bloomsuite_pos*'
+      - 'scripts/ci/pos-bridge*'
+      - '.github/workflows/bloomsuite-pos-bridge.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare the existing metric engine without mocking its calculations
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          ddl = Path('supabase/migrations/20251221135502_a74d3248-f7c5-4fab-a4d2-3dbc83a870e6.sql').read_text()
+          table = re.search(r'CREATE TABLE public\.customer_purchase_metrics \([\s\S]*?\n\);', ddl)
+          source = Path('supabase/migrations/20260903183000_purchase_metrics_ledger_repair.sql').read_text()
+          fn = re.search(r'CREATE OR REPLACE FUNCTION public\.recalculate_purchase_metrics\([\s\S]*?\n\$\$;', source)
+          assert table and fn, 'Original metric definition moved; update the fixture loader explicitly'
+          Path('/tmp/pos-metric-engine.sql').write_text(table.group() + '\n' + fn.group())
+          PY
+      - name: Apply real bridge migrations and customer resolution to a disposable database
+        run: |
+          psql -v ON_ERROR_STOP=1 -f scripts/ci/pos-bridge-schema.sql
+          psql -v ON_ERROR_STOP=1 -f /tmp/pos-metric-engine.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260903090000_pos_order_customer_resolution.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261009053000_bloomsuite_pos_crm_bridge.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261009160000_bloomsuite_pos_replay_integrity.sql
+      - name: PostgreSQL replay, money, identity and tenant isolation
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/bloomsuite_pos_bridge_replay.sql
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Signed HTTP boundary
+        run: deno test supabase/functions/_shared/__tests__/bloomsuite-pos.test.ts
