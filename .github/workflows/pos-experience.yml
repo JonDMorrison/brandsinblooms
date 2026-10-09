@@ -1,0 +1,38 @@
+name: POS experience
+on:
+  pull_request:
+    paths:
+      - 'src/components/tour/**'
+      - 'src/components/suite/**'
+      - 'src/components/pricing/SuiteConfigurator*'
+      - 'src/pages/PosMarketingPage.tsx'
+      - 'src/pages/SuitePage.tsx'
+      - 'src/pages/SuiteBuilderPage.tsx'
+      - '.github/workflows/pos-experience.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/components/tour/**'
+      - 'src/components/suite/**'
+      - 'src/pages/PosMarketingPage.tsx'
+      - '.github/workflows/pos-experience.yml'
+permissions:
+  contents: read
+concurrency:
+  group: pos-experience-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Tour behaviour
+        run: npx vitest run src/components/tour/TourSteps.test.tsx
+      - name: Build production application
+        run: npm run build
