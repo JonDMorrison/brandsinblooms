@@ -25,16 +25,15 @@ export const RoiPayback = () => {
           <div className="pricing-roi-panel__body">
             <p>
               Bloom costs <strong>$699/month</strong>. If BloomSuite helps
-              you bring back just <strong>14 customers a month</strong> at
-              a <strong>$50 average sale</strong>, it&apos;s already paid
-              for itself.
+              you earn <strong>35 additional orders a month</strong> at
+              a <strong>$50 average sale and 40% gross margin</strong>,
+              that contributes $700 toward the subscription before other
+              incremental costs.
             </p>
             <p>
-              Most garden centres see meaningfully more than that —
-              automated seasonal campaigns, win-back flows for lapsed
-              customers, and POS-synced segmentation typically generate
-              dozens of additional visits per month from existing customer
-              lists alone.
+              This is an illustrative break-even calculation, not a promise
+              of additional sales. Use your own order value, margins and
+              costs to assess what would make the investment worthwhile.
             </p>
           </div>
         </div>
@@ -42,3 +41,4 @@ export const RoiPayback = () => {
     </section>
   );
 };
+

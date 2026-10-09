@@ -31,6 +31,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   const navItems = [
     { name: "Home", href: "/" },
     { name: "Features", href: "/features" },
+    { name: "Build your suite", href: "/build-your-suite" },
     { name: "CRM pricing", href: "/pricing" },
     { name: "FAQ", href: "/faq" },
     { name: "Contact", href: "/contact" },
@@ -57,7 +58,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
 
       {/* Navigation Links - Right after logo */}
-      <div className="hidden lg:flex items-center gap-6 ml-10">
+      <div className="hidden xl:flex items-center gap-4 ml-6">
         {productsMenu}
         {navItems.map((item) => (
           <Link
@@ -75,7 +76,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
         
       {/* Auth Buttons - Far right */}
-      <div className="hidden lg:flex items-center gap-2 ml-auto">
+      <div className="hidden xl:flex items-center gap-2 ml-auto">
         {user && showUserMenu && (
           <Button 
             asChild
@@ -108,7 +109,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
       </div>
 
       {/* Mobile Menu Button */}
-      <div className="lg:hidden flex items-center gap-4 ml-auto">
+      <div className="xl:hidden flex items-center gap-4 ml-auto">
         {user && showUserMenu ? (
           <Button 
             asChild
@@ -136,7 +137,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div id="suite-mobile-navigation" className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg lg:hidden">
+        <div id="suite-mobile-navigation" className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg xl:hidden [&_.suite-products-menu-panel]:static [&_.suite-products-menu-panel]:shadow-none">
           <div className="flex flex-col p-6 space-y-4">
             {productsMenu}
             {navItems.map((item) => (
@@ -181,4 +182,5 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
     </nav>
   );
 };
+
 
