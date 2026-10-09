@@ -133,6 +133,7 @@ const OnboardingPage = lazyRetry(() => import("@/pages/OnboardingPage"));
 const PricingPage = lazyRetry(() => import("@/pages/PricingPage"));
 const FAQPage = lazyRetry(() => import("@/pages/FAQPage"));
 const ContactPage = lazyRetry(() => import("@/pages/ContactPage"));
+const SuiteBuilderPage = lazyNamed(() => import("@/pages/SuiteBuilderPage"), "SuiteBuilderPage");
 const SuitePage = lazyNamed(() => import("@/pages/SuitePage"), "SuitePage");
 const PosMarketingPage = lazyNamed(() => import("@/pages/PosMarketingPage"), "PosMarketingPage");
 const AboutPage = lazyNamed(() => import("@/pages/AboutPage"), "AboutPage");
@@ -579,6 +580,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/build-your-suite" element={<SuiteBuilderPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/faq" element={<FAQPage />} />
               <Route path="/contact" element={<ContactPage />} />

@@ -27,6 +27,9 @@ const ContactPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isPosDemo = searchParams.get("product") === "pos";
+  const isSuiteReview = searchParams.get("product") === "suite";
+  // An editable inquiry, never a trusted price, entitlement, or Checkout input.
+  const suiteInquiry = isSuiteReview ? (searchParams.get("suiteEstimate") || "Please help me choose my BloomSuite setup.").slice(0, 900) : "";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -42,8 +45,8 @@ const ContactPage = () => {
     defaultValues: {
       name: "",
       email: "",
-      inquiryTypes: isPosDemo ? ["pos"] : [],
-      message: isPosDemo ? "I would like a BloomSuite POS demonstration for my garden centre." : ""
+      inquiryTypes: isPosDemo ? ["pos"] : isSuiteReview ? ["signup"] : [],
+      message: isPosDemo ? "I would like a BloomSuite POS demonstration for my garden centre." : suiteInquiry
     }
   });
 
@@ -128,10 +131,10 @@ const ContactPage = () => {
       <section className="py-16 px-6 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold text-accent mb-6">
-            {isPosDemo ? "See BloomSuite POS in action" : "Contact Us"}
+            {isPosDemo ? "See BloomSuite POS in action" : isSuiteReview ? "Let’s review your BloomSuite setup" : "Contact Us"}
           </h1>
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            {isPosDemo ? "Tell us about your store. We’ll tailor a demonstration to your checkout, catalogue, and team." : "Have questions about BloomSuite? We’d love to help."}
+            {isPosDemo ? "Tell us about your store. We’ll tailor a demonstration to your checkout, catalogue, and team." : isSuiteReview ? "Your draft setup is included below. Add your details and send it when you’re ready. We’ll confirm fit, regional pricing and implementation costs." : "Have questions about BloomSuite? We’d love to help."}
           </p>
         </div>
       </section>
@@ -260,3 +263,4 @@ const ContactPage = () => {
 };
 
 export default ContactPage;
+

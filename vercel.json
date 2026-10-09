@@ -19,6 +19,14 @@
   ],
   "rewrites": [
     {
+      "source": "/build-your-suite",
+      "destination": "/suite-builder.html"
+    },
+    {
+      "source": "/build-your-suite/",
+      "destination": "/suite-builder.html"
+    },
+    {
       "source": "/pos",
       "destination": "/pos-marketing.html"
     },

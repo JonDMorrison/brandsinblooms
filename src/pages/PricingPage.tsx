@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 import { PricingHeroNew } from "@/components/pricing/PricingHeroNew";
+import { SuiteBuilderEntry } from "@/components/pricing/SuiteBuilderEntry";
 import { CostComparison } from "@/components/pricing/CostComparison";
 import { EveryPlanBanner } from "@/components/pricing/EveryPlanBanner";
 import { PricingCardsGrid } from "@/components/pricing/PricingCardsGrid";
@@ -136,6 +137,7 @@ const PricingPage = () => {
       */}
       <div className="hp-token-scope">
         <PricingHeroNew />
+        <SuiteBuilderEntry />
         <CostComparison />
         <EveryPlanBanner />
         <PricingCardsGrid
@@ -157,3 +159,4 @@ const PricingPage = () => {
 };
 
 export default PricingPage;
+

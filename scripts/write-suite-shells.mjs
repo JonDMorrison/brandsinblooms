@@ -24,6 +24,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     url: "https://bloomsuite.app/pos",
     image: "https://bloomsuite.app/pos/manager-workspace.webp",
   }));
+  writeFileSync("dist/suite-builder.html", suitePageShell(html, {
+    title: "Build your BloomSuite — Explore your setup",
+    description: "Choose your website, marketing and checkout goals and explore a transparent draft estimate for your garden centre.",
+    url: "https://bloomsuite.app/build-your-suite",
+    robots: "noindex, follow",
+  }));
   writeFileSync("dist/suite-portal.html", suitePageShell(html, {
     title: "Your BloomSuite products",
     description: "Open BloomSuite CRM, BloomSuite POS, or BloomSites and access your existing business workspace.",
@@ -31,3 +37,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     robots: "noindex, follow",
   }));
 }
+
