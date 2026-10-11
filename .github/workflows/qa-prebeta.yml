@@ -19,7 +19,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
+    env:
+      ENVIRONMENT: staging
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
+      TEST_ADMIN_EMAIL: ${{ secrets.STAGING_TEST_ADMIN_EMAIL }}
+      TEST_ADMIN_PASSWORD: ${{ secrets.STAGING_TEST_ADMIN_PASSWORD }}
+      TEST_EDITOR_EMAIL: ${{ secrets.STAGING_TEST_EDITOR_EMAIL }}
+      TEST_EDITOR_PASSWORD: ${{ secrets.STAGING_TEST_EDITOR_PASSWORD }}
+      TEST_VIEWER_EMAIL: ${{ secrets.STAGING_TEST_VIEWER_EMAIL }}
+      TEST_VIEWER_PASSWORD: ${{ secrets.STAGING_TEST_VIEWER_PASSWORD }}
     steps:
+    - name: Verify staging QA prerequisites
+      shell: bash
+      run: |
+        missing=0
+        for name in VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY TEST_ADMIN_EMAIL TEST_ADMIN_PASSWORD TEST_EDITOR_EMAIL TEST_EDITOR_PASSWORD TEST_VIEWER_EMAIL TEST_VIEWER_PASSWORD; do
+          if [[ -z "${!name}" ]]; then
+            echo "::error::Missing staging QA configuration: $name. Configure the corresponding STAGING secret; never substitute production credentials."
+            missing=1
+          fi
+        done
+        exit "$missing"
     - uses: actions/checkout@v4
     
     - uses: actions/setup-node@v4
@@ -35,11 +57,6 @@ jobs:
       
     - name: Run Pre-Beta E2E Tests
       run: npm run test:e2e:prebeta
-      env:
-        ENVIRONMENT: staging
-        VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
-        VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SERVICE_ROLE_KEY }}
         
     - name: Upload test artifacts
       uses: actions/upload-artifact@v4
@@ -50,9 +67,3 @@ jobs:
           e2e/artifacts/
           e2e/reports/
         retention-days: 30
-        
-    - name: Upload reports to Supabase Storage
-      if: always()
-      run: |
-        echo "Reports uploaded to Supabase Storage"
-        # Additional upload logic would go here
