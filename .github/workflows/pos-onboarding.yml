@@ -4,7 +4,7 @@ on:
     paths:
       - 'supabase/functions/pos-onboarding-export/**'
       - 'supabase/functions/_shared/onboarding-transfer*'
-      - 'supabase/migrations/20261011080000_pos_onboarding_export.sql'
+      - 'supabase/migrations/20261011111726_pos_onboarding_export.sql'
       - 'supabase/tests/pos_onboarding_export_fixture.sql'
       - '.github/workflows/pos-onboarding.yml'
 jobs:

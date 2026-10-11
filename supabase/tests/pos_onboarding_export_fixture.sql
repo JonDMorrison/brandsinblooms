@@ -18,7 +18,7 @@ INSERT INTO public.tenants VALUES('10000000-0000-4000-8000-000000000001','Right 
 INSERT INTO public.products VALUES('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Watering can','CAN',24.95,'CAD','Original description','active','123456789012'),('20000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','Private foreign product','OTHER',99,'USD',null,'active',null);
 INSERT INTO public.product_images VALUES('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','https://example.test/real-photo.jpg',1);
 INSERT INTO bloom_pos_private.connections VALUES('test','40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',repeat('s',32),true,'CAD');
-\ir ../migrations/20261011080000_pos_onboarding_export.sql
+\ir ../migrations/20261011111726_pos_onboarding_export.sql
 SELECT set_config('request.jwt.claim.role','service_role',false);
 SELECT public.check_that(public.pos_onboarding_binding('test') IS NULL,'existing connection cannot export by default');
 SELECT public.expect_error($q$SELECT public.pos_onboarding_snapshot('test')$q$,'disabled snapshot refused');
