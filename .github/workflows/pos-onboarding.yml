@@ -25,6 +25,7 @@ jobs:
         with:
           deno-version: v2.5.0
       - run: deno check --no-config supabase/functions/pos-onboarding-export/index.ts
+      - run: deno test --no-config supabase/functions/_shared/onboarding-transfer_test.ts
       - run: psql -h localhost -U postgres -d onboarding_fixture -f supabase/tests/pos_onboarding_export_fixture.sql
         env:
           PGPASSWORD: test-only
