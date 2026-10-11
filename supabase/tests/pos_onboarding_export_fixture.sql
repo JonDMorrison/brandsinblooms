@@ -1,0 +1,40 @@
+-- Isolated SQL contract fixture, never run against an application database.
+\set ON_ERROR_STOP on
+DO $$ BEGIN IF current_database() <> 'onboarding_fixture' THEN RAISE EXCEPTION 'Use the disposable onboarding_fixture database'; END IF; END $$;
+CREATE SCHEMA auth;
+CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT current_setting('request.jwt.claim.role',true) $$;
+DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE service_role; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA bloom_pos_private;
+CREATE FUNCTION public.check_that(ok boolean,label text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN IF ok IS DISTINCT FROM true THEN RAISE EXCEPTION 'FAIL: %',label; END IF; END $$;
+CREATE FUNCTION public.expect_error(command text,label text) RETURNS void LANGUAGE plpgsql AS $$ DECLARE failed boolean:=false; BEGIN BEGIN EXECUTE command; EXCEPTION WHEN OTHERS THEN failed:=true; END; PERFORM public.check_that(failed,label); END $$;
+CREATE TABLE bloom_pos_private.connections(key_id text PRIMARY KEY,pos_tenant_id uuid,crm_tenant_id uuid,secret text,enabled boolean,currency text);
+CREATE TABLE public.tenants(id uuid PRIMARY KEY,name text,country text,city text,region text,website text);
+CREATE TABLE public.products(id uuid PRIMARY KEY,tenant_id uuid,name text,sku text,price numeric,currency text,description text,status text,barcode text);
+CREATE TABLE public.product_images(id uuid PRIMARY KEY,product_id uuid,image_url text,sort_order integer);
+CREATE FUNCTION public.bloomsuite_pos_connection(key text) RETURNS jsonb LANGUAGE sql AS $$ SELECT '{}'::jsonb FROM bloom_pos_private.connections WHERE key_id=key AND enabled $$;
+INSERT INTO public.tenants VALUES('10000000-0000-4000-8000-000000000001','Right business','CA','Vancouver','BC',null),('10000000-0000-4000-8000-000000000002','Other business','US',null,null,null);
+INSERT INTO public.products VALUES('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Watering can','CAN',24.95,'CAD','Original description','active','123456789012'),('20000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','Private foreign product','OTHER',99,'USD',null,'active',null);
+INSERT INTO public.product_images VALUES('30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','https://example.test/real-photo.jpg',1);
+INSERT INTO bloom_pos_private.connections VALUES('test','40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',repeat('s',32),true,'CAD');
+\ir ../migrations/20261011111726_pos_onboarding_export.sql
+SELECT set_config('request.jwt.claim.role','service_role',false);
+SELECT public.check_that(public.pos_onboarding_binding('test') IS NULL,'existing connection cannot export by default');
+SELECT public.expect_error($q$SELECT public.pos_onboarding_snapshot('test')$q$,'disabled snapshot refused');
+UPDATE bloom_pos_private.connections SET onboarding_enabled=true;
+SELECT public.check_that(public.pos_onboarding_binding('test')->>'accountId'='10000000-0000-4000-8000-000000000001','explicit source account only');
+SELECT public.check_that(public.pos_onboarding_snapshot('test')->>'source'='CRM','correct provenance');
+SELECT public.check_that(public.pos_onboarding_snapshot('test')->>'complete'='true','complete preview');
+SELECT public.check_that(jsonb_array_length(public.pos_onboarding_snapshot('test')->'products')=1,'foreign business excluded');
+SELECT public.check_that(public.pos_onboarding_snapshot('test')#>>'{products,0,imageUrls,0}'='https://example.test/real-photo.jpg','original photo preserved');
+SELECT public.check_that(public.pos_onboarding_snapshot('test')#>>'{business,name}'='Right business','business details scoped');
+SELECT public.check_that(NOT has_function_privilege('anon','public.pos_onboarding_snapshot(text)','EXECUTE'),'anonymous denied');
+SELECT public.check_that(NOT has_function_privilege('authenticated','public.pos_onboarding_binding(text)','EXECUTE'),'browser cannot read keys');
+SELECT set_config('request.jwt.claim.role','authenticated',false);
+SELECT public.expect_error($q$SELECT public.pos_onboarding_snapshot('test')$q$,'function also checks service role');
+SELECT set_config('request.jwt.claim.role','service_role',false);
+SELECT public.check_that((SELECT count(*)=2 FROM public.products),'preview never creates or removes products');
+UPDATE public.products SET currency='USD' WHERE sku='CAN';
+SELECT public.expect_error($q$SELECT public.pos_onboarding_snapshot('test')$q$,'wrong currency refused');
+SELECT 'Onboarding source SQL checks passed' AS result;
