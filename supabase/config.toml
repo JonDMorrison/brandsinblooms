@@ -565,3 +565,6 @@ verify_jwt = false
 # Signed read requests are authenticated by the grant's per-site ECDSA proof.
 [functions.lightspeed-storefront-bridge]
 verify_jwt = false
+
+[functions.pos-onboarding-export]
+verify_jwt = false
