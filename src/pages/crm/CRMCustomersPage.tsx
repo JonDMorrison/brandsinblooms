@@ -1,3 +1,4 @@
+import { POSMarketingRequests } from "@/components/crm/POSMarketingRequests";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "@mui/joy/Button";
 import ButtonGroup from "@mui/joy/ButtonGroup";
@@ -86,6 +87,7 @@ export const CRMCustomersPage: React.FC = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showSyncFromCRM, setShowSyncFromCRM] = useState(false);
   const [showMergeReview, setShowMergeReview] = useState(false);
+  const [showPOSPreferences, setShowPOSPreferences] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -410,6 +412,13 @@ export const CRMCustomersPage: React.FC = () => {
             justifyContent={{ xs: "flex-start", md: "flex-end" }}
             sx={{ flexShrink: 0 }}
           >
+            {canImportCustomers && tenant?.id ? (
+              <Button variant="outlined" color="neutral" size="sm"
+                aria-expanded={showPOSPreferences} aria-controls="pos-email-preference-review"
+                onClick={() => setShowPOSPreferences(value => !value)}>
+                POS email preferences
+              </Button>
+            ) : null}
             {canManageIntegrations ? (
               <Tooltip title="Sync From CRM">
                 <IconButton
@@ -509,6 +518,12 @@ export const CRMCustomersPage: React.FC = () => {
             </JoyDropdownMenu> : null}
           </Stack>
         </Stack>
+
+        {canImportCustomers && tenant?.id && showPOSPreferences ? (
+          <section id="pos-email-preference-review" aria-label="POS email preferences">
+            <POSMarketingRequests key={tenant.id} />
+          </section>
+        ) : null}
 
         {isHeaderStatsLoading ? (
           <CatalogStatsStripSkeleton itemCount={4} />
