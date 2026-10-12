@@ -48,8 +48,18 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260903090000_pos_order_customer_resolution.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261009053000_bloomsuite_pos_crm_bridge.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261009160000_bloomsuite_pos_replay_integrity.sql
+      - name: Load unchanged staff role and atomic email consent functions
+        run: |
+          psql -v ON_ERROR_STOP=1 -f scripts/ci/pos-bridge-consent-schema.sql
+          python3 scripts/ci/pos-bridge-consent-functions.py
+          psql -v ON_ERROR_STOP=1 -f /tmp/pos-consent-functions.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260903235000_authorize_staff_consent_changes.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261012151040_bloomsuite_pos_marketing_review.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261012151147_bloomsuite_pos_reject_stale_preferences.sql
       - name: PostgreSQL replay, money, identity and tenant isolation
-        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/bloomsuite_pos_bridge_replay.sql
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/bloomsuite_pos_bridge_replay.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/bloomsuite_pos_marketing_review.sql
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
