@@ -24,6 +24,8 @@ CREATE TABLE public.crm_storefront_customer_links (
   tenant_id uuid NOT NULL,
   storefront_site_id uuid NOT NULL,
   storefront_user_id uuid NOT NULL,
+  source_email text,
+  source_email_seen_at timestamptz,
   crm_customer_id uuid,
   status text NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending','verified','revoked')),
@@ -211,7 +213,8 @@ CREATE FUNCTION public.accept_storefront_push_v1(
   p_p256dh text,
   p_auth text,
   p_vapid_version integer,
-  p_payload_hash text
+  p_payload_hash text,
+  p_source_email text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $
@@ -251,11 +254,16 @@ BEGIN
 
   IF NOT FOUND THEN
     INSERT INTO public.crm_storefront_customer_links
-      (tenant_id,storefront_site_id,storefront_user_id,status)
-    VALUES (v_tenant,p_site_id,p_user_id,'pending')
+      (tenant_id,storefront_site_id,storefront_user_id,status,source_email,source_email_seen_at)
+    VALUES (v_tenant,p_site_id,p_user_id,'pending',
+      nullif(left(lower(btrim(coalesce(p_source_email,''))),254),''),now())
     ON CONFLICT (storefront_site_id,storefront_user_id) DO NOTHING;
     v_outcome:=jsonb_build_object('status','identity_review_required');
   ELSIF v_link.status <> 'verified' OR v_link.crm_customer_id IS NULL THEN
+    UPDATE public.crm_storefront_customer_links
+      SET source_email=nullif(left(lower(btrim(coalesce(p_source_email,''))),254),''),
+          source_email_seen_at=now(),updated_at=now()
+      WHERE id=v_link.id AND status='pending';
     v_outcome:=jsonb_build_object('status','identity_review_required');
   ELSIF p_action='unsubscribe' THEN
     INSERT INTO public.crm_push_preferences
@@ -314,10 +322,10 @@ BEGIN
 END;
 $;
 REVOKE ALL ON FUNCTION public.accept_storefront_push_v1(
-  uuid,uuid,uuid,text,text,text,text,text,integer,text)
+  uuid,uuid,uuid,text,text,text,text,text,integer,text,text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_storefront_push_v1(
-  uuid,uuid,uuid,text,text,text,text,text,integer,text)
+  uuid,uuid,uuid,text,text,text,text,text,integer,text,text)
   TO service_role;
 
 COMMIT;
