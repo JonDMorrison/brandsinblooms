@@ -568,3 +568,21 @@ verify_jwt = false
 
 [functions.pos-onboarding-export]
 verify_jwt = false
+
+# Signed service-to-service calls from BloomSites; this function verifies HMAC
+# before parsing or applying a subscription.
+[functions.receive-storefront-push]
+verify_jwt = false
+
+# Internal cron only. The function validates the exact service-role bearer.
+[functions.process-push-send-queue]
+verify_jwt = false
+
+[functions.send-push-test]
+verify_jwt = true
+
+[functions.review-storefront-push-identity]
+verify_jwt = true
+
+[functions.link-storefront-tenant]
+verify_jwt = true
