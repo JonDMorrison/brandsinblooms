@@ -186,4 +186,138 @@ REVOKE ALL ON FUNCTION public.claim_crm_push_messages(integer)
 GRANT EXECUTE ON FUNCTION public.claim_crm_push_messages(integer)
   TO service_role;
 
+
+-- Signed storefront bridge replays are processed atomically with subscription
+-- mutations. A lost HTTP response is safe to retry with the same event UUID.
+CREATE TABLE public.crm_push_bridge_events (
+  event_id uuid PRIMARY KEY,
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id),
+  storefront_site_id uuid NOT NULL,
+  payload_sha256 text NOT NULL CHECK (payload_sha256 ~ '^[a-f0-9]{64}),
+  outcome jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.crm_push_bridge_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.crm_push_bridge_events FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.crm_push_bridge_events TO service_role;
+
+CREATE FUNCTION public.accept_storefront_push_v1(
+  p_event_id uuid,
+  p_site_id uuid,
+  p_user_id uuid,
+  p_action text,
+  p_endpoint text,
+  p_endpoint_hash text,
+  p_p256dh text,
+  p_auth text,
+  p_vapid_version integer,
+  p_payload_hash text
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $
+DECLARE
+  v_tenant uuid;
+  v_link public.crm_storefront_customer_links%ROWTYPE;
+  v_prior public.crm_push_bridge_events%ROWTYPE;
+  v_outcome jsonb;
+BEGIN
+  IF p_event_id IS NULL OR p_site_id IS NULL OR p_user_id IS NULL OR
+     p_action NOT IN ('subscribe','unsubscribe') OR
+     p_payload_hash !~ '^[a-f0-9]{64} OR
+     p_endpoint_hash !~ '^[a-f0-9]{64}
+  THEN RAISE EXCEPTION 'Invalid push bridge event'; END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_event_id::text,0));
+  SELECT * INTO v_prior FROM public.crm_push_bridge_events
+  WHERE event_id=p_event_id;
+  IF FOUND THEN
+    IF v_prior.payload_sha256 IS DISTINCT FROM p_payload_hash OR
+       v_prior.storefront_site_id IS DISTINCT FROM p_site_id
+    THEN RAISE EXCEPTION 'Changed push bridge retry'; END IF;
+    RETURN v_prior.outcome;
+  END IF;
+
+  SELECT crm_tenant_id INTO v_tenant
+  FROM public.crm_storefront_tenant_links
+  WHERE storefront_site_id=p_site_id AND enabled=true;
+
+  IF v_tenant IS NULL THEN
+    RETURN jsonb_build_object('status','tenant_not_enabled');
+  END IF;
+
+  SELECT * INTO v_link FROM public.crm_storefront_customer_links
+  WHERE tenant_id=v_tenant AND storefront_site_id=p_site_id
+    AND storefront_user_id=p_user_id FOR UPDATE;
+
+  IF NOT FOUND THEN
+    INSERT INTO public.crm_storefront_customer_links
+      (tenant_id,storefront_site_id,storefront_user_id,status)
+    VALUES (v_tenant,p_site_id,p_user_id,'pending')
+    ON CONFLICT (storefront_site_id,storefront_user_id) DO NOTHING;
+    v_outcome:=jsonb_build_object('status','identity_review_required');
+  ELSIF v_link.status <> 'verified' OR v_link.crm_customer_id IS NULL THEN
+    v_outcome:=jsonb_build_object('status','identity_review_required');
+  ELSIF p_action='unsubscribe' THEN
+    INSERT INTO public.crm_push_preferences
+      (tenant_id,crm_customer_id,status,evidence_ref)
+    VALUES (v_tenant,v_link.crm_customer_id,'opted_out',
+      'storefront-push:'||p_event_id::text)
+    ON CONFLICT (tenant_id,crm_customer_id)
+    DO UPDATE SET status='opted_out', evidence_ref=EXCLUDED.evidence_ref,
+      recorded_at=now(), updated_at=now();
+    UPDATE public.crm_push_subscriptions
+      SET status='revoked', revoked_at=now()
+      WHERE tenant_id=v_tenant AND crm_customer_id=v_link.crm_customer_id
+        AND status='active';
+    v_outcome:=jsonb_build_object('status','unsubscribed');
+  ELSE
+    IF p_endpoint IS NULL OR left(p_endpoint,8)<>'https://' OR
+       p_p256dh IS NULL OR p_auth IS NULL OR
+       length(p_p256dh) NOT BETWEEN 24 AND 256 OR
+       length(p_auth) NOT BETWEEN 12 AND 256 OR
+       p_vapid_version IS NULL OR p_vapid_version < 1
+    THEN RAISE EXCEPTION 'Malformed browser subscription'; END IF;
+
+    -- Both a direct customer action and browser-granted permission are required
+    -- by the trusted storefront before it signs this event. The bridge never
+    -- obtains consent from a marketing contact email.
+    INSERT INTO public.crm_push_preferences
+      (tenant_id,crm_customer_id,status,evidence_ref)
+    VALUES (v_tenant,v_link.crm_customer_id,'opted_in',
+      'storefront-push:'||p_event_id::text)
+    ON CONFLICT (tenant_id,crm_customer_id)
+    DO UPDATE SET status='opted_in', evidence_ref=EXCLUDED.evidence_ref,
+      recorded_at=now(), updated_at=now();
+
+    INSERT INTO public.crm_push_subscriptions
+      (tenant_id,storefront_site_id,crm_customer_id,customer_link_id,
+       endpoint_url,endpoint_sha256,key_p256dh,key_auth,vapid_key_version)
+    VALUES (v_tenant,p_site_id,v_link.crm_customer_id,v_link.id,
+      p_endpoint,p_endpoint_hash,p_p256dh,p_auth,p_vapid_version)
+    ON CONFLICT (endpoint_sha256) DO UPDATE
+      SET key_p256dh=EXCLUDED.key_p256dh, key_auth=EXCLUDED.key_auth,
+        vapid_key_version=EXCLUDED.vapid_key_version, status='active',
+        last_seen_at=now(), revoked_at=NULL, invalidated_at=NULL
+      WHERE crm_push_subscriptions.tenant_id=EXCLUDED.tenant_id
+        AND crm_push_subscriptions.crm_customer_id=EXCLUDED.crm_customer_id
+        AND crm_push_subscriptions.storefront_site_id=EXCLUDED.storefront_site_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Subscription belongs to another customer or tenant';
+    END IF;
+    v_outcome:=jsonb_build_object('status','subscribed');
+  END IF;
+
+  INSERT INTO public.crm_push_bridge_events
+    (event_id,tenant_id,storefront_site_id,payload_sha256,outcome)
+  VALUES (p_event_id,v_tenant,p_site_id,p_payload_hash,v_outcome);
+  RETURN v_outcome;
+END;
+$;
+REVOKE ALL ON FUNCTION public.accept_storefront_push_v1(
+  uuid,uuid,uuid,text,text,text,text,text,integer,text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.accept_storefront_push_v1(
+  uuid,uuid,uuid,text,text,text,text,text,integer,text)
+  TO service_role;
+
 COMMIT;
