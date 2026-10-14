@@ -12,11 +12,16 @@ describe("production Ideal ingestion",()=>{
   expect(wizard).toContain("duplicates");
   expect(wizard).toContain("rejected");
  });
- it("authenticates, tenant-scopes and permission-gates ingestion",()=>{
+ it("authenticates, resolves the active tenant and permission-gates ingestion before privileged writes",()=>{
   const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
+  const access=read("supabase/functions/_shared/customer-intelligence/import-access.ts");
   expect(fn).toContain('auth.getUser()');
-  expect(fn).toContain('select("tenant_id")');
-  expect(fn).toContain('"integrations.manage"');
+  expect(fn).toContain('tenantId=await requireImportTenant(userClient)');
+  expect(access).toContain("client.rpc('get_current_crm_access')");
+  expect(access).toContain("access.permissions.includes('integrations.manage')");
+  expect(fn).not.toContain('service.rpc("has_tenant_permission"');
+  expect(fn).not.toContain('p_resource_id');
+  expect(fn.indexOf('requireImportTenant(userClient)')).toBeLessThan(fn.indexOf('const service=createClient'));
   expect(fn).toContain('eq("tenant_id",tenantId)');
  });
  it("uses canonical identity resolution and never changes consent",()=>{
