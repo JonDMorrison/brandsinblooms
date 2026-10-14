@@ -129,6 +129,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     p_auth: action === "subscribe" ? keys.auth : null,
     p_vapid_version: 1,
     p_payload_hash: await digest(body),
+    p_source_email: typeof event.sourceEmail === "string" ? event.sourceEmail : null,
   });
   if (error) {
     // Never log the body, subscription endpoint, signing secret, or key material.
