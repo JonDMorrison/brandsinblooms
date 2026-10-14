@@ -1,5 +1,6 @@
 import {readAllPages} from '../../../supabase/functions/_shared/customer-intelligence/query-pages';
 import { CustomerGrowthWorkspace } from "@/components/crm/customer-intelligence/CustomerGrowthWorkspace";
+import { PushPilotPanel } from "@/components/crm/customer-intelligence/PushPilotPanel";
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Sheet from "@mui/joy/Sheet";
@@ -78,6 +79,7 @@ export default function CustomerIntelligencePage(){
    </Box>
 
    <CustomerGrowthWorkspace />
+   <PushPilotPanel />
    <JoyCard variant="outlined">
     <JoyCardHeader title="Opportunities worth your attention" description="These signals come from actual customer purchase behavior. Bloom can explain the evidence and help turn any insight into an audience or campaign." actions={<JoyButton size="sm" variant="plain" onClick={()=>askBloom("Find my strongest customer opportunities. Prioritize by historical customer value and explain why each group matters.")}>Explore with Bloom</JoyButton>}/>
     <JoyCardContent>
