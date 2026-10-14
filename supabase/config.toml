@@ -583,3 +583,6 @@ verify_jwt = true
 
 [functions.review-storefront-push-identity]
 verify_jwt = true
+
+[functions.link-storefront-tenant]
+verify_jwt = true
