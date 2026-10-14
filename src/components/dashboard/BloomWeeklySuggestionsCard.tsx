@@ -1,15 +1,7 @@
 /**
  * Bloom-led weekly suggestions card for the dashboard.
- *
- * Shows up to three date-aware suggestions for what to send this week. Each
- * one writes a Bloom proactive insight row (the same surface Bloom already
- * picks up from /bloom?insight=<id>) and navigates the user into Bloom with
- * the conversation already started.
- *
- * Bloom does the drafting and follow-through. This card is just the
- * invitation.
+ * Each suggestion reuses the existing proactive-insight and Bloom workflow.
  */
-
 import * as React from "react";
 import Box from "@mui/joy/Box";
 import Sheet from "@mui/joy/Sheet";
@@ -24,351 +16,80 @@ import { bloomSupabase } from "@/hooks/bloom/types";
 import { useTenant } from "@/hooks/useTenant";
 import { useWeeklyThemes } from "@/hooks/useWeeklyThemes";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  rankWeeklySuggestions,
-  type RecentCampaignLite,
-  type WeeklySuggestion,
-} from "@/lib/crm/weeklySuggestions";
+import { gardenImagesFromProducts, type GardenImage } from "@/lib/crm/gardenImages";
+import { rankWeeklySuggestions, type RecentCampaignLite, type WeeklySuggestion } from "@/lib/crm/weeklySuggestions";
 
 const INSIGHT_EXPIRY_HOURS = 6;
 const RECENT_CAMPAIGN_WINDOW_DAYS = 35;
-
-type GardenImage = {
-  url: string;
-  alt: string;
-};
-
-async function fetchRecentCampaigns(
-  tenantId: string,
-): Promise<RecentCampaignLite[]> {
-  const cutoff = new Date(
-    Date.now() - RECENT_CAMPAIGN_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const { data, error } = await supabase
-    .from("crm_campaigns")
-    .select("name, sent_at, send_completed_at")
-    .eq("tenant_id", tenantId)
-    .gte("sent_at", cutoff)
-    .limit(50);
-  if (error) {
-    return [];
-  }
-  return (data ?? []).map((row) => ({
-    name: typeof row.name === "string" ? row.name : "",
-    sentAt:
-      typeof row.sent_at === "string"
-        ? row.sent_at
-        : typeof row.send_completed_at === "string"
-          ? row.send_completed_at
-          : null,
-  }));
+async function fetchRecentCampaigns(tenantId: string): Promise<RecentCampaignLite[]> {
+  const cutoff = new Date(Date.now() - RECENT_CAMPAIGN_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.from("crm_campaigns").select("name, sent_at, send_completed_at").eq("tenant_id", tenantId).gte("sent_at", cutoff).limit(50);
+  if (error) return [];
+  return (data ?? []).map(row => ({ name: typeof row.name === "string" ? row.name : "", sentAt: typeof row.sent_at === "string" ? row.sent_at : typeof row.send_completed_at === "string" ? row.send_completed_at : null }));
 }
-
 async function fetchGardenImages(tenantId: string): Promise<GardenImage[]> {
   const { data, error } = await supabase
     .from("products")
-    .select("name, image_url, thumbnail_url")
+    .select("name, product_images(image_url, thumbnail_url, is_primary, sort_order)")
     .eq("tenant_id", tenantId)
     .limit(18);
-
-  if (error) {
-    return [];
-  }
-
-  const seen = new Set<string>();
-  const images: GardenImage[] = [];
-
-  for (const row of data ?? []) {
-    const imageUrl =
-      typeof row.image_url === "string" && row.image_url.trim()
-        ? row.image_url.trim()
-        : typeof row.thumbnail_url === "string" && row.thumbnail_url.trim()
-          ? row.thumbnail_url.trim()
-          : null;
-
-    if (!imageUrl || seen.has(imageUrl)) {
-      continue;
-    }
-
-    seen.add(imageUrl);
-    images.push({
-      url: imageUrl,
-      alt:
-        typeof row.name === "string" && row.name.trim()
-          ? row.name.trim()
-          : "Garden centre product",
-    });
-
-    if (images.length === 3) {
-      break;
-    }
-  }
-
-  return images;
+  if (error) return [];
+  return gardenImagesFromProducts(data);
 }
-
 function SkeletonRow() {
-  return (
-    <Stack
-      spacing={0.5}
-      sx={{
-        p: 1.25,
-        borderRadius: "8px",
-        border: "1px solid",
-        borderColor: "neutral.100",
-      }}
-    >
-      <Skeleton variant="text" sx={{ width: "70%" }} />
-      <Skeleton variant="text" sx={{ width: "50%" }} />
-    </Stack>
-  );
+  return <Stack spacing={0.5} sx={{ p: 1.25, borderRadius: "8px", border: "1px solid", borderColor: "neutral.100" }}><Skeleton variant="text" sx={{ width: "70%" }} /><Skeleton variant="text" sx={{ width: "50%" }} /></Stack>;
 }
-
 export function BloomWeeklySuggestionsCard() {
   const navigate = useNavigate();
   const { tenant } = useTenant();
   const { themes, loading: themesLoading } = useWeeklyThemes();
-  const [recentCampaigns, setRecentCampaigns] = React.useState<
-    RecentCampaignLite[]
-  >([]);
+  const [recentCampaigns, setRecentCampaigns] = React.useState<RecentCampaignLite[]>([]);
   const [gardenImages, setGardenImages] = React.useState<GardenImage[]>([]);
   const [recentLoading, setRecentLoading] = React.useState(true);
   const [openingId, setOpeningId] = React.useState<string | null>(null);
-
   React.useEffect(() => {
     let cancelled = false;
     if (!tenant?.id) {
-      setRecentCampaigns([]);
-      setGardenImages([]);
-      setRecentLoading(false);
-      return () => {
-        cancelled = true;
-      };
+      setRecentCampaigns([]); setGardenImages([]); setRecentLoading(false);
+      return () => { cancelled = true; };
     }
     setRecentLoading(true);
-    void Promise.all([
-      fetchRecentCampaigns(tenant.id),
-      fetchGardenImages(tenant.id),
-    ]).then(([campaignRows, imageRows]) => {
+    void Promise.all([fetchRecentCampaigns(tenant.id), fetchGardenImages(tenant.id)]).then(([campaignRows, imageRows]) => {
       if (cancelled) return;
-      setRecentCampaigns(campaignRows);
-      setGardenImages(imageRows);
-      setRecentLoading(false);
+      setRecentCampaigns(campaignRows); setGardenImages(imageRows); setRecentLoading(false);
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [tenant?.id]);
-
   const suggestions = React.useMemo(() => {
     if (themesLoading || recentLoading) return [];
     return rankWeeklySuggestions({ themes, recentCampaigns });
   }, [themes, themesLoading, recentCampaigns, recentLoading]);
-
   const isLoading = themesLoading || recentLoading;
-
-  const handleOpen = React.useCallback(
-    async (suggestion: WeeklySuggestion) => {
-      if (!tenant?.id || openingId) return;
-      setOpeningId(suggestion.id);
-      try {
-        const expiresAt = new Date(
-          Date.now() + INSIGHT_EXPIRY_HOURS * 60 * 60 * 1000,
-        ).toISOString();
-        const { data, error } = await bloomSupabase
-          .from("bloom_proactive_insights")
-          .insert({
-            tenant_id: tenant.id,
-            insight_type: "weekly_suggestion",
-            title: suggestion.title,
-            description: suggestion.whyNow,
-            action_prompt: suggestion.seedPrompt,
-            entity_type: null,
-            entity_id: null,
-            severity: "info",
-            expires_at: expiresAt,
-          })
-          .select("id")
-          .single();
-        if (error || !data?.id) {
-          throw error ?? new Error("No insight id returned");
-        }
-        navigate(`/bloom?insight=${data.id}`);
-      } catch (error) {
-        toast.error("Couldn't start that one", {
-          description:
-            error instanceof Error
-              ? error.message
-              : "Try again in a moment.",
-        });
-        setOpeningId(null);
-      }
-    },
-    [navigate, openingId, tenant?.id],
-  );
-
-  // Hide the card entirely if there's nothing to suggest and we're not loading
-  // — better than leaving a header with no content.
-  if (!isLoading && suggestions.length === 0) {
-    return null;
-  }
-
-  return (
-    <Sheet
-      variant="outlined"
-      data-testid="bloom-weekly-suggestions-card"
-      sx={{
-        borderRadius: "16px",
-        p: 0,
-        overflow: "hidden",
-        backgroundColor: "#FFFFFF",
-      }}
-    >
-      {gardenImages.length > 0 ? (
-        <Box
-          aria-label="Store product imagery"
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: gardenImages.length === 1 ? "1fr" : "1fr 1fr",
-              md:
-                gardenImages.length === 1
-                  ? "1fr"
-                  : gardenImages.length === 2
-                    ? "1.4fr 1fr"
-                    : "1.5fr 1fr 1fr",
-            },
-            gap: "2px",
-            height: { xs: 96, md: 118 },
-            backgroundColor: "neutral.100",
-          }}
-        >
-          {gardenImages.map((image, index) => (
-            <Box
-              key={image.url}
-              component="img"
-              src={image.url}
-              alt={image.alt}
-              loading="lazy"
-              sx={{
-                width: "100%",
-                height: "100%",
-                display: index > 1 ? { xs: "none", md: "block" } : "block",
-                objectFit: "cover",
-                objectPosition: "center",
-                filter: "saturate(0.92) contrast(0.96)",
-              }}
-            />
-          ))}
-        </Box>
-      ) : null}
-
-      <Stack spacing={1.5} sx={{ p: 2 }}>
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Stack spacing={0.25}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box
-                sx={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "8px",
-                  backgroundColor: "primary.50",
-                  color: "primary.600",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Sparkles size={16} />
-              </Box>
-              <Typography
-                level="title-md"
-                sx={{ fontSize: "16px", fontWeight: 600 }}
-              >
-                This week's marketing
-              </Typography>
-            </Stack>
-            <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-              Bloom has a few ideas — pick one and Bloom will draft it with
-              you.
-            </Typography>
-          </Stack>
-        </Stack>
-
-        <Stack spacing={1}>
-          {isLoading ? (
-            <>
-              <SkeletonRow />
-              <SkeletonRow />
-            </>
-          ) : (
-            suggestions.map((suggestion) => (
-              <Box
-                key={suggestion.id}
-                component="button"
-                type="button"
-                disabled={openingId !== null}
-                onClick={() => void handleOpen(suggestion)}
-                data-testid={`bloom-weekly-suggestion-${suggestion.id}`}
-                sx={{
-                  display: "block",
-                  textAlign: "left",
-                  width: "100%",
-                  p: 1.25,
-                  borderRadius: "10px",
-                  border: "1px solid",
-                  borderColor: "neutral.200",
-                  backgroundColor: "background.body",
-                  cursor: openingId !== null ? "wait" : "pointer",
-                  transition:
-                    "border-color 120ms ease, background-color 120ms ease",
-                  "&:hover": {
-                    borderColor: "primary.300",
-                    backgroundColor: "primary.50",
-                  },
-                  "&:focus-visible": {
-                    outline: "2px solid var(--joy-palette-primary-400)",
-                    outlineOffset: "1px",
-                  },
-                  "&:disabled": {
-                    opacity: openingId === suggestion.id ? 0.85 : 0.6,
-                  },
-                }}
-              >
-                <Stack spacing={0.25}>
-                  <Typography
-                    level="body-sm"
-                    sx={{ fontWeight: 600, color: "neutral.900" }}
-                  >
-                    {suggestion.title}
-                  </Typography>
-                  <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                    {suggestion.whyNow}
-                  </Typography>
-                </Stack>
-              </Box>
-            ))
-          )}
-        </Stack>
-
-        {!isLoading && suggestions.length > 0 ? (
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <JoyButton
-              variant="plain"
-              color="neutral"
-              size="sm"
-              onClick={() => navigate("/bloom?new=true")}
-            >
-              Open Bloom for anything else
-            </JoyButton>
-          </Box>
-        ) : null}
-      </Stack>
-    </Sheet>
-  );
+  const handleOpen = React.useCallback(async (suggestion: WeeklySuggestion) => {
+    if (!tenant?.id || openingId) return;
+    setOpeningId(suggestion.id);
+    try {
+      const expiresAt = new Date(Date.now() + INSIGHT_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+      const { data, error } = await bloomSupabase.from("bloom_proactive_insights").insert({ tenant_id: tenant.id, insight_type: "weekly_suggestion", title: suggestion.title, description: suggestion.whyNow, action_prompt: suggestion.seedPrompt, entity_type: null, entity_id: null, severity: "info", expires_at: expiresAt }).select("id").single();
+      if (error || !data?.id) throw error ?? new Error("No insight id returned");
+      navigate(`/bloom?insight=${data.id}`);
+    } catch (error) {
+      toast.error("Couldn't start that one", { description: error instanceof Error ? error.message : "Try again in a moment." });
+      setOpeningId(null);
+    }
+  }, [navigate, openingId, tenant?.id]);
+  if (!isLoading && suggestions.length === 0) return null;
+  return <Sheet variant="outlined" data-testid="bloom-weekly-suggestions-card" sx={{ borderRadius: "16px", p: 0, overflow: "hidden", backgroundColor: "#FFFFFF" }}>
+    {gardenImages.length > 0 ? <Box aria-label="Store product imagery" sx={{ display: "grid", gridTemplateColumns: { xs: gardenImages.length === 1 ? "1fr" : "1fr 1fr", md: gardenImages.length === 1 ? "1fr" : gardenImages.length === 2 ? "1.4fr 1fr" : "1.5fr 1fr 1fr" }, gap: "2px", height: { xs: 96, md: 118 }, backgroundColor: "neutral.100" }}>
+      {gardenImages.map((image, index) => <Box key={image.url} component="img" src={image.url} alt={image.alt} loading="lazy" sx={{ width: "100%", height: "100%", display: index > 1 ? { xs: "none", md: "block" } : "block", objectFit: "cover", objectPosition: "center", filter: "saturate(0.92) contrast(0.96)" }} />)}
+    </Box> : null}
+    <Stack spacing={1.5} sx={{ p: 2 }}>
+      <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between"><Stack spacing={0.25}>
+        <Stack direction="row" spacing={1} alignItems="center"><Box sx={{ width: 28, height: 28, borderRadius: "8px", backgroundColor: "primary.50", color: "primary.600", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Sparkles size={16} /></Box><Typography level="title-md" sx={{ fontSize: "16px", fontWeight: 600 }}>This week's marketing</Typography></Stack>
+        <Typography level="body-xs" sx={{ color: "neutral.500" }}>Bloom has a few ideas — pick one and Bloom will draft it with you.</Typography>
+      </Stack></Stack>
+      <Stack spacing={1}>{isLoading ? <><SkeletonRow /><SkeletonRow /></> : suggestions.map(suggestion => <Box key={suggestion.id} component="button" type="button" disabled={openingId !== null} onClick={() => void handleOpen(suggestion)} data-testid={`bloom-weekly-suggestion-${suggestion.id}`} sx={{ display: "block", textAlign: "left", width: "100%", p: 1.25, borderRadius: "10px", border: "1px solid", borderColor: "neutral.200", backgroundColor: "background.body", cursor: openingId !== null ? "wait" : "pointer", transition: "border-color 120ms ease, background-color 120ms ease", "&:hover": { borderColor: "primary.300", backgroundColor: "primary.50" }, "&:focus-visible": { outline: "2px solid var(--joy-palette-primary-400)", outlineOffset: "1px" }, "&:disabled": { opacity: openingId === suggestion.id ? 0.85 : 0.6 } }}><Stack spacing={0.25}><Typography level="body-sm" sx={{ fontWeight: 600, color: "neutral.900" }}>{suggestion.title}</Typography><Typography level="body-xs" sx={{ color: "neutral.500" }}>{suggestion.whyNow}</Typography></Stack></Box>)}</Stack>
+      {!isLoading && suggestions.length > 0 ? <Box sx={{ display: "flex", justifyContent: "flex-end" }}><JoyButton variant="plain" color="neutral" size="sm" onClick={() => navigate("/bloom?new=true")}>Open Bloom for anything else</JoyButton></Box> : null}
+    </Stack>
+  </Sheet>;
 }
