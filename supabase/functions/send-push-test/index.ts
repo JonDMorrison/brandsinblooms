@@ -41,6 +41,39 @@ Deno.serve(async (req: Request): Promise<Response> => {
   } catch {
     return json(400, { error: "Invalid JSON" });
   }
+  if (input.action === "list") {
+    const { data: activeSubscriptions } = await db.from("crm_push_subscriptions")
+      .select("customer_link_id,crm_customer_id,storefront_site_id")
+      .eq("tenant_id", caller.tenant_id).eq("status", "active").limit(100);
+    const ids = [...new Set((activeSubscriptions || []).map((sub) => sub.crm_customer_id))];
+    if (!ids.length) return json(200, { customers: [] });
+    const [{ data: prefs }, { data: links }, { data: mappings }, { data: customers }] = await Promise.all([
+      db.from("crm_push_preferences").select("crm_customer_id").eq("tenant_id", caller.tenant_id)
+        .eq("status", "opted_in").in("crm_customer_id", ids),
+      db.from("crm_storefront_customer_links").select("id,crm_customer_id,storefront_site_id")
+        .eq("tenant_id", caller.tenant_id).eq("status", "verified").in("crm_customer_id", ids),
+      db.from("crm_storefront_tenant_links").select("storefront_site_id")
+        .eq("crm_tenant_id", caller.tenant_id).eq("enabled", true),
+      db.from("crm_customers").select("id,first_name,last_name")
+        .eq("tenant_id", caller.tenant_id).in("id", ids)
+        .is("deleted_at", null).is("merged_into_customer_id", null),
+    ]);
+    const consented = new Set((prefs || []).map((pref) => pref.crm_customer_id));
+    const enabledSites = new Set((mappings || []).map((m) => m.storefront_site_id));
+    const linksById = new Map((links || []).map((link) => [link.id, link]));
+    const eligibleIds = new Set((activeSubscriptions || []).filter((sub) => {
+      const link = linksById.get(sub.customer_link_id);
+      return consented.has(sub.crm_customer_id) && enabledSites.has(sub.storefront_site_id) &&
+        link?.crm_customer_id === sub.crm_customer_id &&
+        link?.storefront_site_id === sub.storefront_site_id;
+    }).map((sub) => sub.crm_customer_id));
+    return json(200, { customers: (customers || []).filter((customer) => eligibleIds.has(customer.id))
+      .map((customer) => ({
+        id: customer.id,
+        label: [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "Customer " + customer.id.slice(0, 8),
+      })) });
+  }
+
   const customerId = input.customerId;
   if (typeof customerId !== "string" || !UUID.test(customerId)) {
     return json(400, { error: "Valid customer ID required" });
