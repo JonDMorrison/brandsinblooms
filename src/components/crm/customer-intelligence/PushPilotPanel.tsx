@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button, FormControl, FormLabel, Option, Select, Sheet, Stack, Typography } from "@mui/joy";
 import { Bell } from "lucide-react";
 import { PushIdentityReview } from "./PushIdentityReview";
+import { StorefrontLinkPanel } from "./StorefrontLinkPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 
@@ -93,6 +94,7 @@ export function PushPilotPanel() {
         </Stack>
         {notice ? <Typography level="body-sm" role="status">{notice}</Typography> : null}
       </Stack>
+      <StorefrontLinkPanel />
       <PushIdentityReview />
     </Sheet>
   );
