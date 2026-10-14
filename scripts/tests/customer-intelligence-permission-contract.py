@@ -97,7 +97,7 @@ DO $$DECLARE n integer; tbl text; ids integer[]; expected integer[]; count_rows 
   expected:=CASE n WHEN 1 THEN ARRAY[2] WHEN 4 THEN ARRAY[1] WHEN 7 THEN ARRAY[3] ELSE ARRAY[]::integer[] END;
   IF ids<>expected THEN RAISE EXCEPTION 'Snapshot ownership failed for actor %: %',n,ids; END IF;
   UPDATE public.customer_intelligence_sources SET status='reviewed'; GET DIAGNOSTICS count_rows=ROW_COUNT;
-  IF count_rows<>CASE WHEN n IN(1,2,3) THEN 1 ELSE 0 END THEN RAISE EXCEPTION 'Wrong integration write scope for actor %',n; END IF;
+  IF count_rows<>(CASE WHEN n IN(1,2,3) THEN 1 ELSE 0 END) THEN RAISE EXCEPTION 'Wrong integration write scope for actor %',n; END IF;
   allowed:=true;
   BEGIN
    INSERT INTO public.customer_intelligence_sources VALUES(100+n,'10000000-0000-4000-8000-000000000001','draft');
