@@ -3,13 +3,22 @@ on:
   pull_request:
     paths:
       - 'supabase/migrations/*bloom_customer_exploration*'
+      - 'supabase/migrations/*customer_intelligence_permission_contract*'
+      - 'supabase/migrations/*location_access_management*'
+      - 'supabase/migrations/*tenant_crm_role_foundation*'
       - 'scripts/tests/customer-exploration-db.sql'
+      - 'scripts/tests/customer-intelligence-permission-contract.py'
       - '.github/workflows/customer-exploration-db.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/migrations/*bloom_customer_exploration*'
+      - 'supabase/migrations/*customer_intelligence_permission_contract*'
+      - 'supabase/migrations/*location_access_management*'
+      - 'supabase/migrations/*tenant_crm_role_foundation*'
       - 'scripts/tests/customer-exploration-db.sql'
+      - 'scripts/tests/customer-intelligence-permission-contract.py'
+      - '.github/workflows/customer-exploration-db.yml'
 permissions:
   contents: read
 jobs:
@@ -36,3 +45,10 @@ jobs:
           PGUSER: postgres
           PGDATABASE: bloom_analysis_test
         run: psql -v ON_ERROR_STOP=1 -f scripts/tests/customer-exploration-db.sql
+      - name: Verify intelligence permissions against actual role functions
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_analysis_test
+        run: python3 scripts/tests/customer-intelligence-permission-contract.py

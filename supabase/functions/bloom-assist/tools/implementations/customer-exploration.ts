@@ -11,7 +11,9 @@ export function analysisResult(data: unknown, count: number, message: string): T
 export async function requireAnalysisAccess(context: ToolExecutionContext): Promise<PersistenceClient> {
   if (!context.dataClient || !context.userId || !context.tenantId || (context.authenticatedTenantId && context.authenticatedTenantId !== context.tenantId)) throw new Error('An authenticated, company-scoped data client is required.');
   const client = context.dataClient;
-  for (const permission of ['customers.read', 'reports.read']) {
+  // This legacy authority uses singular customer.read and reporting.read, unlike the CRM UI permission vocabulary.
+  // Keep its NULL-location company-wide check: location-limited staff must not gain company-wide purchase access.
+  for (const permission of ['customer.read', 'reporting.read']) {
     const {data, error} = await client.rpc('has_tenant_permission', {p_tenant_id: context.tenantId, p_permission: permission, p_location_id: null});
     if (error || data !== true) throw new Error('Customer analysis requires customer and reporting access.');
   }
@@ -88,7 +90,7 @@ export const explainCustomerSetMember: ToolImplementation = async (params,contex
 };
 export const analyzeCustomerBasket: ToolImplementation = async (params,context) => {
   const set = await loadCustomerSet(context,typeof params.set_id==='string'?params.set_id:undefined), customers = await loadAnalysisCustomers(context);
-  publicSet(set,customers); // Recheck access to the entire saved membership.
+  publicSet(set,customers);
   const basket = analyzeBasket(await loadAnalysisFacts(context),set.included_ids,context.tenantId), page=pageNumber(params.page);
   return analysisResult({kind:'customer_basket',set_id:set.id,denominator:basket.denominator,total_products:basket.products.length,unnamed_purchase_rows:basket.unnamed_purchase_rows,page,
     rows:basket.products.slice((page-1)*50,page*50),has_more:page*50<basket.products.length,notes:['Each product counts distinct customers, not units or transaction rows. Percentages use this exact saved group.']},basket.products.length,'These are the other products purchased by the same customer group.');
@@ -107,7 +109,7 @@ export const compareCustomerGrowthTool: ToolImplementation = async (params,conte
 };
 export async function prepareCustomerSetSave(params: JsonObject,context: ToolExecutionContext): Promise<ToolResult> {
   const set = await loadCustomerSet(context,String(params.set_id??''));
-  const {data,error}=await context.dataClient!.rpc('has_tenant_permission',{p_tenant_id:context.tenantId,p_permission:'segments.manage',p_location_id:null});
+  const {data,error}=await context.dataClient!.rpc('has_tenant_permission',{p_tenant_id:context.tenantId,p_permission:'segment.write',p_location_id:null});
   if(error||data!==true)throw new Error('Segment management permission is required.');
   publicSet(set,await loadAnalysisCustomers(context));
   const segmentName=String(params.name??'').trim();if(!segmentName||segmentName.length>120)throw new Error('Give the segment a name of up to 120 characters.');
