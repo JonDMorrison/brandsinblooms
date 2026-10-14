@@ -1,0 +1,39 @@
+name: Customer Intelligence Web Push Database
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*customer_intelligence_web_push*'
+      - 'scripts/tests/customer-intelligence-push-db.sql'
+      - '.github/workflows/customer-intelligence-push-db.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/*customer_intelligence_web_push*'
+      - 'scripts/tests/customer-intelligence-push-db.sql'
+      - '.github/workflows/customer-intelligence-push-db.yml'
+permissions:
+  contents: read
+jobs:
+  identity-and-delivery-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: bloom_push_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove no email-based identity claim, cross-tenant subscriptions or stale consent sends
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: bloom_push_test
+        run: psql -v ON_ERROR_STOP=1 -f scripts/tests/customer-intelligence-push-db.sql
