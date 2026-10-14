@@ -195,7 +195,7 @@ CREATE TABLE public.crm_push_bridge_events (
   event_id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES public.tenants(id),
   storefront_site_id uuid NOT NULL,
-  payload_sha256 text NOT NULL CHECK (payload_sha256 ~ '^[a-f0-9]{64}),
+  payload_sha256 text NOT NULL CHECK (payload_sha256 ~ '^[a-f0-9]{64}$'),
   outcome jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -217,7 +217,7 @@ CREATE FUNCTION public.accept_storefront_push_v1(
   p_source_email text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
-AS $
+AS $$
 DECLARE
   v_tenant uuid;
   v_link public.crm_storefront_customer_links%ROWTYPE;
@@ -226,8 +226,8 @@ DECLARE
 BEGIN
   IF p_event_id IS NULL OR p_site_id IS NULL OR p_user_id IS NULL OR
      p_action NOT IN ('subscribe','unsubscribe') OR
-     p_payload_hash !~ '^[a-f0-9]{64} OR
-     p_endpoint_hash !~ '^[a-f0-9]{64}
+     p_payload_hash !~ '^[a-f0-9]{64}$' OR
+     p_endpoint_hash !~ '^[a-f0-9]{64}$'
   THEN RAISE EXCEPTION 'Invalid push bridge event'; END IF;
 
   PERFORM pg_advisory_xact_lock(hashtextextended(p_event_id::text,0));
@@ -320,7 +320,7 @@ BEGIN
   VALUES (p_event_id,v_tenant,p_site_id,p_payload_hash,v_outcome);
   RETURN v_outcome;
 END;
-$;
+$$;
 REVOKE ALL ON FUNCTION public.accept_storefront_push_v1(
   uuid,uuid,uuid,text,text,text,text,text,integer,text,text)
   FROM PUBLIC, anon, authenticated;
