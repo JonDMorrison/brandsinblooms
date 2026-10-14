@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as XLSX from "npm:xlsx@0.18.5";
 import { detectIdealReportType, normalizeIdealRow, stableIdealFingerprint } from "../_shared/customer-intelligence/ideal-pos.ts";
+import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
@@ -19,11 +20,12 @@ Deno.serve(async(req)=>{
  try{
   const auth=req.headers.get("Authorization");if(!auth?.startsWith("Bearer "))return reply({error:"Authorization required"},401);
   const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!,serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}}});const service=createClient(url,serviceKey,{auth:{persistSession:false}});
+  const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}}});
   const {data:{user},error:authError}=await userClient.auth.getUser();if(authError||!user)return reply({error:"Unauthorized"},401);
-  const {data:userRow}=await service.from("users").select("tenant_id").eq("id",user.id).single();if(!userRow?.tenant_id)return reply({error:"Tenant context required"},403);
-  const tenantId=userRow.tenant_id;
-  const {data:allowed}=await service.rpc("has_tenant_permission",{p_tenant_id:tenantId,p_permission:"integrations.manage",p_resource_id:null});if(!allowed)return reply({error:"Integration management permission required"},403);
+  // Resolve permissions and active company as the authenticated user, never with service-role authority.
+  let tenantId:string;
+  try { tenantId=await requireImportTenant(userClient); } catch { return reply({error:"Integration management permission required"},403); }
+  const service=createClient(url,serviceKey,{auth:{persistSession:false}});
 
   const form=await req.formData();const file=form.get("file");if(!(file instanceof File))return reply({error:"Ideal report file is required"},400);
   if(file.size>25*1024*1024)return reply({error:"File exceeds 25 MB limit"},413);
