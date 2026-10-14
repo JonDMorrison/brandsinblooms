@@ -183,7 +183,8 @@ export function simulateProgramme(value: ProgrammeDraft, scenario: PlanningScena
   const output: ProgrammePreview = { simulationOnly: true, state: 'needs_review', reason: '', eligibleSubtotalMinor: 0, discountMinor: 0, rewardCostMinor: null, giftUnits: 0, excludedLineIds: [], warnings: ['Simulation only. This is not a till authorization or an issued benefit.'] };
   const stop = (state: ProgrammePreview['state'], reason: string): ProgrammePreview => ({ ...output, state, reason });
   try {
-    if (typeof s.occurredAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(s.occurredAt) || !Number.isFinite(Date.parse(s.occurredAt))) return stop('needs_review', 'A valid timestamp with timezone is required.');
+    if (typeof s.occurredAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,9})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(s.occurredAt) || !Number.isFinite(Date.parse(s.occurredAt))) return stop('needs_review', 'A valid timestamp with timezone is required.');
+    date(s.occurredAt.slice(0, 10)); // Date.parse alone silently normalizes February 30.
     const parts = new Intl.DateTimeFormat('en-CA', { timeZone: d.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(s.occurredAt));
     const part = (type: string) => parts.find(p => p.type === type)?.value;
     const day = `${part('year')}-${part('month')}-${part('day')}`;
@@ -194,6 +195,7 @@ export function simulateProgramme(value: ProgrammeDraft, scenario: PlanningScena
     if (s.triggerVerified !== true) return stop(s.triggerVerified === false ? 'ineligible' : 'needs_review', 'Qualifying event evidence is required.');
     if (s.memberAwards === null || s.totalAwards === null) return stop('needs_review', 'Award history is unknown.');
     const memberAwards = integer(s.memberAwards, 'Member awards'), totalAwards = integer(s.totalAwards, 'Total awards');
+    if (memberAwards > totalAwards) return stop('needs_review', 'Member award history exceeds total programme awards. Reconcile the history first.');
     if (memberAwards >= d.maxAwardsPerMember || totalAwards >= d.maxAwardsTotal) return stop('ineligible', 'An award limit has been reached.');
     if (!Array.isArray(s.lines) || s.lines.length > 1000) return stop('needs_review', 'Provide at most 1,000 verified basket lines.');
     const units: Array<{ price: number; quantity: number }> = [], ids = new Set<string>();
