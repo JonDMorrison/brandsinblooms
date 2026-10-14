@@ -1,29 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2.58.0";
+import { verifyTenantLinkCode } from "../_shared/pwaTenantLinkCode.ts";
 
-const encoder = new TextEncoder();
-const BUCKET_MS = 10 * 60_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function reply(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status,
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }
-function secureEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-async function linkCode(secret: string, siteId: string, bucket: number): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const body = encoder.encode("storefront-link-v1:" + siteId.toLowerCase() + ":" + bucket);
-  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, body));
-  return Array.from(bytes.slice(0,12), value => value.toString(16).padStart(2,"0"))
-    .join("").toUpperCase();
-}
-
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return reply(405, { error: "Method not allowed" });
   if (Deno.env.get("WEB_PUSH_PILOT_ENABLED") !== "true") {
@@ -69,9 +52,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
   const siteId = input.siteId.toLowerCase();
   const code = input.code.toUpperCase();
-  const bucket = Math.floor(Date.now() / BUCKET_MS);
-  const valid = secureEqual(code,await linkCode(secret,siteId,bucket)) ||
-    secureEqual(code,await linkCode(secret,siteId,bucket-1));
+  const valid = await verifyTenantLinkCode(secret,siteId,code);
   if (!valid) return reply(403,{ error:"Connection code is incorrect or expired" });
 
   const { data: current, error: lookupError } = await db.from("crm_storefront_tenant_links")
