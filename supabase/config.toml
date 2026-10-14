@@ -578,3 +578,5 @@ verify_jwt = false
 [functions.process-push-send-queue]
 verify_jwt = false
 
+[functions.send-push-test]
+verify_jwt = true
