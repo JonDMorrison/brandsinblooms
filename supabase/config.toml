@@ -580,3 +580,6 @@ verify_jwt = false
 
 [functions.send-push-test]
 verify_jwt = true
+
+[functions.review-storefront-push-identity]
+verify_jwt = true
