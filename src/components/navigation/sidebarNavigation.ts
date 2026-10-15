@@ -449,92 +449,114 @@ const adminLinkItems: DashboardSidebarLinkItem[] = [
   },
 ];
 
+// The everyday destinations stay visible. Advanced tools remain one click away
+// inside accessible branches, and the permission filter still checks every link.
 const tenantSidebarGroups: DashboardSidebarGroup[] = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Workspace",
     items: [
       createDashboardLinkItem("dashboard", legacyDashboardItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("bloom", legacyBloomItem, {
+      createDashboardLinkItem("campaigns", legacyCampaignsItem, {
+        contentWidth: "full",
+      }),
+      createDashboardLinkItem("customers", legacyCustomersItem, {
         contentWidth: "full",
       }),
       createDashboardLinkItem("analytics", legacyAnalyticsItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("activity-center", legacyActivityItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("calendar", legacyCalendarItem, {
-        contentWidth: "full",
-      }),
     ],
   },
   {
-    id: "crm",
-    label: "CRM",
+    id: "workflows",
+    label: "Explore",
     items: [
-      createDashboardLinkItem("customers", legacyCustomersItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("customer-intelligence", legacyIntelligenceItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("segments", legacySegmentsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("personas", legacyPersonasItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("forms", legacyFormsItem, {
-        contentWidth: "full",
-      }),
-    ],
-  },
-  {
-    id: "marketing",
-    label: "Marketing",
-    items: [
-      createDashboardLinkItem("campaigns", legacyCampaignsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("automations", legacyAutomationsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("newsletter", legacyNewsletterItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("sms-campaigns", legacySmsItem, {
-        contentWidth: "full",
-      }),
-    ],
-  },
-  {
-    id: "store",
-    label: "Store",
-    items: [
-      createDashboardLinkItem("products", legacyProductsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("manage-domains", legacyDomainsItem, {
-        contentWidth: "full",
-      }),
-      createDashboardLinkItem("integrations", legacyIntegrationsItem, {
-        contentWidth: "full",
-      }),
+      {
+        kind: "branch",
+        id: "marketing-tools",
+        label: "Marketing tools",
+        icon: Mail,
+        children: [
+          createDashboardLinkItem("newsletter", legacyNewsletterItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("sms-campaigns", legacySmsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("automations", legacyAutomationsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("calendar", legacyCalendarItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("bloom", legacyBloomItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
+      {
+        kind: "branch",
+        id: "audience-tools",
+        label: "Audience tools",
+        icon: Users,
+        children: [
+          createDashboardLinkItem("customer-intelligence", legacyIntelligenceItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("segments", legacySegmentsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("personas", legacyPersonasItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("forms", legacyFormsItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
+      {
+        kind: "branch",
+        id: "store-tools",
+        label: "Store & integrations",
+        icon: Store,
+        children: [
+          createDashboardLinkItem("products", legacyProductsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("manage-domains", legacyDomainsItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("integrations", legacyIntegrationsItem, {
+            contentWidth: "full",
+          }),
+        ],
+      },
     ],
   },
   {
     id: "settings",
-    label: "Settings",
+    label: "More",
     items: [
+      {
+        kind: "branch",
+        id: "more-tools",
+        label: "More tools & help",
+        icon: Layers,
+        children: [
+          createDashboardLinkItem("activity-center", legacyActivityItem, {
+            contentWidth: "full",
+          }),
+          createDashboardLinkItem("profile", legacyProfileItem),
+          createDashboardLinkItem("account", legacyAccountItem),
+          createDashboardLinkItem("support", legacySupportItem),
+        ],
+      },
       createDashboardLinkItem("settings", legacySettingsItem, {
         contentWidth: "full",
       }),
-      createDashboardLinkItem("profile", legacyProfileItem),
-      createDashboardLinkItem("account", legacyAccountItem),
-      createDashboardLinkItem("support", legacySupportItem),
     ],
   },
 ];
@@ -573,6 +595,7 @@ const tenantRouteDescriptors: DashboardRouteDescriptor[] = [
     "full",
   ),
   createRouteDescriptor("Bloom", legacyBloomItem.patterns, "full"),
+  createRouteDescriptor("Campaign Analytics", [{ path: "/crm/analytics", end: true }], "full"),
   createRouteDescriptor("Analytics", legacyAnalyticsItem.patterns, "full"),
   createRouteDescriptor("Activity Center", legacyActivityItem.patterns, "full"),
   createRouteDescriptor("Calendar", legacyCalendarItem.patterns, "full"),
