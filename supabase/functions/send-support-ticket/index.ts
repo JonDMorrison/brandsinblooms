@@ -64,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "BloomSuite Support <support@brandsinblooms.com>",
       to: [SUPPORT_INBOX],
-      reply_to: email,
+      replyTo: email,
       subject: `[Support] ${subject}`,
       html: emailHtml,
     });
@@ -163,7 +163,7 @@ KNOWLEDGE BASE SUMMARY:
         const autoReplyResponse = await resend.emails.send({
           from: "BloomSuite Support <hello@brandsinblooms.com>",
           to: [email],
-          reply_to: SUPPORT_INBOX,
+          replyTo: SUPPORT_INBOX,
           subject: `Re: ${subject}`,
           html: emailHtml,
         });
