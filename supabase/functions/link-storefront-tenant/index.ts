@@ -1,13 +1,21 @@
 import { createClient } from "npm:@supabase/supabase-js@2.58.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 import { verifyTenantLinkCode } from "../_shared/pwaTenantLinkCode.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function reply(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), { status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }
 Deno.serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return reply(405, { error: "Method not allowed" });
   if (Deno.env.get("WEB_PUSH_PILOT_ENABLED") !== "true") {
     return reply(403, { error: "Storefront linking is not enabled" });
