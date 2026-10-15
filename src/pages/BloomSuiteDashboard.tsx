@@ -27,7 +27,9 @@ import { useTenant } from "@/hooks/useTenant";
 import {
   ArrowRight,
   BarChart3,
+  ChevronDown,
   Mail,
+  MessageSquare,
   Megaphone,
   Calendar,
   HelpCircle,
@@ -649,15 +651,15 @@ export const BloomSuiteDashboard = () => {
   return (
     <Stack spacing={3}>
       <SetupNextStepsBanner />
-      <POSInsightsCard />
       <Sheet
         variant="plain"
         sx={{
           px: { xs: 2.5, md: 3 },
           py: { xs: 2.5, md: 3 },
           borderRadius: "16px",
-          background:
-            "linear-gradient(135deg, rgba(240, 255, 254, 0.96) 0%, rgba(240, 255, 254, 0.42) 42%, rgba(255, 255, 255, 0) 100%)",
+          border: "1px solid",
+          borderColor: "neutral.200",
+          backgroundColor: "background.surface",
         }}
       >
         <Stack
@@ -678,7 +680,7 @@ export const BloomSuiteDashboard = () => {
                 color: "primary.600",
               }}
             >
-              TENANT DASHBOARD
+              OVERVIEW
             </Typography>
             <Typography
               level="h3"
@@ -699,8 +701,7 @@ export const BloomSuiteDashboard = () => {
                 maxWidth: "42rem",
               }}
             >
-              Keep customers, campaigns, and store operations moving from one
-              premium workspace.
+              Everything you need to connect with customers and grow your business.
             </Typography>
             <Stack
               direction="row"
@@ -709,7 +710,7 @@ export const BloomSuiteDashboard = () => {
               flexWrap="wrap"
               sx={{ columnGap: 1.25, rowGap: 1 }}
             >
-              {headerStatusChips.map((chip) => (
+              {!loadingTwilio && twilioStatus.status !== "connected" ? headerStatusChips.map((chip) => (
                 <JoyChip
                   key={chip.key}
                   size="sm"
@@ -744,7 +745,7 @@ export const BloomSuiteDashboard = () => {
                     </Box>
                   </Box>
                 </JoyChip>
-              ))}
+              )) : null}
             </Stack>
           </Stack>
 
@@ -782,6 +783,55 @@ export const BloomSuiteDashboard = () => {
         </Stack>
       </Sheet>
 
+      <Stack spacing={1.25}>
+        <Typography level="body-sm" sx={{ color: "neutral.600", fontWeight: 600 }}>
+          What would you like to do?
+        </Typography>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          useFlexGap
+          flexWrap="wrap"
+        >
+          <JoyButton
+            color="primary"
+            variant="solid"
+            size="md"
+            startDecorator={<Mail size={17} aria-hidden="true" />}
+            onClick={() => navigate("/newsletters/new")}
+          >
+            Create an email
+          </JoyButton>
+          <JoyButton
+            color="neutral"
+            variant="outlined"
+            size="md"
+            startDecorator={<MessageSquare size={17} aria-hidden="true" />}
+            onClick={() => navigate("/sms/new")}
+          >
+            Send an SMS
+          </JoyButton>
+          <JoyButton
+            color="neutral"
+            variant="outlined"
+            size="md"
+            startDecorator={<Megaphone size={17} aria-hidden="true" />}
+            onClick={() => navigate("/crm/automations/new?mode=quick")}
+          >
+            Build an automation
+          </JoyButton>
+          <JoyButton
+            color="neutral"
+            variant="plain"
+            size="md"
+            startDecorator={<BarChart3 size={17} aria-hidden="true" />}
+            onClick={() => navigate("/analytics")}
+          >
+            View analytics
+          </JoyButton>
+        </Stack>
+      </Stack>
+
       <Box
         sx={{
           display: "grid",
@@ -807,6 +857,50 @@ export const BloomSuiteDashboard = () => {
         ))}
       </Box>
 
+      <Box
+        component="details"
+        sx={{
+          border: "1px solid",
+          borderColor: "neutral.200",
+          backgroundColor: "background.surface",
+          borderRadius: "lg",
+          p: { xs: 2, md: 2.5 },
+          "&[open] .more-dashboard-chevron": { transform: "rotate(180deg)" },
+        }}
+      >
+        <Box
+          component="summary"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            listStyle: "none",
+            gap: 2,
+            "&::-webkit-details-marker": { display: "none" },
+            "&:focus-visible": {
+              outline: "2px solid var(--joy-palette-primary-400)",
+              outlineOffset: 2,
+            },
+          }}
+        >
+          <Stack spacing={0.5}>
+            <Typography level="title-md" sx={{ fontWeight: 600 }}>
+              More insights & tools
+            </Typography>
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              Weekly ideas, POS insights, inbox health, readiness and shortcuts
+            </Typography>
+          </Stack>
+          <ChevronDown
+            className="more-dashboard-chevron"
+            size={20}
+            aria-hidden="true"
+            style={{ flexShrink: 0, transition: "transform 150ms ease" }}
+          />
+        </Box>
+        <Stack spacing={3} sx={{ mt: 3 }}>
+          <POSInsightsCard />
       <BloomWeeklySuggestionsCard />
 
       {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
@@ -1244,6 +1338,8 @@ export const BloomSuiteDashboard = () => {
               </Stack>
             </Stack>
           </Sheet>
+        </Stack>
+      </Box>
         </Stack>
       </Box>
 
