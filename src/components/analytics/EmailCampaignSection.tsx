@@ -180,16 +180,16 @@ export function EmailCampaignSection({ dateRange }: EmailCampaignSectionProps) {
   const engagementMetrics = [
     {
       id: "clicks",
-      label: "Click rate",
+      label: "Click-through rate",
       value: hasDeliveryData ? formatPercent(summary.avgClickRate) : "—",
-      helper: "A stronger signal of engagement than opens",
+      helper: "Delivered-weighted average across recent campaigns",
       icon: MousePointerClick,
     },
     {
       id: "opens",
       label: "Open rate",
       value: hasDeliveryData ? formatPercent(summary.avgOpenRate) : "—",
-      helper: "An estimate; email privacy features can inflate opens",
+      helper: "Approximate; privacy features can inflate opens",
       icon: Eye,
     },
     {
