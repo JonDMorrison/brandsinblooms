@@ -1,0 +1,33 @@
+name: Publish reviewed loyalty measurement source
+on:
+  push:
+    branches: [feature/loyalty-complete-20261015]
+    paths: [.github/workflows/publish-reviewed-loyalty-measurement.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/loyalty-complete-20261015
+          fetch-depth: 2
+      - name: Apply exact tested source, preserving all unrelated code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = '08289fdfbee31d94e7485cb701c129654569b712'
+          curl --fail --silent --show-error --retry 2 'https://sb-387hw3e9aar3.vercel.run/crm-reviewed.patch' -o /tmp/reviewed.patch
+          echo '63c41ee1319327a69898d1e2bfc764a2dade07d4ca8deb262474f54d36952016  /tmp/reviewed.patch' | sha256sum --check --strict
+          git apply --check /tmp/reviewed.patch
+          git apply --index /tmp/reviewed.patch
+          git rm --cached .github/workflows/publish-reviewed-loyalty-measurement.yml
+          test "$(git write-tree)" = '1324b2afa4aae7f6605d043fd69a0e743cf2e48a'
+          git add .github/workflows/publish-reviewed-loyalty-measurement.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: persist reviewed loyalty programmes, immutable customer growth and safe calendar imports'
+          git push origin HEAD:refs/heads/feature/loyalty-complete-20261015
