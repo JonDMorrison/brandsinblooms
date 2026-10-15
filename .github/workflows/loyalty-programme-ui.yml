@@ -1,0 +1,44 @@
+name: Loyalty Programme Browser
+on:
+  pull_request:
+    paths:
+      [
+        "src/components/crm/customer-intelligence/**",
+        "src/components/calendar/MarketingCalendarImport.tsx",
+        "src/lib/loyalty/**",
+        "e2e/loyalty/**",
+        "playwright.loyalty.config.ts",
+        ".github/workflows/loyalty-programme-ui.yml",
+      ]
+  push:
+    branches: [main]
+    paths:
+      [
+        "src/components/crm/customer-intelligence/**",
+        "src/components/calendar/MarketingCalendarImport.tsx",
+        "src/lib/loyalty/**",
+        "e2e/loyalty/**",
+        "playwright.loyalty.config.ts",
+        ".github/workflows/loyalty-programme-ui.yml",
+      ]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config=playwright.loyalty.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synthetic-loyalty-browser
+          path: |
+            playwright-report-loyalty/
+            test-results/loyalty-*.png
+          retention-days: 7
