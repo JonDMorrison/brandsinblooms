@@ -188,6 +188,7 @@ DECLARE
  first_campaign uuid;
  blocked boolean;
 BEGIN
+ PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
  INSERT INTO public.users(id,tenant_id,role) VALUES(user_a,tenant_a,'admin');
  INSERT INTO public.crm_segments(id,tenant_id,name,status)
  VALUES(segment_a,tenant_a,'Synthetic VIP segment','active');
