@@ -189,7 +189,7 @@ export function DataSourcesSection({
 
   if (error) {
     return (
-      <JoyCard variant="soft" color="danger">
+      <JoyCard variant="outlined">
         <JoyCardHeader title="Data Sources" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
@@ -199,7 +199,7 @@ export function DataSourcesSection({
             <JoyButton
               size="sm"
               variant="soft"
-              color="danger"
+              color="neutral"
               onClick={() => void refetch()}
             >
               Retry
