@@ -235,6 +235,22 @@ BEGIN
  EXCEPTION WHEN unique_violation THEN blocked:=true;
  END;
  ASSERT blocked,'duplicate notification clicks must not inflate analytics';
+ ASSERT (SELECT count(*) FROM public.crm_push_campaign_overview_v1(tenant_a,25))=1,
+   'only owner tenant can read its campaign overview';
+ ASSERT (SELECT count(*) FROM public.crm_push_campaign_overview_v1(tenant_b,25))=0,
+   'another tenant cannot read campaign overview';
+ ASSERT (SELECT clicks FROM public.crm_push_campaign_overview_v1(tenant_a,25)
+   WHERE id=first_campaign)=1,'duplicate clicks are not counted twice';
+
+ UPDATE public.crm_push_campaigns SET status='paused'
+ WHERE id=first_campaign AND tenant_id=tenant_a;
+ ASSERT (SELECT count(*) FROM public.claim_crm_push_messages(25))=0,
+   'paused marketing campaigns cannot be claimed';
+ UPDATE public.crm_push_campaigns SET status='queued'
+ WHERE id=first_campaign AND tenant_id=tenant_a;
+ ASSERT (SELECT count(*) FROM public.claim_crm_push_messages(25))=1,
+   'resumed opted-in campaign can be claimed once';
+
 
 
  blocked:=false;
