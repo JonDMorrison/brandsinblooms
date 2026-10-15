@@ -39,7 +39,7 @@ export type IdealExportPreview = {
 
 const code = (s: string) => /^[A-Za-z0-9_-]{1,64}$/.test(s);
 const typeCode = (s: string) =>
-  s.length <= 40 && /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(s);
+  s.length <= 30 && /^[A-Za-z0-9][A-Za-z0-9 _-]*$/.test(s);
 const safeString = (v: unknown): v is string =>
   typeof v === "string" && !v.includes("\0");
 const unsafeSpreadsheetCell = (v: string) =>
