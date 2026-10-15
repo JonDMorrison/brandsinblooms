@@ -85,7 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       const emailResponse = await resend.emails.send({
         from: "BloomSuite Notifications <noreply@brandsinblooms.com>",
-        reply_to: payload.user_email, // Reply goes to the user who triggered the event
+        replyTo: payload.user_email, // Reply goes to the user who triggered the event
         to: [adminEmail],
         subject: subject,
         html: htmlContent,
