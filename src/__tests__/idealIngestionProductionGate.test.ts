@@ -7,10 +7,22 @@ describe("production Ideal ingestion",()=>{
   const wizard=read("src/components/integrations/CustomerIntelligenceSetupWizard.tsx");
   expect(wizard).toContain('accept=".xlsx,.xls,.csv,.txt"');
   expect(wizard).toContain('supabase.functions.invoke("ideal-intelligence-import"');
-  expect(wizard).toContain("Process & reconcile");
+  expect(wizard).toContain("Review reports — no import");
+  expect(wizard).toContain('form.append("mode","preview")');
+  expect(wizard).toContain("Confirm reviewed import");
+  expect(wizard).toContain("approved_digest");
   expect(wizard).toContain("accepted");
   expect(wizard).toContain("duplicates");
   expect(wizard).toContain("rejected");
+ });
+ it("requires a verified source review before any record is written",()=>{
+  const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
+  expect(fn).toContain('if(mode==="preview")return reply(review);');
+  expect(fn.indexOf('if(mode==="preview")return reply(review);')).toBeLessThan(fn.indexOf('.from("customer_intelligence_imports").insert('));
+  expect(fn).toContain('String(form.get("approved_digest"))!==digest');
+  expect(fn).toContain('!review.ready_to_import');
+  expect(fn).toContain('inspection.review.rejected>0');
+  expect(fn).toContain('120000');
  });
  it("authenticates, resolves the active tenant and permission-gates ingestion before privileged writes",()=>{
   const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
