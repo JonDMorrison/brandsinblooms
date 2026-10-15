@@ -80,7 +80,28 @@ Deno.serve(async(req)=>{
     const customerId=resolved?.customer_id as string|null;if(!customerId){rejected++;errors.push("Row "+(i+2)+": identity needs review");continue;}touched.add(customerId);
     const fingerprint=await sha256(stableIdealFingerprint(row));
     if(reportType==="customer_sales"||reportType==="customer_sales_by_category"){
-     const {error}=await service.from("customer_purchase_line_items").insert({tenant_id:tenantId,customer_id:customerId,import_id:imp.id,source:"ideal",external_transaction_id:row.transactionId,external_line_id:row.lineId,external_customer_code:row.customerCode,product_code:row.productCode,product_name:row.productName,sales_category:row.salesCategory,department:row.department,quantity:row.quantity,gross_amount:row.amount,net_amount:row.amount,currency:"CAD",purchased_at:parseDate(row.purchasedAt),source_fingerprint:fingerprint,raw_data:row.raw});if(error){if(error.code==="23505"){duplicates++;continue;}throw error;}accepted++;
+     const {error}=await service.from("customer_purchase_line_items").insert({tenant_id:tenantId,customer_id:customerId,import_id:imp.id,source:"ideal",external_transaction_id:row.transactionId,external_line_id:row.lineId,external_customer_code:row.customerCode,product_code:row.productCode,product_name:row.productName,sales_category:row.salesCategory,department:row.department,quantity:row.quantity,gross_amount:row.amount,net_amount:row.amount,currency:"CAD",purchased_at:parseDate(row.purchasedAt),source_fingerprint:fingerprint,raw_data:row.raw});if(error){
+       if(error.code==="23505"){
+        const {data:prior,error:priorError}=await service.from("customer_purchase_line_items")
+          .select("customer_id,product_code,product_name,sales_category,department,quantity,net_amount,purchased_at")
+          .eq("tenant_id",tenantId).eq("source","ideal")
+          .eq("external_customer_code",row.customerCode)
+          .eq("external_transaction_id",row.transactionId!)
+          .eq("external_line_id",row.lineId!).maybeSingle();
+        if(priorError||!prior)throw new Error("Duplicate source identity cannot be reconciled; no additional purchase was recorded");
+        const same=prior.customer_id===customerId
+          && (prior.product_code??null)===(row.productCode??null)
+          && (prior.product_name??null)===(row.productName??null)
+          && (prior.sales_category??null)===(row.salesCategory??null)
+          && (prior.department??null)===(row.department??null)
+          && Number(prior.quantity)===row.quantity
+          && Number(prior.net_amount)===row.amount
+          && new Date(prior.purchased_at).toISOString()===parseDate(row.purchasedAt);
+        if(!same)throw new Error("Source transaction line changed since its previous import; requires reconciliation, not a duplicate or extra sale");
+        duplicates++;continue;
+       }
+       throw error;
+      }accepted++;
     }else{
      const eventType=reportType==="customer_points"?"points":reportType==="coupons_issued"?"coupon_issued":reportType==="coupons_redeemed"?"coupon_redeemed":"customer_spending";
      const {error}=await service.from("customer_intelligence_source_events").insert({tenant_id:tenantId,customer_id:customerId,import_id:imp.id,source:"ideal",event_type:eventType,external_customer_code:row.customerCode,external_transaction_id:row.transactionId,coupon_code:row.couponCode,points_delta:row.pointsDelta,amount:row.amount,occurred_at:parseDate(row.redeemedAt||row.issuedAt||row.purchasedAt),expires_at:parseDate(row.expiresAt),source_fingerprint:fingerprint,raw_data:row.raw});if(error){if(error.code==="23505"){duplicates++;continue;}throw error;}accepted++;

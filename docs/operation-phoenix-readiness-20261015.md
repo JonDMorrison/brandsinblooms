@@ -14,6 +14,7 @@
 
 - Reused merged Bloom deep exploration, ranking, immutable programme baselines and static segments, marketing calendar importer, and reviewed Ideal TYPE export.
 - Added a safe preview for the documented Crystal B/C/H/J grouped customer sales format; preserves leading-zero customer codes and source row references.
+- Enforced unique, dated transaction and line IDs for Ideal purchasing facts and added a database-only collision guard. Exact identical re-exports can be skipped; changed receipts require reconciliation.
 - Prevented missing or malformed amounts/quantities from becoming zero. The original raw report stays in the restricted SharePoint source folder; only explicitly reviewed valid records may be imported to CRM.
 - Added an exact review fingerprint tied to the original file and diagnostic counts. The importer requires a preview and approval before any customer write; source errors require explicit acknowledgement.
 - Grouped/undated reports are never committed as distinct transaction rows. These sources can inform reconciled totals through a separate aggregate pathway, not individual visits.
@@ -24,6 +25,7 @@
 - [x] Review source file candidates and report shape; no unexpected direct writes.
 - [x] Preserve leading zeros, distinguish missing values from zero, disclose incomplete source rows.
 - [x] Require explicit reviewed import confirmation and source digest before writes.
+- [x] Enforce unique transaction/line IDs for Ideal sales and block changed duplicate receipts rather than inflating totals.
 - [x] Block grouped totals masquerading as dated transactions.
 - [x] Add MTD/YTD/completed month/prior year/custom CGI date presets and day-count warnings.
 - [x] Retain reviewed Customer Type export as review-only.

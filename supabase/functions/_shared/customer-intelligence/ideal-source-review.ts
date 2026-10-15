@@ -71,6 +71,7 @@ export function assessIdealRows(reportType: IdealReportType, rows: Record<string
       if (r.quantity===null) problems.push("Quantity missing or invalid");
       if (r.amount===null) problems.push("Sales amount missing or invalid");
       if (!r.transactionId || !r.purchasedAt) missingDatedTransactions++;
+      if (reportType==="customer_sales" && r.transactionId && !r.lineId) problems.push("Unique transaction line ID missing; re-imports could double-count corrected sales");
       if ((r.transactionId && !r.purchasedAt) || (!r.transactionId && r.purchasedAt)) problems.push("Transaction/date pair incomplete");
       if (r.purchasedAt && !verifiedTimestamp(r.purchasedAt)) problems.push("Transaction timestamp must include a verified timezone offset; a calendar date is not an exact purchase timestamp");
     } else if (reportType==="customer_spending") {

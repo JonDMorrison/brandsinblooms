@@ -45,13 +45,21 @@ describe("IdealPOS six-report source review",()=>{
     expect(out.review.errors[0]).toContain("Source row 2");
   });
   it("accepts only an actual dated transaction with an explicit timezone for visits",()=>{
-    const base={"Customer Code":"000123","Department":"Perennials","Quantity":"1","Dollar Amount Bought":"7.99","Transaction ID":"sale-001"};
+    const base={"Customer Code":"000123","Department":"Perennials","Quantity":"1","Dollar Amount Bought":"7.99","Transaction ID":"sale-001","Line ID":"line-01"};
     const bad=inspectIdealSource("Customer Sales Report.xls",Object.keys(base),[{...base,"Transaction Date":"2026-10-15"}]);
     expect(bad.review.rejected).toBe(1);
     expect(bad.review.canMeasureVisits).toBe(false);
     const good=inspectIdealSource("Customer Sales Report.xls",Object.keys(base),[{...base,"Transaction Date":"2026-10-15T12:30:00-07:00"}]);
     expect(good.review.accepted).toBe(1);
     expect(good.review.canMeasureVisits).toBe(true);
+  });
+  it("rejects a dated sale without stable per-line identity",()=>{
+    const out=inspectIdealSource("Customer Sales Report.xls",["Customer Code","Transaction ID"],[
+      {"Customer Code":"000123","Transaction ID":"sale-001","Transaction Date":"2026-10-15T12:30:00-07:00","Department":"Perennials","Quantity":"1","Dollar Amount Bought":"7.99"}
+    ]);
+    expect(out.review.rejected).toBe(1);
+    expect(out.review.errors.join(" ")).toContain("line ID");
+    expect(out.review.canMeasureVisits).toBe(false);
   });
   it("fails closed on an unknown report",()=>expect(()=>inspectIdealSource("Unknown.xlsx",["Foo"],[{Foo:1}])).toThrow("Cannot identify"));
 });
