@@ -199,14 +199,14 @@ const AnalyticsPage = () => {
               },
             }}
           >
-            <Stack spacing={0.5}>
-              <Typography level="title-md" sx={{ fontWeight: 600 }}>
+            <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Typography component="span" level="title-md" sx={{ fontWeight: 600 }}>
                 Explore detailed analytics
               </Typography>
-              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              <Typography component="span" level="body-sm" sx={{ color: "neutral.600" }}>
                 Revenue, channels, list health, recommendations and connections
               </Typography>
-            </Stack>
+            </Box>
             <ChevronDown
               className="analytics-details-chevron"
               size={20}
