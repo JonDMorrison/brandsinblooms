@@ -35,6 +35,7 @@ CREATE TABLE public.customer_segments (
 
 \ir ../../supabase/migrations/20261014200000_customer_intelligence_web_push_foundation.sql
 \ir ../../supabase/migrations/20261014234500_customer_intelligence_push_segment_campaigns.sql
+\ir ../../supabase/migrations/20261015001500_customer_intelligence_push_click_tracking.sql
 
 DO $test$
 DECLARE
@@ -221,6 +222,20 @@ BEGIN
  ASSERT (r->>'campaignId')::uuid=first_campaign,'retry must preserve campaign';
  ASSERT (SELECT count(*) FROM public.crm_push_messages WHERE push_campaign_id=first_campaign)=1,
    'retry must not duplicate recipient messages';
+ ASSERT (SELECT count(DISTINCT click_token)=count(*) FROM public.crm_push_messages),
+   'every push gets a distinct non-personal tracking token';
+ INSERT INTO public.crm_push_events(tenant_id,message_id,event_type)
+ SELECT tenant_a,id,'clicked' FROM public.crm_push_messages
+ WHERE push_campaign_id=first_campaign;
+ blocked:=false;
+ BEGIN
+   INSERT INTO public.crm_push_events(tenant_id,message_id,event_type)
+   SELECT tenant_a,id,'clicked' FROM public.crm_push_messages
+   WHERE push_campaign_id=first_campaign;
+ EXCEPTION WHEN unique_violation THEN blocked:=true;
+ END;
+ ASSERT blocked,'duplicate notification clicks must not inflate analytics';
+
 
  blocked:=false;
  BEGIN
