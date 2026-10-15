@@ -884,14 +884,14 @@ export const BloomSuiteDashboard = () => {
             },
           }}
         >
-          <Stack spacing={0.5}>
-            <Typography level="title-md" sx={{ fontWeight: 600 }}>
+          <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+            <Typography component="span" level="title-md" sx={{ fontWeight: 600 }}>
               More insights & tools
             </Typography>
-            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+            <Typography component="span" level="body-sm" sx={{ color: "neutral.600" }}>
               Weekly ideas, POS insights, inbox health, readiness and shortcuts
             </Typography>
-          </Stack>
+          </Box>
           <ChevronDown
             className="more-dashboard-chevron"
             size={20}
