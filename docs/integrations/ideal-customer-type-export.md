@@ -32,3 +32,5 @@ Until these points are confirmed and tested, the UI intentionally labels its out
 The current six Ideal import adapters are implemented but require source-specific validation on Bryan's **Crystal Reports `.xls`** files. The existing normalization helper can silently coerce missing/invalid quantities and amounts to zero, and grouped sales summary rows may lack transaction timestamps. Those issues must be fixed and reconciled **before** claiming reliable visit counts, CGI trends or redemption-triggered automations.
 
 If a customer has an annual category spend summary but no dated distinct sale/receipt identifiers, BloomSuite may use that summary for a clearly labeled category statistic; it **cannot** call it a visit or fabricate transactions. Do not alter original Ideal reports or marketing consent during this process.
+
+Manufacturer documentation describes `CODE,LASTNAME` as the minimum for some customer imports, and `cust.txt` as the default filename. Those are **not automatically the confirmed requirements of Bryan's installation**. See `docs/integrations/ideal-customer-intelligence.md` and obtain Ideal support confirmation before a live import.
