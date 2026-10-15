@@ -12,6 +12,7 @@ type PushMessage = {
   id: string; tenant_id: string; crm_customer_id: string;
   subscription_id: string; title: string; body: string;
   open_path: string; attempts: number; push_campaign_id?: string | null;
+  click_token?: string | null;
 };
 
 const MAX_PER_RUN = 25;
@@ -107,6 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         body: message.body,
         url: message.open_path,
         tag: message.id,
+        clickToken: message.click_token || null,
       });
       // Accepted means accepted by the provider, not confirmed delivered.
       await webpush.sendNotification({
