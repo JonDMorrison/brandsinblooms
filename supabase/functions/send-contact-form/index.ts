@@ -83,7 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "BloomSuite Contact <support@brandsinblooms.com>",
       to: recipients,
-      reply_to: email, // Reply goes to the person who submitted the contact form
+      replyTo: email, // Reply goes to the person who submitted the contact form
       subject: emailSubject,
       html: emailHtml,
     });

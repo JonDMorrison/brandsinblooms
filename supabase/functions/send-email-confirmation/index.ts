@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
     // For now, use a no-reply pattern since these are automated transactional emails
     const emailResponse = await resend.emails.send({
       from: `${brandName || 'Our Team'} <onboarding@resend.dev>`,
-      reply_to: 'noreply@bloomsuite.app', // Automated confirmation - no reply expected
+      replyTo: 'noreply@bloomsuite.app', // Automated confirmation - no reply expected
       to: [email],
       subject: `Confirm your subscription to ${brandName || 'our newsletter'}`,
       html: renderBloomSystemEmail({

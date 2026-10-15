@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { Resend } from "npm:resend@2.1.0";
+import { renderBloomSystemEmail, bloomEmailCard, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,63 +72,39 @@ const handler = async (req: Request): Promise<Response> => {
       })
     );
 
-    // Generate HTML table
-    const userRows = userDetails.map(user => `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 12px; text-align: left;">${user.email}</td>
-        <td style="padding: 12px; text-align: left;">${user.name}</td>
-        <td style="padding: 12px; text-align: left;">${user.company}</td>
-        <td style="padding: 12px; text-align: center;">${user.signupDate}</td>
-        <td style="padding: 12px; text-align: center;">${user.trialEndDate}</td>
-        <td style="padding: 12px; text-align: center;">${user.daysRemaining}</td>
-        <td style="padding: 12px; text-align: center;">
-          <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; ${
-            user.status === 'Active' 
-              ? 'background: #d1fae5; color: #065f46;' 
-              : 'background: #fee2e2; color: #991b1b;'
-          }">
-            ${user.status}
-          </span>
-        </td>
-      </tr>
-    `).join('');
+    // Small-screen-first operational overview: no seven-column table or
+    // user-controlled values embedded without escaping. All records remain
+    // included; summary counts are unchanged.
+    const activeTrials = userDetails.filter(user => user.status === 'Active').length;
+    const expiredTrials = userDetails.filter(user => user.status === 'Expired').length;
+    const userCards = userDetails.map(user =>
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin:11px 0;background:#FFFFFF;border:1px solid #DBE3DF;border-radius:12px"><tr><td style="padding:13px 15px">' +
+      '<p style="margin:0 0 4px;font-size:16px;font-weight:700;color:#1B3049">' + bloomEmailEscape(user.company) + '</p>' +
+      '<p style="margin:0 0 5px;font-size:14px;color:#536475">' + bloomEmailEscape(user.name) +
+      ' · ' + bloomEmailEscape(user.email) + '</p>' +
+      '<p style="margin:0 0 5px;font-size:13px;color:#536475">Signup ' + bloomEmailEscape(user.signupDate) +
+      ' · Ends ' + bloomEmailEscape(user.trialEndDate) + '</p>' +
+      '<p style="margin:0;font-size:13px;color:#536475"><strong>' + bloomEmailEscape(user.status) +
+      '</strong> · ' + bloomEmailEscape(user.daysRemaining) + ' days remaining</p>' +
+      '</td></tr></table>'
+    ).join('');
 
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #22C55E; margin-bottom: 10px;">BloomSuite Trial Users Report</h2>
-        <p style="color: #666; margin-bottom: 20px;">Generated on ${new Date().toLocaleString()}</p>
-        
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <h3 style="margin: 0 0 10px 0; color: #333;">Summary</h3>
-          <p style="margin: 5px 0;"><strong>Total Trial Users:</strong> ${userDetails.length}</p>
-          <p style="margin: 5px 0;"><strong>Active Trials:</strong> ${userDetails.filter(u => u.status === 'Active').length}</p>
-          <p style="margin: 5px 0;"><strong>Expired Trials:</strong> ${userDetails.filter(u => u.status === 'Expired').length}</p>
-        </div>
-
-        <div style="overflow-x: auto;">
-          <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <thead>
-              <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Email</th>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Name</th>
-                <th style="padding: 12px; text-align: left; font-weight: 600; color: #374151;">Company</th>
-                <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151;">Signup Date</th>
-                <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151;">Trial End</th>
-                <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151;">Days Left</th>
-                <th style="padding: 12px; text-align: center; font-weight: 600; color: #374151;">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${userRows}
-            </tbody>
-          </table>
-        </div>
-
-        <p style="color: #666; font-size: 14px; margin-top: 30px;">
-          This report was generated automatically by the BloomSuite system.
-        </p>
-      </div>
-    `;
+    const htmlContent = renderBloomSystemEmail({
+      eyebrow: "TRIAL ACTIVITY REPORT",
+      title: "BloomSuite trial users",
+      preheader: userDetails.length + " trials in this report",
+      icon: "calendar",
+      bodyHtml: bloomEmailCard("At a glance", [
+        { label: "Total trial users", value: String(userDetails.length), icon: "leaf" },
+        { label: "Active trials", value: String(activeTrials), icon: "check" },
+        { label: "Expired trials", value: String(expiredTrials), icon: "calendar" },
+        { label: "Generated", value: new Date().toLocaleString(), icon: "calendar" },
+      ], "calendar") +
+      '<h2 style="margin:24px 0 12px;font-size:18px;color:#1B3049">Trial details</h2>' +
+      (userCards || '<p>No trial users found.</p>') +
+      '<p style="font-size:12px;color:#536475">Internal operational report. Share only with authorized team members.</p>',
+      footer: "BloomSuite — internal trial activity report.",
+    });
 
     // Send email to admins
     const adminEmails = ['jon@brandsinblooms.com', 'jeff@brandsinblooms.com'];
@@ -138,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
       const emailResponse = await resend.emails.send({
         from: "BloomSuite Reports <noreply@brandsinblooms.com>",
         to: [adminEmail],
-        subject: `📊 BloomSuite Trial Users Report - ${userDetails.length} Total Users`,
+        subject: `BloomSuite Trial Users Report - ${userDetails.length} Total Users`,
         html: htmlContent,
       });
 
