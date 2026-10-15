@@ -28,16 +28,16 @@ Deno.serve(async(request:Request):Promise<Response>=>{
     return response(403,{error:"Tenant administrator required"});
   }
   const tenantId=actor.tenant_id;
-  const count=(name:string,filters:Record<string,string>)=>{
-    let query=db.from(name).select("id",{head:true,count:"exact"}).eq("tenant_id",tenantId);
-    for(const [key,value] of Object.entries(filters))query=query.eq(key,value);
+  const count=(name:string,filters:Record<string,string|boolean>,tenantColumn="tenant_id")=>{
+    let query=db.from(name).select("*",{head:true,count:"exact"}).eq(tenantColumn,tenantId);
+    for(const [column,value] of Object.entries(filters))query=query.eq(column,value);
     return query.then(({count,error})=>error?null:count??0);
   };
   const [
     linkedSites, pendingIdentities,verifiedIdentities,
     activeSubscriptions,optedIn,queued,accepted,failed,
   ]=await Promise.all([
-    count("crm_storefront_tenant_links",{enabled:"true"}),
+    count("crm_storefront_tenant_links",{enabled:true},"crm_tenant_id"),
     count("crm_storefront_customer_links",{status:"pending"}),
     count("crm_storefront_customer_links",{status:"verified"}),
     count("crm_push_subscriptions",{status:"active"}),
