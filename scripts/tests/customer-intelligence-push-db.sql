@@ -250,6 +250,17 @@ BEGIN
  WHERE id=first_campaign AND tenant_id=tenant_a;
  ASSERT (SELECT count(*) FROM public.claim_crm_push_messages(25))=1,
    'resumed opted-in campaign can be claimed once';
+ r:=public.preview_crm_push_segment_v1(tenant_a,segment_a);
+ ASSERT (r->>'eligibleDevices')::int=0,
+   'per-customer 24-hour cooldown suppresses immediate repeat campaign';
+ blocked:=false;
+ BEGIN
+   PERFORM public.queue_crm_push_segment_v1(tenant_a,segment_a,user_a,
+     'second-push-today-002','More VIP notices','Another reward','/account/offers');
+ EXCEPTION WHEN OTHERS THEN blocked:=true;
+ END;
+ ASSERT blocked,'immediate second segment blast must be rejected';
+
 
 
 
