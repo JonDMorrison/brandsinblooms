@@ -38,11 +38,11 @@ export function IdealCustomerTypeExportPanel({
 }: {
   tenantId: string;
 }) {
-  const { role, hasPermission, access } = useUserRole();
+  const { role, hasPermission, tenantId: activeTenantId } = useUserRole();
   if (
     !["owner_admin", "marketing"].includes(role ?? "") ||
     !hasPermission("loyalty.write") ||
-    access.tenantId !== tenantId
+    activeTenantId !== tenantId
   )
     return null;
   return (
