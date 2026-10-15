@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.1.0";
+import { renderBloomSystemEmail, bloomEmailCard, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,19 +85,23 @@ serve(async (req: Request) => {
       from: "BloomSuite <support@bloomsuite.com>",
       to: ["support@brandsinblooms.com"],
       subject: `[Support] ${subject}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px;">
-          <h2 style="color: #1a1a1a; margin-bottom: 4px;">New Support Request</h2>
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
-          <p><strong>From:</strong> ${senderName} (${senderEmail})</p>
-          ${tenant_id ? `<p><strong>Tenant:</strong> ${tenant_id}</p>` : ""}
-          <p><strong>Subject:</strong> ${subject}</p>
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
-          <div style="background: #f9fafb; border-radius: 8px; padding: 16px; white-space: pre-wrap;">${message}</div>
-          <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 16px 0;" />
-          <p style="color: #6b7280; font-size: 12px;">Reply directly to this email to respond to the customer.</p>
-        </div>
-      `,
+      html: renderBloomSystemEmail({
+        eyebrow: "NEW SUPPORT REQUEST",
+        title: "A customer needs assistance",
+        icon: "mail",
+        preheader: "Support request received",
+        bodyHtml: bloomEmailCard("Contact details", [
+          { label: "Name", value: String(senderName), icon: "leaf" },
+          { label: "Email", value: String(senderEmail), icon: "mail" },
+          ...(tenant_id ? [{label:"Tenant",value:String(tenant_id),icon:"leaf" as const}] : []),
+          { label: "Subject", value: String(subject), icon: "mail" },
+        ],"mail") +
+        '<h2 style="margin:20px 0 10px;color:#1B3049;font-size:18px">Message</h2>' +
+        '<p style="margin:0;white-space:pre-wrap;color:#536475;line-height:1.6">' +
+        bloomEmailEscape(String(message)) + '</p>' +
+        '<p>Reply directly to this email to respond to the customer.</p>',
+        footer: "BloomSuite — internal support notification.",
+      }),
       reply_to: senderEmail,
     });
 
@@ -109,15 +114,20 @@ serve(async (req: Request) => {
       from: "BloomSuite <support@bloomsuite.com>",
       to: [senderEmail],
       subject: "We got your question — we'll be in touch soon",
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px;">
-          <p>Hi ${senderName},</p>
-          <p>Thanks for reaching out. We received your question about "<strong>${subject}</strong>" and will get back to you within 1 business day.</p>
-          <p>In the meantime, you can browse our <a href="https://bloomsuite.notion.site/bloomsuite-help" style="color: #68BEB9;">Help Center</a> for guides and troubleshooting.</p>
-          <br />
-          <p>— The BloomSuite Team</p>
-        </div>
-      `,
+      html: renderBloomSystemEmail({
+        brandName: "BloomSuite",
+        eyebrow: "SUPPORT REQUEST RECEIVED",
+        title: "We got your question",
+        icon: "check",
+        preheader: "Our team has your message",
+        bodyHtml: '<p>Hi ' + bloomEmailEscape(String(senderName)) + ',</p>' +
+          '<p>Thanks for reaching out. We received your question about <strong>' +
+          bloomEmailEscape(String(subject)) +
+          '</strong> and will get back to you within one business day.</p>' +
+          '<p>You can also browse our help centre for guides and troubleshooting.</p>',
+        action:{label:"Visit the help centre",url:"https://bloomsuite.notion.site/bloomsuite-help"},
+        footer:"BloomSuite Support — we're here to help.",
+      }),
     });
 
     if (confirmError) {
