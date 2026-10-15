@@ -256,7 +256,7 @@ export function AnalyticsKPIStrip({
 
   if (overview.error && posError) {
     return (
-      <Sheet variant="soft" color="danger" sx={{ borderRadius: "lg", p: 2.5 }}>
+      <Sheet variant="outlined" color="neutral" sx={{ borderRadius: "lg", p: 2.5 }}>
         <Stack spacing={0.75}>
           <Typography level="title-sm">
             Failed to load headline metrics
