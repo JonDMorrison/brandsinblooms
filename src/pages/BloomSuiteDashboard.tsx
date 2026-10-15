@@ -24,6 +24,7 @@ import { BloomWeeklySuggestionsCard } from "@/components/dashboard/BloomWeeklySu
 import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   ArrowRight,
   BarChart3,
@@ -358,6 +359,7 @@ export const BloomSuiteDashboard = () => {
   const { data: posAnalytics, isLoading: loadingPOSAnalytics } =
     usePOSAnalytics();
   const { tenant } = useTenant();
+  const { hasPermission } = useUserRole();
   const {
     data: tenantSummary,
     isLoading: loadingTenantSummary,
@@ -793,42 +795,63 @@ export const BloomSuiteDashboard = () => {
           useFlexGap
           flexWrap="wrap"
         >
-          <JoyButton
-            color="primary"
-            variant="solid"
-            size="md"
-            startDecorator={<Mail size={17} aria-hidden="true" />}
-            onClick={() => navigate("/newsletters/new")}
-          >
-            Create an email
-          </JoyButton>
-          <JoyButton
-            color="neutral"
-            variant="outlined"
-            size="md"
-            startDecorator={<MessageSquare size={17} aria-hidden="true" />}
-            onClick={() => navigate("/sms/new")}
-          >
-            Send an SMS
-          </JoyButton>
-          <JoyButton
-            color="neutral"
-            variant="outlined"
-            size="md"
-            startDecorator={<Megaphone size={17} aria-hidden="true" />}
-            onClick={() => navigate("/crm/automations/new?mode=quick")}
-          >
-            Build an automation
-          </JoyButton>
-          <JoyButton
-            color="neutral"
-            variant="plain"
-            size="md"
-            startDecorator={<BarChart3 size={17} aria-hidden="true" />}
-            onClick={() => navigate("/analytics")}
-          >
-            View analytics
-          </JoyButton>
+          {hasPermission("campaigns.write") ? (
+            <JoyButton
+              color="primary"
+              variant="solid"
+              size="md"
+              startDecorator={<Mail size={17} aria-hidden="true" />}
+              onClick={() => navigate("/newsletters/new")}
+            >
+              Create an email
+            </JoyButton>
+          ) : null}
+          {hasPermission("campaigns.write") ? (
+            <JoyButton
+              color="neutral"
+              variant="outlined"
+              size="md"
+              startDecorator={<MessageSquare size={17} aria-hidden="true" />}
+              onClick={() => navigate("/sms/new")}
+            >
+              Send an SMS
+            </JoyButton>
+          ) : null}
+          {hasPermission("automations.manage") ? (
+            <JoyButton
+              color="neutral"
+              variant="outlined"
+              size="md"
+              startDecorator={<Megaphone size={17} aria-hidden="true" />}
+              onClick={() => navigate("/crm/automations/new?mode=quick")}
+            >
+              Build an automation
+            </JoyButton>
+          ) : null}
+          {hasPermission("reports.read") ? (
+            <JoyButton
+              color="neutral"
+              variant="plain"
+              size="md"
+              startDecorator={<BarChart3 size={17} aria-hidden="true" />}
+              onClick={() => navigate("/analytics")}
+            >
+              View analytics
+            </JoyButton>
+          ) : null}
+          {!hasPermission("campaigns.write") &&
+          !hasPermission("automations.manage") &&
+          !hasPermission("reports.read") &&
+          hasPermission("customers.read") ? (
+            <JoyButton
+              color="primary"
+              variant="solid"
+              size="md"
+              onClick={() => navigate("/crm/customers")}
+            >
+              View customers
+            </JoyButton>
+          ) : null}
         </Stack>
       </Stack>
 
