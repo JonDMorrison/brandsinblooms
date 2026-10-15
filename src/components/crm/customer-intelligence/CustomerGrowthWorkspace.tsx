@@ -1,6 +1,7 @@
+import {phoenixPeriod,type PhoenixPeriodPreset} from "@/lib/customer-intelligence/phoenix-periods";
 import {defaultGrowthDates} from '@/lib/customer-intelligence/presentation';
 import * as React from 'react';
-import {Box,Button,Checkbox,FormControl,FormLabel,Input,Sheet,Stack,Typography} from '@mui/joy';
+import {Box,Button,Checkbox,FormControl,FormLabel,Input,Option,Select,Sheet,Stack,Typography} from '@mui/joy';
 import {useNavigate} from 'react-router-dom';
 import {supabase} from '@/integrations/supabase/client';
 import {useTenant} from '@/hooks/useTenant';
@@ -12,12 +13,15 @@ import {readAllPages} from '../../../../supabase/functions/_shared/customer-inte
 export function CustomerGrowthWorkspace() {
   const {tenant}=useTenant(),navigate=useNavigate();
   const timezone=typeof tenant?.settings?.timezone==='string'?tenant.settings.timezone:'America/Vancouver';
-  const [dates,setDates]=React.useState(()=>defaultGrowthDates()),[currency,setCurrency]=React.useState('CAD');
+  const [dates,setDates]=React.useState(()=>defaultGrowthDates(new Date(),timezone)),[currency,setCurrency]=React.useState('CAD');
+  const [preset,setPreset]=React.useState<PhoenixPeriodPreset>("mtd");
   const [spend,setSpend]=React.useState(50),[visits,setVisits]=React.useState(50),[perDay,setPerDay]=React.useState(false);
   const [product,setProduct]=React.useState(''),[busy,setBusy]=React.useState(false),[error,setError]=React.useState('');
   const [report,setReport]=React.useState<ReturnType<typeof compareCustomerGrowth>|null>(null),[page,setPage]=React.useState(1);
   const request=React.useRef(0);
-  React.useEffect(()=>{request.current++;setReport(null);setError('');setBusy(false);},[tenant?.id]);
+  React.useEffect(()=>{request.current++;setReport(null);setError('');setBusy(false);setPreset("mtd");setDates(defaultGrowthDates(new Date(),timezone));},[tenant?.id,timezone]);
+  const chosenPeriod=React.useMemo(()=>{try{return phoenixPeriod("custom",new Date(),timezone,dates);}catch{return null;}},[dates,timezone]);
+  const choosePeriod=(next:PhoenixPeriodPreset)=>{setPreset(next);setPerDay(false);if(next!=="custom"){const period=phoenixPeriod(next,new Date(),timezone);setDates({current_start:period.current_start,current_end:period.current_end,baseline_start:period.baseline_start,baseline_end:period.baseline_end});}};
   const compare=async()=>{
     if(!tenant?.id)return;const id=++request.current,tenantId=tenant.id,cutoff=new Date().toISOString();setBusy(true);setError('');setReport(null);
     try {
@@ -39,8 +43,16 @@ export function CustomerGrowthWorkspace() {
     </Stack></Sheet>
     <Sheet variant="outlined" sx={{borderRadius:'xl',p:{xs:2,md:3}}}><Stack spacing={2}>
       <Typography level="h3">Customer Growth Index</Typography>
-      <Typography level="body-md">Compare each customer with their own history. Index 100 means unchanged. A missing baseline stays unscored.</Typography>
-      <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,1fr)',lg:'repeat(4,1fr)'},gap:2}}>{Object.entries(dates).map(([key,value])=><FormControl key={key}><FormLabel>{key.replace('_',' ')}</FormLabel><Input type="date" value={value} onChange={e=>setDates(d=>({...d,[key]:e.target.value}))}/></FormControl>)}</Box>
+      <Typography level="body-md">Operation Phoenix: 50% recorded visits and 50% recorded spending, comparing each customer against their own history. Index 100 means unchanged. Missing history stays unscored.</Typography>
+      <FormControl><FormLabel>Comparison period</FormLabel><Select value={preset} onChange={(_,value)=>{if(value)choosePeriod(value as PhoenixPeriodPreset);}}>
+        <Option value="mtd">Month to date — same dates last year (default)</Option>
+        <Option value="ytd">Year to date — same dates last year</Option>
+        <Option value="previous_month">Last completed month — last year</Option>
+        <Option value="previous_year">Last completed year — prior year</Option>
+        <Option value="custom">Custom dates</Option>
+      </Select></FormControl>
+      <Typography level="body-sm">{chosenPeriod?.note??"The selected date range needs correction before it can be compared."}</Typography>
+      <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'repeat(2,1fr)',lg:'repeat(4,1fr)'},gap:2}}>{Object.entries(dates).map(([key,value])=><FormControl key={key}><FormLabel>{key.replace('_',' ')}</FormLabel><Input type="date" value={value} onChange={e=>{setPreset("custom");setDates(d=>({...d,[key]:e.target.value}));}}/></FormControl>)}</Box>
       <Stack direction={{xs:'column',sm:'row'}} gap={2}>
         <FormControl><FormLabel>Spending weight</FormLabel><Input type="number" slotProps={{input:{min:0,max:100}}} value={spend} onChange={e=>setSpend(Number(e.target.value))}/></FormControl>
         <FormControl><FormLabel>Visit weight</FormLabel><Input type="number" slotProps={{input:{min:0,max:100}}} value={visits} onChange={e=>setVisits(Number(e.target.value))}/></FormControl>

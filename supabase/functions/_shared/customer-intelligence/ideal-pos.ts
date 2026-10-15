@@ -19,8 +19,8 @@ export type IdealNormalizedRow = {
   productName: string | null;
   salesCategory: string | null;
   department: string | null;
-  quantity: number;
-  amount: number;
+  quantity: number | null;
+  amount: number | null;
   purchasedAt: string | null;
   couponCode: string | null;
   issuedAt: string | null;
@@ -40,10 +40,14 @@ const value = (row: Record<string, unknown>, names: string[]) => {
   }
   return null;
 };
-const num = (v: string | null) => {
-  if (!v) return 0;
-  const n = Number(v.replace(/[$,%\s,]/g, ""));
-  return Number.isFinite(n) ? n : 0;
+const num = (v: string | null): number | null => {
+  if(v === null || !v.trim()) return null;
+  let literal=v.trim();
+  const negative=/^\(.*\)$/.test(literal);
+  if(negative) literal=literal.slice(1,-1);
+  if(!/^-?\$?\d+(?:,\d{3})*(?:\.\d{1,2})?$|^-?\$?\d+(?:\.\d{1,2})?$/.test(literal)) return null;
+  const parsed=Number(literal.replace(/[$,]/g,""));
+  return Number.isFinite(parsed) ? (negative ? -parsed : parsed) : null;
 };
 
 export function detectIdealReportType(headers: string[]): IdealReportType | null {
