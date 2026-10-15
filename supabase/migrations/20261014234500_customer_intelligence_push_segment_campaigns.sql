@@ -64,6 +64,13 @@ AS $$
   WHERE segment.id=p_segment_id AND segment.tenant_id=p_tenant_id
     AND segment.status='active' AND segment.deleted_at IS NULL
     AND c.deleted_at IS NULL AND c.merged_into_customer_id IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.crm_push_messages recent
+      WHERE recent.tenant_id=c.tenant_id AND recent.crm_customer_id=c.id
+        AND recent.push_campaign_id IS NOT NULL
+        AND recent.created_at>now()-interval '24 hours'
+        AND recent.status NOT IN ('cancelled','failed')
+    )
 $$;
 
 REVOKE ALL ON FUNCTION public.eligible_crm_push_segment_v1(uuid,uuid)
@@ -129,6 +136,7 @@ DECLARE
   v_preview jsonb;
   v_queued integer;
   v_inserted integer;
+  v_daily_sent integer;
 BEGIN
   IF coalesce(auth.jwt()->>'role','') <> 'service_role' THEN
     RAISE EXCEPTION 'Service authorization required';
@@ -153,7 +161,7 @@ BEGIN
 
   -- Concurrency control is per tenant and request key.
   PERFORM pg_advisory_xact_lock(hashtextextended(
-    p_tenant_id::text||':push-campaign:'||p_request_key,0
+    p_tenant_id::text||':push-channel',0
   ));
   SELECT * INTO v_campaign FROM public.crm_push_campaigns
   WHERE tenant_id=p_tenant_id AND request_key=p_request_key;
@@ -176,6 +184,15 @@ BEGIN
   END IF;
   IF v_queued>250 THEN
     RAISE EXCEPTION 'Pilot is capped at 250 device subscriptions per campaign';
+  END IF;
+  SELECT count(*) INTO v_daily_sent
+  FROM public.crm_push_messages recent
+  WHERE recent.tenant_id=p_tenant_id
+    AND recent.push_campaign_id IS NOT NULL
+    AND recent.created_at>now()-interval '24 hours'
+    AND recent.status NOT IN ('cancelled','failed');
+  IF v_daily_sent + v_queued > 500 THEN
+    RAISE EXCEPTION 'Pilot is capped at 500 recipient devices per tenant per day';
   END IF;
 
   INSERT INTO public.crm_push_campaigns
