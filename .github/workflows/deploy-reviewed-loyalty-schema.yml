@@ -1,0 +1,54 @@
+name: Deploy reviewed loyalty measurement schema
+on:
+  push:
+    branches: [chore/loyalty-measurement-deployment]
+    paths: [.github/workflows/deploy-reviewed-loyalty-schema.yml]
+permissions:
+  contents: read
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 22dc3f40aa5191537782d3337ddaa9f5d380ded0
+          persist-credentials: false
+      - name: Verify, dry-run and atomically apply the reviewed schema
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,os,urllib.request,urllib.error
+          from pathlib import Path
+          token=os.environ.get('SUPABASE_ACCESS_TOKEN','')
+          if not token: raise SystemExit('Existing Supabase deployment credential is unavailable.')
+          source=Path('supabase/migrations/20261015170116_loyalty_programme_operations.sql').read_text()
+          expected='eec3815541ad7c72ee7c47278c7826bef263efef35366c69fba1a1f6837fc2af'
+          if hashlib.sha256(source.encode()).hexdigest()!=expected: raise SystemExit('Reviewed SQL digest mismatch.')
+          endpoint='https://api.supabase.com/v1/projects/udldmkqwnxhdeztyqcau/database/query'
+          def query(sql,read_only=False):
+            req=urllib.request.Request(endpoint,data=json.dumps({'query':sql,'read_only':read_only}).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'},method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=180) as response: return json.load(response)
+            except urllib.error.HTTPError as e:
+              body=e.read().decode(errors='replace')
+              print('Database operation failed:',e.code,body.replace(token,'[redacted]')[:4000]);raise SystemExit(1)
+          state=query("select to_regclass('public.loyalty_programmes') is not null as table_exists, exists(select 1 from supabase_migrations.schema_migrations where version='20261015170116') as migration_exists;",True)[0]
+          if state['table_exists'] != state['migration_exists']: raise SystemExit('Schema/history mismatch requires reconciliation; not applying blindly.')
+          if not state['migration_exists']:
+            query('BEGIN; SET LOCAL lock_timeout=\'5s\'; SET LOCAL statement_timeout=\'120s\';'+source+'\nROLLBACK;')
+            print('Production-schema dry run passed; no customer records changed.')
+            delimiter='$reviewed_loyalty_schema_eec38155$'
+            if delimiter in source: raise SystemExit('Unexpected SQL delimiter collision.')
+            history="INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20261015170116','loyalty_programme_operations',ARRAY["+delimiter+source+delimiter+"]::text[]);"
+            query("BEGIN; SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='120s'; SELECT pg_advisory_xact_lock(hashtextextended('reviewed-loyalty-20261015170116',0));"+source+'\n'+history+'\nCOMMIT;')
+            print('Reviewed loyalty schema applied with its exact migration history.')
+          verify=query("select count(*)::integer as tables_with_rls from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relrowsecurity and c.relname in ('loyalty_programmes','loyalty_programme_versions','loyalty_operation_previews','loyalty_programme_baselines','loyalty_programme_runs','loyalty_programme_publications','calendar_import_batches','calendar_import_rows');",True)[0]
+          if verify['tables_with_rls']!=8: raise SystemExit('Expected row-security tables were not verified.')
+          writes=query("select has_table_privilege('authenticated','public.loyalty_programme_baselines','INSERT') or has_table_privilege('authenticated','public.loyalty_programme_runs','UPDATE') or has_function_privilege('authenticated','public.confirm_loyalty_baseline_v1(uuid,uuid,uuid,text)','EXECUTE') as unsafe_browser_access;",True)[0]
+          if writes['unsafe_browser_access']: raise SystemExit('Browser write protection failed.')
+          print('Verified: 8 RLS-protected tables, no authenticated baseline/result writes or commit RPC access.')
+          PY
