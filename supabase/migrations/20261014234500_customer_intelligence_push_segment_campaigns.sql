@@ -212,4 +212,48 @@ GRANT EXECUTE ON FUNCTION public.queue_crm_push_segment_v1(
   uuid,uuid,uuid,text,text,text,text
 ) TO service_role;
 
+-- Paused/cancelled campaigns cannot be claimed. Keep older single-recipient
+-- test pushes (push_campaign_id NULL) eligible under their original consent gate.
+CREATE OR REPLACE FUNCTION public.claim_crm_push_messages(p_limit integer DEFAULT 25)
+RETURNS SETOF public.crm_push_messages
+LANGUAGE sql SECURITY DEFINER SET search_path = ''
+AS $$
+  WITH claimable AS (
+    SELECT m.id
+    FROM public.crm_push_messages m
+    JOIN public.crm_push_subscriptions s
+      ON s.id=m.subscription_id AND s.tenant_id=m.tenant_id
+      AND s.crm_customer_id=m.crm_customer_id AND s.status='active'
+    JOIN public.crm_storefront_customer_links l
+      ON l.id=s.customer_link_id AND l.tenant_id=m.tenant_id
+      AND l.crm_customer_id=m.crm_customer_id AND l.status='verified'
+    JOIN public.crm_storefront_tenant_links t
+      ON t.storefront_site_id=s.storefront_site_id
+      AND t.crm_tenant_id=m.tenant_id AND t.enabled
+    JOIN public.crm_push_preferences p
+      ON p.tenant_id=m.tenant_id AND p.crm_customer_id=m.crm_customer_id
+      AND p.status='opted_in'
+    LEFT JOIN public.crm_push_campaigns pc
+      ON pc.id=m.push_campaign_id AND pc.tenant_id=m.tenant_id
+    WHERE m.attempts < 5
+      AND (m.push_campaign_id IS NULL OR pc.status='queued')
+      AND (
+        (m.status IN ('queued','retry') AND m.available_at<=now())
+        OR (m.status='sending' AND m.claimed_at<now()-interval '3 minutes')
+      )
+    ORDER BY m.available_at, m.id
+    LIMIT greatest(1,least(coalesce(p_limit,25),100))
+    FOR UPDATE OF m SKIP LOCKED
+  )
+  UPDATE public.crm_push_messages m
+  SET status='sending',attempts=m.attempts+1,claimed_at=now()
+  FROM claimable c WHERE m.id=c.id
+  RETURNING m.*;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_crm_push_messages(integer)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_crm_push_messages(integer)
+  TO service_role;
+
 COMMIT;
