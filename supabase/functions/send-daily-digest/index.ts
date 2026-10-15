@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderBloomSystemEmail } from "../../../src/lib/email/premiumBotanical.ts";
 
 /**
  * send-daily-digest
@@ -148,15 +149,15 @@ Deno.serve(async (_req) => {
     // System status block
     let statusHtml: string;
     if (totalErrors === 0) {
-      statusHtml = `<div style="background:#f0fdf4;border-left:4px solid #1abc9c;padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
-      <p style="font-size:14px;font-weight:500;color:#166534;margin:0;">All systems healthy</p>
-      <p style="font-size:13px;color:#166534;margin:4px 0 0;">No automation errors in the last 24 hours.</p>
+      statusHtml = `<div style="background:#F5F7F3;border-left:4px solid #527566;padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+      <p style="font-size:14px;font-weight:500;color:#365D4C;margin:0;">All systems healthy</p>
+      <p style="font-size:13px;color:#365D4C;margin:4px 0 0;">No automation errors in the last 24 hours.</p>
     </div>`;
     } else {
       const errorLines = Object.entries(errorsByFunction)
         .map(
           ([fn, { count, firstMessage }]) =>
-            `<p style="font-size:13px;color:#991b1b;margin:4px 0 0;">• <strong>${fn}</strong> — ${count} error(s): ${firstMessage.slice(0, 120)}</p>`,
+            `<p style="font-size:13px;color:#991b1b;margin:4px 0 0;">• <strong>${escapeHtml(fn)}</strong> — ${count} error(s): ${escapeHtml(firstMessage.slice(0, 120))}</p>`,
         )
         .join("\n      ");
       statusHtml = `<div style="background:#fef2f2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:24px;">
@@ -168,25 +169,25 @@ Deno.serve(async (_req) => {
     // Health score line
     let healthHtml = "";
     if (healthScore !== null) {
-      const color = healthScore >= 80 ? "#166534" : healthScore >= 50 ? "#92400e" : "#991b1b";
+      const color = healthScore >= 80 ? "#365D4C" : healthScore >= 50 ? "#92400e" : "#991b1b";
       healthHtml = `<p style="font-size:13px;color:${color};margin:4px 0 16px;">System health score: <strong>${healthScore}</strong>/100</p>`;
     }
 
     // New activity section
     let activityHtml = "";
     if (newTrials.length > 0 || newWon.length > 0) {
-      activityHtml = `<p style="font-size:13px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 12px;">New Activity</p>`;
+      activityHtml = `<p style="font-size:13px;font-weight:500;color:#5B6B79;text-transform:uppercase;letter-spacing:0.6px;margin:0 0 12px;">New Activity</p>`;
 
       for (const t of newTrials) {
-        activityHtml += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:6px;">
-        <p style="font-size:14px;font-weight:500;color:#111827;margin:0;">${escapeHtml(t.name)} <span style="background:#dbeafe;color:#1e40af;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">Trial</span></p>
-        <p style="font-size:12px;color:#6b7280;margin:2px 0 0;">${escapeHtml(t.email)}</p>
+        activityHtml += `<div style="background:#FAF9F6;border:1px solid #DBE3DF;border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <p style="font-size:14px;font-weight:500;color:#1B3049;margin:0;">${escapeHtml(t.name)} <span style="background:#F5F7F3;color:#1B3049;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">Trial</span></p>
+        <p style="font-size:12px;color:#5B6B79;margin:2px 0 0;">${escapeHtml(t.email)}</p>
       </div>`;
       }
 
       for (const w of newWon) {
-        activityHtml += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin-bottom:6px;">
-        <p style="font-size:14px;font-weight:500;color:#111827;margin:0;">${escapeHtml(w.name)} <span style="background:#dcfce7;color:#166534;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">Won</span></p>
+        activityHtml += `<div style="background:#F5F7F3;border:1px solid #DBE3DF;border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <p style="font-size:14px;font-weight:500;color:#1B3049;margin:0;">${escapeHtml(w.name)} <span style="background:#F5F7F3;color:#365D4C;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:6px;">Won</span></p>
       </div>`;
       }
     }
@@ -194,51 +195,37 @@ Deno.serve(async (_req) => {
     // Reconciliation section
     let reconHtml: string;
     if (mismatchCount === 0) {
-      reconHtml = `<p style="font-size:14px;color:#374151;margin:0;">Clean — all active Stripe subscribers have Notion records.</p>`;
+      reconHtml = `<p style="font-size:14px;color:#536475;margin:0;">Clean — all active Stripe subscribers have Notion records.</p>`;
     } else {
       const mismatchLines = reconDetails
         .slice(0, 10)
         .map(
           (m) =>
-            `<p style="font-size:13px;color:#374151;margin:2px 0;">• ${escapeHtml(m.email || "unknown")} — ${escapeHtml(m.type || "mismatch")}</p>`,
+            `<p style="font-size:13px;color:#536475;margin:2px 0;">• ${escapeHtml(m.email || "unknown")} — ${escapeHtml(m.type || "mismatch")}</p>`,
         )
         .join("\n      ");
-      reconHtml = `<p style="font-size:14px;color:#374151;margin:0 0 6px;">${mismatchCount} mismatch(es) found. Check the pipeline.</p>
+      reconHtml = `<p style="font-size:14px;color:#536475;margin:0 0 6px;">${mismatchCount} mismatch(es) found. Check the pipeline.</p>
       ${mismatchLines}`;
     }
 
-    const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-
-  <tr><td style="background:#0d1f1a;padding:20px 40px;">
-    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:40px;width:auto;display:block;" />
-  </td></tr>
-
-  <tr><td style="background:#1abc9c;padding:20px 40px;">
-    <p style="color:#ffffff;font-size:18px;font-weight:500;margin:0;">Daily Digest</p>
-    <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:4px 0 0;">${dateStr} · Generated at 8:00 AM Pacific</p>
-  </td></tr>
-
-  <tr><td style="padding:32px 40px;">
-
-    ${statusHtml}
-    ${healthHtml}
-
-    ${activityHtml}
-
-    <p style="font-size:13px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:0.6px;margin:24px 0 12px;">Stripe / Notion Reconciliation</p>
-    ${reconHtml}
-
-    <p style="font-size:12px;color:#9ca3af;margin:32px 0 0;border-top:1px solid #e5e7eb;padding-top:16px;">This digest is sent every morning at 8am Pacific. Immediate alerts are only sent for new paying clients.</p>
-
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body></html>`;
+    // Operational status and reconciliation data remain unchanged; only the
+    // fixed HTML chrome changes to the platform-wide email renderer.
+    const emailHtml = renderBloomSystemEmail({
+      eyebrow: "OPERATIONS",
+      title: "Daily Digest",
+      preheader: `${dateStr} · Generated at 8:00 AM Pacific`,
+      icon: "calendar",
+      bodyHtml: `
+        <p style="margin:0 0 22px;color:#536475;">${dateStr} · Generated at 8:00 AM Pacific</p>
+        ${statusHtml}
+        ${healthHtml}
+        ${activityHtml}
+        <h2 style="margin:24px 0 12px;font-size:18px;line-height:1.35;color:#1B3049;">Stripe / Notion Reconciliation</h2>
+        ${reconHtml}
+        <p style="font-size:12px;color:#5B6B79;margin:28px 0 0;padding-top:16px;border-top:1px solid #DBE3DF;">This digest is sent every morning at 8am Pacific. Immediate alerts are only sent for new paying clients.</p>
+      `,
+      footer: "BloomSuite — internal operations digest.",
+    });
 
     // ── Send via Resend ──
     const resendRes = await fetch("https://api.resend.com/emails", {
