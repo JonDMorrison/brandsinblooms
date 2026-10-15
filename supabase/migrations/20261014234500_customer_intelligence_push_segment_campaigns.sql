@@ -256,4 +256,40 @@ REVOKE ALL ON FUNCTION public.claim_crm_push_messages(integer)
 GRANT EXECUTE ON FUNCTION public.claim_crm_push_messages(integer)
   TO service_role;
 
+-- Owner campaign list with authoritative aggregate metrics, no contact
+-- addresses or browser subscription secrets.
+CREATE FUNCTION public.crm_push_campaign_overview_v1(
+  p_tenant_id uuid,p_limit integer DEFAULT 25
+)
+RETURNS TABLE (
+  id uuid,title text,status text,segment_id uuid,queued_count integer,
+  accepted bigint,failed bigint,pending bigint,clicks bigint,created_at timestamptz
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
+AS $$
+  SELECT campaign.id,campaign.title,campaign.status,campaign.segment_id,
+    campaign.queued_count,
+    count(message.id) FILTER (WHERE message.status='accepted'),
+    count(message.id) FILTER (WHERE message.status='failed'),
+    count(message.id) FILTER (WHERE message.status IN ('queued','sending','retry')),
+    count(event.id) FILTER (WHERE event.event_type='clicked'),
+    campaign.created_at
+  FROM public.crm_push_campaigns campaign
+  LEFT JOIN public.crm_push_messages message
+    ON message.push_campaign_id=campaign.id AND message.tenant_id=campaign.tenant_id
+  LEFT JOIN public.crm_push_events event
+    ON event.message_id=message.id AND event.tenant_id=campaign.tenant_id
+    AND event.event_type='clicked'
+  WHERE campaign.tenant_id=p_tenant_id
+    AND coalesce(auth.jwt()->>'role','')='service_role'
+  GROUP BY campaign.id
+  ORDER BY campaign.created_at DESC
+  LIMIT greatest(1,least(coalesce(p_limit,25),50))
+$$;
+
+REVOKE ALL ON FUNCTION public.crm_push_campaign_overview_v1(uuid,integer)
+  FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.crm_push_campaign_overview_v1(uuid,integer)
+  TO service_role;
+
 COMMIT;
