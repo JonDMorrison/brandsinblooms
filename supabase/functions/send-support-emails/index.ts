@@ -46,7 +46,7 @@ const CONDITIONS: SupportCondition[] = [
     buildHtml: (name, url) => supportEmailHtml({
       gardenCenter: name,
       heading: "Send emails from your own domain",
-      body: `Setting up your custom email domain means your campaigns arrive from <strong>you@${name.toLowerCase().replace(/\s+/g, "")}.com</strong> instead of a generic address. This dramatically improves deliverability and trust with your customers.`,
+      body: `Setting up your custom email domain means your campaigns arrive from <strong>you@${bloomEmailEscape(name.toLowerCase().replace(/[^a-z0-9.-]/g, ""))}.com</strong> instead of a generic address. This dramatically improves deliverability and trust with your customers.`,
       ctaText: "See how to set it up →",
       ctaUrl: url,
     }),
