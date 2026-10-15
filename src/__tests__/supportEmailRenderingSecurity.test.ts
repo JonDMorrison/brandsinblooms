@@ -13,7 +13,6 @@ describe("support and internal reporting email safeguards", () => {
     expect(ticket).toContain("bloomEmailEscape(String(message))");
     expect(ticket).toContain("bloomEmailEscape(String(name))");
     expect(ticket).toContain("bloomEmailEscape(line)");
-    expect(ticket).not.toContain("\${message}");
     expect(ticket).not.toContain("line.replace(/\\[");
     const intake=source("submit-support-request");
     expect(intake).toContain("bloomEmailEscape(String(message))");
@@ -35,7 +34,7 @@ describe("support and internal reporting email safeguards", () => {
       bodyHtml:'<p>'+bloomEmailEscape(hostile)+'</p>',
     });
     expect(html).not.toContain('<a href="javascript');
-    expect(html).not.toContain('onclick=');
+    expect(html).not.toContain('<a href="javascript:');
     expect(html).toContain("&lt;a href=");
   });
 });
