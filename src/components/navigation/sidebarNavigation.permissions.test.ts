@@ -16,7 +16,7 @@ function visibleIds(permissions: CrmPermission[]) {
     .flatMap((item) =>
       item.kind === "link"
         ? [item.id]
-        : [item.id, ...item.children.map((child) => child.id)],
+        : item.children.map((child) => child.id),
     );
 }
 
@@ -72,6 +72,19 @@ describe("tenant sidebar permissions", () => {
         "automations",
       ]),
     );
+  });
+
+  it("keeps just four everyday destinations at the top level", () => {
+    const workspace = getDashboardSidebarGroups({ mode: "tenant" }).find(
+      (group) => group.id === "dashboard",
+    );
+
+    expect(workspace?.items.map((item) => item.id)).toEqual([
+      "dashboard",
+      "campaigns",
+      "customers",
+      "analytics",
+    ]);
   });
 
   it("shows every tenant item when every permission is granted", () => {
