@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
+import {renderBloomSystemEmail,bloomEmailCard,bloomEmailEscape} from "../../../src/lib/email/premiumBotanical.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -42,63 +43,24 @@ const handler = async (req: Request): Promise<Response> => {
       reply_to: 'noreply@bloomsuite.app', // Automated confirmation - no reply expected
       to: [email],
       subject: `Confirm your subscription to ${brandName || 'our newsletter'}`,
-      html: `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-              .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
-              .button { display: inline-block; background: #22C55E; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
-              .button:hover { background: #16A34A; }
-              .benefits { background: white; padding: 20px; border-radius: 6px; margin: 20px 0; }
-              .benefit-item { display: flex; align-items: start; margin: 12px 0; }
-              .benefit-icon { color: #22C55E; margin-right: 10px; font-size: 20px; }
-              .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1 style="margin: 0; font-size: 28px;">Confirm Your Subscription</h1>
-            </div>
-            <div class="content">
-              <p style="font-size: 16px;">Hi${firstName ? ` ${firstName}` : ''}!</p>
-              
-              <p>We recently added your email to our customer list. To make sure you want to hear from us, please confirm your subscription.</p>
-              
-              <div style="text-align: center;">
-                <a href="${confirmUrl}" class="button">Confirm Subscription</a>
-              </div>
-              
-              <div class="benefits">
-                <p style="font-weight: 600; margin-bottom: 15px;">By confirming, you'll receive:</p>
-                <div class="benefit-item">
-                  <span class="benefit-icon">✨</span>
-                  <span>Exclusive offers and promotions</span>
-                </div>
-                <div class="benefit-item">
-                  <span class="benefit-icon">🎁</span>
-                  <span>New product announcements</span>
-                </div>
-                <div class="benefit-item">
-                  <span class="benefit-icon">💡</span>
-                  <span>Helpful tips and updates</span>
-                </div>
-              </div>
-              
-              <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">You can unsubscribe anytime with one click.</p>
-              
-              <div class="footer">
-                <p>Not interested? No problem—just ignore this email.</p>
-                <p style="margin-top: 15px;">&copy; ${new Date().getFullYear()} ${brandName || 'Our Company'}. All rights reserved.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `,
+      html: renderBloomSystemEmail({
+        brandName:brandName||"BloomSuite",
+        eyebrow:"SUBSCRIPTION CONFIRMATION",
+        title:"Confirm your subscription",
+        preheader:"Please confirm you want to receive updates",
+        icon:"mail",
+        bodyHtml:'<p>Hi'+(firstName?' '+bloomEmailEscape(firstName):'')+',</p>'+
+          '<p>Please confirm that you would like to receive emails from '+
+          bloomEmailEscape(brandName||"our team")+'.</p>'+
+          bloomEmailCard("What you can expect",[
+            {label:"Offers",value:"Exclusive offers and promotions",icon:"check"},
+            {label:"News",value:"Product announcements and store updates",icon:"leaf"},
+            {label:"Guides",value:"Helpful plant-care tips and seasonal ideas",icon:"sun"},
+          ],"mail")+
+          '<p>If you did not request these emails, you can ignore this message. You can unsubscribe from future messages at any time.</p>',
+        action:{label:"Confirm subscription",url:confirmUrl},
+        footer:"© "+new Date().getFullYear()+" "+(brandName||"Our Company")+". All rights reserved.",
+      }),
     });
 
     if (emailResponse.error) {

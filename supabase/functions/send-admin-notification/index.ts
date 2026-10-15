@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { Resend } from "npm:resend@2.1.0";
+import {renderBloomSystemEmail,bloomEmailCard} from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,46 +59,23 @@ const handler = async (req: Request): Promise<Response> => {
     let subject: string;
     let htmlContent: string;
 
-    if (payload.type === 'trial_signup') {
-      subject = '🎉 New Trial Signup - BloomSuite';
-      htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #22C55E; margin-bottom: 20px;">New Trial Signup!</h2>
-          
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #333;">User Details:</h3>
-            <p><strong>Name:</strong> ${userName}</p>
-            <p><strong>Email:</strong> ${payload.user_email}</p>
-            <p><strong>Company:</strong> ${companyName}</p>
-            <p><strong>Signup Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-
-          <p style="color: #666; font-size: 14px; margin-top: 30px;">
-            This notification was sent automatically by the BloomSuite system.
-          </p>
-        </div>
-      `;
-    } else {
-      subject = '💰 Trial Conversion - BloomSuite';
-      htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #22C55E; margin-bottom: 20px;">Trial Converted to Paid!</h2>
-          
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #333;">User Details:</h3>
-            <p><strong>Name:</strong> ${userName}</p>
-            <p><strong>Email:</strong> ${payload.user_email}</p>
-            <p><strong>Company:</strong> ${companyName}</p>
-            <p><strong>New Plan:</strong> ${payload.plan || 'Paid Plan'}</p>
-            <p><strong>Conversion Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-
-          <p style="color: #666; font-size: 14px; margin-top: 30px;">
-            This notification was sent automatically by the BloomSuite system.
-          </p>
-        </div>
-      `;
-    }
+    const signup=payload.type==="trial_signup";
+    subject=signup?"New Trial Signup - BloomSuite":"Trial Conversion - BloomSuite";
+    const rows=[
+      {label:"Name",value:userName,icon:"leaf" as const},
+      {label:"Email",value:payload.user_email,icon:"mail" as const},
+      {label:"Company",value:companyName,icon:"leaf" as const},
+      ...(signup?[]:[{label:"Plan",value:payload.plan||"Paid Plan",icon:"check" as const}]),
+      {label:signup?"Signup time":"Conversion time",value:new Date().toLocaleString(),icon:"calendar" as const},
+    ];
+    htmlContent=renderBloomSystemEmail({
+      eyebrow:signup?"NEW TRIAL SIGNUP":"TRIAL CONVERTED",
+      title:signup?"A new business has started a trial":"A trial has converted to paid",
+      icon:signup?"leaf":"check",
+      bodyHtml:bloomEmailCard("Account details",rows,signup?"mail":"check")+
+        '<p>This is an automated operational notification from BloomSuite.</p>',
+      footer:"BloomSuite — internal account notification.",
+    });
 
     // Send notification emails to admin emails
     const adminEmails = ['jon@brandsinblooms.com', 'jeff@brandsinblooms.com'];

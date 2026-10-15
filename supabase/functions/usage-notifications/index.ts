@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Resend } from 'npm:resend@2.0.0'
 import { resolveSender, buildFromAddress } from '../_shared/senderResolver.ts'
+import {renderBloomSystemEmail,bloomEmailCard,bloomEmailEscape} from '../../../src/lib/email/premiumBotanical.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,88 +16,40 @@ const logStep = (step: string, details?: any) => {
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
-// Email templates
-const get80PercentEmailHtml = (resource: string, percent: number) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
-    .content { background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
-    .progress-bar { background: #e5e7eb; border-radius: 9999px; height: 8px; margin: 20px 0; }
-    .progress-fill { background: #f59e0b; height: 100%; border-radius: 9999px; width: ${Math.min(percent, 100)}%; }
-    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">⚠️ Usage Alert</h1>
-      <p style="margin: 10px 0 0 0; opacity: 0.9;">You're approaching your ${resource} limit</p>
-    </div>
-    <div class="content">
-      <p>Hi there,</p>
-      <p>You've used <strong>${Math.round(percent)}%</strong> of your monthly ${resource} quota. Here's your current usage:</p>
-      <div class="progress-bar">
-        <div class="progress-fill"></div>
-      </div>
-      <p>To avoid any interruption to your campaigns, consider upgrading your plan for higher limits and additional features.</p>
-      <center>
-        <a href="https://bloomsuite.app/pricing" class="cta-button">Upgrade Your Plan</a>
-      </center>
-    </div>
-    <div class="footer">
-      <p>BloomSuite - Marketing Made Simple for Garden Centers</p>
-      <p>Questions? Reply to this email or visit our help center.</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
+// System notifications use the shared botanical shell. Use only approved
+// percentage/usage values and do not change existing sending thresholds.
+const get80PercentEmailHtml = (resource: string, percent: number) =>
+  renderBloomSystemEmail({
+    eyebrow:"USAGE REMINDER",
+    title:"You're approaching your monthly limit",
+    preheader:"An update on your BloomSuite usage",
+    icon:"alert",
+    bodyHtml:'<p>Hi there,</p><p>Your BloomSuite '+bloomEmailEscape(resource)+
+      ' usage has reached <strong>'+Math.round(percent)+'%</strong> of your monthly allowance.</p>'+
+      bloomEmailCard("Usage summary",[
+        {label:"Current usage",value:Math.round(percent)+"% of your monthly quota",icon:"alert"},
+        {label:"Next step",value:"Review your plan before sending is interrupted",icon:"check"},
+      ],"calendar")+
+      '<p>If you need more capacity, you can review plans and upgrade when you are ready.</p>',
+    action:{label:"Review plans",url:"https://bloomsuite.app/pricing"},
+    footer:"BloomSuite — your communications and customer relationships, made simpler.",
+  });
 
-const get100PercentEmailHtml = (resource: string) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
-    .content { background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; }
-    .alert-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0; }
-    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">🚨 Limit Reached</h1>
-      <p style="margin: 10px 0 0 0; opacity: 0.9;">Your ${resource} quota has been reached</p>
-    </div>
-    <div class="content">
-      <p>Hi there,</p>
-      <div class="alert-box">
-        <strong>Important:</strong> You've reached 100% of your monthly ${resource} quota. Additional ${resource === 'email' ? 'emails' : 'messages'} may be paused or charged at overage rates.
-      </div>
-      <p>To continue sending without interruption, please upgrade your plan now.</p>
-      <center>
-        <a href="https://bloomsuite.app/pricing" class="cta-button">Upgrade Now</a>
-      </center>
-    </div>
-    <div class="footer">
-      <p>BloomSuite - Marketing Made Simple for Garden Centers</p>
-      <p>Questions? Reply to this email or visit our help center.</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
+const get100PercentEmailHtml = (resource: string) =>
+  renderBloomSystemEmail({
+    eyebrow:"USAGE LIMIT REACHED",
+    title:"Your monthly usage needs attention",
+    preheader:"Your monthly BloomSuite usage limit has been reached",
+    icon:"alert",
+    bodyHtml:'<p>Hi there,</p><p>You have reached <strong>100%</strong> of your monthly '+
+      bloomEmailEscape(resource)+' quota. Further activity may be paused or subject to overage charges under your plan.</p>'+
+      bloomEmailCard("What to do next",[
+        {label:"Status",value:"Monthly allowance reached",icon:"alert"},
+        {label:"Options",value:"Review plan limits or upgrade to avoid interruption",icon:"check"},
+      ],"calendar"),
+    action:{label:"Review plan options",url:"https://bloomsuite.app/pricing"},
+    footer:"BloomSuite — your communications and customer relationships, made simpler.",
+  });
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -191,7 +144,7 @@ serve(async (req) => {
           const emailResponse = await resend.emails.send({
             from: 'BloomSuite <noreply@bloomsuite.app>',
             to: [userEmail],
-            subject: `🚨 ${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Limit Reached - Action Required`,
+            subject: `${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Limit Reached - Action Required`,
             html: get100PercentEmailHtml(resource === 'both' ? 'email and SMS' : resource),
           });
 
@@ -232,7 +185,7 @@ serve(async (req) => {
           const emailResponse = await resend.emails.send({
             from: 'BloomSuite <noreply@bloomsuite.app>',
             to: [userEmail],
-            subject: `⚠️ ${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Usage at ${Math.round(percent)}%`,
+            subject: `${resource === 'both' ? 'Email & SMS' : resource.toUpperCase()} Usage at ${Math.round(percent)}%`,
             html: get80PercentEmailHtml(resource === 'both' ? 'email and SMS' : resource, percent),
           });
 

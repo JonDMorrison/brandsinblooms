@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {renderBloomSystemEmail,bloomEmailCard} from "../../../src/lib/email/premiumBotanical.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,64 +28,26 @@ const logStep = (step: string, details?: any) => {
 };
 
 const generateAlertEmailHtml = (
-  alerts: Array<{
-    type: string;
-    message: string;
-    severity: "warning" | "critical";
-    details?: any;
-  }>,
-) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f4f4f5; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 30px; text-align: center; }
-    .content { padding: 30px; }
-    .alert { border-radius: 8px; padding: 16px; margin: 16px 0; }
-    .alert-critical { background: #fef2f2; border-left: 4px solid #dc2626; }
-    .alert-warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
-    .alert-title { font-weight: 600; margin-bottom: 4px; }
-    .alert-critical .alert-title { color: #dc2626; }
-    .alert-warning .alert-title { color: #d97706; }
-    .details { font-size: 12px; color: #6b7280; margin-top: 8px; font-family: monospace; background: #f9fafb; padding: 8px; border-radius: 4px; }
-    .footer { background: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #6b7280; }
-    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">🚨 Platform Cost Alert</h1>
-      <p style="margin: 10px 0 0 0; opacity: 0.9;">${alerts.length} alert${alerts.length > 1 ? "s" : ""} detected</p>
-    </div>
-    <div class="content">
-      <p>The following cost/usage alerts have been triggered:</p>
-      ${alerts
-        .map(
-          (alert) => `
-        <div class="alert alert-${alert.severity}">
-          <div class="alert-title">${alert.type}</div>
-          <div>${alert.message}</div>
-          ${alert.details ? `<div class="details">${JSON.stringify(alert.details, null, 2)}</div>` : ""}
-        </div>
-      `,
-        )
-        .join("")}
-      <center>
-        <a href="https://bloomsuite.app/admin/costs" class="cta-button">View Cost Dashboard</a>
-      </center>
-    </div>
-    <div class="footer">
-      <p>BloomSuite Platform Alert System</p>
-      <p>This is an automated message for super administrators.</p>
-    </div>
-  </div>
-</body>
-</html>
-`;
+  alerts: Array<{type:string;message:string;severity:"warning"|"critical";details?:any}>,
+) => renderBloomSystemEmail({
+  eyebrow:"PLATFORM OPERATIONS",
+  title:"Cost and usage alerts need attention",
+  icon:"alert",
+  preheader:String(alerts.length)+" cost or usage alerts detected",
+  bodyHtml:"<p>The following operational thresholds were reached:</p>"+
+    alerts.map((alert,index)=>bloomEmailCard(
+      "Alert "+(index+1)+" · "+(alert.severity==="critical"?"Critical":"Warning"),
+      [
+        {label:"Category",value:alert.type,icon:"alert"},
+        {label:"What happened",value:alert.message,icon:"alert"},
+        ...(alert.details?[{label:"Details",value:JSON.stringify(alert.details),icon:"calendar" as const}]:[]),
+      ],
+      "alert",
+    )).join("")+
+    "<p>Please review the dashboard and confirm any required action.</p>",
+  action:{label:"View cost dashboard",url:"https://bloomsuite.app/admin/costs"},
+  footer:"BloomSuite Platform Alert System — automated message for super administrators.",
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

@@ -43,7 +43,7 @@ const SEASONAL_TEMPLATES: EmailTemplate[] = [
         id: '1',
         block_type: 'header',
         content: {
-          title: 'Spring Has Sprung! 🌱',
+          title: 'Spring has arrived',
           subtitle: 'Your Ultimate Spring Planting Guide'
         },
         order_index: 0,
@@ -65,16 +65,16 @@ const SEASONAL_TEMPLATES: EmailTemplate[] = [
       fontSize: '16px',
       buttonStyle: {
         cornerRadius: '8px',
-        backgroundColor: '#22C55E',
+        backgroundColor: '#1B3049',
         textColor: '#FFFFFF'
       },
       headerStyle: {
-        backgroundColor: '#F0FDF4',
-        textColor: '#15803D'
+        backgroundColor: '#FAF9F6',
+        textColor: '#1B3049'
       },
       footerStyle: {
-        backgroundColor: '#F9FAFB',
-        textColor: '#6B7280'
+        backgroundColor: '#F8F9F6',
+        textColor: '#536475'
       }
     }
   },
@@ -92,7 +92,7 @@ const SEASONAL_TEMPLATES: EmailTemplate[] = [
         id: '1',
         block_type: 'header',
         content: {
-          title: 'Beat the Summer Heat! ☀️',
+          title: 'Beautiful gardens, even on hot days',
           subtitle: 'Essential Summer Garden Care'
         },
         order_index: 0,
@@ -104,16 +104,16 @@ const SEASONAL_TEMPLATES: EmailTemplate[] = [
       fontSize: '16px',
       buttonStyle: {
         cornerRadius: '8px',
-        backgroundColor: '#F59E0B',
+        backgroundColor: '#1B3049',
         textColor: '#FFFFFF'
       },
       headerStyle: {
-        backgroundColor: '#FEF3C7',
-        textColor: '#D97706'
+        backgroundColor: '#FAF9F6',
+        textColor: '#1B3049'
       },
       footerStyle: {
-        backgroundColor: '#F9FAFB',
-        textColor: '#6B7280'
+        backgroundColor: '#F8F9F6',
+        textColor: '#536475'
       }
     }
   }
@@ -135,7 +135,7 @@ const PROMOTIONAL_TEMPLATES: EmailTemplate[] = [
         id: '1',
         block_type: 'header',
         content: {
-          title: 'Weekend Flash Sale! 🎉',
+          title: 'A weekend worth exploring',
           subtitle: 'Save up to 30% on select plants'
         },
         order_index: 0,
@@ -147,16 +147,16 @@ const PROMOTIONAL_TEMPLATES: EmailTemplate[] = [
       fontSize: '16px',
       buttonStyle: {
         cornerRadius: '8px',
-        backgroundColor: '#DC2626',
+        backgroundColor: '#1B3049',
         textColor: '#FFFFFF'
       },
       headerStyle: {
-        backgroundColor: '#FEE2E2',
-        textColor: '#DC2626'
+        backgroundColor: '#FAF9F6',
+        textColor: '#1B3049'
       },
       footerStyle: {
-        backgroundColor: '#F9FAFB',
-        textColor: '#6B7280'
+        backgroundColor: '#F8F9F6',
+        textColor: '#536475'
       }
     }
   }
@@ -177,7 +177,7 @@ const EDUCATIONAL_TEMPLATES: EmailTemplate[] = [
         id: '1',
         block_type: 'header',
         content: {
-          title: 'Master Plant Care 📚',
+          title: 'Give your plants a great start',
           subtitle: 'Essential tips for healthy plants'
         },
         order_index: 0,
@@ -189,16 +189,16 @@ const EDUCATIONAL_TEMPLATES: EmailTemplate[] = [
       fontSize: '16px',
       buttonStyle: {
         cornerRadius: '8px',
-        backgroundColor: '#3B82F6',
+        backgroundColor: '#1B3049',
         textColor: '#FFFFFF'
       },
       headerStyle: {
-        backgroundColor: '#DBEAFE',
-        textColor: '#1D4ED8'
+        backgroundColor: '#FAF9F6',
+        textColor: '#1B3049'
       },
       footerStyle: {
-        backgroundColor: '#F9FAFB',
-        textColor: '#6B7280'
+        backgroundColor: '#F8F9F6',
+        textColor: '#536475'
       }
     }
   }

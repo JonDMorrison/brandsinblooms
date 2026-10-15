@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.1.0";
+import {renderBloomSystemEmail,bloomEmailCard} from "../../../src/lib/email/premiumBotanical.ts";
 import { handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
 
 const escapeHtml = (value: string) => value.replace(/[&<>"\']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "\'": "&#39;" }[character]!));
@@ -54,27 +55,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create email content
     const emailSubject = `Contact Form: ${name} - ${selectedInquiries}`;
-    const emailHtml = `
-      <h2>New Contact Form Submission</h2>
-      
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #2563eb;">Contact Information</h3>
-        <p><strong>Name:</strong> ${escapeHtml(name)}</p>
-        <p><strong>Email:</strong> ${escapeHtml(email)}</p>
-        <p><strong>Inquiry Type(s):</strong> ${escapeHtml(selectedInquiries)}</p>
-      </div>
-      
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #2563eb;">Message</h3>
-        <p style="white-space: pre-wrap; line-height: 1.6;">${escapeHtml(message)}</p>
-      </div>
-      
-      <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-      
-      <p style="color: #6b7280; font-size: 14px;">
-        This message was sent through the BloomSuite contact form on ${new Date().toLocaleString()}.
-      </p>
-    `;
+    const emailHtml=renderBloomSystemEmail({
+      eyebrow:"NEW INQUIRY",
+      title:"A new message for your team",
+      icon:"mail",
+      preheader:emailSubject,
+      bodyHtml:bloomEmailCard("Contact information",[
+        {label:"Name",value:name,icon:"leaf"},
+        {label:"Email",value:email,icon:"mail"},
+        {label:"Inquiry",value:selectedInquiries,icon:"leaf"},
+        {label:"Received",value:new Date().toLocaleString(),icon:"calendar"},
+      ],"mail")+
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:18px 0;border:1px solid #DBE3DF;border-radius:12px;background:#F8F9F6"><tr><td style="padding:17px">'+
+      '<h2 style="margin:0 0 10px;font-size:19px;color:#1B3049">Message</h2>'+
+      '<p style="margin:0;color:#536475;white-space:pre-wrap;line-height:1.6">'+escapeHtml(message)+'</p>'+
+      '</td></tr></table>',
+      footer:"Sent through the BloomSuite contact form.",
+    });
 
     // Send email to founders and the public support inbox
     const recipients = [
