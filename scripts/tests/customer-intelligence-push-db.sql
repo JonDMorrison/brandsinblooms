@@ -18,7 +18,24 @@ CREATE TABLE public.crm_campaigns (
   id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES public.tenants(id)
 );
 
+CREATE TABLE public.users (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES public.tenants(id),
+  role text NOT NULL
+);
+CREATE TABLE public.crm_segments (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL REFERENCES public.tenants(id),
+  name text NOT NULL, status text NOT NULL, deleted_at timestamptz,
+  customer_count integer NOT NULL DEFAULT 0
+);
+CREATE TABLE public.customer_segments (
+  customer_id uuid REFERENCES public.crm_customers(id),
+  segment_id uuid REFERENCES public.crm_segments(id),
+  PRIMARY KEY(customer_id,segment_id)
+);
+
 \ir ../../supabase/migrations/20261014200000_customer_intelligence_web_push_foundation.sql
+\ir ../../supabase/migrations/20261014234500_customer_intelligence_push_segment_campaigns.sql
+\ir ../../supabase/migrations/20261015001500_customer_intelligence_push_click_tracking.sql
 
 DO $test$
 DECLARE
@@ -157,3 +174,111 @@ BEGIN
   RAISE NOTICE 'PASS: reviewed identity, tenant scope, replay, consent, dispatch';
 END
 $test$;
+
+-- Verify the complete segment-to-push queue after identity acceptance. The
+-- previous fixture intentionally unsubscribed first, so preview must exclude it.
+DO $segment$
+DECLARE
+ tenant_a uuid := '92000000-0000-4000-8000-000000000001';
+ tenant_b uuid := '92000000-0000-4000-8000-000000000002';
+ site_a uuid := '92000000-0000-4000-8000-000000000003';
+ crm_a uuid := '92000000-0000-4000-8000-000000000005';
+ user_a uuid := '92000000-0000-4000-8000-000000000007';
+ segment_a uuid := '92000000-0000-4000-8000-000000000021';
+ r jsonb;
+ first_campaign uuid;
+ blocked boolean;
+BEGIN
+ PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
+ INSERT INTO public.users(id,tenant_id,role) VALUES(user_a,tenant_a,'admin');
+ INSERT INTO public.crm_segments(id,tenant_id,name,status)
+ VALUES(segment_a,tenant_a,'Synthetic VIP segment','active');
+ INSERT INTO public.customer_segments(customer_id,segment_id)
+ VALUES(crm_a,segment_a);
+
+ r:=public.preview_crm_push_segment_v1(tenant_a,segment_a);
+ ASSERT (r->>'segmentMembers')::int=1,'segment contains one synthetic customer';
+ ASSERT (r->>'eligibleDevices')::int=0,'withdrawn push consent must exclude recipient';
+
+ r:=public.accept_storefront_push_v1(
+   '92000000-0000-4000-8000-000000000022',site_a,user_a,'subscribe',
+   'https://fcm.googleapis.com/fcm/send/long-synthetic-test-endpoint',
+   repeat('a',64),repeat('Z',48),repeat('Y',24),1,repeat('f',64),
+   'same-address@test.local');
+ ASSERT r->>'status'='subscribed','verified user may explicitly re-subscribe';
+ r:=public.preview_crm_push_segment_v1(tenant_a,segment_a);
+ ASSERT (r->>'eligibleCustomers')::int=1,'one consented customer available';
+ ASSERT (r->>'eligibleDevices')::int=1,'one verified device available';
+
+ r:=public.queue_crm_push_segment_v1(tenant_a,segment_a,user_a,
+   'synthetic-queue-id-001','Store VIP preview','A reward is ready','/account/offers');
+ ASSERT r->>'status'='queued','campaign should be queued';
+ ASSERT (r->>'queued')::int=1,'exactly one device must be queued';
+ first_campaign:=(r->>'campaignId')::uuid;
+
+ r:=public.queue_crm_push_segment_v1(tenant_a,segment_a,user_a,
+   'synthetic-queue-id-001','Store VIP preview','A reward is ready','/account/offers');
+ ASSERT r->>'idempotent'='true','identical request returns existing campaign';
+ ASSERT (r->>'campaignId')::uuid=first_campaign,'retry must preserve campaign';
+ ASSERT (SELECT count(*) FROM public.crm_push_messages WHERE push_campaign_id=first_campaign)=1,
+   'retry must not duplicate recipient messages';
+ ASSERT (SELECT count(DISTINCT click_token)=count(*) FROM public.crm_push_messages),
+   'every push gets a distinct non-personal tracking token';
+ INSERT INTO public.crm_push_events(tenant_id,message_id,event_type)
+ SELECT tenant_a,id,'clicked' FROM public.crm_push_messages
+ WHERE push_campaign_id=first_campaign;
+ blocked:=false;
+ BEGIN
+   INSERT INTO public.crm_push_events(tenant_id,message_id,event_type)
+   SELECT tenant_a,id,'clicked' FROM public.crm_push_messages
+   WHERE push_campaign_id=first_campaign;
+ EXCEPTION WHEN unique_violation THEN blocked:=true;
+ END;
+ ASSERT blocked,'duplicate notification clicks must not inflate analytics';
+ ASSERT (SELECT count(*) FROM public.crm_push_campaign_overview_v1(tenant_a,25))=1,
+   'only owner tenant can read its campaign overview';
+ ASSERT (SELECT count(*) FROM public.crm_push_campaign_overview_v1(tenant_b,25))=0,
+   'another tenant cannot read campaign overview';
+ ASSERT (SELECT clicks FROM public.crm_push_campaign_overview_v1(tenant_a,25)
+   WHERE id=first_campaign)=1,'duplicate clicks are not counted twice';
+
+ UPDATE public.crm_push_campaigns SET status='paused'
+ WHERE id=first_campaign AND tenant_id=tenant_a;
+ ASSERT (SELECT count(*) FROM public.claim_crm_push_messages(25))=0,
+   'paused marketing campaigns cannot be claimed';
+ UPDATE public.crm_push_campaigns SET status='queued'
+ WHERE id=first_campaign AND tenant_id=tenant_a;
+ ASSERT (SELECT count(*) FROM public.claim_crm_push_messages(25))=1,
+   'resumed opted-in campaign can be claimed once';
+ r:=public.preview_crm_push_segment_v1(tenant_a,segment_a);
+ ASSERT (r->>'eligibleDevices')::int=0,
+   'per-customer 24-hour cooldown suppresses immediate repeat campaign';
+ blocked:=false;
+ BEGIN
+   PERFORM public.queue_crm_push_segment_v1(tenant_a,segment_a,user_a,
+     'second-push-today-002','More VIP notices','Another reward','/account/offers');
+ EXCEPTION WHEN OTHERS THEN blocked:=true;
+ END;
+ ASSERT blocked,'immediate second segment blast must be rejected';
+
+
+
+
+ blocked:=false;
+ BEGIN
+  PERFORM public.queue_crm_push_segment_v1(tenant_a,segment_a,user_a,
+    'synthetic-queue-id-001','Edited VIP preview','A reward is ready','/account/offers');
+ EXCEPTION WHEN OTHERS THEN blocked:=true;
+ END;
+ ASSERT blocked,'changed retry must fail closed';
+
+ blocked:=false;
+ BEGIN
+  PERFORM public.queue_crm_push_segment_v1(tenant_b,segment_a,user_a,
+    'cross-tenant-queue-001','Other tenant preview','Something','/account/offers');
+ EXCEPTION WHEN OTHERS THEN blocked:=true;
+ END;
+ ASSERT blocked,'foreign tenant cannot queue a segment push';
+ RAISE NOTICE 'PASS: segment scope, opt-in preview, idempotent queue and retry checks';
+END
+$segment$;

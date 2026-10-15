@@ -11,7 +11,8 @@ function json(status: number, body: Record<string, unknown>): Response {
 type PushMessage = {
   id: string; tenant_id: string; crm_customer_id: string;
   subscription_id: string; title: string; body: string;
-  open_path: string; attempts: number;
+  open_path: string; attempts: number; push_campaign_id?: string | null;
+  click_token?: string | null;
 };
 
 const MAX_PER_RUN = 25;
@@ -47,20 +48,54 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   let accepted = 0, retry = 0, failed = 0, skipped = 0;
   for (const message of (data || []) as PushMessage[]) {
-    const [{ data: subscription }, { data: preference }] = await Promise.all([
+    const [{ data: subscription }, { data: preference }, { data: campaign }, { data: customer }] = await Promise.all([
       db.from("crm_push_subscriptions")
-        .select("endpoint_url,key_p256dh,key_auth,vapid_key_version,status,tenant_id,crm_customer_id")
+        .select("endpoint_url,key_p256dh,key_auth,vapid_key_version,status,tenant_id,crm_customer_id,storefront_site_id,customer_link_id")
         .eq("id", message.subscription_id).maybeSingle(),
       db.from("crm_push_preferences")
         .select("status")
         .eq("tenant_id", message.tenant_id)
         .eq("crm_customer_id", message.crm_customer_id).maybeSingle(),
+      message.push_campaign_id
+        ? db.from("crm_push_campaigns").select("status")
+          .eq("id",message.push_campaign_id).eq("tenant_id",message.tenant_id).maybeSingle()
+        : Promise.resolve({ data: { status:"queued" } }),
+      db.from("crm_customers").select("id,deleted_at,merged_into_customer_id")
+        .eq("id",message.crm_customer_id).eq("tenant_id",message.tenant_id).maybeSingle(),
+    ]);
+    if (campaign?.status === "paused") {
+      await db.from("crm_push_messages").update({
+        status:"retry",claimed_at:null,
+        available_at:new Date(Date.now()+60_000).toISOString(),
+        last_error_code:"campaign_paused",
+      }).eq("id",message.id).eq("status","sending");
+      skipped++;
+      continue;
+    }
+    const [{ data: customerLink }, { data: storeLink }] = await Promise.all([
+      subscription
+        ? db.from("crm_storefront_customer_links").select("id,status,crm_customer_id,storefront_site_id,tenant_id")
+          .eq("id",subscription.customer_link_id).eq("tenant_id",message.tenant_id).maybeSingle()
+        : Promise.resolve({ data:null }),
+      subscription
+        ? db.from("crm_storefront_tenant_links").select("enabled,crm_tenant_id")
+          .eq("storefront_site_id",subscription.storefront_site_id)
+          .eq("crm_tenant_id",message.tenant_id).maybeSingle()
+        : Promise.resolve({ data:null }),
     ]);
     if (!subscription || subscription.status !== "active" ||
         subscription.tenant_id !== message.tenant_id ||
         subscription.crm_customer_id !== message.crm_customer_id ||
         subscription.vapid_key_version !== 1 ||
-        preference?.status !== "opted_in") {
+        preference?.status !== "opted_in" ||
+        campaign?.status !== "queued" ||
+        !customer || customer.deleted_at != null || customer.merged_into_customer_id != null ||
+        !customerLink || customerLink.status !== "verified" ||
+        customerLink.tenant_id !== message.tenant_id ||
+        customerLink.crm_customer_id !== message.crm_customer_id ||
+        customerLink.storefront_site_id !== subscription.storefront_site_id ||
+        !storeLink || storeLink.enabled !== true ||
+        storeLink.crm_tenant_id !== message.tenant_id) {
       await db.from("crm_push_messages").update({
         status: "cancelled", claimed_at: null, last_error_code: "inactive_subscription",
       }).eq("id", message.id).eq("status", "sending");
@@ -73,6 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         body: message.body,
         url: message.open_path,
         tag: message.id,
+        clickToken: message.click_token || null,
       });
       // Accepted means accepted by the provider, not confirmed delivered.
       await webpush.sendNotification({

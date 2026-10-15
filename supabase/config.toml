@@ -586,3 +586,12 @@ verify_jwt = true
 
 [functions.link-storefront-tenant]
 verify_jwt = true
+
+[functions.queue-push-segment]
+verify_jwt = true
+
+[functions.record-push-click]
+verify_jwt = false
+
+[functions.push-readiness]
+verify_jwt = true
