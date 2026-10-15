@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "npm:resend@2.1.0";
 import { corsHeaders, handleCorsPrelight, corsJsonResponse } from "../_shared/cors.ts";
+import { renderBloomSystemEmail, bloomEmailCard, bloomEmailEscape } from "../../../src/lib/email/premiumBotanical.ts";
 
 /**
  * send-support-ticket
@@ -42,26 +43,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const emailHtml = `
-      <h2>New BloomSuite Support Ticket</h2>
-
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #2563eb;">From</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-      </div>
-
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h3 style="margin-top: 0; color: #2563eb;">${subject}</h3>
-        <p style="white-space: pre-wrap; line-height: 1.6;">${message}</p>
-      </div>
-
-      <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-
-      <p style="color: #6b7280; font-size: 14px;">
-        Submitted from the BloomSuite Support page on ${new Date().toLocaleString()}.
-      </p>
-    `;
+    const emailHtml = renderBloomSystemEmail({
+      eyebrow: "NEW SUPPORT REQUEST",
+      title: "A customer needs support",
+      icon: "mail",
+      preheader: String(subject),
+      bodyHtml: bloomEmailCard("Contact details", [
+        { label: "Name", value: String(name), icon: "leaf" },
+        { label: "Email", value: String(email), icon: "mail" },
+        { label: "Subject", value: String(subject), icon: "mail" },
+        { label: "Received", value: new Date().toLocaleString(), icon: "calendar" },
+      ], "mail") +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0;background:#F8F9F6;border:1px solid #DBE3DF;border-radius:14px"><tr><td style="padding:18px">' +
+      '<h2 style="margin:0 0 10px;font-size:18px;color:#1B3049">Customer message</h2>' +
+      '<p style="margin:0;white-space:pre-wrap;line-height:1.6;color:#536475">' + bloomEmailEscape(String(message)) + '</p>' +
+      '</td></tr></table>',
+      footer: "BloomSuite — internal support notification.",
+    });
 
     const emailResponse = await resend.emails.send({
       from: "BloomSuite Support <support@brandsinblooms.com>",
@@ -141,26 +139,26 @@ KNOWLEDGE BASE SUMMARY:
       aiReplyText = aiReply;
 
       if (aiReply) {
+        // AI output is untrusted. It is always escaped before the provider
+        // receives HTML; never interpret generated tags, Markdown or links.
         const htmlBody = aiReply
-          .split('\n')
+          .split(/\r?\n/)
           .filter((line: string) => line.trim().length > 0)
-          .map((line: string) => {
-            // Convert markdown links [text](url) to HTML anchors
-            let html = line.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" style="color:#1abc9c;">$1</a>')
-            // Convert **bold** to <strong>
-            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            return `<p style="margin:0 0 12px 0;line-height:1.6;">${html}</p>`
-          })
-          .join('')
+          .map((line: string) =>
+            '<p style="margin:0 0 12px;line-height:1.6">' + bloomEmailEscape(line) + '</p>'
+          ).join('');
 
-        const emailHtml = `
-  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:0 auto;color:#1f2937;padding:24px;">
-    <p style="margin:0 0 12px 0;line-height:1.6;">Hi ${name},</p>
-    ${htmlBody}
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
-    <p style="margin:0;font-size:13px;color:#6b7280;">Need more help? Visit our <a href="https://bloomsuite.notion.site/bloomsuite-help" style="color:#1abc9c;">Knowledge Base</a> or reply to this email.</p>
-  </div>
-`;
+        const emailHtml = renderBloomSystemEmail({
+          brandName: "BloomSuite",
+          eyebrow: "BLOOMSUITE SUPPORT",
+          title: "We're here to help",
+          preheader: "An update on your support request",
+          icon: "mail",
+          bodyHtml: '<p>Hi ' + bloomEmailEscape(String(name)) + ',</p>' +
+            htmlBody + '<p>Need more help? Reply to this email and our team can help.</p>',
+          action: { label: "Explore the help centre", url: "https://bloomsuite.notion.site/bloomsuite-help" },
+          footer: "BloomSuite support — a real person is here when you need us.",
+        });
 
         const autoReplyResponse = await resend.emails.send({
           from: "BloomSuite Support <hello@brandsinblooms.com>",
