@@ -317,7 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send via Resend
     const emailResponse = await resend.emails.send({
       from: fromAddress,
-      reply_to: replyTo,
+      replyTo: replyTo,
       to: [toEmail],
       subject: `[TEST] ${renderResult.renderedSubject}`,
       html: renderResult.renderedHtml,
