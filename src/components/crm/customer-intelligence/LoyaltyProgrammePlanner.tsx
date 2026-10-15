@@ -3,17 +3,17 @@ import { Accordion, AccordionDetails, AccordionGroup, AccordionSummary, Alert, B
 import { ArrowRight, Download, Gift, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { businessDate, getProgrammeTemplate, programmePlanningPrompt, PROGRAMME_TEMPLATES } from '../../../../supabase/functions/_shared/loyalty/programme-templates';
-import { formatLoyaltyMoney, LOYALTY_CURRENCIES, parseMoneyInput, programmeRuleSummary, requiredProgrammeCapabilities, simulateProgramme, type LoyaltyCurrency, type ProgrammePreview } from '../../../../supabase/functions/_shared/loyalty/programme-planning';
-import { createProgrammeForm, exportProgrammeDraft, parseProgrammeForm, type ProgrammeForm } from '@/lib/loyalty/programmeForm';
+import { formatLoyaltyMoney, LOYALTY_CURRENCIES, parseMoneyInput, programmeRuleSummary, requiredProgrammeCapabilities, simulateProgramme, type LoyaltyCurrency, type ProgrammeDraft, type ProgrammePreview } from '../../../../supabase/functions/_shared/loyalty/programme-planning';
+import { createProgrammeForm, programmeFormFromDraft, exportProgrammeDraft, parseProgrammeForm, type ProgrammeForm } from '@/lib/loyalty/programmeForm';
 
-interface Props { tenantId: string; timezone: string; currency?: LoyaltyCurrency; }
+interface Props { tenantId: string; timezone: string; currency?: LoyaltyCurrency; initialDraft?: ProgrammeDraft; onSaveDraft?: (draft: ProgrammeDraft) => Promise<void>; }
 /** Remounts on company changes; no draft is persisted across tenants or silently activated. */
 export function LoyaltyProgrammePlanner(props: Props) {
   return <ProgrammeWorksheet key={`${props.tenantId}:${props.timezone}:${props.currency ?? 'CAD'}`} {...props} />;
 }
-function ProgrammeWorksheet({ timezone, currency = 'CAD' }: Props) {
+function ProgrammeWorksheet({ timezone, currency = 'CAD', initialDraft, onSaveDraft }: Props) {
   const navigate = useNavigate();
-  const [form, setForm] = React.useState(() => createProgrammeForm('welcome', currency, businessDate(new Date(), timezone), timezone));
+  const [form, setForm] = React.useState(() => initialDraft ? programmeFormFromDraft(initialDraft) : createProgrammeForm('welcome', currency, businessDate(new Date(), timezone), timezone));
   const [basket, setBasket] = React.useState('100.00');
   const [quantity, setQuantity] = React.useState('1');
   const [memberAwards, setMemberAwards] = React.useState('0');
@@ -22,6 +22,12 @@ function ProgrammeWorksheet({ timezone, currency = 'CAD' }: Props) {
   const [remaining, setRemaining] = React.useState('');
   const [report, setReport] = React.useState<ProgrammePreview | null>(null);
   const [actionError, setActionError] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  async function save() {
+    if (!parsed.draft || !onSaveDraft || saving) return;
+    setSaving(true); setActionError('');
+    try { await onSaveDraft(parsed.draft); } catch (e) { setActionError(e instanceof Error ? e.message : 'Draft could not be saved.'); } finally { setSaving(false); }
+  }
   const template = getProgrammeTemplate(form.templateId);
   const parsed = React.useMemo(() => { try { return { draft: parseProgrammeForm(form), error: '' }; } catch (e) { return { draft: null, error: e instanceof Error ? e.message : 'Review the programme fields.' }; } }, [form]);
   const summary = parsed.draft ? programmeRuleSummary(parsed.draft) : [];
@@ -110,6 +116,7 @@ function ProgrammeWorksheet({ timezone, currency = 'CAD' }: Props) {
         <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
           <Button startDecorator={<Sparkles size={16} />} endDecorator={<ArrowRight size={16} />} disabled={!parsed.draft} onClick={() => { if (parsed.draft) navigate('/bloom?prompt=' + encodeURIComponent(programmePlanningPrompt(parsed.draft, summary))); }}>Review draft with Bloom</Button>
           <Button variant="outlined" startDecorator={<Download size={16} />} disabled={!parsed.draft} onClick={download}>Export draft</Button>
+          {onSaveDraft && <Button loading={saving} disabled={!parsed.draft} onClick={() => void save()}>Save programme draft</Button>}
         </Stack>
       </Stack></AccordionDetails>
     </Accordion></AccordionGroup>

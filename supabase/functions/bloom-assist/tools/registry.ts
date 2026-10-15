@@ -1,3 +1,4 @@
+import { loyaltyProgrammeTools } from "./loyalty-programme-registry.ts";
 import { customerExplorationTools, addIntelligenceScopeParameters } from "./customer-exploration-registry.ts";
 import type { BloomMode, JsonArray, JsonObject } from "../types.ts";
 import type {
@@ -518,6 +519,7 @@ const segmentWriteFields = {
 
 export const TOOL_REGISTRY: ToolDefinition[] = [
   ...customerExplorationTools,
+  ...loyaltyProgrammeTools,
   defineTool({
     name: "query_customers",
     description:
