@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { Resend } from 'npm:resend@2.0.0'
 import { resolveSender, buildFromAddress } from '../_shared/senderResolver.ts'
-import {renderBloomSystemEmail,bloomEmailCard,bloomEmailEscape} from '../../src/lib/email/premiumBotanical.ts';
+import {renderBloomSystemEmail,bloomEmailCard,bloomEmailEscape} from '../../../src/lib/email/premiumBotanical.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
