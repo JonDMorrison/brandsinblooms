@@ -27,6 +27,16 @@ describe("support and internal reporting email safeguards", () => {
     expect(report).toContain("activeTrials");
     expect(report).toContain("expiredTrials");
   });
+  it("uses the supported Resend SDK replyTo property on connected senders",()=>{
+    for(const name of [
+      "send-support-ticket","submit-support-request","send-contact-form",
+      "send-admin-notification","send-email-confirmation","send-test-email-v2",
+    ]){
+      const sender=source(name);
+      expect(sender).toContain("replyTo:");
+      expect(sender).not.toContain("reply_to:");
+    }
+  });
   it("escapes even hostile AI-response snippets in email body",()=>{
     const hostile='<a href="javascript:alert(1)" onclick="alert(1)">hello</a>';
     const html=renderBloomSystemEmail({
