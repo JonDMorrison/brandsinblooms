@@ -40,3 +40,7 @@
 ## Privacy and release rules
 
 Client data is confidential. Do not put actual customer files, receipts or identity data in GitHub, public file-serving endpoints or unit tests. Only fictional test records may appear in the source tree. Promotion TYPE changes are never automated by weekly imports. The software can be deployed after automated checks, but the customer-specific migration and live customer-type promotion must remain blocked until the documented gates are satisfied.
+
+## Deployment safety gate
+
+The additive Ideal transaction-line CHECK and tenant-scoped UNIQUE index must be applied before the revised import Edge Function begins accepting approved transaction-detail reports. The production query found no existing Ideal rows at review time; re-check immediately before migration. After migration, verify the index, validate Edge deployment and keep grouped/undated Crystal files in review-only mode. The automatic database CI runs solely on synthetic transactions; real customer records stay outside source control and CI.
