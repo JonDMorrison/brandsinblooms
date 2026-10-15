@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { renderBloomSystemEmail, bloomEmailEscape, bloomEmailCard } from "../../../src/lib/email/premiumBotanical.ts";
 
 /**
  * send-support-emails
@@ -118,42 +119,25 @@ function supportEmailHtml(opts: {
   ctaText: string;
   ctaUrl: string;
 }): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
-    .content { background: #fff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; }
-    .footer { background: #f9fafb; padding: 20px; border-radius: 0 0 12px 12px; text-align: center; font-size: 12px; color: #6b7280; border: 1px solid #e5e7eb; border-top: none; }
-    .cta-button { display: inline-block; background: #22c55e; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1 style="margin: 0;">${opts.heading}</h1>
-    </div>
-    <div class="content">
-      <p>Hi ${opts.gardenCenter} team,</p>
-      <p>${opts.body}</p>
-      <p>We put together a quick guide to walk you through it step by step:</p>
-      <center>
-        <a href="${opts.ctaUrl}" class="cta-button">${opts.ctaText}</a>
-      </center>
-      <p style="margin-top: 24px;">If you have any questions, just reply to this email — a real person will get back to you.</p>
-      <p>Happy growing,<br><strong>The BloomSuite Team</strong></p>
-    </div>
-    <div class="footer">
-      <p>BloomSuite — Marketing Made Simple for Garden Centers</p>
-      <p>You're receiving this because you signed up for a BloomSuite trial.</p>
-    </div>
-  </div>
-</body>
-</html>`;
+  // Body markup is assembled from controlled support-copy templates, never
+  // arbitrary tenant HTML. Escape the garden centre name separately.
+  const introduction='<p>Hi '+bloomEmailEscape(opts.gardenCenter)+' team,</p>';
+  const content=introduction+
+    bloomEmailCard("Your next step",[
+      {label:"Why this matters",value:"A quick improvement to your BloomSuite setup",icon:"leaf"}
+    ],"check")+
+    '<div style="margin:16px 0">'+opts.body+'</div>'+
+    '<p>We have a short guide to walk you through it. If you have questions, reply to this message and our team can help.</p>'+
+    '<p>Happy growing,<br><strong>The BloomSuite Team</strong></p>';
+  return renderBloomSystemEmail({
+    eyebrow:"GET MORE FROM BLOOMSUITE",
+    title:opts.heading,
+    preheader:opts.heading,
+    bodyHtml:content,
+    icon:"leaf",
+    action:{label:opts.ctaText.replace(/→/g,"").trim(),url:opts.ctaUrl},
+    footer:"You are receiving this because you signed up for a BloomSuite trial.",
+  });
 }
 
 // ── Notion helpers ──────────────────────────────────────────────────
