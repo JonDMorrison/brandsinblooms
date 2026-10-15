@@ -208,7 +208,7 @@ function DashboardStatCard({
   const Component = isInteractive ? "button" : "div";
   const ChangeIcon = change?.direction === "down" ? TrendingDown : TrendingUp;
   const changeColor =
-    change?.direction === "down" ? "danger.600" : "success.600";
+    change?.direction === "down" ? "neutral.600" : "success.600";
 
   return (
     <Box
