@@ -55,6 +55,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
   } catch { return response(400, { error: "Invalid request body" }); }
 
   const action = input.action;
+  if (action === "history") {
+    const {data,error}=await db.rpc("crm_push_campaign_overview_v1",{
+      p_tenant_id:actor.tenant_id,p_limit:25,
+    });
+    if (error) return response(503,{error:"Campaign history temporarily unavailable"});
+    return response(200,{campaigns:data||[]});
+  }
+  if (action === "pause" || action === "resume" || action === "cancel") {
+    if (!uuid(input.campaignId) || (action === "cancel" && input.confirmed !== true)) {
+      return response(400,{error:"Confirm the campaign action"});
+    }
+    const next=action === "pause" ? "paused" :
+      action === "resume" ? "queued" : "cancelled";
+    let query=db.from("crm_push_campaigns").update({status:next})
+      .eq("id",input.campaignId).eq("tenant_id",actor.tenant_id);
+    query=action === "resume" ? query.eq("status","paused") :
+      action === "pause" ? query.eq("status","queued") :
+      query.in("status",["queued","paused"]);
+    const {data,error}=await query.select("id,status,title").maybeSingle();
+    if (error || !data) return response(409,{error:"Campaign is no longer editable or was not found"});
+    if (next==="cancelled") {
+      await db.from("crm_push_messages").update({status:"cancelled",claimed_at:null})
+        .eq("tenant_id",actor.tenant_id).eq("push_campaign_id",data.id)
+        .in("status",["queued","retry"]);
+    }
+    return response(200,{campaign:data,
+      note:"Already accepted notifications cannot be recalled."});
+  }
   if (action === "list") {
     const { data, error } = await db.from("crm_segments")
       .select("id,name,customer_count")
