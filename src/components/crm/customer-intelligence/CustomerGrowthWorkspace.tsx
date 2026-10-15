@@ -5,7 +5,7 @@ import {useNavigate} from 'react-router-dom';
 import {supabase} from '@/integrations/supabase/client';
 import {useTenant} from '@/hooks/useTenant';
 import {CustomerAnalysisBlock} from '@/components/bloom/blocks/CustomerAnalysisBlock';
-import {LoyaltyProgrammePlanner} from './LoyaltyProgrammePlanner';
+import {LoyaltyProgrammeWorkspace} from './LoyaltyProgrammeWorkspace';
 import {compareCustomerGrowth,type GrowthOrder} from '../../../../supabase/functions/_shared/customer-intelligence/customer-growth';
 import {readAllPages} from '../../../../supabase/functions/_shared/customer-intelligence/query-pages';
 export function CustomerGrowthWorkspace() {
@@ -52,6 +52,6 @@ export function CustomerGrowthWorkspace() {
     </Stack></Sheet>
     {report?<><CustomerAnalysisBlock data={{...report,rows:report.rows.slice((page-1)*50,page*50),page,total_count:report.rows.length}}/>
       <Stack direction="row" spacing={1}><Button disabled={page<=1} variant="outlined" onClick={()=>setPage(p=>p-1)}>Previous</Button><Button disabled={page*50>=report.rows.length} variant="outlined" onClick={()=>setPage(p=>p+1)}>Next</Button></Stack></>:null}
-    {tenant?.id ? <LoyaltyProgrammePlanner tenantId={tenant.id} timezone={timezone} /> : null}
+    {tenant?.id ? <LoyaltyProgrammeWorkspace tenantId={tenant.id} timezone={timezone} /> : null}
   </Stack>;
 }

@@ -1,3 +1,4 @@
+import { listLoyaltyProgrammeTemplates, listLoyaltyProgrammes, readLoyaltyProgrammeResults } from "./implementations/loyalty-programmes.ts";
 import { exploreCustomerPurchases, inspectCustomerSet, explainCustomerSetMember, analyzeCustomerBasket, compareCustomerGrowthTool, saveCustomerSetSegment, prepareCustomerSetSave } from "./implementations/customer-exploration.ts";
 import type { JsonArray, JsonObject, JsonValue } from "../types.ts";
 import { cacheGet, cacheInvalidate, cacheSet } from "../cache.ts";
@@ -793,7 +794,7 @@ function unknownToolResult(toolName: string): ToolResult {
 }
 
 function isCacheableTool(toolName: ToolName): boolean {
-  return !["explore_customer_purchases", "inspect_customer_set", "explain_customer_set_member", "analyze_customer_basket", "compare_customer_growth", "save_customer_set_segment", "export_data", "rank_customers_by_intelligence", "find_customer_opportunities"].includes(toolName);
+  return !["list_loyalty_programme_templates", "list_loyalty_programmes", "read_loyalty_programme_results", "explore_customer_purchases", "inspect_customer_set", "explain_customer_set_member", "analyze_customer_basket", "compare_customer_growth", "save_customer_set_segment", "export_data", "rank_customers_by_intelligence", "find_customer_opportunities"].includes(toolName);
 }
 
 async function logCrossTenantAttempt(
@@ -837,6 +838,7 @@ function notImplementedResult(toolName: ToolName): ToolResult {
 
 function getToolImplementation(toolName: ToolName): ToolImplementation {
   const analysisTools: Partial<Record<ToolName, ToolImplementation>> = {
+    list_loyalty_programme_templates: listLoyaltyProgrammeTemplates, list_loyalty_programmes: listLoyaltyProgrammes, read_loyalty_programme_results: readLoyaltyProgrammeResults,
     explore_customer_purchases: exploreCustomerPurchases, inspect_customer_set: inspectCustomerSet,
     explain_customer_set_member: explainCustomerSetMember, analyze_customer_basket: analyzeCustomerBasket,
     compare_customer_growth: compareCustomerGrowthTool, save_customer_set_segment: saveCustomerSetSegment,

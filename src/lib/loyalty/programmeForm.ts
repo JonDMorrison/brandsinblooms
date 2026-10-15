@@ -42,3 +42,17 @@ export function exportProgrammeDraft(draft: ProgrammeDraft): string {
   return JSON.stringify({ status: 'draft_planning_only', productionAuthorized: false, draft: parseProgrammeDraft(draft),
     note: 'This file contains a draft configuration, not customer data, an issued benefit, a POS authorization or a scheduled campaign.' }, null, 2);
 }
+
+export function programmeFormFromDraft(d: ProgrammeDraft): ProgrammeForm {
+  const f = createProgrammeForm(d.templateId, d.currency, d.startsOn, d.timezone);
+  Object.assign(f, { name: d.name, audience: d.audienceDescription, endsOn: d.endsOn, minimum: (d.minimumSpendMinor / 100).toFixed(2),
+    threshold: d.threshold, repeat: d.repeat, perMember: String(d.maxAwardsPerMember), total: String(d.maxAwardsTotal),
+    budget: d.budgetMinor === null ? '' : (d.budgetMinor / 100).toFixed(2), eligibleSkus: d.eligibleSkus.join(', '),
+    departments: d.eligibleDepartments.join(', '), excludeDiscounted: d.excludeDiscounted, membersOnly: d.membersOnly });
+  if (d.reward.kind === 'fixed') f.amount = (d.reward.amountMinor / 100).toFixed(2);
+  if (d.reward.kind === 'percentage') { f.percent = String(d.reward.basisPoints / 100); f.cap = (d.reward.capMinor / 100).toFixed(2); }
+  if (d.reward.kind === 'gift') { f.sku = d.reward.sku; f.giftUnits = String(d.reward.units); f.cost = d.reward.costMinor === null ? '' : (d.reward.costMinor / 100).toFixed(2); }
+  if (d.reward.kind === 'experience') { f.experience = d.reward.reference; f.cost = d.reward.costMinor === null ? '' : (d.reward.costMinor / 100).toFixed(2); }
+  if (d.reward.kind === 'multi_buy') { f.groupSize = String(d.reward.groupSize); f.freeUnits = String(d.reward.freeUnits); f.cap = (d.reward.capMinor / 100).toFixed(2); }
+  return f;
+}

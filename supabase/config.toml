@@ -595,3 +595,6 @@ verify_jwt = false
 
 [functions.push-readiness]
 verify_jwt = true
+
+[functions.loyalty-programmes]
+verify_jwt = true
