@@ -102,7 +102,7 @@ serve(async (req: Request) => {
         '<p>Reply directly to this email to respond to the customer.</p>',
         footer: "BloomSuite — internal support notification.",
       }),
-      reply_to: senderEmail,
+      replyTo: senderEmail,
     });
 
     if (notifyError) {
