@@ -5,13 +5,11 @@ declare module "@mui/joy/styles" {
   interface ColorPalettePropOverrides {
     info: true;
     brandNavy: true;
-    sand: true;
   }
 
   interface Palette {
     info: PaletteRange;
     brandNavy: PaletteRange;
-    sand: PaletteRange;
     bridge: Record<string, string>;
   }
 
@@ -203,24 +201,12 @@ export const bloomPaletteScales = {
     800: "#183246",
     900: "#10283E",
   },
-  sand: {
-    50: "#FBF9F4",
-    100: "#F7F3E8",
-    200: "#F0E6D1",
-    300: "#E8D9BA",
-    400: "#E0CCA3",
-    500: "#D8BF8C",
-    600: "#C09970",
-    700: "#A87354",
-    800: "#904D38",
-    900: "#78271C",
-  },
 } as const satisfies Record<string, Scale>;
 
 // These bridge tokens preserve the current semantic CSS variable behavior while
 // Joy becomes the source of truth for all new palette work.
 export const bloomLegacyBridgeTokens = {
-  "background-hsl": "46 80% 97%",
+  "background-hsl": "210 40% 98%",
   "foreground-hsl": "225 42% 32%",
   "card-hsl": "0 0% 100%",
   "card-foreground-hsl": "225 42% 32%",
@@ -243,7 +229,6 @@ export const bloomLegacyBridgeTokens = {
   "brand-teal-hsl": "174 63% 57%",
   "mint-100-hsl": "142 76% 89%",
   "mint-600-hsl": "160 68% 40%",
-  "sand-50-hsl": "46 80% 97%",
   "gray-50-hsl": "210 40% 98%",
   "gray-100-hsl": "210 40% 96%",
   "gray-200-hsl": "214 32% 91%",
@@ -339,15 +324,7 @@ const infoPalette = createPaletteRange("info", bloomPaletteScales.info, {
   softColor: 800,
 });
 
-const sandPalette = createPaletteRange("sand", bloomPaletteScales.sand, {
-  solidColor: "var(--joy-palette-brandNavy-900)",
-  solidBg: 300,
-  solidHoverBg: 400,
-  solidActiveBg: 500,
-  plainColor: 800,
-  outlinedColor: 800,
-  softColor: 900,
-});
+
 
 const spacingScale: Record<number, string> = {
   0: "0px",
@@ -885,7 +862,6 @@ export const joyTheme = extendTheme({
           "brandNavy",
           bloomPaletteScales.brandNavy,
         ),
-        sand: sandPalette,
         bridge: bloomLegacyBridgeTokens,
         text: {
           primary: bloomPaletteScales.brandNavy[800],
@@ -894,11 +870,11 @@ export const joyTheme = extendTheme({
           icon: bloomPaletteScales.brandNavy[700],
         },
         background: {
-          body: bloomPaletteScales.sand[50],
+          body: bloomPaletteScales.neutral[50],
           surface: "var(--joy-palette-common-white)",
           popup: "var(--joy-palette-common-white)",
           level1: "var(--joy-palette-common-white)",
-          level2: bloomPaletteScales.sand[50],
+          level2: bloomPaletteScales.neutral[50],
           level3: bloomPaletteScales.neutral[100],
           tooltip: bloomPaletteScales.neutral[800],
           backdrop: `rgba(${hexToRgbChannel(bloomPaletteScales.brandNavy[900])} / 0.24)`,
