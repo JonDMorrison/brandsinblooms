@@ -53,5 +53,6 @@ describe("campaign sending design and palette invariants", () => {
     expect(settings).toContain("<JoyDialog");
     expect(settings).not.toContain("ui-legacy/dialog");
     expect(settings).toContain('data-testid="sender-config-modal-save"');
+    expect(settings).not.toContain("isLocked || !draftEmail.trim()");
   });
 });
