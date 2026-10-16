@@ -6,6 +6,7 @@ export interface PurchaseFact {
   quantity: number | string | null; net_amount: number | string | null;
   currency: string | null; purchased_at: string | null; created_at: string;
   source: string; import_id?: string | null; external_transaction_id?: string | null;
+  evidence_kind?: 'period_summary'; source_period_start?: string; source_period_end?: string;
 }
 export interface PurchaseRule {
   mode: 'all' | 'purchased' | 'not_purchased'; product?: string;
@@ -93,7 +94,13 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
   }
   if (rule.start_date || rule.end_date || rule.within_days !== undefined) {
     const date = localDate(fact.purchased_at, timezone);
-    if (!date) missing = true;
+    if (!date && fact.evidence_kind === 'period_summary' && fact.source_period_start && fact.source_period_end && rule.within_days === undefined) {
+      assertDate(fact.source_period_start); assertDate(fact.source_period_end);
+      if (fact.source_period_start > fact.source_period_end) throw new Error('The report period is invalid.');
+      // Fully enclosed source periods support a positive purchase match. Partial overlap is unknown.
+      if ((rule.start_date && fact.source_period_end < rule.start_date) || (rule.end_date && fact.source_period_start > rule.end_date)) return false;
+      if ((rule.start_date && fact.source_period_start < rule.start_date) || (rule.end_date && fact.source_period_end > rule.end_date)) missing = true;
+    } else if (!date) missing = true;
     else {
       if (rule.start_date && date < rule.start_date) return false;
       if (rule.end_date && date > rule.end_date) return false;

@@ -5,6 +5,7 @@ const src = path.resolve(__dirname, "src");
 const fixture = path.resolve(__dirname, "e2e/intelligence/fixtures");
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: { entries: ["e2e/intelligence/fixture.html"] },
   resolve: {
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/styled"],
     alias: [

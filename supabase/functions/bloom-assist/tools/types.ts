@@ -236,6 +236,7 @@ export type ToolName =
   | "get_customer_insights"
   | "rank_customers_by_intelligence"
   | "find_customer_opportunities"
+  | "explore_customer_reported_spending"
   | "explore_customer_purchases"
   | "inspect_customer_set"
   | "explain_customer_set_member"

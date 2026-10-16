@@ -28,6 +28,7 @@ import { CustomerConsentCard } from "@/components/crm/customer-dashboard/Custome
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
 import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
+import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
 import { CustomerSegmentsCard } from "@/components/crm/customer-dashboard/CustomerSegmentsCard";
 import { CustomerSnapshot } from "@/components/crm/customer-dashboard/CustomerSnapshot";
@@ -557,11 +558,12 @@ const CustomerDashboardPage: React.FC = () => {
             <LinearProgress sx={{ borderRadius: 999 }} />
           ) : null}
 
+          <ImportedCustomerSummary fields={displayCustomer.custom_fields} />
           <CustomerQuickStats
             healthScore={snapshotMetrics.engagementHealthScore}
             engagementScore={engagementMetrics.engagementScore}
-            lifetimeValue={purchaseDisplayMetrics.ltv}
-            totalOrders={purchaseDisplayMetrics.totalPurchases}
+            lifetimeValue={purchaseMetrics?.lifetime_value ?? null}
+            totalOrders={purchaseMetrics?.total_purchases ?? null}
             preferredChannel={snapshotMetrics.preferredChannel}
             accountAgeDays={snapshotMetrics.accountAgeDays}
           />
