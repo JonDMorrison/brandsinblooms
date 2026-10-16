@@ -23,7 +23,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import Skeleton from "@mui/joy/Skeleton";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import type {
   AIImageStudioAspectRatio,
@@ -31,6 +31,8 @@ import type {
 } from "@/components/crm/ai-image-studio/types";
 import BlockDragOverlay from "@/components/crm/studio/BlockDragOverlay";
 import BlockLibrary from "@/components/crm/studio/BlockLibrary";
+import { ConnectedContentPicker } from "@/components/crm/studio/ConnectedContentPicker";
+import { buildConnectedContentBlock, type ConnectedContentItem } from "@/lib/connectedContent";
 import BlockPropertiesPanel from "@/components/crm/studio/BlockPropertiesPanel";
 import { buildStudioCampaignContext } from "@/components/crm/studio/studioAIContext";
 import type {
@@ -625,6 +627,7 @@ function StudioShellSkeleton() {
 function CampaignStudioPageContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [params]=useSearchParams();
   const campaignId = id ?? "";
   const { designSystem } = useDesignSystem();
   const isMobileViewport = useMediaQuery("(max-width: 767.95px)");
@@ -645,6 +648,15 @@ function CampaignStudioPageContent() {
   useGoogleFontsLoader(designSystem.fontUrls);
 
   const studio = useStudioState({ initialCampaignName, designSystem });
+  const [websitePickerOpen,setWebsitePickerOpen]=React.useState(false);
+  const promoteSite=params.get("promoteSite")??"";
+  const promoteId=params.get("promoteId")??"";
+  const importConnectedContent = React.useCallback((items:ConnectedContentItem[])=>{
+    const blocks=items.map(item=>buildConnectedContentBlock(item,designSystem));
+    studio.insertConnectedContentBlocks(blocks);
+    toast.success(`${blocks.length} website item${blocks.length===1?"":"s"} added to your newsletter.`);
+  },[designSystem,studio.insertConnectedContentBlocks]);
+
   const { saveTemplate, isSaving: isSavingTemplate } = useSavedTemplates();
   const editorPath = campaignId
     ? `/crm/campaigns/${campaignId}/edit`
@@ -2263,6 +2275,7 @@ function CampaignStudioPageContent() {
                 blocks={studio.blocks}
                 onAddBlock={studio.addBlock}
                 onSelectBlock={handleFocusBlock}
+                onInsertWebsiteContent={()=>setWebsitePickerOpen(true)}
               />
             </Sheet>
 
@@ -2360,6 +2373,13 @@ function CampaignStudioPageContent() {
           toast.success("Saved to My templates");
           setSaveTemplateOpen(false);
         }}
+      />
+      <ConnectedContentPicker
+        open={websitePickerOpen}
+        onClose={()=>setWebsitePickerOpen(false)}
+        onInsert={importConnectedContent}
+        initialSiteId={promoteSite||undefined}
+        initialItemId={promoteId||undefined}
       />
     </Sheet>
   );
