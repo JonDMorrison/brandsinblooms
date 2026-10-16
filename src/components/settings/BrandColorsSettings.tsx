@@ -89,12 +89,12 @@ const FOOTER_BG_PRESETS = [
   { label: "Deep Green", value: "#283024" },
   { label: "Navy", value: "#1e3a5f" },
   { label: "Charcoal", value: "#374151" },
-  { label: "Cream", value: "#FAF9F6" },
+  { label: "Soft Slate", value: "#F8FAFC" },
   { label: "White", value: "#FFFFFF" },
 ];
 
 const FOOTER_ACCENT_PRESETS = [
-  { label: "Warm Tan", value: "#E5BFA7" },
+  { label: "Cool Slate", value: "#CBD5E1" },
   { label: "Blue", value: "#3B82F6" },
   { label: "Green", value: "#22C55E" },
   { label: "Rose", value: "#F472B6" },
