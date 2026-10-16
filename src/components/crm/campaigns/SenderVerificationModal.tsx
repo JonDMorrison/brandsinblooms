@@ -211,7 +211,7 @@ export const SenderVerificationModal: React.FC<SenderVerificationModalProps> = (
               </Sheet>
               <Typography level="body-sm" sx={{ color: "neutral.700", lineHeight: 1.6 }}>
                 {needsCampaignSender
-                  ? "Your domain is already verified. Use this verified sender for this campaign to continue."
+                  ? `Your domain is verified. Use ${verifiedSenderEmail} as this campaign's sender to continue.`
                   : "Your sending domain is verified. You can return to your campaign and complete the final send checks."}
               </Typography>
             </Stack>
