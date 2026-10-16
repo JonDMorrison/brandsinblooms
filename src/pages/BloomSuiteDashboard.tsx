@@ -1,1386 +1,343 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Box from "@mui/joy/Box";
-import CircularProgress from "@mui/joy/CircularProgress";
-import Divider from "@mui/joy/Divider";
 import Sheet from "@mui/joy/Sheet";
 import Skeleton from "@mui/joy/Skeleton";
 import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
-import { useNavigate } from "react-router-dom";
-import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { LaunchpadModal } from "@/components/dashboard/LaunchpadModal";
-import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
-import {
-  useTwilioSetup,
-  getTwilioStatus,
-} from "@/components/dashboard/TwilioSetupChecker";
-import { JoyButton } from "@/components/joy/JoyButton";
-import { JoyChip } from "@/components/joy/JoyChip";
-import { JoyTooltip } from "@/components/joy/JoyTooltip";
-import { useCRMDashboardMetrics } from "@/hooks/useCRMDashboardMetrics";
-import { usePOSAnalytics } from "@/hooks/usePOSAnalytics";
-import { BloomWeeklySuggestionsCard } from "@/components/dashboard/BloomWeeklySuggestionsCard";
-import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
-import { useTenantCustomerSummary } from "@/hooks/useTenantCustomerSummary";
-import { useTenant } from "@/hooks/useTenant";
-import { useUserRole } from "@/hooks/useUserRole";
 import {
   ArrowRight,
-  BarChart3,
-  ChevronDown,
+  Eye,
+  HelpCircle,
   Mail,
   MessageSquare,
-  Megaphone,
-  Calendar,
-  HelpCircle,
-  Info,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
+  MousePointerClick,
+  Users,
 } from "lucide-react";
-import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
+import { useNavigate } from "react-router-dom";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
-import { POSInsightsCard } from "@/components/dashboard/POSInsightsCard";
+import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
+import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
+import { JoyButton } from "@/components/joy/JoyButton";
+import { PageContainer } from "@/components/joy/PageContainer";
+import { useAuth } from "@/contexts/AuthContext";
+import { useOnboardingStatus } from "@/contexts/OnboardingStatusContext";
+import { useCampaignDeliveryMetrics } from "@/hooks/analytics/useCampaignDeliveryMetrics";
+import { useTenant } from "@/hooks/useTenant";
+import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { formatPercent } from "@/components/analytics/analyticsUtils";
 
-const panelSurfaceSx = {
-  borderRadius: "12px",
-  borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
-  boxShadow: "none",
-  p: 2,
-} as const;
-
-const actionCardSx = {
-  borderRadius: "12px",
-  borderColor: "neutral.200",
-  backgroundColor: "#FFFFFF",
-  boxShadow: "none",
-  p: 2,
-  height: "100%",
-} as const;
-
-const subtleDividerSx = {
-  "--Divider-lineColor": "var(--joy-palette-neutral-100)",
-} as const;
-
-const capitalizeStatusText = (value: string) =>
-  value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
-
-const getHeaderStatusChipMessage = (label: string, message: string) => {
-  const normalizedMessage = message.trim();
-  if (!normalizedMessage) {
-    return label;
-  }
-
-  const normalizedLabel = label.trim().toLowerCase();
-  if (normalizedMessage.toLowerCase().startsWith(`${normalizedLabel} `)) {
-    return capitalizeStatusText(
-      normalizedMessage.slice(label.trim().length).trim(),
-    );
-  }
-
-  return normalizedMessage;
-};
-
-function StatLabelWithInfo({
-  label,
-  tooltip,
-}: {
-  label: string;
-  tooltip: string;
-}) {
-  return (
-    <Stack
-      component="span"
-      direction="row"
-      spacing={0.5}
-      alignItems="center"
-      sx={{ display: "inline-flex" }}
-    >
-      <span>{label}</span>
-      <JoyTooltip
-        title={tooltip}
-        placement="top"
-        variant="outlined"
-        color="neutral"
-        arrow
-        sx={{
-          maxWidth: 320,
-          backgroundColor: "#FFFFFF",
-          color: "#1F4341",
-          fontSize: "13px",
-          lineHeight: 1.45,
-          boxShadow: "var(--joy-shadow-md)",
-          border: "1px solid",
-          borderColor: "neutral.200",
-          p: 1.25,
-          "--variant-borderWidth": "1px",
-        }}
-      >
-        <Box
-          component="span"
-          role="button"
-          tabIndex={0}
-          aria-label={`What does ${label} mean?`}
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => {
-            if (event.key === " " || event.key === "Enter") {
-              event.preventDefault();
-              event.stopPropagation();
-            }
-          }}
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 14,
-            height: 14,
-            color: "neutral.500",
-            cursor: "help",
-            borderRadius: "50%",
-            "&:hover": { color: "neutral.700" },
-            "&:focus-visible": {
-              outline: "2px solid var(--joy-palette-primary-400)",
-              outlineOffset: "1px",
-            },
-            "& > .lucide": {
-              width: 14,
-              height: 14,
-            },
-          }}
-        >
-          <Info aria-hidden="true" />
-        </Box>
-      </JoyTooltip>
-    </Stack>
-  );
-}
-
-const CUSTOMERS_TOOLTIP_COPY =
-  "This shows customers who have a profile in BloomSuite. Walk-in cash transactions don't create profiles automatically.";
-
-const REVENUE_TOOLTIP_COPY =
-  "This shows revenue from sales linked to a named customer in your contact list. Walk-in cash sales and customers without a profile are not included here. To see total revenue including walk-ins, check the main reporting view.";
-
-type DashboardStatCardProps = {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  icon: React.ReactNode;
-  change?: {
-    value: string;
-    direction: "up" | "down";
-  };
-  loading?: boolean;
-  onClick?: () => void;
-};
-
-const statCardLabelSx = {
-  fontSize: "13px",
-  fontWeight: 500,
-  lineHeight: 1.4,
-  color: "neutral.500",
-} as const;
-
-const statCardValueSx = {
-  fontFamily: "var(--joy-fontFamily-display)",
-  fontSize: "28px",
-  fontWeight: 700,
-  lineHeight: 1.05,
-  letterSpacing: "-0.03em",
-  color: "neutral.900",
-} as const;
-
-const statCardFooterSx = {
-  fontSize: "12px",
-  fontWeight: 500,
-  lineHeight: 1.4,
-} as const;
-
-function DashboardStatCard({
+function HomeMetric({
+  icon,
   label,
   value,
-  icon,
-  change,
-  loading = false,
+  description,
+  loading,
   onClick,
-}: DashboardStatCardProps) {
-  const isInteractive = Boolean(onClick);
-  const Component = isInteractive ? "button" : "div";
-  const ChangeIcon = change?.direction === "down" ? TrendingDown : TrendingUp;
-  const changeColor =
-    change?.direction === "down" ? "neutral.600" : "success.600";
-
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  description: string;
+  loading: boolean;
+  onClick: () => void;
+}) {
   return (
-    <Box
-      component={Component}
-      type={isInteractive ? "button" : undefined}
+    <Sheet
+      component="button"
+      type="button"
+      variant="outlined"
       onClick={onClick}
       sx={{
         width: "100%",
-        height: "100%",
-        position: "relative",
-        overflow: "hidden",
-        appearance: "none",
-        border: "1px solid",
+        minWidth: 0,
         borderColor: "neutral.200",
-        borderRadius: "12px",
-        backgroundColor: "#FFFFFF",
-        boxShadow: "var(--joy-shadow-xs)",
+        borderRadius: "lg",
+        backgroundColor: "background.surface",
+        boxShadow: "none",
         p: 2,
+        cursor: "pointer",
         textAlign: "left",
-        transition:
-          "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
-        cursor: isInteractive ? "pointer" : "default",
-        ...(isInteractive
-          ? {
-              "&:hover": {
-                transform: "translateY(-1px)",
-                boxShadow: "var(--joy-shadow-sm)",
-                borderColor: "neutral.300",
-              },
-              "&:focus-visible": {
-                outline: "2px solid var(--joy-palette-primary-400)",
-                outlineOffset: "1px",
-              },
-            }
-          : null),
+        "&:hover": { borderColor: "neutral.400" },
+        "&:focus-visible": {
+          outline: "2px solid var(--joy-palette-primary-400)",
+          outlineOffset: 2,
+        },
       }}
     >
-      <Stack spacing={1.25} sx={{ height: "100%" }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="flex-start"
-        >
-          <Typography sx={statCardLabelSx}>
-            {loading ? (
-              <Skeleton
-                variant="text"
-                animation="wave"
-                sx={{ width: 76, display: "block", transform: "none" }}
-              >
-                Customers
-              </Skeleton>
-            ) : (
-              label
-            )}
+      <Stack spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ color: "neutral.600", display: "flex" }}>{icon}</Box>
+          <Typography level="body-sm" sx={{ color: "neutral.700", fontWeight: 600 }}>
+            {label}
           </Typography>
-
-          <Box
-            sx={{
-              width: 20,
-              height: 20,
-              color: "neutral.400",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              "& > .lucide": {
-                width: 20,
-                height: 20,
-              },
-              "& > *": {
-                flexShrink: 0,
-              },
-            }}
-          >
-            {loading ? (
-              <Skeleton
-                variant="circular"
-                animation="wave"
-                sx={{ width: 20, height: 20 }}
-              />
-            ) : (
-              icon
-            )}
-          </Box>
         </Stack>
-
-        <Typography sx={statCardValueSx}>
-          {loading ? (
-            <Skeleton
-              variant="text"
-              animation="wave"
-              sx={{ width: 112, display: "block", transform: "none" }}
-            >
-              00,000
-            </Skeleton>
-          ) : (
-            value
-          )}
+        {loading ? (
+          <Skeleton sx={{ width: 96, height: 36 }} />
+        ) : (
+          <Typography level="h2" sx={{
+            fontWeight: 700,
+            color: "neutral.900",
+            letterSpacing: "-0.035em",
+          }}>
+            {value}
+          </Typography>
+        )}
+        <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+          {description}
         </Typography>
-
-        <Box sx={{ minHeight: 18, display: "flex", alignItems: "center" }}>
-          {loading ? (
-            <Typography sx={{ ...statCardFooterSx, color: "neutral.400" }}>
-              <Skeleton
-                variant="text"
-                animation="wave"
-                sx={{ width: 152, display: "block", transform: "none" }}
-              >
-                100.0% vs last month
-              </Skeleton>
-            </Typography>
-          ) : change ? (
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <ChangeIcon
-                className="h-3 w-3"
-                style={{
-                  color: `var(--joy-palette-${change.direction === "down" ? "danger" : "success"}-600)`,
-                }}
-              />
-              <Typography sx={{ ...statCardFooterSx, color: changeColor }}>
-                {change.value}
-              </Typography>
-            </Stack>
-          ) : null}
-        </Box>
       </Stack>
-    </Box>
+    </Sheet>
   );
 }
 
+/** A task-first home screen. Deep intelligence lives with the relevant feature. */
 export const BloomSuiteDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const {
-    isCompleted,
-    hasEverCompleted,
-    isLoading: onboardingLoading,
-  } = useOnboardingStatus();
-  const [showLaunchpad, setShowLaunchpad] = useState(false);
-  const [showQuickTour, setShowQuickTour] = useState(false);
-  const [showSetupWizard, setShowSetupWizard] = useState(false);
-
-  const { data: twilioData, isLoading: loadingTwilio } = useTwilioSetup();
-  const { data: crmMetrics, isLoading: loadingMetrics } =
-    useCRMDashboardMetrics();
-  const { data: posAnalytics, isLoading: loadingPOSAnalytics } =
-    usePOSAnalytics();
   const { tenant } = useTenant();
   const { hasPermission } = useUserRole();
-  const {
-    data: tenantSummary,
-    isLoading: loadingTenantSummary,
-    error: tenantSummaryError,
-  } = useTenantCustomerSummary(tenant?.id);
-  const audienceHealthQuery = useTenantAudienceHealth(tenant?.id);
+  const { isCompleted, hasEverCompleted, isLoading: onboardingLoading } =
+    useOnboardingStatus();
+  const [showTour, setShowTour] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
+  const canSeeCustomers = hasPermission("customers.read");
+  const canSeeReports = hasPermission("reports.read");
+  const canSend = hasPermission("campaigns.write");
+  const audience = useTenantAudienceHealth(tenant?.id, {
+    enabled: canSeeCustomers,
+  });
+  const performance = useCampaignDeliveryMetrics(30, { enabled: canSeeReports });
+  const latestCampaign = performance.campaigns[0];
+  const hasEmailData = performance.summary.totalDelivered > 0;
   const displayName = useMemo(() => {
-    const fullName =
-      typeof user?.user_metadata?.full_name === "string"
-        ? user.user_metadata.full_name
-        : user?.email?.split("@")[0];
-
-    return fullName?.split(" ")[0] || "there";
+    const name = typeof user?.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name
+      : user?.email?.split("@")[0] ?? "";
+    return name.trim().split(/\s+/)[0] || "there";
   }, [user?.email, user?.user_metadata]);
 
-  // OnboardingGuard redirects incomplete users to /onboarding,
-  // so if we reach the dashboard, onboarding is complete.
-  // The setup wizard can still be opened manually via the "Complete Your Setup" button.
+  const metrics = [
+    ...(canSeeCustomers ? [{
+      key: "audience",
+      icon: <Users size={18} aria-hidden="true" />,
+      label: "Reachable customers",
+      value: audience.isError || !audience.data ? "—" : audience.data.eligible.toLocaleString(),
+      description: "Confirmed and not suppressed for email",
+      loading: audience.isLoading,
+      destination: "/crm/customers",
+    }] : []),
+    ...(canSeeReports ? [
+      {
+        key: "clicks",
+        icon: <MousePointerClick size={18} aria-hidden="true" />,
+        label: "Click-through rate",
+        value: !performance.error && hasEmailData ? formatPercent(performance.summary.avgClickRate) : "—",
+        description: "Last 30 days · up to 10 recent sends",
+        loading: performance.loading,
+        destination: "/analytics",
+      },
+      {
+        key: "opens",
+        icon: <Eye size={18} aria-hidden="true" />,
+        label: "Reported open rate",
+        value: !performance.error && hasEmailData ? formatPercent(performance.summary.avgOpenRate) : "—",
+        description: "Opens are estimates due to email privacy",
+        loading: performance.loading,
+        destination: "/analytics",
+      },
+    ] : []),
+  ];
 
-  // Check if user should see the quick start tour
-  useEffect(() => {
-    const tourDone = localStorage.getItem("dashboardTourDone");
-    if (!tourDone && !showQuickTour) {
-      // Show tour after a brief delay to let the page load
-      setTimeout(() => {
-        setShowQuickTour(true);
-      }, 1000);
-    }
-  }, [showQuickTour]);
-
-  // Show loading while checking onboarding status
   if (onboardingLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-gray-50/30">
-        <div className="text-center">
-          <CircularProgress size="md" sx={{ mb: 2 }} />
-          <p className="text-primary font-medium">Loading dashboard...</p>
-        </div>
-      </div>
+      <Box sx={{ p: 3 }}>
+        <Skeleton variant="rectangular" sx={{ height: 160, borderRadius: "lg" }} />
+      </Box>
     );
   }
 
-  const twilioStatus = getTwilioStatus(twilioData?.isSetup || false);
-  const cardsLoading = loadingMetrics || loadingPOSAnalytics;
-  const focusLoading = loadingTwilio || loadingPOSAnalytics;
-
-  const handleSelectAction = (action: string) => {
-    switch (action) {
-      case "website-setup":
-        setShowSetupWizard(true);
-        break;
-      case "newsletter":
-        // Route to the newsletter picker page (NewsletterNewPage)
-        // where users choose how to build — Start from Scratch /
-        // Pick an Idea / template — instead of dropping them into
-        // a blank CRMCampaignEditorPage with no decisions made.
-        navigate("/newsletters/new");
-        break;
-      case "campaign":
-        // /crm/automations/new mounts AutomationWizardLandingPage
-        // (the picker with Guided Setup / From Template / From
-        // Scratch options) — already a picker, not a blank editor.
-        // ?mode=quick is the convention used by QuickStartTour,
-        // DashboardCard, and the dashboard quickActions row; the
-        // landing page itself ignores the param (only "guided"
-        // mode is consumed downstream in CRMAutomationGuidePage),
-        // so it's effectively a no-op marker preserved for
-        // consistency.
-        navigate("/crm/automations/new?mode=quick");
-        break;
-      case "content-calendar":
-        navigate("/calendar");
-        // Set flag for first-time calendar onboarding
-        if (!localStorage.getItem("calendarOnboard")) {
-          localStorage.setItem("calendarOnboard", "true");
-        }
-        break;
-      case "dashboard":
-      default:
-        break;
-    }
-  };
-
-  const quickActions = [
-    {
-      id: "newsletter",
-      title: "Send a Newsletter",
-      description:
-        "Create an email campaign, review templates, and keep seasonal sends moving.",
-      icon: Mail,
-      primaryAction: {
-        label: "Create newsletter",
-        onClick: () => navigate("/newsletters/new"),
-      },
-      secondaryAction: {
-        label: "View campaigns",
-        onClick: () => navigate("/crm/campaigns"),
-      },
-    },
-    {
-      id: "sms",
-      title: "Send an SMS Campaign",
-      description:
-        "Create a targeted text campaign with consent-safe audience controls and delivery reporting.",
-      icon: Sparkles,
-      primaryAction: {
-        label: "Create SMS",
-        onClick: () => navigate("/sms/new"),
-      },
-      secondaryAction: {
-        label: "View SMS campaigns",
-        onClick: () => navigate("/sms"),
-      },
-    },
-    {
-      id: "campaign",
-      title: "Build an Automation",
-      description:
-        "Design automated customer journeys with SMS and email sequences tied to customer behavior.",
-      icon: Megaphone,
-      primaryAction: {
-        label: "Build campaign",
-        onClick: () => navigate("/crm/automations/new?mode=quick"),
-      },
-      secondaryAction: {
-        label: "View automations",
-        onClick: () => navigate("/crm/automations"),
-      },
-    },
-    {
-      id: "planner",
-      title: "Plan the Month",
-      description:
-        "Map campaigns, content, and timing for the next month from the planning workspace.",
-      icon: Calendar,
-      primaryAction: {
-        label: "Open planner",
-        onClick: () => navigate("/calendar"),
-      },
-      secondaryAction: {
-        label: "View calendar",
-        onClick: () => navigate("/calendar"),
-      },
-    },
-  ];
-
-  const tenantSummaryUnavailable = Boolean(tenantSummaryError) || !tenantSummary;
-  const customersValue = tenantSummary
-    ? tenantSummary.total_customers.toLocaleString()
-    : tenantSummaryUnavailable && !loadingTenantSummary
-      ? "—"
-      : "0";
-  const revenueFormatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  const revenueValue = tenantSummary
-    ? revenueFormatter.format(tenantSummary.total_revenue)
-    : tenantSummaryUnavailable && !loadingTenantSummary
-      ? "—"
-      : revenueFormatter.format(0);
-
-  const overviewStats = [
-    {
-      id: "customers",
-      label: (
-        <StatLabelWithInfo
-          label="Customers"
-          tooltip={CUSTOMERS_TOOLTIP_COPY}
-        />
-      ),
-      value: customersValue,
-      icon: <Mail />,
-      change:
-        crmMetrics && Number.isFinite(crmMetrics.totalCustomersGrowth)
-          ? {
-              value: `${Math.abs(crmMetrics.totalCustomersGrowth).toFixed(1)}% vs last month`,
-              direction:
-                crmMetrics.totalCustomersGrowth >= 0
-                  ? ("up" as const)
-                  : ("down" as const),
-            }
-          : undefined,
-      onClick: () => navigate("/crm/customers"),
-      loading: loadingTenantSummary,
-    },
-    {
-      id: "orders",
-      label: "Orders",
-      value: (posAnalytics?.totalOrders ?? 0).toLocaleString(),
-      icon: <Calendar />,
-      change: posAnalytics?.hasIntegration
-        ? {
-            value: `${posAnalytics.integrationName ?? "POS"} connected`,
-            direction: "up" as const,
-          }
-        : undefined,
-      onClick: () => navigate("/products"),
-    },
-    {
-      id: "active-campaigns",
-      label: "Active campaigns",
-      value: (crmMetrics?.activeCampaigns ?? 0).toLocaleString(),
-      icon: <Megaphone />,
-      change:
-        crmMetrics && Number.isFinite(crmMetrics.activeCampaignsGrowth)
-          ? {
-              value: `${Math.abs(crmMetrics.activeCampaignsGrowth).toFixed(1)}% vs last month`,
-              direction:
-                crmMetrics.activeCampaignsGrowth >= 0
-                  ? ("up" as const)
-                  : ("down" as const),
-            }
-          : undefined,
-      onClick: () => navigate("/crm/campaigns"),
-    },
-    {
-      id: "revenue",
-      label: (
-        <StatLabelWithInfo label="Revenue" tooltip={REVENUE_TOOLTIP_COPY} />
-      ),
-      value: revenueValue,
-      icon: <BarChart3 />,
-      change:
-        crmMetrics && Number.isFinite(crmMetrics.totalRevenueGrowth)
-          ? {
-              value: `${Math.abs(crmMetrics.totalRevenueGrowth).toFixed(1)}% vs last month`,
-              direction:
-                crmMetrics.totalRevenueGrowth >= 0
-                  ? ("up" as const)
-                  : ("down" as const),
-            }
-          : undefined,
-      onClick: () => navigate("/analytics"),
-      loading: loadingTenantSummary,
-    },
-  ];
-
-  const todayItems = [
-    {
-      label: "SMS readiness",
-      value: twilioStatus.statusMessage,
-      tone: twilioStatus.status === "connected" ? "success" : "warning",
-      statusLabel:
-        twilioStatus.status === "connected" ? "Ready" : "Needs attention",
-      highlighted: false,
-    },
-    {
-      label: "POS sync",
-      value: posAnalytics?.hasIntegration
-        ? `${posAnalytics.integrationName ?? "POS"} connected`
-        : "No POS integration connected",
-      tone: posAnalytics?.hasIntegration ? "success" : "warning",
-      statusLabel: posAnalytics?.hasIntegration ? "Ready" : "Needs attention",
-      highlighted: false,
-    },
-    {
-      label: "Website tools",
-      value: "Website builder remains available from the workspace shell.",
-      tone: "primary",
-      statusLabel: "Info",
-      highlighted: true,
-    },
-  ] as const;
-
-  const quickLinks = [
-    { label: "Open analytics", to: "/analytics" },
-    { label: "Review products", to: "/products" },
-    { label: "Update settings", to: "/settings" },
-    { label: "Website workspace", to: "/website/app" },
-  ] as const;
-
-  const headerStatusChips = [
-    {
-      key: "sms",
-      label: "SMS",
-      message: loadingTwilio
-        ? "Checking readiness"
-        : twilioStatus.statusMessage,
-      color: loadingTwilio
-        ? ("neutral" as const)
-        : twilioStatus.status === "connected"
-          ? ("success" as const)
-          : ("warning" as const),
-    },
-  ] as const;
-
   return (
-    <Stack spacing={3}>
-      <SetupNextStepsBanner />
-      <Sheet
-        variant="plain"
-        sx={{
-          px: { xs: 2.5, md: 3 },
-          py: { xs: 2.5, md: 3 },
-          borderRadius: "16px",
-          border: "1px solid",
-          borderColor: "neutral.200",
-          backgroundColor: "background.surface",
-        }}
-      >
+    <PageContainer>
+      <Stack spacing={3} sx={{ pb: 4 }}>
         <Stack
-          direction={{ xs: "column", lg: "row" }}
-          spacing={2}
+          direction={{ xs: "column", sm: "row" }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
           justifyContent="space-between"
-          alignItems={{ xs: "flex-start", lg: "flex-start" }}
+          spacing={1.5}
         >
-          <Stack spacing={1.25} sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              component="p"
-              sx={{
-                fontSize: "11px",
-                fontWeight: 700,
-                lineHeight: 1.4,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "primary.600",
-              }}
-            >
-              OVERVIEW
-            </Typography>
-            <Typography
-              level="h3"
-              sx={{
-                fontSize: "24px",
-                fontWeight: 700,
-                lineHeight: 1.2,
-                color: "neutral.900",
-              }}
-            >
+          <Stack spacing={0.5}>
+            <Typography level="h3" sx={{ fontWeight: 700, color: "neutral.900" }}>
               Welcome back, {displayName}
             </Typography>
-            <Typography
-              sx={{
-                fontSize: "14px",
-                lineHeight: 1.5,
-                color: "neutral.500",
-                maxWidth: "42rem",
-              }}
-            >
-              Everything you need to connect with customers and grow your business.
+            <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+              Your customers, campaigns, and next steps in one place.
             </Typography>
-            <Stack
-              direction="row"
-              spacing={1.25}
-              useFlexGap
-              flexWrap="wrap"
-              sx={{ columnGap: 1.25, rowGap: 1 }}
-            >
-              {!loadingTwilio && twilioStatus.status !== "connected" ? headerStatusChips.map((chip) => (
-                <JoyChip
-                  key={chip.key}
-                  size="sm"
-                  variant="soft"
-                  color={chip.color}
-                  sx={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    lineHeight: 1.3,
-                    px: 1.25,
-                  }}
-                >
-                  <Box
-                    component="span"
-                    sx={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      columnGap: 0.75,
-                    }}
-                  >
-                    <Box component="span" sx={{ fontWeight: 700 }}>
-                      {chip.label}
-                    </Box>
-                    <Box
-                      component="span"
-                      sx={{ color: "currentColor", opacity: 0.55 }}
-                    >
-                      ·
-                    </Box>
-                    <Box component="span">
-                      {getHeaderStatusChipMessage(chip.label, chip.message)}
-                    </Box>
-                  </Box>
-                </JoyChip>
-              )) : null}
-            </Stack>
           </Stack>
-
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            sx={{
-              alignSelf: { xs: "stretch", lg: "flex-start" },
-              width: { xs: "100%", lg: "auto" },
-            }}
-          >
+          {canSend ? (
             <JoyButton
-              variant="soft"
+              variant="plain"
               color="neutral"
               size="sm"
-              onClick={() => setShowLaunchpad(true)}
-              startDecorator={<HelpCircle />}
-              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+              onClick={() => setShowTour(true)}
             >
-              Open launchpad
+              Take a tour
             </JoyButton>
-            {!isCompleted && !hasEverCompleted ? (
+          ) : (
+            <JoyButton
+              variant="plain"
+              color="neutral"
+              size="sm"
+              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+              onClick={() => navigate("/support")}
+            >
+              Help
+            </JoyButton>
+          )}
+        </Stack>
+
+        <SetupNextStepsBanner />
+
+        {!isCompleted && !hasEverCompleted ? (
+          <JoyButton
+            variant="soft"
+            color="primary"
+            size="sm"
+            onClick={() => setShowSetupWizard(true)}
+          >
+            Complete business setup
+          </JoyButton>
+        ) : null}
+
+        <Stack spacing={1.25}>
+          <Typography level="title-md" sx={{ fontWeight: 600 }}>What would you like to do?</Typography>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} useFlexGap flexWrap="wrap">
+            {canSend ? (
+              <>
+                <JoyButton
+                  size="md"
+                  color="primary"
+                  startDecorator={<Mail size={18} aria-hidden="true" />}
+                  onClick={() => navigate("/newsletters/new")}
+                >
+                  Create an email
+                </JoyButton>
+                <JoyButton
+                  size="md"
+                  color="neutral"
+                  variant="outlined"
+                  startDecorator={<MessageSquare size={18} aria-hidden="true" />}
+                  onClick={() => navigate("/sms/new")}
+                >
+                  Send a text
+                </JoyButton>
+              </>
+            ) : null}
+            {canSeeCustomers ? (
               <JoyButton
-                variant="solid"
-                color="primary"
-                size="sm"
-                onClick={() => setShowSetupWizard(true)}
-                startDecorator={<Sparkles />}
-                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+                size="md"
+                color="neutral"
+                variant={canSend ? "plain" : "solid"}
+                startDecorator={<Users size={18} aria-hidden="true" />}
+                onClick={() => navigate("/crm/customers")}
               >
-                Complete setup
+                Customers
               </JoyButton>
             ) : null}
           </Stack>
         </Stack>
-      </Sheet>
 
-      <Stack spacing={1.25}>
-        <Typography level="body-sm" sx={{ color: "neutral.600", fontWeight: 600 }}>
-          What would you like to do?
-        </Typography>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          useFlexGap
-          flexWrap="wrap"
-        >
-          {hasPermission("campaigns.write") ? (
-            <JoyButton
-              color="primary"
-              variant="solid"
-              size="md"
-              startDecorator={<Mail size={17} aria-hidden="true" />}
-              onClick={() => navigate("/newsletters/new")}
-            >
-              Create an email
-            </JoyButton>
-          ) : null}
-          {hasPermission("campaigns.write") ? (
-            <JoyButton
-              color="neutral"
-              variant="outlined"
-              size="md"
-              startDecorator={<MessageSquare size={17} aria-hidden="true" />}
-              onClick={() => navigate("/sms/new")}
-            >
-              Send an SMS
-            </JoyButton>
-          ) : null}
-          {hasPermission("automations.manage") ? (
-            <JoyButton
-              color="neutral"
-              variant="outlined"
-              size="md"
-              startDecorator={<Megaphone size={17} aria-hidden="true" />}
-              onClick={() => navigate("/crm/automations/new?mode=quick")}
-            >
-              Build an automation
-            </JoyButton>
-          ) : null}
-          {hasPermission("reports.read") ? (
-            <JoyButton
-              color="neutral"
-              variant="plain"
-              size="md"
-              startDecorator={<BarChart3 size={17} aria-hidden="true" />}
-              onClick={() => navigate("/analytics")}
-            >
-              View analytics
-            </JoyButton>
-          ) : null}
-          {!hasPermission("campaigns.write") &&
-          !hasPermission("automations.manage") &&
-          !hasPermission("reports.read") &&
-          hasPermission("customers.read") ? (
-            <JoyButton
-              color="primary"
-              variant="solid"
-              size="md"
-              onClick={() => navigate("/crm/customers")}
-            >
-              View customers
-            </JoyButton>
-          ) : null}
-        </Stack>
-      </Stack>
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            md: "repeat(2, minmax(0, 1fr))",
-            xl: "repeat(4, minmax(0, 1fr))",
-          },
-          gap: 1.5,
-          gridAutoRows: "1fr",
-        }}
-      >
-        {overviewStats.map((stat) => (
-          <DashboardStatCard
-            key={stat.id}
-            icon={stat.icon}
-            label={stat.label}
-            value={stat.value}
-            change={stat.change}
-            loading={stat.loading ?? cardsLoading}
-            onClick={stat.onClick}
-          />
-        ))}
-      </Box>
-
-      <Box
-        component="details"
-        sx={{
-          border: "1px solid",
-          borderColor: "neutral.200",
-          backgroundColor: "background.surface",
-          borderRadius: "lg",
-          p: { xs: 2, md: 2.5 },
-          "&[open] .more-dashboard-chevron": { transform: "rotate(180deg)" },
-        }}
-      >
-        <Box
-          component="summary"
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            listStyle: "none",
-            gap: 2,
-            "&::-webkit-details-marker": { display: "none" },
-            "&:focus-visible": {
-              outline: "2px solid var(--joy-palette-primary-400)",
-              outlineOffset: 2,
-            },
-          }}
-        >
-          <Box component="span" sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-            <Typography component="span" level="title-md" sx={{ fontWeight: 600 }}>
-              More insights & tools
-            </Typography>
-            <Typography component="span" level="body-sm" sx={{ color: "neutral.600" }}>
-              Weekly ideas, POS insights, inbox health, readiness and shortcuts
-            </Typography>
-          </Box>
-          <ChevronDown
-            className="more-dashboard-chevron"
-            size={20}
-            aria-hidden="true"
-            style={{ flexShrink: 0, transition: "transform 150ms ease" }}
-          />
-        </Box>
-        <Stack spacing={3} sx={{ mt: 3 }}>
-          <POSInsightsCard />
-      <BloomWeeklySuggestionsCard />
-
-      {audienceHealthQuery.data && audienceHealthQuery.data.total > 0 ? (
-        <Sheet
-          variant="outlined"
-          data-testid="dashboard-audience-health-card"
-          sx={{ borderRadius: "12px", p: 2, backgroundColor: "#FFFFFF" }}
-        >
+        {metrics.length > 0 ? (
           <Stack spacing={1.25}>
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              justifyContent="space-between"
-            >
-              <Stack spacing={0.25}>
-                <Typography
-                  level="title-md"
-                  sx={{ fontSize: "16px", fontWeight: 600 }}
-                >
-                  Inbox health
-                </Typography>
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  Who you can reach across your{" "}
-                  {audienceHealthQuery.data.total.toLocaleString()} contacts
-                </Typography>
-              </Stack>
-              <Box
-                component="button"
-                type="button"
-                onClick={() => navigate("/crm/customers")}
-                sx={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "primary.600",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  textDecoration: "underline",
-                  "&:hover": { color: "primary.700" },
-                }}
-              >
-                View contacts
-              </Box>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography level="title-md" sx={{ fontWeight: 600 }}>Recent performance</Typography>
+              {canSeeReports ? (
+                <JoyButton size="sm" variant="plain" color="primary"
+                  onClick={() => navigate("/analytics")}>
+                  Explore analytics <ArrowRight size={15} aria-hidden="true" />
+                </JoyButton>
+              ) : null}
             </Stack>
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "repeat(2, minmax(0, 1fr))",
-                  sm: "repeat(4, minmax(0, 1fr))",
-                },
-                gap: 1.5,
-              }}
-            >
-              <Box>
-                <Typography
-                  level="h4"
-                  sx={{ color: "success.700", lineHeight: 1, fontWeight: 700 }}
-                >
-                  {audienceHealthQuery.data.eligible.toLocaleString()}
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.600", mt: 0.5 }}
-                >
-                  Said yes to email
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  level="h4"
-                  sx={{
-                    color:
-                      audienceHealthQuery.data.pending > 0
-                        ? "warning.700"
-                        : "neutral.700",
-                    lineHeight: 1,
-                    fontWeight: 700,
-                  }}
-                >
-                  {audienceHealthQuery.data.pending.toLocaleString()}
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.600", mt: 0.5 }}
-                >
-                  Waiting for permission
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  level="h4"
-                  sx={{ color: "neutral.700", lineHeight: 1, fontWeight: 700 }}
-                >
-                  {audienceHealthQuery.data.optedOut.toLocaleString()}
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.600", mt: 0.5 }}
-                >
-                  Asked us to stop
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  level="h4"
-                  sx={{ color: "neutral.700", lineHeight: 1, fontWeight: 700 }}
-                >
-                  {audienceHealthQuery.data.suppressed.toLocaleString()}
-                </Typography>
-                <Typography
-                  level="body-xs"
-                  sx={{ color: "neutral.600", mt: 0.5 }}
-                >
-                  Can't be sent to
-                </Typography>
-              </Box>
-            </Box>
-          </Stack>
-        </Sheet>
-      ) : null}
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "minmax(0, 1fr)",
-            xl: "minmax(0, 2fr) minmax(320px, 1fr)",
-          },
-          gap: 3,
-          alignItems: "start",
-        }}
-      >
-        <Stack spacing={2}>
-          <Stack spacing={0.5}>
-            <Typography
-              level="title-md"
-              sx={{ fontSize: "18px", fontWeight: 600, color: "neutral.900" }}
-            >
-              What would you like to do today?
-            </Typography>
-            <Typography
-              sx={{ fontSize: "14px", lineHeight: 1.5, color: "neutral.500" }}
-            >
-              Jump straight into the most common tenant workflows.
-            </Typography>
-          </Stack>
-
-          <Box
-            sx={{
+            <Box sx={{
               display: "grid",
               gridTemplateColumns: {
                 xs: "minmax(0, 1fr)",
-                md: "repeat(2, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                lg: `repeat(${metrics.length}, minmax(0, 1fr))`,
               },
               gap: 1.5,
-              gridAutoRows: "1fr",
-            }}
-          >
-            {quickActions.map((action) => {
-              const Icon = action.icon;
+            }}>
+              {metrics.map((item) => (
+                <HomeMetric
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  value={item.value}
+                  description={item.description}
+                  loading={item.loading}
+                  onClick={() => navigate(item.destination)}
+                />
+              ))}
+            </Box>
+          </Stack>
+        ) : null}
 
-              return (
-                <Sheet key={action.id} variant="outlined" sx={actionCardSx}>
-                  <Stack
-                    spacing={1.5}
-                    sx={{ height: "100%", justifyContent: "space-between" }}
-                  >
-                    <Stack spacing={1.5}>
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: "999px",
-                          display: "grid",
-                          placeItems: "center",
-                          backgroundColor: "primary.50",
-                          color: "primary.700",
-                          flexShrink: 0,
-                          "& > .lucide": {
-                            width: 18,
-                            height: 18,
-                          },
-                        }}
-                      >
-                        <Icon />
-                      </Box>
-
-                      <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-                        <Typography
-                          sx={{
-                            fontSize: "15px",
-                            fontWeight: 600,
-                            lineHeight: 1.35,
-                            color: "neutral.800",
-                          }}
-                        >
-                          {action.title}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: "13px",
-                            lineHeight: 1.5,
-                            color: "neutral.500",
-                            display: "-webkit-box",
-                            WebkitBoxOrient: "vertical",
-                            WebkitLineClamp: 2,
-                            overflow: "hidden",
-                          }}
-                        >
-                          {action.description}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                      <JoyButton
-                        variant="solid"
-                        color="primary"
-                        size="sm"
-                        onClick={action.primaryAction.onClick}
-                        sx={{ borderRadius: "var(--joy-radius-sm)" }}
-                      >
-                        {action.primaryAction.label}
-                      </JoyButton>
-                      <JoyButton
-                        variant="plain"
-                        color="neutral"
-                        size="sm"
-                        onClick={action.secondaryAction.onClick}
-                        sx={{ borderRadius: "var(--joy-radius-sm)" }}
-                      >
-                        {action.secondaryAction.label}
-                      </JoyButton>
-                    </Stack>
-                  </Stack>
-                </Sheet>
-              );
-            })}
-          </Box>
-        </Stack>
-
-        <Stack spacing={3}>
-          <Sheet variant="outlined" sx={panelSurfaceSx}>
-            <Stack spacing={2}>
-              <Stack spacing={0.5}>
-                <Typography
-                  level="title-md"
-                  sx={{
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    color: "neutral.900",
-                  }}
-                >
-                  Today&apos;s focus
+        {canSeeReports ? (
+          <Sheet variant="outlined" sx={{
+            borderColor: "neutral.200", borderRadius: "lg", p: 2.5,
+          }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              justifyContent="space-between"
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              spacing={2}
+            >
+              <Stack spacing={0.4}>
+                <Typography level="title-md" sx={{ fontWeight: 600 }}>
+                  Your latest email campaign
                 </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "13px",
-                    lineHeight: 1.5,
-                    color: "neutral.500",
-                  }}
-                >
-                  A quick tenant-level readiness check across the main channels.
-                </Typography>
-              </Stack>
-
-              <Stack spacing={0} divider={<Divider sx={subtleDividerSx} />}>
-                {focusLoading
-                  ? Array.from({ length: 4 }).map((_, index) => (
-                      <Box
-                        key={`focus-skeleton-${index}`}
-                        sx={{
-                          py: 1.5,
-                          px: 1.25,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 1.5,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                          <Skeleton
-                            sx={{
-                              width: 120,
-                              height: 14,
-                              borderRadius: "999px",
-                            }}
-                          />
-                          <Skeleton
-                            sx={{
-                              width: "80%",
-                              maxWidth: 220,
-                              height: 12,
-                              borderRadius: "999px",
-                            }}
-                          />
-                        </Stack>
-                        <Skeleton
-                          sx={{ width: 92, height: 24, borderRadius: "999px" }}
-                        />
-                      </Box>
-                    ))
-                  : todayItems.map((item) => (
-                      <Box
-                        key={item.label}
-                        sx={{
-                          py: 1.5,
-                          px: 1.25,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: 1.5,
-                          alignItems: "center",
-                          borderRadius: "12px",
-                          backgroundColor: item.highlighted
-                            ? "primary.50"
-                            : "transparent",
-                        }}
-                      >
-                        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography
-                            sx={{
-                              fontSize: "14px",
-                              fontWeight: 500,
-                              lineHeight: 1.4,
-                              color: "neutral.800",
-                            }}
-                          >
-                            {item.label}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: "12px",
-                              lineHeight: 1.5,
-                              color: "neutral.500",
-                            }}
-                          >
-                            {item.value}
-                          </Typography>
-                        </Stack>
-                        <JoyChip size="sm" variant="soft" color={item.tone}>
-                          {item.statusLabel}
-                        </JoyChip>
-                      </Box>
-                    ))}
-              </Stack>
-            </Stack>
-          </Sheet>
-
-          <Sheet variant="outlined" sx={panelSurfaceSx}>
-            <Stack spacing={2}>
-              <Stack spacing={0.5}>
-                <Typography
-                  level="title-md"
-                  sx={{
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    color: "neutral.900",
-                  }}
-                >
-                  Quick links
-                </Typography>
-                <Typography
-                  sx={{
-                    fontSize: "13px",
-                    lineHeight: 1.5,
-                    color: "neutral.500",
-                  }}
-                >
-                  Tenant actions that are usually a click away after login.
-                </Typography>
-              </Stack>
-
-              <Stack spacing={0} divider={<Divider sx={subtleDividerSx} />}>
-                {quickLinks.map((item) => (
-                  <Box
-                    key={item.to}
-                    component="button"
-                    type="button"
-                    onClick={() => navigate(item.to)}
-                    sx={{
-                      width: "100%",
-                      appearance: "none",
-                      border: 0,
-                      backgroundColor: "transparent",
-                      px: 1.25,
-                      py: 1.5,
-                      mx: -1.25,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 1.5,
-                      borderRadius: "12px",
-                      cursor: "pointer",
-                      transition: "background-color 0.18s ease",
-                      "&:hover": {
-                        backgroundColor: "neutral.50",
-                      },
-                      "&:focus-visible": {
-                        outline: "2px solid var(--joy-palette-primary-400)",
-                        outlineOffset: "1px",
-                      },
-                      "&:hover .dashboard-quick-link-label": {
-                        color: "var(--joy-palette-neutral-900)",
-                      },
-                      "&:hover .dashboard-quick-link-icon": {
-                        color: "var(--joy-palette-neutral-600)",
-                        transform: "translateX(1px)",
-                      },
-                    }}
-                  >
-                    <Typography
-                      className="dashboard-quick-link-label"
-                      sx={{
-                        fontSize: "14px",
-                        fontWeight: 500,
-                        lineHeight: 1.4,
-                        color: "neutral.700",
-                        transition: "color 0.18s ease",
-                        textAlign: "left",
-                      }}
-                    >
-                      {item.label}
+                {performance.loading ? (
+                  <Skeleton sx={{ width: 230, height: 24 }} />
+                ) : latestCampaign ? (
+                  <>
+                    <Typography level="body-sm" sx={{ color: "neutral.800" }}>
+                      {latestCampaign.campaignName}
                     </Typography>
-                    <ArrowRight
-                      className="dashboard-quick-link-icon h-4 w-4"
-                      style={{
-                        color: "var(--joy-palette-neutral-400)",
-                        transition: "color 0.18s ease, transform 0.18s ease",
-                      }}
-                    />
-                  </Box>
-                ))}
+                    <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                      {latestCampaign.computedDelivered > 0
+                        ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
+                        : "Delivery totals are not available yet"}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
+                    {performance.error ? "Campaign results aren't available right now."
+                      : "Your first campaign results will appear here."}
+                  </Typography>
+                )}
               </Stack>
+              <JoyButton
+                size="sm"
+                color="neutral"
+                variant="outlined"
+                onClick={() => navigate(latestCampaign
+                  ? `/crm/campaigns/${latestCampaign.campaignId}/report`
+                  : "/crm/campaigns")}
+              >
+                {latestCampaign ? "View campaign report" : "View campaigns"}
+                <ArrowRight size={15} aria-hidden="true" />
+              </JoyButton>
             </Stack>
           </Sheet>
-        </Stack>
-      </Box>
-        </Stack>
-      </Box>
-
-      <LaunchpadModal
-        isOpen={showLaunchpad}
-        onClose={() => setShowLaunchpad(false)}
-        onSelectAction={handleSelectAction}
-      />
-
-      <QuickStartTour
-        isOpen={showQuickTour}
-        onClose={() => setShowQuickTour(false)}
-      />
-
+        ) : null}
+      </Stack>
+      <QuickStartTour isOpen={showTour} onClose={() => setShowTour(false)} />
       <DashboardSetupWizard
         isOpen={showSetupWizard}
         onClose={() => setShowSetupWizard(false)}
       />
-    </Stack>
+    </PageContainer>
   );
 };

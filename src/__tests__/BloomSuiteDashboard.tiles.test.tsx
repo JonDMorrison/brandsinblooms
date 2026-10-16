@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -27,18 +27,6 @@ beforeAll(() => {
     });
   }
 });
-
-const { rpcMock } = vi.hoisted(() => ({
-  rpcMock: vi.fn(),
-}));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    rpc: rpcMock,
-    from: vi.fn(),
-    auth: { getSession: vi.fn() },
-  },
-}));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -138,8 +126,22 @@ vi.mock("@/components/dashboard/BloomWeeklySuggestionsCard", () => ({
 
 vi.mock("@/hooks/useTenantAudienceHealth", () => ({
   useTenantAudienceHealth: () => ({
-    data: null,
+    data: { eligible: 1250, total: 1700 },
     isLoading: false,
+    isError: false,
+  }),
+}));
+
+vi.mock("@/hooks/analytics/useCampaignDeliveryMetrics", () => ({
+  useCampaignDeliveryMetrics: () => ({
+    summary: { totalDelivered: 2000, avgClickRate: 3.2, avgOpenRate: 20.5 },
+    campaigns: [{
+      campaignId: "campaign-1",
+      campaignName: "Autumn garden newsletter",
+      computedDelivered: 2000,
+      clickRate: 3.2,
+    }],
+    loading: false,
     error: null,
   }),
 }));
@@ -164,28 +166,18 @@ function renderDashboard() {
   );
 }
 
-describe("BloomSuiteDashboard tenant tiles", () => {
-  it("renders server-side totals from get_tenant_customer_summary", async () => {
-    rpcMock.mockResolvedValueOnce({
-      data: {
-        total_customers: 5014,
-        active_customers: 4200,
-        total_revenue: 23815.67,
-        lifetime_revenue: 50000,
-        new_customers_30d: 120,
-        revenue_30d: 1500.5,
-      },
-      error: null,
-    });
-
+describe("BloomSuite task-first dashboard", () => {
+  it("shows reachable customers and campaign engagement without a sales total", async () => {
     renderDashboard();
+    expect(await screen.findByText("1,250")).toBeInTheDocument();
+    expect(screen.getByText("3.2%")).toBeInTheDocument();
+    expect(screen.getByText("20.5%")).toBeInTheDocument();
+    expect(screen.getByText("Autumn garden newsletter")).toBeInTheDocument();
+    expect(screen.queryByText("Revenue")).not.toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText("5,014")).toBeInTheDocument();
-    });
-    expect(screen.getByText("$23,815.67")).toBeInTheDocument();
-    expect(rpcMock).toHaveBeenCalledWith("get_tenant_customer_summary", {
-      target_tenant_id: "tenant-1",
-    });
+  it("does not automatically open a welcome tour", () => {
+    renderDashboard();
+    expect(screen.getByRole("button", { name: "Take a tour" })).toBeInTheDocument();
   });
 });

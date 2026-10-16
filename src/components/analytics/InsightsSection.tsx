@@ -30,6 +30,7 @@ type InsightsSectionProps = {
   growth: number;
   totalRevenue: number;
   totalViews: number;
+  showRevenueInsight?: boolean;
 };
 
 type InsightDefinition = {
@@ -48,6 +49,7 @@ export function InsightsSection({
   growth,
   totalRevenue,
   totalViews,
+  showRevenueInsight = true,
 }: InsightsSectionProps) {
   const navigate = useNavigate();
   const conversionRate = clicks > 0 ? (conversions / clicks) * 100 : 0;
@@ -88,7 +90,7 @@ export function InsightsSection({
     });
   }
 
-  if (totalRevenue === 0 && totalViews > 0) {
+  if (showRevenueInsight && totalRevenue === 0 && totalViews > 0) {
     insights.push({
       actionPath: "/crm/pos",
       description:

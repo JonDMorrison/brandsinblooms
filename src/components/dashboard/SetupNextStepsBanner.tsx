@@ -5,6 +5,7 @@ import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
 import { useTenant } from "@/hooks/useTenant";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Globe, Users, Mail, X } from "lucide-react";
@@ -20,6 +21,7 @@ interface SetupStep {
 
 export function SetupNextStepsBanner() {
   const { tenant } = useTenant();
+  const { hasPermission, role } = useUserRole();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(
     () => sessionStorage.getItem("setup-banner-dismissed") === "1",
@@ -63,7 +65,7 @@ export function SetupNextStepsBanner() {
 
   const steps: SetupStep[] = [];
 
-  if (!setupState.hasDomain) {
+  if (!setupState.hasDomain && hasPermission("integrations.manage")) {
     steps.push({
       key: "domain",
       icon: <Globe size={18} />,
@@ -74,18 +76,18 @@ export function SetupNextStepsBanner() {
       cta: "Set up domain",
     });
   }
-  if (!setupState.hasContacts) {
+  if (!setupState.hasContacts && (role === "owner_admin" || role === "marketing")) {
     steps.push({
       key: "contacts",
       icon: <Users size={18} />,
       title: "Import your customer list",
       description:
         "Upload contacts or connect your POS to start building audiences.",
-      href: "/crm/contacts",
+      href: "/crm/customers?import=1",
       cta: "Import contacts",
     });
   }
-  if (!setupState.hasCampaign) {
+  if (!setupState.hasCampaign && hasPermission("campaigns.write")) {
     steps.push({
       key: "campaign",
       icon: <Mail size={18} />,
@@ -120,8 +122,7 @@ export function SetupNextStepsBanner() {
         borderRadius: "12px",
         border: "1px solid",
         borderColor: "neutral.200",
-        background:
-          "linear-gradient(135deg, rgba(104, 190, 185, 0.08) 0%, rgba(104, 190, 185, 0.02) 100%)",
+        backgroundColor: "background.surface",
         px: 2.5,
         py: 2,
       }}
@@ -154,8 +155,8 @@ export function SetupNextStepsBanner() {
             width: 36,
             height: 36,
             borderRadius: "8px",
-            backgroundColor: "#68BEB9",
-            color: "#fff",
+            backgroundColor: "neutral.100",
+            color: "neutral.700",
             flexShrink: 0,
           }}
         >
@@ -174,11 +175,7 @@ export function SetupNextStepsBanner() {
         <JoyButton
           size="sm"
           onClick={() => navigate(step.href)}
-          sx={{
-            flexShrink: 0,
-            backgroundColor: "#68BEB9",
-            "&:hover": { backgroundColor: "#4FA8A3" },
-          }}
+          sx={{ flexShrink: 0 }}
         >
           {step.cta}
         </JoyButton>
