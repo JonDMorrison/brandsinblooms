@@ -68,9 +68,11 @@ serve(async (req: Request) => {
   });
 
   try {
-    if (req.method === "POST") {
+    const input = req.method === "POST" ? await req.json().catch(() => null) : null;
+    const action = req.method === "POST" ? input?.action : new URL(req.url).searchParams.get("action") ?? "catalog";
+    if (req.method === "POST" && action === "connect") {
       if (!mayConnect) return ok({error:"integration_permission_required"},403);
-      const body = await req.json().catch(() => null);
+      const body = input;
       if (body?.action === "connect") {
         const code = typeof body.code === "string" ? body.code.trim().toLowerCase() : "";
         if (!codePattern.test(code)) return ok({error:"invalid_code"},400);
@@ -113,8 +115,10 @@ serve(async (req: Request) => {
           return ok({error:duplicate?"site_already_connected":"connection_failed"},duplicate?409:503);
         }
         return ok({connected:true,connection});
-      }
-      if (body?.action==="disconnect") {
+    }
+    if (req.method === "POST" && action==="disconnect") {
+        if (!mayConnect) return ok({error:"integration_permission_required"},403);
+        const body=input;
         const siteId = typeof body.siteId==="string"?body.siteId:"";
         if (!uuid.test(siteId)) return ok({error:"invalid_site"},400);
         const {data, error} = await admin.from("crm_connected_websites")
@@ -124,10 +128,11 @@ serve(async (req: Request) => {
         if (error) return ok({error:"disconnect_failed"},503);
         if (!data) return ok({error:"connection_not_found"},404);
         return ok({disconnected:true});
-      }
-      return ok({error:"unsupported_action"},400);
     }
     if (!mayBrowse) return ok({error:"campaign_or_integration_permission_required"},403);
+    if (req.method === "POST" && !["catalog","connections"].includes(action)) {
+      return ok({error:"unsupported_action"},400);
+    }
 
     const {data:links,error:linkError} = await admin.from("crm_connected_websites")
       .select("id,cms_site_id,site_name,site_origin,status,linked_at")
@@ -136,7 +141,14 @@ serve(async (req: Request) => {
     if (linkError) return ok({error:"connection_lookup_failed"},503);
     const connectionList=(links??[]) as WebsiteLink[];
     const requested = new URL(req.url);
-    const action = requested.searchParams.get("action")??"catalog";
+    if (req.method === "POST") {
+      for (const key of ["type","q","siteId","limit"]) {
+        const value=input?.[key];
+        if (typeof value === "string" || typeof value === "number") {
+          requested.searchParams.set(key,String(value));
+        }
+      }
+    }
     if (action==="connections") {
       return ok({connections:connectionList});
     }
