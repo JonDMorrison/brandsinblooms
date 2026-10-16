@@ -294,8 +294,9 @@ export const BloomSuiteDashboard = () => {
                       {latestCampaign.campaignName}
                     </Typography>
                     <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                      {latestCampaign.computedDelivered.toLocaleString()} delivered
-                      {" · "}Click-through {formatPercent(latestCampaign.clickRate)}
+                      {latestCampaign.computedDelivered > 0
+                        ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
+                        : "Delivery totals are not available yet"}
                     </Typography>
                   </>
                 ) : (
