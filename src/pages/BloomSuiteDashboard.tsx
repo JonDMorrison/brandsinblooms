@@ -19,6 +19,7 @@ import {
   MousePointerClick,
   Users,
 } from "lucide-react";
+import { dashboardCardSpacing } from "@/components/dashboard/dashboardCardSpacing";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
@@ -60,17 +61,20 @@ function HomeMetric({
       type="button"
       variant="outlined"
       onClick={onClick}
+      data-dashboard-metric-card
       data-activating={activating ? "true" : undefined}
       aria-busy={activating}
       sx={{
         ...dashboardPressSx,
         width: "100%",
         minWidth: 0,
+        minHeight: dashboardCardSpacing.metric.minHeight,
+        px: dashboardCardSpacing.metric.px,
+        py: dashboardCardSpacing.metric.py,
         borderColor: "neutral.200",
         borderRadius: "lg",
         backgroundColor: "background.surface",
         boxShadow: "none",
-        p: 2,
         cursor: "pointer",
         textAlign: "left",
         "@media (hover: hover) and (pointer: fine)": {
@@ -82,18 +86,44 @@ function HomeMetric({
         },
       }}
     >
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ color: "neutral.600", display: "flex" }}>{icon}</Box>
+      <Stack spacing={dashboardCardSpacing.metric.contentGap} sx={{ height: "100%" }}>
+        <Stack
+          direction="row"
+          spacing={dashboardCardSpacing.metric.iconGap}
+          alignItems="center"
+          sx={{ minWidth: 0 }}
+        >
+          <Box
+            component="span"
+            data-dashboard-metric-icon
+            sx={{
+              width: dashboardCardSpacing.metric.iconSize,
+              height: dashboardCardSpacing.metric.iconSize,
+              borderRadius: dashboardCardSpacing.metric.iconRadius,
+              backgroundColor: "neutral.100",
+              color: "neutral.700",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </Box>
           <Typography
             level="body-sm"
-            sx={{ color: "neutral.700", fontWeight: 600 }}
+            sx={{
+              color: "neutral.700",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              lineHeight: 1.45,
+              minWidth: 0,
+            }}
           >
             {label}
           </Typography>
         </Stack>
         {loading ? (
-          <Skeleton sx={{ width: 96, height: 36 }} />
+          <Skeleton sx={{ width: 110, height: 38, borderRadius: "sm" }} />
         ) : (
           <Typography
             level="h2"
@@ -101,12 +131,21 @@ function HomeMetric({
               fontWeight: 700,
               color: "neutral.900",
               letterSpacing: "-0.035em",
+              lineHeight: 1.15,
             }}
           >
             {value}
           </Typography>
         )}
-        <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+        <Typography
+          level="body-sm"
+          sx={{
+            color: "neutral.600",
+            fontSize: "0.8125rem",
+            lineHeight: 1.5,
+            mt: "auto",
+          }}
+        >
           {activating ? "Opening…" : description}
         </Typography>
       </Stack>
