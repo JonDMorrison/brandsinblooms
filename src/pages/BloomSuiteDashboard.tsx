@@ -108,7 +108,7 @@ export const BloomSuiteDashboard = () => {
   const audience = useTenantAudienceHealth(tenant?.id, {
     enabled: canSeeCustomers,
   });
-  const performance = useCampaignDeliveryMetrics(30);
+  const performance = useCampaignDeliveryMetrics(30, { enabled: canSeeReports });
   const latestCampaign = performance.campaigns[0];
   const hasEmailData = performance.summary.totalDelivered > 0;
   const displayName = useMemo(() => {
