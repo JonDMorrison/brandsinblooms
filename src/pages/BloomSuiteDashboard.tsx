@@ -549,6 +549,7 @@ export const BloomSuiteDashboard = () => {
                     size="lg"
                     color={action.primary ? "primary" : "neutral"}
                     variant={action.primary ? "solid" : "outlined"}
+                    data-dashboard-action-card
                     data-activating={
                       activeAction === action.destination ? "true" : undefined
                     }
@@ -560,11 +561,12 @@ export const BloomSuiteDashboard = () => {
                       ...dashboardPressSx,
                       width: "100%",
                       minWidth: 0,
-                      minHeight: 84,
-                      p: 2,
+                      minHeight: dashboardCardSpacing.action.minHeight,
+                      px: dashboardCardSpacing.action.px,
+                      py: dashboardCardSpacing.action.py,
                       display: "flex",
                       justifyContent: "flex-start",
-                      gap: 1.5,
+                      columnGap: dashboardCardSpacing.action.iconGap,
                       borderRadius: "lg",
                       textAlign: "left",
                     }}
@@ -572,28 +574,45 @@ export const BloomSuiteDashboard = () => {
                     <Box
                       component="span"
                       data-dashboard-action-icon
-                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                      sx={{
+                        width: dashboardCardSpacing.action.iconSize,
+                        height: dashboardCardSpacing.action.iconSize,
+                        borderRadius: dashboardCardSpacing.action.iconRadius,
+                        backgroundColor: action.primary
+                          ? "rgba(255, 255, 255, 0.16)"
+                          : "neutral.100",
+                        color: action.primary ? "inherit" : "neutral.700",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
                     >
-                      <Icon size={23} aria-hidden="true" />
+                      <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
                     </Box>
-                    <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack
+                      data-dashboard-action-content
+                      spacing={dashboardCardSpacing.action.titleGap}
+                      sx={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}
+                    >
                       <Typography
                         sx={{
-                          fontSize: "1rem",
+                          fontSize: "1.0625rem",
                           fontWeight: 700,
                           color: "inherit",
-                          lineHeight: 1.3,
+                          lineHeight: 1.35,
+                          textAlign: "left",
                         }}
                       >
                         {action.title}
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.8rem",
+                          fontSize: "0.875rem",
                           color: "inherit",
                           opacity: 0.85,
                           fontWeight: 400,
-                          lineHeight: 1.4,
+                          lineHeight: 1.5,
+                          textAlign: "left",
                         }}
                       >
                         {activeAction === action.destination
@@ -604,9 +623,17 @@ export const BloomSuiteDashboard = () => {
                     <Box
                       component="span"
                       data-dashboard-action-arrow
-                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                      sx={{
+                        width: dashboardCardSpacing.action.arrowSize,
+                        height: dashboardCardSpacing.action.arrowSize,
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                        ml: { xs: 0, sm: 0.5 },
+                        opacity: 0.88,
+                      }}
                     >
-                      <ArrowRight size={17} aria-hidden="true" />
+                      <ArrowRight size={20} aria-hidden="true" />
                     </Box>
                   </JoyButton>
                 );
