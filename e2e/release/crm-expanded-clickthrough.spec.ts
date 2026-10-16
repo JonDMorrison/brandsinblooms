@@ -29,6 +29,27 @@ const primaryNavigation = [
   ['Support', '/support'],
 ] as const;
 
+// The tenant navigation now groups specialized destinations behind
+// progressively disclosed branches. Check the real expand-and-click flow
+// rather than assuming every link is always visible on the home screen.
+const sidebarBranchForLink: Record<string, string> = {
+  Bloom: 'Marketing tools',
+  'Activity Center': 'More tools & help',
+  Calendar: 'Marketing tools',
+  Segments: 'Audience tools',
+  Personas: 'Audience tools',
+  Forms: 'Audience tools',
+  Automations: 'Marketing tools',
+  Newsletter: 'Marketing tools',
+  'SMS Campaigns': 'Marketing tools',
+  Products: 'Store & integrations',
+  'Manage Domains': 'Store & integrations',
+  Integrations: 'Store & integrations',
+  Profile: 'More tools & help',
+  Account: 'More tools & help',
+  Support: 'More tools & help',
+};
+
 const secondaryReadOnlyRoutes = [
   ['/crm/analytics', '/crm/analytics'],
   ['/crm/settings/email-sending', '/crm/settings/email-sending'],
@@ -173,6 +194,14 @@ test('primary sidebar navigation is clickable end-to-end', async ({ page }) => {
 
   for (const [label, expectedPath] of primaryNavigation) {
     const sidebar = page.getByTestId('dashboard-shell-sidebar');
+    const branchLabel = sidebarBranchForLink[label];
+    if (branchLabel) {
+      const branch = sidebar.getByRole('button', { name: branchLabel, exact: true });
+      await expect(branch, `missing sidebar section: ${branchLabel}`).toBeVisible({ timeout: 10_000 });
+      if ((await branch.getAttribute('aria-expanded')) !== 'true') {
+        await branch.click();
+      }
+    }
     const link = sidebar.getByRole('link', { name: label, exact: true });
     await expect(link, `missing sidebar link: ${label}`).toBeVisible({ timeout: 10_000 });
     await link.click();
