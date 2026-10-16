@@ -96,18 +96,6 @@ export default {
           800: "#0F5F45",
           900: "#0A4D36",
         },
-        sand: {
-          50: "#FBF9F4", // sand-50 for main page background
-          100: "#F7F3E8",
-          200: "#F0E6D1",
-          300: "#E8D9BA",
-          400: "#E0CCA3",
-          500: "#D8BF8C",
-          600: "#C09970",
-          700: "#A87354",
-          800: "#904D38",
-          900: "#78271C",
-        },
         "brand-green": {
           DEFAULT: "hsl(var(--primary))", // Use primary which is properly defined
           50: "#E8F5E8",
