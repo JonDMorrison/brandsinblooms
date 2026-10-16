@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 
 export interface DeliveryMetrics {
@@ -59,14 +59,14 @@ interface UseCampaignDeliveryMetricsResult {
 export const useCampaignDeliveryMetrics = (
   dateRange: number = 30,
 ): UseCampaignDeliveryMetricsResult => {
-  const { user } = useAuth();
+  const { tenant } = useTenant();
   const [campaigns, setCampaigns] = useState<DeliveryMetrics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tenantId, setTenantId] = useState<string | null>(null);
 
   const fetchMetrics = useCallback(async () => {
-    if (!user?.id) {
+    if (!tenant?.id) {
+      setCampaigns([]);
       setLoading(false);
       return;
     }
@@ -75,20 +75,8 @@ export const useCampaignDeliveryMetrics = (
       setLoading(true);
       setError(null);
 
-      // Get tenant
-      const { data: userData } = await supabase
-        .from("users")
-        .select("tenant_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!userData?.tenant_id) {
-        setLoading(false);
-        return;
-      }
-
-      setTenantId(userData.tenant_id);
-
+      // Use the effective tenant, including a master admin's selected business.
+      const tenantId = tenant.id;
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - dateRange);
 
@@ -98,7 +86,7 @@ export const useCampaignDeliveryMetrics = (
         .select(
           "id, name, sent_at, total_sent, total_opens, total_clicks, open_rate, click_rate",
         )
-        .eq("tenant_id", userData.tenant_id)
+        .eq("tenant_id", tenantId)
         .in("status", ["sent", "sent_with_errors"])
         .gte("sent_at", startDate.toISOString())
         .order("sent_at", { ascending: false })
@@ -276,7 +264,7 @@ export const useCampaignDeliveryMetrics = (
     } finally {
       setLoading(false);
     }
-  }, [user?.id, dateRange]);
+  }, [tenant?.id, dateRange]);
 
   const recomputeCampaign = useCallback(
     async (campaignId: string) => {
@@ -301,7 +289,7 @@ export const useCampaignDeliveryMetrics = (
   );
 
   const recomputeAll = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenant?.id) return;
 
     try {
       toast.info("Recalculating all campaign metrics...");
@@ -309,7 +297,7 @@ export const useCampaignDeliveryMetrics = (
       const { error } = await supabase.functions.invoke(
         "recompute-campaign-metrics",
         {
-          body: { tenant_id: tenantId },
+          body: { tenant_id: tenant.id },
         },
       );
 
@@ -321,7 +309,7 @@ export const useCampaignDeliveryMetrics = (
       console.error("Error recomputing all metrics:", err);
       toast.error("Failed to recalculate metrics");
     }
-  }, [tenantId, fetchMetrics]);
+  }, [tenant?.id, fetchMetrics]);
 
   useEffect(() => {
     fetchMetrics();
