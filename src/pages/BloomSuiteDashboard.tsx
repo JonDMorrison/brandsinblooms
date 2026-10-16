@@ -705,52 +705,87 @@ export const BloomSuiteDashboard = () => {
         {showDashboardTasks && canSeeReports ? (
           <Sheet
             variant="outlined"
+            data-dashboard-latest-campaign
             sx={{
               borderColor: "neutral.200",
               borderRadius: "lg",
-              p: 2.5,
+              backgroundColor: "background.surface",
+              minHeight: dashboardCardSpacing.latest.minHeight,
+              px: dashboardCardSpacing.latest.px,
+              py: dashboardCardSpacing.latest.py,
             }}
           >
             <Stack
               direction={{ xs: "column", sm: "row" }}
               justifyContent="space-between"
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              spacing={2}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              spacing={{ xs: 2.5, sm: 3 }}
             >
-              <Stack spacing={0.4}>
-                <Typography level="title-md" sx={{ fontWeight: 600 }}>
-                  Your latest email campaign
-                </Typography>
-                {performance.loading ? (
-                  <Skeleton sx={{ width: 230, height: 24 }} />
-                ) : latestCampaign ? (
-                  <>
-                    <Typography level="body-sm" sx={{ color: "neutral.800" }}>
-                      {latestCampaign.campaignName}
-                    </Typography>
-                    <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                      {latestCampaign.computedDelivered > 0
-                        ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
-                        : "Delivery totals are not available yet"}
-                    </Typography>
-                  </>
-                ) : (
-                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                    {performance.error
-                      ? "Campaign results aren't available right now."
-                      : "Your first campaign results will appear here."}
+              <Stack
+                direction="row"
+                spacing={dashboardCardSpacing.latest.iconGap}
+                alignItems="flex-start"
+                sx={{ flex: 1, minWidth: 0 }}
+              >
+                <Box
+                  component="span"
+                  data-dashboard-latest-icon
+                  sx={{
+                    width: dashboardCardSpacing.latest.iconSize,
+                    height: dashboardCardSpacing.latest.iconSize,
+                    borderRadius: dashboardCardSpacing.latest.iconRadius,
+                    backgroundColor: "neutral.100",
+                    color: "neutral.700",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Mail size={20} strokeWidth={1.9} aria-hidden="true" />
+                </Box>
+                <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    level="title-md"
+                    sx={{ fontWeight: 600, color: "neutral.900", lineHeight: 1.4 }}
+                  >
+                    Your latest email campaign
                   </Typography>
-                )}
+                  {performance.loading ? (
+                    <Skeleton sx={{ width: 230, maxWidth: "100%", height: 24 }} />
+                  ) : latestCampaign ? (
+                    <>
+                      <Typography level="body-sm" sx={{ color: "neutral.800", lineHeight: 1.5 }}>
+                        {latestCampaign.campaignName}
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
+                        {latestCampaign.computedDelivered > 0
+                          ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
+                          : "Delivery totals are not available yet"}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography level="body-sm" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
+                      {performance.error
+                        ? "Campaign results aren't available right now."
+                        : "Your first campaign results will appear here."}
+                    </Typography>
+                  )}
+                </Stack>
               </Stack>
               <JoyButton
-                size="sm"
+                size="md"
                 color="neutral"
                 variant="outlined"
                 data-activating={
                   activeAction === "latest-campaign" ? "true" : undefined
                 }
                 aria-busy={activeAction === "latest-campaign"}
-                sx={dashboardPressSx}
+                sx={{
+                  ...dashboardPressSx,
+                  minHeight: dashboardCardSpacing.latest.minButtonHeight,
+                  flexShrink: 0,
+                  alignSelf: { xs: "stretch", sm: "center" },
+                }}
                 onClick={() =>
                   openAnimatedRoute(
                     "latest-campaign",
@@ -767,7 +802,7 @@ export const BloomSuiteDashboard = () => {
                   : latestCampaign
                     ? "View campaign report"
                     : "View campaigns"}
-                <ArrowRight size={15} aria-hidden="true" />
+                <ArrowRight size={17} aria-hidden="true" />
               </JoyButton>
             </Stack>
           </Sheet>
