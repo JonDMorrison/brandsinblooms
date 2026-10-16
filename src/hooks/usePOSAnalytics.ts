@@ -49,7 +49,7 @@ function readCurrencySales(value: unknown): CurrencySales[] {
   return value.flatMap((entry: unknown) => {
     const item = asRecord(entry);
     const currency = item?.currency;
-    if (typeof currency !== "string" || !/^[A-Z]{3}$/.test(currency)) {
+    if (typeof currency !== "string" || (!/^[A-Z]{3}$/.test(currency) && currency !== "UNKNOWN")) {
       return [];
     }
     return [{
