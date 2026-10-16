@@ -93,7 +93,8 @@ function matchFact(fact: PurchaseFact, rule: PurchaseRule, timezone: string, anc
     else if (normalized(expected) !== normalized(actual)) return false;
   }
   if (rule.start_date || rule.end_date || rule.within_days !== undefined) {
-    const date = localDate(fact.purchased_at, timezone);
+    // explorePurchases already validates timezone once. Aggregate rows have no timestamp.
+    const date = fact.purchased_at ? localDate(fact.purchased_at, timezone) : null;
     if (!date && fact.evidence_kind === 'period_summary' && fact.source_period_start && fact.source_period_end && rule.within_days === undefined) {
       assertDate(fact.source_period_start); assertDate(fact.source_period_end);
       if (fact.source_period_start > fact.source_period_end) throw new Error('The report period is invalid.');
