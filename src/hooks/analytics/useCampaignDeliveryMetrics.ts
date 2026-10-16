@@ -58,6 +58,7 @@ interface UseCampaignDeliveryMetricsResult {
 
 export const useCampaignDeliveryMetrics = (
   dateRange: number = 30,
+  options?: { enabled?: boolean },
 ): UseCampaignDeliveryMetricsResult => {
   const { tenant } = useTenant();
   const [campaigns, setCampaigns] = useState<DeliveryMetrics[]>([]);
@@ -65,7 +66,7 @@ export const useCampaignDeliveryMetrics = (
   const [error, setError] = useState<string | null>(null);
 
   const fetchMetrics = useCallback(async () => {
-    if (!tenant?.id) {
+    if (!tenant?.id || options?.enabled === false) {
       setCampaigns([]);
       setLoading(false);
       return;
@@ -264,7 +265,7 @@ export const useCampaignDeliveryMetrics = (
     } finally {
       setLoading(false);
     }
-  }, [tenant?.id, dateRange]);
+  }, [tenant?.id, dateRange, options?.enabled]);
 
   const recomputeCampaign = useCallback(
     async (campaignId: string) => {
