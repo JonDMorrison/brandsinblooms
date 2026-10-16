@@ -1551,6 +1551,18 @@ function CampaignEditorScreen() {
                     ? "Checking your audience…"
                     : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving draft…" : "Ready for final review"}`}
               </Typography>
+              {blockerSignals.senderUnverified ? (
+                <JoyButton
+                  color="neutral"
+                  variant="plain"
+                  size="sm"
+                  data-testid="campaign-editor-fix-sender"
+                  onClick={() => setVerificationOpen(true)}
+                  sx={{ alignSelf: "flex-start", minHeight: 28, px: 0.5 }}
+                >
+                  Fix sender address
+                </JoyButton>
+              ) : null}
             </Stack>
           </Stack>
           <Stack
