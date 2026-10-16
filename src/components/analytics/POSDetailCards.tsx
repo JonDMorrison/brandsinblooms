@@ -93,9 +93,7 @@ function POSCompactCard({
               color:
                 trendMeta.tone === "success"
                   ? "success.600"
-                  : trendMeta.tone === "danger"
-                    ? "danger.600"
-                    : "neutral.500",
+                  : "neutral.500",
               fontWeight: 600,
             }}
           >
@@ -157,7 +155,9 @@ export function POSDetailCards({
     <Stack spacing={1.5}>
       <POSCompactCard
         label="Average Order Value"
-        value={formatCurrency(posData?.avgOrderValue ?? 0)}
+        value={posData?.revenueCurrency
+          ? formatCurrency(posData.avgOrderValue, { currency: posData.revenueCurrency })
+          : "—"}
         trend={avgOrderTrend}
         chip={
           hasIntegration ? (
