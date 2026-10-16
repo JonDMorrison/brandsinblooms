@@ -36,6 +36,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTenant } from "@/hooks/useTenant";
 import { PageContainer } from "@/components/joy/PageContainer";
+import { ImportedReportsPanel } from "@/components/crm/customer-intelligence/ImportedReportsPanel";
 import { CustomerGrowthWorkspace } from "@/components/crm/customer-intelligence/CustomerGrowthWorkspace";
 import { LoyaltyProgrammeWorkspace } from "@/components/crm/customer-intelligence/LoyaltyProgrammeWorkspace";
 import { IdealCustomerTypeExportPanel } from "@/components/crm/customer-intelligence/IdealCustomerTypeExportPanel";
@@ -732,8 +733,8 @@ function OverviewInsights({
           >
             <SummaryMetric
               icon={UsersRound}
-              title="Profiles with spending"
-              value={withHistory.length.toLocaleString()}
+              title="Profiles with lifetime spending"
+              value={rows.some(r => num(r.lifetime_value)) ? withHistory.length.toLocaleString() : "Not measured"}
               explanation={
                 "Out of " +
                 rows.length.toLocaleString() +
@@ -743,19 +744,19 @@ function OverviewInsights({
             <SummaryMetric
               icon={Activity}
               title="Negative momentum signals"
-              value={slowing.length.toLocaleString()}
+              value={rows.some(r => num(r.purchase_velocity)) ? slowing.length.toLocaleString() : "Not measured"}
               explanation="Recorded purchase-velocity signals; verify seasons before targeting"
             />
             <SummaryMetric
               icon={CalendarDays}
               title="120+ day purchase gaps"
-              value={longGaps.length.toLocaleString()}
+              value={rows.some(r => num(r.days_since_last_purchase)) ? longGaps.length.toLocaleString() : "Not measured"}
               explanation="A review prompt, not proof that these customers are lapsed"
             />
             <SummaryMetric
               icon={Layers3}
               title="Product affinities"
-              value={categories.size.toLocaleString()}
+              value={rows.some(r => Array.isArray(r.top_product_categories)) ? categories.size.toLocaleString() : "Not measured"}
               explanation="Distinct categories appearing in the available customer data"
             />
           </Box>
@@ -764,8 +765,7 @@ function OverviewInsights({
             color="neutral"
             startDecorator={<ShieldCheck size={18} />}
           >
-            {missingHistory} records do not show positive recorded historical
-            spending. Missing data and zero purchases are not the same. Bloom
+            {missingHistory} records do not show a positive lifetime spending value. Imported period reports may still contain useful purchase history. Missing data and zero purchases are not the same. Bloom
             can help check the underlying evidence.
           </Alert>
           <Box
@@ -1274,6 +1274,7 @@ export default function CustomerIntelligencePage() {
                   />
                 </Box>
               </Box>
+              {tenantId && <ImportedReportsPanel key={tenantId} tenantId={tenantId} />}
               <OverviewInsights
                 rows={query.data ?? []}
                 loading={query.isPending && query.fetchStatus === "fetching"}

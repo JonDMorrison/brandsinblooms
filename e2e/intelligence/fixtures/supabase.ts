@@ -4,6 +4,7 @@ const customers = [
   { id: "synthetic-002", first_name: "Sam", last_name: "Leaf", email: null },
   { id: "synthetic-003", first_name: "Morgan", last_name: "Grow", email: null },
 ];
+const reports = [{id:"synthetic-report",report_type:"customer_sales_summary",source_filename:"synthetic-products.csv",source_period_start:"2026-01-01",source_period_end:"2026-10-14",status:"completed",reconciliation:{customers:2,product_rows:4,amount:760}}];
 const metrics = [
   {
     customer_id: "synthetic-001",
@@ -24,10 +25,10 @@ const metrics = [
 ];
 export const supabase = {
   from(table: string) {
-    if (!["crm_customers", "customer_purchase_metrics"].includes(table)) {
+    if (!["crm_customers", "customer_purchase_metrics", "customer_intelligence_imports"].includes(table)) {
       throw new Error("Unexpected synthetic source: " + table);
     }
-    const rows = table === "crm_customers" ? customers : metrics;
+    const rows = table === "crm_customers" ? customers : table === "customer_intelligence_imports" ? reports : metrics;
     const q = {
       select() {
         return q;
@@ -35,6 +36,8 @@ export const supabase = {
       eq() {
         return q;
       },
+      in() { return q; },
+      async limit() { return {data:rows,error:null}; },
       order() {
         return q;
       },

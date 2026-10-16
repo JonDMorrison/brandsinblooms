@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("@/components/crm/customer-intelligence/ImportedReportsPanel", () => ({ ImportedReportsPanel: () => null }));
 vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({ tenant: mocks.selected }),
 }));
