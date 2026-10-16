@@ -19,11 +19,19 @@ interface SenderVerificationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   senderConfig?: any;
+  campaignSenderEmail?: string;
+  onChooseVerifiedSender?: (email: string) => void;
 }
 
 export const SenderVerificationModal: React.FC<
   SenderVerificationModalProps
-> = ({ open, onOpenChange, senderConfig }) => {
+> = ({
+  open,
+  onOpenChange,
+  senderConfig,
+  campaignSenderEmail,
+  onChooseVerifiedSender,
+}) => {
   const {
     emailDomains,
     verifyEmailDomain,
@@ -39,12 +47,45 @@ export const SenderVerificationModal: React.FC<
   );
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  // Find domain states
-  const activeDomain = emailDomains.find((d) => d.status === "active");
+
+  // Domain verification and campaign sender configuration are distinct.
+  // A verified domain cannot unblock a draft whose sender is blank or
+  // references a different domain.
+  const senderDomain = campaignSenderEmail?.trim().toLowerCase().split("@")[1];
+  const activeDomains = emailDomains.filter((d) => d.status === "active");
+  const activeDomain =
+    activeDomains.find(
+      (d) =>
+        d.domain.toLowerCase() === senderDomain ||
+        d.default_from_email?.trim().toLowerCase() ===
+          campaignSenderEmail?.trim().toLowerCase(),
+    ) ??
+    activeDomains.find((d) => d.id === senderConfig?.fromEmailDomainId) ??
+    activeDomains[0];
   const pendingDomain = emailDomains.find((d) =>
     ["pending", "pending_dns", "verifying"].includes(d.status),
   );
   const isVerified = !!activeDomain || senderConfig?.isVerified;
+  const needsCampaignSender = Boolean(
+    campaignSenderEmail !== undefined &&
+    activeDomain &&
+    !activeDomains.some(
+      (d) =>
+        d.domain.toLowerCase() === senderDomain ||
+        d.default_from_email?.trim().toLowerCase() ===
+          campaignSenderEmail?.trim().toLowerCase(),
+    ),
+  );
+  const verifiedSenderEmail =
+    activeDomain?.default_from_email?.trim() ||
+    (activeDomain ? `mail@${activeDomain.domain}` : "");
+  const handleContinue = () => {
+    if (needsCampaignSender) {
+      if (!verifiedSenderEmail || !onChooseVerifiedSender) return;
+      onChooseVerifiedSender(verifiedSenderEmail);
+    }
+    onOpenChange(false);
+  };
 
   const formatCooldown = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -124,9 +165,11 @@ export const SenderVerificationModal: React.FC<
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {isVerified
-                  ? `Emails sent from: ${senderConfig?.senderEmail || `mail@${activeDomain?.domain || senderConfig?.domain}`}`
-                  : `Campaign sending is paused until you verify a custom sending domain for ${companyName}.`}
+                {needsCampaignSender
+                  ? `Your domain is verified. Use ${verifiedSenderEmail} as this campaign's sender to continue.`
+                  : isVerified
+                    ? `Verified sender: ${campaignSenderEmail?.trim() || senderConfig?.senderEmail || verifiedSenderEmail}`
+                    : `Campaign sending is paused until you verify a custom sending domain for ${companyName}.`}
               </p>
             </div>
 
@@ -144,8 +187,15 @@ export const SenderVerificationModal: React.FC<
                   </span>{" "}
                   is verified and ready to send emails.
                 </p>
-                <Button onClick={() => onOpenChange(false)} className="w-full">
-                  Continue with Campaign
+                <Button
+                  data-testid="sender-verification-continue"
+                  onClick={handleContinue}
+                  disabled={needsCampaignSender && !onChooseVerifiedSender}
+                  className="w-full"
+                >
+                  {needsCampaignSender
+                    ? `Use ${verifiedSenderEmail} & continue`
+                    : "Continue with Campaign"}
                 </Button>
               </div>
             )}

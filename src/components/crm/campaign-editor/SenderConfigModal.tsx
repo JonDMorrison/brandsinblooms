@@ -130,6 +130,12 @@ export function SenderConfigModal({
       <SenderVerificationDialog
         open={verificationOpen}
         onClose={() => setVerificationOpen(false)}
+        campaignSenderEmail={draftEmail}
+        onChooseVerifiedSender={(verifiedEmail) => {
+          // Keep it in the edit form until the user presses Save.
+          setDraftEmail(verifiedEmail);
+          setDraftReplyTo((current) => current.trim() || verifiedEmail);
+        }}
       />
     </>
   );

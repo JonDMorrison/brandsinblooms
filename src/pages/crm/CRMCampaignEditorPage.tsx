@@ -526,7 +526,11 @@ function CampaignEditorLoadingSkeleton() {
 function CampaignEditorScreen() {
   const navigate = useNavigate();
   const { tenant } = useTenant();
-  const { emailDomains, loading: emailDomainsLoading } = useEmailDomains();
+  const {
+    emailDomains,
+    loading: emailDomainsLoading,
+    refetch: refetchEmailDomains,
+  } = useEmailDomains();
   const { designSystem, isLoading: isDesignSystemLoading } = useDesignSystem();
   const {
     campaignId,
@@ -2651,7 +2655,19 @@ function CampaignEditorScreen() {
       />
       <SenderVerificationDialog
         open={verificationOpen}
-        onClose={() => setVerificationOpen(false)}
+        onClose={() => {
+          setVerificationOpen(false);
+          // The modal checks DNS; refresh the editor's own domain list too.
+          void refetchEmailDomains();
+        }}
+        campaignSenderEmail={senderEmail}
+        onChooseVerifiedSender={(verifiedEmail) => {
+          updateSetup({
+            senderEmail: verifiedEmail,
+            // Keep the chosen sender name and existing reply-to unchanged.
+            replyTo: replyTo.trim() || verifiedEmail,
+          });
+        }}
       />
       <SenderConfigModal
         open={senderConfigOpen}
