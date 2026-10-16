@@ -2338,6 +2338,7 @@ function CampaignStudioPageContent() {
         <StudioBottomBar
           blockCount={studio.blocks.length}
           wordCountEstimate={studio.estimatedWordCount}
+          onInsertWebsiteContent={()=>setWebsitePickerOpen(true)}
           canvasWidth={studio.canvasWidth}
           dropLabel={
             studio.isDraggingOverCanvas
