@@ -4,6 +4,7 @@ import Stack from "@mui/joy/Stack";
 import Typography from "@mui/joy/Typography";
 import { useNavigate } from "react-router-dom";
 import { JoyButton } from "@/components/joy/JoyButton";
+import { dashboardCardSpacing } from "@/components/dashboard/dashboardCardSpacing";
 import { useTenant } from "@/hooks/useTenant";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,82 +118,124 @@ export function SetupNextStepsBanner() {
 
   return (
     <Box
+      data-dashboard-setup-banner
       sx={{
-        position: "relative",
-        borderRadius: "12px",
+        borderRadius: "lg",
         border: "1px solid",
         borderColor: "neutral.200",
         backgroundColor: "background.surface",
-        px: 2.5,
-        py: 2,
+        px: dashboardCardSpacing.banner.px,
+        py: dashboardCardSpacing.banner.py,
       }}
     >
-      <Box
-        component="button"
-        onClick={handleDismiss}
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          appearance: "none",
-          border: "none",
-          background: "none",
-          cursor: "pointer",
-          color: "neutral.400",
-          p: 0.5,
-          borderRadius: "4px",
-          "&:hover": { color: "neutral.600", background: "neutral.100" },
-        }}
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={{ xs: 2.5, md: 3 }}
+        alignItems={{ xs: "stretch", md: "center" }}
       >
-        <X size={14} />
-      </Box>
-      <Stack direction="row" spacing={2} alignItems="center">
-        <Box
+        <Stack
+          direction="row"
+          spacing={dashboardCardSpacing.banner.iconGap}
+          alignItems="center"
+          sx={{ flex: 1, minWidth: 0 }}
+        >
+          <Box
+            data-dashboard-setup-icon
+            sx={{
+              display: "grid",
+              placeItems: "center",
+              width: dashboardCardSpacing.banner.iconSize,
+              height: dashboardCardSpacing.banner.iconSize,
+              borderRadius: dashboardCardSpacing.banner.iconRadius,
+              backgroundColor: "neutral.100",
+              color: "neutral.700",
+              flexShrink: 0,
+            }}
+          >
+            {step.icon}
+          </Box>
+          <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              level="title-md"
+              sx={{
+                fontWeight: 600,
+                color: "neutral.900",
+                fontSize: "1rem",
+                lineHeight: 1.4,
+              }}
+            >
+              {step.title}
+            </Typography>
+            <Typography
+              level="body-sm"
+              sx={{ color: "neutral.600", lineHeight: 1.5 }}
+            >
+              {step.description}
+            </Typography>
+          </Stack>
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={dashboardCardSpacing.banner.actionGap}
+          alignItems="center"
           sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 36,
-            height: 36,
-            borderRadius: "8px",
-            backgroundColor: "neutral.100",
-            color: "neutral.700",
+            pl: { xs: 0, sm: 8, md: 0 },
+            width: { xs: "100%", md: "auto" },
+            justifyContent: { xs: "space-between", sm: "flex-start", md: "flex-end" },
             flexShrink: 0,
           }}
         >
-          {step.icon}
-        </Box>
-        <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            sx={{ fontSize: "14px", fontWeight: 600, color: "neutral.800" }}
+          <JoyButton
+            size="md"
+            onClick={() => navigate(step.href)}
+            sx={{
+              minHeight: dashboardCardSpacing.banner.minButtonHeight,
+              flexShrink: 0,
+            }}
           >
-            {step.title}
-          </Typography>
-          <Typography sx={{ fontSize: "12px", color: "neutral.500" }}>
-            {step.description}
-          </Typography>
+            {step.cta}
+          </JoyButton>
+          <Box
+            component="button"
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Dismiss setup reminder"
+            sx={{
+              appearance: "none",
+              border: "none",
+              backgroundColor: "transparent",
+              color: "neutral.500",
+              cursor: "pointer",
+              width: 40,
+              height: 40,
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "md",
+              flexShrink: 0,
+              "&:hover": { color: "neutral.800", backgroundColor: "neutral.100" },
+              "&:focus-visible": {
+                outline: "2px solid var(--joy-palette-primary-400)",
+                outlineOffset: 2,
+              },
+            }}
+          >
+            <X size={18} aria-hidden="true" />
+          </Box>
         </Stack>
-        <JoyButton
-          size="sm"
-          onClick={() => navigate(step.href)}
-          sx={{ flexShrink: 0 }}
-        >
-          {step.cta}
-        </JoyButton>
       </Stack>
-      {steps.length > 1 && (
+      {steps.length > 1 ? (
         <Typography
+          level="body-xs"
           sx={{
-            fontSize: "11px",
-            color: "neutral.400",
-            mt: 1,
-            pl: "52px",
+            color: "neutral.600",
+            mt: 1.5,
+            ml: { xs: 0, sm: 8 },
           }}
         >
           {steps.length - 1} more setup step{steps.length > 2 ? "s" : ""}{" "}
           remaining
         </Typography>
-      )}
+      ) : null}
     </Box>
   );
 }
