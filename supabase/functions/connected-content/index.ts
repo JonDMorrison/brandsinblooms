@@ -73,8 +73,7 @@ serve(async (req: Request) => {
     if (req.method === "POST" && action === "connect") {
       if (!mayConnect) return ok({error:"integration_permission_required"},403);
       const body = input;
-      if (body?.action === "connect") {
-        const code = typeof body.code === "string" ? body.code.trim().toLowerCase() : "";
+      const code = typeof body?.code === "string" ? body.code.trim().toLowerCase() : "";
         if (!codePattern.test(code)) return ok({error:"invalid_code"},400);
         const response = await fetch(`${BLOOMSITES_API_ORIGIN}/api/connected-content/redeem`,{
           method:"POST",
