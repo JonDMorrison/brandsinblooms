@@ -240,9 +240,11 @@ function SectionTitle({
 function BloomCompanion({
   view,
   onAsk,
+  disabled = false,
 }: {
   view: IntelligenceView;
   onAsk: (question: string) => void;
+  disabled?: boolean;
 }) {
   const [question, setQuestion] = React.useState("");
   const [error, setError] = React.useState("");
@@ -309,6 +311,7 @@ function BloomCompanion({
           <Stack spacing={1}>
             <Textarea
               aria-label="Ask Bloom about your customers"
+              disabled={disabled}
               minRows={2}
               maxRows={5}
               value={question}
@@ -356,6 +359,7 @@ function BloomCompanion({
               </Typography>
               <Button
                 type="submit"
+                disabled={disabled}
                 startDecorator={<Sparkles size={16} />}
                 sx={{ borderRadius: "lg" }}
               >
@@ -376,6 +380,7 @@ function BloomCompanion({
             size="sm"
             variant="outlined"
             color="neutral"
+            disabled={disabled}
             onClick={() => onAsk(context.question)}
           >
             <Sparkles size={13} />{" "}
@@ -427,6 +432,7 @@ function BloomCompanion({
               size="sm"
               variant="plain"
               color="neutral"
+              disabled={disabled}
               onClick={() => onAsk(item.query)}
             >
               {item.text}
@@ -1223,7 +1229,7 @@ export default function CustomerIntelligencePage() {
           })}
         </Box>
 
-        <BloomCompanion view={active} onAsk={askBloom} />
+        <BloomCompanion view={active} onAsk={askBloom} disabled={!tenantId} />
 
         {visited.includes("overview") && (
           <Box
@@ -1274,30 +1280,37 @@ export default function CustomerIntelligencePage() {
                   />
                 </Box>
               </Box>
-              <OverviewInsights
-                rows={query.data ?? []}
-                loading={query.isPending && query.fetchStatus === "fetching"}
-                error={
-                  query.error instanceof Error
-                    ? query.error
-                    : query.error
-                      ? new Error("Customer intelligence unavailable.")
-                      : null
-                }
-                refreshedAt={query.dataUpdatedAt}
-                onRetry={() => {
-                  void query.refetch();
-                }}
-                onAsk={askBloom}
-                onView={changeView}
-                onCustomer={(id) =>
-                  navigate(
-                    "/crm/customers/" +
-                      encodeURIComponent(id) +
-                      "?tab=purchase",
-                  )
-                }
-              />
+              {tenantId ? (
+                <OverviewInsights
+                  rows={query.data ?? []}
+                  loading={query.isPending && query.fetchStatus === "fetching"}
+                  error={
+                    query.error instanceof Error
+                      ? query.error
+                      : query.error
+                        ? new Error("Customer intelligence unavailable.")
+                        : null
+                  }
+                  refreshedAt={query.dataUpdatedAt}
+                  onRetry={() => {
+                    void query.refetch();
+                  }}
+                  onAsk={askBloom}
+                  onView={changeView}
+                  onCustomer={(id) =>
+                    navigate(
+                      "/crm/customers/" +
+                        encodeURIComponent(id) +
+                        "?tab=purchase",
+                    )
+                  }
+                />
+              ) : (
+                <Alert variant="soft" color="neutral">
+                  Select a company to load customer intelligence. No records
+                  have been assumed.
+                </Alert>
+              )}
               <Sheet
                 variant="soft"
                 sx={{ borderRadius: "20px", p: { xs: 2.5, md: 3 } }}

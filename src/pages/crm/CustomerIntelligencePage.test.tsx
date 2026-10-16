@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   selected: {
     id: "synthetic-tenant",
     settings: { timezone: "America/Vancouver" },
-  },
+  } as { id: string; settings: { timezone: string } } | null,
 }));
 
 vi.mock("@/hooks/useTenant", () => ({
@@ -142,11 +142,32 @@ function mount(path = "/crm/intelligence") {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.selected = {
+    id: "synthetic-tenant",
+    settings: { timezone: "America/Vancouver" },
+  };
   mocks.source.mockResolvedValue(example);
 });
 afterEach(cleanup);
 
 describe("the redesigned Intelligence journey", () => {
+  it("does not offer Bloom actions or invent customer metrics without a selected company", () => {
+    mocks.selected = null;
+    mount();
+    expect(
+      screen.getByText(/Select a company to load customer intelligence/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("textbox", { name: "Ask Bloom about your customers" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Continue in Bloom/ }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Find my best opportunities/ }),
+    ).toBeDisabled();
+    expect(mocks.source).not.toHaveBeenCalled();
+  });
   it("shows a clear home with three goals and only the overview content initially", async () => {
     mount();
     expect(

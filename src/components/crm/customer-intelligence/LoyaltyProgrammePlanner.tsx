@@ -1,3 +1,4 @@
+import { bloomIntelligenceUrl } from "@/lib/customer-intelligence/intelligenceExperience";
 import * as React from 'react';
 import { Accordion, AccordionDetails, AccordionGroup, AccordionSummary, Alert, Box, Button, Checkbox, Chip, Divider, FormControl, FormLabel, Input, Option, Select, Sheet, Stack, Textarea, Typography } from '@mui/joy';
 import { ArrowRight, Download, Gift, Sparkles } from 'lucide-react';
@@ -114,7 +115,7 @@ function ProgrammeWorksheet({ timezone, currency = 'CAD', initialDraft, onSaveDr
         </Stack>
         {actionError && <Alert role="alert" color="danger">{actionError}</Alert>}
         <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
-          <Button startDecorator={<Sparkles size={16} />} endDecorator={<ArrowRight size={16} />} disabled={!parsed.draft} onClick={() => { if (parsed.draft) navigate('/bloom?prompt=' + encodeURIComponent(programmePlanningPrompt(parsed.draft, summary))); }}>Review draft with Bloom</Button>
+          <Button startDecorator={<Sparkles size={16} />} endDecorator={<ArrowRight size={16} />} disabled={!parsed.draft} onClick={() => { if (parsed.draft) navigate(bloomIntelligenceUrl(programmePlanningPrompt(parsed.draft, summary), 'rewards')); }}>Review draft with Bloom</Button>
           <Button variant="outlined" startDecorator={<Download size={16} />} disabled={!parsed.draft} onClick={download}>Export draft</Button>
           {onSaveDraft && <Button loading={saving} disabled={!parsed.draft} onClick={() => void save()}>Save programme draft</Button>}
         </Stack>

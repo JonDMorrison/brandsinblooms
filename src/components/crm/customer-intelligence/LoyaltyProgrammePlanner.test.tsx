@@ -16,7 +16,9 @@ describe('LoyaltyProgrammePlanner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review draft with Bloom' }));
     const target = mocks.navigate.mock.calls[0][0] as string;
     expect(target).toMatch(/^\/bloom\?prompt=/);
-    expect(decodeURIComponent(target)).toContain('Do not issue benefits');
+    expect(target).toContain('origin=intelligence');
+    expect(target).toContain('returnView=rewards');
+    expect(new URL(target, 'https://example.test').searchParams.get('prompt')).toContain('Do not issue benefits');
   });
   it('previews an explicit fictional basket and invalidates it after edits', async () => {
     render(<LoyaltyProgrammePlanner {...props} />); await open();
