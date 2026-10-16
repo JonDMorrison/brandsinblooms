@@ -1144,21 +1144,11 @@ function CampaignEditorScreen() {
 
   const audienceInitiallyExpanded = true;
   const contentInitiallyExpanded = true;
-  const scheduleInitiallyExpanded = false;
 
-  // Preview section starts collapsed but auto-opens once the user
-  // applies a template (or otherwise gains meaningful blocks). After
-  // the user manually toggles it themselves, we stop auto-opening
-  // for the rest of the session.
+  // Keep the large email preview collapsed until explicitly requested.
+  // The send controls now remain visible without forcing a long scroll.
   const [previewExpanded, setPreviewExpanded] = React.useState(false);
-  const previewManuallyToggledRef = React.useRef(false);
-  React.useEffect(() => {
-    if (hasMeaningfulEmailContent && !previewManuallyToggledRef.current) {
-      setPreviewExpanded(true);
-    }
-  }, [hasMeaningfulEmailContent]);
   const handlePreviewExpandedChange = React.useCallback((next: boolean) => {
-    previewManuallyToggledRef.current = true;
     setPreviewExpanded(next);
   }, []);
 
@@ -1492,34 +1482,134 @@ function CampaignEditorScreen() {
             </Stack>
           </Stack>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {campaignId ? (
-              <AskBloomResourceTrigger
-                resourceType="campaign"
-                resourceId={campaignId}
-                resourceLabel={name || "Campaign"}
-                buildContext={buildCampaignResourceFocus}
-              />
-            ) : null}
+          {campaignId ? (
+            <AskBloomResourceTrigger
+              resourceType="campaign"
+              resourceId={campaignId}
+              resourceLabel={name || "Campaign"}
+              buildContext={buildCampaignResourceFocus}
+            />
+          ) : null}
+        </Stack>
+      </Stack>
+
+      <Sheet
+        id="campaign-editor-schedule"
+        data-testid="campaign-editor-send-toolbar"
+        component="section"
+        role="region"
+        aria-label="Campaign sending controls"
+        variant="outlined"
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 9,
+          borderRadius: "lg",
+          borderColor: "neutral.200",
+          backgroundColor: "background.surface",
+          boxShadow: "0 8px 26px rgba(21, 36, 49, 0.09)",
+          backdropFilter: "blur(12px)",
+          px: { xs: 2, sm: 2.5 },
+          py: { xs: 1.5, sm: 1.75 },
+        }}
+      >
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 1.5, sm: 2 }}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
+            <Box
+              sx={{
+                width: 38,
+                height: 38,
+                display: "grid",
+                placeItems: "center",
+                bgcolor: "neutral.100",
+                color: "neutral.700",
+                borderRadius: "md",
+                flexShrink: 0,
+              }}
+            >
+              <Send size={18} strokeWidth={1.9} aria-hidden="true" />
+            </Box>
+            <Stack spacing={0.3} sx={{ minWidth: 0 }}>
+              <Typography level="title-sm" sx={{ fontWeight: 700, color: "neutral.900" }}>
+                Send or schedule
+              </Typography>
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: sendBlockerLines.length > 0 ? "neutral.700" : "neutral.600",
+                  lineHeight: 1.4,
+                }}
+              >
+                {sendBlockerLines.length > 0
+                  ? sendBlockerLines[0]
+                  : isAudienceLoading
+                    ? "Checking your audience…"
+                    : `${asCountLabel(audienceCount)} · ${isSaving ? "Saving draft…" : "Ready for final review"}`}
+              </Typography>
+              {blockerSignals.senderUnverified ? (
+                <JoyButton
+                  color="neutral"
+                  variant="plain"
+                  size="sm"
+                  data-testid="campaign-editor-fix-sender"
+                  onClick={() => setVerificationOpen(true)}
+                  sx={{ alignSelf: "flex-start", minHeight: 28, px: 0.5 }}
+                >
+                  Fix sender address
+                </JoyButton>
+              ) : null}
+            </Stack>
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ flexShrink: 0, width: { xs: "100%", sm: "auto" } }}
+          >
             <JoyButton
+              size="md"
               variant="outlined"
               color="neutral"
-              startDecorator={<TimerReset size={16} />}
-              onClick={() => setScheduleOpen(true)}
-              disabled={isLocked}
+              disabled={sendButtonDisabled}
+              startDecorator={<Calendar size={16} aria-hidden="true" />}
+              onClick={handleScheduleForLater}
+              sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
+              data-testid="campaign-editor-schedule-cta"
             >
               Schedule
             </JoyButton>
             <JoyButton
-              startDecorator={<Send size={16} />}
-              onClick={openSendConfirmation}
+              size="md"
+              variant="solid"
+              color="primary"
               disabled={sendButtonDisabled}
+              startDecorator={<Send size={16} aria-hidden="true" />}
+              onClick={openSendConfirmation}
+              sx={{ minHeight: 44, flex: { xs: 1, sm: "none" } }}
+              data-testid="campaign-editor-review-send-cta"
             >
-              Send Campaign
+              Review & send
             </JoyButton>
           </Stack>
         </Stack>
-      </Stack>
+      </Sheet>
+      <CampaignBlockerRow
+        senderUnverified={blockerSignals.senderUnverified}
+        audienceEmpty={blockerSignals.audienceEmpty}
+        contentEmpty={blockerSignals.contentEmpty}
+        subjectEmpty={blockerSignals.subjectEmpty}
+        draftConflict={blockerSignals.draftConflict}
+        onVerifySender={() => setVerificationOpen(true)}
+        onScrollToAudience={focusAudienceSection}
+        onScrollToContent={focusContentSection}
+        onScrollToSubject={focusSubjectInput}
+        onReload={handleReloadDraft}
+      />
 
       <CollapsibleSection
         id="campaign-editor-setup"
@@ -2253,73 +2343,6 @@ function CampaignEditorScreen() {
           </Box>
         </CollapsibleSection>
       ) : null}
-
-      <CollapsibleSection
-        id="campaign-editor-schedule"
-        title="Send or schedule"
-        summary="Review the inline checks above and send or schedule this campaign."
-        defaultExpanded={scheduleInitiallyExpanded}
-      >
-        <Stack spacing={2}>
-          <CampaignBlockerRow
-            senderUnverified={blockerSignals.senderUnverified}
-            audienceEmpty={blockerSignals.audienceEmpty}
-            contentEmpty={blockerSignals.contentEmpty}
-            subjectEmpty={blockerSignals.subjectEmpty}
-            draftConflict={blockerSignals.draftConflict}
-            onVerifySender={() => setVerificationOpen(true)}
-            onScrollToAudience={focusAudienceSection}
-            onScrollToContent={focusContentSection}
-            onScrollToSubject={focusSubjectInput}
-            onReload={handleReloadDraft}
-          />
-
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: { xs: "stretch", sm: "center" },
-              justifyContent: "space-between",
-              gap: 1.5,
-            }}
-          >
-            <Stack spacing={0.25}>
-              <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                {isAudienceLoading
-                  ? "Calculating audience…"
-                  : asCountLabel(audienceCount)}
-              </Typography>
-              {lastSavedAt ? (
-                <Typography level="body-xs" sx={{ color: "neutral.500" }}>
-                  Last saved {lastSavedAt.toLocaleTimeString()}
-                </Typography>
-              ) : null}
-            </Stack>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button
-                size="md"
-                variant="plain"
-                color="neutral"
-                disabled={sendButtonDisabled}
-                endDecorator={<Calendar size={16} />}
-                onClick={handleScheduleForLater}
-              >
-                Schedule for later
-              </Button>
-              <Button
-                size="md"
-                variant="solid"
-                color="primary"
-                disabled={sendButtonDisabled}
-                startDecorator={<Send size={16} />}
-                onClick={openSendConfirmation}
-              >
-                Send campaign
-              </Button>
-            </Stack>
-          </Box>
-        </Stack>
-      </CollapsibleSection>
 
       <Modal
         open={audienceExpansionOpen}

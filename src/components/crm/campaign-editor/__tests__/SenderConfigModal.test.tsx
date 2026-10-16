@@ -122,7 +122,7 @@ describe("SenderConfigModal", () => {
     });
   });
 
-  it("disables Verify when email is blank", () => {
+  it("allows verification with a blank sender so a verified default can be selected", () => {
     render(
       <SenderConfigModal
         open
@@ -133,6 +133,6 @@ describe("SenderConfigModal", () => {
         onSave={() => {}}
       />,
     );
-    expect(screen.getByTestId("sender-config-modal-verify")).toBeDisabled();
+    expect(screen.getByTestId("sender-config-modal-verify")).toBeEnabled();
   });
 });

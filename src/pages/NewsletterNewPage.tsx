@@ -479,19 +479,15 @@ export const NewsletterNewPage = () => {
   return (
     <>
       {/*
-        (1) .hp-token-scope wrapper so --hp-* variables resolve, plus
-        a soft cream off-white background and a single BrandFoliage
-        decoration anchored bottom-right at low opacity.
+        Keep the marketing token scope for accents and typography while the
+        editor workspace itself uses BloomSuite's cool neutral surface.
       */}
       <Box
         className="hp-token-scope"
         sx={{
           position: "relative",
           minHeight: "100%",
-          bgcolor: "var(--hp-bg-subtle, #F8F9FB)",
-          // The DashboardShell main content area handles its own
-          // padding; we only need the page's own surface to read as
-          // a continuous warm cream.
+          bgcolor: "neutral.50",
         }}
       >
         <BrandFoliage

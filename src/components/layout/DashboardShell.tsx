@@ -347,7 +347,7 @@ export function DashboardShell({
             : `${sidebarWidth}px minmax(0, 1fr)`,
           gridTemplateRows: `${DASHBOARD_TOPBAR_HEIGHT}px minmax(0, 1fr)`,
           transition: `grid-template-columns ${SIDEBAR_WIDTH_TRANSITION}`,
-          backgroundColor: "var(--joy-palette-sand-50)",
+          backgroundColor: "var(--joy-palette-neutral-50)",
         }}
       >
         {!isMobile && <DashboardSidebarSlot mode={mode} />}
@@ -368,7 +368,7 @@ export function DashboardShell({
             overflowX: "hidden",
             scrollBehavior: "smooth",
             overscrollBehavior: "contain",
-            backgroundColor: "var(--joy-palette-sand-50)",
+            backgroundColor: "var(--joy-palette-neutral-50)",
             scrollbarWidth: "thin",
             scrollbarColor: "var(--joy-palette-neutral-300) transparent",
             "&::-webkit-scrollbar": {
