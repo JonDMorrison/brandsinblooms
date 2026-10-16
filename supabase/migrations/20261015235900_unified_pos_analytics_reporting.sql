@@ -70,6 +70,11 @@ BEGIN
   SELECT jsonb_build_object(
     'periodDays', v_days,
     'totalOrders', (SELECT count(*) FROM current_orders),
+    'loyaltyMembers', (SELECT count(*) FROM public.customer_loyalty_metrics
+      WHERE tenant_id = v_tenant_id AND is_perks_member IS TRUE),
+    'totalPointsEarned', (SELECT COALESCE(sum(total_points_earned), 0)
+      FROM public.customer_loyalty_metrics
+      WHERE tenant_id = v_tenant_id AND is_perks_member IS TRUE),
     'revenueByCurrency', COALESCE(
       (SELECT jsonb_agg(jsonb_build_object(
         'currency', currency, 'orders', orders, 'revenue', revenue
