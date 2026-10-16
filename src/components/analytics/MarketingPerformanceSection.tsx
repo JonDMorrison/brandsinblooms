@@ -288,7 +288,7 @@ export function MarketingPerformanceSection({
   ];
 
   const renderSectionError = (sectionLabel: string) => (
-    <JoyCard variant="soft" color="danger">
+    <JoyCard variant="outlined">
       <JoyCardContent sx={{ pt: 4 }}>
         <Stack spacing={1.5}>
           <Typography level="body-sm">
@@ -297,7 +297,7 @@ export function MarketingPerformanceSection({
           <JoyButton
             size="sm"
             variant="soft"
-            color="danger"
+            color="neutral"
             onClick={() => void refetch()}
           >
             Retry

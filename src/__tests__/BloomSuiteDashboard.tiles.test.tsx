@@ -62,6 +62,12 @@ vi.mock("@/hooks/useTenant", () => ({
   useTenant: () => ({ tenant: { id: "tenant-1" } }),
 }));
 
+// Production resolves permissions through the AdminProvider; the dashboard
+// unit test explicitly supplies owner access so it can isolate KPI rendering.
+vi.mock("@/hooks/useUserRole", () => ({
+  useUserRole: () => ({ hasPermission: () => true }),
+}));
+
 vi.mock("@/hooks/useCRMDashboardMetrics", () => ({
   useCRMDashboardMetrics: () => ({
     data: {

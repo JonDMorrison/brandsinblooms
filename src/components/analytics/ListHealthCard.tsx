@@ -117,7 +117,7 @@ export const ListHealthCard: React.FC = () => {
 
   if (error || health.error) {
     return (
-      <JoyCard variant="soft" color="danger">
+      <JoyCard variant="outlined">
         <JoyCardHeader title="List Health" />
         <JoyCardContent sx={{ pt: 3 }}>
           <Stack spacing={1.5}>
@@ -127,7 +127,7 @@ export const ListHealthCard: React.FC = () => {
             <JoyButton
               size="sm"
               variant="soft"
-              color="danger"
+              color="neutral"
               onClick={() => { void refetch(); void health.refetch(); }}
             >
               Retry
