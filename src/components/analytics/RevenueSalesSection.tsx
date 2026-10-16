@@ -40,6 +40,17 @@ export function RevenueSalesSection({
   const averageOrderTrend = currency && priorAov > 0
     ? calculateTrend(posData?.avgOrderValue ?? 0, priorAov) : null;
 
+  if (posError) {
+    return (
+      <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
+        <Typography level="title-sm">Sales reporting unavailable</Typography>
+        <Typography level="body-sm" sx={{ color: "neutral.600", mt: 0.5 }}>
+          We couldn't load the POS reporting source. No sales totals have been substituted.
+        </Typography>
+      </Sheet>
+    );
+  }
+
   return (
     <Stack spacing={1.75}>
       <Stack spacing={0.5}>
@@ -48,13 +59,6 @@ export function RevenueSalesSection({
           Confirmed POS orders, separated by currency and sourced from every linked provider.
         </Typography>
       </Stack>
-      {posError ? (
-        <Sheet variant="outlined" sx={{ borderRadius: "lg", p: 2.5 }}>
-          <Typography level="body-sm">
-            Sales reporting is unavailable. We haven't substituted zero for missing data.
-          </Typography>
-        </Sheet>
-      ) : null}
       {posData?.hasMixedCurrencies ? (
         <Sheet variant="outlined" sx={{ p: 2, borderRadius: "lg" }}>
           <Typography level="title-sm">Sales by currency</Typography>
@@ -80,13 +84,22 @@ export function RevenueSalesSection({
       ) : null}
       <Grid container spacing={2}>
         <Grid xs={12} lg={8}>
-          <RevenueChart
-            data={dailyData}
-            loading={posLoading}
-            error={posError}
-            currency={currency ?? undefined}
-            periodLabel={getAnalyticsPeriodLabel(period)}
-          />
+          {posData?.hasMixedCurrencies ? (
+            <Sheet variant="outlined" sx={{ p: 2.5, borderRadius: "lg" }}>
+              <Typography level="title-md">Separate currency trends</Typography>
+              <Typography level="body-sm" sx={{ color: "neutral.600", mt: 1 }}>
+                A combined revenue chart is unavailable because the synced orders
+                contain multiple currencies. The totals above remain separated.
+              </Typography>
+            </Sheet>
+          ) : (
+            <RevenueChart
+              data={dailyData}
+              loading={posLoading}
+              currency={currency ?? undefined}
+              periodLabel={getAnalyticsPeriodLabel(period)}
+            />
+          )}
         </Grid>
         <Grid xs={12} lg={4}>
           <POSDetailCards
