@@ -1,0 +1,40 @@
+name: Mobile Dashboard Regression
+on:
+  pull_request:
+    paths:
+      - "src/pages/BloomSuiteDashboard.tsx"
+      - "src/__tests__/BloomSuiteDashboard.tiles.test.tsx"
+      - "e2e/dashboard-mobile/**"
+      - "playwright.dashboard-mobile.config.ts"
+      - "vite.dashboard-mobile.config.ts"
+      - ".github/workflows/dashboard-mobile-regression.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/pages/BloomSuiteDashboard.tsx"
+      - "src/__tests__/BloomSuiteDashboard.tiles.test.tsx"
+      - "e2e/dashboard-mobile/**"
+      - "playwright.dashboard-mobile.config.ts"
+      - "vite.dashboard-mobile.config.ts"
+      - ".github/workflows/dashboard-mobile-regression.yml"
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config playwright.dashboard-mobile.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-dashboard-synthetic-screenshots
+          path: |
+            test-results/dashboard-*.png
+            playwright-report-dashboard-mobile/
+          retention-days: 7

@@ -1,8 +1,52 @@
 import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+const dashboardAccess = vi.hoisted(() => ({
+  permissions: new Set<string>([
+    "customers.read",
+    "reports.read",
+    "campaigns.write",
+  ]),
+  loading: false,
+  error: false,
+  refresh: vi.fn(),
+  masterAdmin: false,
+  hydrated: true,
+  activeTenantId: "tenant-1" as string | null,
+  companies: [{ id: "tenant-1", name: "Synthetic Garden Centre" }],
+  selectTenant: vi.fn(async (_id: string) => undefined),
+  refreshTenants: vi.fn(async () => undefined),
+}));
+beforeEach(() => {
+  dashboardAccess.permissions = new Set([
+    "customers.read",
+    "reports.read",
+    "campaigns.write",
+  ]);
+  dashboardAccess.loading = false;
+  dashboardAccess.error = false;
+  dashboardAccess.masterAdmin = false;
+  dashboardAccess.hydrated = true;
+  dashboardAccess.activeTenantId = "tenant-1";
+  dashboardAccess.refresh.mockClear();
+  dashboardAccess.selectTenant.mockClear();
+  dashboardAccess.refreshTenants.mockClear();
+});
+
+vi.mock("@/contexts/AdminContext", () => ({
+  useAdmin: () => ({
+    isMasterAdmin: dashboardAccess.masterAdmin,
+    isLoading: false,
+    activeTenantId: dashboardAccess.activeTenantId,
+    hasHydratedTenantContext: dashboardAccess.hydrated,
+    availableTenants: dashboardAccess.companies,
+    setActiveTenantId: dashboardAccess.selectTenant,
+    refreshTenants: dashboardAccess.refreshTenants,
+  }),
+}));
 
 beforeAll(() => {
   if (typeof window.localStorage?.getItem !== "function") {
@@ -53,7 +97,13 @@ vi.mock("@/hooks/useTenant", () => ({
 // Production resolves permissions through the AdminProvider; the dashboard
 // unit test explicitly supplies owner access so it can isolate KPI rendering.
 vi.mock("@/hooks/useUserRole", () => ({
-  useUserRole: () => ({ hasPermission: () => true }),
+  useUserRole: () => ({
+    hasPermission: (permission: string) =>
+      dashboardAccess.permissions.has(permission),
+    isLoading: dashboardAccess.loading,
+    isError: dashboardAccess.error,
+    refetch: dashboardAccess.refresh,
+  }),
 }));
 
 vi.mock("@/hooks/useCRMDashboardMetrics", () => ({
@@ -135,12 +185,14 @@ vi.mock("@/hooks/useTenantAudienceHealth", () => ({
 vi.mock("@/hooks/analytics/useCampaignDeliveryMetrics", () => ({
   useCampaignDeliveryMetrics: () => ({
     summary: { totalDelivered: 2000, avgClickRate: 3.2, avgOpenRate: 20.5 },
-    campaigns: [{
-      campaignId: "campaign-1",
-      campaignName: "Autumn garden newsletter",
-      computedDelivered: 2000,
-      clickRate: 3.2,
-    }],
+    campaigns: [
+      {
+        campaignId: "campaign-1",
+        campaignName: "Autumn garden newsletter",
+        computedDelivered: 2000,
+        clickRate: 3.2,
+      },
+    ],
     loading: false,
     error: null,
   }),
@@ -176,8 +228,86 @@ describe("BloomSuite task-first dashboard", () => {
     expect(screen.queryByText("Revenue")).not.toBeInTheDocument();
   });
 
+  it("shows large, accessible mobile actions when rights are resolved", () => {
+    renderDashboard();
+    expect(
+      screen.getByRole("button", { name: /Create an email/ }),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: /Send a text/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Customers/ })).toBeVisible();
+    expect(screen.getByText("Recent performance")).toBeVisible();
+  });
+
+  it("never leaves an empty page if all permissions are absent", () => {
+    dashboardAccess.permissions.clear();
+    renderDashboard();
+    expect(screen.getByText("What would you like to do?")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Your dashboard tools aren't available yet",
+    );
+    expect(
+      screen.getByRole("button", { name: /Retry dashboard access/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Create an email/ }),
+    ).toBeNull();
+    expect(screen.queryByText("Recent performance")).toBeNull();
+  });
+
+  it("shows visible loading placeholders while company rights resolve", () => {
+    dashboardAccess.permissions.clear();
+    dashboardAccess.loading = true;
+    renderDashboard();
+    expect(
+      screen.getByRole("status", { name: "Loading dashboard actions" }),
+    ).toBeVisible();
+    expect(screen.getByText("Loading your company tools…")).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("retries a failed rights lookup instead of presenting a blank dashboard", () => {
+    dashboardAccess.permissions.clear();
+    dashboardAccess.error = true;
+    renderDashboard();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "We couldn't load your dashboard access",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Retry dashboard access/ }),
+    );
+    expect(dashboardAccess.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a master admin to choose the intended company instead of showing an empty dashboard", () => {
+    dashboardAccess.masterAdmin = true;
+    dashboardAccess.activeTenantId = null;
+    dashboardAccess.permissions.clear();
+    renderDashboard();
+    expect(screen.getByText("Choose a company to get started")).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Company to manage" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Create an email/ }),
+    ).toBeNull();
+  });
+
+  it("keeps reporting-only accounts useful without exposing send permissions", () => {
+    dashboardAccess.permissions = new Set(["reports.read"]);
+    renderDashboard();
+    expect(
+      screen.getByRole("button", { name: /View analytics/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: /Create an email/ }),
+    ).toBeNull();
+    expect(screen.getByText("Recent performance")).toBeVisible();
+  });
+
   it("does not automatically open a welcome tour", () => {
     renderDashboard();
-    expect(screen.getByRole("button", { name: "Take a tour" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Take a tour" }),
+    ).toBeInTheDocument();
   });
 });
