@@ -212,8 +212,8 @@ export function POSDetailCards({
                 Program Active
               </JoyChip>
             ) : (
-              <JoyChip size="sm" variant="soft" color="warning">
-                Sync Required
+              <JoyChip size="sm" variant="soft" color="neutral">
+                No loyalty members yet
               </JoyChip>
             )
           ) : (
@@ -222,13 +222,7 @@ export function POSDetailCards({
             </JoyChip>
           )
         }
-        actionLabel={
-          hasIntegration
-            ? posData?.loyaltySynced
-              ? undefined
-              : "Sync Now"
-            : "Connect"
-        }
+        actionLabel={hasIntegration ? undefined : "Connect"}
         onAction={() => navigate("/crm/pos")}
       />
 
@@ -274,10 +268,12 @@ export function POSDetailCards({
             <JoyChip
               size="sm"
               variant="soft"
-              color={hasIntegration ? "success" : "neutral"}
+              color={hasIntegration && (posData?.totalPointsEarned ?? 0) > 0
+                ? "success" : "neutral"}
               startDecorator={<Gift size={12} />}
             >
-              {hasIntegration ? "Rewards Data" : "Not Connected"}
+              {!hasIntegration ? "Not Connected"
+                : (posData?.totalPointsEarned ?? 0) > 0 ? "Rewards Data" : "No rewards yet"}
             </JoyChip>
           </Stack>
 
