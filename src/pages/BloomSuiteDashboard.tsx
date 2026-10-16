@@ -19,7 +19,6 @@ import {
   MousePointerClick,
   Users,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
@@ -33,6 +32,10 @@ import { useTenant } from "@/hooks/useTenant";
 import { useTenantAudienceHealth } from "@/hooks/useTenantAudienceHealth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { formatPercent } from "@/components/analytics/analyticsUtils";
+import {
+  dashboardPressSx,
+  useDashboardPressNavigation,
+} from "@/components/dashboard/dashboardPressMotion";
 
 function HomeMetric({
   icon,
@@ -41,6 +44,7 @@ function HomeMetric({
   description,
   loading,
   onClick,
+  activating,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -48,6 +52,7 @@ function HomeMetric({
   description: string;
   loading: boolean;
   onClick: () => void;
+  activating: boolean;
 }) {
   return (
     <Sheet
@@ -55,7 +60,10 @@ function HomeMetric({
       type="button"
       variant="outlined"
       onClick={onClick}
+      data-activating={activating ? "true" : undefined}
+      aria-busy={activating}
       sx={{
+        ...dashboardPressSx,
         width: "100%",
         minWidth: 0,
         borderColor: "neutral.200",
@@ -65,7 +73,9 @@ function HomeMetric({
         p: 2,
         cursor: "pointer",
         textAlign: "left",
-        "&:hover": { borderColor: "neutral.400" },
+        "@media (hover: hover) and (pointer: fine)": {
+          "&:hover": { borderColor: "neutral.400" },
+        },
         "&:focus-visible": {
           outline: "2px solid var(--joy-palette-primary-400)",
           outlineOffset: 2,
@@ -97,7 +107,7 @@ function HomeMetric({
           </Typography>
         )}
         <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-          {description}
+          {activating ? "Opening…" : description}
         </Typography>
       </Stack>
     </Sheet>
@@ -106,7 +116,8 @@ function HomeMetric({
 
 /** A task-first home screen. Deep intelligence lives with the relevant feature. */
 export const BloomSuiteDashboard = () => {
-  const navigate = useNavigate();
+  const { open: openAnimatedRoute, activeAction } =
+    useDashboardPressNavigation();
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const {
@@ -293,6 +304,7 @@ export const BloomSuiteDashboard = () => {
               color="neutral"
               size="sm"
               startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+              sx={dashboardPressSx}
               onClick={() => setShowTour(true)}
             >
               Take a tour
@@ -303,7 +315,10 @@ export const BloomSuiteDashboard = () => {
               color="neutral"
               size="sm"
               startDecorator={<HelpCircle size={16} aria-hidden="true" />}
-              onClick={() => navigate("/support")}
+              data-activating={activeAction === "support" ? "true" : undefined}
+              aria-busy={activeAction === "support"}
+              sx={dashboardPressSx}
+              onClick={() => openAnimatedRoute("support", "/support")}
             >
               Help
             </JoyButton>
@@ -317,6 +332,7 @@ export const BloomSuiteDashboard = () => {
             variant="soft"
             color="primary"
             size="sm"
+            sx={dashboardPressSx}
             onClick={() => setShowSetupWizard(true)}
           >
             Complete business setup
@@ -384,7 +400,7 @@ export const BloomSuiteDashboard = () => {
                     size="sm"
                     startDecorator={<RefreshCw size={15} aria-hidden="true" />}
                     onClick={() => void refreshTenants()}
-                    sx={{ alignSelf: "flex-start" }}
+                    sx={{ ...dashboardPressSx, alignSelf: "flex-start" }}
                   >
                     Refresh company list
                   </JoyButton>
@@ -460,7 +476,11 @@ export const BloomSuiteDashboard = () => {
                   color="neutral"
                   startDecorator={<RefreshCw size={16} aria-hidden="true" />}
                   onClick={() => void refreshAccess()}
-                  sx={{ alignSelf: "flex-start", minHeight: 44 }}
+                  sx={{
+                    ...dashboardPressSx,
+                    alignSelf: "flex-start",
+                    minHeight: 44,
+                  }}
                 >
                   Retry dashboard access
                 </JoyButton>
@@ -490,8 +510,15 @@ export const BloomSuiteDashboard = () => {
                     size="lg"
                     color={action.primary ? "primary" : "neutral"}
                     variant={action.primary ? "solid" : "outlined"}
-                    onClick={() => navigate(action.destination)}
+                    data-activating={
+                      activeAction === action.destination ? "true" : undefined
+                    }
+                    aria-busy={activeAction === action.destination}
+                    onClick={() =>
+                      openAnimatedRoute(action.destination, action.destination)
+                    }
                     sx={{
+                      ...dashboardPressSx,
                       width: "100%",
                       minWidth: 0,
                       minHeight: 84,
@@ -503,11 +530,13 @@ export const BloomSuiteDashboard = () => {
                       textAlign: "left",
                     }}
                   >
-                    <Icon
-                      size={23}
-                      aria-hidden="true"
-                      style={{ flexShrink: 0 }}
-                    />
+                    <Box
+                      component="span"
+                      data-dashboard-action-icon
+                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                    >
+                      <Icon size={23} aria-hidden="true" />
+                    </Box>
                     <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
                       <Typography
                         sx={{
@@ -528,14 +557,18 @@ export const BloomSuiteDashboard = () => {
                           lineHeight: 1.4,
                         }}
                       >
-                        {action.detail}
+                        {activeAction === action.destination
+                          ? "Opening…"
+                          : action.detail}
                       </Typography>
                     </Stack>
-                    <ArrowRight
-                      size={17}
-                      aria-hidden="true"
-                      style={{ flexShrink: 0 }}
-                    />
+                    <Box
+                      component="span"
+                      data-dashboard-action-arrow
+                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                    >
+                      <ArrowRight size={17} aria-hidden="true" />
+                    </Box>
                   </JoyButton>
                 );
               })}
@@ -558,9 +591,19 @@ export const BloomSuiteDashboard = () => {
                   size="sm"
                   variant="plain"
                   color="primary"
-                  onClick={() => navigate("/analytics")}
+                  data-activating={
+                    activeAction === "analytics-header" ? "true" : undefined
+                  }
+                  aria-busy={activeAction === "analytics-header"}
+                  sx={dashboardPressSx}
+                  onClick={() =>
+                    openAnimatedRoute("analytics-header", "/analytics")
+                  }
                 >
-                  Explore analytics <ArrowRight size={15} aria-hidden="true" />
+                  {activeAction === "analytics-header"
+                    ? "Opening…"
+                    : "Explore analytics"}{" "}
+                  <ArrowRight size={15} aria-hidden="true" />
                 </JoyButton>
               ) : null}
             </Stack>
@@ -583,7 +626,10 @@ export const BloomSuiteDashboard = () => {
                   value={item.value}
                   description={item.description}
                   loading={item.loading}
-                  onClick={() => navigate(item.destination)}
+                  activating={activeAction === "metric-" + item.key}
+                  onClick={() =>
+                    openAnimatedRoute("metric-" + item.key, item.destination)
+                  }
                 />
               ))}
             </Box>
@@ -634,15 +680,27 @@ export const BloomSuiteDashboard = () => {
                 size="sm"
                 color="neutral"
                 variant="outlined"
+                data-activating={
+                  activeAction === "latest-campaign" ? "true" : undefined
+                }
+                aria-busy={activeAction === "latest-campaign"}
+                sx={dashboardPressSx}
                 onClick={() =>
-                  navigate(
+                  openAnimatedRoute(
+                    "latest-campaign",
                     latestCampaign
-                      ? `/crm/campaigns/${latestCampaign.campaignId}/report`
+                      ? "/crm/campaigns/" +
+                          latestCampaign.campaignId +
+                          "/report"
                       : "/crm/campaigns",
                   )
                 }
               >
-                {latestCampaign ? "View campaign report" : "View campaigns"}
+                {activeAction === "latest-campaign"
+                  ? "Opening…"
+                  : latestCampaign
+                    ? "View campaign report"
+                    : "View campaigns"}
                 <ArrowRight size={15} aria-hidden="true" />
               </JoyButton>
             </Stack>

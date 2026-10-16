@@ -86,3 +86,70 @@ test("loading rights show clear action placeholders", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Loading your company tools…")).toBeVisible();
 });
+
+test("tap depresses the dashboard card, then opens the destination once", async ({
+  page,
+}) => {
+  await page.goto("/e2e/dashboard-mobile/fixture.html?scenario=owner");
+  const email = page.getByRole("button", { name: /Create an email/ });
+  const sms = page.getByRole("button", { name: /Send a text/ });
+  await email.dispatchEvent("click");
+  await expect(email).toHaveAttribute("data-activating", "true");
+  await expect(email).toHaveAttribute("aria-busy", "true");
+  await expect(email).toContainText("Opening…");
+  // A second press may arrive while the touch animation is running.
+  await sms.dispatchEvent("click");
+  await page.waitForTimeout(80);
+  const transform = await email.evaluate(
+    (el) => getComputedStyle(el).transform,
+  );
+  const scale = transform.match(/matrix\(([^,)]+)/);
+  expect(
+    scale,
+    "Expected a rendered press transform; received " + transform,
+  ).not.toBeNull();
+  expect(Number(scale![1])).toBeLessThan(0.998);
+  await expect(page.getByTestId("destination")).toContainText(
+    "/newsletters/new",
+  );
+});
+
+test("performance tiles have the same tactile feedback before opening analytics", async ({
+  page,
+}) => {
+  await page.goto("/e2e/dashboard-mobile/fixture.html?scenario=owner");
+  const clickRate = page.getByRole("button", { name: /Click-through rate/ });
+  await clickRate.dispatchEvent("click");
+  await expect(clickRate).toHaveAttribute("data-activating", "true");
+  await expect(clickRate).toContainText("Opening…");
+  await expect(page.getByTestId("destination")).toContainText("/analytics");
+});
+
+test("reduced-motion settings skip the delayed transition", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/e2e/dashboard-mobile/fixture.html?scenario=owner");
+  const elapsed = await page
+    .getByRole("button", { name: /Create an email/ })
+    .evaluate(
+      (element) =>
+        new Promise<number>((resolve, reject) => {
+          const start = performance.now();
+          const timeout = window.setTimeout(() => {
+            observer.disconnect();
+            reject(new Error("Navigation did not complete."));
+          }, 1000);
+          const observer = new MutationObserver(() => {
+            if (document.querySelector('[data-testid="destination"]')) {
+              observer.disconnect();
+              clearTimeout(timeout);
+              resolve(performance.now() - start);
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+          (element as HTMLButtonElement).click();
+        }),
+    );
+  expect(elapsed).toBeLessThan(150);
+});
