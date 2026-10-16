@@ -228,6 +228,26 @@ describe("BloomSuite task-first dashboard", () => {
     expect(screen.queryByText("Revenue")).not.toBeInTheDocument();
   });
 
+  it("uses inset icon zones and balanced action/metric/card surfaces", () => {
+    const { container } = renderDashboard();
+    const actionCards = container.querySelectorAll("[data-dashboard-action-card]");
+    const metricCards = container.querySelectorAll("[data-dashboard-metric-card]");
+    const latestCard = container.querySelector("[data-dashboard-latest-campaign]");
+
+    expect(actionCards).toHaveLength(3);
+    expect(metricCards).toHaveLength(3);
+    for (const card of actionCards) {
+      expect(card.querySelector("[data-dashboard-action-icon]")).not.toBeNull();
+      expect(card.querySelector("[data-dashboard-action-content]")).not.toBeNull();
+      expect(card.querySelector("[data-dashboard-action-arrow]")).not.toBeNull();
+    }
+    for (const card of metricCards) {
+      expect(card.querySelector("[data-dashboard-metric-icon]")).not.toBeNull();
+    }
+    expect(latestCard?.querySelector("[data-dashboard-latest-icon]")).not.toBeNull();
+    expect(screen.getByText("Your latest email campaign")).toBeVisible();
+  });
+
   it("shows large, accessible mobile actions when rights are resolved", () => {
     renderDashboard();
     expect(
