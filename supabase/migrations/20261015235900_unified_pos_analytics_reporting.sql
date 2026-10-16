@@ -1,3 +1,8 @@
+-- Keep period-scoped dashboard queries efficient as imported order volume grows.
+CREATE INDEX IF NOT EXISTS pos_orders_tenant_period_reporting_idx
+  ON public.pos_orders (tenant_id, order_date DESC)
+  WHERE tenant_id IS NOT NULL;
+
 -- All supported POS providers write to public.pos_orders. Aggregate in Postgres
 -- so dashboard totals cannot silently truncate at PostgREST's response limit.
 -- SECURITY INVOKER deliberately retains the location-scoped POS RLS policy.
