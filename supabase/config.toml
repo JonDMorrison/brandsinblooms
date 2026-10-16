@@ -598,3 +598,8 @@ verify_jwt = true
 
 [functions.loyalty-programmes]
 verify_jwt = true
+
+# Owner-authorized cross-product content browsing. Always validate JWT +
+# effective tenant permissions before using the service-role client.
+[functions.connected-content]
+verify_jwt = true
