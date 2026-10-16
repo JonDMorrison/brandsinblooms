@@ -175,15 +175,27 @@ export const BloomSuiteDashboard = () => {
               Your customers, campaigns, and next steps in one place.
             </Typography>
           </Stack>
-          <JoyButton
-            variant="plain"
-            color="neutral"
-            size="sm"
-            startDecorator={<HelpCircle size={16} aria-hidden="true" />}
-            onClick={() => setShowTour(true)}
-          >
-            Take a tour
-          </JoyButton>
+          {canSend ? (
+            <JoyButton
+              variant="plain"
+              color="neutral"
+              size="sm"
+              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+              onClick={() => setShowTour(true)}
+            >
+              Take a tour
+            </JoyButton>
+          ) : (
+            <JoyButton
+              variant="plain"
+              color="neutral"
+              size="sm"
+              startDecorator={<HelpCircle size={16} aria-hidden="true" />}
+              onClick={() => navigate("/support")}
+            >
+              Help
+            </JoyButton>
+          )}
         </Stack>
 
         <SetupNextStepsBanner />
