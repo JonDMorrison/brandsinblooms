@@ -62,6 +62,7 @@ function ChannelDetails({ period }: { period: AnalyticsPeriod }) {
         engagementRate={overview.engagementRate}
         growth={overview.growth}
         totalRevenue={0}
+        showRevenueInsight={false}
         totalViews={overview.totalViews}
       />
       <DataSourcesSection gaError={ga.error} gaLoading={ga.loading} gaSettings={ga.settings} />
@@ -114,7 +115,7 @@ function CustomerAnalytics() {
           Customer detail requires customer read permission.
         </Typography>
       )}
-      <ListHealthCard />
+      {canReadCustomers ? <ListHealthCard /> : null}
     </Stack>
   );
 }
