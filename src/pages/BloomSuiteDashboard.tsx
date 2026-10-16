@@ -19,6 +19,7 @@ import {
   MousePointerClick,
   Users,
 } from "lucide-react";
+import { dashboardCardSpacing } from "@/components/dashboard/dashboardCardSpacing";
 import { SetupNextStepsBanner } from "@/components/dashboard/SetupNextStepsBanner";
 import { DashboardSetupWizard } from "@/components/dashboard/DashboardSetupWizard";
 import { QuickStartTour } from "@/components/dashboard/QuickStartTour";
@@ -60,17 +61,20 @@ function HomeMetric({
       type="button"
       variant="outlined"
       onClick={onClick}
+      data-dashboard-metric-card
       data-activating={activating ? "true" : undefined}
       aria-busy={activating}
       sx={{
         ...dashboardPressSx,
         width: "100%",
         minWidth: 0,
+        minHeight: dashboardCardSpacing.metric.minHeight,
+        px: dashboardCardSpacing.metric.px,
+        py: dashboardCardSpacing.metric.py,
         borderColor: "neutral.200",
         borderRadius: "lg",
         backgroundColor: "background.surface",
         boxShadow: "none",
-        p: 2,
         cursor: "pointer",
         textAlign: "left",
         "@media (hover: hover) and (pointer: fine)": {
@@ -82,18 +86,44 @@ function HomeMetric({
         },
       }}
     >
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ color: "neutral.600", display: "flex" }}>{icon}</Box>
+      <Stack spacing={dashboardCardSpacing.metric.contentGap} sx={{ height: "100%" }}>
+        <Stack
+          direction="row"
+          spacing={dashboardCardSpacing.metric.iconGap}
+          alignItems="center"
+          sx={{ minWidth: 0 }}
+        >
+          <Box
+            component="span"
+            data-dashboard-metric-icon
+            sx={{
+              width: dashboardCardSpacing.metric.iconSize,
+              height: dashboardCardSpacing.metric.iconSize,
+              borderRadius: dashboardCardSpacing.metric.iconRadius,
+              backgroundColor: "neutral.100",
+              color: "neutral.700",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </Box>
           <Typography
             level="body-sm"
-            sx={{ color: "neutral.700", fontWeight: 600 }}
+            sx={{
+              color: "neutral.700",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              lineHeight: 1.45,
+              minWidth: 0,
+            }}
           >
             {label}
           </Typography>
         </Stack>
         {loading ? (
-          <Skeleton sx={{ width: 96, height: 36 }} />
+          <Skeleton sx={{ width: 110, height: 38, borderRadius: "sm" }} />
         ) : (
           <Typography
             level="h2"
@@ -101,12 +131,21 @@ function HomeMetric({
               fontWeight: 700,
               color: "neutral.900",
               letterSpacing: "-0.035em",
+              lineHeight: 1.15,
             }}
           >
             {value}
           </Typography>
         )}
-        <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+        <Typography
+          level="body-sm"
+          sx={{
+            color: "neutral.600",
+            fontSize: "0.8125rem",
+            lineHeight: 1.5,
+            mt: "auto",
+          }}
+        >
           {activating ? "Opening…" : description}
         </Typography>
       </Stack>
@@ -510,6 +549,7 @@ export const BloomSuiteDashboard = () => {
                     size="lg"
                     color={action.primary ? "primary" : "neutral"}
                     variant={action.primary ? "solid" : "outlined"}
+                    data-dashboard-action-card
                     data-activating={
                       activeAction === action.destination ? "true" : undefined
                     }
@@ -521,11 +561,12 @@ export const BloomSuiteDashboard = () => {
                       ...dashboardPressSx,
                       width: "100%",
                       minWidth: 0,
-                      minHeight: 84,
-                      p: 2,
+                      minHeight: dashboardCardSpacing.action.minHeight,
+                      px: dashboardCardSpacing.action.px,
+                      py: dashboardCardSpacing.action.py,
                       display: "flex",
                       justifyContent: "flex-start",
-                      gap: 1.5,
+                      columnGap: dashboardCardSpacing.action.iconGap,
                       borderRadius: "lg",
                       textAlign: "left",
                     }}
@@ -533,28 +574,45 @@ export const BloomSuiteDashboard = () => {
                     <Box
                       component="span"
                       data-dashboard-action-icon
-                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                      sx={{
+                        width: dashboardCardSpacing.action.iconSize,
+                        height: dashboardCardSpacing.action.iconSize,
+                        borderRadius: dashboardCardSpacing.action.iconRadius,
+                        backgroundColor: action.primary
+                          ? "rgba(255, 255, 255, 0.16)"
+                          : "neutral.100",
+                        color: action.primary ? "inherit" : "neutral.700",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
                     >
-                      <Icon size={23} aria-hidden="true" />
+                      <Icon size={22} strokeWidth={1.9} aria-hidden="true" />
                     </Box>
-                    <Stack spacing={0.25} sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack
+                      data-dashboard-action-content
+                      spacing={dashboardCardSpacing.action.titleGap}
+                      sx={{ flex: 1, minWidth: 0, alignItems: "flex-start" }}
+                    >
                       <Typography
                         sx={{
-                          fontSize: "1rem",
+                          fontSize: "1.0625rem",
                           fontWeight: 700,
                           color: "inherit",
-                          lineHeight: 1.3,
+                          lineHeight: 1.35,
+                          textAlign: "left",
                         }}
                       >
                         {action.title}
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "0.8rem",
+                          fontSize: "0.875rem",
                           color: "inherit",
                           opacity: 0.85,
                           fontWeight: 400,
-                          lineHeight: 1.4,
+                          lineHeight: 1.5,
+                          textAlign: "left",
                         }}
                       >
                         {activeAction === action.destination
@@ -565,9 +623,17 @@ export const BloomSuiteDashboard = () => {
                     <Box
                       component="span"
                       data-dashboard-action-arrow
-                      sx={{ display: "inline-flex", flexShrink: 0 }}
+                      sx={{
+                        width: dashboardCardSpacing.action.arrowSize,
+                        height: dashboardCardSpacing.action.arrowSize,
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                        ml: { xs: 0, sm: 0.5 },
+                        opacity: 0.88,
+                      }}
                     >
-                      <ArrowRight size={17} aria-hidden="true" />
+                      <ArrowRight size={20} aria-hidden="true" />
                     </Box>
                   </JoyButton>
                 );
@@ -639,52 +705,87 @@ export const BloomSuiteDashboard = () => {
         {showDashboardTasks && canSeeReports ? (
           <Sheet
             variant="outlined"
+            data-dashboard-latest-campaign
             sx={{
               borderColor: "neutral.200",
               borderRadius: "lg",
-              p: 2.5,
+              backgroundColor: "background.surface",
+              minHeight: dashboardCardSpacing.latest.minHeight,
+              px: dashboardCardSpacing.latest.px,
+              py: dashboardCardSpacing.latest.py,
             }}
           >
             <Stack
               direction={{ xs: "column", sm: "row" }}
               justifyContent="space-between"
-              alignItems={{ xs: "flex-start", sm: "center" }}
-              spacing={2}
+              alignItems={{ xs: "stretch", sm: "center" }}
+              spacing={{ xs: 2.5, sm: 3 }}
             >
-              <Stack spacing={0.4}>
-                <Typography level="title-md" sx={{ fontWeight: 600 }}>
-                  Your latest email campaign
-                </Typography>
-                {performance.loading ? (
-                  <Skeleton sx={{ width: 230, height: 24 }} />
-                ) : latestCampaign ? (
-                  <>
-                    <Typography level="body-sm" sx={{ color: "neutral.800" }}>
-                      {latestCampaign.campaignName}
-                    </Typography>
-                    <Typography level="body-xs" sx={{ color: "neutral.600" }}>
-                      {latestCampaign.computedDelivered > 0
-                        ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
-                        : "Delivery totals are not available yet"}
-                    </Typography>
-                  </>
-                ) : (
-                  <Typography level="body-sm" sx={{ color: "neutral.600" }}>
-                    {performance.error
-                      ? "Campaign results aren't available right now."
-                      : "Your first campaign results will appear here."}
+              <Stack
+                direction="row"
+                spacing={dashboardCardSpacing.latest.iconGap}
+                alignItems="flex-start"
+                sx={{ flex: 1, minWidth: 0 }}
+              >
+                <Box
+                  component="span"
+                  data-dashboard-latest-icon
+                  sx={{
+                    width: dashboardCardSpacing.latest.iconSize,
+                    height: dashboardCardSpacing.latest.iconSize,
+                    borderRadius: dashboardCardSpacing.latest.iconRadius,
+                    backgroundColor: "neutral.100",
+                    color: "neutral.700",
+                    display: "grid",
+                    placeItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Mail size={20} strokeWidth={1.9} aria-hidden="true" />
+                </Box>
+                <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    level="title-md"
+                    sx={{ fontWeight: 600, color: "neutral.900", lineHeight: 1.4 }}
+                  >
+                    Your latest email campaign
                   </Typography>
-                )}
+                  {performance.loading ? (
+                    <Skeleton sx={{ width: 230, maxWidth: "100%", height: 24 }} />
+                  ) : latestCampaign ? (
+                    <>
+                      <Typography level="body-sm" sx={{ color: "neutral.800", lineHeight: 1.5 }}>
+                        {latestCampaign.campaignName}
+                      </Typography>
+                      <Typography level="body-xs" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
+                        {latestCampaign.computedDelivered > 0
+                          ? `${latestCampaign.computedDelivered.toLocaleString()} delivered · Click-through ${formatPercent(latestCampaign.clickRate)}`
+                          : "Delivery totals are not available yet"}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography level="body-sm" sx={{ color: "neutral.600", lineHeight: 1.5 }}>
+                      {performance.error
+                        ? "Campaign results aren't available right now."
+                        : "Your first campaign results will appear here."}
+                    </Typography>
+                  )}
+                </Stack>
               </Stack>
               <JoyButton
-                size="sm"
+                size="md"
                 color="neutral"
                 variant="outlined"
                 data-activating={
                   activeAction === "latest-campaign" ? "true" : undefined
                 }
                 aria-busy={activeAction === "latest-campaign"}
-                sx={dashboardPressSx}
+                sx={{
+                  ...dashboardPressSx,
+                  minHeight: dashboardCardSpacing.latest.minButtonHeight,
+                  flexShrink: 0,
+                  alignSelf: { xs: "stretch", sm: "center" },
+                }}
                 onClick={() =>
                   openAnimatedRoute(
                     "latest-campaign",
@@ -701,7 +802,7 @@ export const BloomSuiteDashboard = () => {
                   : latestCampaign
                     ? "View campaign report"
                     : "View campaigns"}
-                <ArrowRight size={15} aria-hidden="true" />
+                <ArrowRight size={17} aria-hidden="true" />
               </JoyButton>
             </Stack>
           </Sheet>
