@@ -120,7 +120,7 @@ export function SenderConfigModal({
             variant="plain"
             color="neutral"
             onClick={() => setVerificationOpen(true)}
-            disabled={isLocked || !draftEmail.trim()}
+            disabled={isLocked}
             data-testid="sender-config-modal-verify"
           >
             Verify sender
