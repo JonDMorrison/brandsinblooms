@@ -7,7 +7,8 @@ import Sheet from "@mui/joy/Sheet";
 import Stack from "@mui/joy/Stack";
 import Tooltip from "@mui/joy/Tooltip";
 import Typography from "@mui/joy/Typography";
-import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, Globe2, Search } from "lucide-react";
+import { JoyButton } from "@/components/joy/JoyButton";
 import {
   BLOCK_CATEGORIES,
   type StudioBlockDefinition,
@@ -24,6 +25,7 @@ type BlockLibraryProps = {
   blocks: StudioBlock[];
   onAddBlock: (blockType: StudioBlockType) => void;
   onSelectBlock: (blockId: string) => void;
+  onInsertWebsiteContent: () => void;
 };
 
 type LibraryBlockCardProps = {
@@ -176,6 +178,7 @@ export default function BlockLibrary({
   blocks,
   onAddBlock,
   onSelectBlock,
+  onInsertWebsiteContent,
 }: BlockLibraryProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [openCategories, setOpenCategories] = React.useState(
@@ -252,6 +255,17 @@ export default function BlockLibrary({
             },
           }}
         />
+        <JoyButton
+          size="sm"
+          color="neutral"
+          variant="outlined"
+          startDecorator={<Globe2 size={16} aria-hidden="true" />}
+          onClick={onInsertWebsiteContent}
+          sx={{width:"100%",minHeight:38,justifyContent:"flex-start"}}
+          data-testid="studio-insert-from-website"
+        >
+          From my website
+        </JoyButton>
       </Sheet>
 
       <Box
