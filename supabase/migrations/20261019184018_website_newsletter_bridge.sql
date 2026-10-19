@@ -54,7 +54,8 @@ BEGIN
  IF NOT FOUND THEN
   INSERT INTO public.crm_customers(tenant_id,user_id,email,first_name,last_name,tags,signup_source,email_opt_in,email_opt_in_at,email_consent,email_consent_source,email_consent_method,email_consent_details)
   VALUES(connection.tenant_id,connection.owner_id,v_email,
-   CASE WHEN coalesce(payload->>'name','') IN('','Newsletter Subscriber') THEN '' ELSE left(payload->>'name',120) END,'',ARRAY['Website newsletter'],'website_newsletter',true,v_subscribed,true,'website_newsletter','signup_form',jsonb_build_object('site_id',v_site_id,'subscribed_at',v_subscribed,'consent_version','newsletter-signup-v1','origin',v_origin))
+   CASE WHEN coalesce(payload->>'name','') IN('','Newsletter Subscriber') THEN '' ELSE left(split_part(trim(payload->>'name'),' ',1),120) END,
+   CASE WHEN coalesce(payload->>'name','') IN('','Newsletter Subscriber') THEN '' ELSE left(trim(substr(trim(payload->>'name'),length(split_part(trim(payload->>'name'),' ',1))+1)),120) END,ARRAY['Website newsletter'],'website_newsletter',true,v_subscribed,true,'website_newsletter','signup_form',jsonb_build_object('site_id',v_site_id,'subscribed_at',v_subscribed,'consent_version','newsletter-signup-v1','origin',v_origin))
   RETURNING * INTO customer;
  END IF;
  blocked:=coalesce(customer.opt_out,false) OR customer.suppressed OR customer.deleted_at IS NOT NULL OR customer.email_opt_out_at IS NOT NULL
