@@ -16,8 +16,10 @@ import { RpcLightspeedAuthorityRepository } from "../_shared/lightspeed-storefro
 function makeHandler() {
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceKey) return null;
-  const supabase = createClient(url, serviceKey, {
+  const encryptionKey = Deno.env.get("TOKEN_ENCRYPTION_KEY");
+  try { if (!url || !serviceKey || !encryptionKey || atob(encryptionKey).length !== 32) return null; }
+  catch { return null; }
+  const supabase = createClient(url!, serviceKey!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const repository = new RpcLightspeedAuthorityRepository(async (name, args) => {
@@ -27,7 +29,10 @@ function makeHandler() {
   return createLightspeedAuthority({
     repository,
     encryption: { encrypt: encryptToken, decrypt: decryptToken },
-    credentials: () => ({
+    credentials: (edition) => edition === "r-series" ? {
+      clientId: Deno.env.get("LIGHTSPEED_R_CLIENT_ID") ?? "",
+      clientSecret: Deno.env.get("LIGHTSPEED_R_CLIENT_SECRET") ?? "",
+    } : ({
       clientId: Deno.env.get("LIGHTSPEED_CLIENT_ID_PROD") ??
         Deno.env.get("LIGHTSPEED_CLIENT_ID") ?? "",
       clientSecret: Deno.env.get("LIGHTSPEED_CLIENT_SECRET_PROD") ??
