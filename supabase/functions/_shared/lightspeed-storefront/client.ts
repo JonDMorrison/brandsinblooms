@@ -10,8 +10,9 @@ import {
   type SourceRecord,
 } from "./normalize.ts";
 
+// Account discovery requires payment-type metadata read access, never payment writes.
 export const LIGHTSPEED_READ_SCOPES = [
-  "products:read", "inventory:read", "outlets:read", "retailer:read",
+  "products:read", "inventory:read", "outlets:read", "retailer:read", "payment_types:read",
 ] as const;
 export const LIGHTSPEED_AUTHORIZATION_ORIGIN = "https://secure.retail.lightspeed.app";
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;

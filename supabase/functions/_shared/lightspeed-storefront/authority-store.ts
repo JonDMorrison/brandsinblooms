@@ -1,3 +1,4 @@
+import { lightspeedEdition } from "./provider.ts";
 import { asSourceRecord, type SourceRecord } from "./normalize.ts";
 import { publicSigningKey } from "./bridge-protocol.ts";
 import type { AuthorityGrant, AuthorityGrantStatus, AuthorityMutation, AuthorityRepository } from "./authority.ts";
@@ -16,7 +17,7 @@ function grantRow(value:unknown):AuthorityGrant|null {
     typeof row.state_hash!=="string" || typeof row.prefix!=="string" || typeof row.status!=="string" ||
     !Number.isSafeInteger(row.version) || typeof row.expires_at!=="string")throw new LightspeedStorageError("invalid_grant_record");
   const stringOrNull=(v:unknown)=>typeof v==="string"?v:null;
-  return {id:row.id,siteId:row.site_id,stateHash:row.state_hash,prefix:row.prefix,status:row.status as AuthorityGrantStatus,
+  return {edition:lightspeedEdition(row.edition),id:row.id,siteId:row.site_id,stateHash:row.state_hash,prefix:row.prefix,status:row.status as AuthorityGrantStatus,
     version:row.version as number,expiresAt:row.expires_at,publicKey:publicSigningKey(row.public_key),
     codeHash:stringOrNull(row.code_hash),tokenCiphertext:stringOrNull(row.token_ciphertext),
     receiptCiphertext:stringOrNull(row.receipt_ciphertext),receiptHash:stringOrNull(row.receipt_hash),
@@ -25,7 +26,7 @@ function grantRow(value:unknown):AuthorityGrant|null {
 }
 export class RpcLightspeedAuthorityRepository implements AuthorityRepository {
   constructor(private readonly rpc:LightspeedRpc) {}
-  async create(input:Pick<AuthorityGrant,"siteId"|"stateHash"|"prefix"|"publicKey"|"expiresAt">):Promise<AuthorityGrant> {
+  async create(input:Pick<AuthorityGrant,"edition"|"siteId"|"stateHash"|"prefix"|"publicKey"|"expiresAt">):Promise<AuthorityGrant> {
     const row=grantRow(await rpcValue(this.rpc,"lightspeed_authority_create_v1",{p_context:input}));
     if(!row)throw new LightspeedStorageError();return row;
   }

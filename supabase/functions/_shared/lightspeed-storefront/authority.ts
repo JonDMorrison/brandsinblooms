@@ -1,11 +1,11 @@
+import { lightspeedEdition, providerAuthorizationUrl, providerToken, providerScopes, providerRetailer, rSourcePage, type LightspeedEdition } from "./provider.ts";
 /**
  * Server-only behaviour expressed without runtime globals, for Deno and Node tests.
  * The authority owns retailer credentials. BloomSites receives only signed,
  * site-bound read access; this does not grant permission to alter a retailer's POS.
  */
 import { asSourceRecord, sourceId, versionCursor, type SourceRecord } from "./normalize.ts";
-import { buildLightspeedAuthorizationUrl, exchangeLightspeedToken,
-  LIGHTSPEED_READ_SCOPES, LightspeedApiError, lightspeedRequest,
+import { LightspeedApiError, lightspeedRequest,
   lightspeedStoreOrigin, normalizeStorePrefix, type LightspeedTokenResponse } from "./client.ts";
 import { BLOOMSITES_ORIGIN, LIGHTSPEED_SITE_CALLBACK_PATH, LIGHTSPEED_SITE_CONTEXT_PATH,
   decodeBase64Url, isStorefrontLightspeedState, publicSigningKey,
@@ -14,7 +14,7 @@ import { BLOOMSITES_ORIGIN, LIGHTSPEED_SITE_CALLBACK_PATH, LIGHTSPEED_SITE_CONTE
 export const AUTHORITY_CALLBACK = "https://bloomsuite.app/integrations/lightspeed/callback";
 export type AuthorityGrantStatus = "pending" | "authorizing" | "authorized" | "active" | "refreshing" | "reconnect_required" | "revoked";
 export interface AuthorityGrant {
-  id:string; siteId:string; stateHash:string; prefix:string; publicKey:JsonWebKey;
+  edition?:LightspeedEdition; id:string; siteId:string; stateHash:string; prefix:string; publicKey:JsonWebKey;
   expiresAt:string; status:AuthorityGrantStatus; version:number;
   codeHash:string|null; tokenCiphertext:string|null; receiptCiphertext:string|null;
   receiptHash:string|null; retailerId:string|null; currency:string|null;
@@ -28,7 +28,7 @@ export interface AuthorityMutation {
 }
 export interface AuthorityRepository {
   /** Unique state hash; returns the existing identical state on a racing retry. */
-  create(input:Pick<AuthorityGrant,"siteId"|"stateHash"|"prefix"|"publicKey"|"expiresAt">):Promise<AuthorityGrant>;
+  create(input:Pick<AuthorityGrant,"edition"|"siteId"|"stateHash"|"prefix"|"publicKey"|"expiresAt">):Promise<AuthorityGrant>;
   findByState(stateHash:string):Promise<AuthorityGrant|null>;
   get(id:string):Promise<AuthorityGrant|null>;
   /** Compare-and-swap always increments version and validates the expected state. */
@@ -43,7 +43,7 @@ export interface AuthorityDependencies {
   repository:AuthorityRepository;
   encryption:AuthorityCrypto;
   /** Existing approved BloomSuite production client, never selected by request origin. */
-  credentials:()=>{clientId:string;clientSecret:string};
+  credentials:(edition?:LightspeedEdition)=>{clientId:string;clientSecret:string};
   fetcher?:typeof fetch;
   now?:()=>number;
 }
@@ -59,8 +59,8 @@ const json=(body:unknown,status=200,retryMs:number|null=null)=>new Response(JSON
     "Referrer-Policy":"no-referrer","Access-Control-Allow-Origin":"https://bloomsuite.app",
     "Vary":"Origin",...(retryMs!==null?{"Retry-After":String(Math.max(1,Math.ceil(retryMs/1000)))}:{})},
 });
-function credentials(deps:AuthorityDependencies):{clientId:string;clientSecret:string} {
-  const value=deps.credentials();
+function credentials(deps:AuthorityDependencies,edition:LightspeedEdition="x-series"):{clientId:string;clientSecret:string} {
+  const value=deps.credentials(edition);
   if(!value.clientId || !value.clientSecret)throw new AuthorityError("platform_setup_required",503);
   return value;
 }
@@ -78,11 +78,11 @@ function assertFresh(grant:AuthorityGrant,now:number):void {
   }
 }
 function identity(grant:AuthorityGrant):SourceRecord {
-  return {grantId:grant.id,siteId:grant.siteId,prefix:grant.prefix,
+  return {edition:lightspeedEdition(grant.edition),grantId:grant.id,siteId:grant.siteId,prefix:grant.prefix,
     retailerId:grant.retailerId,currency:grant.currency,status:grant.status};
 }
-function requireScopes(tokens:LightspeedTokenResponse):void {
-  if(LIGHTSPEED_READ_SCOPES.some(scope=>!tokens.scopes.includes(scope))) {
+function requireScopes(tokens:LightspeedTokenResponse,edition:LightspeedEdition="x-series"):void {
+  if(providerScopes(edition).some(scope=>!tokens.scopes.includes(scope))) {
     throw new AuthorityError("insufficient_scope",403);
   }
 }
@@ -104,14 +104,15 @@ async function readPublicContext(state:string,deps:AuthorityDependencies,now:num
     new URL(LIGHTSPEED_SITE_CONTEXT_PATH,BLOOMSITES_ORIGIN),{method:"POST",
       headers:{"Content-Type":"application/json"},body:JSON.stringify({state})},15_000));
   const siteId=safeId(result?.siteId);
-  const prefix=normalizeStorePrefix(result?.prefix);
+  const edition=lightspeedEdition(result?.edition);
+  const prefix=edition==="r-series"?"r-series":normalizeStorePrefix(result?.prefix);
   const key=publicSigningKey(result?.publicKey);
   const expiresAt=typeof result?.expiresAt==="string"?result.expiresAt:"";
   const expires=Date.parse(expiresAt);
   if(result?.stateHash!==await sha256(state)||!Number.isFinite(expires)||expires<=now||expires>now+tokenTTL+60_000) {
     throw new AuthorityError("authorization_expired",410);
   }
-  return {siteId,prefix,publicKey:key,stateHash:await sha256(state),expiresAt};
+  return {edition,siteId,prefix,publicKey:key,stateHash:await sha256(state),expiresAt};
 }
 async function callbackUrl(grant:AuthorityGrant,state:string,deps:AuthorityDependencies):Promise<string> {
   if(!grant.receiptCiphertext)throw new AuthorityError("authorization_expired",410);
@@ -147,9 +148,9 @@ async function refreshIfExpired(grant:AuthorityGrant,deps:AuthorityDependencies,
   if(!lease)throw new AuthorityError("sync_busy",429,2_000);
   try {
     const existing=await readTokens(lease,deps);
-    const tokens=await exchangeLightspeedToken({prefix:lease.prefix,...credentials(deps),
+    const tokens=await providerToken(lightspeedEdition(lease.edition),{prefix:lease.prefix,...credentials(deps,lightspeedEdition(lease.edition)),
       redirectUri:AUTHORITY_CALLBACK,grant:{kind:"refresh_token",token:existing.refreshToken},fetcher:deps.fetcher,now});
-    requireScopes(tokens);
+    requireScopes(tokens,lightspeedEdition(lease.edition));
     const saved=await deps.repository.compareAndSwap(lease,{status:"active",
       tokenCiphertext:await deps.encryption.encrypt(JSON.stringify(tokens)),tokenExpiresAt:tokens.expiresAt,
       leaseId:null,leaseExpiresAt:null});
@@ -169,17 +170,22 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
       const body=asSourceRecord(JSON.parse(bodyText));
       if(!body||typeof body.action!=="string")throw new AuthorityError("invalid_request");
       const now=(deps.now??Date.now)();
+      if(body.action==="readiness") {
+        const ready=(edition:LightspeedEdition)=>{try{credentials(deps,edition);return true;}catch{return false;}};
+        return json({ok:true,editions:{"x-series":ready("x-series"),"r-series":ready("r-series")}});
+      }
       if(body.action==="start") {
-        const state=stateValue(body.state);const app=credentials(deps);
+        const state=stateValue(body.state);
         // A state is minted only by an authenticated site owner in BloomSites.
         const context=await readPublicContext(state,deps,now);
+        const app=credentials(deps,context.edition);
         const grant=await deps.repository.create(context);
-        if(grant.status!=="pending"||grant.siteId!==context.siteId||grant.prefix!==context.prefix||
+        if(lightspeedEdition(grant.edition)!==context.edition||grant.status!=="pending"||grant.siteId!==context.siteId||grant.prefix!==context.prefix||
           JSON.stringify(publicSigningKey(grant.publicKey))!==JSON.stringify(context.publicKey)) {
           throw new AuthorityError("authorization_expired",410);
         }
         assertFresh(grant,now);
-        return json({ok:true,authorizationUrl:buildLightspeedAuthorizationUrl({clientId:app.clientId,
+        return json({ok:true,authorizationUrl:providerAuthorizationUrl(context.edition,{clientId:app.clientId,
           redirectUri:AUTHORITY_CALLBACK,state})});
       }
       if(body.action==="callback") {
@@ -190,11 +196,11 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
         const grant=await deps.repository.findByState(await sha256(state));
         if(!grant)throw new AuthorityError("authorization_expired",410);
         assertFresh(grant,now);
-        if(body.domainPrefix != null && normalizeStorePrefix(body.domainPrefix)!==grant.prefix)throw new AuthorityError("wrong_retailer",409);
+        if(lightspeedEdition(grant.edition)==="x-series" && body.domainPrefix != null && normalizeStorePrefix(body.domainPrefix)!==grant.prefix)throw new AuthorityError("wrong_retailer",409);
         const codeHash=await sha256(body.code);
-        // X-Series returns code and state. A site-owner-minted, stored state
-        // binds the retailer prefix before OAuth, so request data cannot switch
-        // which store receives the code. The callback needs no prefix field.
+        // Lightspeed returns code + state; the original site-owned state already
+        // binds the store prefix. Never require an undocumented callback field.
+        // All token and retailer lookups use grant.prefix, not request input.
         if((grant.status==="authorized"||grant.status==="active")&&grant.codeHash===codeHash) {
           return json({ok:true,returnUrl:await callbackUrl(grant,state,deps)});
         }
@@ -203,13 +209,10 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
           leaseId:crypto.randomUUID(),leaseExpiresAt:new Date(now+60_000).toISOString()});
         if(!claimed)throw new AuthorityError("sync_busy",409);
         try {
-          const tokens=await exchangeLightspeedToken({prefix:grant.prefix,...credentials(deps),redirectUri:AUTHORITY_CALLBACK,
+          const tokens=await providerToken(lightspeedEdition(grant.edition),{prefix:grant.prefix,...credentials(deps,lightspeedEdition(grant.edition)),redirectUri:AUTHORITY_CALLBACK,
             grant:{kind:"authorization_code",code:body.code},fetcher:deps.fetcher,now});
-          requireScopes(tokens);
-          const retailerResponse=asSourceRecord(await lightspeedRequest(deps.fetcher??fetch,
-            new URL("/api/2.0/retailer",lightspeedStoreOrigin(grant.prefix)),{method:"GET",headers:{
-              Accept:"application/json",Authorization:`Bearer ${tokens.accessToken}`}}));
-          const retailer=asSourceRecord(retailerResponse?.data);
+          requireScopes(tokens,lightspeedEdition(grant.edition));
+          const retailer=await providerRetailer(lightspeedEdition(grant.edition),grant.prefix,tokens.accessToken,deps.fetcher);
           const retailerId=sourceId(retailer?.id);
           const currency=typeof retailer?.currency==="string"?retailer.currency.toUpperCase():"";
           if(!retailerId||!/^[A-Z]{3}$/.test(currency))throw new AuthorityError("retailer_configuration_required",409);
@@ -255,9 +258,20 @@ export function createLightspeedAuthority(deps:AuthorityDependencies):(req:Reque
       if(typeof resource!=="string"||!["products","inventory","outlets","retailer"].includes(resource)) {
         throw new AuthorityError("invalid_request");
       }
-      const cursor=versionCursor(body.cursor);
+      const cursor=lightspeedEdition(grant.edition)==="r-series" ? (body.cursor == null ? null : String(body.cursor)) : versionCursor(body.cursor);
       grant=await refreshIfExpired(grant,deps,now);
       const tokens=await readTokens(grant,deps);
+      if(lightspeedEdition(grant.edition)==="r-series") {
+        try {
+          if(!grant.retailerId)throw new AuthorityError("grant_not_active",409);
+          const payload=resource==="retailer" ? {data:{id:grant.retailerId,currency:grant.currency}} :
+            await rSourcePage(grant.retailerId,resource as "products"|"inventory"|"outlets",cursor,tokens.accessToken,deps.fetcher);
+          return json({ok:true,payload});
+        } catch(error) {
+          if(error instanceof LightspeedApiError&&error.code==="unauthorized")await invalidate(grant,deps);
+          throw error;
+        }
+      }
       const url=new URL(`/api/2.0/${resource}`,lightspeedStoreOrigin(grant.prefix));
       if(resource!=="retailer") {url.searchParams.set("page_size","200");if(cursor!==null)url.searchParams.set("after",cursor);}
       try {

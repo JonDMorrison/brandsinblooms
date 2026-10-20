@@ -9,6 +9,8 @@ on:
       - 'supabase/migrations/*lightspeed_storefront_authority.sql'
       - 'src/pages/integrations/lightspeed/CallbackPage.tsx'
       - 'tests/lightspeed-storefront-authority.sql'
+      - 'tests/lightspeed/**'
+      - 'supabase/migrations/*lightspeed_editions.sql'
       - '.github/workflows/scotts-lightspeed-authority-gate.yml'
 permissions:
   contents: read
@@ -30,6 +32,7 @@ jobs:
         run: |
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role LOGIN BYPASSRLS;"
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261009161000_lightspeed_storefront_authority.sql
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f supabase/migrations/20261020181144_lightspeed_editions.sql
           psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f tests/lightspeed-storefront-authority.sql
   deno-check:
     runs-on: ubuntu-latest
@@ -40,3 +43,14 @@ jobs:
         with: {deno-version: v2.x}
       - name: Type-check isolated authority endpoint
         run: deno check --node-modules-dir=auto supabase/functions/lightspeed-storefront-bridge/index.ts
+  behavioral-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.23.0, run_install: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test:lightspeed
