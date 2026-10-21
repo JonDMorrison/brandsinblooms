@@ -1,3 +1,4 @@
+import { readAllPages } from "../_shared/customer-intelligence/query-pages.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveEligibleEmailCustomerIds } from "../_shared/eligibleEmailAudience.ts";
 import {
@@ -136,8 +137,8 @@ Deno.serve(async (req) => {
   }
   if (authHeader !== `Bearer ${supabaseServiceKey}`) {
     const token = authHeader.replace("Bearer ", "");
-    const { error: authErr } = await supabase.auth.getUser(token);
-    if (authErr) {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -150,26 +151,26 @@ Deno.serve(async (req) => {
   try {
     const { tenant_id, segment_id } = await req.json().catch(() => ({}));
 
-    if (tenant_id && authHeader !== `Bearer ${supabaseServiceKey}`) {
-      const token = authHeader!.replace("Bearer ", "");
-      const {
-        data: { user },
-      } = await supabase.auth.getUser(token);
-      if (user) {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("tenant_id")
-          .eq("id", user.id)
-          .single();
-        if (userData?.tenant_id !== tenant_id) {
-          return new Response(
-            JSON.stringify({ error: "Tenant access denied" }),
-            {
-              status: 403,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
+    if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+      // User requests must never fall through to a service-role all-company scan.
+      if (typeof tenant_id !== "string" || !tenant_id) {
+        return new Response(JSON.stringify({ error: "A company is required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: canManage, error: permissionError } = await userClient.rpc("crm_has_permission", {
+        p_permission: "segments.manage", p_tenant_id: tenant_id, p_location_id: null,
+      });
+      const { data: canReadCompany, error: companyError } = await userClient.rpc("has_tenant_permission", {
+        p_tenant_id: tenant_id, p_permission: "customer.read", p_location_id: null,
+      });
+      if (permissionError || companyError || canManage !== true || canReadCompany !== true) {
+        return new Response(JSON.stringify({ error: "Company-wide segment management access required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
@@ -189,11 +190,7 @@ Deno.serve(async (req) => {
       segmentsQuery = segmentsQuery.eq("id", segment_id);
     }
 
-    const { data: segments, error: segmentsError } = await segmentsQuery;
-
-    if (segmentsError) {
-      throw segmentsError;
-    }
+    const segments = await readAllPages<Segment>((from, to) => segmentsQuery.order("id").range(from, to));
 
     if (!segments?.length) {
       return new Response(
@@ -209,49 +206,28 @@ Deno.serve(async (req) => {
     const tenantIds = Array.from(
       new Set(segments.map((segment) => segment.tenant_id)),
     );
-    const { data: tenantSegments, error: tenantSegmentsError } = await supabase
+    const tenantSegments = await readAllPages<Segment>((from, to) => supabase
       .from("crm_segments")
-      .select(
-        "id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at",
-      )
-      .in("tenant_id", tenantIds)
-      .is("deleted_at", null);
+      .select("id, name, tenant_id, auto_update, conditions, customer_count, include_all_customers, status, deleted_at")
+      .in("tenant_id", tenantIds).is("deleted_at", null).order("id").range(from, to));
 
-    if (tenantSegmentsError) {
-      throw tenantSegmentsError;
+    const segmentIdsForMemberships = tenantSegments.map((segment) => segment.id);
+    const membershipRows: Array<{ customer_id: string; segment_id: string }> = [];
+    for (let offset = 0; offset < segmentIdsForMemberships.length; offset += 200) {
+      const pageRows = await readAllPages<{ customer_id: string; segment_id: string }>((from, to) => supabase
+        .from("customer_segments").select("customer_id, segment_id")
+        .in("segment_id", segmentIdsForMemberships.slice(offset, offset + 200))
+        .order("customer_id").order("segment_id").range(from, to));
+      for (const row of pageRows) membershipRows.push(row);
     }
-
-    const segmentIdsForMemberships = (tenantSegments ?? []).map(
-      (segment) => segment.id,
-    );
-    const { data: membershipRows, error: membershipError } =
-      segmentIdsForMemberships.length
-        ? await supabase
-            .from("customer_segments")
-            .select("customer_id, segment_id")
-            .in("segment_id", segmentIdsForMemberships)
-        : { data: [], error: null };
-
-    if (membershipError) {
-      throw membershipError;
-    }
-
-    const membershipsByCustomerId = buildMembershipMap(membershipRows ?? []);
+    const membershipsByCustomerId = buildMembershipMap(membershipRows);
     const customersByTenant = new Map<string, Customer[]>();
-
     for (const currentTenantId of tenantIds) {
-      const { data: customers, error: customersError } = await supabase
-        .from("crm_customers")
-        .select("*")
-        .eq("tenant_id", currentTenantId)
-        .is("deleted_at", null)
-        .limit(10000);
-
-      if (customersError) {
-        throw customersError;
-      }
-
-      customersByTenant.set(currentTenantId, (customers ?? []) as Customer[]);
+      const customers = await readAllPages<Customer>((from, to) => supabase
+        .from("crm_customers").select("*").eq("tenant_id", currentTenantId)
+        .is("deleted_at", null).is("merged_into_customer_id", null)
+        .order("id").range(from, to));
+      customersByTenant.set(currentTenantId, customers);
     }
 
     const results: Array<Record<string, unknown>> = [];
@@ -311,8 +287,8 @@ Deno.serve(async (req) => {
           (customerId) => !matchingCustomerIds.has(customerId),
         );
 
-        if (customersEntering.length) {
-          const entryRecords = customersEntering.map((customerId) => ({
+        for (let offset = 0; offset < customersEntering.length; offset += 500) {
+          const entryRecords = customersEntering.slice(offset, offset + 500).map((customerId) => ({
             customer_id: customerId,
             segment_id: segment.id,
             assigned_at: new Date().toISOString(),
@@ -330,12 +306,12 @@ Deno.serve(async (req) => {
           }
         }
 
-        if (customersExiting.length) {
+        for (let offset = 0; offset < customersExiting.length; offset += 200) {
           const { error: exitError } = await supabase
             .from("customer_segments")
             .delete()
             .eq("segment_id", segment.id)
-            .in("customer_id", customersExiting);
+            .in("customer_id", customersExiting.slice(offset, offset + 200));
 
           if (exitError) {
             throw exitError;
