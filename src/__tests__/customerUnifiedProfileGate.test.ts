@@ -25,6 +25,16 @@ const customer = {
 } satisfies CustomerData;
 
 describe("unified customer profile release gate", () => {
+  it("keeps Ideal customer identity and source TYPE distinct without coercing leading zeros", () => {
+    const imported = getCustomerProfileAttributes({
+      ...customer,
+      custom_fields: { ideal_customer_code: "000012", ideal_customer_type: "07" },
+    });
+    expect(imported.customFields).toEqual([
+      { key: "ideal_customer_code", label: "IdealPOS customer CODE (identity)", value: "000012" },
+      { key: "ideal_customer_type", label: "IdealPOS customer TYPE (source)", value: "07" },
+    ]);
+  });
   it("normalizes customer-selected, inferred, tagged, and imported attributes", () => {
     expect(getCustomerProfileAttributes(customer)).toEqual({
       interests: ["Vegetable Gardening", "Native Plants"],

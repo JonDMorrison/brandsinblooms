@@ -73,6 +73,12 @@ export function CustomerProfileAttributesCard({
             {profile.customFields.length ? (
               <Stack spacing={1}>
                 <Typography level="body-xs" color="neutral">Imported fields</Typography>
+                {profile.customFields.some((field) => field.key === "ideal_customer_type") ? (
+                  <Typography level="body-sm" color="neutral">
+                    IdealPOS TYPE is the value from the imported source, separate from BloomSuite segments.
+                    Review proposed TYPE changes in Customer Intelligence → Data &amp; channels → IdealPOS Customer Type bridge.
+                  </Typography>
+                ) : null}
                 {profile.customFields.map((field) => (
                   <Stack key={field.key} direction="row" spacing={1} justifyContent="space-between">
                     <Typography level="body-sm" color="neutral">{field.label}</Typography>
