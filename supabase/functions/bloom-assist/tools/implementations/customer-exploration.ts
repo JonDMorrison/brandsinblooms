@@ -1,8 +1,10 @@
+import {loadCompanyAnalysisFacts} from '../../../_shared/customer-intelligence/load-analysis-facts.ts';
+import {compareReportedPeriodSpend} from '../../../_shared/customer-intelligence/reported-period-spend.ts';
+import {planAudienceRefresh} from '../../../_shared/customer-intelligence/audience-refresh.ts';
 import type {JsonObject, JsonValue, PersistenceClient} from '../../types.ts';
 import type {ToolExecutionContext, ToolImplementation, ToolResult} from '../types.ts';
 import {explorePurchases, analyzeBasket, MATCH_REASONS, type CustomerSet, type PurchaseFact} from '../../../_shared/customer-intelligence/purchase-exploration.ts';
 import {compareCustomerGrowth, moneyMinorUnits, type GrowthOrder, type GrowthSettings} from '../../../_shared/customer-intelligence/customer-growth.ts';
-import {periodSummaryFacts, currentSummaryImports, type SummaryImport, type PeriodSummaryEvent} from '../../../_shared/customer-intelligence/period-summary.ts';
 import {readAllPages} from '../../../_shared/customer-intelligence/query-pages.ts';
 
 interface Customer {id: string; first_name: string | null; last_name: string | null; email: string | null; created_at: string | null;}
@@ -26,16 +28,9 @@ export async function loadAnalysisCustomers(context: ToolExecutionContext, cutof
 }
 export async function loadAnalysisFacts(context: ToolExecutionContext, cutoff = new Date().toISOString()): Promise<PurchaseFact[]> {
   const client = await requireAnalysisAccess(context);
-  const dated = await readAllPages<PurchaseFact>((from,to) => client.from('customer_purchase_line_items').select('id,tenant_id,customer_id,product_code,product_name,sales_category,department,quantity,net_amount,currency,purchased_at,created_at,source,import_id,external_transaction_id').eq('tenant_id',context.tenantId).lte('created_at',cutoff).order('id').range(from,to));
-  const imports = await readAllPages<SummaryImport>((from,to) => client.from('customer_intelligence_imports')
-    .select('id,source,source_period_start,source_period_end').eq('tenant_id',context.tenantId).eq('report_type','customer_sales_summary')
-    .eq('status','completed').lte('created_at',cutoff).order('created_at',{ascending:false}).order('id').range(from,to));
-  if (!imports.length) return dated;
-  const summaries = await readAllPages<PeriodSummaryEvent>((from,to) => client.from('customer_intelligence_source_events')
-    .select('id,tenant_id,customer_id,import_id,source,created_at,raw_data').eq('tenant_id',context.tenantId)
-    .eq('event_type','purchase_summary').in('import_id',currentSummaryImports(imports).map(row=>row.id)).lte('created_at',cutoff).order('id').range(from,to));
-  return [...dated,...periodSummaryFacts(summaries,context.tenantId)];
+  return loadCompanyAnalysisFacts(client,context.tenantId,cutoff);
 }
+
 async function assertConversation(context: ToolExecutionContext) {
   if (!context.conversationId) throw new Error('Open a Bloom conversation before saving an analysis result.');
   const {data,error} = await context.dataClient!.from('bloom_conversations').select('id').eq('id',context.conversationId).eq('tenant_id',context.tenantId).eq('user_id',context.userId).neq('status','deleted').maybeSingle();
@@ -82,6 +77,28 @@ export const exploreCustomerPurchases: ToolImplementation = async (params,contex
   return analysisResult(publicSet(set,customers),set.included_ids.length,`Found ${set.included_ids.length} customers. ${set.excluded_ids.length} excluded; ${set.unknown_ids.length} require more data.`);
 };
 export const inspectCustomerSet: ToolImplementation = async (params,context) => {
+  if(params.list_audiences===true){
+    const client=await requireAnalysisAccess(context),page=pageNumber(params.page);
+    const {data,error}=await client.from('bloom_analytical_audiences').select('id,name,mode,version,refreshed_at,next_refresh_at,last_error').eq('tenant_id',context.tenantId).eq('user_id',context.userId).order('name').order('id').range((page-1)*50,page*50);
+    if(error)throw new Error(error.message);
+    return analysisResult({kind:'customer_audiences',rows:(data??[]).slice(0,50),page,has_more:(data??[]).length>50,note:'Your saved analytical audiences. Open one to inspect its complete included, excluded or unknown membership.'},(data??[]).slice(0,50).length,'Showing your saved analytical audiences.');
+  }
+
+  if(typeof params.audience_id==='string') {
+    const client=await requireAnalysisAccess(context),customers=await loadAnalysisCustomers(context);
+    const {data:a,error}=await client.from('bloom_analytical_audiences').select('id,name,mode,snapshot,refreshed_at,next_refresh_at,last_error').eq('id',params.audience_id).eq('tenant_id',context.tenantId).eq('user_id',context.userId).single();
+    if(error||!a)throw new Error('The analytical audience is not accessible.');
+    const snapshot=a.snapshot as {member_ids:string[];unknown_ids:string[];excluded_ids:string[];result:{captured_at:string}};
+    if(params.bucket!==undefined&&!['included','excluded','unknown'].includes(String(params.bucket)))throw new Error('Choose included, excluded or unknown.');
+    const ids=params.bucket==='unknown'?snapshot.unknown_ids:params.bucket==='excluded'?snapshot.excluded_ids:snapshot.member_ids;
+    const map=new Map(customers.map(c=>[c.id,c]));
+    if(!Array.isArray(ids)||ids.some(id=>!map.has(id)))throw new Error('Saved membership includes inaccessible customers. Review the audience before continuing.');
+    const page=pageNumber(params.page);
+    return analysisResult({kind:'customer_audience',bucket:String(params.bucket??'included'),audience_id:a.id,name:a.name,mode:a.mode,captured_at:snapshot.result.captured_at,last_refresh_at:a.refreshed_at,next_refresh_at:a.mode==='dynamic'?a.next_refresh_at:null,last_error:a.last_error,
+      total_count:ids.length,page,has_more:page*50<ids.length,rows:ids.slice((page-1)*50,page*50).map(id=>({customer_id:id,name:name(map.get(id)!),membership:String(params.bucket??'included')})),
+      note:a.mode==='fixed'?'Fixed reviewed membership. No customer classifications or consent changed.':'Dynamic membership refreshes daily and after completed imports. Failed refreshes retain the last complete result. No customer classifications or consent changed.'},ids.length,'Showing the saved analytical audience.');
+  }
+
   const set = await loadCustomerSet(context,typeof params.set_id==='string'?params.set_id:undefined), customers = await loadAnalysisCustomers(context);
   const bucket = params.bucket ?? 'included'; if (!['included','excluded','unknown'].includes(String(bucket))) throw new Error('Choose included, excluded, or unknown.');
   const data = publicSet(set,customers,pageNumber(params.page),bucket as 'included'|'excluded'|'unknown');
@@ -113,6 +130,17 @@ export const compareCustomerGrowthTool: ToolImplementation = async (params,conte
   const set=scope==='all_customers'?null:await loadCustomerSet(context,scope==='saved_result'?String(params.set_id):undefined);
   if(set) publicSet(set,customers);
   const ids=set?.included_ids??customers.map(c=>c.id), client=context.dataClient!;
+  if(params.evidence_basis==='reported_period') {
+    const facts=(await loadAnalysisFacts(context,cutoff)).filter(f=>f.evidence_kind==='period_summary');
+    const report=compareReportedPeriodSpend(facts,ids,context.tenantId,
+      {start:String(params.current_start),end:String(params.current_end),currency:String(params.currency)},
+      {start:String(params.baseline_start),end:String(params.baseline_end),currency:String(params.currency)});
+    const page=pageNumber(params.page), names=new Map(customers.map(c=>[c.id,name(c)]));
+    return analysisResult({...report,kind:'customer_reported_comparison',captured_at:cutoff,total_count:report.rows.length,page,has_more:page*50<report.rows.length,
+      rows:report.rows.slice((page-1)*50,page*50).map(row=>({...row,name:names.get(row.customer_id)})),
+      note:'Exact-period reported spend only. This is not CGI or visit growth. Missing coverage remains unknown.'},report.rows.length,'Compared reported period spending without inferring visits.');
+  }
+
   const orders=await readAllPages<GrowthOrder>((from,to)=>client.from('pos_orders').select('id,tenant_id,crm_customer_id,order_date,created_at,total_amount,refund_amount,currency,status').eq('tenant_id',context.tenantId).lte('created_at',cutoff).order('id').range(from,to));
   const settings:GrowthSettings={current_start:String(params.current_start??''),current_end:String(params.current_end??''),baseline_start:String(params.baseline_start??''),baseline_end:String(params.baseline_end??''),
     currency:String(params.currency??''),timezone:context.timezone,data_cutoff:cutoff,spend_weight:params.spend_weight===undefined?50:Number(params.spend_weight),visits_weight:params.visits_weight===undefined?50:Number(params.visits_weight),per_day_rates:params.per_day_rates===true};
@@ -127,14 +155,21 @@ export async function prepareCustomerSetSave(params: JsonObject,context: ToolExe
   publicSet(set,await loadAnalysisCustomers(context));
   const segmentName=String(params.name??'').trim();if(!segmentName||segmentName.length>120)throw new Error('Give the segment a name of up to 120 characters.');
   if(!set.included_ids.length)throw new Error('There are no included customers to save.');
-  const details={action:`Save ${set.included_ids.length} customers as the static segment “${segmentName}”`,affected_count:set.included_ids.length,reversible:true,risk_level:'medium' as const,tool_name:'save_customer_set_segment' as const};
-  return {success:true,error:null,count:set.included_ids.length,message:details.action,block_type:'confirmation',confirmation_required:true,confirmation_details:details,
-    data:{tool_name:'save_customer_set_segment',tool_params:{set_id:set.id,name:segmentName},confirmation_details:details,
-      excluded_count:set.excluded_ids.length,unknown_count:set.unknown_ids.length,notice:'This saves a fixed list. It does not send messages or change consent. You can edit membership later; the original search remains available.'}};
+  const mode=params.mode;
+  if(mode!==undefined && mode!=='fixed' && mode!=='dynamic') throw new Error('Choose fixed or dynamic.');
+  const excludedIds=Array.isArray(params.excluded_ids)?params.excluded_ids.map(String):[];
+  if(mode===undefined&&excludedIds.length)throw new Error('Choose fixed or dynamic mode to apply manual exclusions.');
+  if(mode==='fixed'||mode==='dynamic') planAudienceRefresh({mode,saved:set,tenantId:context.tenantId,userId:context.userId,conversationId:context.conversationId,population:(await loadAnalysisCustomers(context)).map(c=>c.id),facts:mode==='dynamic'?await loadAnalysisFacts(context):[],excludedIds,now:new Date().toISOString()});
+  const reviewedCount=set.included_ids.filter(id=>!excludedIds.includes(id)).length;
+  const details={action:`Save ${reviewedCount} reviewed customers as ${mode??'static segment'} “${segmentName}”${mode==='dynamic'?'; refresh daily from imported evidence':''}`,affected_count:reviewedCount,reversible:true,risk_level:'medium' as const,tool_name:'save_customer_set_segment' as const};
+  return {success:true,error:null,count:reviewedCount,message:details.action,block_type:'confirmation',confirmation_required:true,confirmation_details:details,
+    data:{tool_name:'save_customer_set_segment',tool_params:{set_id:set.id,name:segmentName,...(mode?{mode,excluded_ids:excludedIds}:{})},confirmation_details:details,
+      excluded_count:set.excluded_ids.length,unknown_count:set.unknown_ids.length,notice:mode==='dynamic'?'Membership refreshes daily and after completed imports; manual exclusions persist. No classifications, consent or messages change.':'This saves a fixed list. No classifications, consent or messages change.'}};
 }
 export const saveCustomerSetSegment: ToolImplementation = async (params,context) => {
   const preview=await prepareCustomerSetSave(params,context);
   if(context.approved!==true)return preview;
+  if(params.mode){const {data,error}=await context.serviceClient.rpc('save_bloom_analytical_audience',{p_set_id:params.set_id,p_user_id:context.userId,p_name:String(params.name).trim(),p_mode:params.mode,p_excluded_ids:params.excluded_ids??[]});if(error)throw new Error(error.message);return analysisResult(data,1,'Saved the reviewed analytical audience. No classifications or consent changed.');}
   const {data,error}=await context.serviceClient.rpc('save_bloom_customer_set_segment',{p_set_id:params.set_id,p_user_id:context.userId,p_name:String(params.name).trim()});
   if(error)throw new Error(error.message);
   return {success:true,error:null,data:data as JsonValue,count:1,message:'Saved the exact customer group as a static segment. No messages were sent.',block_type:'data_card',confirmation_required:false,confirmation_details:null};
@@ -154,7 +189,7 @@ export const exploreCustomerReportedSpending: ToolImplementation = async (params
   if(!label || label.length>180) throw new Error('Name the audience in up to 180 characters.');
   const {data:report,error:reportError} = await client.from('customer_intelligence_imports')
     .select('id,source_filename,source_period_start,source_period_end').eq('tenant_id',context.tenantId)
-    .eq('report_type','customer_spending').eq('status','completed').order('created_at',{ascending:false}).limit(1).maybeSingle();
+    .eq('report_type','customer_spending').eq('status','completed').lte('completed_at',cutoff).order('created_at',{ascending:false}).limit(1).maybeSingle();
   if(reportError) throw new Error(reportError.message);
   if(!report) throw new Error('There is no reconciled customer spending report available.');
   await assertConversation(context);
