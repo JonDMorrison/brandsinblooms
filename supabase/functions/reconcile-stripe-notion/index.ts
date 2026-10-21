@@ -1,3 +1,4 @@
+import { renderBloomSystemEmail } from "../../../src/lib/email/premiumBotanical.ts";
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!
@@ -254,39 +255,39 @@ serve(async () => {
   function renderItem(m: ReconEvent): string {
     const addr = esc(m.customer_email || m.stripe_customer_id)
     const badge = m.auto_fixed
-      ? `<span style="display:inline-block;background:#dcfce7;color:#166534;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">auto-fixed</span>`
+      ? `<span style="display:inline-block;background:#F5F7F3;color:#365D4C;font-size:11px;padding:1px 6px;border-radius:4px;margin-left:6px;">auto-fixed</span>`
       : ''
     switch (m.mismatch_type) {
       case 'active_not_in_notion':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong>${m.customer_name ? ` (${esc(m.customer_name)})` : ''} is paying in Stripe but had no Notion record.${badge}${m.auto_fixed ? ` Created as ⚠️ Broken — needs review.` : ' Create or update their Notion record.'}</p>`
+        return `<p style="font-size:14px;color:#536475;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong>${m.customer_name ? ` (${esc(m.customer_name)})` : ''} is paying in Stripe but had no Notion record.${badge}${m.auto_fixed ? ` Created as ⚠️ Broken — needs review.` : ' Create or update their Notion record.'}</p>`
       case 'active_wrong_stage':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> is paying in Stripe but their Notion stage is "${esc(m.notion_stage)}". Update their stage to Won or Active.</p>`
+        return `<p style="font-size:14px;color:#536475;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> is paying in Stripe but their Notion stage is "${esc(m.notion_stage)}". Update their stage to Won or Active.</p>`
       case 'missing_won_date':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${m.auto_fixed ? `Won Date auto-set to ${esc(m.fix_detail?.replace('won_date set to ', '') || '')}` : 'Won Date is blank. Open their pipeline record and set it.'}.${badge}</p>`
+        return `<p style="font-size:14px;color:#536475;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${m.auto_fixed ? `Won Date auto-set to ${esc(m.fix_detail?.replace('won_date set to ', '') || '')}` : 'Won Date is blank. Open their pipeline record and set it.'}.${badge}</p>`
       case 'cancelled_still_active':
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> cancelled in Stripe.${badge}${m.auto_fixed ? ` Stage auto-updated to Churned (was ${esc(m.notion_stage)}).` : ` Still marked "${esc(m.notion_stage)}" in Notion. Update to Churned.`}</p>`
+        return `<p style="font-size:14px;color:#536475;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> cancelled in Stripe.${badge}${m.auto_fixed ? ` Stage auto-updated to Churned (was ${esc(m.notion_stage)}).` : ` Still marked "${esc(m.notion_stage)}" in Notion. Update to Churned.`}</p>`
       default:
-        return `<p style="font-size:14px;color:#374151;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${esc(m.mismatch_type)}</p>`
+        return `<p style="font-size:14px;color:#536475;margin:0 0 10px;line-height:1.5;"><strong>${addr}</strong> — ${esc(m.mismatch_type)}</p>`
     }
   }
 
   let bodyHtml = ''
 
   if (events.length === 0) {
-    bodyHtml = `<div style="background:#f0fdf4;border-left:4px solid #1abc9c;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px;">
-      <p style="font-size:15px;font-weight:500;color:#166534;margin:0;">All systems clean — Stripe and Notion are in sync.</p>
+    bodyHtml = `<div style="background:#F5F7F3;border-left:4px solid #527566;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:24px;">
+      <p style="font-size:15px;font-weight:500;color:#365D4C;margin:0;">All systems clean — Stripe and Notion are in sync.</p>
     </div>`
   } else {
     const summaryParts: string[] = []
     if (autoFixedItems.length > 0) summaryParts.push(`${autoFixedItems.length} auto-fixed`)
     if (manualItems.length > 0) summaryParts.push(`${manualItems.length} need manual attention`)
 
-    bodyHtml = `<p style="font-size:14px;color:#374151;margin:0 0 24px;line-height:1.6;">Found <strong>${events.length}</strong> item${events.length === 1 ? '' : 's'}: ${summaryParts.join(', ')}.</p>`
+    bodyHtml = `<p style="font-size:14px;color:#536475;margin:0 0 24px;line-height:1.6;">Found <strong>${events.length}</strong> item${events.length === 1 ? '' : 's'}: ${summaryParts.join(', ')}.</p>`
 
     // Auto-fixed items (green)
     if (autoFixedItems.length > 0) {
-      bodyHtml += `<div style="border-left:4px solid #1abc9c;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#f0fdf4;">
-        <p style="font-size:12px;font-weight:600;color:#166534;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Auto-Fixed (${autoFixedItems.length})</p>
+      bodyHtml += `<div style="border-left:4px solid #527566;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:20px;background:#F5F7F3;">
+        <p style="font-size:12px;font-weight:600;color:#365D4C;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 12px;">Auto-Fixed (${autoFixedItems.length})</p>
         ${autoFixedItems.map(renderItem).join('')}
       </div>`
     }
@@ -322,29 +323,19 @@ serve(async () => {
     ? 'BloomSuite Reconciliation — all clean'
     : `BloomSuite Reconciliation — ${events.length} item${events.length === 1 ? '' : 's'}${autoFixedItems.length > 0 ? ` (${autoFixedItems.length} auto-fixed)` : ''}`
 
-  const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-  <tr><td style="background:#0d1f1a;padding:20px 40px;">
-    <img src="https://udldmkqwnxhdeztyqcau.supabase.co/storage/v1/object/public/content-assets/bloomsuite-logo.png" alt="BloomSuite" style="height:36px;width:auto;display:block;" />
-  </td></tr>
-  <tr><td style="background:#1abc9c;padding:16px 40px;">
-    <p style="color:#ffffff;font-size:16px;font-weight:500;margin:0;">Stripe / Notion Reconciliation</p>
-  </td></tr>
-  <tr><td style="padding:32px 40px;">
-    ${bodyHtml}
-    <div style="text-align:center;margin-top:24px;">
-      <a href="https://www.notion.so/344d234a0ae54f4185e19d260ac658a9" style="display:inline-block;background:#1abc9c;color:#ffffff;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:500;text-decoration:none;">Open Customer Pipeline →</a>
-    </div>
-    <p style="font-size:12px;color:#9ca3af;margin:24px 0 0;border-top:1px solid #e5e7eb;padding-top:16px;">This reconciliation runs automatically. Auto-fixes are applied where safe. Only items that need human attention are flagged.</p>
-  </td></tr>
-</table>
-</td></tr>
-</table>
-</body></html>`
+  // Business reconciliation decisions and recipients are intentionally untouched.
+  const emailHtml = renderBloomSystemEmail({
+    eyebrow: "OPERATIONS",
+    title: "Stripe / Notion Reconciliation",
+    preheader: subject,
+    icon: events.length === 0 ? "check" : "alert",
+    bodyHtml: bodyHtml +
+      '<p style="font-size:12px;color:#5B6B79;margin:24px 0 0;border-top:1px solid #DBE3DF;padding-top:16px;">This reconciliation runs automatically. Auto-fixes are applied where safe. Only items that need human attention are flagged.</p>',
+    action: { label: "Open Customer Pipeline →", url: "https://www.notion.so/344d234a0ae54f4185e19d260ac658a9" },
+    footer: "BloomSuite — internal reconciliation notice.",
+  })
 
-  await fetch('https://api.resend.com/emails', {
+    await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${RESEND_API_KEY}`,
