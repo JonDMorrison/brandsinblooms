@@ -69,6 +69,7 @@ export default function AdminManage() {
   const {
     isMasterAdmin,
     isLoading,
+    hasHydratedTenantContext,
     activeTenantId,
     setActiveTenantId,
     availableTenants,
@@ -128,7 +129,7 @@ export default function AdminManage() {
     setPage(1);
   };
 
-  if (isLoading) {
+  if (isLoading || (isMasterAdmin && !hasHydratedTenantContext)) {
     return (
       <PageContainer fullWidth sx={{ px: 0, py: 0 }}>
         <Stack
