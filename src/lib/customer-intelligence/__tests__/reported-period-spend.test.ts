@@ -11,3 +11,10 @@ describe('reported period spend',()=>{
  it('supports complete calendar years across leap years with explicit day counts',()=>{const r=compareReportedPeriodSpend([...facts(2024),...facts(2025,125,'current')],['buyer'],'tenant',period(2025),period(2024));expect(r).toMatchObject({current_days:365,baseline_days:366,comparison_basis:'matching_calendar_dates'});expect(r.rows[0].spend_change_percent).toBe(25);});
  it('compares equal periods and refuses full-year versus incomplete YTD',()=>{const all=[...facts(),...facts(2026,125,'current')];expect(compareReportedPeriodSpend(all,['buyer'],'tenant',period(2026),period(2025)).rows[0].spend_change_percent).toBe(25);expect(()=>compareReportedPeriodSpend(all,['buyer'],'tenant',{...period(2026),end:'2026-10-14'},period(2025))).toThrow('equal-length');expect(compareReportedPeriodSpend([...facts(2025,0),...facts(2026,125,'current')],['buyer'],'tenant',period(2026),period(2025)).rows[0].spend_change_percent).toBeNull();});
 });
+
+it('retains exact cents when aggregate dollar conversion cannot retain the last cent',()=>{
+ const rows=[...facts(2025,90071992547400,'a'),...facts(2025,9.91,'b').map(row=>({...row,import_id:'a'}))];
+ expect(rankReportedPeriodSpend(rows,['buyer'],'tenant',period(2025)).rows[0].reported_spend_cents).toBe(Number.MAX_SAFE_INTEGER);
+});
+
+it('ranks adjacent exact cents separately at the safe integer boundary',()=>{const a=[...facts(2025,90071992547400,'a'),...facts(2025,9.91,'b').map(row=>({...row,import_id:'a'}))];const b=a.map(row=>({...row,id:row.id+'other',customer_id:'other',net_amount:row.id.startsWith('b:')?9.90:row.net_amount}));const result=rankReportedPeriodSpend([...a,...b],['buyer','other'],'tenant',period(2025));expect(result.rows.map(row=>[row.reported_spend_cents,row.rank])).toEqual([[Number.MAX_SAFE_INTEGER,1],[Number.MAX_SAFE_INTEGER-1,2]]);});

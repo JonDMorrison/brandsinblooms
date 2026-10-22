@@ -1,5 +1,6 @@
+import {createSourceCertificationGate, type CertificationSummary} from './source-certification.mjs';
 type SourceFile = Pick<File,'name'|'size'|'text'|'arrayBuffer'>;
-export type PreparedSourceReview = {filename:string;sourceSha256:string;reportFamily:string;status:string;periodStart:string|null;periodEnd:string|null;periodVerified:boolean;sourceRows:number;normalizedRows:number;quarantinedRows:number;sheets:Array<{name:string;sourceRows:number;normalizedRows:number}>;notices:string[];failures:string[]};
+export type PreparedSourceReview = {certification:CertificationSummary;filename:string;sourceSha256:string;reportFamily:string;status:string;periodStart:string|null;periodEnd:string|null;periodVerified:boolean;sourceRows:number;normalizedRows:number;quarantinedRows:number;sheets:Array<{name:string;sourceRows:number;normalizedRows:number}>;notices:string[];failures:string[]};
 const object=(value:unknown):Record<string,unknown>=>{if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid prepared report structure.');return value as Record<string,unknown>;};
 const integer=(value:unknown)=>{if(!Number.isSafeInteger(value)||Number(value)<0)throw Error('Invalid prepared report count.');return Number(value);};
 const hash=async(bytes:ArrayBuffer)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -20,6 +21,7 @@ export async function reviewPreparedIdealSource(files:SourceFile[],tenantId:stri
  const sheetMap=new Map(sheets.map(sheet=>[sheet.name,sheet]));if(sheetMap.size!==sheets.length)throw Error('Duplicate worksheet name.');
  const counts=object(manifest.counts),sourceRows=integer(counts.sourceRows),normalizedRows=integer(counts.normalizedRows),quarantinedRows=integer(counts.quarantinedRows);
  if(sourceRows>2000000||normalizedRows>4000000||quarantinedRows>normalizedRows||sheets.reduce((n,s)=>n+s.sourceRows,0)!==sourceRows||sheets.reduce((n,s)=>n+s.normalizedRows,0)!==normalizedRows)throw Error('Prepared worksheet totals do not reconcile.');
+ const certificationGate=createSourceCertificationGate({tenantId,sourceSha256:source.sha256 as string,reportFamily:manifest.reportFamily as string});
  let observed=0,quarantine=0;const perSheet=new Map<string,number>();
  for(const[index,value]of manifest.chunks.entries()){
   const chunk=object(value);if(chunk.index!==index||chunk.path!==`chunk-${String(index).padStart(5,'0')}.jsonl`||!digest(chunk.sha256))throw Error('Invalid prepared file sequence.');
@@ -31,6 +33,7 @@ export async function reviewPreparedIdealSource(files:SourceFile[],tenantId:stri
    if(row.committable!==false||where.sha256!==source.sha256||!sheet||integer(where.row)<1||Number(where.row)>sheet.sourceRows||typeof row.kind!=='string'||!digest(row.payloadHash))throw Error('Prepared row provenance is invalid.');
    if(row.customerCode!==null&&typeof row.customerCode!=='string')throw Error('Customer identifiers must remain strings.');
    const payload={kind:row.kind,customerCode:row.customerCode,fields:object(row.fields)};if(await hashText(JSON.stringify(payload))!==row.payloadHash)throw Error('Prepared row payload differs.');
+   certificationGate.observe(row);
    observed++;if(row.kind==='quarantine')quarantine++;perSheet.set(sheet.name,(perSheet.get(sheet.name)||0)+1);
   }
  }
@@ -43,5 +46,8 @@ export async function reviewPreparedIdealSource(files:SourceFile[],tenantId:stri
  const periodVerified=Boolean(periodStart&&periodEnd&&reconciliation.periodProvenance==='printed_original'&&printed?.start===periodStart&&printed?.end===periodEnd);
 
  const strings=(value:unknown)=>{if(!Array.isArray(value)||value.some(v=>typeof v!=='string'))throw Error('Invalid prepared diagnostics.');return value as string[];};
- return {filename:source.filename,sourceSha256:source.sha256 as string,reportFamily:manifest.reportFamily,status:String(manifest.status),periodStart,periodEnd,periodVerified,sourceRows,normalizedRows,quarantinedRows,sheets,notices:strings(manifest.notices),failures:strings(reconciliation.failures)};
+ const certification=certificationGate.finish();
+ if(manifest.certification!==undefined&&JSON.stringify(manifest.certification)!==JSON.stringify(certification))throw Error('Source certification claims differ from prepared evidence.');
+ const certificationNotices=certification.status==='incomplete'?certification.reasons.map(r=>`Source certification incomplete: ${r.code.replaceAll('_',' ')} (${r.count}).`):[];
+ return {certification,filename:source.filename,sourceSha256:source.sha256 as string,reportFamily:manifest.reportFamily,status:String(manifest.status),periodStart,periodEnd,periodVerified,sourceRows,normalizedRows,quarantinedRows,sheets,notices:[...strings(manifest.notices),...certificationNotices],failures:strings(reconciliation.failures)};
 }

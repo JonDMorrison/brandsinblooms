@@ -1,3 +1,5 @@
+import readline from 'node:readline';
+import {createSourceCertificationGate} from '../src/lib/customer-intelligence/source-certification.mjs';
 import fs from 'node:fs';import path from 'node:path';import {spawn} from 'node:child_process';import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';
 import {FAMILIES} from './ideal-manual-sync-core.mjs';
 export async function hashFile(file){const h=createHash('sha256');for await(const b of fs.createReadStream(file))h.update(b);return h.digest('hex');}
@@ -10,7 +12,16 @@ export async function prepareManualSync({source,out,reportFamily,tenantId,period
  const config={source:path.resolve(source),out:path.resolve(out),reportFamily,tenantId,periodStart,periodEnd,sourceSha,sourceBytes:stat.size,heapMb,encoding};
  try{await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[`--max-old-space-size=${heapMb}`,'--expose-gc',new URL('./ideal-manual-sync-worker.mjs',import.meta.url).pathname],{stdio:['pipe','ignore','pipe']});let diagnostic='';child.stderr.on('data',b=>{diagnostic=(diagnostic+b.toString()).slice(-2000);});child.on('error',reject);child.on('exit',code=>{if(code===0)resolve();else{fs.writeFileSync(path.join(out,'worker-diagnostic.txt'),diagnostic,{mode:0o600});reject(Error(`Preparation worker stopped (${code}); no import occurred. Source preserved. Inspect local diagnostic or increase reviewed resource limit.`));}});child.stdin.end(JSON.stringify(config));});
  if(await hashFile(source)!==sourceSha)throw Error('Source changed during preparation');
- const manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));manifest.source.originalUnchanged=true;manifest.manifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex');fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2),{mode:0o600});return manifest;
+ const manifest=JSON.parse(fs.readFileSync(path.join(out,'manifest.json'),'utf8'));
+ const certification=createSourceCertificationGate({tenantId,sourceSha256:sourceSha,reportFamily});
+ for(const chunk of manifest.chunks){
+  if(!/^chunk-\d{5}\.jsonl$/.test(chunk.path))throw Error('Invalid preparation chunk');
+  const chunkFile=path.join(out,chunk.path);
+  if(await hashFile(chunkFile)!==chunk.sha256)throw Error('Preparation chunk changed before certification');
+  for await(const line of readline.createInterface({input:fs.createReadStream(chunkFile),crlfDelay:Infinity}))certification.observe(JSON.parse(line));
+ }
+ manifest.certification=certification.finish();
+ manifest.source.originalUnchanged=true;manifest.manifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex');fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2),{mode:0o600});return manifest;
  }catch(e){fs.writeFileSync(path.join(out,'FAILED.json'),JSON.stringify({status:'failed',sourceSha256:sourceSha,error:e.message}),{mode:0o600});throw e;}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const[source,out,reportFamily,tenantId,periodStartArg,periodEndArg,encodingArg]=process.argv.slice(2);if(!source||!out||!reportFamily||!tenantId)throw Error('Usage: node scripts/ideal-manual-sync.mjs source private-output family tenant-uuid [period-start period-end encoding]');const periodStart=periodStartArg==='-'?null:periodStartArg,periodEnd=periodEndArg==='-'?null:periodEndArg;const m=await prepareManualSync({source,out,reportFamily,tenantId,periodStart,periodEnd,encoding:encodingArg??'utf-8'});console.log(JSON.stringify({status:m.status,sourceSha256:m.source.sha256,sheets:m.sheets.length,counts:m.counts,peakRssKb:m.resources.peakRssKb,manifest:path.join(out,'manifest.json')}));}

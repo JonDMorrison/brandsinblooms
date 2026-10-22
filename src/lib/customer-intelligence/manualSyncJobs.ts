@@ -29,9 +29,11 @@ export async function stageManualSyncFile(tenantId:string,file:File,reportFamily
  if(error||signal?.aborted)throw new ManualSyncUncertainError(created.id);
  return job((await request(tenantId,{action:'stage',jobId:created.id},signal)).job,tenantId);
 }
-export async function approveManualSyncJob(tenantId:string,value:ManualSyncJob){
- if(value.tenant_id!==tenantId||value.status!=='review_required'||!value.plan_sha256||!value.approval_sha256||!value.manifest_sha256||!['annual_sales','customer_sales'].includes(value.report_family)||!value.review_summary||value.review_summary.failures.length)throw Error('This exact job is not eligible for approval.');
- return job((await request(tenantId,{action:'approve',jobId:value.id,manifestSha256:value.manifest_sha256,planSha256:value.plan_sha256,approvalSha256:value.approval_sha256})).job,tenantId);
+export async function approveManualSyncJob(tenantId:string,value:ManualSyncJob,replacementAcknowledged=false){
+ if(value.tenant_id!==tenantId||value.status!=='review_required'||!value.plan_sha256||!value.approval_sha256||!value.manifest_sha256||!['annual_sales','customer_sales','customer_master'].includes(value.report_family)||!value.review_summary||value.review_summary.failures.length)throw Error('This exact job is not eligible for approval.');
+ const supersedeSourceHashes=(value.review_summary.supersededSources??[]).map(source=>source.sourceSha);
+ if(supersedeSourceHashes.length&&!replacementAcknowledged)throw Error('Explicit approval of the displayed prior-source replacement is required.');
+ return job((await request(tenantId,{action:'approve',jobId:value.id,manifestSha256:value.manifest_sha256,planSha256:value.plan_sha256,approvalSha256:value.approval_sha256,supersedeSourceHashes})).job,tenantId);
 }
 export async function cancelManualSyncJob(tenantId:string,jobId:string){return job((await request(tenantId,{action:'cancel',jobId})).job,tenantId);}
 

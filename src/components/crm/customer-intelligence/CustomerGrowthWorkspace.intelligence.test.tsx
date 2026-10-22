@@ -133,3 +133,5 @@ describe("Customer Intelligence workbenches", () => {
     expect(screen.getByText("Existing Ideal module")).toBeVisible();
   });
 });
+
+vi.mock("./ReportedPurchaseWorkspace", () => ({ReportedPurchaseWorkspace: () => <div>Reported source comparisons</div>}));

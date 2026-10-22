@@ -1,3 +1,4 @@
+import {loadReportLedger,loadReportedEvidence} from '../../../_shared/customer-intelligence/load-reported-evidence.ts';
 import {loadCompanyAnalysisFacts} from '../../../_shared/customer-intelligence/load-analysis-facts.ts';
 import {compareReportedPeriodSpend} from '../../../_shared/customer-intelligence/reported-period-spend.ts';
 import {planAudienceRefresh} from '../../../_shared/customer-intelligence/audience-refresh.ts';
@@ -131,7 +132,10 @@ export const compareCustomerGrowthTool: ToolImplementation = async (params,conte
   if(set) publicSet(set,customers);
   const ids=set?.included_ids??customers.map(c=>c.id), client=context.dataClient!;
   if(params.evidence_basis==='reported_period') {
-    const facts=(await loadAnalysisFacts(context,cutoff)).filter(f=>f.evidence_kind==='period_summary');
+    const ledger=await loadReportLedger(client,context.tenantId,cutoff);
+    const selectPeriod=(start:unknown,end:unknown)=>{const matches=ledger.filter(row=>row.source_period_start===start&&row.source_period_end===end);if(matches.length!==1)throw new Error('This exact historical period is missing or has multiple retained snapshots. Select the source explicitly in Customer Intelligence reported spending.');return matches[0].id;};
+    const historicalImportIds=[selectPeriod(params.current_start,params.current_end),selectPeriod(params.baseline_start,params.baseline_end)];
+    const {facts}=await loadReportedEvidence(client,context.tenantId,cutoff,{historicalImportIds,customerIds:ids});
     const report=compareReportedPeriodSpend(facts,ids,context.tenantId,
       {start:String(params.current_start),end:String(params.current_end),currency:String(params.currency)},
       {start:String(params.baseline_start),end:String(params.baseline_end),currency:String(params.currency)});

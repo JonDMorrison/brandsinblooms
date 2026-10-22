@@ -1,5 +1,18 @@
+import type { CertificationSummary } from '../../../../src/lib/customer-intelligence/source-certification.mjs';
 export type ManualSyncJobState = 'uploading' | 'staged' | 'preparing' | 'review_required' | 'quarantined' | 'approved' | 'applying' | 'recovery_required' | 'completed' | 'cancelled';
+export type ManualSyncSupersededSource = {
+    importId: string;
+    sourceSha: string;
+    periodStart: string;
+    periodEnd: string;
+    acceptedItems: number;
+    omittedCustomers: number;
+};
 export type ManualSyncReviewSummary = {
+    sourceCertification?: CertificationSummary;
+    supersededSources?: ManualSyncSupersededSource[];
+    unchangedCustomers?: number;
+    quarantinedRows?: Array<{ source: { sha256: string; sheet: string; row: number }; reason: string }>;
     sourceRows: number;
     normalizedRows: number;
     acceptedCustomers: number;

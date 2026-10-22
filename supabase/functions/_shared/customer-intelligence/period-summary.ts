@@ -29,11 +29,35 @@ export function periodSummaryFacts(events: PeriodSummaryEvent[], tenantId: strin
   });
 }
 
-export interface SummaryImport { id: string; source: string; source_period_start: string | null; source_period_end: string | null; }
+export interface SummaryImport { id: string; source: string; source_period_start: string | null; source_period_end: string | null; source_sha256?: string; reconciliation?: unknown; }
 /** Input is newest first. A newer cumulative export supersedes covered earlier snapshots. */
 export function currentSummaryImports(imports: SummaryImport[]): SummaryImport[] {
   const selected: SummaryImport[] = [];
   for (const item of imports) {
+    if (!item.source_period_start || !item.source_period_end) throw new Error("Source summary periods need reconciliation.");
+    assertDate(item.source_period_start); assertDate(item.source_period_end);
+    if(item.source_period_start > item.source_period_end) throw new Error("Source summary period is reversed.");
+  }
+  const retired=new Set<string>(),edges=new Map<string,string[]>();
+  for(const item of imports){
+    const metadata=item.reconciliation as {superseded_sources?:unknown}|null;
+    if(metadata?.superseded_sources===undefined)continue;
+    if(!Array.isArray(metadata.superseded_sources))throw new Error('Invalid source replacement metadata.');
+    for(const raw of metadata.superseded_sources){
+      const prior=raw as {sourceSha?:unknown;periodStart?:unknown;periodEnd?:unknown};
+      if(typeof prior?.sourceSha!=='string')throw new Error('Invalid source replacement identity.');
+      const matches=imports.filter(row=>row.source_sha256===prior.sourceSha&&row.source===item.source);
+      if(matches.length!==1)throw new Error('Source replacement ledger is incomplete or ambiguous.');
+      const target=matches[0];
+      if(target.id===item.id||target.source_period_start!==prior.periodStart||target.source_period_end!==prior.periodEnd||!item.source_period_start||!item.source_period_end||item.source_period_start>target.source_period_start!||item.source_period_end<target.source_period_end!)throw new Error('Source replacement coverage is invalid.');
+      retired.add(target.id);edges.set(item.id,[...(edges.get(item.id)??[]),target.id]);
+    }
+  }
+  const visiting=new Set<string>(),visited=new Set<string>();
+  function visit(id:string){if(visiting.has(id))throw new Error('Cyclic source replacement metadata.');if(visited.has(id))return;visiting.add(id);for(const next of edges.get(id)??[])visit(next);visiting.delete(id);visited.add(id);}
+  imports.forEach(row=>visit(row.id));
+  for (const item of imports) {
+    if(retired.has(item.id))continue;
     if (!item.source_period_start || !item.source_period_end) throw new Error('Source summary periods need reconciliation.');
     assertDate(item.source_period_start); assertDate(item.source_period_end);
     const overlapping = selected.filter(s => s.source === item.source && s.source_period_start! <= item.source_period_end! && s.source_period_end! >= item.source_period_start!);

@@ -17,3 +17,10 @@ it('does not double-count overlapping weekly cumulative exports',()=>{
  expect(currentSummaryImports([row('new','2026-01-01','2026-10-14'),row('old','2026-01-01','2026-10-07'),row('prior','2025-01-01','2025-12-31')]).map(r=>r.id)).toEqual(['new','prior']);
  expect(()=>currentSummaryImports([row('new','2026-05-01','2026-10-14'),row('old','2026-01-01','2026-06-30')])).toThrow('Overlapping');
 });
+
+it('explicit replacement wins regardless of ledger creation order and validates retired periods',()=>{
+ const old={id:'old',source:'ideal',source_sha256:'old-hash',source_period_start:'2026-01-01',source_period_end:'2026-10-14'};
+ const replacement={...old,id:'replacement',source_sha256:'new-hash',reconciliation:{superseded_sources:[{sourceSha:'old-hash',periodStart:old.source_period_start,periodEnd:old.source_period_end}]}};
+ expect(currentSummaryImports([old,replacement]).map(r=>r.id)).toEqual(['replacement']);
+ expect(()=>currentSummaryImports([{...old,source_period_start:'2026-02-30'},{...replacement,reconciliation:{superseded_sources:[{sourceSha:'old-hash',periodStart:'2026-02-30',periodEnd:old.source_period_end}]}}])).toThrow();
+});

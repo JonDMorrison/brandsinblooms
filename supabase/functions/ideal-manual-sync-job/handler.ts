@@ -80,6 +80,10 @@ export function createManualSyncJobHandler(createClient: typeof ClientFactory, e
                     return reply({ error: 'Job state changed; refresh status before retrying.' }, 409);
             }
             else if (body.action === 'approve') {
+                const superseded = job.review_summary?.supersededSources ?? [];
+                const expectedHashes = superseded.map((source: { sourceSha: string }) => source.sourceSha);
+                if (JSON.stringify(body.supersedeSourceHashes ?? []) !== JSON.stringify(expectedHashes))
+                    return reply({ error: 'Explicit approval of every replaced source hash is required' }, 409);
                 if (job.status !== 'review_required' || !job.plan_sha256 || job.manifest_sha256 !== body.manifestSha256 || job.plan_sha256 !== body.planSha256 || job.approval_sha256 !== body.approvalSha256)
                     return reply({ error: 'Review scope changed or source is review-only' }, 409);
                 const { data, error } = await table().update({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() }).eq('tenant_id', tenantId).eq('id', job.id).eq('status', 'review_required').eq('approval_sha256', body.approvalSha256).select('id');
