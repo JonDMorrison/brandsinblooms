@@ -16,11 +16,11 @@ export function idealEvidenceTimestamp(value:string):number{
 }
 
 /** Exact decimal accumulation within a bounded, explicit precision envelope. No rounding policy. */
-function decimalUnits(value:number|string):{units:bigint;scale:number}{
+function decimalUnits(value:number|string,maxScale=12):{units:bigint;scale:number}{
  const match=String(value).trim().match(/^([+-]?)(\d+)(?:\.(\d*))?(?:e([+-]?\d+))?$/i);
  if(!match)throw new Error('Quantity needs decimal reconciliation');
  const scale=(match[3]?.length??0)-Number(match[4]??0);
- if(Math.abs(scale)>12||(match[2]+(match[3]??'')).length>30)throw new Error('Quantity exceeds projection precision limits');
+ if(Math.abs(scale)>maxScale||(match[2]+(match[3]??'')).length>30)throw new Error('Quantity exceeds projection precision limits');
  return {units:BigInt(match[1]+match[2]+(match[3]??''))*(scale<0?10n**BigInt(-scale):1n),scale:Math.max(0,scale)};
 }
 
@@ -67,7 +67,7 @@ export function projectIdealCustomerMetrics(scope:IdealProjectionScope,source:Id
   if(!Number.isSafeInteger(amountCents))throw new Error('Source amount exceeds exact cents limits');
   if(currency!==null&&currency!==row.currency)throw new Error('Currencies cannot be summed');
   currency=row.currency;
-  const decimal=decimalUnits(row.quantity!);
+  const decimal=decimalUnits(row.quantity!,18);
   let canonicalUnits=decimal.units,canonicalScale=decimal.scale;
   while(canonicalScale>0&&canonicalUnits%10n===0n){canonicalUnits/=10n;canonicalScale--;}
   const signature=JSON.stringify([amountCents,`${canonicalUnits}:${canonicalScale}`,row.currency,date,row.product_code,row.product_name,row.sales_category,row.department,row.external_transaction_id??null,row.external_line_id??null]);
@@ -83,7 +83,7 @@ export function projectIdealCustomerMetrics(scope:IdealProjectionScope,source:Id
   cents+=amountCents;
   const scale=Math.max(quantityScale,decimal.scale);
   quantityUnits=quantityUnits*10n**BigInt(scale-quantityScale)+decimal.units*10n**BigInt(scale-decimal.scale);quantityScale=scale;
-  if(!Number.isSafeInteger(cents)||quantityUnits>BigInt(Number.MAX_SAFE_INTEGER)||quantityUnits<BigInt(Number.MIN_SAFE_INTEGER))throw new Error('Projection exceeds numeric limits');
+  if(!Number.isSafeInteger(cents)||quantityUnits>BigInt(Number.MAX_SAFE_INTEGER)*10n**BigInt(quantityScale)||quantityUnits<BigInt(Number.MIN_SAFE_INTEGER)*10n**BigInt(quantityScale))throw new Error('Projection exceeds numeric limits');
   if(row.sales_category)categories.set(row.sales_category,(categories.get(row.sales_category)??0)+amountCents);else missingCategory++;
   if(row.department)departments.set(row.department,(departments.get(row.department)??0)+amountCents);else missingDepartment++;
   if((row.sales_category&&!Number.isSafeInteger(categories.get(row.sales_category)))||(row.department&&!Number.isSafeInteger(departments.get(row.department))))throw new Error('Projection bucket exceeds numeric limits');
@@ -97,12 +97,15 @@ export function projectIdealCustomerMetrics(scope:IdealProjectionScope,source:Id
    }
   }
  }
+ // Keep the exact source decimal sum available for display; never round Excel quantities.
+ const quantityDigits=(quantityUnits<0n?-quantityUnits:quantityUnits).toString().padStart(quantityScale+1,'0');
+ const quantityDecimal=(quantityUnits<0n?'-':'')+(quantityScale?`${quantityDigits.slice(0,-quantityScale)}.${quantityDigits.slice(-quantityScale)}`.replace(/\.?0+$/,''):quantityDigits);
  const buckets=(values:Map<string,number>)=>Object.fromEntries([...values].sort(([a],[b])=>a.localeCompare(b)).map(([key,value])=>[key,value/100]));
  return {
   version:1 as const,tenant_id:scope.tenantId,customer_id:scope.customerId,source_import_id:source.id,source_sha256:source.source_sha256,
   period:{start:scope.startDate,end:scope.endDate,timezone:scope.timezone},cutoff:scope.cutoff,
   evidence_kind:summary?'period_summary' as const:'dated_lines' as const,coverage:'observed_records_only' as const,
-  observed_net_amount:records?cents/100:null,observed_net_cents:records?cents:null,observed_quantity:records?Number(quantityUnits)/10**quantityScale:null,currency,
+  observed_net_amount:records?cents/100:null,observed_net_cents:records?cents:null,observed_quantity:records?Number(quantityDecimal):null,observed_quantity_decimal:records?quantityDecimal:null,currency,
   distinct_observed_transactions:records&&!summary&&!missingTransaction?transactions.size:null,
   last_observed_purchase_date:lastDate,category_net_amount:buckets(categories),department_net_amount:buckets(departments),
   category_net_cents:Object.fromEntries(categories),department_net_cents:Object.fromEntries(departments),

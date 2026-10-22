@@ -70,3 +70,8 @@ it('hides prior amounts during projection loading and source errors',()=>{
  const view=setup();mocks.projection.mockReturnValue({data:result,isError:false,isLoading:true,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
  mocks.sources.mockReturnValue({data:[report],isError:true,isLoading:false,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);expect(screen.getByRole('button',{name:'Retry sources'})).toBeVisible();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
 });
+
+it('displays the exact source quantity decimal instead of rounding it',()=>{
+ setup({observed_quantity:10.2,observed_quantity_decimal:'10.200000000000001'});
+ expect(screen.getByText('Observed quantity: 10.200000000000001')).toBeVisible();
+});
