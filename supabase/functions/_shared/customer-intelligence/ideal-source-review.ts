@@ -1,8 +1,13 @@
 import { detectIdealReportType, normalizeIdealRow, type IdealReportType, type IdealNormalizedRow } from "./ideal-pos.ts";
 
-const verifiedTimestamp = (v: string): boolean =>
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(v)
-  && Number.isFinite(Date.parse(v));
+const verifiedTimestamp = (value: string): boolean => {
+  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if(!match||!Number.isFinite(Date.parse(value)))return false;
+  const [year,month,day,hour,minute,second]=match.slice(1).map(Number);
+  const leap=year%4===0&&(year%100!==0||year%400===0);
+  const days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+  return month>=1&&month<=12&&day>=1&&day<=days[month-1]&&hour<24&&minute<60&&(!match[6]||second<60);
+};
 const money = (v: unknown): number | null => {
   if (v===null || v===undefined || String(v).trim()==="") return null;
   let text = String(v).trim();
@@ -45,7 +50,7 @@ export function transformIdealCrystalSales(rows: Record<string,unknown>[]): { ro
     if (!customerCode || !salesCategory || quantity===null || amount===null || !Number.isInteger(quantity)) {unknownRows++;continue;}
     output.push({"Customer Code":customerCode,"Customer Name":customerName,"Sales Category":salesCategory,
       "Department":c,"Quantity Bought":quantity,"Dollar Amount Bought":amount,
-      "__sourceRow":i+1,"__reportShape":"crystal_grouped_category_summary", "__raw":row});
+      "__sourceSheet":row.__sourceSheet,"__sourceRow":typeof row.__sourceRow==="number"?row.__sourceRow:i+1,"__reportShape":"crystal_grouped_category_summary", "__raw":row});
   }
   return { rows:output,unknownRows,groupHeaders };
 }
@@ -79,6 +84,8 @@ export function assessIdealRows(reportType: IdealReportType, rows: Record<string
     } else if (reportType==="customer_points") {
       if (r.pointsDelta===null) problems.push("Points missing or invalid");
     } else {
+      if (r.expiresAt && !verifiedTimestamp(r.expiresAt)) problems.push("Coupon expiry timestamp requires a valid calendar date and verified timezone offset");
+      if (r.expiresAt && r.issuedAt && verifiedTimestamp(r.expiresAt) && verifiedTimestamp(r.issuedAt) && Date.parse(r.expiresAt)<Date.parse(r.issuedAt)) problems.push("Coupon expiry precedes its issue timestamp");
       if (!r.couponCode) problems.push("Coupon identifier missing");
       if (reportType==="coupons_issued" && !r.issuedAt) problems.push("Issue date missing");
       if (reportType==="coupons_issued" && r.issuedAt && !verifiedTimestamp(r.issuedAt)) problems.push("Coupon issue timestamp requires a verified timezone offset");

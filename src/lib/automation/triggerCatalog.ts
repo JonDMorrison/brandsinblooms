@@ -18,6 +18,7 @@ export function triggerRequiresAudience(triggerId: string): boolean {
 }
 
 export const triggerCatalog: TriggerMeta[] = [
+  {id:"ideal.coupon_issued",label:"IdealPOS coupon issued",icon:"🎟️",defaultDelayMin:0,channels:["email"],goalHint:"Coupon follow-up",description:"A completed, verified IdealPOS import records an issued coupon. Configure reminder timing on each email node; unknown expiry or known redemption suppresses reminders.",audienceType:"event"},
   {
     id: "loyalty_join",
     label: "🎖️ Loyalty Program Enrollment",

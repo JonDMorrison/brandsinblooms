@@ -80,7 +80,9 @@ export function normalizeIdealRow(
     lineId: value(row, ["line id","line number"]),
     productCode, productName, salesCategory, department, quantity, amount,
     purchasedAt: value(row, ["transaction date","sale date","purchase date","date"]),
-    couponCode: value(row, ["coupon","coupon code","code"]),
+    // Ideal CODE identifies the customer; it must never also become a coupon ID.
+    // Reports using another coupon heading need an explicitly reviewed mapping.
+    couponCode: value(row, ["coupon","coupon code"]),
     issuedAt: value(row, ["issued date","issue date"]),
     expiresAt: value(row, ["expiry date","expiration date","valid until"]),
     redeemedAt: value(row, ["redeemed date","redemption date"]),

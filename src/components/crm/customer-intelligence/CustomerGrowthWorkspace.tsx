@@ -282,6 +282,7 @@ export function CustomerGrowthWorkspace({
                 </Button>
               ))}
             </Stack>
+            <Button variant="outlined" onClick={()=>ask("List my saved analytical audiences using inspect_customer_set with list_audiences=true, page 1.")}>Open saved audiences</Button>
             <Divider />
             <Typography level="body-xs" color="neutral">
               Bloom opens with the question ready for review. It shows included,
@@ -508,6 +509,7 @@ export function CustomerGrowthWorkspace({
               >
                 Compare customer growth
               </Button>
+              <Button variant="outlined" disabled={!selectedPeriod} onClick={()=>ask(`Compare reported period spending using compare_customer_growth with evidence_basis=reported_period and scope=all_customers, current_start=${dates.current_start}, current_end=${dates.current_end}, baseline_start=${dates.baseline_start}, baseline_end=${dates.baseline_end}, currency=${currency}. Show unavailable coverage as unknown. Do not infer CGI or visits.`)}>Compare reported spending with Bloom</Button>
               <Button
                 variant="plain"
                 color="neutral"

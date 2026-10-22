@@ -1,3 +1,4 @@
+import {campaignEvidence,loadCampaignSupplement,type CampaignMessage} from "./programme-campaign-evidence.ts";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { readAllPages } from "../customer-intelligence/query-pages.ts";
 import type { GrowthOrder } from "../customer-intelligence/customer-growth.ts";
@@ -736,7 +737,7 @@ export async function executeProgrammeCommand(
         orders(c, cutoff),
         memberships(c, cutoff),
       ]);
-      let sent: MessageFact[] = [];
+      let sent: CampaignMessage[] = [];
       if (campaignId) {
         const { data, error } = await c.userClient
           .from("crm_campaigns")
@@ -746,10 +747,10 @@ export async function executeProgrammeCommand(
           .maybeSingle();
         if (error || !data)
           throw new ProgrammeError(404, "Campaign not accessible.");
-        sent = await readAllPages<MessageFact>((a, z) =>
+        sent = await readAllPages<CampaignMessage>((a, z) =>
           c.userClient
             .from("email_messages")
-            .select("id,tenant_id,customer_id,campaign_id,sent_at")
+            .select("id,tenant_id,customer_id,campaign_id,sent_at,resend_id")
             .eq("tenant_id", c.tenantId)
             .eq("campaign_id", campaignId)
             .not("sent_at", "is", null)
@@ -768,7 +769,7 @@ export async function executeProgrammeCommand(
         cutoff,
         review,
       );
-      const result = compareProgrammePeriod(
+      const result: ProgrammeResult = compareProgrammePeriod(
         b.snapshot,
         period,
         contacts,
@@ -776,6 +777,12 @@ export async function executeProgrammeCommand(
         sent,
         p.normalizeDaily,
       );
+      if (campaignId) {
+        const supplement = await loadCampaignSupplement(c.userClient, c.tenantId, campaignId, cutoff);
+        const evidence = campaignEvidence(c.tenantId, campaignId, result.rows.map(row=>row.customerId), contacts.map(contact=>contact.id), sent, supplement.interactions, supplement.coupons, cutoff, w, period.settings.timezone);
+        result.rows = result.rows.map(row=>({...row,campaignEvidence:evidence.rows.get(row.customerId)}));
+        result.campaignEvidenceSummary = evidence.summary;
+      }
       const saved = await rpc(c, "save_loyalty_run_v1", {
         p_baseline_id: b.id,
         p_request_key: requiredUuid(p.requestKey, "request key"),

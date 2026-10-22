@@ -118,28 +118,29 @@ export function explorePurchases(input: {
   tenantId: string; userId: string; conversationId: string; timezone: string;
   population: string[]; facts: PurchaseFact[]; rule: PurchaseRule; label: string;
   previous?: CustomerSet | null; now?: string; id?: string;
+  /** Saved refreshes may lose dated evidence; keep those customers unknown. */
+  allowMissingAnchors?: boolean;
 }): CustomerSet {
   const rule = validatePurchaseRule(input.rule), now = input.now ?? new Date().toISOString();
   if (!input.label.trim() || input.label.length > 180) throw new Error('Name the customer search in 180 characters or fewer.');
   if (!localDate(now, input.timezone)) throw new Error('A valid source-read time is required.');
   const previous = input.previous;
   if (previous && (previous.tenant_id !== input.tenantId || previous.user_id !== input.userId || previous.conversation_id !== input.conversationId)) throw new Error('The earlier result is outside this user, company, or conversation.');
-  if (rule.within_days !== undefined && (!previous || !Object.values(previous.anchors).some((dates) => dates.length))) throw new Error('A within-days search requires an earlier result with dated matching purchases.');
+  if (rule.within_days !== undefined && (!previous || (!input.allowMissingAnchors && !Object.values(previous.anchors).some((dates) => dates.length)))) throw new Error('A within-days search requires an earlier result with dated matching purchases.');
   if (previous && previous.trail.length >= 30) throw new Error('This search has 30 steps. Save the audience before starting a new exploration.');
   const visible = new Set(input.population);
   // Fail rather than silently dropping customers whose visibility has changed.
   if (previous?.included_ids.some((id) => !visible.has(id))) throw new Error('Some customers in that result are no longer accessible. Start a new search; the earlier audience has not been silently changed.');
   const population = [...new Set(previous ? previous.included_ids : input.population)].sort();
   const byCustomer = new Map<string, PurchaseFact[]>();
-  const seen = new Map<string, string>();
+  const seen = new Map<string, PurchaseFact>();
   for (const fact of input.facts) {
     if (fact.tenant_id !== input.tenantId) throw new Error('Cross-company purchase data was rejected.');
-    const signature = JSON.stringify(fact);
     if (seen.has(fact.id)) {
-      if (seen.get(fact.id) !== signature) throw new Error('Conflicting versions of a purchase record were returned. Retry the search.');
+      if (JSON.stringify(seen.get(fact.id)) !== JSON.stringify(fact)) throw new Error('Conflicting versions of a purchase record were returned. Retry the search.');
       continue;
     }
-    seen.set(fact.id, signature);
+    seen.set(fact.id, fact);
     if (!fact.customer_id || !visible.has(fact.customer_id) || Date.parse(fact.created_at) > Date.parse(now)) continue;
     const group = byCustomer.get(fact.customer_id) ?? [];
     group.push(fact); byCustomer.set(fact.customer_id, group);

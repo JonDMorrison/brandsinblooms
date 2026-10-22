@@ -1,3 +1,4 @@
+import type {CustomerCampaignEvidence,CampaignEvidenceSummary} from "./programme-campaign-evidence.ts";
 import {
   moneyMinorUnits,
   type GrowthOrder,
@@ -95,6 +96,7 @@ export type MeasurementState =
   | "identity_review";
 export interface CustomerComparison {
   customerId: string;
+  campaignEvidence?: CustomerCampaignEvidence;
   /** Presentation-only current name, never used in measurement or identity matching. */
   displayName?: string;
   baselineSpendMinor: number;
@@ -627,4 +629,4 @@ export function compareProgrammePeriod(
     ],
   };
 }
-export type ProgrammeResult = ReturnType<typeof compareProgrammePeriod>;
+export type ProgrammeResult = ReturnType<typeof compareProgrammePeriod> & { campaignEvidenceSummary?: CampaignEvidenceSummary };

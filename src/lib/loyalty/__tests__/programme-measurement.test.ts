@@ -10,6 +10,7 @@ import {
   type MeasurementCustomer,
   type EnrollmentFact,
 } from "../../../../supabase/functions/_shared/loyalty/programme-measurement";
+import {couponLifecycles, couponReminderDecision, type CouponEvent} from "../../../../supabase/functions/_shared/customer-intelligence/coupon-lifecycle";
 import type { GrowthOrder } from "../../../../supabase/functions/_shared/customer-intelligence/customer-growth";
 import {
   previewCalendarImport,
@@ -366,6 +367,37 @@ describe("permanent programme measurement", () => {
     expect(out.summary.customersPurchasingAfterMessage).toBe(1);
     expect(out.summary.recordedPostMessageSpendMinor).toBe(2000);
     expect(out.limitations[0]).toContain("not proof");
+  });
+  it("reconciles a synthetic selected cohort, actual sends, redemption and subsequent purchases without sending", () => {
+    const facts = [order("baseline-a", "a", "2025-09-02", "100"),
+      order("baseline-b", "b", "2025-09-02", "50"),
+      order("before-send", "a", "2026-09-02", "20"),
+      order("receipt-after", "a", "2026-09-20", "80"),
+      order("uncontacted-purchase", "b", "2026-09-21", "40")];
+    const selected = ["a", "b"];
+    const customers = selected.map(contact);
+    const baseline = captureProgrammeBaseline(snapshot(facts, old, selected), customers, []);
+    const sent = {id:"sent-a", tenant_id:"tenant", customer_id:"a", campaign_id:"synthetic-campaign", sent_at:"2026-09-10T19:00:00Z"};
+    const out = compareProgrammePeriod(baseline, snapshot(facts, current, selected), customers, [],
+      [sent, sent, {...sent,id:"draft-b",customer_id:"b",sent_at:null}, {...sent,id:"outside",customer_id:"outside-cohort"}], false);
+    expect(out.summary).toMatchObject({originalCohort:2,contactedCustomers:1,customersPurchasingAfterMessage:1,recordedPostMessageSpendMinor:8000,recordedCurrentSpendMinor:14000});
+    expect(out.rows.find(r=>r.customerId==="a")).toMatchObject({baselineSpendMinor:10000,currentSpendMinor:10000,postMessageSpendMinor:8000,currentEvidenceIds:["before-send","receipt-after"]});
+    expect(out.rows.find(r=>r.customerId==="b")).toMatchObject({receivedCampaign:false,postMessageSpendMinor:0});
+    expect(out.limitations.join(" ")).toContain("not proof that a campaign caused");
+    const issue:CouponEvent={id:"issued-a",tenant_id:"tenant",customer_id:"a",import_id:"verified-issues",source:"ideal",event_type:"coupon_issued",coupon_code:"SYNTHETIC",occurred_at:"2026-09-10T19:00:00Z",expires_at:"2026-09-30T19:00:00Z",external_transaction_id:null,source_fingerprint:"synthetic-issue"};
+    const redemption:CouponEvent={...issue,id:"redemption-a",import_id:"verified-redemptions",event_type:"coupon_redeemed",occurred_at:"2026-09-20T19:00:00Z",external_transaction_id:"receipt-after",source_fingerprint:"synthetic-redemption"};
+    const lifecycle=couponLifecycles([issue,redemption],"tenant","a",now);
+    expect(lifecycle[0]).toMatchObject({state:"redeemed",transaction_ids:["receipt-after"]});
+    expect(couponReminderDecision(lifecycle,"issued-a",{days_before_expiry:2},now)).toMatchObject({allowed:false,reason:"coupon_redeemed"});
+    // This proves evidence reconciliation, not an engagement integration or causal attribution.
+  });
+  it("rejects conflicting or cross-tenant synthetic campaign evidence", () => {
+    const facts=[order("baseline", "a", "2025-09-02", "100")];
+    const contacts=["a","b"].map(contact);
+    const baseline=captureProgrammeBaseline(snapshot(facts,old),contacts,[]);
+    const message={id:"sent",tenant_id:"tenant",customer_id:"a",campaign_id:"campaign",sent_at:"2026-09-10T19:00:00Z"};
+    expect(()=>compareProgrammePeriod(baseline,snapshot(facts,current),contacts,[],[message,{...message,sent_at:"2026-09-11T19:00:00Z"}],false)).toThrow("Conflicting campaign");
+    expect(()=>compareProgrammePeriod(baseline,snapshot(facts,current),contacts,[],[{...message,tenant_id:"other"}],false)).toThrow("Cross-company campaign");
   });
   it("does not turn absent or revoked consent into newsletter membership", () => {
     const b = captureProgrammeBaseline(

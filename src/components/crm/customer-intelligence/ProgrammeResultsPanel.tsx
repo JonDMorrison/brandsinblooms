@@ -415,6 +415,11 @@ export function ProgrammeResultsPanel({
             purchased afterward, with {money(s.recordedPostMessageSpendMinor)}{" "}
             recorded net spending.
           </Typography>
+          {r.campaignEvidenceSummary && <>
+            <Typography level="body-sm">{r.campaignEvidenceSummary.customersWithRecordedOpens} customers have recorded opens; {r.campaignEvidenceSummary.customersWithRecordedClicks} have recorded clicks; {r.campaignEvidenceSummary.customersWithRecordedRedemptionsAfterSend} have a recorded coupon redemption after sending.</Typography>
+            <Typography level="body-xs">{r.campaignEvidenceSummary.unmatchedInteractionCount} tracking records could not be matched to an exact sent message; {r.campaignEvidenceSummary.unresolvedCouponEvidenceCount} coupon records lack required evidence. Open a customer’s evidence to inspect the contributing message, tracking and coupon records.</Typography>
+            {r.campaignEvidenceSummary.limitations.map(note=><Typography key={note} level="body-xs">{note}</Typography>)}
+          </>}
           {r.limitations.map((note) => (
             <Typography key={note} level="body-xs">
               {note}
