@@ -1,4 +1,5 @@
 import { ImportHistoryPanel } from "@/components/crm/customer-intelligence/ImportHistoryPanel";
+import { ManualSyncJobsPanel } from "@/components/integrations/ManualSyncJobsPanel";
 import Stack from "@mui/joy/Stack";
 import { CustomerIntelligenceSetupWizard } from "@/components/integrations/CustomerIntelligenceSetupWizard";
 import { IntegrationCategoryLanding } from "@/components/integrations/IntegrationCategoryLanding";
@@ -9,6 +10,7 @@ export default function POSIntegrationsPage() {
     <PageContainer sx={{ py: { xs: 2, md: 3 } }}>
       <Stack spacing={4}>
         <CustomerIntelligenceSetupWizard />
+        <ManualSyncJobsPanel />
         <ImportHistoryPanel />
         <IntegrationCategoryLanding
           category="pos-systems"

@@ -1,0 +1,35 @@
+export type ManualSyncJobState = 'uploading' | 'staged' | 'preparing' | 'review_required' | 'quarantined' | 'approved' | 'applying' | 'recovery_required' | 'completed' | 'cancelled';
+export type ManualSyncReviewSummary = {
+    sourceRows: number;
+    normalizedRows: number;
+    acceptedCustomers: number;
+    acceptedItems: number;
+    amountCents: number;
+    excludedCustomers: number;
+    excludedItems: number;
+    failures: string[];
+    notices: string[];
+    periodStart: string | null;
+    periodEnd: string | null;
+};
+export type ManualSyncJob = {
+    id: string;
+    tenant_id: string;
+    source_filename: string;
+    source_sha256: string;
+    source_bytes: number;
+    report_family: string;
+    encoding: 'utf-8' | 'windows-1252';
+    status: ManualSyncJobState;
+    manifest_sha256: string | null;
+    plan_sha256: string | null;
+    approval_sha256: string | null;
+    review_summary: ManualSyncReviewSummary | null;
+    batch_count: number;
+    committed_batches: number;
+    last_error: string | null;
+    created_at: string;
+    updated_at: string;
+};
+export const MANUAL_SYNC_FAMILIES = ['customer_master', 'annual_sales', 'customer_sales', 'customer_spending', 'points', 'coupons_redeemed', 'coupons_issued', 'customer_sales_by_category', 'journal'] as const;
+export const MANUAL_SYNC_MAX_BYTES = 128 * 1024 * 1024;
