@@ -205,3 +205,17 @@ test('R-Series 429 pauses safely and 401 invalidates the grant',async()=>{
  const response=await f.signed({action:'read',grantId,resource:'products'});assert.equal(response.status,status);
  assert.ok(!(await response.text()).includes('SECRET'));assert.equal(f.grants.get(grantId).status,status===401?'reconnect_required':'active');}
 });
+
+test('X-Series documented currency object authorizes and finalizes as CAD',async()=>{
+  const f=await fixture({retailer:{currency:{code:'CAD',symbol:'$'}}});
+  const {grantId}=await f.activate();
+  assert.equal(f.grants.get(grantId).currency,'CAD');
+  assert.equal(f.grants.get(grantId).status,'active');
+});
+test('malformed currency objects still fail closed',async()=>{
+  for(const currency of [{symbol:'$'},{code:''},{code:'CAD<script>'},{code:123},null]){
+    const f=await fixture({retailer:{currency}});await f.start();
+    const response=await f.callback();assert.equal(response.status,409);
+    assert.equal([...f.grants.values()][0].status,'reconnect_required');
+  }
+});
