@@ -1416,13 +1416,6 @@ function CampaignStudioPageContent() {
 
     switch (selectedBlock.type) {
       case "email-safe-hero":
-        if (
-          selectedBlock.heroStyle !== "image-overlay" &&
-          selectedBlock.heroStyle !== "image-bottom"
-        ) {
-          return null;
-        }
-
         return buildSingleFieldAIRequest({
           aiAspectRatioHint: "landscape",
           applyResolvedUrl: (resolvedUrl) =>

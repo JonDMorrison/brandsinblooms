@@ -88,3 +88,41 @@ describe("useStudioState history", () => {
     expect(result.current.canRedo).toBe(false);
   });
 });
+
+describe("hero photo editing", () => {
+  const photoUrl = "https://images.example.com/wreath.jpg";
+  const setupHero = (heroStyle?: StudioBlock["heroStyle"]) => {
+    const hook = renderHook(() => useStudioState({ initialCampaignName: "Workshop", designSystem }));
+    act(() => hook.result.current.loadCampaign({
+      ...createSnapshot(""),
+      blocks: [{ id: "hero", type: "email-safe-hero", label: "Hero", order: 0, visible: true,
+        heroStyle, headline: "Winter workshops", buttonText: "Book now", buttonUrl: "https://example.com/book",
+        backgroundColor: "#f8f9fa", textColor: "#1a1a2e", layoutPreset: "hero-light-minimal" }],
+    }));
+    return hook;
+  };
+
+  it.each([undefined, "solid", "gradient"] as const)("makes an added photo visible from %s and undoes it atomically", (style) => {
+    const { result } = setupHero(style);
+    act(() => result.current.updateBlockField("hero", "imageUrl", photoUrl));
+    expect(result.current.blocks[0]).toMatchObject({ imageUrl: photoUrl, heroStyle: "image-bottom",
+      headline: "Winter workshops", buttonText: "Book now", backgroundColor: "#f8f9fa", textColor: "#1a1a2e" });
+    expect(result.current.blocks[0].layoutPreset).toBeUndefined();
+    act(() => result.current.undo());
+    expect(result.current.blocks[0].imageUrl).toBeUndefined();
+    expect(result.current.blocks[0].heroStyle).toBe(style);
+    act(() => result.current.redo());
+    expect(result.current.blocks[0].imageUrl).toBe(photoUrl);
+    expect(result.current.blocks[0].heroStyle).toBe("image-bottom");
+  });
+
+  it.each(["image-overlay", "image-bottom"] as const)("preserves %s when replacing or removing a photo", (style) => {
+    const { result } = setupHero(style);
+    act(() => result.current.updateBlockField("hero", "imageUrl", photoUrl));
+    expect(result.current.blocks[0].heroStyle).toBe(style);
+    act(() => result.current.updateBlockField("hero", "imageUrl", ""));
+    expect(result.current.blocks[0].imageUrl).toBe("");
+    expect(result.current.blocks[0].headline).toBe("Winter workshops");
+    expect(result.current.blocks[0].heroStyle).toBe(style);
+  });
+});

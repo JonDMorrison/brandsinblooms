@@ -41,7 +41,7 @@ export const BLOCK_CATEGORIES: BlockCategory[] = [
       {
         type: "email-safe-hero",
         name: "Email Safe Hero",
-        description: "Text on solid or gradient background - works everywhere",
+        description: "Editable text and buttons with an optional hero photo",
         icon: Heading,
       },
       {
