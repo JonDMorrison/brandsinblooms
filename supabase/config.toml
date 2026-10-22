@@ -598,3 +598,6 @@ verify_jwt = true
 
 [functions.loyalty-programmes]
 verify_jwt = true
+
+[functions.ideal-manual-sync-job]
+verify_jwt = true
