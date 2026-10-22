@@ -154,6 +154,8 @@ function SalesAnalytics({ period }: { period: AnalyticsPeriod }) {
 }
 
 const AnalyticsPage = () => {
+  const navigate=useNavigate();
+  const {hasPermission}=useUserRole();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get("view");
   const activeView: AnalyticsView = views.some((view) => view.id === requestedView)
@@ -193,6 +195,11 @@ const AnalyticsPage = () => {
             </JoyButton>
           ))}
         </Stack>
+
+        {hasPermission("reports.read")&&<Stack spacing={0.5}>
+          <Typography level="body-sm">IdealPOS report totals are available separately from connected POS orders. An empty order chart does not mean imported sales are missing.</Typography>
+          <JoyButton variant="outlined" onClick={()=>navigate("/crm/intelligence?view=growth")}>View imported report spending</JoyButton>
+        </Stack>}
 
         {hasPeriodSelector ? (
           <Stack direction={{ xs: "column", sm: "row" }}

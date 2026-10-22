@@ -507,6 +507,10 @@ const CustomerDashboardPage: React.FC = () => {
     return <FatalState onRetry={handleRefresh} />;
   }
 
+  const fields=displayCustomer.custom_fields;
+  const isIdealProfile=Boolean(fields&&typeof fields==='object'&&!Array.isArray(fields)&&'ideal_import_source' in fields);
+  const receiptMetricsUnavailable=isIdealProfile&&!purchaseMetrics;
+
   const activityFilters = {
     start: rangeStartDate,
     status: activityStatus === "all" ? undefined : [activityStatus],
@@ -561,6 +565,7 @@ const CustomerDashboardPage: React.FC = () => {
           ) : null}
 
           <ImportedCustomerSummary fields={displayCustomer.custom_fields} />
+          {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
           <CustomerQuickStats
             healthScore={snapshotMetrics.engagementHealthScore}
             engagementScore={engagementMetrics.engagementScore}
@@ -673,7 +678,6 @@ const CustomerDashboardPage: React.FC = () => {
                 />
                 <CustomerProfileAttributesCard customer={displayCustomer} />
                 <CustomerCouponsCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />
-                {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
                 <CustomerSegmentsCard
                   customerId={displayCustomer.id}
                   canManage={canManageSegments}
@@ -800,17 +804,19 @@ const CustomerDashboardPage: React.FC = () => {
 
           {activeTab === "purchase" ? (
             <Stack spacing={2}>
-              <CustomerIntelligenceStory
+              {(!isIdealProfile||customerIntelligence?.last_line_item_purchase_at)&&<CustomerIntelligenceStory
                 intelligence={customerIntelligence}
                 onAskBloom={() => navigate("/bloom?prompt=" + encodeURIComponent("Explain this customer's purchase behavior using Customer Intelligence. Focus on value, strongest categories and departments, purchase momentum, and any meaningful opportunity or risk. Show the evidence behind your conclusions."))}
               />
-              <PurchaseValueBehavior
+              }
+              {receiptMetricsUnavailable ? <Typography level="body-md">Receipt-based spending, lifetime value, orders and frequency are not available. Use the imported report-period spending above; missing receipt history is not zero spending.</Typography> : <PurchaseValueBehavior
                 metrics={purchaseDisplayMetrics}
                 purchaseTimeline={purchaseTimeline}
                 errorMessage={chartErrors.purchaseTimeline}
                 onRetry={() => void handleRefresh()}
               />
-              <LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />
+              }
+              {!receiptMetricsUnavailable&&<LoyaltyIncentivesImpact metrics={loyaltyDisplayMetrics} />}
             </Stack>
           ) : null}
 
