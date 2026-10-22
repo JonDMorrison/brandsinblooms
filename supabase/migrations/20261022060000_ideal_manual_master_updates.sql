@@ -7,7 +7,7 @@ CREATE TABLE public.ideal_manual_master_audit(
  FOREIGN KEY(tenant_id,job_id,batch_index) REFERENCES public.ideal_manual_sync_batches(tenant_id,job_id,batch_index)
 );
 ALTER TABLE public.ideal_manual_master_audit ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.ideal_manual_master_audit FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON public.ideal_manual_master_audit FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT,INSERT ON public.ideal_manual_master_audit TO service_role;
 CREATE TRIGGER ideal_manual_master_audit_immutable BEFORE UPDATE OR DELETE ON public.ideal_manual_master_audit FOR EACH ROW EXECUTE FUNCTION public.ideal_manual_batch_immutable();
 
