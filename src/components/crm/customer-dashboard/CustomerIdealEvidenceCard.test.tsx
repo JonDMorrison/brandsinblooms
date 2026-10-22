@@ -53,3 +53,20 @@ it('blocks mismatched props and company loading before evidence queries',()=>{
  mocks.tenant={id:'other'};setup();expect(screen.getByText(/Select a customer in the current company/)).toBeVisible();
  expect(mocks.sources).not.toHaveBeenCalled();expect(mocks.projection).not.toHaveBeenCalled();
 });
+
+it('shows YTD automatically and allows annual history for a customer with both periods',()=>{
+ const ytd={...report,id:'ytd',source_filename:'ytd.csv',source_period_start:'2026-01-01',source_period_end:'2026-10-14'};
+ mocks.sources.mockReturnValue({data:[ytd,report],isError:false,isLoading:false,refetch:vi.fn()});
+ mocks.projection.mockImplementation((_tenant,_customer,source)=>({data:source?{...result,source_import_id:source.id,observed_net_cents:source.id==='ytd'?2500:1200}:undefined,isError:false,isLoading:false,refetch:vi.fn()}));
+ render(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);
+ expect(screen.getByText('Observed report amount: $25.00')).toBeVisible();choose();expect(screen.getByText('Observed report amount: $12.00')).toBeVisible();expect(screen.queryByText('Observed report amount: $25.00')).not.toBeInTheDocument();
+});
+it('shows no-history and source-loading states without stale amounts',()=>{
+ const view=setup();mocks.sources.mockReturnValue({data:[],isError:false,isLoading:false,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);
+ expect(screen.getByText('No accessible completed sales summaries are linked to this customer.')).toBeVisible();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
+ mocks.sources.mockReturnValue({data:undefined,isError:false,isLoading:true,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();expect(screen.queryByText(/No accessible completed/)).not.toBeInTheDocument();
+});
+it('hides prior amounts during projection loading and source errors',()=>{
+ const view=setup();mocks.projection.mockReturnValue({data:result,isError:false,isLoading:true,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
+ mocks.sources.mockReturnValue({data:[report],isError:true,isLoading:false,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);expect(screen.getByRole('button',{name:'Retry sources'})).toBeVisible();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
+});
