@@ -60,9 +60,13 @@ describe("production Ideal ingestion",()=>{
   expect(fn).not.toContain('.from("coupons")');
   expect(fn).not.toContain('.from("loyalty_points_transactions")');
  });
- it("refreshes intelligence after accepted purchase facts",()=>{
+ it("preserves Ideal metrics until a source-aware projection exists",()=>{
   const fn=read("supabase/functions/ideal-intelligence-import/index.ts");
-  expect(fn).toContain("recalculate_customer_intelligence_after_import");
-  expect(fn).toContain("customer_intelligence_sources");
+  const post=read("supabase/functions/_shared/customer-intelligence/import-postprocessing.ts");
+  expect(fn).toContain("finishIdealImportPostprocessing");
+  expect(fn).not.toContain("recalculate_customer_intelligence_after_import");
+  expect(post).toContain("customer_intelligence_sources");
+  expect(post).toContain("projection_status");
+  expect(post).toContain("postprocessing_pending");
  });
 });
