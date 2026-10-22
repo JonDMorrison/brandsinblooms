@@ -66,7 +66,11 @@ async function get(url: URL, token: string, fetcher: typeof fetch): Promise<unkn
 export async function providerRetailer(edition: LightspeedEdition, prefix:string, token:string, fetcher:typeof fetch=fetch):Promise<SourceRecord> {
   if (edition === 'x-series') {
     const envelope = asSourceRecord(await get(new URL('/api/2.0/retailer',lightspeedStoreOrigin(prefix)),token,fetcher));
-    const data = asSourceRecord(envelope?.data); if (!data) throw new LightspeedShapeError('retailer'); return data;
+    const data = asSourceRecord(envelope?.data); if (!data) throw new LightspeedShapeError('retailer');
+    // X-Series API 2.0 returns RetailerCurrency {code, symbol}, not a string.
+    // Normalize only the provider shape; authority still validates the ISO code.
+    const currency = typeof data.currency === 'string' ? data.currency : asSourceRecord(data.currency)?.code;
+    return {...data, currency};
   }
   const envelope = asSourceRecord(await get(new URL('/API/V3/Account.json',R_API),token,fetcher));
   const accounts = rows(envelope?.Account);
