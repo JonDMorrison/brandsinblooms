@@ -27,6 +27,7 @@ import { CustomerIntelligenceStory } from "@/components/crm/customer-dashboard/C
 import { CustomerConsentCard } from "@/components/crm/customer-dashboard/CustomerConsentCard";
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
+import { CustomerCouponsCard } from "@/components/crm/customer-dashboard/CustomerCouponsCard";
 import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
 import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
@@ -670,6 +671,7 @@ const CustomerDashboardPage: React.FC = () => {
                   canManage={canEditCustomer}
                 />
                 <CustomerProfileAttributesCard customer={displayCustomer} />
+                <CustomerCouponsCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />
                 <CustomerSegmentsCard
                   customerId={displayCustomer.id}
                   canManage={canManageSegments}

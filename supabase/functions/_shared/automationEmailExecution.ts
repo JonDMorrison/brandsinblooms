@@ -6,6 +6,7 @@
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { checkCouponOutboxReminder } from './customer-intelligence/coupon-reminder-guard.ts';
 import { canSendEmail, type SkipReason } from './canSendEmail.ts';
 
 type TenantSuppressionBypassState = {
@@ -122,7 +123,12 @@ export async function checkAndLogSuppression(
     email: string;
     outboxId?: string;
   }
-): Promise<{ allowed: boolean; reason?: SkipReason }> {
+): Promise<{ allowed: boolean; reason?: SkipReason | string }> {
+  const coupon = await checkCouponOutboxReminder(supabase, params);
+  if (!coupon.allowed) {
+    await logAutomationEmailExecution(supabase, {tenant_id:params.tenantId,automation_id:params.automationId,automation_node_id:params.automationNodeId,customer_id:params.customerId,email:params.email,status:'skipped',reason:coupon.reason,outbox_id:params.outboxId});
+    return coupon;
+  }
   const bypassState = await getTenantSuppressionBypassState(supabase, params.tenantId);
   const bypassSuppressionTypes = (
     bypassState.suppression_bypass_active
@@ -212,10 +218,11 @@ export async function getFailedExecutions(
   email: string;
   error: string;
   created_at: string;
+  outbox_id: string | null;
 }>> {
   const { data, error } = await supabase
     .from('automation_email_executions')
-    .select('id, customer_id, email, error, created_at')
+    .select('id, customer_id, email, error, created_at, outbox_id')
     .eq('automation_id', automationId)
     .eq('automation_node_id', nodeId)
     .eq('status', 'failed')

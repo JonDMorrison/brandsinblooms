@@ -1,3 +1,4 @@
+import {parseCouponReminderForChannel,type CouponReminderConfig} from '../../../supabase/functions/_shared/customer-intelligence/coupon-lifecycle';
 import { Node, Edge } from "@xyflow/react";
 
 export interface WorkflowStep {
@@ -5,6 +6,7 @@ export interface WorkflowStep {
   delayMin: number;
   subject?: string;
   text: string;
+  coupon_reminder?: CouponReminderConfig | null;
 }
 
 export interface FlowCompilationResult {
@@ -134,10 +136,12 @@ export function compileFlow(flowState: {
         delayMin: delaySinceLastAction + nodeDelay,
         subject,
         text,
+        coupon_reminder: parseCouponReminderForChannel(node.data?.coupon_reminder,node.type),
       });
 
       delaySinceLastAction = 0;
     } else if (node.type === "sms") {
+      parseCouponReminderForChannel(node.data?.coupon_reminder,node.type);
       const text = String(
         node.data?.content || node.data?.message || node.data?.text || "",
       );
@@ -295,6 +299,7 @@ export function createStarterFlowState(
           ? {
               subject: step.subject,
               body: step.text,
+              coupon_reminder: step.coupon_reminder,
             }
           : {
               content: step.text,
