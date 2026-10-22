@@ -65,3 +65,14 @@ describe('evidence-scoped Ideal metric projection',()=>{
   expect(()=>projectIdealCustomerMetrics(scope,source,[fact({net_amount:huge}),fact({id:'negative',external_line_id:'02',net_amount:'-'+huge,sales_category:'Other',department:'Other'}),fact({id:'overflow',external_line_id:'03',net_amount:1})])).toThrow('bucket');
  });
 });
+
+ it('preserves long original Excel quantity decimals without rejecting valid spending',()=>{
+  const result=projectIdealCustomerMetrics(scope,source,[fact({quantity:4.6000000000000005}),fact({id:'two',external_line_id:'02',quantity:5.6000000000000005})]);
+  expect(result.observed_net_cents).toBe(2050);expect(result.observed_quantity_decimal).toBe('10.200000000000001');
+  expect(projectIdealCustomerMetrics(scope,source,[fact({quantity:0.1}),fact({id:'two',external_line_id:'02',quantity:0.2})]).observed_quantity_decimal).toBe('0.3');
+  expect(()=>projectIdealCustomerMetrics(scope,source,[fact({quantity:'9007199254740991.1'})])).toThrow('numeric limits');
+ });
+
+it.each([[10,'10'],[-0.1,'-0.1'],[0,'0'],['0.000000000000000001','0.000000000000000001']] as const)('retains canonical quantity %s', (quantity,expected)=>{
+ expect(projectIdealCustomerMetrics(scope,source,[fact({quantity})]).observed_quantity_decimal).toBe(expected);
+});

@@ -40,7 +40,7 @@ function EvidenceCard({tenantId,customerId}:{tenantId:string;customerId:string})
    {query.isLoading?<Skeleton height={80}/>:query.isError?<><Typography color="danger">This source could not be reconciled or read completely. No totals are shown.</Typography><JoyButton variant="plain" onClick={()=>void query.refetch()}>Retry evidence</JoyButton></>:result?<>
     {!result.records?<Typography>No accessible evidence for this customer in this report. Spending and quantities are unknown.</Typography>:<>
      <Typography level="title-md">Observed report amount: {result.observed_net_cents===null?'Unknown':money(result.observed_net_cents)}</Typography>
-     <Typography>Observed quantity: {result.observed_quantity??'Unknown'}</Typography>
+     <Typography>Observed quantity: {result.observed_quantity_decimal??result.observed_quantity??'Unknown'}</Typography>
      <Typography level="body-sm">{result.records.toLocaleString()} product records · {result.duplicate_records.toLocaleString()} duplicate records excluded.</Typography>
      {Object.entries(result.department_net_cents).map(([name,cents])=><Typography key={`department:${name}`} level="body-sm">Department {name}: {money(cents)}</Typography>)}
      {Object.entries(result.category_net_cents).map(([name,cents])=><Typography key={`category:${name}`} level="body-sm">Category {name}: {money(cents)}</Typography>)}
