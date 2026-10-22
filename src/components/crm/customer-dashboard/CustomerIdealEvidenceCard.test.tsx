@@ -15,8 +15,8 @@ function setup(overrides:Record<string,unknown>={}){
  return render(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);
 }
 function choose(){fireEvent.click(screen.getByRole('combobox'));fireEvent.click(screen.getByRole('option',{name:/2025-01-01 to 2025-12-31/}));}
-it('requires source selection and shows original period with observed—not lifetime—totals',()=>{
- setup();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();choose();
+it('automatically shows the first linked source, including a 2025-only customer, without calling it lifetime value',()=>{
+ setup();expect(mocks.sources).toHaveBeenLastCalledWith('tenant','customer');
  expect(screen.getByText('Observed report amount: $12.00')).toBeVisible();expect(screen.getByText(/Selected period: 2025-01-01 through 2025-12-31/)).toBeVisible();
  expect(screen.getByText(/Lifetime value, visits, frequency and receipt average remain unknown/)).toBeVisible();
  expect(mocks.projection).toHaveBeenLastCalledWith('tenant','customer',report);
@@ -26,7 +26,7 @@ it('keeps missing evidence unknown instead of showing zero',()=>{
  expect(screen.getByText(/Spending and quantities are unknown/)).toBeVisible();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
 });
 it('shows actionable read error without previous totals',()=>{
- setup();mocks.projection.mockReturnValue({isError:true,isLoading:false,refetch:vi.fn()});choose();
+ const view=setup();mocks.projection.mockReturnValue({isError:true,isLoading:false,refetch:vi.fn()});view.rerender(<CustomerIdealEvidenceCard tenantId="tenant" customerId="customer"/>);
  expect(screen.getByRole('button',{name:'Retry evidence'})).toBeVisible();expect(screen.queryByText(/Observed report amount/)).not.toBeInTheDocument();
 });
 it('remounts selection and removes previous evidence on customer/company change',()=>{

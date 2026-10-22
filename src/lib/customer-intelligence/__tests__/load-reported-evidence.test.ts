@@ -15,3 +15,9 @@ it('excludes uncertified Ideal and mismatched native imports while retaining nat
  const db={from:(table:string)=>{let imported=false;const q={select:()=>q,eq:()=>q,lte:()=>q,order:()=>q,in:()=>{imported=true;return q;},range:async()=>({data:table==='customer_purchase_line_items'?dated:imported?[{id:'ideal-ledger',source:'ideal'},{id:'shop-ledger',source:'shopify'}]:[],error:null})};return q;}} as unknown as PersistenceClient;
  expect((await loadCompanyAnalysisFacts(db,'t','2026-02-01T00:00:00Z')).map(row=>row.id)).toEqual(['native','pos']);
 });
+
+it('reproduces the legacy completed YTD shape without row-level source hash',async()=>{
+ const legacy={...old,id:'legacy-ytd',source_filename:'original-ytd.csv',source_sha256:'a'.repeat(64),source_period_start:'2026-01-01',source_period_end:'2026-10-14',created_at:'2026-10-16T00:00:00Z',completed_at:'2026-10-16T00:00:00Z'};
+ const legacyEvent={...event,import_id:legacy.id,created_at:'2026-10-16T00:00:00Z',raw_data:{kind:'purchase_summary',currency:'CAD',period_start:legacy.source_period_start,period_end:legacy.source_period_end,source_filename:legacy.source_filename,dated_transactions:false,columns:[],items:[['p','Pot','Nursery',1,10,1]]}};
+ await expect(loadReportedEvidence(client([legacyEvent],[legacy]),'t','2026-10-22T00:00:00Z',{historicalImportIds:[legacy.id]})).rejects.toThrow('Report facts do not match their completed source ledger.');
+});
