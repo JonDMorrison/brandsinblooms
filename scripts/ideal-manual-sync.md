@@ -23,7 +23,7 @@ node scripts/ideal-manual-sync.mjs original.csv private-output customer_sales TE
 node scripts/ideal-manual-sync.mjs master.txt private-output customer_master TENANT_UUID - - windows-1252
 ```
 
-Families: `customer_master`, `annual_sales`, `customer_sales`, `customer_spending`, `points`, `coupons_redeemed`, `journal`. XLS customer-sales sheets and Crystal CSV have distinct verified transformations. Spending supports its two observed column layouts. Journal emits receipt-header candidates only; it does not invent financial lines. Coupon codes are not customer IDs. Points dates and coupon timestamps remain local Excel evidence, without invented timezone conversion.
+Families: `customer_master`, `annual_sales`, `customer_sales`, `customer_spending`, `points`, `coupons_redeemed`, `coupons_issued`, `journal`. XLS customer-sales sheets and Crystal CSV have distinct verified transformations. Spending supports its two observed column layouts. Journal emits receipt-header candidates only; it does not invent financial lines. Coupon codes are not customer IDs. Points dates and coupon timestamps remain local Excel evidence, without invented timezone conversion.
 
 3. Review `manifest.json` and all numbered chunk files together in the application's prepared-source review. Confirm source hash, tenant, all worksheets, counts, period, warnings and subtotals. Every row retains source SHA/sheet/row and payload hash. Status `review_required` means extraction finished, not that a production import is authorized. `quarantined` requires correction/reconciliation. All prepared records are `committable:false`.
 4. Product summaries only: obtain a fresh read-only exact active customer identity snapshot `{tenantId, customers:[{code,id}]}` and prior source inventory for the same tenant. IDs must be UUIDs; do not create customers to make a report match. Prior entries use the manifest scope fields `{tenantId,source:{sha256},reportFamily,periodStart,periodEnd,status:'completed'}`.
@@ -58,3 +58,17 @@ The plan hash and import ledger record every superseded source hash and period. 
 Maximum measured legacy decoder peak:255,148,032 bytes (journal); Node preparation peak approximately122 MiB RSS. The sales CSV used approximately116 MiB Node RSS. These are actual local measurements, not a claim about Edge execution.
 
 Tests: `node --test scripts/tests/ideal-manual-sync.test.mjs scripts/tests/ideal-annual-import.test.mjs`. Optional isolated database regression: `node scripts/tests/ideal-manual-sync-db.mjs` targets only localhost:55439 database `ideal_manual_sync_guard_test`, resets only its synthetic tables, and proves stale UUID rejection, duplicate CODE rejection, reviewed supersession with retained history, unexpected-overlap rejection, and lock-timeout rollback/idempotent retry. Never point this test at production.
+
+## Issued coupon sample preparation
+
+`coupons_issued` supports the original September 27 worksheet layout (Coupons Report, title F2 and headings C/G/J/N/O10). It emits only `unverified_coupon_issuance` candidates: exact coupon serial and Audit text, coupon type, and raw local Excel printed/valid-from/valid-through dates. `customerCode` is null because this report supplies no customer identity. Audit commas/leading zeros are not normalized. Date-only expiry is not converted to an instant. The redeemed report's Date Printed is not an issuance fallback. Malformed rows, changed titles/headings and missing/mismatched printed totals block or quarantine preparation. No issued-coupon SQL/import plan exists.
+
+The actual 134,144-byte sample yielded416 candidates matching its printed total, with source SHA-256 `7eb360ccf9f3d65ab3322565c5eab168c97cd8517483e72bffbaa045eb15f3ac`. Each candidate retains sheet/row, source digest and payload digest; all are noncommittable. Its September1–27 coverage is a sample, not the current inventory. Private actual-source verification used a synthetic tenant UUID and did not connect to a database.
+
+## Sales-category / department aggregate template
+
+Use `customer_sales_by_category` for the supplied September 27 `Customer Sales Report.xls by sales cat.xls`. This is a distinct review-only family. The exact worksheet title/bands/columns, category and customer subtotals, and grand total must reconcile. Normalized `category_department_summary` records retain exact customer CODE, category code/name, department code/name, quantity, amount, printed period and source coordinates; they do not invent product IDs or dated visits. Product-summary SQL planning refuses this family. Overlap with product sales, annual sales or spending requires reconciliation and must never be added as new sales.
+
+Actual original SHA-256 `6d92357b1f07149c05ca66c91d80a7b3b2de2aabf1ae22b57198f20d637c1497`, September 21–27, 2026: 1,617 department aggregates across 597 customers reconcile to $44,789.70 and 5,019.84 quantity. The separate detailed sales original contains 2,267 product rows with the same period and totals. The spending original covers September 27 only: 83 customers, $5,823.02 and 88 reported transactions. These local preparation checks do not import any records or establish customer-identity matching.
+
+Regression: `node --test scripts/tests/ideal-category-sales.test.mjs scripts/tests/ideal-manual-sync.test.mjs scripts/tests/ideal-annual-import.test.mjs`.

@@ -1,6 +1,7 @@
+import {createCategorySalesNormalizer} from './ideal-category-sales.mjs';
 import {createHash} from 'node:crypto';
 export const sha256=value=>createHash('sha256').update(value).digest('hex');
-export const FAMILIES=['customer_master','annual_sales','customer_sales','customer_spending','points','coupons_redeemed','journal'];
+export const FAMILIES=['customer_master','annual_sales','customer_sales','customer_sales_by_category','customer_spending','points','coupons_redeemed','coupons_issued','journal'];
 const money=v=>{if(typeof v==='number')return Number.isFinite(v)?v:null;if(typeof v!=='string'||!/^-?\$?\d+(?:,\d{3})*(?:\.\d+)?$/.test(v.trim()))return null;const n=Number(v.replace(/[$,]/g,''));return Number.isFinite(n)?n:null;};
 const number=v=>{const n=typeof v==='number'?v:typeof v==='string'&&/^-?\d+(?:\.\d+)?$/.test(v.trim())?Number(v):null;return n!==null&&Number.isFinite(n)?n:null;};
 /** RFC4180 rows, including multiline quoted cells, with bounded cell/column memory. */
@@ -14,14 +15,15 @@ export async function* delimitedRows(stream,{delimiter=',',encoding='utf-8',maxC
 }
 export function createNormalizer(family,{periodStart=null,periodEnd=null}={}){
  if(!FAMILIES.includes(family))throw Error('Choose an explicit supported report family');
- let sourcePeriod=null,worksheetHeaderSheet=null,worksheetReportHeader=false;let headers=null,customerCode=null,department=null,couponType=null;let group=null,grand=null;const failures=[];let groups=0;
+ let sourcePeriod=null,worksheetHeaderSheet=null,worksheetReportHeader=false;let headers=null,customerCode=null,department=null,couponType=null;let group=null,grand=null;const failures=[];let groups=0;let issuedSheet=null,issuedTitle=false,issuedColumns=false,issuedCount=0,issuedTotal=null;
  const finish=()=>{if(!group)return;if(!group.total||group.cents!==group.total.cents||Math.abs(group.quantity-group.total.quantity)>0.00001)failures.push('Customer subtotal mismatch');groups++;};
+ const categorySales=family==='customer_sales_by_category'?createCategorySalesNormalizer():null;
  const map=(r)=>Object.fromEntries(headers.map((k,i)=>[k,String(r[i]??'')]));
  return {row(r,location={}){
  const a=String(r[0]??'').trim();
  // Actual XLS exports print their report range in E6. Crystal CSV repeats it
  // in column 5 alongside the verified report-label columns, not product text.
- if(location.format==='worksheet'&&location.row===1){const expected={annual_sales:'Customer Sales Report',customer_sales:'Customer Sales Report',customer_spending:'Customer Spending Report',points:'Customer Points Report',journal:'Customer Journal History'}[family];worksheetReportHeader=Boolean(expected)&&r[5]===expected;worksheetHeaderSheet=location.sheet;}
+ if(location.format==='worksheet'&&location.row===1){const expected={annual_sales:'Customer Sales Report',customer_sales:'Customer Sales Report',customer_sales_by_category:'Customer Sales Report',customer_spending:'Customer Spending Report',points:'Customer Points Report',journal:'Customer Journal History'}[family];worksheetReportHeader=Boolean(expected)&&r[5]===expected;worksheetHeaderSheet=location.sheet;}
  const worksheetHeader=location.format==='worksheet'&&location.row===6&&worksheetReportHeader&&location.sheet===worksheetHeaderSheet;
  const crystalHeader=location.format==='delimited'&&family==='customer_sales'&&r.length===33&&r[6]==='Sales'&&r[8]==='Code'&&r[9]==='Description'&&r[10]==='Quantity'&&r[11]==='Amount'&&/^Customer\s+(.+?)\s+-\s+/.test(String(r[13]??''));
  for(const value of worksheetHeader||crystalHeader?[r[4]]:[]){if(typeof value!=='string')continue;const match=/^(\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) 00:00:00 to (\d{2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) 23:59:59$/.exec(value.trim());if(!match)continue;
@@ -29,6 +31,7 @@ export function createNormalizer(family,{periodStart=null,periodEnd=null}={}){
  if(sourcePeriod&&JSON.stringify(sourcePeriod)!==JSON.stringify(found))failures.push('Printed report periods disagree');sourcePeriod=found;if((periodStart&&periodStart!==found.start)||(periodEnd&&periodEnd!==found.end))failures.push('Operator period differs from printed original period');periodStart??=found.start;periodEnd??=found.end;
  }
 
+ if(categorySales)return categorySales.row(r,location,{periodStart,periodEnd});
  if(family==='customer_spending'&&typeof r[0]==='string'&&a){const offset=number(r[11])!==null&&number(r[13])!==null?0:number(r[12])!==null&&number(r[14])!==null?1:null;if(offset!==null){groups++;return {kind:'reported_spending',customerCode:r[0],fields:{amountCents:Math.round(number(r[11+offset])*100),reportedTransactions:number(r[13+offset]),periodStart,periodEnd},committable:false};}}
  if(family==='customer_spending'&&!a&&number(r[11])!==null&&number(r[13])!==null){grand={cents:Math.round(number(r[11])*100),quantity:number(r[13])};return null;}
  if(family==='customer_sales'&&r.length===33&&/^Customer\s+(.+?)\s+-\s+/.test(String(r[13]??''))&&/^DPT\s/.test(String(r[14]??''))){
@@ -55,6 +58,22 @@ export function createNormalizer(family,{periodStart=null,periodEnd=null}={}){
  if(typeof r[0]==='string'&&r[3]&&number(r[9])!==null)customerCode=r[0].trim();
  if(number(r[14])!==null&&typeof r[11]==='string'&&(number(r[8])!==null||number(r[9])!==null))return {kind:'unverified_points_movement',customerCode,fields:{localExcelDate:number(r[9])??number(r[8]),movementType:r[11],points:number(r[14])},committable:false};return null;
  }
+ if(family==='coupons_issued'){
+ // Verified September 27 original: title F2, headings C/G/J/N/O10,
+ // serial C, local printed G, valid dates K/N, audit P. No customer ID.
+ if(location.format!=='worksheet')throw Error('Issued coupons require the reviewed worksheet layout');
+ if(issuedSheet!==location.sheet){issuedSheet=location.sheet;issuedTitle=false;issuedColumns=false;couponType=null;}
+ if(location.row===2)issuedTitle=r[5]==='Coupons Report';
+ if(location.row===10)issuedColumns=issuedTitle&&r[2]==='Code'&&r[6]==='Date Printed'&&r[9]==='Valid Dates'&&r[13]==='Audit'&&r[14]==='Qty';
+ if(typeof r[0]==='number'&&typeof r[1]==='string'&&Number.isInteger(r[0])&&r[0]>0)couponType=r[0];
+ if(r[12]==='Total Coupons:'){if(!issuedColumns||issuedTotal!==null||!Number.isInteger(r[15])||r[15]<0)throw Error('Invalid issued coupon total');issuedTotal=r[15];return null;}
+ const candidate=r[2]!=null||typeof r[6]==='number'||r[15]!=null;
+ if(!candidate||location.row<=10)return null;
+ const validDate=v=>typeof v==='number'&&Number.isFinite(v)&&v>=20000&&v<80000;
+ if(!issuedColumns||!couponType||issuedTotal!==null||typeof r[2]!=='string'||!/^\d+$/.test(r[2])||!validDate(r[6])||!validDate(r[10])||!validDate(r[13])||r[13]<r[10]||r[12]!=='to'||typeof r[15]!=='string'||!/^\d{1,3}(?:,\d{3})+-\d+$/.test(r[15]))throw Error('Invalid issued coupon row or unreviewed layout');
+ issuedCount++;
+ return {kind:'unverified_coupon_issuance',customerCode:null,fields:{couponCode:r[2],couponType,printedLocalExcelDate:r[6],validFromLocalExcelDate:r[10],validThroughLocalExcelDate:r[13],auditReference:r[15]},committable:false};
+ }
  if(family==='coupons_redeemed'){
  if(number(r[0])!==null&&typeof r[1]==='string')couponType=number(r[0]);
  if(number(r[8])!==null&&number(r[11])!==null&&typeof r[14]==='string')return {kind:'unverified_coupon_redemption',customerCode:null,fields:{couponCode:String(r[1]??'').trim(),couponType,printedLocalExcelDate:number(r[8]),redeemedLocalExcelDate:number(r[11]),transactionReference:r[14].trim()},committable:false};return null;
@@ -69,13 +88,13 @@ export function createNormalizer(family,{periodStart=null,periodEnd=null}={}){
  const amount=number(m.amount??m['dollar amount bought']??m.spending),qty=number(m.quantity??m['quantity bought']);
  if(amount===null)return {kind:'quarantine',customerCode:null,fields:{reason:'Missing valid amount'},committable:false};
  return {kind:family==='customer_spending'?'reported_spending':'purchase_summary_item',customerCode:code,fields:{amountCents:Math.round(amount*100),quantity:qty,department:m.department??null,productCode:m['product code']??null,periodStart,periodEnd},committable:false};
- },finish(){finish();if(['annual_sales','customer_sales','customer_spending'].includes(family)&&!sourcePeriod)failures.push('Printed report period is unavailable; source period requires separate verified mapping');return {sourcePeriod,periodProvenance:sourcePeriod?'printed_original':'unavailable',groupCount:groups,grandTotal:grand,failures:[...new Set(failures)],requiresReview:true};}};
+ },finish(){finish();if(categorySales){const result=categorySales.finish();groups=result.groupCount;grand=result.grandTotal;failures.push(...result.failures);}if(family==='coupons_issued'&&(issuedTotal===null||issuedCount!==issuedTotal))failures.push('Issued coupon printed total mismatch or unavailable');if(['annual_sales','customer_sales','customer_sales_by_category','customer_spending'].includes(family)&&!sourcePeriod)failures.push('Printed report period is unavailable; source period requires separate verified mapping');return {sourcePeriod,periodProvenance:sourcePeriod?'printed_original':'unavailable',groupCount:groups,grandTotal:grand,failures:[...new Set(failures)],requiresReview:true};}};
 }
 /** File replay and overlapping aggregate evidence must never be treated as additive sales. */
 export function comparePreparedSources(a,b){
  if(a.tenantId!==b.tenantId)return 'different_tenant';
  if(a.source.sha256===b.source.sha256)return 'duplicate_file';
- const aggregate=new Set(['annual_sales','customer_sales','customer_spending']);
+ const aggregate=new Set(['annual_sales','customer_sales','customer_sales_by_category','customer_spending']);
  if(aggregate.has(a.reportFamily)&&aggregate.has(b.reportFamily)){if(!a.periodStart||!a.periodEnd||!b.periodStart||!b.periodEnd)return 'unknown_overlap_requires_reconciliation';if(a.periodEnd>=b.periodStart&&b.periodEnd>=a.periodStart)return 'overlap_requires_reconciliation';}
  return 'distinct_source_requires_record_review';
 }

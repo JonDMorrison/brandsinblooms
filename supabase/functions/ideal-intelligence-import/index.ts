@@ -6,6 +6,8 @@ import { inspectIdealSource, assessIdealRows } from "../_shared/customer-intelli
 import { sameIdealSourceEvent } from "../_shared/customer-intelligence/source-event-replay.ts";
 import { queueCompletedCouponIssuance } from "../_shared/customer-intelligence/queue-coupon-issuance.ts";
 import { completedIdealImportReplay } from "../_shared/customer-intelligence/import-replay.ts";
+import { requireUsableIdealDuplicateOwner } from "../_shared/customer-intelligence/duplicate-import-owner.ts";
+import { finishIdealImportPostprocessing } from "../_shared/customer-intelligence/import-postprocessing.ts";
 import { collectIdealWorkbookRows } from "../_shared/customer-intelligence/ideal-workbook.ts";
 import { requireImportTenant } from "../_shared/customer-intelligence/import-access.ts";
 
@@ -69,7 +71,8 @@ Deno.serve(async(req)=>{
   if(completedIdealImportReplay(existing)==="recovery_required")return reply({error:"This source has an incomplete or rejected-row import. Review its recorded status before recovery; no rows were replayed.",import_id:existing?.id,status:existing?.status},409);
   if(existing){
    if(reportType==="coupons_issued")await queueCompletedCouponIssuance(service,tenantId,existing.id);
-   return reply({success:true,duplicate_file:true,import:existing,message:"This exact report was already processed. No customer totals changed."});
+   const postprocessing=await finishIdealImportPostprocessing(service,{tenantId,importId:existing.id,reportType,accepted:existing.accepted_row_count,duplicates:existing.duplicate_row_count,rejected:existing.rejected_row_count,completedAt:existing.completed_at});
+   return reply({success:true,duplicate_file:true,import_id:existing.id,status:existing.status,import:existing,...postprocessing,message:"This exact report was already processed. No source facts were added; derived-state refresh was retried."});
   }
 
   const {data:imp,error:impErr}=await service.from("customer_intelligence_imports").insert({tenant_id:tenantId,source:"ideal",report_type:reportType,source_filename:file.name,source_sha256:sourceSha,status:"processing",source_row_count:rows.length,created_by:user.id}).select("*").single();if(impErr)throw impErr;
@@ -85,12 +88,13 @@ Deno.serve(async(req)=>{
      const {error}=await service.from("customer_purchase_line_items").insert({tenant_id:tenantId,customer_id:customerId,import_id:imp.id,source:"ideal",external_transaction_id:row.transactionId,external_line_id:row.lineId,external_customer_code:row.customerCode,product_code:row.productCode,product_name:row.productName,sales_category:row.salesCategory,department:row.department,quantity:row.quantity,gross_amount:row.amount,net_amount:row.amount,currency:"CAD",purchased_at:parseDate(row.purchasedAt),source_fingerprint:fingerprint,raw_data:row.raw});if(error){
        if(error.code==="23505"){
         const {data:prior,error:priorError}=await service.from("customer_purchase_line_items")
-          .select("customer_id,product_code,product_name,sales_category,department,quantity,net_amount,purchased_at")
+          .select("import_id,customer_id,product_code,product_name,sales_category,department,quantity,net_amount,purchased_at")
           .eq("tenant_id",tenantId).eq("source","ideal")
           .eq("external_customer_code",row.customerCode)
           .eq("external_transaction_id",row.transactionId!)
           .eq("external_line_id",row.lineId!).maybeSingle();
         if(priorError||!prior)throw new Error("Duplicate source identity cannot be reconciled; no additional purchase was recorded");
+        await requireUsableIdealDuplicateOwner(service,tenantId,prior.import_id,imp.id);
         const same=prior.customer_id===customerId
           && (prior.product_code??null)===(row.productCode??null)
           && (prior.product_name??null)===(row.productName??null)
@@ -111,9 +115,10 @@ Deno.serve(async(req)=>{
      if(error){
       if(error.code==="23505"){
        const {data:prior,error:priorError}=await service.from("customer_intelligence_source_events")
-         .select("customer_id,event_type,external_customer_code,external_transaction_id,coupon_code,points_delta,amount,occurred_at,expires_at")
+         .select("import_id,customer_id,event_type,external_customer_code,external_transaction_id,coupon_code,points_delta,amount,occurred_at,expires_at")
          .eq("tenant_id",tenantId).eq("source","ideal").eq("source_fingerprint",fingerprint).maybeSingle();
        if(priorError||!prior||!sameIdealSourceEvent(prior,fact))throw new Error("Source event changed or cannot be reconciled; no duplicate or replacement was recorded");
+       await requireUsableIdealDuplicateOwner(service,tenantId,prior.import_id,imp.id);
        duplicates++;continue;
       }
       throw error;
@@ -122,11 +127,11 @@ Deno.serve(async(req)=>{
    }catch(e){rejected++;errors.push("Row "+(i+2)+": "+(e instanceof Error?e.message:"processing failed"));}
   }
   const status=rejected?"completed_with_errors":"completed";
-  const {error:completionError}=await service.from("customer_intelligence_imports").update({status,accepted_row_count:accepted,duplicate_row_count:duplicates,rejected_row_count:rejected,error_summary:errors.slice(0,100),reconciliation:{source_rows:rows.length,accepted,duplicates,rejected,customers_touched:touched.size},completed_at:new Date().toISOString()}).eq("id",imp.id).eq("tenant_id",tenantId);
+  const completedAt=new Date().toISOString();
+  const {error:completionError}=await service.from("customer_intelligence_imports").update({status,accepted_row_count:accepted,duplicate_row_count:duplicates,rejected_row_count:rejected,error_summary:errors.slice(0,100),reconciliation:{source_rows:rows.length,accepted,duplicates,rejected,customers_touched:touched.size},completed_at:completedAt}).eq("id",imp.id).eq("tenant_id",tenantId);
   if(completionError)throw completionError;
   if(status==="completed"&&reportType==="coupons_issued")await queueCompletedCouponIssuance(service,tenantId,imp.id);
-  await service.from("customer_intelligence_sources").upsert({tenant_id:tenantId,source_type:"ideal_import",provider:"ideal",status:accepted?"active":"attention_required",sync_mode:"manual_import",capabilities:{report_type:reportType},validation_summary:{accepted,duplicates,rejected},last_validated_at:new Date().toISOString(),last_data_at:accepted?new Date().toISOString():null,activated_at:accepted?new Date().toISOString():null},{onConflict:"tenant_id,provider"});
-  if(accepted)await service.rpc("recalculate_customer_intelligence_after_import",{p_tenant_id:tenantId,p_import_id:imp.id});
-  return reply({success:true,duplicate_file:false,import_id:imp.id,report_type:reportType,source_rows:rows.length,accepted,duplicates,rejected,customers_touched:touched.size,errors:errors.slice(0,20)});
+  const postprocessing=await finishIdealImportPostprocessing(service,{tenantId,importId:imp.id,reportType,accepted,duplicates,rejected,completedAt});
+  return reply({success:true,duplicate_file:false,import_id:imp.id,status,...postprocessing,report_type:reportType,source_rows:rows.length,accepted,duplicates,rejected,customers_touched:touched.size,errors:errors.slice(0,20)});
  }catch(e){console.error("[ideal-intelligence-import]",e);return reply({error:e instanceof Error?e.message:"Import failed"},500);}
 });

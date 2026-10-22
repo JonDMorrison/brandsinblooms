@@ -28,6 +28,7 @@ import { CustomerConsentCard } from "@/components/crm/customer-dashboard/Custome
 import { CustomerEventTimeline } from "@/components/crm/customer-dashboard/CustomerEventTimeline";
 import { CustomerProfileHeader } from "@/components/crm/customer-dashboard/CustomerProfileHeader";
 import { CustomerCouponsCard } from "@/components/crm/customer-dashboard/CustomerCouponsCard";
+import { CustomerIdealEvidenceCard } from "@/components/crm/customer-dashboard/CustomerIdealEvidenceCard";
 import { CustomerProfileAttributesCard } from "@/components/crm/customer-dashboard/CustomerProfileAttributesCard";
 import { ImportedCustomerSummary } from "@/components/crm/customer-dashboard/ImportedCustomerSummary";
 import { CustomerQuickStats } from "@/components/crm/customer-dashboard/CustomerQuickStats";
@@ -672,6 +673,7 @@ const CustomerDashboardPage: React.FC = () => {
                 />
                 <CustomerProfileAttributesCard customer={displayCustomer} />
                 <CustomerCouponsCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />
+                {displayCustomer.id===customerId&&customer?.id===customerId&&displayCustomer.tenant_id===customer.tenant_id&&<CustomerIdealEvidenceCard tenantId={displayCustomer.tenant_id} customerId={displayCustomer.id} />}
                 <CustomerSegmentsCard
                   customerId={displayCustomer.id}
                   canManage={canManageSegments}
