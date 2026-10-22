@@ -29,6 +29,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { CustomerAnalysisBlock } from "@/components/bloom/blocks/CustomerAnalysisBlock";
 import { LoyaltyProgrammeWorkspace } from "./LoyaltyProgrammeWorkspace";
 import { IdealCustomerTypeExportPanel } from "./IdealCustomerTypeExportPanel";
+import { SeasonalAudiencePanel } from "./SeasonalAudiencePanel";
 import {
   compareCustomerGrowth,
   type GrowthOrder,
@@ -283,6 +284,8 @@ export function CustomerGrowthWorkspace({
               ))}
             </Stack>
             <Button variant="outlined" onClick={()=>ask("List my saved analytical audiences using inspect_customer_set with list_audiences=true, page 1.")}>Open saved audiences</Button>
+            <Divider />
+            <SeasonalAudiencePanel key={tenant?.id + timezone} timezone={timezone} onExplore={ask} />
             <Divider />
             <Typography level="body-xs" color="neutral">
               Bloom opens with the question ready for review. It shows included,
@@ -775,3 +778,4 @@ export function CustomerGrowthWorkspace({
     </Stack>
   );
 }
+
