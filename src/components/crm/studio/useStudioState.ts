@@ -476,7 +476,22 @@ export function useStudioState({
     ) => {
       setBlocks((current) =>
         current.map((block) =>
-          block.id === blockId ? { ...block, [field]: value } : block,
+          block.id === blockId
+            ? {
+                ...block,
+                [field]: value,
+                // All image sources (upload, library and AI) use this update path.
+                // Adding a hero photo must also make it visible, in one undo step.
+                ...(block.type === "email-safe-hero" &&
+                field === "imageUrl" &&
+                typeof value === "string" &&
+                value.trim() &&
+                block.heroStyle !== "image-overlay" &&
+                block.heroStyle !== "image-bottom"
+                  ? { heroStyle: "image-bottom" as const, layoutPreset: undefined }
+                  : {}),
+              }
+            : block,
         ),
       );
     },

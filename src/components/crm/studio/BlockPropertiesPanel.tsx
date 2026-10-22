@@ -1979,6 +1979,49 @@ function PanelContent({
           >
             {renderSections([
               {
+                id: "hero-photo",
+                title: "Hero photo",
+                content: (
+                  <>
+                    <StudioImageUpload
+                      label={
+                        block.heroStyle === "image-overlay"
+                          ? "Background photo"
+                          : "Hero photo"
+                      }
+                      emptyText="Add hero photo"
+                      value={block.imageUrl ?? ""}
+                      onChange={(value) => updateField("imageUrl", value)}
+                      {...buildAIUploadProps({
+                        aiAspectRatioHint: "landscape",
+                        blockContext:
+                          block.heroStyle === "image-overlay"
+                            ? "Email Safe Hero background image"
+                            : "Email Safe Hero hero image",
+                        fieldKey: `${block.id}:imageUrl`,
+                        value: block.imageUrl ?? "",
+                      })}
+                    />
+                    <StudioTextField
+                      label="Image Alt Text"
+                      placeholder="Describe this image"
+                      value={block.imageAlt ?? ""}
+                      onChange={(value) => updateField("imageAlt", value)}
+                    />
+                    <Typography level="body-xs" sx={{ color: "neutral.600" }}>
+                      Add a photo from your device or image library. Text and
+                      buttons stay editable.
+                      {block.heroStyle !== "image-overlay" &&
+                      block.heroStyle !== "image-bottom"
+                        ? " Adding a photo places it below your text."
+                        : block.heroStyle === "image-overlay"
+                          ? " Your photo appears behind the text."
+                          : " Your photo appears below the text."}
+                    </Typography>
+                  </>
+                ),
+              },
+              {
                 id: "content",
                 title: "Content",
                 content: (
@@ -2073,7 +2116,7 @@ function PanelContent({
               },
               {
                 id: "hero-style",
-                title: "Colors & Image",
+                title: "Colors",
                 content: (
                   <>
                     {block.heroStyle === "gradient" ? (
@@ -2100,36 +2143,6 @@ function PanelContent({
                         }
                       />
                     )}
-                    {block.heroStyle === "image-overlay" ||
-                    block.heroStyle === "image-bottom" ? (
-                      <>
-                        <StudioImageUpload
-                          label={
-                            block.heroStyle === "image-overlay"
-                              ? "Background Image"
-                              : "Hero Image"
-                          }
-                          emptyText="Upload or drag image"
-                          value={block.imageUrl ?? ""}
-                          onChange={(value) => updateField("imageUrl", value)}
-                          {...buildAIUploadProps({
-                            aiAspectRatioHint: "landscape",
-                            blockContext:
-                              block.heroStyle === "image-overlay"
-                                ? "Email Safe Hero background image"
-                                : "Email Safe Hero hero image",
-                            fieldKey: `${block.id}:imageUrl`,
-                            value: block.imageUrl ?? "",
-                          })}
-                        />
-                        <StudioTextField
-                          label="Image Alt Text"
-                          placeholder="Describe this image"
-                          value={block.imageAlt ?? ""}
-                          onChange={(value) => updateField("imageAlt", value)}
-                        />
-                      </>
-                    ) : null}
                     {block.heroStyle === "image-overlay" ? (
                       <>
                         <StudioSliderField
