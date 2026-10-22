@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { prepareManualSync, hashFile } from './ideal-manual-sync.mjs';
 import { prepareAnnualPlan } from './ideal-manual-sync-plan.mjs';
+import { prepareMasterPlan } from './ideal-manual-master-plan.mjs';
 import { planImport, hash } from './prepare-ideal-annual-import.mjs';
 async function checked(query) { const { data, error } = await query; if (error)
     throw Error('Scoped job operation failed'); return data; }
@@ -48,12 +49,13 @@ export async function runManualSyncJob(client, { tenantId, jobId, workspace }) {
         if (job.manifest_sha256) {
             if (!job.approved_at)
                 throw Error('Exact review approval missing');
+            const master = job.report_family === 'customer_master';
             // Claim FOR UPDATE waits for previous transactions, fencing old lease owners.
             // RPC verifies every existing receipt+fact before treating it as committed.
             for (let i = 0; i < job.batch_count; i++)
-                await checked(client.rpc('apply_ideal_manual_batch', { p_tenant: tenantId, p_job: jobId, p_plan: job.plan_sha256, p_approval: job.approval_sha256, p_lease: job.lease_token, p_generation: job.lease_generation, p_index: i }));
-            await checked(client.rpc('finish_ideal_manual_job', { p_tenant: tenantId, p_job: jobId, p_plan: job.plan_sha256, p_lease: job.lease_token, p_generation: job.lease_generation }));
-            return { status: 'completed', notice: 'Source facts complete. Derived metric/source health readiness is separate; no campaign or coupon trigger was run.' };
+                await checked(client.rpc(master ? 'apply_ideal_master_batch' : 'apply_ideal_manual_batch', { p_tenant: tenantId, p_job: jobId, p_plan: job.plan_sha256, p_approval: job.approval_sha256, p_lease: job.lease_token, p_generation: job.lease_generation, p_index: i }));
+            await checked(client.rpc(master ? 'finish_ideal_master_job' : 'finish_ideal_manual_job', { p_tenant: tenantId, p_job: jobId, p_plan: job.plan_sha256, p_lease: job.lease_token, p_generation: job.lease_generation }));
+            return { status: 'completed', notice: master ? 'Reviewed name updates complete. Contacts, consent, TYPE, balances and purchase facts were not changed.' : 'Source facts complete. Derived metric/source health readiness is separate; no campaign or coupon trigger was run.' };
         }
         validateJobSource(job);
         fs.mkdirSync(workspace, { recursive: true, mode: 0o700 });
@@ -70,15 +72,21 @@ export async function runManualSyncJob(client, { tenantId, jobId, workspace }) {
         const manifest = await prepareManualSync({ source: original, out: bundle, reportFamily: job.report_family, tenantId, encoding: job.encoding });
         if (heartbeatFailure)
             throw Error('Preparation heartbeat failed; inspect lease before retry');
-        const summary = { sourceRows: manifest.counts.sourceRows, normalizedRows: manifest.counts.normalizedRows, acceptedCustomers: 0, acceptedItems: 0, amountCents: 0, excludedCustomers: 0, excludedItems: 0, failures: manifest.reconciliation.failures, notices: ['Preparation is not approval. Local dates and unverified ownership remain evidence only.', 'Fact completion does not certify derived metric projection or source health.', 'Overlapping cumulative reports require the separately reviewed CLI supersession workflow; this job cannot replace prior snapshots.'], periodStart: manifest.periodStart ?? null, periodEnd: manifest.periodEnd ?? null };
-        let plan = null, identitySha = null;
+        const summary = { sourceCertification: manifest.certification, sourceRows: manifest.counts.sourceRows, normalizedRows: manifest.counts.normalizedRows, acceptedCustomers: 0, acceptedItems: 0, amountCents: 0, excludedCustomers: 0, excludedItems: 0, failures: manifest.reconciliation.failures, notices: ['Preparation is not approval. Local dates and unverified ownership remain evidence only.', 'Fact completion does not certify derived metric projection or source health.', 'Completed covering snapshots may be replaced only after explicit review of their exact source hashes. Prior evidence is retained.'], periodStart: manifest.periodStart ?? null, periodEnd: manifest.periodEnd ?? null };
+        let plan = null, identitySha = null, supersededImports = [], masterScope = null;
         if (['annual_sales', 'customer_sales'].includes(job.report_family) && manifest.status === 'review_required') {
             const customers = await pages(client, 'crm_customers', 'id,external_id', tenantId, q => q.is('deleted_at', null).is('merged_into_customer_id', null));
             const identities = { tenantId, customers: customers.map(c => ({ id: c.id, code: c.external_id })).filter(c => typeof c.code === 'string') };
             identitySha = hash(JSON.stringify(identities));
-            const inventory = await pages(client, 'customer_intelligence_imports', 'id,source_sha256,source_period_start,source_period_end,status,report_type', tenantId, q => q.eq('source', 'ideal').eq('report_type', 'customer_sales_summary'));
+            const inventory = await pages(client, 'customer_intelligence_imports', 'id,source_sha256,source_period_start,source_period_end,status,report_type,reconciliation,accepted_row_count,completed_at', tenantId, q => q.eq('source', 'ideal').eq('report_type', 'customer_sales_summary'));
             const priorSources = inventory.map(i => ({ tenantId, source: { sha256: i.source_sha256 }, periodStart: i.source_period_start, periodEnd: i.source_period_end, status: i.status, reportFamily: 'annual_sales' }));
-            const validation = await prepareAnnualPlan({ bundle, original, identities, priorSources, out: path.join(run, 'validation-plan') });
+            // Propose a precise scope, never approve it here. The legacy validator rejects
+            // partial coverage, unknown periods, duplicate source and incomplete ledgers.
+            const overlapping = inventory.filter(i => !i.source_period_start || !i.source_period_end || (i.source_period_start <= manifest.periodEnd && i.source_period_end >= manifest.periodStart));
+            const supersedeSourceHashes = overlapping.filter(i => i.status === 'completed' && i.source_sha256 !== job.source_sha256).map(i => i.source_sha256);
+            if (overlapping.some(i => i.source_sha256 !== job.source_sha256 && i.status !== 'completed'))
+                throw Error('Overlapping incomplete source requires reconciliation');
+            const validation = await prepareAnnualPlan({ bundle, original, identities, priorSources, supersedeSourceHashes, out: path.join(run, 'validation-plan') });
             if (validation.status !== 'approval_required')
                 throw Error('Existing source requires reconciliation');
             // Reuse the validated exact bundle to obtain structured events; SQL artifacts
@@ -103,15 +111,38 @@ export async function runManualSyncJob(client, { tenantId, jobId, workspace }) {
                 }
             const ids = Object.fromEntries(identities.customers.map(c => [c.code, c.id]));
             const quarantineIndexes = groups.flatMap((g, i) => ids[g.code] ? [] : [i + 1]);
-            plan = planImport({ tenantId, sourceSha: job.source_sha256, filename: job.source_filename, start: manifest.periodStart, end: manifest.periodEnd, groups, quarantineIndexes, sourceRows: manifest.counts.sourceRows, expectedCustomerIds: ids, supersededSources: [] });
+            plan = planImport({ tenantId, sourceSha: job.source_sha256, filename: job.source_filename, start: manifest.periodStart, end: manifest.periodEnd, groups, quarantineIndexes, sourceRows: manifest.counts.sourceRows, expectedCustomerIds: ids, supersededSources: validation.supersededSources });
             if (plan.planSha !== validation.planSha256)
                 throw Error('Structured plan differs from validated plan');
-            Object.assign(summary, { acceptedCustomers: plan.totals.groups, acceptedItems: plan.totals.items, amountCents: plan.totals.cents, excludedCustomers: plan.totals.quarantinedGroups, excludedItems: plan.totals.quarantinedItems });
+            const priorEvents = validation.supersededSources.length
+                ? await pages(client, 'customer_intelligence_source_events', 'id,customer_id,import_id', tenantId, q => q.eq('source', 'ideal').eq('event_type', 'purchase_summary').in('import_id', inventory.filter(i => supersedeSourceHashes.includes(i.source_sha256)).map(i => i.id)))
+                : [];
+            const newCustomerIds = new Set(plan.events.map(e => e.expectedCustomerId));
+            supersededImports = validation.supersededSources.map(p => {
+                const prior = inventory.find(i => i.source_sha256 === p.sourceSha);
+                return { importId: prior.id, ...p, omittedCustomers: new Set(priorEvents.filter(e => e.import_id === prior.id && !newCustomerIds.has(e.customer_id)).map(e => e.customer_id)).size, acceptedItems: prior.accepted_row_count, completedAt: prior.completed_at, reconciliation: prior.reconciliation };
+            });
+            Object.assign(summary, { supersededSources: supersededImports.map(({ reconciliation, completedAt, ...safe }) => safe), acceptedCustomers: plan.totals.groups, acceptedItems: plan.totals.items, amountCents: plan.totals.cents, excludedCustomers: plan.totals.quarantinedGroups, excludedItems: plan.totals.quarantinedItems });
             if (!plan.events.length)
                 throw Error('No approved identities');
             for (let start = 0; start < plan.events.length; start += 500) {
                 const payload = plan.events.slice(start, start + 500), index = start / 500, payloadSha = hash(JSON.stringify(payload));
                 await checked(client.rpc('stage_ideal_manual_batch', { p_tenant: tenantId, p_job: jobId, p_lease: job.lease_token, p_generation: job.lease_generation, p_index: index, p_hash: payloadSha, p_payload: payload }));
+            }
+        }
+        if (job.report_family === 'customer_master' && manifest.status === 'review_required') {
+            const customers = await pages(client, 'crm_customers', 'id,external_id,first_name,last_name', tenantId, q => q.is('deleted_at', null).is('merged_into_customer_id', null));
+            const identities = { tenantId, customers: customers.map(c => ({ id: c.id, code: c.external_id, first_name: c.first_name, last_name: c.last_name })).filter(c => typeof c.code === 'string') };
+            const masterPlan = await prepareMasterPlan({ manifest, bundle, identities, tenantId, sourceSha: job.source_sha256 });
+            Object.assign(summary, masterPlan.summary);
+            if (masterPlan.events.length) {
+                plan = masterPlan;
+                identitySha = masterPlan.identitySha;
+                masterScope = masterPlan.scope;
+                for (let start = 0; start < plan.events.length; start += 500) {
+                    const payload = plan.events.slice(start, start + 500);
+                    await checked(client.rpc('stage_ideal_manual_batch', { p_tenant: tenantId, p_job: jobId, p_lease: job.lease_token, p_generation: job.lease_generation, p_index: start / 500, p_hash: hash(JSON.stringify(payload)), p_payload: payload }));
+                }
             }
         }
         const prefix = job.source_path.slice(0, job.source_path.lastIndexOf('/'));
@@ -125,7 +156,7 @@ export async function runManualSyncJob(client, { tenantId, jobId, workspace }) {
                     throw Error('Prepared object conflict');
             }
         }
-        const scope = plan ? { periodStart: manifest.periodStart, periodEnd: manifest.periodEnd, sourceSha256: job.source_sha256, manifestSha256: manifest.manifestSha256, planSha256: plan.planSha, identitySha256: identitySha, totals: plan.totals } : null;
+        const scope = masterScope ?? (plan ? { periodStart: manifest.periodStart, periodEnd: manifest.periodEnd, sourceSha256: job.source_sha256, manifestSha256: manifest.manifestSha256, planSha256: plan.planSha, identitySha256: identitySha, totals: plan.totals, supersededSources: supersededImports } : null);
         const updated = await checked(ownedUpdate({ manifest_sha256: manifest.manifestSha256, plan_sha256: plan?.planSha ?? null, identity_sha256: identitySha, approval_sha256: scope ? hash(JSON.stringify(scope)) : null, plan_scope: scope, review_summary: summary, batch_count: plan ? Math.ceil(plan.events.length / 500) : 0, status: manifest.status === 'quarantined' ? 'quarantined' : 'review_required', lease_until: null, last_error: null }));
         if (updated.length !== 1)
             throw Error('Lease lost or cancelled');

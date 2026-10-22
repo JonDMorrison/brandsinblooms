@@ -37,12 +37,12 @@ export function rankReportedPeriodSpend(facts: PurchaseFact[], population: strin
   }
   const rows = [...allowed].map(customer_id => {
     const group = groups.get(customer_id);
-    return {customer_id, reported_spend: group && !group.invalid && group.imports.size === 1 ? group.cents / 100 : null,
+    return {customer_id, reported_spend_cents: group && !group.invalid && group.imports.size === 1 ? group.cents : null, reported_spend: group && !group.invalid && group.imports.size === 1 ? group.cents / 100 : null,
       rank: null as number | null,
       import_ids: group ? [...group.imports].sort() : []};
-  }).sort((a, b) => (b.reported_spend ?? -Infinity) - (a.reported_spend ?? -Infinity) || a.customer_id.localeCompare(b.customer_id));
+  }).sort((a, b) => (b.reported_spend_cents ?? -Infinity) - (a.reported_spend_cents ?? -Infinity) || a.customer_id.localeCompare(b.customer_id));
   rows.forEach((row, index) => {
-    if (row.reported_spend !== null) row.rank = index > 0 && rows[index - 1].reported_spend === row.reported_spend ? rows[index - 1].rank : index + 1;
+    if (row.reported_spend !== null) row.rank = index > 0 && rows[index - 1].reported_spend_cents === row.reported_spend_cents ? rows[index - 1].rank : index + 1;
   });
   return {period, rows, metric: 'reported_period_spend' as const,
     limitation: 'Only exact-period report totals are ranked. Missing, partial, mixed-currency or overlapping imports remain unscored. No visits or lifetime value are inferred.'};
@@ -59,7 +59,7 @@ export function compareReportedPeriodSpend(facts: PurchaseFact[], population: st
     comparison_basis: calendarAligned ? 'matching_calendar_dates' : 'equal_duration', metric: 'reported_spend_change' as const,
     rows: rankReportedPeriodSpend(facts, population, tenantId, current).rows.map(row => {
       const before = previous.get(row.customer_id)!.reported_spend;
-      return {customer_id: row.customer_id, current_spend: row.reported_spend, baseline_spend: before,
+      return {customer_id: row.customer_id, current_spend: row.reported_spend, baseline_spend: before, current_spend_cents:row.reported_spend_cents, baseline_spend_cents:previous.get(row.customer_id)!.reported_spend_cents,
         spend_change_percent: row.reported_spend !== null && before !== null && before > 0 ? Math.round((row.reported_spend / before - 1) * 10000) / 100 : null};
     })};
 }

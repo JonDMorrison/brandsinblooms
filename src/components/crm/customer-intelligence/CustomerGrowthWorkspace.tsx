@@ -1,4 +1,5 @@
 import * as React from "react";
+import {ReportedPurchaseWorkspace} from "./ReportedPurchaseWorkspace";
 import {
   Alert,
   Box,
@@ -296,6 +297,7 @@ export function CustomerGrowthWorkspace({
         </Sheet>
       )}
 
+      {showGrowth && <ReportedPurchaseWorkspace />}
       {showGrowth && (
         <Sheet
           variant="outlined"
