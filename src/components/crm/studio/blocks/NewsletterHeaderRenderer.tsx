@@ -133,11 +133,9 @@ export default function NewsletterHeaderRenderer({
   const logoSize =
     requestedLogoSize === 40 ? defaultLogoSize : requestedLogoSize;
   const logoDirection = block.logoAlignment === "right" ? "row-reverse" : "row";
-  const title = block.headline?.trim() ? block.headline : "Newsletter Title";
-  const tagline = block.tagline?.trim()
-    ? block.tagline
-    : "Your weekly garden update";
-  const dateLabel = block.dateLabel?.trim() ? block.dateLabel : "May 2026";
+  const title = block.headline?.trim() || "";
+  const tagline = block.tagline?.trim() || "";
+  const dateLabel = block.dateLabel?.trim() || "";
   const hasTitle = Boolean(block.headline?.trim());
   const hasTagline = Boolean(block.tagline?.trim());
   const hasDate = Boolean(block.dateLabel?.trim());

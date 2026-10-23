@@ -117,6 +117,15 @@ type SocialConfig = {
 /**
  * Build social icons HTML with email-safe table wrapper
  */
+function isValidSocialUrl(value: string) {
+  try {
+    const url = new URL(value.trim());
+    return (url.protocol === "https:" || url.protocol === "http:") && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function buildSocialIconsHtml(
   props: NewsletterFooterProps,
   baseUrl: string,
@@ -131,7 +140,7 @@ function buildSocialIconsHtml(
   ];
 
   const activeSocials = socialConfigs.filter(
-    (s) => !!s.url && !!socialIconUrls[s.key],
+    (social) => isValidSocialUrl(social.url) && !!socialIconUrls[social.key],
   );
 
   if (activeSocials.length === 0) return "";
