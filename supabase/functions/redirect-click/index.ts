@@ -262,6 +262,7 @@ serve(async (req: Request): Promise<Response> => {
           console.warn(`🚫 Campaign ${effectiveCampaignId} is throttled due to burst detection`);
           
           // Store alert for burst detection
+          const alertEventId = `burst_alert_${crypto.randomUUID()}`;
           await supabase
             .from('email_tracking_events')
             .insert({
@@ -270,11 +271,12 @@ serve(async (req: Request): Promise<Response> => {
               customer_email: 'system',
               event_type: 'alert',
               event_data: { 
+                email_id: alertEventId,
                 alert_type: 'click_burst',
                 message: `Click burst detected: >1000 clicks/min`,
                 throttled_until: new Date(Date.now() + CAMPAIGN_THROTTLE_DURATION_MS).toISOString(),
               },
-              provider_message_id: `burst_alert_${effectiveCampaignId}_${Date.now()}`,
+              provider_message_id: alertEventId,
               event_ts_provider: new Date().toISOString(),
               ingested_at: new Date().toISOString(),
             }).catch(err => console.error('Failed to log burst alert:', err));
@@ -334,6 +336,9 @@ serve(async (req: Request): Promise<Response> => {
     // event_type is 'clicked' — the same literal the webhook writer uses —
     // so every consumer filters one value. (This writer used 'click',
     // which split the click stream across two event names.)
+    // First-party events need the same required identity fields as webhook events.
+    // Use a per-click identity so repeat clicks and different links remain countable.
+    const clickEventId = `click_${crypto.randomUUID()}`;
     const eventData = {
       campaign_id: effectiveCampaignId,
       // Attribution fix: recipientId was already in hand (it was used to
@@ -343,6 +348,8 @@ serve(async (req: Request): Promise<Response> => {
       customer_email: email || 'unknown',
       event_type: 'clicked',
       event_data: {
+        email_id: clickEventId,
+        source: 'first_party_redirect',
         click_link: destinationUrl,
         link_id: linkId,
         clicked_at: new Date().toISOString()
@@ -352,7 +359,7 @@ serve(async (req: Request): Promise<Response> => {
       user_agent: userAgent,
       ip_hash: ipHash,
       is_mpp_guess: isAutomatedClick,
-      provider_message_id: `click_${linkId}_${email || recipientId || 'anon'}_${Date.now()}`,
+      provider_message_id: clickEventId,
       event_ts_provider: new Date().toISOString(),
       ingested_at: new Date().toISOString()
     };
