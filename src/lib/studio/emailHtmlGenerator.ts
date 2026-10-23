@@ -1036,9 +1036,9 @@ function renderNewsletterHeaderBlock(
     block.verticalPadding,
     getNewsletterHeaderDefaultPaddingY(layout),
   );
-  const title = stringValue(block.headline, "Newsletter Title");
-  const tagline = stringValue(block.tagline, "Your weekly garden update");
-  const dateLabel = stringValue(block.dateLabel, "May 2026");
+  const title = stringValue(block.headline);
+  const tagline = stringValue(block.tagline);
+  const dateLabel = stringValue(block.dateLabel);
   const hasTitle = Boolean(stringValue(block.headline));
   const hasTagline = Boolean(stringValue(block.tagline));
   const hasDate = Boolean(stringValue(block.dateLabel));
@@ -1665,29 +1665,19 @@ function getFooterSocialLinks(
   const links = block.footerSocialLinks ?? [];
   const enabledLinks = links.filter((link) => link.enabled);
 
-  if (enabledLinks.length > 0) {
-    return { links: enabledLinks, placeholder: false };
+  const configuredBlockLinks = links.filter(
+    (link) => link.enabled && Boolean(safeUrl(link.url)),
+  );
+
+  if (configuredBlockLinks.length > 0) {
+    return { links: configuredBlockLinks, placeholder: false };
   }
 
   const designSystemLinks = getDesignSystemSocialLinks(designSystem).filter(
     (link) => Boolean(safeUrl(link.url)),
   );
 
-  if (designSystemLinks.length > 0) {
-    return { links: designSystemLinks, placeholder: false };
-  }
-
-  return {
-    links: ["facebook", "instagram", "linkedin"].map((platform) => {
-      const existing = links.find((link) => link.platform === platform);
-      return {
-        platform,
-        enabled: false,
-        url: existing?.url ?? "",
-      } satisfies SocialLink;
-    }),
-    placeholder: true,
-  };
+  return { links: designSystemLinks, placeholder: false };
 }
 
 function getFooterSocialGlyph(platform: SocialLink["platform"]) {
@@ -1713,6 +1703,10 @@ function renderFooterSocialIcons(
   }
 
   const { links, placeholder } = getFooterSocialLinks(block, designSystem);
+  if (links.length === 0) {
+    return "";
+  }
+
   const iconColor = safeColor(
     block.footerIconColor,
     centered ? "#64748b" : "#cbd5e1",
