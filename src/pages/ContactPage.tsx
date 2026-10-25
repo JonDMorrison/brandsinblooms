@@ -129,7 +129,7 @@ const ContactPage = () => {
       <LandingPageHeader onLogin={() => navigate('/auth')} />
       
       {/* Hero Section */}
-      <section className="py-16 px-6 text-center">
+      <section className={isPosDemo ? "pt-12 pb-6 px-6 text-center" : "py-16 px-6 text-center"}>
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl font-bold text-accent mb-6">
             {isPosDemo ? "See BloomSuite POS in action" : isSuiteReview ? "Let’s review your BloomSuite setup" : "Contact Us"}
@@ -141,13 +141,13 @@ const ContactPage = () => {
       </section>
 
       {/* Contact Form */}
-      <section className="py-16 px-6">
+      <section className={isPosDemo ? "pb-16 px-6" : "py-16 px-6"}>
         <div className="max-w-2xl mx-auto">
           <Card className="p-8 bg-card/95 backdrop-blur-sm border-2 border-primary/20 shadow-xl">
             <CardHeader className="text-center pb-8">
-              <CardTitle className="text-2xl text-accent mb-2">Get in Touch</CardTitle>
+              <CardTitle className="text-2xl text-accent mb-2">{isPosDemo ? "Your POS demonstration" : "Get in Touch"}</CardTitle>
               <p className="text-muted-foreground">
-                Fill out the form below and we'll get back to you as soon as possible.
+                {isPosDemo ? "Your selected topics are included below. Add your store details and edit the request before sending." : "Fill out the form below and we'll get back to you as soon as possible."}
               </p>
             </CardHeader>
             
@@ -182,7 +182,7 @@ const ContactPage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className={isPosDemo ? "hidden" : "space-y-4"}>
                   <Label>What can we help you with? *</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(isPosDemo ? inquiryOptions.filter(option => option.id === "pos") : inquiryOptions).map((option) => (
