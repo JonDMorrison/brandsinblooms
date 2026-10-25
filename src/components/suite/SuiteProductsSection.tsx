@@ -13,7 +13,7 @@ export function SuiteProductsSection() {
       <div className="suite-product-grid">{SUITE_PRODUCTS.map((product, index) => {
         const Icon = icons[index];
         const content = <><div className="suite-product-top"><span className="suite-product-icon"><Icon aria-hidden="true" size={25} /></span><span>{product.category}</span></div><p className="suite-product-name">{product.name}</p><h3>{product.headline}</h3><p className="suite-product-description">{product.description}</p><span className="suite-text-link">{product.action}</span></>;
-        return product.href.startsWith("https:") ? <a className={`suite-product-card suite-product-card--${product.id}`} key={product.id} href={product.href}>{content}</a> : <Link className={`suite-product-card suite-product-card--${product.id}`} key={product.id} to={product.href}>{content}</Link>;
+        return product.href.startsWith("https:") ? <a className={`suite-product-card suite-product-card--${product.id}`} key={product.id} href={product.href}>{content}</a> : <Link className={`suite-product-card suite-product-card--${product.id}`} key={product.id} to={product.href} reloadDocument={product.id === "pos"}>{content}</Link>;
       })}</div>
       <SuiteBuilderEntry />
       <p className="suite-product-note">Each product has its own purpose. We’ll help you choose the setup that fits your store.</p>

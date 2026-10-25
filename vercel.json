@@ -19,12 +19,108 @@
   ],
   "rewrites": [
     {
+      "source": "/pos",
+      "destination": "/pos-marketing.html"
+    },
+    {
+      "source": "/pos/",
+      "destination": "/pos-marketing.html"
+    },
+    {
       "source": "/pos/features",
       "destination": "/pos-feature-hub.html"
     },
     {
       "source": "/pos/features/",
       "destination": "/pos-feature-hub.html"
+    },
+    {
+      "source": "/pos/features/category/checkout",
+      "destination": "/pos-category-pages/checkout.html"
+    },
+    {
+      "source": "/pos/features/category/checkout/",
+      "destination": "/pos-category-pages/checkout.html"
+    },
+    {
+      "source": "/pos/features/category/payments",
+      "destination": "/pos-category-pages/payments.html"
+    },
+    {
+      "source": "/pos/features/category/payments/",
+      "destination": "/pos-category-pages/payments.html"
+    },
+    {
+      "source": "/pos/features/category/catalogue",
+      "destination": "/pos-category-pages/catalogue.html"
+    },
+    {
+      "source": "/pos/features/category/catalogue/",
+      "destination": "/pos-category-pages/catalogue.html"
+    },
+    {
+      "source": "/pos/features/category/inventory",
+      "destination": "/pos-category-pages/inventory.html"
+    },
+    {
+      "source": "/pos/features/category/inventory/",
+      "destination": "/pos-category-pages/inventory.html"
+    },
+    {
+      "source": "/pos/features/category/purchasing",
+      "destination": "/pos-category-pages/purchasing.html"
+    },
+    {
+      "source": "/pos/features/category/purchasing/",
+      "destination": "/pos-category-pages/purchasing.html"
+    },
+    {
+      "source": "/pos/features/category/customers",
+      "destination": "/pos-category-pages/customers.html"
+    },
+    {
+      "source": "/pos/features/category/customers/",
+      "destination": "/pos-category-pages/customers.html"
+    },
+    {
+      "source": "/pos/features/category/orders",
+      "destination": "/pos-category-pages/orders.html"
+    },
+    {
+      "source": "/pos/features/category/orders/",
+      "destination": "/pos-category-pages/orders.html"
+    },
+    {
+      "source": "/pos/features/category/team",
+      "destination": "/pos-category-pages/team.html"
+    },
+    {
+      "source": "/pos/features/category/team/",
+      "destination": "/pos-category-pages/team.html"
+    },
+    {
+      "source": "/pos/features/category/reporting",
+      "destination": "/pos-category-pages/reporting.html"
+    },
+    {
+      "source": "/pos/features/category/reporting/",
+      "destination": "/pos-category-pages/reporting.html"
+    },
+    {
+      "source": "/pos/features/category/connected",
+      "destination": "/pos-category-pages/connected.html"
+    },
+    {
+      "source": "/pos/features/category/connected/",
+      "destination": "/pos-category-pages/connected.html"
+    },
+    {
+      "source": "/pos/features/category/resilience",
+      "destination": "/pos-category-pages/resilience.html"
+    },
+    {
+      "source": "/pos/features/category/resilience/",
+      "destination": "/pos-category-pages/resilience.html"
     },
     {
       "source": "/pos/features/barcode-scanning",
@@ -907,7 +1003,123 @@
       "destination": "/pos-feature-pages/supplier-shortages-and-backorders.html"
     },
     {
+      "source": "/pos/compare",
+      "destination": "/pos-comparison-hub.html"
+    },
+    {
+      "source": "/pos/compare/",
+      "destination": "/pos-comparison-hub.html"
+    },
+    {
+      "source": "/pos/compare/clover",
+      "destination": "/pos-comparison-pages/clover.html"
+    },
+    {
+      "source": "/pos/compare/clover/",
+      "destination": "/pos-comparison-pages/clover.html"
+    },
+    {
+      "source": "/pos/compare/square",
+      "destination": "/pos-comparison-pages/square.html"
+    },
+    {
+      "source": "/pos/compare/square/",
+      "destination": "/pos-comparison-pages/square.html"
+    },
+    {
+      "source": "/pos/compare/shopify",
+      "destination": "/pos-comparison-pages/shopify.html"
+    },
+    {
+      "source": "/pos/compare/shopify/",
+      "destination": "/pos-comparison-pages/shopify.html"
+    },
+    {
+      "source": "/pos/compare/lightspeed",
+      "destination": "/pos-comparison-pages/lightspeed.html"
+    },
+    {
+      "source": "/pos/compare/lightspeed/",
+      "destination": "/pos-comparison-pages/lightspeed.html"
+    },
+    {
+      "source": "/pos/compare/epos-now",
+      "destination": "/pos-comparison-pages/epos-now.html"
+    },
+    {
+      "source": "/pos/compare/epos-now/",
+      "destination": "/pos-comparison-pages/epos-now.html"
+    },
+    {
+      "source": "/pos/compare/windward",
+      "destination": "/pos-comparison-pages/windward.html"
+    },
+    {
+      "source": "/pos/compare/windward/",
+      "destination": "/pos-comparison-pages/windward.html"
+    },
+    {
+      "source": "/pos/compare/rapid-garden-pos",
+      "destination": "/pos-comparison-pages/rapid-garden-pos.html"
+    },
+    {
+      "source": "/pos/compare/rapid-garden-pos/",
+      "destination": "/pos-comparison-pages/rapid-garden-pos.html"
+    },
+    {
+      "source": "/pos/compare/ncr-counterpoint",
+      "destination": "/pos-comparison-pages/ncr-counterpoint.html"
+    },
+    {
+      "source": "/pos/compare/ncr-counterpoint/",
+      "destination": "/pos-comparison-pages/ncr-counterpoint.html"
+    },
+    {
+      "source": "/pos/compare/epicor-eagle",
+      "destination": "/pos-comparison-pages/epicor-eagle.html"
+    },
+    {
+      "source": "/pos/compare/epicor-eagle/",
+      "destination": "/pos-comparison-pages/epicor-eagle.html"
+    },
+    {
+      "source": "/pos/compare/retailedge",
+      "destination": "/pos-comparison-pages/retailedge.html"
+    },
+    {
+      "source": "/pos/compare/retailedge/",
+      "destination": "/pos-comparison-pages/retailedge.html"
+    },
+    {
+      "source": "/pos/compare/vmx",
+      "destination": "/pos-comparison-pages/vmx.html"
+    },
+    {
+      "source": "/pos/compare/vmx/",
+      "destination": "/pos-comparison-pages/vmx.html"
+    },
+    {
+      "source": "/pos/compare/idealpos",
+      "destination": "/pos-comparison-pages/idealpos.html"
+    },
+    {
+      "source": "/pos/compare/idealpos/",
+      "destination": "/pos-comparison-pages/idealpos.html"
+    },
+    {
+      "source": "/pos/switching",
+      "destination": "/pos-switching.html"
+    },
+    {
+      "source": "/pos/switching/",
+      "destination": "/pos-switching.html"
+    },
+    {
       "source": "/pos/features/:path*",
+      "destination": "/api/pos-feature-not-found"
+    },
+    {
+      "source": "/pos/compare/:path*",
       "destination": "/api/pos-feature-not-found"
     },
     {
@@ -917,14 +1129,6 @@
     {
       "source": "/build-your-suite/",
       "destination": "/suite-builder.html"
-    },
-    {
-      "source": "/pos",
-      "destination": "/pos-marketing.html"
-    },
-    {
-      "source": "/pos/",
-      "destination": "/pos-marketing.html"
     },
     {
       "source": "/suite",
