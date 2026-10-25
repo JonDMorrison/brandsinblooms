@@ -84,7 +84,12 @@
         "a": "Start with the issue you want to solve and the functions you would need to retain. Compare a reviewed improvement to the current installation with a demonstrated BloomSuite setup. Include data conversion, staff practice and accounting disruption in the decision, rather than comparing subscription figures alone."
       }
     ],
-    "editionNote": "Windward describes multiple editions and deployment choices. Confirm included modules, regional payments and support terms in the written proposal; published product breadth is not a promise about every configuration."
+    "editionNote": "Windward describes multiple editions and deployment choices. Confirm included modules, regional payments and support terms in the written proposal; published product breadth is not a promise about every configuration.",
+    "snapshot": {
+      "approach": "Garden retail management spanning POS, stock and accounting.",
+      "hardware": "Local or cloud installation changes the equipment and peripheral discussion.",
+      "cost": "Compare edition, modules, implementation, training, support and provider costs."
+    }
   },
   {
     "id": "rapid-garden-pos",
@@ -171,7 +176,12 @@
         "a": "Yes. Its published integration catalogue includes plant-care and loyalty providers. Ask which service, license and configuration your store would need. BloomSuite should be evaluated on the care and customer experience it can demonstrate, rather than on an assumption that Rapid lacks those categories."
       }
     ],
-    "editionNote": "Rapid is a Counterpoint-based solution with implementation-specific tools and integrations. Confirm what comes from the core platform, Rapid, or a third-party provider, and who owns support for the combined setup."
+    "editionNote": "Rapid is a Counterpoint-based solution with implementation-specific tools and integrations. Confirm what comes from the core platform, Rapid, or a third-party provider, and who owns support for the combined setup.",
+    "snapshot": {
+      "approach": "Garden-specialist implementation built on NCR Voyix Counterpoint.",
+      "hardware": "Review Counterpoint, Rapid mobile tools and the proposed payment-device combination.",
+      "cost": "Separate platform, Rapid services, hardware, connectors, payments and support."
+    }
   },
   {
     "id": "ncr-counterpoint",
@@ -282,7 +292,12 @@
         "a": "Counterpoint is the underlying platform; Rapid is one garden-specialist solution built on it. The platform comparison helps you understand version, partner and module questions. The Rapid comparison can then examine its specific services, tools and integration choices without implying every installation is the same."
       }
     ],
-    "editionNote": "Counterpoint capabilities depend on version, licensed options, configuration and partner delivery. The official help confirms documented product areas; it is not a certification of any particular installation or current hardware bundle."
+    "editionNote": "Counterpoint capabilities depend on version, licensed options, configuration and partner delivery. The official help confirms documented product areas; it is not a certification of any particular installation or current hardware bundle.",
+    "snapshot": {
+      "approach": "Partner-delivered retail platform; identify the version and licensed options.",
+      "hardware": "Ask the implementation partner to verify registers, peripherals and payment devices.",
+      "cost": "Review the partner proposal, customizations, licensed modules and ongoing support."
+    }
   },
   {
     "id": "epicor-eagle",
@@ -369,7 +384,12 @@
         "a": "No. The right scope depends on your operation. A mixed retailer may rely on functions outside garden checkout. List the jobs your team actually performs, demonstrate them in both products and compare the ongoing work, support and transition effort associated with each proposal."
       }
     ],
-    "editionNote": "Eagle is a modular retail-management offering. Confirm licensed functions, optional tools, regional payments and implementation responsibilities rather than assuming the full product catalogue is included in every quote."
+    "editionNote": "Eagle is a modular retail-management offering. Confirm licensed functions, optional tools, regional payments and implementation responsibilities rather than assuming the full product catalogue is included in every quote.",
+    "snapshot": {
+      "approach": "Broad retail-management system serving lawn and garden alongside other departments.",
+      "hardware": "Confirm the proposed register, mobile setup, peripherals and payment integration.",
+      "cost": "Itemize the modules, conversion, training, equipment, support and connected services."
+    }
   },
   {
     "id": "retailedge",
@@ -460,7 +480,12 @@
         "a": "This page covers RetailEdge from High Meadow Business Solutions, using official sources at retailedge.com and shop.retailedge.com. Confirm that name and vendor when collecting quotes or researching documentation; a similarly named service can describe a different product."
       }
     ],
-    "editionNote": "The comparison identifies the High Meadow Business Solutions product. License, support, optional services, device models and regional processing arrangements require confirmation for the proposed installation."
+    "editionNote": "The comparison identifies the High Meadow Business Solutions product. License, support, optional services, device models and regional processing arrangements require confirmation for the proposed installation.",
+    "snapshot": {
+      "approach": "Retail tools with nursery labels, dead-loss handling and house-charge workflows.",
+      "hardware": "Verify tree-wrap and pot-stake printers, media and checkout peripherals.",
+      "cost": "Confirm the licence, support, optional components, equipment and payment arrangement."
+    }
   },
   {
     "id": "vmx",
@@ -551,7 +576,12 @@
         "a": "First identify the website or customer-marketing job you want to improve and the supported data path available from your installed setup. Ask for a verified scope and a demonstration. Do not assume that retaining the POS either guarantees or prevents a connection to another product."
       }
     ],
-    "editionNote": "VMX documentation notes that some functions are enabled per store. Confirm current integration availability, account configuration, payment region and support scope instead of treating all published connections as automatically active."
+    "editionNote": "VMX documentation notes that some functions are enabled per store. Confirm current integration availability, account configuration, payment region and support scope instead of treating all published connections as automatically active.",
+    "snapshot": {
+      "approach": "Cloud platform designed for independent garden centres and their operations.",
+      "hardware": "Review the proposed device, printer, payment and connectivity setup.",
+      "cost": "Include implementation, integrations, equipment, payments and ongoing service."
+    }
   },
   {
     "id": "idealpos",
@@ -642,6 +672,11 @@
         "a": "It helps identify the product and the workflows the manufacturer publishes, but it does not establish local payment, hardware or module availability. The Canadian supplier should confirm the current release and demonstrate the exact setup you would purchase for your store."
       }
     ],
-    "editionNote": "Scope is the Idealpos software manufacturer and an identified Canadian reseller offering. Manufacturer pages include older hardware references; current version, devices, payments and local modules need confirmation. IdealPOS Ltd Manitoba is a separate multi-vendor service business."
+    "editionNote": "Scope is the Idealpos software manufacturer and an identified Canadian reseller offering. Manufacturer pages include older hardware references; current version, devices, payments and local modules need confirmation. IdealPOS Ltd Manitoba is a separate multi-vendor service business.",
+    "snapshot": {
+      "approach": "Retail and hospitality software with landscape and nursery workflows.",
+      "hardware": "Confirm the manufacturer, edition, regional reseller and current device support.",
+      "cost": "Quote the software, reseller services, hardware, payments and optional connections."
+    }
   }
 ]

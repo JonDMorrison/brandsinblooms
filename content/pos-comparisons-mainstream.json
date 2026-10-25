@@ -84,7 +84,12 @@
         "a": "Its Canadian Retail Growth comparison includes item variants and scale integration. Confirm the required plan, supported scale and configuration in your proposal. Ask for a demonstration using your own plant sizes and measured products rather than assuming those capabilities are missing."
       }
     ],
-    "editionNote": "This comparison uses Clover’s Canadian retail pages. Plans, processing arrangements, devices and app integrations can differ by market and sales channel. Confirm the written proposal for your store."
+    "editionNote": "This comparison uses Clover’s Canadian retail pages. Plans, processing arrangements, devices and app integrations can differ by market and sales channel. Confirm the written proposal for your store.",
+    "snapshot": {
+      "approach": "Payment and retail hardware family, with plan and app choices.",
+      "hardware": "Mini, Station Duo and Flex configurations vary by market and bundle.",
+      "cost": "Review the retail plan, equipment, processing contract and paid apps."
+    }
   },
   {
     "id": "square",
@@ -179,7 +184,12 @@
         "a": "No. Growth is a reason to review workflows and complete costs, not proof that replacement is required. Compare both systems using real receiving, stock, customer and close routines, then weigh any improvement against migration and training effort."
       }
     ],
-    "editionNote": "Sources are Square’s Canadian retail pages. Some capabilities are labelled Plus or depend on plan, device and configuration. Regional pricing and processing terms should be checked directly."
+    "editionNote": "Sources are Square’s Canadian retail pages. Some capabilities are labelled Plus or depend on plan, device and configuration. Regional pricing and processing terms should be checked directly.",
+    "snapshot": {
+      "approach": "Retail checkout and online selling, with advanced inventory tools on specified plans.",
+      "hardware": "Register, Terminal, Handheld, Stand and Reader options require a country-specific check.",
+      "cost": "Compare the free starting tier with paid inventory tools, locations and processing."
+    }
   },
   {
     "id": "shopify",
@@ -278,7 +288,12 @@
         "a": "No. Shopify distinguishes included POS functionality from POS Pro, and its feature page labels many advanced store workflows accordingly. Compare the exact plan and location configuration you would purchase, together with required apps and equipment."
       }
     ],
-    "editionNote": "This page uses Shopify’s Canadian POS pages and supported-hardware documentation. Pro labels, available devices, payment options and fees depend on plan and region. Confirm the current proposal for your locations."
+    "editionNote": "This page uses Shopify’s Canadian POS pages and supported-hardware documentation. Pro labels, available devices, payment options and fees depend on plan and region. Confirm the current proposal for your locations.",
+    "snapshot": {
+      "approach": "Online and in-person commerce within Shopify; advanced store jobs may require POS Pro.",
+      "hardware": "Use Shopify-supported devices and peripherals for the proposed market.",
+      "cost": "Include the Shopify plan, optional POS Pro locations, processing and apps."
+    }
   },
   {
     "id": "lightspeed",
@@ -377,7 +392,12 @@
         "a": "No. Lightspeed maintains separate product editions, and hardware, integration and workflow details can differ. Record the edition and country in your comparison, then request documentation and a demonstration for that exact proposal."
       }
     ],
-    "editionNote": "Lightspeed maintains R-Series, X-Series and other products. General garden and pricing pages do not establish feature parity across editions, contracts or countries. Confirm the named product before relying on a capability."
+    "editionNote": "Lightspeed maintains R-Series, X-Series and other products. General garden and pricing pages do not establish feature parity across editions, contracts or countries. Confirm the named product before relying on a capability.",
+    "snapshot": {
+      "approach": "Retail management with explicit garden-centre positioning and multiple product editions.",
+      "hardware": "Confirm the R-, X- or S-Series configuration, supported devices and payment arrangement.",
+      "cost": "Quote the actual edition, locations, registers, payments and connected services."
+    }
   },
   {
     "id": "epos-now",
@@ -472,6 +492,11 @@
         "a": "Not necessarily. Review the promotion’s country and conditions, software subscription, payment arrangement, support and required apps. A complete written proposal gives you a more useful comparison than the initial hardware bundle price alone."
       }
     ],
-    "editionNote": "This page draws on Epos Now’s US garden-centre material and separate Canadian hardware terms. Promotional bundles, services, apps and support arrangements can differ by region and contract."
+    "editionNote": "This page draws on Epos Now’s US garden-centre material and separate Canadian hardware terms. Promotional bundles, services, apps and support arrangements can differ by region and contract.",
+    "snapshot": {
+      "approach": "Garden retail offering with stock tools and third-party connections.",
+      "hardware": "Terminal and payment bundles have regional terms and compatibility requirements.",
+      "cost": "Inspect promotional conditions, subscription, support, processing and integration charges."
+    }
   }
 ]
