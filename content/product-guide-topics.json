@@ -37,7 +37,13 @@
       "campaign-click-reporting": "Campaign click reporting",
       "campaign-recipient-reports": "Campaign recipient reports",
       "comparable-sales-periods": "Comparable sales periods",
-      "pos-data-connections": "POS data connections"
+      "pos-data-connections": "POS data connections",
+      "bloom-ai-assistant": "Bloom AI assistant",
+      "ai-campaign-drafting": "AI campaign drafting",
+      "marketing-calendar": "Marketing calendar",
+      "marketing-content-library": "Marketing content library",
+      "crm-signup-forms": "CRM signup forms",
+      "email-preference-centre": "Email preference centre"
     },
     "comparisons": {
       "mailchimp": "Mailchimp",
@@ -84,7 +90,13 @@
       "fundraising-organization-pages": "Fundraising organization pages",
       "fundraiser-application-pages": "Fundraiser application pages",
       "gift-registry-pages": "Gift registry pages",
-      "newsletter-signup-journeys": "Newsletter signup journeys"
+      "newsletter-signup-journeys": "Newsletter signup journeys",
+      "guided-plant-finder": "Guided plant finder",
+      "ai-page-drafting": "AI page drafting",
+      "website-migration-review": "Website migration review",
+      "imported-image-review": "Imported image review",
+      "site-doctor-website-checks": "Site Doctor website checks",
+      "custom-domain-launch-planning": "Custom domain launch planning"
     },
     "comparisons": {
       "wix": "Wix",
@@ -131,7 +143,13 @@
       "order-refunds": "Order refunds",
       "inventory-connection-review": "Inventory connection review",
       "read-only-pos-inventory-links": "Read-only POS inventory links",
-      "product-activation-review": "Product activation review"
+      "product-activation-review": "Product activation review",
+      "seasonal-pre-sale-pages": "Seasonal pre-sale pages",
+      "pre-sale-product-options": "Pre-sale product options",
+      "future-stock-allocations": "Future stock allocations",
+      "pre-sale-pickup-promises": "Pre-sale pickup promises",
+      "pre-sale-payment-review": "Pre-sale payment review",
+      "closing-pre-sale-campaigns": "Closing pre-sale campaigns"
     },
     "comparisons": {
       "shopify": "Shopify",

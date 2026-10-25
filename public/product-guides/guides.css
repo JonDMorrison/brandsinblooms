@@ -7,3 +7,5 @@
 @media print{.guide-header,.footer,.cta,.actions,.contents,.shortlist-add,.family-links{display:none!important}.wrap{width:100%}.detail-hero,.article-layout,.comparison-intro,.proposal-grid{display:block}.scenario{margin-top:25px}.comparison-intro article{margin-bottom:25px}.feature-article{max-width:none}.feature-article section,.task-grid article,.switching-steps article{break-inside:avoid}.sources a:after{content:' (' attr(href) ')';font-size:.7rem}.scope-note,.decision-panel{border:1px solid #aaa}.hub-hero{background:none}.workflow-map{transform:none}}
 
 .assessment-note{border-left:3px solid var(--accent);padding:20px 24px;background:var(--paper);border-radius:0 14px 14px 0;margin-top:28px}.assessment-note h3{font-size:1.05rem}.assessment-note p{font-size:.95rem;margin-top:14px}@media(max-width:700px){.assessment-note{padding:20px}.assessment-note p{font-size:.95rem}}
+
+.map-grid>a:last-child:nth-child(odd){grid-column:1/-1}

@@ -75,6 +75,14 @@
       "destination": "/product-guide-pages/crm/crm--features--category--intelligence.html"
     },
     {
+      "source": "/crm/features/category/planning",
+      "destination": "/product-guide-pages/crm/crm--features--category--planning.html"
+    },
+    {
+      "source": "/crm/features/category/planning/",
+      "destination": "/product-guide-pages/crm/crm--features--category--planning.html"
+    },
+    {
       "source": "/crm/features/customer-profiles",
       "destination": "/product-guide-pages/crm/crm--features--customer-profiles.html"
     },
@@ -363,6 +371,54 @@
       "destination": "/product-guide-pages/crm/crm--features--pos-data-connections.html"
     },
     {
+      "source": "/crm/features/bloom-ai-assistant",
+      "destination": "/product-guide-pages/crm/crm--features--bloom-ai-assistant.html"
+    },
+    {
+      "source": "/crm/features/bloom-ai-assistant/",
+      "destination": "/product-guide-pages/crm/crm--features--bloom-ai-assistant.html"
+    },
+    {
+      "source": "/crm/features/ai-campaign-drafting",
+      "destination": "/product-guide-pages/crm/crm--features--ai-campaign-drafting.html"
+    },
+    {
+      "source": "/crm/features/ai-campaign-drafting/",
+      "destination": "/product-guide-pages/crm/crm--features--ai-campaign-drafting.html"
+    },
+    {
+      "source": "/crm/features/marketing-calendar",
+      "destination": "/product-guide-pages/crm/crm--features--marketing-calendar.html"
+    },
+    {
+      "source": "/crm/features/marketing-calendar/",
+      "destination": "/product-guide-pages/crm/crm--features--marketing-calendar.html"
+    },
+    {
+      "source": "/crm/features/marketing-content-library",
+      "destination": "/product-guide-pages/crm/crm--features--marketing-content-library.html"
+    },
+    {
+      "source": "/crm/features/marketing-content-library/",
+      "destination": "/product-guide-pages/crm/crm--features--marketing-content-library.html"
+    },
+    {
+      "source": "/crm/features/crm-signup-forms",
+      "destination": "/product-guide-pages/crm/crm--features--crm-signup-forms.html"
+    },
+    {
+      "source": "/crm/features/crm-signup-forms/",
+      "destination": "/product-guide-pages/crm/crm--features--crm-signup-forms.html"
+    },
+    {
+      "source": "/crm/features/email-preference-centre",
+      "destination": "/product-guide-pages/crm/crm--features--email-preference-centre.html"
+    },
+    {
+      "source": "/crm/features/email-preference-centre/",
+      "destination": "/product-guide-pages/crm/crm--features--email-preference-centre.html"
+    },
+    {
       "source": "/crm/compare",
       "destination": "/product-guide-pages/crm/crm--compare.html"
     },
@@ -465,6 +521,14 @@
     {
       "source": "/website/features/category/community/",
       "destination": "/product-guide-pages/website/website--features--category--community.html"
+    },
+    {
+      "source": "/website/features/category/growth",
+      "destination": "/product-guide-pages/website/website--features--category--growth.html"
+    },
+    {
+      "source": "/website/features/category/growth/",
+      "destination": "/product-guide-pages/website/website--features--category--growth.html"
     },
     {
       "source": "/website/features/page-content-editor",
@@ -755,6 +819,54 @@
       "destination": "/product-guide-pages/website/website--features--newsletter-signup-journeys.html"
     },
     {
+      "source": "/website/features/guided-plant-finder",
+      "destination": "/product-guide-pages/website/website--features--guided-plant-finder.html"
+    },
+    {
+      "source": "/website/features/guided-plant-finder/",
+      "destination": "/product-guide-pages/website/website--features--guided-plant-finder.html"
+    },
+    {
+      "source": "/website/features/ai-page-drafting",
+      "destination": "/product-guide-pages/website/website--features--ai-page-drafting.html"
+    },
+    {
+      "source": "/website/features/ai-page-drafting/",
+      "destination": "/product-guide-pages/website/website--features--ai-page-drafting.html"
+    },
+    {
+      "source": "/website/features/website-migration-review",
+      "destination": "/product-guide-pages/website/website--features--website-migration-review.html"
+    },
+    {
+      "source": "/website/features/website-migration-review/",
+      "destination": "/product-guide-pages/website/website--features--website-migration-review.html"
+    },
+    {
+      "source": "/website/features/imported-image-review",
+      "destination": "/product-guide-pages/website/website--features--imported-image-review.html"
+    },
+    {
+      "source": "/website/features/imported-image-review/",
+      "destination": "/product-guide-pages/website/website--features--imported-image-review.html"
+    },
+    {
+      "source": "/website/features/site-doctor-website-checks",
+      "destination": "/product-guide-pages/website/website--features--site-doctor-website-checks.html"
+    },
+    {
+      "source": "/website/features/site-doctor-website-checks/",
+      "destination": "/product-guide-pages/website/website--features--site-doctor-website-checks.html"
+    },
+    {
+      "source": "/website/features/custom-domain-launch-planning",
+      "destination": "/product-guide-pages/website/website--features--custom-domain-launch-planning.html"
+    },
+    {
+      "source": "/website/features/custom-domain-launch-planning/",
+      "destination": "/product-guide-pages/website/website--features--custom-domain-launch-planning.html"
+    },
+    {
       "source": "/website/compare",
       "destination": "/product-guide-pages/website/website--compare.html"
     },
@@ -857,6 +969,14 @@
     {
       "source": "/ecomm/features/category/operations/",
       "destination": "/product-guide-pages/ecomm/ecomm--features--category--operations.html"
+    },
+    {
+      "source": "/ecomm/features/category/presales",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--presales.html"
+    },
+    {
+      "source": "/ecomm/features/category/presales/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--presales.html"
     },
     {
       "source": "/ecomm/features/plant-product-pages",
@@ -1145,6 +1265,54 @@
     {
       "source": "/ecomm/features/product-activation-review/",
       "destination": "/product-guide-pages/ecomm/ecomm--features--product-activation-review.html"
+    },
+    {
+      "source": "/ecomm/features/seasonal-pre-sale-pages",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--seasonal-pre-sale-pages.html"
+    },
+    {
+      "source": "/ecomm/features/seasonal-pre-sale-pages/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--seasonal-pre-sale-pages.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-product-options",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-product-options.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-product-options/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-product-options.html"
+    },
+    {
+      "source": "/ecomm/features/future-stock-allocations",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--future-stock-allocations.html"
+    },
+    {
+      "source": "/ecomm/features/future-stock-allocations/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--future-stock-allocations.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-pickup-promises",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-pickup-promises.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-pickup-promises/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-pickup-promises.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-payment-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-payment-review.html"
+    },
+    {
+      "source": "/ecomm/features/pre-sale-payment-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pre-sale-payment-review.html"
+    },
+    {
+      "source": "/ecomm/features/closing-pre-sale-campaigns",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--closing-pre-sale-campaigns.html"
+    },
+    {
+      "source": "/ecomm/features/closing-pre-sale-campaigns/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--closing-pre-sale-campaigns.html"
     },
     {
       "source": "/ecomm/compare",
