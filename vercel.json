@@ -19,6 +19,1206 @@
   ],
   "rewrites": [
     {
+      "source": "/crm/features",
+      "destination": "/product-guide-pages/crm/crm--features.html"
+    },
+    {
+      "source": "/crm/features/",
+      "destination": "/product-guide-pages/crm/crm--features.html"
+    },
+    {
+      "source": "/crm/features/category/customers",
+      "destination": "/product-guide-pages/crm/crm--features--category--customers.html"
+    },
+    {
+      "source": "/crm/features/category/customers/",
+      "destination": "/product-guide-pages/crm/crm--features--category--customers.html"
+    },
+    {
+      "source": "/crm/features/category/audiences",
+      "destination": "/product-guide-pages/crm/crm--features--category--audiences.html"
+    },
+    {
+      "source": "/crm/features/category/audiences/",
+      "destination": "/product-guide-pages/crm/crm--features--category--audiences.html"
+    },
+    {
+      "source": "/crm/features/category/email",
+      "destination": "/product-guide-pages/crm/crm--features--category--email.html"
+    },
+    {
+      "source": "/crm/features/category/email/",
+      "destination": "/product-guide-pages/crm/crm--features--category--email.html"
+    },
+    {
+      "source": "/crm/features/category/campaigns",
+      "destination": "/product-guide-pages/crm/crm--features--category--campaigns.html"
+    },
+    {
+      "source": "/crm/features/category/campaigns/",
+      "destination": "/product-guide-pages/crm/crm--features--category--campaigns.html"
+    },
+    {
+      "source": "/crm/features/category/sms",
+      "destination": "/product-guide-pages/crm/crm--features--category--sms.html"
+    },
+    {
+      "source": "/crm/features/category/sms/",
+      "destination": "/product-guide-pages/crm/crm--features--category--sms.html"
+    },
+    {
+      "source": "/crm/features/category/intelligence",
+      "destination": "/product-guide-pages/crm/crm--features--category--intelligence.html"
+    },
+    {
+      "source": "/crm/features/category/intelligence/",
+      "destination": "/product-guide-pages/crm/crm--features--category--intelligence.html"
+    },
+    {
+      "source": "/crm/features/customer-profiles",
+      "destination": "/product-guide-pages/crm/crm--features--customer-profiles.html"
+    },
+    {
+      "source": "/crm/features/customer-profiles/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-profiles.html"
+    },
+    {
+      "source": "/crm/features/customer-purchase-history",
+      "destination": "/product-guide-pages/crm/crm--features--customer-purchase-history.html"
+    },
+    {
+      "source": "/crm/features/customer-purchase-history/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-purchase-history.html"
+    },
+    {
+      "source": "/crm/features/customer-activity-timeline",
+      "destination": "/product-guide-pages/crm/crm--features--customer-activity-timeline.html"
+    },
+    {
+      "source": "/crm/features/customer-activity-timeline/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-activity-timeline.html"
+    },
+    {
+      "source": "/crm/features/customer-csv-imports",
+      "destination": "/product-guide-pages/crm/crm--features--customer-csv-imports.html"
+    },
+    {
+      "source": "/crm/features/customer-csv-imports/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-csv-imports.html"
+    },
+    {
+      "source": "/crm/features/customer-data-cleanup",
+      "destination": "/product-guide-pages/crm/crm--features--customer-data-cleanup.html"
+    },
+    {
+      "source": "/crm/features/customer-data-cleanup/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-data-cleanup.html"
+    },
+    {
+      "source": "/crm/features/customer-list-exports",
+      "destination": "/product-guide-pages/crm/crm--features--customer-list-exports.html"
+    },
+    {
+      "source": "/crm/features/customer-list-exports/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-list-exports.html"
+    },
+    {
+      "source": "/crm/features/customer-segments",
+      "destination": "/product-guide-pages/crm/crm--features--customer-segments.html"
+    },
+    {
+      "source": "/crm/features/customer-segments/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-segments.html"
+    },
+    {
+      "source": "/crm/features/dynamic-segments",
+      "destination": "/product-guide-pages/crm/crm--features--dynamic-segments.html"
+    },
+    {
+      "source": "/crm/features/dynamic-segments/",
+      "destination": "/product-guide-pages/crm/crm--features--dynamic-segments.html"
+    },
+    {
+      "source": "/crm/features/static-customer-lists",
+      "destination": "/product-guide-pages/crm/crm--features--static-customer-lists.html"
+    },
+    {
+      "source": "/crm/features/static-customer-lists/",
+      "destination": "/product-guide-pages/crm/crm--features--static-customer-lists.html"
+    },
+    {
+      "source": "/crm/features/purchase-based-audiences",
+      "destination": "/product-guide-pages/crm/crm--features--purchase-based-audiences.html"
+    },
+    {
+      "source": "/crm/features/purchase-based-audiences/",
+      "destination": "/product-guide-pages/crm/crm--features--purchase-based-audiences.html"
+    },
+    {
+      "source": "/crm/features/lapsed-customer-audiences",
+      "destination": "/product-guide-pages/crm/crm--features--lapsed-customer-audiences.html"
+    },
+    {
+      "source": "/crm/features/lapsed-customer-audiences/",
+      "destination": "/product-guide-pages/crm/crm--features--lapsed-customer-audiences.html"
+    },
+    {
+      "source": "/crm/features/audience-recipient-review",
+      "destination": "/product-guide-pages/crm/crm--features--audience-recipient-review.html"
+    },
+    {
+      "source": "/crm/features/audience-recipient-review/",
+      "destination": "/product-guide-pages/crm/crm--features--audience-recipient-review.html"
+    },
+    {
+      "source": "/crm/features/newsletter-builder",
+      "destination": "/product-guide-pages/crm/crm--features--newsletter-builder.html"
+    },
+    {
+      "source": "/crm/features/newsletter-builder/",
+      "destination": "/product-guide-pages/crm/crm--features--newsletter-builder.html"
+    },
+    {
+      "source": "/crm/features/reusable-email-blocks",
+      "destination": "/product-guide-pages/crm/crm--features--reusable-email-blocks.html"
+    },
+    {
+      "source": "/crm/features/reusable-email-blocks/",
+      "destination": "/product-guide-pages/crm/crm--features--reusable-email-blocks.html"
+    },
+    {
+      "source": "/crm/features/personalized-email-greetings",
+      "destination": "/product-guide-pages/crm/crm--features--personalized-email-greetings.html"
+    },
+    {
+      "source": "/crm/features/personalized-email-greetings/",
+      "destination": "/product-guide-pages/crm/crm--features--personalized-email-greetings.html"
+    },
+    {
+      "source": "/crm/features/email-image-blocks",
+      "destination": "/product-guide-pages/crm/crm--features--email-image-blocks.html"
+    },
+    {
+      "source": "/crm/features/email-image-blocks/",
+      "destination": "/product-guide-pages/crm/crm--features--email-image-blocks.html"
+    },
+    {
+      "source": "/crm/features/mobile-email-previews",
+      "destination": "/product-guide-pages/crm/crm--features--mobile-email-previews.html"
+    },
+    {
+      "source": "/crm/features/mobile-email-previews/",
+      "destination": "/product-guide-pages/crm/crm--features--mobile-email-previews.html"
+    },
+    {
+      "source": "/crm/features/test-email-sends",
+      "destination": "/product-guide-pages/crm/crm--features--test-email-sends.html"
+    },
+    {
+      "source": "/crm/features/test-email-sends/",
+      "destination": "/product-guide-pages/crm/crm--features--test-email-sends.html"
+    },
+    {
+      "source": "/crm/features/scheduled-email-campaigns",
+      "destination": "/product-guide-pages/crm/crm--features--scheduled-email-campaigns.html"
+    },
+    {
+      "source": "/crm/features/scheduled-email-campaigns/",
+      "destination": "/product-guide-pages/crm/crm--features--scheduled-email-campaigns.html"
+    },
+    {
+      "source": "/crm/features/campaign-drafts",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-drafts.html"
+    },
+    {
+      "source": "/crm/features/campaign-drafts/",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-drafts.html"
+    },
+    {
+      "source": "/crm/features/sender-readiness-checks",
+      "destination": "/product-guide-pages/crm/crm--features--sender-readiness-checks.html"
+    },
+    {
+      "source": "/crm/features/sender-readiness-checks/",
+      "destination": "/product-guide-pages/crm/crm--features--sender-readiness-checks.html"
+    },
+    {
+      "source": "/crm/features/seasonal-marketing-suggestions",
+      "destination": "/product-guide-pages/crm/crm--features--seasonal-marketing-suggestions.html"
+    },
+    {
+      "source": "/crm/features/seasonal-marketing-suggestions/",
+      "destination": "/product-guide-pages/crm/crm--features--seasonal-marketing-suggestions.html"
+    },
+    {
+      "source": "/crm/features/customer-journey-builder",
+      "destination": "/product-guide-pages/crm/crm--features--customer-journey-builder.html"
+    },
+    {
+      "source": "/crm/features/customer-journey-builder/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-journey-builder.html"
+    },
+    {
+      "source": "/crm/features/welcome-email-sequences",
+      "destination": "/product-guide-pages/crm/crm--features--welcome-email-sequences.html"
+    },
+    {
+      "source": "/crm/features/welcome-email-sequences/",
+      "destination": "/product-guide-pages/crm/crm--features--welcome-email-sequences.html"
+    },
+    {
+      "source": "/crm/features/sms-campaign-builder",
+      "destination": "/product-guide-pages/crm/crm--features--sms-campaign-builder.html"
+    },
+    {
+      "source": "/crm/features/sms-campaign-builder/",
+      "destination": "/product-guide-pages/crm/crm--features--sms-campaign-builder.html"
+    },
+    {
+      "source": "/crm/features/scheduled-sms-messages",
+      "destination": "/product-guide-pages/crm/crm--features--scheduled-sms-messages.html"
+    },
+    {
+      "source": "/crm/features/scheduled-sms-messages/",
+      "destination": "/product-guide-pages/crm/crm--features--scheduled-sms-messages.html"
+    },
+    {
+      "source": "/crm/features/sms-consent-handling",
+      "destination": "/product-guide-pages/crm/crm--features--sms-consent-handling.html"
+    },
+    {
+      "source": "/crm/features/sms-consent-handling/",
+      "destination": "/product-guide-pages/crm/crm--features--sms-consent-handling.html"
+    },
+    {
+      "source": "/crm/features/sms-opt-out-protection",
+      "destination": "/product-guide-pages/crm/crm--features--sms-opt-out-protection.html"
+    },
+    {
+      "source": "/crm/features/sms-opt-out-protection/",
+      "destination": "/product-guide-pages/crm/crm--features--sms-opt-out-protection.html"
+    },
+    {
+      "source": "/crm/features/sms-delivery-reporting",
+      "destination": "/product-guide-pages/crm/crm--features--sms-delivery-reporting.html"
+    },
+    {
+      "source": "/crm/features/sms-delivery-reporting/",
+      "destination": "/product-guide-pages/crm/crm--features--sms-delivery-reporting.html"
+    },
+    {
+      "source": "/crm/features/sms-link-tracking",
+      "destination": "/product-guide-pages/crm/crm--features--sms-link-tracking.html"
+    },
+    {
+      "source": "/crm/features/sms-link-tracking/",
+      "destination": "/product-guide-pages/crm/crm--features--sms-link-tracking.html"
+    },
+    {
+      "source": "/crm/features/customer-intelligence",
+      "destination": "/product-guide-pages/crm/crm--features--customer-intelligence.html"
+    },
+    {
+      "source": "/crm/features/customer-intelligence/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-intelligence.html"
+    },
+    {
+      "source": "/crm/features/customer-spending-insights",
+      "destination": "/product-guide-pages/crm/crm--features--customer-spending-insights.html"
+    },
+    {
+      "source": "/crm/features/customer-spending-insights/",
+      "destination": "/product-guide-pages/crm/crm--features--customer-spending-insights.html"
+    },
+    {
+      "source": "/crm/features/campaign-click-reporting",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-click-reporting.html"
+    },
+    {
+      "source": "/crm/features/campaign-click-reporting/",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-click-reporting.html"
+    },
+    {
+      "source": "/crm/features/campaign-recipient-reports",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-recipient-reports.html"
+    },
+    {
+      "source": "/crm/features/campaign-recipient-reports/",
+      "destination": "/product-guide-pages/crm/crm--features--campaign-recipient-reports.html"
+    },
+    {
+      "source": "/crm/features/comparable-sales-periods",
+      "destination": "/product-guide-pages/crm/crm--features--comparable-sales-periods.html"
+    },
+    {
+      "source": "/crm/features/comparable-sales-periods/",
+      "destination": "/product-guide-pages/crm/crm--features--comparable-sales-periods.html"
+    },
+    {
+      "source": "/crm/features/pos-data-connections",
+      "destination": "/product-guide-pages/crm/crm--features--pos-data-connections.html"
+    },
+    {
+      "source": "/crm/features/pos-data-connections/",
+      "destination": "/product-guide-pages/crm/crm--features--pos-data-connections.html"
+    },
+    {
+      "source": "/crm/compare",
+      "destination": "/product-guide-pages/crm/crm--compare.html"
+    },
+    {
+      "source": "/crm/compare/",
+      "destination": "/product-guide-pages/crm/crm--compare.html"
+    },
+    {
+      "source": "/crm/compare/mailchimp",
+      "destination": "/product-guide-pages/crm/crm--compare--mailchimp.html"
+    },
+    {
+      "source": "/crm/compare/mailchimp/",
+      "destination": "/product-guide-pages/crm/crm--compare--mailchimp.html"
+    },
+    {
+      "source": "/crm/compare/klaviyo",
+      "destination": "/product-guide-pages/crm/crm--compare--klaviyo.html"
+    },
+    {
+      "source": "/crm/compare/klaviyo/",
+      "destination": "/product-guide-pages/crm/crm--compare--klaviyo.html"
+    },
+    {
+      "source": "/crm/compare/constant-contact",
+      "destination": "/product-guide-pages/crm/crm--compare--constant-contact.html"
+    },
+    {
+      "source": "/crm/compare/constant-contact/",
+      "destination": "/product-guide-pages/crm/crm--compare--constant-contact.html"
+    },
+    {
+      "source": "/crm/compare/hubspot",
+      "destination": "/product-guide-pages/crm/crm--compare--hubspot.html"
+    },
+    {
+      "source": "/crm/compare/hubspot/",
+      "destination": "/product-guide-pages/crm/crm--compare--hubspot.html"
+    },
+    {
+      "source": "/crm/switching",
+      "destination": "/product-guide-pages/crm/crm--switching.html"
+    },
+    {
+      "source": "/crm/switching/",
+      "destination": "/product-guide-pages/crm/crm--switching.html"
+    },
+    {
+      "source": "/website/features",
+      "destination": "/product-guide-pages/website/website--features.html"
+    },
+    {
+      "source": "/website/features/",
+      "destination": "/product-guide-pages/website/website--features.html"
+    },
+    {
+      "source": "/website/features/category/pages",
+      "destination": "/product-guide-pages/website/website--features--category--pages.html"
+    },
+    {
+      "source": "/website/features/category/pages/",
+      "destination": "/product-guide-pages/website/website--features--category--pages.html"
+    },
+    {
+      "source": "/website/features/category/brand",
+      "destination": "/product-guide-pages/website/website--features--category--brand.html"
+    },
+    {
+      "source": "/website/features/category/brand/",
+      "destination": "/product-guide-pages/website/website--features--category--brand.html"
+    },
+    {
+      "source": "/website/features/category/navigation",
+      "destination": "/product-guide-pages/website/website--features--category--navigation.html"
+    },
+    {
+      "source": "/website/features/category/navigation/",
+      "destination": "/product-guide-pages/website/website--features--category--navigation.html"
+    },
+    {
+      "source": "/website/features/category/seasonal",
+      "destination": "/product-guide-pages/website/website--features--category--seasonal.html"
+    },
+    {
+      "source": "/website/features/category/seasonal/",
+      "destination": "/product-guide-pages/website/website--features--category--seasonal.html"
+    },
+    {
+      "source": "/website/features/category/discovery",
+      "destination": "/product-guide-pages/website/website--features--category--discovery.html"
+    },
+    {
+      "source": "/website/features/category/discovery/",
+      "destination": "/product-guide-pages/website/website--features--category--discovery.html"
+    },
+    {
+      "source": "/website/features/category/community",
+      "destination": "/product-guide-pages/website/website--features--category--community.html"
+    },
+    {
+      "source": "/website/features/category/community/",
+      "destination": "/product-guide-pages/website/website--features--category--community.html"
+    },
+    {
+      "source": "/website/features/page-content-editor",
+      "destination": "/product-guide-pages/website/website--features--page-content-editor.html"
+    },
+    {
+      "source": "/website/features/page-content-editor/",
+      "destination": "/product-guide-pages/website/website--features--page-content-editor.html"
+    },
+    {
+      "source": "/website/features/homepage-sections",
+      "destination": "/product-guide-pages/website/website--features--homepage-sections.html"
+    },
+    {
+      "source": "/website/features/homepage-sections/",
+      "destination": "/product-guide-pages/website/website--features--homepage-sections.html"
+    },
+    {
+      "source": "/website/features/landing-pages",
+      "destination": "/product-guide-pages/website/website--features--landing-pages.html"
+    },
+    {
+      "source": "/website/features/landing-pages/",
+      "destination": "/product-guide-pages/website/website--features--landing-pages.html"
+    },
+    {
+      "source": "/website/features/about-pages",
+      "destination": "/product-guide-pages/website/website--features--about-pages.html"
+    },
+    {
+      "source": "/website/features/about-pages/",
+      "destination": "/product-guide-pages/website/website--features--about-pages.html"
+    },
+    {
+      "source": "/website/features/department-pages",
+      "destination": "/product-guide-pages/website/website--features--department-pages.html"
+    },
+    {
+      "source": "/website/features/department-pages/",
+      "destination": "/product-guide-pages/website/website--features--department-pages.html"
+    },
+    {
+      "source": "/website/features/service-pages",
+      "destination": "/product-guide-pages/website/website--features--service-pages.html"
+    },
+    {
+      "source": "/website/features/service-pages/",
+      "destination": "/product-guide-pages/website/website--features--service-pages.html"
+    },
+    {
+      "source": "/website/features/brand-styling",
+      "destination": "/product-guide-pages/website/website--features--brand-styling.html"
+    },
+    {
+      "source": "/website/features/brand-styling/",
+      "destination": "/product-guide-pages/website/website--features--brand-styling.html"
+    },
+    {
+      "source": "/website/features/logo-presentation",
+      "destination": "/product-guide-pages/website/website--features--logo-presentation.html"
+    },
+    {
+      "source": "/website/features/logo-presentation/",
+      "destination": "/product-guide-pages/website/website--features--logo-presentation.html"
+    },
+    {
+      "source": "/website/features/hero-images",
+      "destination": "/product-guide-pages/website/website--features--hero-images.html"
+    },
+    {
+      "source": "/website/features/hero-images/",
+      "destination": "/product-guide-pages/website/website--features--hero-images.html"
+    },
+    {
+      "source": "/website/features/image-focal-points",
+      "destination": "/product-guide-pages/website/website--features--image-focal-points.html"
+    },
+    {
+      "source": "/website/features/image-focal-points/",
+      "destination": "/product-guide-pages/website/website--features--image-focal-points.html"
+    },
+    {
+      "source": "/website/features/content-image-galleries",
+      "destination": "/product-guide-pages/website/website--features--content-image-galleries.html"
+    },
+    {
+      "source": "/website/features/content-image-galleries/",
+      "destination": "/product-guide-pages/website/website--features--content-image-galleries.html"
+    },
+    {
+      "source": "/website/features/readable-page-layouts",
+      "destination": "/product-guide-pages/website/website--features--readable-page-layouts.html"
+    },
+    {
+      "source": "/website/features/readable-page-layouts/",
+      "destination": "/product-guide-pages/website/website--features--readable-page-layouts.html"
+    },
+    {
+      "source": "/website/features/website-navigation",
+      "destination": "/product-guide-pages/website/website--features--website-navigation.html"
+    },
+    {
+      "source": "/website/features/website-navigation/",
+      "destination": "/product-guide-pages/website/website--features--website-navigation.html"
+    },
+    {
+      "source": "/website/features/dropdown-menus",
+      "destination": "/product-guide-pages/website/website--features--dropdown-menus.html"
+    },
+    {
+      "source": "/website/features/dropdown-menus/",
+      "destination": "/product-guide-pages/website/website--features--dropdown-menus.html"
+    },
+    {
+      "source": "/website/features/mobile-website-navigation",
+      "destination": "/product-guide-pages/website/website--features--mobile-website-navigation.html"
+    },
+    {
+      "source": "/website/features/mobile-website-navigation/",
+      "destination": "/product-guide-pages/website/website--features--mobile-website-navigation.html"
+    },
+    {
+      "source": "/website/features/contact-pages",
+      "destination": "/product-guide-pages/website/website--features--contact-pages.html"
+    },
+    {
+      "source": "/website/features/contact-pages/",
+      "destination": "/product-guide-pages/website/website--features--contact-pages.html"
+    },
+    {
+      "source": "/website/features/store-visit-information",
+      "destination": "/product-guide-pages/website/website--features--store-visit-information.html"
+    },
+    {
+      "source": "/website/features/store-visit-information/",
+      "destination": "/product-guide-pages/website/website--features--store-visit-information.html"
+    },
+    {
+      "source": "/website/features/connected-page-links",
+      "destination": "/product-guide-pages/website/website--features--connected-page-links.html"
+    },
+    {
+      "source": "/website/features/connected-page-links/",
+      "destination": "/product-guide-pages/website/website--features--connected-page-links.html"
+    },
+    {
+      "source": "/website/features/seasonal-homepage-modes",
+      "destination": "/product-guide-pages/website/website--features--seasonal-homepage-modes.html"
+    },
+    {
+      "source": "/website/features/seasonal-homepage-modes/",
+      "destination": "/product-guide-pages/website/website--features--seasonal-homepage-modes.html"
+    },
+    {
+      "source": "/website/features/scheduled-seasonal-changes",
+      "destination": "/product-guide-pages/website/website--features--scheduled-seasonal-changes.html"
+    },
+    {
+      "source": "/website/features/scheduled-seasonal-changes/",
+      "destination": "/product-guide-pages/website/website--features--scheduled-seasonal-changes.html"
+    },
+    {
+      "source": "/website/features/seasonal-homepage-previews",
+      "destination": "/product-guide-pages/website/website--features--seasonal-homepage-previews.html"
+    },
+    {
+      "source": "/website/features/seasonal-homepage-previews/",
+      "destination": "/product-guide-pages/website/website--features--seasonal-homepage-previews.html"
+    },
+    {
+      "source": "/website/features/seasonal-content-overrides",
+      "destination": "/product-guide-pages/website/website--features--seasonal-content-overrides.html"
+    },
+    {
+      "source": "/website/features/seasonal-content-overrides/",
+      "destination": "/product-guide-pages/website/website--features--seasonal-content-overrides.html"
+    },
+    {
+      "source": "/website/features/featured-seasonal-products",
+      "destination": "/product-guide-pages/website/website--features--featured-seasonal-products.html"
+    },
+    {
+      "source": "/website/features/featured-seasonal-products/",
+      "destination": "/product-guide-pages/website/website--features--featured-seasonal-products.html"
+    },
+    {
+      "source": "/website/features/holiday-opening-notices",
+      "destination": "/product-guide-pages/website/website--features--holiday-opening-notices.html"
+    },
+    {
+      "source": "/website/features/holiday-opening-notices/",
+      "destination": "/product-guide-pages/website/website--features--holiday-opening-notices.html"
+    },
+    {
+      "source": "/website/features/garden-advice-articles",
+      "destination": "/product-guide-pages/website/website--features--garden-advice-articles.html"
+    },
+    {
+      "source": "/website/features/garden-advice-articles/",
+      "destination": "/product-guide-pages/website/website--features--garden-advice-articles.html"
+    },
+    {
+      "source": "/website/features/blog-topic-organization",
+      "destination": "/product-guide-pages/website/website--features--blog-topic-organization.html"
+    },
+    {
+      "source": "/website/features/blog-topic-organization/",
+      "destination": "/product-guide-pages/website/website--features--blog-topic-organization.html"
+    },
+    {
+      "source": "/website/features/page-titles-and-descriptions",
+      "destination": "/product-guide-pages/website/website--features--page-titles-and-descriptions.html"
+    },
+    {
+      "source": "/website/features/page-titles-and-descriptions/",
+      "destination": "/product-guide-pages/website/website--features--page-titles-and-descriptions.html"
+    },
+    {
+      "source": "/website/features/search-friendly-page-addresses",
+      "destination": "/product-guide-pages/website/website--features--search-friendly-page-addresses.html"
+    },
+    {
+      "source": "/website/features/search-friendly-page-addresses/",
+      "destination": "/product-guide-pages/website/website--features--search-friendly-page-addresses.html"
+    },
+    {
+      "source": "/website/features/published-content-sitemaps",
+      "destination": "/product-guide-pages/website/website--features--published-content-sitemaps.html"
+    },
+    {
+      "source": "/website/features/published-content-sitemaps/",
+      "destination": "/product-guide-pages/website/website--features--published-content-sitemaps.html"
+    },
+    {
+      "source": "/website/features/website-redirect-planning",
+      "destination": "/product-guide-pages/website/website--features--website-redirect-planning.html"
+    },
+    {
+      "source": "/website/features/website-redirect-planning/",
+      "destination": "/product-guide-pages/website/website--features--website-redirect-planning.html"
+    },
+    {
+      "source": "/website/features/event-information-pages",
+      "destination": "/product-guide-pages/website/website--features--event-information-pages.html"
+    },
+    {
+      "source": "/website/features/event-information-pages/",
+      "destination": "/product-guide-pages/website/website--features--event-information-pages.html"
+    },
+    {
+      "source": "/website/features/workshop-promotion-links",
+      "destination": "/product-guide-pages/website/website--features--workshop-promotion-links.html"
+    },
+    {
+      "source": "/website/features/workshop-promotion-links/",
+      "destination": "/product-guide-pages/website/website--features--workshop-promotion-links.html"
+    },
+    {
+      "source": "/website/features/fundraising-organization-pages",
+      "destination": "/product-guide-pages/website/website--features--fundraising-organization-pages.html"
+    },
+    {
+      "source": "/website/features/fundraising-organization-pages/",
+      "destination": "/product-guide-pages/website/website--features--fundraising-organization-pages.html"
+    },
+    {
+      "source": "/website/features/fundraiser-application-pages",
+      "destination": "/product-guide-pages/website/website--features--fundraiser-application-pages.html"
+    },
+    {
+      "source": "/website/features/fundraiser-application-pages/",
+      "destination": "/product-guide-pages/website/website--features--fundraiser-application-pages.html"
+    },
+    {
+      "source": "/website/features/gift-registry-pages",
+      "destination": "/product-guide-pages/website/website--features--gift-registry-pages.html"
+    },
+    {
+      "source": "/website/features/gift-registry-pages/",
+      "destination": "/product-guide-pages/website/website--features--gift-registry-pages.html"
+    },
+    {
+      "source": "/website/features/newsletter-signup-journeys",
+      "destination": "/product-guide-pages/website/website--features--newsletter-signup-journeys.html"
+    },
+    {
+      "source": "/website/features/newsletter-signup-journeys/",
+      "destination": "/product-guide-pages/website/website--features--newsletter-signup-journeys.html"
+    },
+    {
+      "source": "/website/compare",
+      "destination": "/product-guide-pages/website/website--compare.html"
+    },
+    {
+      "source": "/website/compare/",
+      "destination": "/product-guide-pages/website/website--compare.html"
+    },
+    {
+      "source": "/website/compare/wix",
+      "destination": "/product-guide-pages/website/website--compare--wix.html"
+    },
+    {
+      "source": "/website/compare/wix/",
+      "destination": "/product-guide-pages/website/website--compare--wix.html"
+    },
+    {
+      "source": "/website/compare/squarespace",
+      "destination": "/product-guide-pages/website/website--compare--squarespace.html"
+    },
+    {
+      "source": "/website/compare/squarespace/",
+      "destination": "/product-guide-pages/website/website--compare--squarespace.html"
+    },
+    {
+      "source": "/website/compare/wordpress",
+      "destination": "/product-guide-pages/website/website--compare--wordpress.html"
+    },
+    {
+      "source": "/website/compare/wordpress/",
+      "destination": "/product-guide-pages/website/website--compare--wordpress.html"
+    },
+    {
+      "source": "/website/compare/webflow",
+      "destination": "/product-guide-pages/website/website--compare--webflow.html"
+    },
+    {
+      "source": "/website/compare/webflow/",
+      "destination": "/product-guide-pages/website/website--compare--webflow.html"
+    },
+    {
+      "source": "/website/switching",
+      "destination": "/product-guide-pages/website/website--switching.html"
+    },
+    {
+      "source": "/website/switching/",
+      "destination": "/product-guide-pages/website/website--switching.html"
+    },
+    {
+      "source": "/ecomm/features",
+      "destination": "/product-guide-pages/ecomm/ecomm--features.html"
+    },
+    {
+      "source": "/ecomm/features/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features.html"
+    },
+    {
+      "source": "/ecomm/features/category/catalogue",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--catalogue.html"
+    },
+    {
+      "source": "/ecomm/features/category/catalogue/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--catalogue.html"
+    },
+    {
+      "source": "/ecomm/features/category/shopping",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--shopping.html"
+    },
+    {
+      "source": "/ecomm/features/category/shopping/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--shopping.html"
+    },
+    {
+      "source": "/ecomm/features/category/checkout",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--checkout.html"
+    },
+    {
+      "source": "/ecomm/features/category/checkout/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--checkout.html"
+    },
+    {
+      "source": "/ecomm/features/category/fulfilment",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--fulfilment.html"
+    },
+    {
+      "source": "/ecomm/features/category/fulfilment/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--fulfilment.html"
+    },
+    {
+      "source": "/ecomm/features/category/programs",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--programs.html"
+    },
+    {
+      "source": "/ecomm/features/category/programs/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--programs.html"
+    },
+    {
+      "source": "/ecomm/features/category/operations",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--operations.html"
+    },
+    {
+      "source": "/ecomm/features/category/operations/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--category--operations.html"
+    },
+    {
+      "source": "/ecomm/features/plant-product-pages",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--plant-product-pages.html"
+    },
+    {
+      "source": "/ecomm/features/plant-product-pages/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--plant-product-pages.html"
+    },
+    {
+      "source": "/ecomm/features/product-size-variants",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-size-variants.html"
+    },
+    {
+      "source": "/ecomm/features/product-size-variants/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-size-variants.html"
+    },
+    {
+      "source": "/ecomm/features/common-and-botanical-names",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--common-and-botanical-names.html"
+    },
+    {
+      "source": "/ecomm/features/common-and-botanical-names/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--common-and-botanical-names.html"
+    },
+    {
+      "source": "/ecomm/features/product-photography",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-photography.html"
+    },
+    {
+      "source": "/ecomm/features/product-photography/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-photography.html"
+    },
+    {
+      "source": "/ecomm/features/plant-care-descriptions",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--plant-care-descriptions.html"
+    },
+    {
+      "source": "/ecomm/features/plant-care-descriptions/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--plant-care-descriptions.html"
+    },
+    {
+      "source": "/ecomm/features/master-catalogue-matching",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--master-catalogue-matching.html"
+    },
+    {
+      "source": "/ecomm/features/master-catalogue-matching/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--master-catalogue-matching.html"
+    },
+    {
+      "source": "/ecomm/features/product-category-browsing",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-category-browsing.html"
+    },
+    {
+      "source": "/ecomm/features/product-category-browsing/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-category-browsing.html"
+    },
+    {
+      "source": "/ecomm/features/shop-product-search",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shop-product-search.html"
+    },
+    {
+      "source": "/ecomm/features/shop-product-search/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shop-product-search.html"
+    },
+    {
+      "source": "/ecomm/features/product-filters",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-filters.html"
+    },
+    {
+      "source": "/ecomm/features/product-filters/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-filters.html"
+    },
+    {
+      "source": "/ecomm/features/featured-product-collections",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--featured-product-collections.html"
+    },
+    {
+      "source": "/ecomm/features/featured-product-collections/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--featured-product-collections.html"
+    },
+    {
+      "source": "/ecomm/features/catalogue-only-storefronts",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--catalogue-only-storefronts.html"
+    },
+    {
+      "source": "/ecomm/features/catalogue-only-storefronts/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--catalogue-only-storefronts.html"
+    },
+    {
+      "source": "/ecomm/features/publication-quality-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--publication-quality-review.html"
+    },
+    {
+      "source": "/ecomm/features/publication-quality-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--publication-quality-review.html"
+    },
+    {
+      "source": "/ecomm/features/shopping-cart-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shopping-cart-review.html"
+    },
+    {
+      "source": "/ecomm/features/shopping-cart-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shopping-cart-review.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-price-validation",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-price-validation.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-price-validation/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-price-validation.html"
+    },
+    {
+      "source": "/ecomm/features/online-payment-setup",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--online-payment-setup.html"
+    },
+    {
+      "source": "/ecomm/features/online-payment-setup/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--online-payment-setup.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-tax-readiness",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-tax-readiness.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-tax-readiness/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-tax-readiness.html"
+    },
+    {
+      "source": "/ecomm/features/order-confirmations",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-confirmations.html"
+    },
+    {
+      "source": "/ecomm/features/order-confirmations/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-confirmations.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-stock-safeguards",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-stock-safeguards.html"
+    },
+    {
+      "source": "/ecomm/features/checkout-stock-safeguards/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--checkout-stock-safeguards.html"
+    },
+    {
+      "source": "/ecomm/features/store-pickup-options",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--store-pickup-options.html"
+    },
+    {
+      "source": "/ecomm/features/store-pickup-options/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--store-pickup-options.html"
+    },
+    {
+      "source": "/ecomm/features/local-delivery-information",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--local-delivery-information.html"
+    },
+    {
+      "source": "/ecomm/features/local-delivery-information/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--local-delivery-information.html"
+    },
+    {
+      "source": "/ecomm/features/product-receiving-options",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-receiving-options.html"
+    },
+    {
+      "source": "/ecomm/features/product-receiving-options/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-receiving-options.html"
+    },
+    {
+      "source": "/ecomm/features/shipping-readiness-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shipping-readiness-review.html"
+    },
+    {
+      "source": "/ecomm/features/shipping-readiness-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--shipping-readiness-review.html"
+    },
+    {
+      "source": "/ecomm/features/order-fulfilment-records",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-fulfilment-records.html"
+    },
+    {
+      "source": "/ecomm/features/order-fulfilment-records/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-fulfilment-records.html"
+    },
+    {
+      "source": "/ecomm/features/pickup-instruction-content",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pickup-instruction-content.html"
+    },
+    {
+      "source": "/ecomm/features/pickup-instruction-content/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--pickup-instruction-content.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-campaigns",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-campaigns.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-campaigns/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-campaigns.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-contribution-terms",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-contribution-terms.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-contribution-terms/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-contribution-terms.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-reports",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-reports.html"
+    },
+    {
+      "source": "/ecomm/features/fundraising-reports/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--fundraising-reports.html"
+    },
+    {
+      "source": "/ecomm/features/workshop-ticketing",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--workshop-ticketing.html"
+    },
+    {
+      "source": "/ecomm/features/workshop-ticketing/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--workshop-ticketing.html"
+    },
+    {
+      "source": "/ecomm/features/free-event-registration",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--free-event-registration.html"
+    },
+    {
+      "source": "/ecomm/features/free-event-registration/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--free-event-registration.html"
+    },
+    {
+      "source": "/ecomm/features/registry-product-lists",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--registry-product-lists.html"
+    },
+    {
+      "source": "/ecomm/features/registry-product-lists/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--registry-product-lists.html"
+    },
+    {
+      "source": "/ecomm/features/online-order-management",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--online-order-management.html"
+    },
+    {
+      "source": "/ecomm/features/online-order-management/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--online-order-management.html"
+    },
+    {
+      "source": "/ecomm/features/order-status-history",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-status-history.html"
+    },
+    {
+      "source": "/ecomm/features/order-status-history/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-status-history.html"
+    },
+    {
+      "source": "/ecomm/features/order-refunds",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-refunds.html"
+    },
+    {
+      "source": "/ecomm/features/order-refunds/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--order-refunds.html"
+    },
+    {
+      "source": "/ecomm/features/inventory-connection-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--inventory-connection-review.html"
+    },
+    {
+      "source": "/ecomm/features/inventory-connection-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--inventory-connection-review.html"
+    },
+    {
+      "source": "/ecomm/features/read-only-pos-inventory-links",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--read-only-pos-inventory-links.html"
+    },
+    {
+      "source": "/ecomm/features/read-only-pos-inventory-links/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--read-only-pos-inventory-links.html"
+    },
+    {
+      "source": "/ecomm/features/product-activation-review",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-activation-review.html"
+    },
+    {
+      "source": "/ecomm/features/product-activation-review/",
+      "destination": "/product-guide-pages/ecomm/ecomm--features--product-activation-review.html"
+    },
+    {
+      "source": "/ecomm/compare",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare.html"
+    },
+    {
+      "source": "/ecomm/compare/",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare.html"
+    },
+    {
+      "source": "/ecomm/compare/shopify",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--shopify.html"
+    },
+    {
+      "source": "/ecomm/compare/shopify/",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--shopify.html"
+    },
+    {
+      "source": "/ecomm/compare/woocommerce",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--woocommerce.html"
+    },
+    {
+      "source": "/ecomm/compare/woocommerce/",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--woocommerce.html"
+    },
+    {
+      "source": "/ecomm/compare/square-online",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--square-online.html"
+    },
+    {
+      "source": "/ecomm/compare/square-online/",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--square-online.html"
+    },
+    {
+      "source": "/ecomm/compare/bigcommerce",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--bigcommerce.html"
+    },
+    {
+      "source": "/ecomm/compare/bigcommerce/",
+      "destination": "/product-guide-pages/ecomm/ecomm--compare--bigcommerce.html"
+    },
+    {
+      "source": "/ecomm/switching",
+      "destination": "/product-guide-pages/ecomm/ecomm--switching.html"
+    },
+    {
+      "source": "/ecomm/switching/",
+      "destination": "/product-guide-pages/ecomm/ecomm--switching.html"
+    },
+    {
+      "source": "/crm/features/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
+      "source": "/crm/compare/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
+      "source": "/website/features/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
+      "source": "/website/compare/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
+      "source": "/ecomm/features/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
+      "source": "/ecomm/compare/:path*",
+      "destination": "/api/product-guide-not-found"
+    },
+    {
       "source": "/pos",
       "destination": "/pos-marketing.html"
     },

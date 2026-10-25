@@ -1,3 +1,4 @@
+import { ProductFeatureFinderLinks } from "@/components/suite/ProductFeatureFinderLinks";
 import React from 'react';
 import { LandingPageHeader } from '@/components/landing/LandingPageHeader';
 import { useNavigate } from 'react-router-dom';
@@ -162,6 +163,7 @@ export const FeaturesPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <LandingPageHeader onLogin={handleLogin} showUserMenu={false} />
+      <ProductFeatureFinderLinks product="crm" />
       
       {/* Hero Section */}
       <section className="relative py-20 px-6 overflow-hidden">
