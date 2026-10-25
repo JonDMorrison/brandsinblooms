@@ -35,6 +35,10 @@
       "destination": "/pos-feature-pages/:slug.html"
     },
     {
+      "source": "/pos/features/:path*",
+      "destination": "/api/pos-feature-not-found"
+    },
+    {
       "source": "/build-your-suite",
       "destination": "/suite-builder.html"
     },
