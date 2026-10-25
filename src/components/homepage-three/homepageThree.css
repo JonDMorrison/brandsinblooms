@@ -26,7 +26,10 @@
     width: 100%;
     height: auto;
     min-height: 100dvh;
-    overflow: visible;
+    /* Clip horizontal illustration/animation spill without creating a
+       nested vertical scroll container or changing sticky navigation. */
+    overflow-x: clip;
+    overflow-y: visible;
     overscroll-behavior: auto;
     touch-action: auto;
     padding-top: 80px; /* clear the fixed nav so the hero sits below it */
