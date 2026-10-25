@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
+import { categories } from '../../content/product-libraries/catalog.mjs';
 import { chromium } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import assert from 'node:assert/strict';
@@ -41,7 +42,7 @@ try{
    if(width!==768)await page.screenshot({path:`${screenshotDir}/${product}-${width}.png`,fullPage:true});
   }
   const input=page.getByRole('searchbox');await input.fill('NO RESULT EXPECTED');await page.getByRole('button',{name:'Clear search and filters'}).click();
-  assert.equal(await page.locator('[data-feature]:visible').count(),36);
+  assert.equal(await page.locator('[data-feature]:visible').count(),categories[product].flatMap(c=>c.features).length);
   await page.locator('[data-shortlist]').first().click();assert.equal(await page.locator('[data-shortlist-list] li').count(),1);
   const target=await page.locator('[data-shortlist-link]').getAttribute('href');assert(target.includes('topics='));
   await page.reload();assert.equal(await page.locator('[data-shortlist-list] li').count(),1);
@@ -52,6 +53,6 @@ try{
  }
  assert.deepEqual(errors,[]);
  const noJS=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});const noPage=await noJS.newPage();
- await noPage.goto(origin+'/crm/features');assert.equal(await noPage.locator('[data-feature]').count(),36);await noJS.close();
+ await noPage.goto(origin+'/crm/features');assert.equal(await noPage.locator('[data-feature]').count(),categories.crm.flatMap(c=>c.features).length);await noJS.close();
  console.log(`Browser verification passed: ${checks} page/viewport combinations, 12 accessibility scans, search, shortlist/reload, real 404 handler and no-JavaScript content.`);
 }finally{await browser.close();server.close();}

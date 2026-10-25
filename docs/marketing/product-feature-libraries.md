@@ -10,7 +10,7 @@ Added October 25, 2026. These public marketing guides use the POS library's disc
 | Website Builder | `/website/features` | `/website/compare` | `/website/switching` |
 | E-commerce | `/ecomm/features` | `/ecomm/compare` | `/ecomm/switching` |
 
-Each product has 36 feature guides in six categories, four comparisons, two hubs and a switching checklist: 49 pages each, 147 in total. The existing `/crm` authenticated workspace and `/website/app` are unchanged. Existing product overview pages remain available. The Website Builder navigation entry opens its new marketing library instead of the old waitlist.
+Each product has 42 feature guides in seven categories, four comparisons, two hubs and a switching checklist: 56 pages each, 168 in total. The existing `/crm` authenticated workspace and `/website/app` are unchanged. Existing product overview pages remain available. The Website Builder navigation entry opens its new marketing library instead of the old waitlist.
 
 ## Content and evidence
 
@@ -37,7 +37,7 @@ The visual maps and step panels are explicitly workflow illustrations. They are 
 
 ## Architecture
 
-`npm run build` runs Vite, the suite shells, POS pages, then `write-product-guides.mjs`. Marketing HTML is fully rendered without application hydration or a database request. The last writer augments the existing sitemap; it must not discard POS entries.
+`npm run build` runs Vite, the suite shells, POS pages, then `write-product-guides.mjs`. Marketing HTML is fully rendered without application hydration or a database request. The final writer reconstructs the complete sitemap from the public baseline, reviewed POS routes and current product-library routes. It verifies POS output exists and never relies on a mutable sitemap from an earlier writer. A regression check simulates POS-only regeneration and verifies that the final writer restores all libraries without duplicates.
 
 Reviewed route changes use `node scripts/write-product-guides.mjs --sync-routes`. Builds fail if exact routes or editorial requirements are missing. Explicit `/crm/features` and `/crm/compare` rewrites do not intercept authenticated CRM routes. Unknown feature/comparison URLs use a true HTTP 404 and `noindex` instead of the SPA's HTTP-200 fallback.
 
@@ -48,8 +48,12 @@ Contact form context accepts only product/feature/comparison keys from the revie
 ## Verification
 
 - `npm run build` produces all marketing pages, assets and the combined sitemap.
-- `npm run test:product-guides` checks metadata, structured data, all 147 routes, internal library links, sitemap preservation, true-404 configuration, search, URL state, shortlist limits and reset behaviour.
+- `npm run test:product-guides` checks metadata, structured data, all 168 routes, internal library links, sitemap preservation, true-404 configuration, search, URL state, shortlist limits and reset behaviour.
 - `npx vitest run src/components/suite/productGuideContext.test.ts` checks trusted topic resolution and contact handoff boundaries.
 - `node scripts/product-guides/browser.mjs` checks every page at 360px and 1440px, twelve axe scans across representative hubs/details, search/reset, shortlist/reload, actual 404-handler responses and JavaScript-disabled content. It uses a local HTTP server and never sends an enquiry or payment.
 
 The focused workflow runs these checks on relevant pull requests. A repository-wide TypeScript check currently reports pre-existing parser errors in unrelated files; use the production build and focused gates to assess this change without claiming the full repository typecheck passes.
+
+## Expansion: AI, website growth and pre-sales
+
+The second pass adds 18 substantive guides: Bloom AI, campaign drafting, calendar planning, content reuse, CRM forms and email preferences; guided plant discovery, AI page drafting, migration/image review, Site Doctor and domain launch planning; and six pre-sales workflows. Pre-sales copy explicitly retains the documented store-level release and hosted acceptance prerequisites and the full-payment-now limit. No campaign, checkout, DNS, email or operational setting is changed by publishing these guides. Counts in browsing copy, entry links, social cards and tests now derive from the reviewed catalogue.

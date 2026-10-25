@@ -1,6 +1,7 @@
 """Deterministic editorial title cards; these are not product screenshots."""
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
+import json
 root=Path(__file__).resolve().parents[2]
 font='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
 bold='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
@@ -17,6 +18,7 @@ for product, title, subtitle, accent in [
  d.text((62,220),title,font=ImageFont.truetype(bold,58),fill=(24,38,57))
  d.text((65,305),subtitle,font=ImageFont.truetype(font,42),fill=accent)
  d.line((65,430,1135,430),fill=(210,219,230),width=2)
- d.text((65,473),'36 practical guides  /  Comparisons  /  Your demo shortlist',font=ImageFont.truetype(font,23),fill=(82,97,118))
+ guide_count=len(json.loads((root/'content/product-guide-topics.json').read_text())[product]['features'])
+ d.text((65,473),f'{guide_count} practical guides  /  Comparisons  /  Your demo shortlist',font=ImageFont.truetype(font,23),fill=(82,97,118))
  d.text((65,550),'bloomsuite.app',font=ImageFont.truetype(bold,20),fill=(24,38,57))
  image.save(root/f'public/product-guides/{product}-social.png',optimize=True)

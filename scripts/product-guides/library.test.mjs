@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
@@ -12,8 +13,8 @@ const script=read('public/product-guides/guides.js');
 const html=url=>read('dist/'+manifest.find(p=>p.url===url).filename);
 const dom=url=>new JSDOM(html(new URL(url,'https://bloomsuite.app').pathname),{url:new URL(url,'https://bloomsuite.app').href,runScripts:'outside-only'});
 
-test('all 147 pages have unique metadata, complete public routes and sitemap entries',()=>{
- assert.equal(manifest.length,147);
+test('all 168 pages have unique metadata, complete public routes and sitemap entries',()=>{
+ assert.equal(manifest.length,168);
  const canonical=new Set(),titles=new Set(),sitemap=read('dist/sitemap.xml');
  for(const p of manifest){const d=new JSDOM(read('dist/'+p.filename)).window.document;
   const title=d.title,canonicalUrl=d.querySelector('link[rel=canonical]').href;
@@ -51,10 +52,10 @@ test('every guide and related category is linked; internal library links resolve
 for(const p of products){
  test(`${p.id}: search, category, empty state and URL restoration`,()=>{
   const d=dom(p.base);d.window.eval(script);const doc=d.window.document;
-  assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,36);
+  assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,categories[p.id].flatMap(c=>c.features).length);
   const filter=doc.querySelectorAll('[data-filter]')[1];filter.click();assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,6);
   const input=doc.querySelector('#feature-search');input.value='never-match-this-query';input.dispatchEvent(new d.window.Event('input'));assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,0);assert(!doc.querySelector('#no-results').hidden);
-  doc.querySelector('[data-reset]').click();assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,36);assert.equal(doc.activeElement,input);
+  doc.querySelector('[data-reset]').click();assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,categories[p.id].flatMap(c=>c.features).length);assert.equal(doc.activeElement,input);
   const f=categories[p.id][0].features[0];d.window.history.replaceState(null,'',`${p.base}?q=${encodeURIComponent(f.title)}&category=${categories[p.id][0].id}`);d.window.dispatchEvent(new d.window.PopStateEvent('popstate'));
   assert.equal(doc.querySelectorAll('[data-feature]:not([hidden])').length,1);assert(doc.querySelector('#feature-count').textContent.startsWith('1 feature'));
  });
@@ -76,10 +77,24 @@ for(const p of products){
  });
 }
 
-test('all 108 features have a distinct substantial walkthrough and assessment',()=>{
- const examples=new Set();assert.equal(Object.keys(deepDives).length,108);
+test('all 126 features have a distinct substantial walkthrough and assessment',()=>{
+ const examples=new Set();assert.equal(Object.keys(deepDives).length,126);
  for(const p of products)for(const category of categories[p.id])for(const f of category.features){
   const deep=deepDives[p.id+'/'+f.slug];assert(deep);assert(deep.walkthrough.split(/\s+/).length>=45);assert(deep.assessment.split(/\s+/).length>=20);assert(!examples.has(deep.walkthrough));examples.add(deep.walkthrough);
   const document=new JSDOM(html(p.base+'/'+f.slug)).window.document;assert(document.querySelector('#example').textContent.includes(deep.walkthrough));assert(document.querySelector('#example').textContent.includes(deep.assessment));
  }
+});
+
+test('the final sitemap rebuild restores all libraries after POS-only regeneration',()=>{
+ execFileSync(process.execPath,['scripts/write-pos-features.mjs'],{stdio:'pipe'});
+ execFileSync(process.execPath,['scripts/write-product-guides.mjs'],{stdio:'pipe'});
+ const first=read('dist/sitemap.xml');
+ const document=new JSDOM(first,{contentType:'application/xml'}).window.document;
+ const urls=[...document.querySelectorAll('loc')].map(element=>element.textContent);
+ assert.equal(urls.length,new Set(urls).size);
+ for(const page of manifest)assert(urls.includes('https://bloomsuite.app'+page.url),page.url);
+ assert(urls.includes('https://bloomsuite.app/pos/features'));
+ assert(urls.includes('https://bloomsuite.app/pos/compare/clover'));
+ execFileSync(process.execPath,['scripts/write-product-guides.mjs'],{stdio:'pipe'});
+ assert.equal(read('dist/sitemap.xml'),first,'Sitemap assembly must be idempotent');
 });
