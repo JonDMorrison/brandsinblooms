@@ -14,7 +14,7 @@ Each product has 36 feature guides in six categories, four comparisons, two hubs
 
 ## Content and evidence
 
-`content/product-libraries/catalog.mjs` contains owner-focused scenarios, benefit explanations, three-step illustrations, configuration boundaries and demonstration questions. Category evidence paths identify relevant source modules and knowledge-base chapters for future editors. These paths are internal editorial references, not public private-repository links.
+`content/product-libraries/catalog.mjs` contains owner-focused scenarios, benefit explanations, three-step illustrations, configuration boundaries and demonstration questions. `deep-dives.mjs` adds a distinct, substantial walkthrough and assessment for every feature, explicitly presented as a demonstration exercise rather than an observed customer result. Category evidence paths identify relevant source modules and knowledge-base chapters for future editors. These paths are internal editorial references, not public private-repository links.
 
 CRM evidence includes customer/profile/import helpers, campaign studio, recipient/sender checks, segment selection, SMS consent/delivery/tracking tests, automation templates, Customer Intelligence and campaign analytics helpers in this repository.
 

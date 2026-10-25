@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { products, categories } from '../../content/product-libraries/catalog.mjs';
+import { deepDives } from '../../content/product-libraries/deep-dives.mjs';
 import { comparisons } from '../../content/product-libraries/comparisons.mjs';
 const read=p=>readFileSync(p,'utf8');
 const manifest=JSON.parse(read('dist/product-guides-manifest.json'));
@@ -74,3 +75,11 @@ for(const p of products){
   for(const c of comparisons[p.id]){const d=new JSDOM(html(p.compare+'/'+c.id)).window.document;assert(d.querySelector(`a[href="${c.source}"]`));assert.equal(d.querySelectorAll('.task-grid article').length,3);assert(d.querySelector('.review-date'));assert(d.body.textContent.includes('When staying makes sense'));}
  });
 }
+
+test('all 108 features have a distinct substantial walkthrough and assessment',()=>{
+ const examples=new Set();assert.equal(Object.keys(deepDives).length,108);
+ for(const p of products)for(const category of categories[p.id])for(const f of category.features){
+  const deep=deepDives[p.id+'/'+f.slug];assert(deep);assert(deep.walkthrough.split(/\s+/).length>=45);assert(deep.assessment.split(/\s+/).length>=20);assert(!examples.has(deep.walkthrough));examples.add(deep.walkthrough);
+  const document=new JSDOM(html(p.base+'/'+f.slug)).window.document;assert(document.querySelector('#example').textContent.includes(deep.walkthrough));assert(document.querySelector('#example').textContent.includes(deep.assessment));
+ }
+});
