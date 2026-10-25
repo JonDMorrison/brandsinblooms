@@ -107,3 +107,11 @@ test('AI searches match the acronym rather than letters inside email or campaign
   assert.deepEqual(titles,expected);
  }
 });
+
+test('every category link shows the actual guide count and no generated page exposes template code',()=>{
+ for(const p of products)for(const category of categories[p.id]){
+  const document=new JSDOM(html(p.base+'/category/'+category.id)).window.document;
+  assert.equal(document.querySelector('.category-intro a').textContent.trim(),`Browse all ${categories[p.id].flatMap(c=>c.features).length} guides`);
+ }
+ for(const page of manifest)assert(!/\$\{[^}]*\}/.test(read('dist/'+page.filename)),page.url);
+});
