@@ -1,19 +1,102 @@
 {
   "reviewed": "2026-10-24",
   "positioning": "Garden centre POS software for the work between growing and selling.",
-  "flagships": ["integrated-card-payments", "photo-assisted-receiving", "plant-and-shelf-labels", "plant-loss-recording", "trade-account-terms", "special-orders", "plant-guarantee-claims", "end-of-day-close", "offline-cash-selling"],
-  "goals": ["barcode-scanning", "photo-assisted-receiving", "blind-inventory-counts", "charge-accounts", "plant-guarantee-claims", "end-of-day-close"],
+  "flagships": [
+    "integrated-card-payments",
+    "photo-assisted-receiving",
+    "plant-and-shelf-labels",
+    "plant-loss-recording",
+    "trade-account-terms",
+    "special-orders",
+    "plant-guarantee-claims",
+    "end-of-day-close",
+    "offline-cash-selling"
+  ],
+  "goals": [
+    "barcode-scanning",
+    "photo-assisted-receiving",
+    "blind-inventory-counts",
+    "charge-accounts",
+    "plant-guarantee-claims",
+    "end-of-day-close"
+  ],
   "categories": {
-    "checkout": {"name":"Garden centre checkout", "intro":"A garden centre basket can include six plant tags, a pot without a label and a customer who changes their mind at the counter. The register needs to make those ordinary moments understandable. Explore product lookup, baskets and staff handovers before deciding how the checkout should fit your store.", "focus":"Start with three items from your own catalogue: a familiar plant, a difficult-to-identify variant and a product sold in a pack. Ask a seasonal cashier to find each, correct a quantity and explain the total. That exercise reveals more than a demonstration with three perfectly prepared barcodes.", "question":"Can a seasonal cashier identify the right plant, pot size and selling unit without relying on the owner?"},
-    "payments": {"name":"Payments, refunds and balances", "intro":"A payment is only part of the customer's visit, but its outcome needs to be unmistakable. These guides cover cash, configured card integrations, split tenders, gift value and the recovery steps that matter when a response is interrupted. Each payment method has its own setup and acceptance requirements.", "focus":"Use the same basket to test a cash sale, a supported mixed payment and a partial return. Then ask what the cashier sees if the connection stops after a card request. A strong evaluation explains the uncertain state and recovery path rather than treating a retry button as the answer to every interruption.", "question":"How does the cashier distinguish a completed payment, a cancelled attempt and a payment that still needs reconciliation?"},
-    "catalogue": {"name":"Plant catalogues and pricing", "intro":"Plants have more identity than a short retail description. A useful garden catalogue keeps botanical names, familiar search terms, pot sizes, photos and selling choices connected. These guides separate how a cashier finds an item from how a manager maintains accurate product information.", "focus":"Bring a grower's product list and compare it with the labels on the bench. Check what identifies the plant, what identifies its sellable size and what identifies the supplier's pack. Review a price change and a photo change separately; neither should quietly change the product's underlying identity.", "question":"Can staff distinguish the plant identity, sellable variant and supplier reference without maintaining ambiguous duplicate items?"},
-    "inventory": {"name":"Living inventory and stock control", "intro":"Living stock needs a record of what happened, not just a number someone can overwrite. Plants arrive, move between areas, suffer damage and occasionally differ from the recorded count. Explore the distinct workflows for observing stock, documenting known loss and approving a correction.", "focus":"Evaluate a damaged tray and an unexplained count difference as two different jobs. The first has a known cause; the second needs observation and possibly a recount. Add a transfer between two locations and ask which quantity is sellable, which is damaged and which is still on the truck.", "question":"Can the owner trace a stock change to a receipt, loss reason, count decision or transfer rather than reconstructing it from memory?"},
-    "purchasing": {"name":"Garden centre purchasing and receiving", "intro":"An order describes what you expect. A receipt records what actually arrived. BloomSuite's purchasing guides follow that distinction through supplier records, pack conversions, approval, partial deliveries and freight. Photo assistance can prepare a draft; your receiving team still checks the plants and confirms the result.", "focus":"Bring an imperfect packing slip: a short line, a damaged tray and one substitute size. Test the workflow with the actual supplier pack ratio. The important result is a clear record of what was ordered, accepted and left outstanding, with enough context to speak to the grower afterwards.", "question":"Can we receive a partial delivery and explain the exceptions without marking undelivered or damaged plants as ready to sell?"},
-    "customers": {"name":"Customers, contractors and trade accounts", "intro":"A home gardener collecting a receipt and a crew leader charging a company account need different controls. These guides cover customer identity, approved buyers, account terms, invoice references and receivables. Knowing a customer's name is useful; establishing who can charge an account is a separate decision.", "focus":"Try the purchase as an approved buyer, an expired buyer and someone who only knows the company's name. Check the purchase-order reference, available credit decision and eventual payment allocation. For ordinary walk-in shoppers, make sure the sale can remain anonymous when a customer profile is unnecessary.", "question":"Can we serve contractors efficiently while checking the buyer, required job information and account eligibility?"},
-    "orders": {"name":"Special orders, deposits and fulfilment", "intro":"A promise to a customer has several parts: the requested product, agreed terms, money collected and goods handed over. These guides keep special orders, deposits, rain checks and staged fulfilment distinct. Presales and fundraisers add their own allocation and reconciliation work.", "focus":"Test an order where two items arrive now and one remains outstanding. Ask how much has been paid, which goods were collected and what happens if the final item is unavailable. A rain check should be evaluated separately because retaining a request is not the same as reserving stock.", "question":"Can every staff member see what was promised, paid, fulfilled and still waiting without relying on a handwritten note?"},
-    "team": {"name":"Staff, registers and store setup", "intro":"A seasonal team needs clear routines, while owners need deliberate authority over sensitive actions. Explore staff sign-in, store-scoped roles, approvals, cash movements and register assignments. Responsive screens help people work around the store; equipment and real staff rehearsal still belong in the setup plan.", "focus":"Let the actual roles use the demonstration. A cashier should complete an ordinary job; a supervisor should handle the agreed exception; the owner should be able to review why it happened. Include a shift handover and a second store rather than testing everything under one owner account.", "question":"Does each person have an understandable next step and only the access their role needs?"},
-    "reporting": {"name":"Sales reporting and daily close", "intro":"A report is most useful when you can explain the records behind it. These guides distinguish sales, tenders, refunds, cash counts and unresolved exceptions. Daily close establishes the session's recorded outcome; accounting preparation and bank settlement answer different questions.", "focus":"Start with a day containing cash, a return from an earlier sale, a paid-out movement and an account payment. Ask which record affects the drawer, which affects sales and which settles an existing balance. Check how missing data is presented before treating a neat dashboard as a complete financial picture.", "question":"Can we follow a number back to its source and tell the difference between zero activity and unavailable information?"},
-    "connected": {"name":"Plant care, receipts and connected tools", "intro":"Useful service continues after checkout: a readable receipt, available care guidance and a clear choice about further communication. BloomSuite also has a website and CRM family. These guides explain the actual handoffs and their requirements without assuming every product connection is already configured.", "focus":"Follow a single identified product and customer through the proposed connection. Ask which system owns each record, what confirms delivery and what happens when a link is missing. Keep a transactional receipt request separate from marketing permission, and keep reviewed plant care separate from unverified AI advice.", "question":"Can we show the exact customer or product handoff, its confirmed outcome and the permissions needed?"},
-    "resilience": {"name":"Labels, guarantees, loyalty and resilience", "intro":"The details often determine whether a POS fits a real garden centre. Labels need to scan on the bench. Guarantees need the original promise. Rewards need a verified customer and balance. Offline workflows need a prepared device and an honest recovery plan. Explore the conditions behind each capability.", "focus":"Make the unusual situations part of the evaluation: a failed plant, a partly redeemed reward, a printer that stops responding or an internet interruption. Ask your own staff to explain what is saved and what still needs confirmation. A successful software demonstration is the beginning of hardware and store acceptance.", "question":"What happens when a normal day becomes an exception, and which evidence tells us the recovery actually worked?"}
+    "checkout": {
+      "name": "Garden centre checkout",
+      "intro": "A garden centre basket can include six plant tags, a pot without a label and a customer who changes their mind at the counter. The register needs to make those ordinary moments understandable. Explore product lookup, baskets and staff handovers before deciding how the checkout should fit your store.",
+      "focus": "Start with three items from your own catalogue: a familiar plant, a difficult-to-identify variant and a product sold in a pack. Ask a seasonal cashier to find each, correct a quantity and explain the total. That exercise reveals more than a demonstration with three perfectly prepared barcodes.",
+      "question": "Can a seasonal cashier identify the right plant, pot size and selling unit without relying on the owner?",
+      "seoTitle": "Garden Centre Checkout Software"
+    },
+    "payments": {
+      "name": "Payments, refunds and balances",
+      "intro": "A payment is only part of the customer's visit, but its outcome needs to be unmistakable. These guides cover cash, configured card integrations, split tenders, gift value and the recovery steps that matter when a response is interrupted. Each payment method has its own setup and acceptance requirements.",
+      "focus": "Use the same basket to test a cash sale, a supported mixed payment and a partial return. Then ask what the cashier sees if the connection stops after a card request. A strong evaluation explains the uncertain state and recovery path rather than treating a retry button as the answer to every interruption.",
+      "question": "How does the cashier distinguish a completed payment, a cancelled attempt and a payment that still needs reconciliation?",
+      "seoTitle": "POS Payments and Refunds for Garden Centres"
+    },
+    "catalogue": {
+      "name": "Plant catalogues and pricing",
+      "intro": "Plants have more identity than a short retail description. A useful garden catalogue keeps botanical names, familiar search terms, pot sizes, photos and selling choices connected. These guides separate how a cashier finds an item from how a manager maintains accurate product information.",
+      "focus": "Bring a grower's product list and compare it with the labels on the bench. Check what identifies the plant, what identifies its sellable size and what identifies the supplier's pack. Review a price change and a photo change separately; neither should quietly change the product's underlying identity.",
+      "question": "Can staff distinguish the plant identity, sellable variant and supplier reference without maintaining ambiguous duplicate items?",
+      "seoTitle": "Plant Catalogue and Pricing Software"
+    },
+    "inventory": {
+      "name": "Living inventory and stock control",
+      "intro": "Living stock needs a record of what happened, not just a number someone can overwrite. Plants arrive, move between areas, suffer damage and occasionally differ from the recorded count. Explore the distinct workflows for observing stock, documenting known loss and approving a correction.",
+      "focus": "Evaluate a damaged tray and an unexplained count difference as two different jobs. The first has a known cause; the second needs observation and possibly a recount. Add a transfer between two locations and ask which quantity is sellable, which is damaged and which is still on the truck.",
+      "question": "Can the owner trace a stock change to a receipt, loss reason, count decision or transfer rather than reconstructing it from memory?",
+      "seoTitle": "Garden Centre Inventory Software"
+    },
+    "purchasing": {
+      "name": "Garden centre purchasing and receiving",
+      "intro": "An order describes what you expect. A receipt records what actually arrived. BloomSuite's purchasing guides follow that distinction through supplier records, pack conversions, approval, partial deliveries and freight. Photo assistance can prepare a draft; your receiving team still checks the plants and confirms the result.",
+      "focus": "Bring an imperfect packing slip: a short line, a damaged tray and one substitute size. Test the workflow with the actual supplier pack ratio. The important result is a clear record of what was ordered, accepted and left outstanding, with enough context to speak to the grower afterwards.",
+      "question": "Can we receive a partial delivery and explain the exceptions without marking undelivered or damaged plants as ready to sell?",
+      "seoTitle": "Garden Centre Purchasing and Receiving"
+    },
+    "customers": {
+      "name": "Customers, contractors and trade accounts",
+      "intro": "A home gardener collecting a receipt and a crew leader charging a company account need different controls. These guides cover customer identity, approved buyers, account terms, invoice references and receivables. Knowing a customer's name is useful; establishing who can charge an account is a separate decision.",
+      "focus": "Try the purchase as an approved buyer, an expired buyer and someone who only knows the company's name. Check the purchase-order reference, available credit decision and eventual payment allocation. For ordinary walk-in shoppers, make sure the sale can remain anonymous when a customer profile is unnecessary.",
+      "question": "Can we serve contractors efficiently while checking the buyer, required job information and account eligibility?",
+      "seoTitle": "Contractor Accounts and Customer Management"
+    },
+    "orders": {
+      "name": "Special orders, deposits and fulfilment",
+      "intro": "A promise to a customer has several parts: the requested product, agreed terms, money collected and goods handed over. These guides keep special orders, deposits, rain checks and staged fulfilment distinct. Presales and fundraisers add their own allocation and reconciliation work.",
+      "focus": "Test an order where two items arrive now and one remains outstanding. Ask how much has been paid, which goods were collected and what happens if the final item is unavailable. A rain check should be evaluated separately because retaining a request is not the same as reserving stock.",
+      "question": "Can every staff member see what was promised, paid, fulfilled and still waiting without relying on a handwritten note?",
+      "seoTitle": "Garden Centre Orders and Deposits"
+    },
+    "team": {
+      "name": "Staff, registers and store setup",
+      "intro": "A seasonal team needs clear routines, while owners need deliberate authority over sensitive actions. Explore staff sign-in, store-scoped roles, approvals, cash movements and register assignments. Responsive screens help people work around the store; equipment and real staff rehearsal still belong in the setup plan.",
+      "focus": "Let the actual roles use the demonstration. A cashier should complete an ordinary job; a supervisor should handle the agreed exception; the owner should be able to review why it happened. Include a shift handover and a second store rather than testing everything under one owner account.",
+      "question": "Does each person have an understandable next step and only the access their role needs?",
+      "seoTitle": "Garden Centre Staff and Register Management"
+    },
+    "reporting": {
+      "name": "Sales reporting and daily close",
+      "intro": "A report is most useful when you can explain the records behind it. These guides distinguish sales, tenders, refunds, cash counts and unresolved exceptions. Daily close establishes the session's recorded outcome; accounting preparation and bank settlement answer different questions.",
+      "focus": "Start with a day containing cash, a return from an earlier sale, a paid-out movement and an account payment. Ask which record affects the drawer, which affects sales and which settles an existing balance. Check how missing data is presented before treating a neat dashboard as a complete financial picture.",
+      "question": "Can we follow a number back to its source and tell the difference between zero activity and unavailable information?",
+      "seoTitle": "Garden Centre POS Reports and Daily Close"
+    },
+    "connected": {
+      "name": "Plant care, receipts and connected tools",
+      "intro": "Useful service continues after checkout: a readable receipt, available care guidance and a clear choice about further communication. BloomSuite also has a website and CRM family. These guides explain the actual handoffs and their requirements without assuming every product connection is already configured.",
+      "focus": "Follow a single identified product and customer through the proposed connection. Ask which system owns each record, what confirms delivery and what happens when a link is missing. Keep a transactional receipt request separate from marketing permission, and keep reviewed plant care separate from unverified AI advice.",
+      "question": "Can we show the exact customer or product handoff, its confirmed outcome and the permissions needed?",
+      "seoTitle": "Plant Care, Receipts and POS Connections"
+    },
+    "resilience": {
+      "name": "Labels, guarantees, loyalty and resilience",
+      "intro": "The details often determine whether a POS fits a real garden centre. Labels need to scan on the bench. Guarantees need the original promise. Rewards need a verified customer and balance. Offline workflows need a prepared device and an honest recovery plan. Explore the conditions behind each capability.",
+      "focus": "Make the unusual situations part of the evaluation: a failed plant, a partly redeemed reward, a printer that stops responding or an internet interruption. Ask your own staff to explain what is saved and what still needs confirmation. A successful software demonstration is the beginning of hardware and store acceptance.",
+      "question": "What happens when a normal day becomes an exception, and which evidence tells us the recovery actually worked?",
+      "seoTitle": "Garden Centre POS Labels, Rewards and Recovery"
+    }
   }
 }
