@@ -590,7 +590,7 @@
     },
     {
       "slug": "recorded-stock-visibility",
-      "title": "Recorded stock visibility",
+      "title": "Stock lookup",
       "benefit": "Give staff a stock figure they can explain.",
       "problem": "A number is useful only when staff know what it represents.",
       "workflow": "Review recorded store stock and its available context while serving the customer.",
@@ -832,7 +832,7 @@
     },
     {
       "slug": "low-stock-reorder-starting-points",
-      "title": "Low-stock reorder starting points",
+      "title": "Low-stock reordering",
       "benefit": "Turn a stock alert into the next useful step.",
       "problem": "An alert is less helpful when it leaves the owner to start from a blank screen.",
       "workflow": "Open the linked New order workflow and review saved supplier and receipt-based suggestions.",
@@ -845,7 +845,7 @@
     },
     {
       "slug": "previous-order-defaults",
-      "title": "Previous-order defaults",
+      "title": "Repeat supplier orders",
       "benefit": "Make repeat buying less repetitive.",
       "problem": "A buyer should not have to reconstruct the last sensible order every time.",
       "workflow": "Review historical supplier, pack and cost defaults before preparing the next order.",
@@ -1432,7 +1432,7 @@
     },
     {
       "slug": "refund-session-reporting",
-      "title": "Refund-session reporting",
+      "title": "Refunds at daily close",
       "benefit": "Keep refunds in the session that handled them.",
       "problem": "A return today for an older sale should not quietly rewrite today's cash story.",
       "workflow": "Retain the original sale linkage while attributing the refund to its actual session.",
@@ -1472,7 +1472,7 @@
     },
     {
       "slug": "tax-reporting-context",
-      "title": "Tax reporting context",
+      "title": "Tax reporting",
       "benefit": "Keep collected tax tied to its records.",
       "problem": "Owners need to understand which transactions produced a tax amount.",
       "workflow": "Review the supported tax breakdowns and retained sale tax context.",
@@ -1518,7 +1518,7 @@
     },
     {
       "slug": "quickbooks-close-preparation",
-      "title": "QuickBooks close preparation",
+      "title": "QuickBooks accounting preparation",
       "benefit": "Make the accounting handoff easier to review.",
       "problem": "Sales, deposits, gift value and account settlements should not all be treated as the same revenue.",
       "workflow": "Review the daily accounting source and supported journal preparation before any posting.",
@@ -1687,7 +1687,7 @@
     },
     {
       "slug": "visible-synchronization-status",
-      "title": "Visible synchronization status",
+      "title": "Saved work and sync status",
       "benefit": "See which saved work still needs attention.",
       "problem": "A completed local action is not the same as a confirmed server update.",
       "workflow": "Review pending and failed synchronization work and follow the retained recovery workflow.",
@@ -1700,7 +1700,7 @@
     },
     {
       "slug": "local-backup-hub-readiness",
-      "title": "Local backup hub readiness",
+      "title": "Offline backup and recovery",
       "benefit": "Plan for more than an internet outage.",
       "problem": "Saved data on one device can still be lost if that device fails.",
       "workflow": "Configure the supported store-network second-copy setup and verify acknowledgements before relying on it.",
